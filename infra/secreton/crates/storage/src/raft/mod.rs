@@ -244,6 +244,8 @@ pub struct RaftCluster {
     replication_config: Arc<tokio::sync::RwLock<ReplicationConfig>>,
     /// Metrics collector for tracking performance
     metrics_collector: Arc<tokio::sync::RwLock<MetricsCollector>>,
+    /// Shutdown notification signal
+    shutdown_notify: Arc<tokio::sync::Notify>,
 }
 
 /// Monitor for tracking leader election performance
@@ -360,6 +362,7 @@ impl RaftCluster {
 
         let replication_config = Arc::new(tokio::sync::RwLock::new(ReplicationConfig::default()));
         let metrics_collector = Arc::new(tokio::sync::RwLock::new(MetricsCollector::new()));
+        let shutdown_notify = Arc::new(tokio::sync::Notify::new());
 
         let cluster = Self {
             config: config.clone(),
@@ -369,6 +372,7 @@ impl RaftCluster {
             election_monitor: election_monitor.clone(),
             replication_config: replication_config.clone(),
             metrics_collector: metrics_collector.clone(),
+            shutdown_notify,
         };
 
         // Bootstrap the Raft cluster with initial membership
@@ -462,14 +466,24 @@ impl RaftCluster {
         let storage = Arc::clone(&self.storage);
         let replication_config = Arc::clone(&self.replication_config);
         let node_id = self.config.node_id;
+        let shutdown = Arc::clone(&self.shutdown_notify);
 
         tokio::spawn(async move {
             loop {
+                // Wait for interval or shutdown
+                tokio::select! {
+                    _ = shutdown.notified() => {
+                        tracing::info!("Stopping replication task");
+                        break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_secs(5)) => {}
+                }
+
                 // Check if replication is enabled
                 let config = replication_config.read().await;
                 if !config.enabled || config.targets.is_empty() {
                     drop(config);
-                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    // Sleep is handled at start of loop
                     continue;
                 }
 
@@ -481,7 +495,6 @@ impl RaftCluster {
                 // Only leader performs replication
                 let metrics = raft.metrics().borrow().clone();
                 if metrics.current_leader != Some(node_id) {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
                     continue;
                 }
 
@@ -533,9 +546,6 @@ impl RaftCluster {
                         }
                     }
                 }
-
-                // Sleep before next replication cycle
-                tokio::time::sleep(Duration::from_secs(5)).await;
             }
         });
     }
@@ -544,12 +554,19 @@ impl RaftCluster {
     fn start_node_health_monitoring(&self) {
         let raft = Arc::clone(&self.raft);
         let _node_id = self.config.node_id;
+        let shutdown = Arc::clone(&self.shutdown_notify);
 
         tokio::spawn(async move {
             let mut last_leader: Option<NodeId> = None;
 
             loop {
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                tokio::select! {
+                    _ = shutdown.notified() => {
+                        tracing::info!("Stopping node health monitoring");
+                        break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+                }
 
                 let metrics = raft.metrics().borrow().clone();
                 let current_leader = metrics.current_leader;
@@ -611,81 +628,98 @@ impl RaftCluster {
         let raft = Arc::clone(&self.raft);
         let monitor = Arc::clone(&self.election_monitor);
         let _node_id = self.config.node_id;
+        let shutdown = Arc::clone(&self.shutdown_notify);
 
         tokio::spawn(async move {
             let mut last_term = 0u64;
             let mut election_start: Option<std::time::Instant> = None;
 
             loop {
-                tokio::time::sleep(Duration::from_millis(100)).await;
+                tokio::select! {
+                    _ = shutdown.notified() => {
+                        tracing::info!("Stopping election monitoring");
+                        break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_millis(100)) => {}
+                }
 
                 let metrics = raft.metrics().borrow().clone();
                 let current_term = metrics.current_term;
 
+                // Check for leader election completion
+                if let Some(leader_id) = metrics.current_leader {
+                    if let Some(start_time) = election_start {
+                        // Election finished
+                        let duration = start_time.elapsed();
+                        let duration_ms = duration.as_millis() as u64;
+
+                        tracing::info!(
+                            "Leader elected: node {} in term {} (took {}ms)",
+                            leader_id,
+                            current_term,
+                            duration_ms
+                        );
+
+                        // Update monitor
+                        let mut mon = monitor.write().await;
+                        mon.last_election_time = Some(std::time::Instant::now());
+                        mon.last_election_duration_ms = Some(duration_ms);
+                        mon.total_elections += 1;
+
+                        // Update running average
+                        if mon.total_elections == 1 {
+                            mon.avg_election_time_ms = duration_ms as f64;
+                        } else {
+                            mon.avg_election_time_ms = (mon.avg_election_time_ms
+                                * (mon.total_elections - 1) as f64
+                                + duration_ms as f64)
+                                / mon.total_elections as f64;
+                        }
+
+                        // Record metrics
+                        #[cfg(feature = "metrics")]
+                        {
+                            gauge!("secreton_raft_last_election_duration_ms")
+                                .set(duration_ms as f64);
+                            gauge!("secreton_raft_avg_election_duration_ms")
+                                .set(mon.avg_election_time_ms);
+                            counter!("secreton_raft_elections_total").increment(1);
+
+                            // Alert if election took too long (> 5 seconds)
+                            if duration_ms > 5000 {
+                                counter!("secreton_raft_slow_elections_total").increment(1);
+                                tracing::warn!(
+                                    "Slow leader election detected: {}ms (threshold: 5000ms)",
+                                    duration_ms
+                                );
+                            }
+                        }
+
+                        // Reset for next election
+                        election_start = None;
+                    }
+                }
+
                 // Detect term change (potential election)
                 if current_term > last_term {
-                    // Reset election timer for the new term
-                    election_start = Some(std::time::Instant::now());
-                    tracing::info!(
-                        "Leader election started: term {} -> {}",
-                        last_term,
-                        current_term
-                    );
-
-                    // Check if leader is elected
-                    if let Some(leader_id) = metrics.current_leader {
-                        if let Some(start_time) = election_start {
-                            let duration = start_time.elapsed();
-                            let duration_ms = duration.as_millis() as u64;
-
-                            tracing::info!(
-                                "Leader elected: node {} in term {} (took {}ms)",
-                                leader_id,
-                                current_term,
-                                duration_ms
-                            );
-
-                            // Update monitor
-                            let mut mon = monitor.write().await;
-                            mon.last_election_time = Some(std::time::Instant::now());
-                            mon.last_election_duration_ms = Some(duration_ms);
-                            mon.total_elections += 1;
-
-                            // Update running average
-                            if mon.total_elections == 1 {
-                                mon.avg_election_time_ms = duration_ms as f64;
-                            } else {
-                                mon.avg_election_time_ms = (mon.avg_election_time_ms
-                                    * (mon.total_elections - 1) as f64
-                                    + duration_ms as f64)
-                                    / mon.total_elections as f64;
-                            }
-
-                            // Record metrics
-                            #[cfg(feature = "metrics")]
-                            {
-                                gauge!("secreton_raft_last_election_duration_ms")
-                                    .set(duration_ms as f64);
-                                gauge!("secreton_raft_avg_election_duration_ms")
-                                    .set(mon.avg_election_time_ms);
-                                counter!("secreton_raft_elections_total").increment(1);
-
-                                // Alert if election took too long (> 5 seconds)
-                                if duration_ms > 5000 {
-                                    counter!("secreton_raft_slow_elections_total").increment(1);
-                                    tracing::warn!(
-                                        "Slow leader election detected: {}ms (threshold: 5000ms)",
-                                        duration_ms
-                                    );
-                                }
-                            }
-
-                            // Reset for next election
-                            election_start = None;
-                        }
+                    if metrics.current_leader.is_none() {
+                        // Election started
+                        election_start = Some(std::time::Instant::now());
+                        tracing::info!(
+                            "Leader election started: term {} -> {}",
+                            last_term,
+                            current_term
+                        );
+                    } else {
+                        // Leader already exists in new term (e.g. we joined as follower)
+                        election_start = None;
                     }
-
                     last_term = current_term;
+                } else if metrics.current_leader.is_none() && election_start.is_none() {
+                    // No leader and no timer? Start one.
+                    // This handles cases where we lose a leader in the same term
+                    // or if we restart without a leader
+                    election_start = Some(std::time::Instant::now());
                 }
             }
         });
@@ -697,12 +731,19 @@ impl RaftCluster {
         let raft = Arc::clone(&self.raft);
         let config = self.snapshot_config.clone();
         let _node_id = self.config.node_id;
+        let shutdown = Arc::clone(&self.shutdown_notify);
 
         tokio::spawn(async move {
             let interval = Duration::from_secs(config.interval_secs);
 
             loop {
-                tokio::time::sleep(interval).await;
+                tokio::select! {
+                    _ = shutdown.notified() => {
+                        tracing::info!("Stopping snapshot automation");
+                        break;
+                    }
+                    _ = tokio::time::sleep(interval) => {}
+                }
 
                 // All nodes create snapshots for log compaction
                 let metrics = raft.metrics().borrow().clone();
@@ -1176,6 +1217,9 @@ impl RaftCluster {
     }
 
     pub async fn shutdown(&self) -> StorageResult<()> {
+        // Signal background tasks to stop
+        self.shutdown_notify.notify_waiters();
+
         self.raft
             .shutdown()
             .await

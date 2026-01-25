@@ -105,6 +105,11 @@ impl SecretonStateMachine {
                 let path = entry.path.clone();
                 let id = entry.id;
 
+                // If path exists, remove old ID mapping
+                if let Some(old_entry) = data.get(&path) {
+                    id_index.remove(&old_entry.id);
+                }
+
                 data.insert(path.clone(), entry);
                 id_index.insert(id, path);
 
@@ -113,8 +118,14 @@ impl SecretonStateMachine {
 
             StateMachineCommand::Update(entry) => {
                 let mut data = self.data.write().await;
+                let mut id_index = self.id_index.write().await;
 
-                if data.contains_key(&entry.path) {
+                if let Some(old_entry) = data.get(&entry.path) {
+                    // If ID changed, update index
+                    if old_entry.id != entry.id {
+                        id_index.remove(&old_entry.id);
+                        id_index.insert(entry.id, entry.path.clone());
+                    }
                     data.insert(entry.path.clone(), entry.clone());
                     StateMachineResponse::Updated(entry.id)
                 } else {
