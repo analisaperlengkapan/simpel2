@@ -138,11 +138,38 @@ pub async fn inject_env(
     let mut env_vars = HashMap::new();
     let mut secret_paths = Vec::new();
 
+    // Build policy context for authorization
+    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let policy_context = serde_json::json!({
+        "user_id": ctx.user_id,
+        "user_email": ctx.user_email,
+        "user_roles": ctx.user_roles,
+        "client_ip": ctx.client_ip.clone().unwrap_or_else(|| "unknown".to_string()),
+        "request_id": ctx.request_id,
+        "mfa_passed": ctx
+            .jwt_claims
+            .as_ref()
+            .and_then(|c| c.metadata.get("mfa_passed"))
+            .map(|v| v == "true")
+            .unwrap_or(false),
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+    });
+
     for secret_config in &request.secrets {
         secret_paths.push(secret_config.path.clone());
 
+        // Authorization check
+        {
+            let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
+                message: "Failed to acquire policy lock".to_string(),
+            })?;
+
+            if !policy_set.evaluate(user_id, &secret_config.path, "read", Some(&policy_context)) {
+                return Err(ApiError::Forbidden);
+            }
+        }
+
         // Fetch secret from Secreton
-        let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
         let secret_data = fetch_secret(&state, &secret_config.path, user_id).await?;
 
         // Process based on configuration
@@ -154,6 +181,10 @@ pub async fn inject_env(
                     .clone()
                     .unwrap_or_else(|| format!("{}{}", prefix, key.to_uppercase()));
                 env_vars.insert(env_name, value.clone());
+            } else {
+                return Err(ApiError::BadRequest {
+                    message: format!("Key '{}' not found in secret '{}'", key, secret_config.path),
+                });
             }
         } else {
             // All keys requested
