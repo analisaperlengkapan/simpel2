@@ -127,9 +127,9 @@ pub async fn inject_env(
 
     // Calculate expiration
     let ttl = request.ttl.unwrap_or(3600);
-    if ttl > 86400 {
+    if ttl < 1 || ttl > 86400 {
         return Err(ApiError::BadRequest {
-            message: "TTL cannot exceed 86400 seconds (24 hours)".to_string(),
+            message: "TTL must be between 1 and 86400 seconds".to_string(),
         });
     }
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(ttl as i64);
@@ -255,7 +255,10 @@ pub async fn cleanup_session(
 
     // Authorization check: Allow if owner OR if has delete permission
     let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
-    if session.created_by != user_id {
+    // Prevent "anonymous" users from claiming ownership
+    let is_owner = session.created_by == user_id && user_id != "anonymous";
+
+    if !is_owner {
         let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
             message: "Failed to acquire policy lock".to_string(),
         })?;
