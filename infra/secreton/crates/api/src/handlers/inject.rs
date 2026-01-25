@@ -238,9 +238,21 @@ pub async fn inject_env(
 /// DELETE /v1/inject/cleanup/{session_id}
 pub async fn cleanup_session(
     State(state): State<Arc<crate::services::ServiceContainer>>,
+    Extension(ctx): Extension<RequestContext>,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     info!("Cleaning up injection session {}", session_id);
+
+    // Authorization check
+    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    {
+        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
+            message: "Failed to acquire policy lock".to_string(),
+        })?;
+        if !policy_set.evaluate(user_id, "sys/inject/sessions", "delete", None) {
+            return Err(ApiError::Forbidden);
+        }
+    }
 
     // Retrieve session
     let session = get_session(&state, &session_id).await?;
@@ -267,7 +279,19 @@ pub async fn cleanup_session(
 /// GET /v1/inject/sessions
 pub async fn list_sessions(
     State(state): State<Arc<crate::services::ServiceContainer>>,
+    Extension(ctx): Extension<RequestContext>,
 ) -> Result<Json<ApiResponse<Vec<InjectionSession>>>, ApiError> {
+    // Authorization check
+    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    {
+        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
+            message: "Failed to acquire policy lock".to_string(),
+        })?;
+        if !policy_set.evaluate(user_id, "sys/inject/sessions", "list", None) {
+            return Err(ApiError::Forbidden);
+        }
+    }
+
     let sessions = list_active_sessions(&state).await?;
 
     Ok(Json(ApiResponse::success(sessions)))
@@ -278,8 +302,20 @@ pub async fn list_sessions(
 /// GET /v1/inject/sessions/{session_id}
 pub async fn get_session_details(
     State(state): State<Arc<crate::services::ServiceContainer>>,
+    Extension(ctx): Extension<RequestContext>,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<InjectionSession>>, ApiError> {
+    // Authorization check
+    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    {
+        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
+            message: "Failed to acquire policy lock".to_string(),
+        })?;
+        if !policy_set.evaluate(user_id, "sys/inject/sessions", "read", None) {
+            return Err(ApiError::Forbidden);
+        }
+    }
+
     let session = get_session(&state, &session_id).await?;
 
     Ok(Json(ApiResponse::success(session)))
@@ -337,7 +373,7 @@ async fn store_session(
     Ok(())
 }
 
-async fn get_session(
+async fn get_session_internal(
     state: &Arc<crate::services::ServiceContainer>,
     session_id: &str,
 ) -> Result<InjectionSession, ApiError> {
@@ -362,12 +398,30 @@ async fn get_session(
     Ok(session)
 }
 
+async fn get_session(
+    state: &Arc<crate::services::ServiceContainer>,
+    session_id: &str,
+) -> Result<InjectionSession, ApiError> {
+    let mut session = get_session_internal(state, session_id).await?;
+
+    // Check expiration (lazy cleanup)
+    if session.active && chrono::Utc::now() > session.expires_at {
+        info!("Session {} expired, lazily deactivating", session_id);
+        if let Err(e) = deactivate_session(state, session_id).await {
+            error!("Failed to lazily deactivate session {}: {}", session_id, e);
+        }
+        session.active = false;
+    }
+
+    Ok(session)
+}
+
 async fn deactivate_session(
     state: &Arc<crate::services::ServiceContainer>,
     session_id: &str,
 ) -> Result<(), ApiError> {
     info!("Deactivating session: {}", session_id);
-    let mut session = get_session(state, session_id).await?;
+    let mut session = get_session_internal(state, session_id).await?;
     session.active = false;
     store_session(state, &session).await
 }
@@ -382,10 +436,17 @@ async fn list_active_sessions(
 
     let entries = state.storage.list(&params).await.map_err(ApiError::Storage)?;
     let mut sessions = Vec::new();
+    let now = chrono::Utc::now();
 
     for entry in entries {
         if let Ok(session) = serde_json::from_slice::<InjectionSession>(&entry.encrypted_data) {
+            // Check if active and not expired
             if session.active {
+                if now > session.expires_at {
+                    // Lazy cleanup for listed items
+                    let _ = deactivate_session(state, &session.id).await;
+                    continue;
+                }
                 sessions.push(session);
             }
         }
