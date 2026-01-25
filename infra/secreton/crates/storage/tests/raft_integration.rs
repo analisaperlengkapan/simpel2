@@ -49,18 +49,18 @@ async fn test_three_node_cluster_startup() -> StorageResult<()> {
     // In a real scenario, these would be separate processes
 
     let peers_1 = HashMap::from([
-        (2, "127.0.0.1:8002".to_string()),
-        (3, "127.0.0.1:8003".to_string()),
+        (2, "127.0.0.1:8202".to_string()),
+        (3, "127.0.0.1:8203".to_string()),
     ]);
 
     let peers_2 = HashMap::from([
-        (1, "127.0.0.1:8001".to_string()),
-        (3, "127.0.0.1:8003".to_string()),
+        (1, "127.0.0.1:8201".to_string()),
+        (3, "127.0.0.1:8203".to_string()),
     ]);
 
     let peers_3 = HashMap::from([
-        (1, "127.0.0.1:8001".to_string()),
-        (2, "127.0.0.1:8002".to_string()),
+        (1, "127.0.0.1:8201".to_string()),
+        (2, "127.0.0.1:8202".to_string()),
     ]);
 
     // Create three nodes
