@@ -14,6 +14,7 @@ use uuid::Uuid;
 fn create_test_config(node_id: u64, peers: HashMap<u64, String>) -> RaftClusterConfig {
     RaftClusterConfig {
         node_id,
+        bind_address: format!("127.0.0.1:{}", 8200 + node_id),
         peers,
         election_timeout_ms: 500, // Shorter for testing
         heartbeat_interval_ms: 150,
@@ -101,6 +102,7 @@ async fn test_leader_election() -> StorageResult<()> {
     // Create a single-node cluster (it should become leader immediately)
     let config = RaftClusterConfig {
         node_id: 1,
+        bind_address: "127.0.0.1:8201".to_string(),
         peers: HashMap::new(),
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,
@@ -134,6 +136,7 @@ async fn test_basic_consensus() -> StorageResult<()> {
     // For now, test single-node write/read
     let config = RaftClusterConfig {
         node_id: 1,
+        bind_address: "127.0.0.1:8201".to_string(),
         peers: HashMap::new(),
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,
@@ -172,6 +175,7 @@ async fn test_log_replication() -> StorageResult<()> {
     // Placeholder: test that single node can store and retrieve
     let config = RaftClusterConfig {
         node_id: 1,
+        bind_address: "127.0.0.1:8201".to_string(),
         peers: HashMap::new(),
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,
@@ -205,6 +209,6 @@ fn test_cluster_config_validation() {
     // Test config validation
     let config = RaftClusterConfig::default();
     assert_eq!(config.node_id, 1);
-    assert_eq!(config.election_timeout_ms, 1000);
-    assert_eq!(config.heartbeat_interval_ms, 300);
+    assert_eq!(config.election_timeout_ms, 2500);
+    assert_eq!(config.heartbeat_interval_ms, 750);
 }

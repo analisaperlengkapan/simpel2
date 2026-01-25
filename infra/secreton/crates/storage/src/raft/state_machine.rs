@@ -26,6 +26,9 @@ pub enum StateMachineCommand {
 
     /// Delete a engine entry by path
     DeleteByPath(String),
+
+    /// Delete expired entries
+    DeleteExpired(chrono::DateTime<chrono::Utc>),
 }
 
 /// Response from state machine operations
@@ -42,6 +45,9 @@ pub enum StateMachineResponse {
 
     /// Entry was deleted
     Deleted(bool),
+
+    /// Expired entries were deleted
+    DeletedExpired(u64),
 
     /// Error occurred
     Error(String),
@@ -138,6 +144,33 @@ impl SecretonStateMachine {
                 } else {
                     StateMachineResponse::Deleted(false)
                 }
+            }
+
+            StateMachineCommand::DeleteExpired(timestamp) => {
+                let mut data = self.data.write().await;
+                let mut id_index = self.id_index.write().await;
+                let mut count = 0;
+
+                let keys_to_remove: Vec<String> = data
+                    .iter()
+                    .filter(|(_, entry)| {
+                        if let Some(expires_at) = entry.expires_at {
+                            expires_at < timestamp
+                        } else {
+                            false
+                        }
+                    })
+                    .map(|(k, _)| k.clone())
+                    .collect();
+
+                for key in keys_to_remove {
+                    if let Some(entry) = data.remove(&key) {
+                        id_index.remove(&entry.id);
+                        count += 1;
+                    }
+                }
+
+                StateMachineResponse::DeletedExpired(count)
             }
         }
     }
