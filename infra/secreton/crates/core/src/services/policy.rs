@@ -797,12 +797,15 @@ async fn evaluate_wasm_policy(
     _action: &str,
     _context: Option<&serde_json::Value>,
 ) -> bool {
+    use std::sync::OnceLock;
     use wasmtime::{Engine, Instance, Module, Store};
 
-    let engine = Engine::default();
-    match Module::new(&engine, &policy.source_code) {
+    static ENGINE: OnceLock<Engine> = OnceLock::new();
+    let engine = ENGINE.get_or_init(Engine::default);
+
+    match Module::new(engine, &policy.source_code) {
         Ok(module) => {
-            let mut store = Store::new(&engine, ());
+            let mut store = Store::new(engine, ());
             match Instance::new(&mut store, &module, &[]) {
                 Ok(instance) => {
                     if let Some(func) = instance.get_func(&mut store, "evaluate") {
