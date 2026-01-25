@@ -105,6 +105,7 @@ pub struct InjectionSession {
     pub expires_at: chrono::DateTime<chrono::Utc>,
     pub secret_paths: Vec<String>,
     pub active: bool,
+    pub created_by: String,
 }
 
 /// Inject secrets as environment variables
@@ -126,6 +127,11 @@ pub async fn inject_env(
 
     // Calculate expiration
     let ttl = request.ttl.unwrap_or(3600);
+    if ttl > 86400 {
+        return Err(ApiError::BadRequest {
+            message: "TTL cannot exceed 86400 seconds (24 hours)".to_string(),
+        });
+    }
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(ttl as i64);
 
     // Get prefix
@@ -215,6 +221,7 @@ pub async fn inject_env(
         expires_at,
         secret_paths,
         active: true,
+        created_by: user_id.to_string(),
     };
 
     // Store session for tracking
@@ -243,9 +250,12 @@ pub async fn cleanup_session(
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     info!("Cleaning up injection session {}", session_id);
 
-    // Authorization check
+    // Retrieve session first
+    let session = get_session(&state, &session_id).await?;
+
+    // Authorization check: Allow if owner OR if has delete permission
     let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
-    {
+    if session.created_by != user_id {
         let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
             message: "Failed to acquire policy lock".to_string(),
         })?;
@@ -253,9 +263,6 @@ pub async fn cleanup_session(
             return Err(ApiError::Forbidden);
         }
     }
-
-    // Retrieve session
-    let session = get_session(&state, &session_id).await?;
 
     if !session.active {
         return Err(ApiError::NotFound {
@@ -557,6 +564,7 @@ mod tests {
             expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
             secret_paths: vec!["/secret/data/test".to_string()],
             active: true,
+            created_by: "user1".to_string(),
         };
 
         // Test store
