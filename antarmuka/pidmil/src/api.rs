@@ -16,7 +16,10 @@ pub struct CreateCasePayload {
     pub location: String,
 }
 
-pub async fn fetch_cases(page: Option<u32>, limit: Option<u32>) -> Result<Vec<MilitaryCase>, String> {
+pub async fn fetch_cases(
+    page: Option<u32>,
+    limit: Option<u32>,
+) -> Result<Vec<MilitaryCase>, String> {
     let mut url = format!("{}/cases", API_URL);
     let mut params = Vec::new();
 

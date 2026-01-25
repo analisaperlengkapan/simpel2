@@ -8,8 +8,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use async_trait::async_trait;
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -25,7 +24,6 @@ pub struct Claims {
     pub iat: usize,
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for Claims
 where
     S: Send + Sync,
@@ -52,8 +50,8 @@ where
         let token = &auth_str[7..];
 
         // Get JWT secret from environment or config
-        let jwt_secret = std::env::var("JWT_SECRET")
-            .unwrap_or_else(|_| "your-secret-key".to_string());
+        let jwt_secret =
+            std::env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key".to_string());
 
         let decoding_key = DecodingKey::from_secret(jwt_secret.as_ref());
         let validation = Validation::new(Algorithm::HS256);
@@ -65,17 +63,8 @@ where
     }
 }
 
-pub async fn auth_middleware(
-    request: Request,
-    next: Next,
-) -> Result<Response, AppError> {
-    // For now, we'll extract the claims but let the handlers deal with them
-    // This middleware is just for global authentication
-    let response = next.run(request).await;
-    Ok(response)
-}
-
 // Optional middleware for role-based access control
+#[allow(dead_code)]
 pub fn require_role(required_role: &str) -> impl Fn(Claims) -> Result<(), AppError> + Clone {
     let role = required_role.to_string();
     move |claims: Claims| {
@@ -91,10 +80,14 @@ pub fn require_role(required_role: &str) -> impl Fn(Claims) -> Result<(), AppErr
 }
 
 // Permission-based access control
-pub fn require_permission(required_permission: &str) -> impl Fn(Claims) -> Result<(), AppError> + Clone {
+#[allow(dead_code)]
+pub fn require_permission(
+    required_permission: &str,
+) -> impl Fn(Claims) -> Result<(), AppError> + Clone {
     let permission = required_permission.to_string();
     move |claims: Claims| {
-        if claims.permissions.contains(&permission) || claims.permissions.contains(&"*".to_string()) {
+        if claims.permissions.contains(&permission) || claims.permissions.contains(&"*".to_string())
+        {
             Ok(())
         } else {
             Err(AppError::Authorization(format!(
@@ -108,7 +101,7 @@ pub fn require_permission(required_permission: &str) -> impl Fn(Claims) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jsonwebtoken::{encode, EncodingKey, Header};
+    use jsonwebtoken::{EncodingKey, Header, encode};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -118,8 +111,15 @@ mod tests {
             username: "test_user".to_string(),
             role: "user".to_string(),
             permissions: vec!["read".to_string(), "write".to_string()],
-            exp: (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600) as usize,
-            iat: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as usize,
+            exp: (SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                + 3600) as usize,
+            iat: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as usize,
         };
 
         let jwt_secret = "test-secret";

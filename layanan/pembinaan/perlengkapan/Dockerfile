@@ -1,6 +1,6 @@
-FROM rust:1.90-slim-bookworm as builder
+FROM rust:1.85-slim-bookworm as builder
 
-WORKDIR /app
+WORKDIR /workspace
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -29,14 +29,27 @@ WORKDIR /app
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user
+RUN useradd -m -u 1000 appuser
+
 # Copy binary
-COPY --from=builder /app/target/release/layanan-perlengkapan /app/perlengkapan
+COPY --from=builder /workspace/target/release/layanan-perlengkapan /app/perlengkapan
+
+# Set ownership
+RUN chown -R appuser:appuser /app
+
+USER appuser
 
 # Set environment
 ENV SERVER_HOST=0.0.0.0
 ENV SERVER_PORT=3020
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3020/health || exit 1
 
 EXPOSE 3020
 

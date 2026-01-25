@@ -1,5 +1,7 @@
 # SIMPelv2 Kubernetes Namespaces
-# Organizes services into logical groups for better management and security
+# Simplified 2-namespace architecture:
+# - simpelv2-infra: Critical infrastructure (authenc, secreton, postgres, redis)
+# - simpelv2: All applications (frontend + backend)
 
 apiVersion: v1
 kind: Namespace
@@ -10,29 +12,7 @@ metadata:
     istio-injection: enabled
     app.kubernetes.io/name: simpelv2
     app.kubernetes.io/version: "0.1.0"
-    app.kubernetes.io/component: namespace
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: simpelv2-frontend
-  labels:
-    name: simpelv2-frontend
-    istio-injection: enabled
-    app.kubernetes.io/name: simpelv2
-    app.kubernetes.io/version: "0.1.0"
-    app.kubernetes.io/component: frontend
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: simpelv2-backend
-  labels:
-    name: simpelv2-backend
-    istio-injection: enabled
-    app.kubernetes.io/name: simpelv2
-    app.kubernetes.io/version: "0.1.0"
-    app.kubernetes.io/component: backend
+    app.kubernetes.io/component: applications
 ---
 apiVersion: v1
 kind: Namespace
@@ -45,6 +25,7 @@ metadata:
     app.kubernetes.io/version: "0.1.0"
     app.kubernetes.io/component: infrastructure
 ---
+# Optional: Monitoring namespace (only if separate monitoring is needed)
 apiVersion: v1
 kind: Namespace
 metadata:

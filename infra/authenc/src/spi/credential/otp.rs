@@ -14,6 +14,7 @@ use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use sha2::{Sha256, Sha512};
+use subtle::ConstantTimeEq;
 
 /// OTP credential type identifier
 pub const OTP_CREDENTIAL_TYPE: &str = "otp";
@@ -79,7 +80,8 @@ impl OtpCredentialProvider {
     pub fn generate_secret(&self) -> String {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        let bytes: Vec<u8> = (0..20).map(|_| rng.r#gen()).collect();
+        // Increase entropy to 32 bytes (256 bits) as recommended by security review
+        let bytes: Vec<u8> = (0..32).map(|_| rng.r#gen()).collect();
         base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &bytes)
     }
 
@@ -128,7 +130,8 @@ impl OtpCredentialProvider {
             let expected_code =
                 self.generate_totp_for_step(&secret_bytes, check_step, algorithm, digits)?;
 
-            if expected_code == code {
+            // Use constant-time comparison to prevent timing attacks
+            if expected_code.as_bytes().ct_eq(code.as_bytes()).into() {
                 return Ok(true);
             }
         }

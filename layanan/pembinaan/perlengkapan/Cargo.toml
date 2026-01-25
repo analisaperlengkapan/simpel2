@@ -22,9 +22,9 @@ tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-# Database - PostgreSQL only (no MySQL to avoid RSA vulnerability RUSTSEC-2023-0071)
-# sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "uuid", "chrono"], default-features = false }  # DISABLED: sqlx dependency structure includes mysql
-# Using tokio-postgres directly for cleaner dependency tree
+# Database - PostgreSQL only using tokio-postgres (no RSA vulnerability RUSTSEC-2023-0071)
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
 
 # UUID and time
 uuid = { workspace = true }
@@ -41,18 +41,13 @@ tracing-subscriber = { workspace = true }
 # Authentication & JWT
 jsonwebtoken = { workspace = true }
 
-# Validation (FIXED: replaced validator with garde - no idna vulnerability)
-garde = { workspace = true }
-
-# Decimal support
-bigdecimal = { workspace = true }
-
-# Async trait support
-async-trait = { workspace = true }
+# Validation
+validator = { workspace = true }
 
 # Environment variables (FIXED: using maintained dotenvy)
 dotenvy = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
+bigdecimal = { workspace = true }
 lib-common = { workspace = true, features = ["telemetry", "db"] }

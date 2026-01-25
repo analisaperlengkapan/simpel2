@@ -3,19 +3,18 @@
 //! Centralized error handling for the Perlengkapan service
 
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use thiserror::Error;
 use validator::ValidationErrors;
 
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(String),
 
     #[error("Validation error: {0}")]
     Validation(#[from] ValidationErrors),
@@ -89,24 +88,11 @@ impl IntoResponse for AppError {
                 msg.clone(),
                 None,
             ),
-            AppError::NotFound(msg) => (
-                StatusCode::NOT_FOUND,
-                "NOT_FOUND",
-                msg.clone(),
-                None,
-            ),
-            AppError::Conflict(msg) => (
-                StatusCode::CONFLICT,
-                "CONFLICT",
-                msg.clone(),
-                None,
-            ),
-            AppError::BadRequest(msg) => (
-                StatusCode::BAD_REQUEST,
-                "BAD_REQUEST",
-                msg.clone(),
-                None,
-            ),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, "NOT_FOUND", msg.clone(), None),
+            AppError::Conflict(msg) => (StatusCode::CONFLICT, "CONFLICT", msg.clone(), None),
+            AppError::BadRequest(msg) => {
+                (StatusCode::BAD_REQUEST, "BAD_REQUEST", msg.clone(), None)
+            }
             AppError::Internal(msg) => {
                 tracing::error!("Internal error: {}", msg);
                 (
@@ -131,12 +117,7 @@ impl IntoResponse for AppError {
                 format!("Invalid UUID: {}", e),
                 None,
             ),
-            AppError::Parse(msg) => (
-                StatusCode::BAD_REQUEST,
-                "PARSE_ERROR",
-                msg.clone(),
-                None,
-            ),
+            AppError::Parse(msg) => (StatusCode::BAD_REQUEST, "PARSE_ERROR", msg.clone(), None),
         };
 
         let body = ErrorResponse {
@@ -151,7 +132,7 @@ impl IntoResponse for AppError {
 }
 
 fn validation_errors_to_json(errors: &ValidationErrors) -> serde_json::Value {
-    use serde_json::{json, Map, Value};
+    use serde_json::{Map, Value, json};
 
     let mut error_map = Map::new();
 
@@ -159,16 +140,23 @@ fn validation_errors_to_json(errors: &ValidationErrors) -> serde_json::Value {
         let field_error_messages: Vec<String> = field_errors
             .iter()
             .map(|error| {
-                error.message
+                error
+                    .message
                     .as_ref()
                     .map(|msg| msg.to_string())
                     .unwrap_or_else(|| error.code.to_string())
             })
             .collect();
 
-        error_map.insert(field.to_string(), Value::Array(
-            field_error_messages.into_iter().map(Value::String).collect()
-        ));
+        error_map.insert(
+            field.to_string(),
+            Value::Array(
+                field_error_messages
+                    .into_iter()
+                    .map(Value::String)
+                    .collect(),
+            ),
+        );
     }
 
     json!(error_map)

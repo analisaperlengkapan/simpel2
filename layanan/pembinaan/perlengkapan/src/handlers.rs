@@ -3,19 +3,14 @@
 //! HTTP request handlers for the Perlengkapan service
 
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::{
-    errors::*,
-    models::*,
-    services::PerlengkapanService,
-    middleware::Claims,
-};
+use crate::{errors::*, middleware::Claims, models::*, services::PerlengkapanService};
 
 // Pagination query parameters
 #[derive(Debug, Deserialize)]
@@ -26,8 +21,12 @@ pub struct PaginationQuery {
     pub per_page: i32,
 }
 
-fn default_page() -> i32 { 1 }
-fn default_per_page() -> i32 { 20 }
+fn default_page() -> i32 {
+    1
+}
+fn default_per_page() -> i32 {
+    20
+}
 
 // Health check handler
 pub async fn health_check() -> Result<Json<ApiResponse<String>>, AppError> {
@@ -40,7 +39,7 @@ pub async fn health_check() -> Result<Json<ApiResponse<String>>, AppError> {
 // Dashboard handlers
 pub async fn get_dashboard_stats(
     State(service): State<PerlengkapanService>,
-    claims: Claims,
+    _claims: Claims,
 ) -> Result<Json<ApiResponse<DashboardStats>>, AppError> {
     let stats = service.get_dashboard_stats().await?;
 
@@ -54,9 +53,11 @@ pub async fn get_dashboard_stats(
 pub async fn get_all_aset(
     State(service): State<PerlengkapanService>,
     Query(pagination): Query<PaginationQuery>,
-    claims: Claims,
+    _claims: Claims,
 ) -> Result<Json<PaginatedResponse<Aset>>, AppError> {
-    let (aset, total) = service.get_all_aset(pagination.page, pagination.per_page).await?;
+    let (aset, total) = service
+        .get_all_aset(pagination.page, pagination.per_page)
+        .await?;
 
     Ok(Json(PaginatedResponse::new(
         aset,
@@ -70,7 +71,7 @@ pub async fn get_all_aset(
 pub async fn get_aset_by_id(
     State(service): State<PerlengkapanService>,
     Path(id): Path<Uuid>,
-    claims: Claims,
+    _claims: Claims,
 ) -> Result<Json<ApiResponse<Aset>>, AppError> {
     let aset = service.get_aset_by_id(id).await?;
 
@@ -115,7 +116,7 @@ pub async fn update_aset(
 pub async fn delete_aset(
     State(service): State<PerlengkapanService>,
     Path(id): Path<Uuid>,
-    claims: Claims,
+    _claims: Claims,
 ) -> Result<(StatusCode, Json<ApiResponse<String>>), AppError> {
     service.delete_aset(id).await?;
 
@@ -132,9 +133,11 @@ pub async fn delete_aset(
 pub async fn get_all_pengadaan(
     State(service): State<PerlengkapanService>,
     Query(pagination): Query<PaginationQuery>,
-    claims: Claims,
+    _claims: Claims,
 ) -> Result<Json<PaginatedResponse<Pengadaan>>, AppError> {
-    let (pengadaan, total) = service.get_all_pengadaan(pagination.page, pagination.per_page).await?;
+    let (pengadaan, total) = service
+        .get_all_pengadaan(pagination.page, pagination.per_page)
+        .await?;
 
     Ok(Json(PaginatedResponse::new(
         pengadaan,
@@ -148,7 +151,7 @@ pub async fn get_all_pengadaan(
 pub async fn get_pengadaan_by_id(
     State(service): State<PerlengkapanService>,
     Path(id): Path<Uuid>,
-    claims: Claims,
+    _claims: Claims,
 ) -> Result<Json<ApiResponse<Pengadaan>>, AppError> {
     let pengadaan = service.get_pengadaan_by_id(id).await?;
 
@@ -179,9 +182,11 @@ pub async fn create_pengadaan(
 pub async fn get_all_analisis(
     State(service): State<PerlengkapanService>,
     Query(pagination): Query<PaginationQuery>,
-    claims: Claims,
+    _claims: Claims,
 ) -> Result<Json<PaginatedResponse<AnalisisKebutuhan>>, AppError> {
-    let (analisis, total) = service.get_all_analisis(pagination.page, pagination.per_page).await?;
+    let (analisis, total) = service
+        .get_all_analisis(pagination.page, pagination.per_page)
+        .await?;
 
     Ok(Json(PaginatedResponse::new(
         analisis,

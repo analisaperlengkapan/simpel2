@@ -4,7 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: layanan-daskrimti-portal
-  namespace: simpelv2-backend
+  namespace: simpelv2
   labels:
     app: layanan-daskrimti-portal
     component: backend
@@ -80,7 +80,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: layanan-pembinaan-perlengkapan
-  namespace: simpelv2-backend
+  namespace: simpelv2
   labels:
     app: layanan-pembinaan-perlengkapan
     component: backend

@@ -70,6 +70,22 @@ fn validate_token(token: &str, _secret: &str) -> Result<AuthUser, AuthencError> 
         AuthencError::unauthorized("Invalid token")
     })?;
 
+    // Enforce token purpose scope
+    // Only "access" tokens are allowed for general authentication
+    // "mfa_verification" tokens must only be used on MFA endpoints
+    match claims.purpose.as_deref() {
+        Some("access") => {} // Valid access token
+        Some("mfa_verification") => {
+            error!("Security Alert: MFA verification token used for full access");
+            return Err(AuthencError::unauthorized("Invalid token purpose"));
+        }
+        _ => {
+            // Reject tokens with unknown or missing purpose to prevent scope escalation
+            error!("Access denied: Token missing purpose claim");
+            return Err(AuthencError::unauthorized("Invalid token purpose"));
+        }
+    }
+
     // For now, create a basic AuthUser from the claims
     // TODO: In the future, we should store more user info in JWT or fetch from DB
     Ok(AuthUser {

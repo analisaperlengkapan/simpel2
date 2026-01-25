@@ -1,11 +1,11 @@
 # SIMPelv2 Portal - Minimal Deployment untuk Testing
-# Optimized for development di IP 10.1.7.121
+# All apps in simpelv2 namespace (unified approach)
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: portal
-  namespace: simpelv2-frontend
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: portal
     app.kubernetes.io/component: frontend
@@ -38,7 +38,7 @@ spec:
           # image: registry.kejaksaan.go.id/simpelv2/portal:latest
           imagePullPolicy: IfNotPresent # Development: avoid pull delays
           ports:
-            - containerPort: 8080 # ✅ FIXED: Matches Dockerfile
+            - containerPort: 8080
               name: http
               protocol: TCP
           env:
@@ -47,7 +47,7 @@ spec:
             - name: NODE_ENV
               value: "development"
             - name: BACKEND_API_URL
-              value: "http://layanan-daskrimti-portal.simpelv2-backend.svc.cluster.local:3010"
+              value: "http://layanan-daskrimti-portal.simpelv2.svc.cluster.local:3010"
             - name: PORTAL_BASE_URL
               value: "http://10.1.7.121" # Development URL
           resources:
@@ -88,7 +88,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: daskrimti-portal
-  namespace: simpelv2-frontend
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: daskrimti-portal
     app.kubernetes.io/component: frontend
@@ -118,7 +118,7 @@ spec:
             - name: RUST_LOG
               value: "info"
             - name: BACKEND_API_URL
-              value: "http://layanan-daskrimti-portal.simpelv2-backend.svc.cluster.local:3010"
+              value: "http://layanan-daskrimti-portal.simpelv2.svc.cluster.local:3010"
           resources:
             requests:
               memory: "256Mi"
@@ -145,7 +145,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pembinaan-perlengkapan
-  namespace: simpelv2-frontend
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: pembinaan-perlengkapan
     app.kubernetes.io/component: frontend
@@ -175,7 +175,7 @@ spec:
             - name: RUST_LOG
               value: "info"
             - name: BACKEND_API_URL
-              value: "http://layanan-pembinaan-perlengkapan.simpelv2-backend.svc.cluster.local:3020"
+              value: "http://layanan-pembinaan-perlengkapan.simpelv2.svc.cluster.local:3020"
           resources:
             requests:
               memory: "256Mi"
@@ -202,7 +202,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: portal-service
-  namespace: simpelv2-frontend
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: portal
     app.kubernetes.io/component: frontend
@@ -222,7 +222,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
   name: external-apis
-  namespace: simpelv2-frontend
+  namespace: simpelv2
 spec:
   hosts:
     - "*.googleapis.com" # Jika ada API external

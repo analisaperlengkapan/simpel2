@@ -270,12 +270,12 @@ pub struct DeleteResponse {
 pub fn create_kv_router(state: KVApiState) -> Router {
     Router::new()
         .route("/secrets", get(list_secrets))
-        .route("/secret/data/*path", post(put_secret))
-        .route("/secret/data/*path", get(get_secret))
-        .route("/secret/data/*path", delete(delete_secret))
-        .route("/secret/metadata/*path", get(get_metadata))
+        .route("/secret/data/{*path}", post(put_secret))
+        .route("/secret/data/{*path}", get(get_secret))
+        .route("/secret/data/{*path}", delete(delete_secret))
+        .route("/secret/metadata/{*path}", get(get_metadata))
         // Note: destroy version is handled differently - version as query param
-        .route("/secret/destroy/*path", delete(destroy_secret_query))
+        .route("/secret/destroy/{*path}", delete(destroy_secret_query))
         .with_state(state)
 }
 
