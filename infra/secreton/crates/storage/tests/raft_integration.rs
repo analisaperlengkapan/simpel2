@@ -155,10 +155,10 @@ async fn test_basic_consensus() -> StorageResult<()> {
     let response = cluster.propose(command).await?;
 
     match response {
-        StateMachineResponse::Success => {
+        StateMachineResponse::Stored(_) => {
             // Success!
         }
-        _ => panic!("Expected success response"),
+        _ => panic!("Expected Stored response, got {:?}", response),
     }
 
     cluster.shutdown().await?;
