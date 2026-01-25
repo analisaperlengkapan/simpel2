@@ -1191,8 +1191,20 @@ impl RaftCluster {
         let mut members = HashMap::new();
 
         for node_id in metrics.membership_config.membership().voter_ids() {
-            if let Some(addr) = self.config.peers.get(&node_id) {
-                members.insert(node_id, openraft::BasicNode { addr: addr.clone() });
+            if node_id == self.config.node_id {
+                members.insert(
+                    node_id,
+                    openraft::BasicNode {
+                        addr: self.config.bind_address.clone(),
+                    },
+                );
+            } else if let Some(addr) = self.config.peers.get(&node_id) {
+                members.insert(
+                    node_id,
+                    openraft::BasicNode {
+                        addr: addr.clone(),
+                    },
+                );
             }
         }
 
