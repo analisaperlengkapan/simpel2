@@ -42,7 +42,7 @@ impl Default for RaftClusterConfig {
     fn default() -> Self {
         Self {
             node_id: 1,
-            bind_address: String::new(),
+            bind_address: "127.0.0.1:8201".to_string(),
             peers: HashMap::new(),
             // Tuned for 5-second leader election guarantee
             // With election_timeout_max = 2x election_timeout_min
@@ -61,6 +61,10 @@ impl RaftClusterConfig {
     pub fn validate(&self) -> Result<(), String> {
         if self.node_id == 0 {
             return Err("node_id cannot be 0".to_string());
+        }
+
+        if self.bind_address.trim().is_empty() {
+            return Err("bind_address cannot be empty".to_string());
         }
 
         if self.heartbeat_interval_ms == 0 {

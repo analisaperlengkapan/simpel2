@@ -34,7 +34,7 @@ impl RaftClusterConfigBuilder {
         let defaults = RaftClusterConfig::default();
         Self {
             node_id,
-            bind_address: defaults.bind_address,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: defaults.election_timeout_ms,
             heartbeat_interval_ms: defaults.heartbeat_interval_ms,
