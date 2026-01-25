@@ -624,15 +624,13 @@ impl RaftCluster {
 
                 // Detect term change (potential election)
                 if current_term > last_term {
-                    if election_start.is_none() {
-                        // Election started
-                        election_start = Some(std::time::Instant::now());
-                        tracing::info!(
-                            "Leader election started: term {} -> {}",
-                            last_term,
-                            current_term
-                        );
-                    }
+                    // Reset election timer for the new term
+                    election_start = Some(std::time::Instant::now());
+                    tracing::info!(
+                        "Leader election started: term {} -> {}",
+                        last_term,
+                        current_term
+                    );
 
                     // Check if leader is elected
                     if let Some(leader_id) = metrics.current_leader {
@@ -706,7 +704,7 @@ impl RaftCluster {
             loop {
                 tokio::time::sleep(interval).await;
 
-                // Only leader creates snapshots
+                // All nodes create snapshots for log compaction
                 let metrics = raft.metrics().borrow().clone();
                 let log_size = metrics.last_log_index.unwrap_or(0);
                 let last_snapshot_index = metrics.snapshot.as_ref().map(|s| s.index).unwrap_or(0);
