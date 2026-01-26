@@ -26,8 +26,14 @@ impl PaginationQuery {
         if self.page < 1 {
             return Err(bad_request("Page must be greater than 0"));
         }
+        if self.page > 100_000 {
+            return Err(bad_request("Page must be less than or equal to 100,000"));
+        }
         if self.per_page < 1 {
             return Err(bad_request("Per page must be greater than 0"));
+        }
+        if self.per_page > 1000 {
+            return Err(bad_request("Per page must be less than or equal to 1000"));
         }
         Ok(())
     }
