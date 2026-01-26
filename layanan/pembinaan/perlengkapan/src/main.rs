@@ -5,6 +5,7 @@
 
 use axum::{Router, routing::get};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -15,8 +16,11 @@ mod errors;
 mod handlers;
 mod middleware;
 mod models;
+mod repository;
 mod routes;
 mod services;
+#[cfg(test)]
+mod tests;
 
 use database::Database;
 use services::PerlengkapanService;
@@ -50,8 +54,8 @@ async fn main() -> anyhow::Result<()> {
     info!("Running database migrations...");
     db.migrate().await?;
 
-    // Create service
-    let service = PerlengkapanService::new(db);
+    // Create service with repository wrapper
+    let service = PerlengkapanService::new(Arc::new(db));
 
     // Build router
     let app = build_router(service);

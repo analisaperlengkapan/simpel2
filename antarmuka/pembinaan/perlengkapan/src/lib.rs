@@ -42,6 +42,8 @@ use wasm_bindgen::prelude::*;
 
 mod components;
 mod api;
+#[cfg(test)]
+mod tests;
 
 use components::aset_list::AsetList;
 
