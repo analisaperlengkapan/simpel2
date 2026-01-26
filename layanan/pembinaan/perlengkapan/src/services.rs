@@ -581,11 +581,13 @@ impl PerlengkapanService {
                         }
                         Err(e) => {
                             error!("Error processing assets for {}: {}", label, e);
+                            total_errors += 1;
                         }
                      }
                 }
                 Err(e) => {
                     error!("Error fetching assets for {}: {}", label, e);
+                    total_errors += 1;
                 }
             }
         }

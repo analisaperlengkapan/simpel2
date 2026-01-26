@@ -47,12 +47,15 @@ pub struct ApiResponse<T> {
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_assets(page: i32, per_page: i32) -> Result<PaginatedResponse<Aset>, gloo_net::Error> {
     use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
 
     // Assuming the API is available at /api/pembinaan/perlengkapan/aset
     // Adjust the path if necessary (e.g. via proxy or absolute URL)
     let url = format!("/api/pembinaan/perlengkapan/aset?page={}&per_page={}", page, per_page);
 
+    let token = get_auth_token().unwrap_or_default();
     let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;
 
@@ -81,10 +84,13 @@ pub async fn fetch_assets(_page: i32, _per_page: i32) -> Result<PaginatedRespons
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, gloo_net::Error> {
     use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
 
     let url = "/api/pembinaan/perlengkapan/dashboard/stats";
 
+    let token = get_auth_token().unwrap_or_default();
     let resp = Request::get(url)
+        .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;
 
