@@ -28,6 +28,7 @@ pub use types::{Config, Entry, LogId, Membership, NodeId, Raft, SecretonTypeConf
 #[derive(Debug, Clone)]
 pub struct RaftClusterConfig {
     pub node_id: NodeId,
+    pub bind_address: String,
     pub peers: HashMap<NodeId, String>,
     pub election_timeout_ms: u64,
     pub heartbeat_interval_ms: u64,
@@ -39,8 +40,10 @@ pub struct RaftClusterConfig {
 
 impl Default for RaftClusterConfig {
     fn default() -> Self {
+        let node_id = 1;
         Self {
-            node_id: 1,
+            node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             // Tuned for 5-second leader election guarantee
             // With election_timeout_max = 2x election_timeout_min
@@ -59,6 +62,10 @@ impl RaftClusterConfig {
     pub fn validate(&self) -> Result<(), String> {
         if self.node_id == 0 {
             return Err("node_id cannot be 0".to_string());
+        }
+
+        if self.bind_address.trim().is_empty() {
+            return Err("bind_address cannot be empty".to_string());
         }
 
         if self.heartbeat_interval_ms == 0 {
@@ -98,6 +105,7 @@ impl RaftClusterConfig {
     pub fn development(node_id: u64) -> Self {
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: 1000, // 2x = 2 seconds max
             heartbeat_interval_ms: 300,
@@ -115,6 +123,7 @@ impl RaftClusterConfig {
     pub fn staging(node_id: u64) -> Self {
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: 2000, // 2x = 4 seconds max
             heartbeat_interval_ms: 600,
@@ -132,6 +141,7 @@ impl RaftClusterConfig {
     pub fn production(node_id: u64) -> Self {
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: 2500, // 2x = 5 seconds max
             heartbeat_interval_ms: 750,
@@ -149,6 +159,7 @@ impl RaftClusterConfig {
     pub fn fast_failover(node_id: u64) -> Self {
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: 1500, // 2x = 3 seconds max
             heartbeat_interval_ms: 450,
@@ -177,6 +188,8 @@ pub struct RaftStatus {
     pub leader_id: Option<NodeId>,
     pub is_leader: bool,
     pub membership: Vec<NodeId>,
+    pub peer_addrs: HashMap<NodeId, String>,
+    pub peer_lags: HashMap<NodeId, u64>,
     pub last_applied: Option<u64>,
     pub last_log_index: Option<u64>,
 }
@@ -232,6 +245,8 @@ pub struct RaftCluster {
     replication_config: Arc<tokio::sync::RwLock<ReplicationConfig>>,
     /// Metrics collector for tracking performance
     metrics_collector: Arc<tokio::sync::RwLock<MetricsCollector>>,
+    /// Shutdown signal sender
+    shutdown_tx: tokio::sync::watch::Sender<bool>,
 }
 
 /// Monitor for tracking leader election performance
@@ -348,6 +363,7 @@ impl RaftCluster {
 
         let replication_config = Arc::new(tokio::sync::RwLock::new(ReplicationConfig::default()));
         let metrics_collector = Arc::new(tokio::sync::RwLock::new(MetricsCollector::new()));
+        let (shutdown_tx, _) = tokio::sync::watch::channel(false);
 
         let cluster = Self {
             config: config.clone(),
@@ -357,6 +373,7 @@ impl RaftCluster {
             election_monitor: election_monitor.clone(),
             replication_config: replication_config.clone(),
             metrics_collector: metrics_collector.clone(),
+            shutdown_tx,
         };
 
         // Bootstrap the Raft cluster with initial membership
@@ -399,7 +416,7 @@ impl RaftCluster {
         nodes.insert(
             self.config.node_id,
             openraft::BasicNode {
-                addr: format!("127.0.0.1:{}", 8200 + self.config.node_id),
+                addr: self.config.bind_address.clone(),
             },
         );
 
@@ -450,14 +467,24 @@ impl RaftCluster {
         let storage = Arc::clone(&self.storage);
         let replication_config = Arc::clone(&self.replication_config);
         let node_id = self.config.node_id;
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             loop {
+                // Wait for interval or shutdown
+                tokio::select! {
+                    _ = shutdown_rx.changed() => {
+                        tracing::info!("Stopping replication task");
+                        break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_secs(5)) => {}
+                }
+
                 // Check if replication is enabled
                 let config = replication_config.read().await;
                 if !config.enabled || config.targets.is_empty() {
                     drop(config);
-                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    // Sleep is handled at start of loop
                     continue;
                 }
 
@@ -469,7 +496,6 @@ impl RaftCluster {
                 // Only leader performs replication
                 let metrics = raft.metrics().borrow().clone();
                 if metrics.current_leader != Some(node_id) {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
                     continue;
                 }
 
@@ -521,9 +547,6 @@ impl RaftCluster {
                         }
                     }
                 }
-
-                // Sleep before next replication cycle
-                tokio::time::sleep(Duration::from_secs(5)).await;
             }
         });
     }
@@ -532,12 +555,19 @@ impl RaftCluster {
     fn start_node_health_monitoring(&self) {
         let raft = Arc::clone(&self.raft);
         let _node_id = self.config.node_id;
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             let mut last_leader: Option<NodeId> = None;
 
             loop {
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                tokio::select! {
+                    _ = shutdown_rx.changed() => {
+                        tracing::info!("Stopping node health monitoring");
+                        break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+                }
 
                 let metrics = raft.metrics().borrow().clone();
                 let current_leader = metrics.current_leader;
@@ -599,20 +629,81 @@ impl RaftCluster {
         let raft = Arc::clone(&self.raft);
         let monitor = Arc::clone(&self.election_monitor);
         let _node_id = self.config.node_id;
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             let mut last_term = 0u64;
             let mut election_start: Option<std::time::Instant> = None;
 
             loop {
-                tokio::time::sleep(Duration::from_millis(100)).await;
+                tokio::select! {
+                    _ = shutdown_rx.changed() => {
+                        tracing::info!("Stopping election monitoring");
+                        break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_millis(100)) => {}
+                }
 
                 let metrics = raft.metrics().borrow().clone();
                 let current_term = metrics.current_term;
 
+                // Check for leader election completion
+                if let Some(leader_id) = metrics.current_leader {
+                    if let Some(start_time) = election_start {
+                        // Election finished
+                        let duration = start_time.elapsed();
+                        let duration_ms = duration.as_millis() as u64;
+
+                        tracing::info!(
+                            "Leader elected: node {} in term {} (took {}ms)",
+                            leader_id,
+                            current_term,
+                            duration_ms
+                        );
+
+                        // Update monitor
+                        let mut mon = monitor.write().await;
+                        mon.last_election_time = Some(std::time::Instant::now());
+                        mon.last_election_duration_ms = Some(duration_ms);
+                        mon.total_elections += 1;
+
+                        // Update running average
+                        if mon.total_elections == 1 {
+                            mon.avg_election_time_ms = duration_ms as f64;
+                        } else {
+                            mon.avg_election_time_ms = (mon.avg_election_time_ms
+                                * (mon.total_elections - 1) as f64
+                                + duration_ms as f64)
+                                / mon.total_elections as f64;
+                        }
+
+                        // Record metrics
+                        #[cfg(feature = "metrics")]
+                        {
+                            gauge!("secreton_raft_last_election_duration_ms")
+                                .set(duration_ms as f64);
+                            gauge!("secreton_raft_avg_election_duration_ms")
+                                .set(mon.avg_election_time_ms);
+                            counter!("secreton_raft_elections_total").increment(1);
+
+                            // Alert if election took too long (> 5 seconds)
+                            if duration_ms > 5000 {
+                                counter!("secreton_raft_slow_elections_total").increment(1);
+                                tracing::warn!(
+                                    "Slow leader election detected: {}ms (threshold: 5000ms)",
+                                    duration_ms
+                                );
+                            }
+                        }
+
+                        // Reset for next election
+                        election_start = None;
+                    }
+                }
+
                 // Detect term change (potential election)
                 if current_term > last_term {
-                    if election_start.is_none() {
+                    if metrics.current_leader.is_none() {
                         // Election started
                         election_start = Some(std::time::Instant::now());
                         tracing::info!(
@@ -620,62 +711,16 @@ impl RaftCluster {
                             last_term,
                             current_term
                         );
+                    } else {
+                        // Leader already exists in new term (e.g. we joined as follower)
+                        election_start = None;
                     }
-
-                    // Check if leader is elected
-                    if let Some(leader_id) = metrics.current_leader {
-                        if let Some(start_time) = election_start {
-                            let duration = start_time.elapsed();
-                            let duration_ms = duration.as_millis() as u64;
-
-                            tracing::info!(
-                                "Leader elected: node {} in term {} (took {}ms)",
-                                leader_id,
-                                current_term,
-                                duration_ms
-                            );
-
-                            // Update monitor
-                            let mut mon = monitor.write().await;
-                            mon.last_election_time = Some(std::time::Instant::now());
-                            mon.last_election_duration_ms = Some(duration_ms);
-                            mon.total_elections += 1;
-
-                            // Update running average
-                            if mon.total_elections == 1 {
-                                mon.avg_election_time_ms = duration_ms as f64;
-                            } else {
-                                mon.avg_election_time_ms = (mon.avg_election_time_ms
-                                    * (mon.total_elections - 1) as f64
-                                    + duration_ms as f64)
-                                    / mon.total_elections as f64;
-                            }
-
-                            // Record metrics
-                            #[cfg(feature = "metrics")]
-                            {
-                                gauge!("secreton_raft_last_election_duration_ms")
-                                    .set(duration_ms as f64);
-                                gauge!("secreton_raft_avg_election_duration_ms")
-                                    .set(mon.avg_election_time_ms);
-                                counter!("secreton_raft_elections_total").increment(1);
-
-                                // Alert if election took too long (> 5 seconds)
-                                if duration_ms > 5000 {
-                                    counter!("secreton_raft_slow_elections_total").increment(1);
-                                    tracing::warn!(
-                                        "Slow leader election detected: {}ms (threshold: 5000ms)",
-                                        duration_ms
-                                    );
-                                }
-                            }
-
-                            // Reset for next election
-                            election_start = None;
-                        }
-                    }
-
                     last_term = current_term;
+                } else if metrics.current_leader.is_none() && election_start.is_none() {
+                    // No leader and no timer? Start one.
+                    // This handles cases where we lose a leader in the same term
+                    // or if we restart without a leader
+                    election_start = Some(std::time::Instant::now());
                 }
             }
         });
@@ -687,14 +732,21 @@ impl RaftCluster {
         let raft = Arc::clone(&self.raft);
         let config = self.snapshot_config.clone();
         let _node_id = self.config.node_id;
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             let interval = Duration::from_secs(config.interval_secs);
 
             loop {
-                tokio::time::sleep(interval).await;
+                tokio::select! {
+                    _ = shutdown_rx.changed() => {
+                        tracing::info!("Stopping snapshot automation");
+                        break;
+                    }
+                    _ = tokio::time::sleep(interval) => {}
+                }
 
-                // Only leader creates snapshots
+                // All nodes create snapshots for log compaction
                 let metrics = raft.metrics().borrow().clone();
                 let log_size = metrics.last_log_index.unwrap_or(0);
                 let last_snapshot_index = metrics.snapshot.as_ref().map(|s| s.index).unwrap_or(0);
@@ -740,12 +792,33 @@ impl RaftCluster {
     pub async fn status(&self) -> StorageResult<RaftStatus> {
         let metrics = self.raft.metrics().borrow().clone();
 
+        // Extract peer addresses from membership
+        let mut peer_addrs = HashMap::new();
+        for (node_id, node) in metrics.membership_config.membership().nodes() {
+            peer_addrs.insert(*node_id, node.addr.clone());
+        }
+
+        // Extract replication lag if leader
+        let mut peer_lags = HashMap::new();
+        if metrics.current_leader == Some(self.config.node_id) {
+            if let Some(replication) = &metrics.replication {
+                let current_index = metrics.last_log_index.unwrap_or(0);
+                for (node_id, target_metrics) in replication.iter() {
+                    let matched_index = target_metrics.map(|l| l.index).unwrap_or(0);
+                    let lag = current_index.saturating_sub(matched_index);
+                    peer_lags.insert(*node_id, lag);
+                }
+            }
+        }
+
         Ok(RaftStatus {
             node_id: self.config.node_id,
             current_term: metrics.current_term,
             leader_id: metrics.current_leader,
             is_leader: metrics.current_leader == Some(self.config.node_id),
             membership: metrics.membership_config.membership().voter_ids().collect(),
+            peer_addrs,
+            peer_lags,
             last_applied: metrics.last_applied.map(|l| l.index),
             last_log_index: metrics.last_log_index,
         })
@@ -854,8 +927,14 @@ impl RaftCluster {
             return None;
         }
 
-        // Look up leader address in peers
-        self.config.peers.get(&leader_id).cloned()
+        // Look up leader address in dynamic membership
+        let metrics = self.raft.metrics().borrow().clone();
+        metrics
+            .membership_config
+            .membership()
+            .nodes()
+            .find(|(id, _)| **id == leader_id)
+            .map(|(_, node)| node.addr.clone())
     }
 
     /// Add a replication target
@@ -1118,10 +1197,10 @@ impl RaftCluster {
         let metrics = self.raft.metrics().borrow().clone();
         let mut members = HashMap::new();
 
-        for node_id in metrics.membership_config.membership().voter_ids() {
-            if let Some(addr) = self.config.peers.get(&node_id) {
-                members.insert(node_id, openraft::BasicNode { addr: addr.clone() });
-            }
+        // Use the addresses directly from the current membership configuration
+        // This ensures dynamically added nodes are included
+        for (node_id, node) in metrics.membership_config.membership().nodes() {
+            members.insert(*node_id, node.clone());
         }
 
         Ok(members)
@@ -1145,6 +1224,9 @@ impl RaftCluster {
     }
 
     pub async fn shutdown(&self) -> StorageResult<()> {
+        // Signal background tasks to stop
+        let _ = self.shutdown_tx.send(true);
+
         self.raft
             .shutdown()
             .await
@@ -1337,8 +1419,21 @@ impl StorageBackend for RaftCluster {
     }
 
     async fn delete_expired(&self) -> StorageResult<u64> {
-        // TODO: Implement distributed expiration cleanup via Raft command
-        Ok(0)
+        let response = self
+            .propose(StateMachineCommand::DeleteExpired(chrono::Utc::now()))
+            .await?;
+
+        match response {
+            StateMachineResponse::DeletedExpired(count) => Ok(count),
+            StateMachineResponse::Error(msg) => Err(StorageError::ReplicationError(format!(
+                "Raft delete_expired failed: {}",
+                msg
+            ))),
+            other => Err(StorageError::ReplicationError(format!(
+                "Unexpected Raft response for delete_expired: {:?}",
+                other
+            ))),
+        }
     }
 
     async fn compact(&self) -> StorageResult<()> {
@@ -1463,5 +1558,58 @@ mod tests {
         }
 
         panic!("Average commit latency was not recorded");
+    }
+
+    #[tokio::test]
+    async fn test_delete_expired() {
+        let config = RaftClusterConfig::development(1);
+        let cluster = RaftCluster::new(config).await.unwrap();
+
+        // Wait for leader election
+        for _ in 0..50 {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            if cluster.is_leader().await {
+                break;
+            }
+        }
+        assert!(cluster.is_leader().await, "Cluster failed to elect leader");
+
+        // Create expired entry
+        let expired_entry = SecretEntry::new(
+            "expired/path".to_string(),
+            vec![1, 2, 3],
+            serde_json::json!({}),
+            crate::SecurityLevel::Internal,
+            "system".to_string(),
+        )
+        .with_expiration(chrono::Utc::now() - chrono::Duration::hours(1));
+
+        cluster.store(&expired_entry).await.unwrap();
+
+        // Create valid entry
+        let valid_entry = SecretEntry::new(
+            "valid/path".to_string(),
+            vec![4, 5, 6],
+            serde_json::json!({}),
+            crate::SecurityLevel::Internal,
+            "system".to_string(),
+        )
+        .with_expiration(chrono::Utc::now() + chrono::Duration::hours(1));
+
+        cluster.store(&valid_entry).await.unwrap();
+
+        // Verify both exist
+        assert!(cluster.exists("expired/path").await.unwrap());
+        assert!(cluster.exists("valid/path").await.unwrap());
+
+        // Delete expired
+        let count = cluster.delete_expired().await.unwrap();
+        assert_eq!(count, 1);
+
+        // Verify expired is gone
+        assert!(!cluster.exists("expired/path").await.unwrap());
+
+        // Verify valid remains
+        assert!(cluster.exists("valid/path").await.unwrap());
     }
 }
