@@ -148,7 +148,7 @@ pub async fn delete_aset(
     service.delete_aset(id).await?;
 
     Ok((
-        StatusCode::NO_CONTENT,
+        StatusCode::OK,
         Json(ApiResponse::success(
             "Aset deleted".to_string(),
             "Aset deleted successfully".to_string(),

@@ -484,6 +484,10 @@ impl PerlengkapanService {
                 let id = Uuid::new_v4();
 
                 // Upsert logic
+                // Note: Operations are executed per-record without a single transaction
+                // to allow partial success during large sync jobs (thousands of records).
+                // Failure of one record should not roll back valid records.
+
                 // We use ON CONFLICT (kode_bmn) DO UPDATE
                 // Use execute() instead of query() because there is no RETURNING clause
                 match db_client.execute(

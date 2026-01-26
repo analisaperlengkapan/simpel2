@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
+use axum::http::HeaderValue;
 
 mod database;
 mod errors;
@@ -66,10 +67,25 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn build_router(service: PerlengkapanService) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let allowed_origins = std::env::var("CORS_ALLOWED_ORIGINS").unwrap_or_else(|_| "*".to_string());
+
+    let cors = if allowed_origins == "*" {
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    } else {
+        let origins: Vec<HeaderValue> = allowed_origins
+            .split(',')
+            .map(|s| s.trim().parse::<HeaderValue>().unwrap_or(HeaderValue::from_static("")))
+            .filter(|h| !h.is_empty())
+            .collect();
+
+        CorsLayer::new()
+            .allow_origin(origins)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    };
 
     // Health check routes (no auth required)
     let health_routes = Router::new()
