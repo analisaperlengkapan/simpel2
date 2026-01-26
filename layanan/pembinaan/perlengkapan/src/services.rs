@@ -485,7 +485,8 @@ impl PerlengkapanService {
 
                 // Upsert logic
                 // We use ON CONFLICT (kode_bmn) DO UPDATE
-                match db_client.query(
+                // Use execute() instead of query() because there is no RETURNING clause
+                match db_client.execute(
                     r#"
                     INSERT INTO perlengkapan.aset
                     (id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan, status, updated_at, created_at)
