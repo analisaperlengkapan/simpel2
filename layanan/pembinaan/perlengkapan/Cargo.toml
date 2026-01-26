@@ -53,7 +53,17 @@ bigdecimal = { workspace = true }
 lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }
 layanan-integrasi = { path = "../../daskrimti/integrasi" }
 
+# gRPC
+tonic = { workspace = true }
+prost = { workspace = true }
+http = { workspace = true }
+http-body = { workspace = true }
+http-body-util = { workspace = true }
+
 async-trait = "0.1"
+
+[build-dependencies]
+tonic-build = { version = "0.12", features = ["prost", "transport"] }
 
 [dev-dependencies]
 mockall = "0.13"

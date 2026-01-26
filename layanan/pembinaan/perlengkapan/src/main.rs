@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing::info;
+use tracing::{info, error};
 use axum::http::HeaderValue;
 
 mod database;
@@ -19,11 +19,14 @@ mod models;
 mod repository;
 mod routes;
 mod services;
+mod secreton_client;
+
 #[cfg(test)]
 mod tests;
 
 use database::Database;
 use services::PerlengkapanService;
+use secreton_client::SecretonClient;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -43,8 +46,52 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "3020".to_string())
         .parse::<u16>()
         .expect("SERVER_PORT must be a valid port number");
-    let database_url =
-        std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
+
+    // Secreton Integration
+    let secreton_url = std::env::var("SECRETON_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
+    let mut database_url = std::env::var("DATABASE_URL").ok();
+    let mut jwt_secret = std::env::var("JWT_SECRET").ok();
+
+    if database_url.is_none() || jwt_secret.is_none() {
+        info!("Connecting to Secreton at {}", secreton_url);
+        match SecretonClient::connect(secreton_url).await {
+            Ok(client) => {
+                info!("Connected to Secreton");
+
+                // Fetch DB URL
+                if database_url.is_none() {
+                    match client.get_secret("perlengkapan/db").await {
+                        Ok(data) => {
+                            if let Some(url) = data.get("url") {
+                                database_url = Some(url.clone());
+                                info!("Fetched DATABASE_URL from Secreton");
+                            }
+                        }
+                        Err(e) => error!("Failed to fetch db secret: {:?}", e),
+                    }
+                }
+
+                // Fetch JWT Secret
+                if jwt_secret.is_none() {
+                    match client.get_secret("system/jwt").await {
+                        Ok(data) => {
+                            if let Some(secret) = data.get("secret") {
+                                jwt_secret = Some(secret.clone());
+                                unsafe { std::env::set_var("JWT_SECRET", secret); } // Middleware uses env::var
+                                info!("Fetched JWT_SECRET from Secreton");
+                            }
+                        }
+                        Err(e) => error!("Failed to fetch jwt secret: {:?}", e),
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to connect to Secreton: {}. Falling back to environment variables.", e);
+            }
+        }
+    }
+
+    let database_url = database_url.expect("DATABASE_URL must be set (env or secreton)");
 
     // Initialize database connection
     info!("Connecting to database...");
