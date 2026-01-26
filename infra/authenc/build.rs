@@ -6,9 +6,8 @@
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Skip compilation if grpc feature is not enabled
+    // Skip proto compilation if grpc feature is not enabled
     if std::env::var("CARGO_FEATURE_GRPC").is_err() {
-        println!("Skipping protobuf compilation because grpc feature is disabled");
         return Ok(());
     }
 
