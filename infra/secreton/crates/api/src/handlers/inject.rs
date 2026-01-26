@@ -5,8 +5,7 @@
 
 use axum::{
     Json,
-    Extension,
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
@@ -15,10 +14,11 @@ use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
 
+use secreton_storage::{QueryParams, SecretEntry, SecurityLevel};
+
 use crate::error::ApiError;
+use crate::middleware::RequestContext;
 use crate::response::ApiResponse;
-use crate::RequestContext;
-use crate::services::engine::SecretServiceError;
 
 /// Request to inject secrets as environment variables
 #[derive(Debug, Deserialize, Serialize)]
@@ -105,6 +105,7 @@ pub struct InjectionSession {
     pub expires_at: chrono::DateTime<chrono::Utc>,
     pub secret_paths: Vec<String>,
     pub active: bool,
+    pub created_by: String,
 }
 
 /// Inject secrets as environment variables
@@ -126,6 +127,11 @@ pub async fn inject_env(
 
     // Calculate expiration
     let ttl = request.ttl.unwrap_or(3600);
+    if ttl < 1 || ttl > 86400 {
+        return Err(ApiError::BadRequest {
+            message: "TTL must be between 1 and 86400 seconds".to_string(),
+        });
+    }
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(ttl as i64);
 
     // Get prefix
@@ -138,19 +144,39 @@ pub async fn inject_env(
     let mut env_vars = HashMap::new();
     let mut secret_paths = Vec::new();
 
-    // Optimize: Fetch all secrets concurrently
-    let user_id = ctx.user_id.as_deref().unwrap_or("unknown");
-    let fetch_futures = request.secrets.iter().map(|config| {
-        fetch_secret(&state, &config.path, user_id)
+    // Build policy context for authorization
+    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let policy_context = serde_json::json!({
+        "user_id": ctx.user_id,
+        "user_email": ctx.user_email,
+        "user_roles": ctx.user_roles,
+        "client_ip": ctx.client_ip.clone().unwrap_or_else(|| "unknown".to_string()),
+        "request_id": ctx.request_id,
+        "mfa_passed": ctx
+            .jwt_claims
+            .as_ref()
+            .and_then(|c| c.metadata.get("mfa_passed"))
+            .map(|v| v == "true")
+            .unwrap_or(false),
+        "timestamp": chrono::Utc::now().to_rfc3339(),
     });
 
-    // Execute fetches in parallel
-    let secrets_data = futures::future::try_join_all(fetch_futures).await?;
-
-    // Process results
-    for (i, secret_config) in request.secrets.iter().enumerate() {
+    for secret_config in &request.secrets {
         secret_paths.push(secret_config.path.clone());
-        let secret_data = &secrets_data[i];
+
+        // Authorization check
+        {
+            let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
+                message: "Failed to acquire policy lock".to_string(),
+            })?;
+
+            if !policy_set.evaluate(user_id, &secret_config.path, "read", Some(&policy_context)) {
+                return Err(ApiError::Forbidden);
+            }
+        }
+
+        // Fetch secret from Secreton
+        let secret_data = fetch_secret(&state, &secret_config.path, user_id).await?;
 
         // Process based on configuration
         if let Some(key) = &secret_config.key {
@@ -161,6 +187,10 @@ pub async fn inject_env(
                     .clone()
                     .unwrap_or_else(|| format!("{}{}", prefix, key.to_uppercase()));
                 env_vars.insert(env_name, value.clone());
+            } else {
+                return Err(ApiError::BadRequest {
+                    message: format!("Key '{}' not found in secret '{}'", key, secret_config.path),
+                });
             }
         } else {
             // All keys requested
@@ -191,14 +221,14 @@ pub async fn inject_env(
         expires_at,
         secret_paths,
         active: true,
+        created_by: user_id.to_string(),
     };
 
     // Store session for tracking
-    // TODO: Store in actual session storage
-    store_session(&session).await?;
+    store_session(&state, &session).await?;
 
     // Schedule automatic cleanup
-    schedule_cleanup(&session_id, ttl).await;
+    schedule_cleanup(state, &session_id, ttl).await;
 
     let response = InjectEnvResponse {
         session_id: session_id.clone(),
@@ -214,13 +244,28 @@ pub async fn inject_env(
 ///
 /// DELETE /v1/inject/cleanup/{session_id}
 pub async fn cleanup_session(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
+    Extension(ctx): Extension<RequestContext>,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     info!("Cleaning up injection session {}", session_id);
 
-    // Retrieve session
-    let session = get_session(&session_id).await?;
+    // Retrieve session first
+    let session = get_session(&state, &session_id).await?;
+
+    // Authorization check: Allow if owner OR if has delete permission
+    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    // Prevent "anonymous" users from claiming ownership
+    let is_owner = session.created_by == user_id && user_id != "anonymous";
+
+    if !is_owner {
+        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
+            message: "Failed to acquire policy lock".to_string(),
+        })?;
+        if !policy_set.evaluate(user_id, "sys/inject/sessions", "delete", None) {
+            return Err(ApiError::Forbidden);
+        }
+    }
 
     if !session.active {
         return Err(ApiError::NotFound {
@@ -229,7 +274,7 @@ pub async fn cleanup_session(
     }
 
     // Mark session as inactive
-    deactivate_session(&session_id).await?;
+    deactivate_session(&state, &session_id).await?;
 
     // Audit log the cleanup
     audit_cleanup(&session).await;
@@ -243,10 +288,21 @@ pub async fn cleanup_session(
 ///
 /// GET /v1/inject/sessions
 pub async fn list_sessions(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
+    Extension(ctx): Extension<RequestContext>,
 ) -> Result<Json<ApiResponse<Vec<InjectionSession>>>, ApiError> {
-    // TODO: Implement actual session listing
-    let sessions = list_active_sessions().await?;
+    // Authorization check
+    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    {
+        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
+            message: "Failed to acquire policy lock".to_string(),
+        })?;
+        if !policy_set.evaluate(user_id, "sys/inject/sessions", "list", None) {
+            return Err(ApiError::Forbidden);
+        }
+    }
+
+    let sessions = list_active_sessions(&state).await?;
 
     Ok(Json(ApiResponse::success(sessions)))
 }
@@ -255,10 +311,22 @@ pub async fn list_sessions(
 ///
 /// GET /v1/inject/sessions/{session_id}
 pub async fn get_session_details(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
+    Extension(ctx): Extension<RequestContext>,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<InjectionSession>>, ApiError> {
-    let session = get_session(&session_id).await?;
+    // Authorization check
+    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    {
+        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
+            message: "Failed to acquire policy lock".to_string(),
+        })?;
+        if !policy_set.evaluate(user_id, "sys/inject/sessions", "read", None) {
+            return Err(ApiError::Forbidden);
+        }
+    }
+
+    let session = get_session(&state, &session_id).await?;
 
     Ok(Json(ApiResponse::success(session)))
 }
@@ -266,57 +334,142 @@ pub async fn get_session_details(
 // Helper functions (to be implemented with actual storage)
 
 async fn fetch_secret(
-    state: &crate::services::ServiceContainer,
+    state: &Arc<crate::services::ServiceContainer>,
     path: &str,
     user_id: &str,
 ) -> Result<HashMap<String, String>, ApiError> {
     info!("Fetching secret from path: {}", path);
 
-    match state.engine.get_secret(path, user_id).await {
-        Ok(secret_data) => Ok(secret_data.data),
-        Err(e) => match e {
-            SecretServiceError::SecretNotFound { path } => Err(ApiError::NotFound { resource: path }),
-            SecretServiceError::PermissionDenied(_) => Err(ApiError::Forbidden),
-            _ => Err(ApiError::Internal {
+    let secret_data = state.engine.get_secret(path, user_id).await.map_err(|e| {
+        match e {
+            crate::services::secret_engine::SecretServiceError::SecretNotFound { .. } => {
+                ApiError::NotFound {
+                    resource: path.to_string(),
+                }
+            }
+            crate::services::secret_engine::SecretServiceError::PermissionDenied(msg) => {
+                ApiError::Forbidden
+            }
+            _ => ApiError::Internal {
                 message: e.to_string(),
-            }),
-        },
-    }
+            },
+        }
+    })?;
+
+    Ok(secret_data.data)
 }
 
-async fn store_session(session: &InjectionSession) -> Result<(), ApiError> {
-    // TODO: Store in Redis or PostgreSQL
+const SESSION_PREFIX: &str = "sys/inject/sessions/";
+
+async fn store_session(
+    state: &Arc<crate::services::ServiceContainer>,
+    session: &InjectionSession,
+) -> Result<(), ApiError> {
     info!("Storing injection session: {}", session.id);
+    let path = format!("{}{}", SESSION_PREFIX, session.id);
+    let serialized = serde_json::to_vec(session).map_err(|e| ApiError::Internal {
+        message: e.to_string(),
+    })?;
+
+    let entry = SecretEntry::new(
+        path,
+        serialized,
+        serde_json::json!({}),
+        SecurityLevel::Confidential,
+        "system".to_string(),
+    );
+
+    state.storage.store(&entry).await.map_err(ApiError::Storage)?;
     Ok(())
 }
 
-async fn get_session(session_id: &str) -> Result<InjectionSession, ApiError> {
-    // TODO: Retrieve from storage
+async fn get_session_internal(
+    state: &Arc<crate::services::ServiceContainer>,
+    session_id: &str,
+) -> Result<InjectionSession, ApiError> {
     info!("Retrieving session: {}", session_id);
+    let path = format!("{}{}", SESSION_PREFIX, session_id);
 
-    // Mock session for now
-    Ok(InjectionSession {
-        id: session_id.to_string(),
-        job_id: "mock-job".to_string(),
-        created_at: chrono::Utc::now(),
-        expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
-        secret_paths: vec![],
-        active: true,
-    })
+    let entry = state
+        .storage
+        .get_by_path(&path)
+        .await
+        .map_err(ApiError::Storage)?
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Session {}", session_id),
+        })?;
+
+    let session: InjectionSession = serde_json::from_slice(&entry.encrypted_data).map_err(|e| {
+        ApiError::Internal {
+            message: format!("Failed to deserialize session: {}", e),
+        }
+    })?;
+
+    Ok(session)
 }
 
-async fn deactivate_session(session_id: &str) -> Result<(), ApiError> {
-    // TODO: Update in storage
+async fn get_session(
+    state: &Arc<crate::services::ServiceContainer>,
+    session_id: &str,
+) -> Result<InjectionSession, ApiError> {
+    let mut session = get_session_internal(state, session_id).await?;
+
+    // Check expiration (lazy cleanup)
+    if session.active && chrono::Utc::now() > session.expires_at {
+        info!("Session {} expired, lazily deactivating", session_id);
+        if let Err(e) = deactivate_session(state, session_id).await {
+            error!("Failed to lazily deactivate session {}: {}", session_id, e);
+        }
+        session.active = false;
+    }
+
+    Ok(session)
+}
+
+async fn deactivate_session(
+    state: &Arc<crate::services::ServiceContainer>,
+    session_id: &str,
+) -> Result<(), ApiError> {
     info!("Deactivating session: {}", session_id);
-    Ok(())
+    let mut session = get_session_internal(state, session_id).await?;
+    session.active = false;
+    store_session(state, &session).await
 }
 
-async fn list_active_sessions() -> Result<Vec<InjectionSession>, ApiError> {
-    // TODO: Query from storage
-    Ok(vec![])
+async fn list_active_sessions(
+    state: &Arc<crate::services::ServiceContainer>,
+) -> Result<Vec<InjectionSession>, ApiError> {
+    let params = QueryParams {
+        path_prefix: Some(SESSION_PREFIX.to_string()),
+        ..Default::default()
+    };
+
+    let entries = state.storage.list(&params).await.map_err(ApiError::Storage)?;
+    let mut sessions = Vec::new();
+    let now = chrono::Utc::now();
+
+    for entry in entries {
+        if let Ok(session) = serde_json::from_slice::<InjectionSession>(&entry.encrypted_data) {
+            // Check if active and not expired
+            if session.active {
+                if now > session.expires_at {
+                    // Lazy cleanup for listed items
+                    let _ = deactivate_session(state, &session.id).await;
+                    continue;
+                }
+                sessions.push(session);
+            }
+        }
+    }
+
+    Ok(sessions)
 }
 
-async fn schedule_cleanup(session_id: &str, ttl: u64) {
+async fn schedule_cleanup(
+    state: Arc<crate::services::ServiceContainer>,
+    session_id: &str,
+    ttl: u64,
+) {
     let session_id = session_id.to_string();
 
     tokio::spawn(async move {
@@ -324,7 +477,7 @@ async fn schedule_cleanup(session_id: &str, ttl: u64) {
 
         info!("Auto-cleanup triggered for session {}", session_id);
 
-        if let Err(e) = deactivate_session(&session_id).await {
+        if let Err(e) = deactivate_session(&state, &session_id).await {
             error!("Failed to auto-cleanup session {}: {}", session_id, e);
         }
     });
@@ -394,6 +547,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_lifecycle() {
+        use deadpool_postgres::{Config, Runtime};
+        use secreton_storage::MemoryBackend;
+        use tokio_postgres::NoTls;
+
+        // Setup mock services
+        let storage = Arc::new(MemoryBackend::new());
+        let mut cfg = Config::new();
+        cfg.dbname = Some("test".to_string());
+        // We need a pool even if unused by session storage
+        let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+
+        let state = Arc::new(crate::services::ServiceContainer::new_mock(storage, pool));
+
         let session = InjectionSession {
             id: "test-session".to_string(),
             job_id: "test-job".to_string(),
@@ -401,16 +567,21 @@ mod tests {
             expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
             secret_paths: vec!["/secret/data/test".to_string()],
             active: true,
+            created_by: "user1".to_string(),
         };
 
         // Test store
-        assert!(store_session(&session).await.is_ok());
+        assert!(store_session(&state, &session).await.is_ok());
 
         // Test retrieve
-        let retrieved = get_session(&session.id).await.unwrap();
+        let retrieved = get_session(&state, &session.id).await.unwrap();
         assert_eq!(retrieved.id, session.id);
 
         // Test deactivate
-        assert!(deactivate_session(&session.id).await.is_ok());
+        assert!(deactivate_session(&state, &session.id).await.is_ok());
+
+        // Test verify inactive
+        let inactive = get_session(&state, &session.id).await.unwrap();
+        assert!(!inactive.active);
     }
 }
