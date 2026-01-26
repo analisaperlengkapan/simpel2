@@ -12,6 +12,7 @@ use uuid::Uuid;
 fn create_test_config(node_id: u64, peers: HashMap<u64, String>) -> RaftClusterConfig {
     RaftClusterConfig {
         node_id,
+        bind_address: format!("127.0.0.1:{}", 8200 + node_id),
         peers,
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,
@@ -55,6 +56,7 @@ async fn test_leader_failure_reelection() -> StorageResult<()> {
     // Simplified version: single node that becomes leader
     let config = RaftClusterConfig {
         node_id: 1,
+        bind_address: "127.0.0.1:8201".to_string(),
         peers: HashMap::new(),
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,
@@ -94,6 +96,7 @@ async fn test_follower_catchup() -> StorageResult<()> {
     // Simplified version: write entries to single node
     let config = RaftClusterConfig {
         node_id: 1,
+        bind_address: "127.0.0.1:8201".to_string(),
         peers: HashMap::new(),
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,
@@ -138,6 +141,7 @@ async fn test_snapshot_recovery() -> StorageResult<()> {
     // Simplified version: write enough entries to potentially trigger snapshot
     let config = RaftClusterConfig {
         node_id: 1,
+        bind_address: "127.0.0.1:8201".to_string(),
         peers: HashMap::new(),
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,
@@ -184,6 +188,7 @@ async fn test_network_partition() -> StorageResult<()> {
     // Placeholder test
     let config = RaftClusterConfig {
         node_id: 1,
+        bind_address: "127.0.0.1:8201".to_string(),
         peers: HashMap::new(),
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,
@@ -211,6 +216,7 @@ async fn test_graceful_shutdown() -> StorageResult<()> {
 
     let config = RaftClusterConfig {
         node_id: 1,
+        bind_address: "127.0.0.1:8201".to_string(),
         peers: HashMap::new(),
         election_timeout_ms: 500,
         heartbeat_interval_ms: 150,

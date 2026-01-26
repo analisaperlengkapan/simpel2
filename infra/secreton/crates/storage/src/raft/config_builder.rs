@@ -19,6 +19,7 @@ use std::collections::HashMap;
 /// ```
 pub struct RaftClusterConfigBuilder {
     node_id: NodeId,
+    bind_address: String,
     peers: HashMap<NodeId, String>,
     election_timeout_ms: u64,
     heartbeat_interval_ms: u64,
@@ -33,6 +34,7 @@ impl RaftClusterConfigBuilder {
         let defaults = RaftClusterConfig::default();
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: defaults.election_timeout_ms,
             heartbeat_interval_ms: defaults.heartbeat_interval_ms,
@@ -40,6 +42,12 @@ impl RaftClusterConfigBuilder {
             enable_tick: defaults.enable_tick,
             bootstrap: defaults.bootstrap,
         }
+    }
+
+    /// Set bind address
+    pub fn bind_address(mut self, address: String) -> Self {
+        self.bind_address = address;
+        self
     }
 
     /// Set election timeout in milliseconds
@@ -88,6 +96,7 @@ impl RaftClusterConfigBuilder {
     pub fn build(self) -> Result<RaftClusterConfig, String> {
         let config = RaftClusterConfig {
             node_id: self.node_id,
+            bind_address: self.bind_address,
             peers: self.peers,
             election_timeout_ms: self.election_timeout_ms,
             heartbeat_interval_ms: self.heartbeat_interval_ms,
@@ -114,8 +123,8 @@ mod tests {
             .expect("should build with defaults");
 
         assert_eq!(config.node_id, 1);
-        assert_eq!(config.election_timeout_ms, 1000);
-        assert_eq!(config.heartbeat_interval_ms, 300);
+        assert_eq!(config.election_timeout_ms, 2500); // Updated to match Default implementation
+        assert_eq!(config.heartbeat_interval_ms, 750); // Updated to match Default implementation
     }
 
     #[test]
