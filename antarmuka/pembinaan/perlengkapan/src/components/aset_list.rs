@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+use crate::components::auth::get_auth_token;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Aset {
@@ -25,8 +26,10 @@ pub struct PaginatedResponse<T> {
 
 #[cfg(target_arch = "wasm32")]
 async fn fetch_asets() -> Result<Vec<Aset>, String> {
+    let token = get_auth_token().unwrap_or_default();
     let resp = gloo_net::http::Request::get("/api/pembinaan/perlengkapan/aset?page=1&per_page=100")
         .header("Accept", "application/json")
+        .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
         .map_err(|e| e.to_string())?;
