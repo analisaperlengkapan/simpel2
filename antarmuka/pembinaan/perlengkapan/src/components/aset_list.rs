@@ -6,13 +6,15 @@ pub fn AsetList() -> impl IntoView {
     let (page, set_page) = signal(1);
 
     // Resource to fetch assets when page changes
-    let assets_resource = LocalResource::new(move || async move {
+    let assets_resource = LocalResource::new(move || {
         let p = page.get();
-        match fetch_assets(p, 20).await {
-            Ok(response) => Some(response),
-            Err(e) => {
-                leptos::logging::error!("Failed to fetch assets: {:?}", e);
-                None
+        async move {
+            match fetch_assets(p, 20).await {
+                Ok(response) => Some(response),
+                Err(e) => {
+                    leptos::logging::error!("Failed to fetch assets: {:?}", e);
+                    None
+                }
             }
         }
     });
