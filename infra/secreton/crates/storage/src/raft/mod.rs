@@ -245,8 +245,8 @@ pub struct RaftCluster {
     replication_config: Arc<tokio::sync::RwLock<ReplicationConfig>>,
     /// Metrics collector for tracking performance
     metrics_collector: Arc<tokio::sync::RwLock<MetricsCollector>>,
-    /// Shutdown notification signal
-    shutdown_notify: Arc<tokio::sync::Notify>,
+    /// Shutdown signal sender
+    shutdown_tx: tokio::sync::watch::Sender<bool>,
 }
 
 /// Monitor for tracking leader election performance
@@ -363,7 +363,7 @@ impl RaftCluster {
 
         let replication_config = Arc::new(tokio::sync::RwLock::new(ReplicationConfig::default()));
         let metrics_collector = Arc::new(tokio::sync::RwLock::new(MetricsCollector::new()));
-        let shutdown_notify = Arc::new(tokio::sync::Notify::new());
+        let (shutdown_tx, _) = tokio::sync::watch::channel(false);
 
         let cluster = Self {
             config: config.clone(),
@@ -373,7 +373,7 @@ impl RaftCluster {
             election_monitor: election_monitor.clone(),
             replication_config: replication_config.clone(),
             metrics_collector: metrics_collector.clone(),
-            shutdown_notify,
+            shutdown_tx,
         };
 
         // Bootstrap the Raft cluster with initial membership
@@ -467,13 +467,13 @@ impl RaftCluster {
         let storage = Arc::clone(&self.storage);
         let replication_config = Arc::clone(&self.replication_config);
         let node_id = self.config.node_id;
-        let shutdown = Arc::clone(&self.shutdown_notify);
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             loop {
                 // Wait for interval or shutdown
                 tokio::select! {
-                    _ = shutdown.notified() => {
+                    _ = shutdown_rx.changed() => {
                         tracing::info!("Stopping replication task");
                         break;
                     }
@@ -555,14 +555,14 @@ impl RaftCluster {
     fn start_node_health_monitoring(&self) {
         let raft = Arc::clone(&self.raft);
         let _node_id = self.config.node_id;
-        let shutdown = Arc::clone(&self.shutdown_notify);
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             let mut last_leader: Option<NodeId> = None;
 
             loop {
                 tokio::select! {
-                    _ = shutdown.notified() => {
+                    _ = shutdown_rx.changed() => {
                         tracing::info!("Stopping node health monitoring");
                         break;
                     }
@@ -629,7 +629,7 @@ impl RaftCluster {
         let raft = Arc::clone(&self.raft);
         let monitor = Arc::clone(&self.election_monitor);
         let _node_id = self.config.node_id;
-        let shutdown = Arc::clone(&self.shutdown_notify);
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             let mut last_term = 0u64;
@@ -637,7 +637,7 @@ impl RaftCluster {
 
             loop {
                 tokio::select! {
-                    _ = shutdown.notified() => {
+                    _ = shutdown_rx.changed() => {
                         tracing::info!("Stopping election monitoring");
                         break;
                     }
@@ -732,14 +732,14 @@ impl RaftCluster {
         let raft = Arc::clone(&self.raft);
         let config = self.snapshot_config.clone();
         let _node_id = self.config.node_id;
-        let shutdown = Arc::clone(&self.shutdown_notify);
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
         tokio::spawn(async move {
             let interval = Duration::from_secs(config.interval_secs);
 
             loop {
                 tokio::select! {
-                    _ = shutdown.notified() => {
+                    _ = shutdown_rx.changed() => {
                         tracing::info!("Stopping snapshot automation");
                         break;
                     }
@@ -927,8 +927,14 @@ impl RaftCluster {
             return None;
         }
 
-        // Look up leader address in peers
-        self.config.peers.get(&leader_id).cloned()
+        // Look up leader address in dynamic membership
+        let metrics = self.raft.metrics().borrow().clone();
+        metrics
+            .membership_config
+            .membership()
+            .nodes()
+            .find(|(id, _)| **id == leader_id)
+            .map(|(_, node)| node.addr.clone())
     }
 
     /// Add a replication target
@@ -1219,7 +1225,7 @@ impl RaftCluster {
 
     pub async fn shutdown(&self) -> StorageResult<()> {
         // Signal background tasks to stop
-        self.shutdown_notify.notify_waiters();
+        let _ = self.shutdown_tx.send(true);
 
         self.raft
             .shutdown()
