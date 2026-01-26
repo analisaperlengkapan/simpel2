@@ -98,6 +98,20 @@ pub async fn create_aset(
     ))
 }
 
+// Integration handlers
+pub async fn sync_siman(
+    State(service): State<PerlengkapanService>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<String>>, AppError> {
+    // Only allow specific roles if needed, for now just auth check
+    let result = service.sync_from_siman().await?;
+
+    Ok(Json(ApiResponse::success(
+        result,
+        "Synchronization started successfully".to_string(),
+    )))
+}
+
 pub async fn update_aset(
     State(service): State<PerlengkapanService>,
     Path(id): Path<Uuid>,

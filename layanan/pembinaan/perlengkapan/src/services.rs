@@ -5,6 +5,12 @@
 use crate::{database::Database, errors::*, models::*};
 use uuid::Uuid;
 use validator::Validate;
+use tracing::{info, error};
+use layanan_integrasi::{
+    client::MonsaktiClient,
+    config::Config as IntegrasiConfig,
+    siman::{fetch_all_aset_paginated, SimanAssetCategory},
+};
 
 #[derive(Clone)]
 pub struct PerlengkapanService {
@@ -100,7 +106,7 @@ impl PerlengkapanService {
 
         let rows = client
             .query(
-                "SELECT id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.aset ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+                "SELECT id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.aset ORDER BY created_at DESC LIMIT $1 OFFSET $2",
                 &[&(per_page as i64), &(offset as i64)],
             )
             .await
@@ -118,7 +124,7 @@ impl PerlengkapanService {
             })?;
 
         let row = client
-            .query_opt("SELECT id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.aset WHERE id = $1", &[&id])
+            .query_opt("SELECT id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.aset WHERE id = $1", &[&id])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -157,15 +163,17 @@ impl PerlengkapanService {
             .query_one(
                 r#"
                 INSERT INTO perlengkapan.aset
-                (id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan, tanggal_perolehan, keterangan, created_by, updated_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                RETURNING id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by
+                (id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan, tanggal_perolehan, keterangan, created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                RETURNING id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by
                 "#,
                 &[
                     &id,
                     &request.nama,
                     &request.kategori,
                     &request.kode_bmn,
+                    &request.merk,
+                    &request.nup,
                     &request.kondisi,
                     &request.lokasi,
                     &request.nilai_perolehan,
@@ -203,21 +211,25 @@ impl PerlengkapanService {
                 UPDATE perlengkapan.aset
                 SET nama = COALESCE($2, nama),
                     kategori = COALESCE($3, kategori),
-                    kondisi = COALESCE($4, kondisi),
-                    lokasi = COALESCE($5, lokasi),
-                    nilai_perolehan = COALESCE($6, nilai_perolehan),
-                    tanggal_perolehan = COALESCE($7, tanggal_perolehan),
-                    status = COALESCE($8, status),
-                    keterangan = COALESCE($9, keterangan),
-                    updated_by = $10,
+                    merk = COALESCE($4, merk),
+                    nup = COALESCE($5, nup),
+                    kondisi = COALESCE($6, kondisi),
+                    lokasi = COALESCE($7, lokasi),
+                    nilai_perolehan = COALESCE($8, nilai_perolehan),
+                    tanggal_perolehan = COALESCE($9, tanggal_perolehan),
+                    status = COALESCE($10, status),
+                    keterangan = COALESCE($11, keterangan),
+                    updated_by = $12,
                     updated_at = NOW()
                 WHERE id = $1
-                RETURNING id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by
+                RETURNING id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by
                 "#,
                 &[
                     &id,
                     &request.nama,
                     &request.kategori,
+                    &request.merk,
+                    &request.nup,
                     &request.kondisi,
                     &request.lokasi,
                     &request.nilai_perolehan,
@@ -414,5 +426,85 @@ impl PerlengkapanService {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(AnalisisKebutuhan::from_row(&row))
+    }
+
+    // ============ Integration Services ============
+
+    pub async fn sync_from_siman(&self) -> AppResult<String> {
+        // Load config from environment
+        let config = IntegrasiConfig::from_env()
+            .map_err(|e| AppError::Internal(format!("Integration config error: {}", e)))?;
+
+        // Initialize client
+        let mut client = MonsaktiClient::new(config)
+            .await
+            .map_err(|e| AppError::Internal(format!("Integration client error: {}", e)))?;
+
+        // Fetch Non-TIK assets
+        let assets = fetch_all_aset_paginated(&mut client, SimanAssetCategory::NonTIK, 100)
+            .await
+            .map_err(|e| AppError::Internal(format!("Fetch error: {}", e)))?;
+
+        let db_client = self.db.pool().get().await.map_err(|e| {
+            AppError::Internal(format!("Failed to get database connection: {}", e))
+        })?;
+
+        let mut count = 0;
+        let mut error_count = 0;
+        for asset in assets {
+            if let Some(obj) = asset.as_object() {
+                // Mapping logic
+                let kode_barang = obj.get("KD_BRG").and_then(|v| v.as_str()).unwrap_or_default();
+                let nup = obj.get("NO_ASET").and_then(|v| v.as_str()).unwrap_or_default();
+
+                // Construct Unique Code BMN: KodeBarang.NUP
+                let kode_bmn = format!("{}.{}", kode_barang, nup);
+
+                let nama = obj.get("NM_BRG").and_then(|v| v.as_str()).unwrap_or("Unknown Asset");
+                let merk = obj.get("MERK").and_then(|v| v.as_str());
+                let kondisi = "baik"; // Default, or map from SIMAN 'KONDISI'
+                let lokasi = obj.get("NM_SATKER").and_then(|v| v.as_str()).unwrap_or("-");
+                let nilai_perolehan = obj.get("RPH_ASET").and_then(|v| v.as_f64());
+
+                let id = Uuid::new_v4();
+
+                // Upsert logic
+                // We use ON CONFLICT (kode_bmn) DO UPDATE
+                match db_client.query(
+                    r#"
+                    INSERT INTO perlengkapan.aset
+                    (id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan, status, updated_at, created_at)
+                    VALUES ($1, $2, 'Non TIK', $3, $4, $5, $6, $7, $8, 'aktif', NOW(), NOW())
+                    ON CONFLICT (kode_bmn)
+                    DO UPDATE SET
+                        nama = EXCLUDED.nama,
+                        merk = EXCLUDED.merk,
+                        nup = EXCLUDED.nup,
+                        lokasi = EXCLUDED.lokasi,
+                        nilai_perolehan = EXCLUDED.nilai_perolehan,
+                        updated_at = NOW()
+                    "#,
+                    &[
+                        &id,
+                        &nama,
+                        &kode_bmn,
+                        &merk,
+                        &Some(nup.to_string()),
+                        &kondisi,
+                        &lokasi,
+                        &nilai_perolehan
+                    ]
+                ).await {
+                    Ok(_) => count += 1,
+                    Err(e) => {
+                        error!("Failed to sync asset {}: {}", kode_bmn, e);
+                        error_count += 1;
+                    }
+                }
+            }
+        }
+
+        info!("Synced {} assets from SIMAN ({} errors)", count, error_count);
+        Ok(format!("Synced {} assets from SIMAN ({} errors)", count, error_count))
     }
 }

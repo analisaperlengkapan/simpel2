@@ -2,7 +2,7 @@
 //!
 //! Route definitions for the Perlengkapan service
 
-use axum::{Router, routing::get};
+use axum::{Router, routing::{get, post}};
 
 use crate::{handlers::*, services::PerlengkapanService};
 
@@ -23,6 +23,8 @@ pub fn create_routes(service: PerlengkapanService) -> Router {
         .route("/pengadaan/{id}", get(get_pengadaan_by_id))
         // Analisis Kebutuhan routes
         .route("/analisis", get(get_all_analisis).post(create_analisis))
+        // Integration routes
+        .route("/sync/siman", post(sync_siman))
         // Add the service as state
         .with_state(service)
 }

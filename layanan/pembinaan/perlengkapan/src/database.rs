@@ -56,6 +56,8 @@ impl Database {
                 nama VARCHAR NOT NULL,
                 kategori VARCHAR NOT NULL,
                 kode_bmn VARCHAR UNIQUE NOT NULL,
+                merk VARCHAR,
+                nup VARCHAR,
                 kondisi VARCHAR NOT NULL DEFAULT 'baik',
                 lokasi VARCHAR NOT NULL,
                 nilai_perolehan DECIMAL(15,2),

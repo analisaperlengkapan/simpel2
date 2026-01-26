@@ -32,6 +32,7 @@ gloo = { workspace = true, features = ["futures", "timers", "events"] }
 gloo-timers = { workspace = true, features = ["futures"] }
 getrandom = { version = "0.3.3", features = ["wasm_js"] }
 gloo-utils = { workspace = true }
+gloo-net = { workspace = true, features = ["http"] }
 
 # Serialization - Compact binary format
 serde = { workspace = true, features = ["derive"] }
