@@ -34,7 +34,7 @@ impl RaftClusterConfigBuilder {
         let defaults = RaftClusterConfig::default();
         Self {
             node_id,
-            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
+            bind_address: defaults.bind_address,
             peers: HashMap::new(),
             election_timeout_ms: defaults.election_timeout_ms,
             heartbeat_interval_ms: defaults.heartbeat_interval_ms,
@@ -44,9 +44,9 @@ impl RaftClusterConfigBuilder {
         }
     }
 
-    /// Set bind address
-    pub fn bind_address(mut self, address: String) -> Self {
-        self.bind_address = address;
+    /// Set the bind address for the Raft listener
+    pub fn bind_address(mut self, addr: String) -> Self {
+        self.bind_address = addr;
         self
     }
 

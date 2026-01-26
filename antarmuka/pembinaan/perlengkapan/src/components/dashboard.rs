@@ -57,6 +57,20 @@ pub fn DashboardLayout(
         UserMenuItem::new("Logout", None, "fas fa-sign-out-alt"),
     ];
 
+    // Logout handler
+    let handle_logout = || {
+        // Clear local storage (both Perlengkapan and Portal tokens)
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                let _ = storage.remove_item("jwt_token");
+                let _ = storage.remove_item("auth_token");
+                let _ = storage.remove_item("user_session");
+            }
+            // Redirect to Portal Login
+            let _ = window.location().set_href("/portal/login");
+        }
+    };
+
     view! {
         <div class="min-h-screen bg-gray-50">
             // Modern Header with gradient and animations
@@ -123,6 +137,7 @@ pub fn DashboardLayout(
                                 user_role=user.role.clone()
                                 user_avatar=user.avatar.clone()
                                 menu_items=user_menu_items
+                                on_logout=handle_logout
                             />
                         </div>
                     </div>

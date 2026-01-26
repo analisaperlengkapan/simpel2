@@ -111,7 +111,7 @@ pub fn generate_ed25519_jwt(
     };
 
     let claims = OidcIdTokenClaims {
-        iss: "http://localhost:8080/v1".to_string(),
+        iss: "https://10.1.7.121/api/auth/v1".to_string(),
         sub: sub.to_string(),
         aud: aud.to_string(),
         exp: now + 3600,
@@ -283,14 +283,14 @@ pub async fn oidc_token_ed25519(
 /// - Enables secure client configuration and discovery
 pub async fn oidc_discovery_ed25519() -> Result<Json<serde_json::Value>, AuthencError> {
     let discovery = serde_json::json!({
-        "issuer": "http://localhost:8080/v1",
-        "authorization_endpoint": "http://localhost:8080/v1/oidc/authorize",
-        "token_endpoint": "http://localhost:8080/v1/oidc/token",
-        "refresh_endpoint": "http://localhost:8080/v1/oidc/refresh",
-        "revocation_endpoint": "http://localhost:8080/v1/oidc/revoke",
-        "end_session_endpoint": "http://localhost:8080/v1/oidc/logout",
-        "jwks_uri": "http://localhost:8080/v1/.well-known/jwks.json",
-        "userinfo_endpoint": "http://localhost:8080/v1/oidc/userinfo",
+        "issuer": "https://10.1.7.121/api/auth",
+        "authorization_endpoint": "https://10.1.7.121/api/auth/oidc/authorize",
+        "token_endpoint": "https://10.1.7.121/api/auth/oidc/token",
+        "refresh_endpoint": "https://10.1.7.121/api/auth/oidc/refresh",
+        "revocation_endpoint": "https://10.1.7.121/api/auth/oidc/revoke",
+        "end_session_endpoint": "https://10.1.7.121/api/auth/oidc/logout",
+        "jwks_uri": "https://10.1.7.121/api/auth/oidc/jwks",
+        "userinfo_endpoint": "https://10.1.7.121/api/auth/oidc/userinfo",
         "grant_types_supported": [
             "authorization_code",
             "refresh_token"
@@ -572,26 +572,26 @@ mod tests {
         let discovery = result.unwrap().0;
 
         // Verify issuer
-        assert_eq!(discovery["issuer"], "http://localhost:8080/v1");
+        assert_eq!(discovery["issuer"], "https://10.1.7.121/api/auth/v1");
 
         // Verify JWKS endpoint is present at standard location
         assert_eq!(
             discovery["jwks_uri"],
-            "http://localhost:8080/v1/.well-known/jwks.json"
+            "https://10.1.7.121/api/auth/v1/.well-known/jwks.json"
         );
 
         // Verify refresh, revocation, and logout endpoints
         assert_eq!(
             discovery["refresh_endpoint"],
-            "http://localhost:8080/v1/oidc/refresh"
+            "https://10.1.7.121/api/auth/v1/oidc/refresh"
         );
         assert_eq!(
             discovery["revocation_endpoint"],
-            "http://localhost:8080/v1/oidc/revoke"
+            "https://10.1.7.121/api/auth/v1/oidc/revoke"
         );
         assert_eq!(
             discovery["end_session_endpoint"],
-            "http://localhost:8080/v1/oidc/logout"
+            "https://10.1.7.121/api/auth/v1/oidc/logout"
         );
 
         // Verify supported grant types

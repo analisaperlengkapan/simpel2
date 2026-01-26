@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: simpelv2-config
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: simpelv2
     app.kubernetes.io/component: config

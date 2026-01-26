@@ -6,7 +6,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-ingress
-  namespace: simpelv2-frontend
+  namespace: simpelv2
 spec:
   podSelector: {}
   policyTypes:
@@ -17,7 +17,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-ingress
-  namespace: simpelv2-backend
+  namespace: simpelv2
 spec:
   podSelector: {}
   policyTypes:
@@ -40,7 +40,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-istio-ingressgateway
-  namespace: simpelv2-frontend
+  namespace: simpelv2
 spec:
   podSelector: {}
   policyTypes:
@@ -63,7 +63,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-backend-from-frontend
-  namespace: simpelv2-backend
+  namespace: simpelv2
 spec:
   podSelector: {}
   policyTypes:
@@ -128,7 +128,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-scraping
-  namespace: simpelv2-frontend
+  namespace: simpelv2
 spec:
   podSelector:
     matchLabels:
@@ -152,7 +152,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-scraping
-  namespace: simpelv2-backend
+  namespace: simpelv2
 spec:
   podSelector: {}
   policyTypes:

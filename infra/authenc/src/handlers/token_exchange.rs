@@ -339,7 +339,7 @@ fn create_token_exchange_service(state: &Arc<AppState>) -> Result<TokenExchangeS
 pub async fn token_exchange_metadata() -> Json<TokenExchangeMetadata> {
     Json(TokenExchangeMetadata {
         grant_types_supported: vec!["urn:ietf:params:oauth:grant-type:token-exchange".to_string()],
-        token_endpoint: "http://localhost:8080/v1/oauth2/token/exchange".to_string(),
+        token_endpoint: "https://10.1.7.121/api/auth/v1/oauth2/token/exchange".to_string(),
         subject_token_types_supported: vec![
             "urn:ietf:params:oauth:token-type:access_token".to_string(),
             "urn:ietf:params:oauth:token-type:refresh_token".to_string(),

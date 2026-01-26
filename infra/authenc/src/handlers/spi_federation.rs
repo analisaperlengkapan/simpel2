@@ -385,7 +385,7 @@ pub async fn social_callback(
         provider: provider_name.to_string(),
         code: code.clone(),
         state: state_param.clone(),
-        redirect_uri: "http://localhost:8080/auth/social/callback".to_string(), // TODO: Get from config
+        redirect_uri: "https://10.1.7.121/api/auth/auth/social/callback".to_string(), // TODO: Get from config
     };
 
     social_authenticate(State(state), Json(request)).await

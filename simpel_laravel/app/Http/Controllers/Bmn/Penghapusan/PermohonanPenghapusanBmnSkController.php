@@ -1,0 +1,593 @@
+<?php
+
+namespace App\Http\Controllers\Bmn\Penghapusan;
+use Illuminate\Routing\Controller;
+
+use App\Helpers\MyHelper;
+use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmn;
+use App\Models\Sistem\Files;
+use App\Models\Master\MsSatker;
+use App\Models\Komunikasi\Notifikasi;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\Models\Bmn\PermohonanSk\PermohonanPenghapusanBmnSk as Model;
+use App\Models\Bmn\PermohonanSk\PermohonanPenghapusanBmnSkAktivitas as Aktivitas;
+use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFile;
+use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFoto;
+use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFotocopy;
+use App\Models\Master\Master;
+use Illuminate\Support\Facades\File as FileManager;
+use ZipArchive;
+
+class PermohonanPenghapusanBmnSkController extends Controller
+{
+    protected $kategoriJudul = 'Permohonan Penerbitan Surat Keputusan Penghapusan BMN';
+    protected $kategori = ['1'=>'Persetujuan Penghapusan oleh Jaksa Agung Muda Pembinaan','2'=>'Persetujuan Penghapusan oleh Pengelola Barang'];
+    protected $jenis = ['1'=>'Penyerahan kepada Pengelola Barang','2'=>'Pengalihan Status Penggunaan BMN kepada Pengguna Barang Lain','3'=>'Pemindahtanganan','4'=>'Adanya Putusan Pengadilan yang Telah memperoleh Kekuatan Hukum Tetap dan Sudah Tidak ada Upaya Hukum Lainnya','5'=>'Menjalankan Ketentuan Peraturan Perundang-undangan','6'=>'Pemusnahan','7'=>'Sebab-sebab Lain'];
+    protected $breadcums = ['Pengelolaan BMN','Penghapusan BMN'];
+    private $controller = '/bmn/penghapusan/penghapusansk';
+    private $url = 'bmn/penghapusan/penghapusansk';
+    private $whereKategori = [];
+
+    public function __construct(Request $request)
+    {
+        $segment = $request->segment(3);
+        $this->whereKategori = [];
+        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>$this->kategoriJudul]]);
+    }
+
+
+    public function index()
+    {
+        return view('bmn.permohonan-sk.pengajuanV', [
+            'tableId' => 'dt-pengajuan',
+            'breadcums' => $this->breadcums,
+            'controller' => $this->controller,
+            'kategori' => $this->kategori,
+            'kategoriJudul' => $this->kategoriJudul,
+            'jenis' => $this->jenis,
+            'canCreate' => $this->canCreatePermintaan()
+        ]);
+    }
+
+    protected function canCreatePermintaan()
+    {
+        // return true;
+        return in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'));
+    }
+
+    protected function isValidator()
+    {
+        if (session('userData.current_role.ms_role_id') == config('constants.superadmin_role_id')) {
+            return true;
+        }
+
+        if (session('userData.current_role.ms_role_id') == config('constants.validator_pusat_role_id')) {
+            return true;
+        }
+
+        if (session('userData.current_role.ms_role_id') == config('constants.validator_wilayah_role_id')) {
+            return true;
+        }
+
+        if (session('userData.current_role.ms_role_id') == config('constants.pelaksana_satker_role_id')) {
+            return false;
+        }
+    }
+
+    public function gridData(Request $request)
+    {
+        $user = new Model();
+        $pagingParams = $request->only(['start', 'length']);
+        $searchParams = $request->only(['columns']);
+        $data = $user->getDataGrid($pagingParams, $searchParams,  $this->whereKategori);
+        return response()->json([
+            'data' => $data['data'],
+            'recordsTotal' => $data['total'],
+            'recordsFiltered' => $data['total'],
+        ]);
+    }
+
+    public function gridDataFotoCopy($pengajuan_id)
+    {
+        $model = new PermohonanPenghapusanBmnFotocopy();
+        $data = $model->getDetail($pengajuan_id);
+        return response()->json([
+            'data' => $data,
+        ]);
+    }
+
+    public function gridDataFoto($pengajuan_id)
+    {
+        $model = new PermohonanPenghapusanBmnFoto();
+        $data = $model->getDetail($pengajuan_id);
+        return response()->json([
+            'data' => $data,
+        ]);
+    }
+
+    public function gridDataPermohonan()
+    {
+        $model = new Model();
+        $data = $model->getDataPermohonan();
+        return response()->json([
+            'data' => $data,
+        ]);
+    }
+
+    function getData($id = null)
+    {
+        $model = [];
+        $isNew = true;
+        $breadcum = 'Tambah';
+
+        if ($id) {
+            $breadcum = 'Ubah';
+            $model = Model::where('id', $id)->first();
+            if (!$model) {
+                throw new NotFoundHttpException('Data Tidak Ditemukan');
+            }
+            $model = $model->toArray();
+            $isNew = false;
+        }
+
+        $data = [
+            'model' => $model,
+            'isNew' => $isNew,
+            'controller' => $this->controller,
+            'breadcums' => array_merge($this->breadcums, [$breadcum]),
+        ];
+        return $data;
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $customMessages = [
+            // 'pengajuan_id.required' => 'Permohonan Peersetujuan Penghapusan BMN harus dipilih',
+            'kategori.required' => 'Kategori harus dipilih',
+            'no_surat_permohonan.required' => 'Nomor Surat Permohonan harus diisi',
+            'tgl_surat_permohonan.required' => 'Tanggal Surat Permohonan harus diisi',
+            'file_surat_permohonan.required' => 'File Surat Permohonan harus diupload',
+        ];
+        $validasi = [
+            // 'pengajuan_id' => 'required',
+            'kategori' => 'required',
+            'no_surat_permohonan' => 'required',
+            'tgl_surat_permohonan' => 'required',
+            'file_surat_permohonan' => 'required'
+        ];
+
+        $request->validate($validasi, $customMessages);
+        try {
+            DB::beginTransaction();
+            $id = $request->input('id');
+            $inputan['kategori'] = $request->input('kategori');
+            $inputan['jenis_barang'] = $request->input('jenis_barang');
+            $inputan['no_surat_permohonan'] = $request->input('no_surat_permohonan');
+            $inputan['tgl_surat_permohonan'] = $request->input('tgl_surat_permohonan');
+            $inputan['pengajuan_id'] = $request->input('pengajuan_id');
+            $inputan['jenis'] = $request->input('jenis');
+            if ($id == '' || $id == null) {
+                $inputan['inst_satkerkd'] = session('userData.current_role.ms_satker_id');
+                $id = MyHelper::getPk(date('Ymd'), 'permohonan_penghapusan_bmn_sk_seq');
+                $inputan['ms_aktifitas_id'] = 3000;
+                $inputan['created_by'] = session('userData.username');
+            }
+            $inputan['updated_by'] = session('userData.name');
+            Model::updateOrCreate(['id' => $id], $inputan);
+            if ($request->hasFile('file_surat_permohonan')) {
+                $filepath = 'uploads/bmn/permohonan_sk_penghapusan/'.$id;
+                $file = $request->file('file_surat_permohonan');
+                $fileName = $id.'_file_surat_permohonan.'.$file->getClientOriginalExtension();
+                $filesave = $filepath.'/'.$fileName;
+                $file->move($filepath, $fileName);
+                $newFile = [
+                    'filename' => $file->getClientOriginalName(),
+                    'path' => $filesave,
+                    'pkey' => $id,
+                    'kategori' => 'file_surat_keputusan_permohonan',
+                    'kategori_slug' => MyHelper::generateSlug('file_surat_keputusan_permohonan'),
+                    'filetype' => $file->getClientOriginalExtension(),
+                    'created_by' => session('userData.username'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+                $insertedFiles[] = $newFile;
+                Files::insert($insertedFiles);
+                Model::updateOrCreate(['id' => $id], ['file_surat_permohonan'=>$filesave]);
+
+            }
+            DB::commit();
+            return $this->resSuccess(
+                'Berhasil Disimpan!',
+                [
+                    'type' => 'redirect',
+                    'url' => \URL::to($this->controller)
+                ]
+            );
+        } catch (\Throwable $th) {
+            dd($th->getMessage());
+            return $this->resError('Gagal menyimpan data');
+        }
+    }
+
+    public function saveFotocopy(Request $request){
+        $customMessages = [
+            'nomor.required' => 'Nomor harus diisi',
+            'tanggal.required' => 'Tanggal harus diisi',
+            'file.required' => 'Tanggal harus diisi',
+        ];
+        $validasi = [
+            'nomor' => 'required',
+            'tanggal' => 'required',
+            'file' => 'required',
+        ];
+
+        $request->validate($validasi, $customMessages);
+        try {
+            DB::beginTransaction();
+            $id = $request->input('id');
+            $pengajuan_id = $request->input('pengajuan_id');
+            $nomor = $request->input('nomor');
+            $tanggal = $request->input('tanggal');
+            $inputan = [
+                'pengajuan_id'=>$pengajuan_id,
+                'nomor'=>$nomor,
+                'tanggal'=>$tanggal,
+            ];
+            $model = PermohonanPenghapusanBmnFotocopy::updateOrCreate(['id' => $id], $inputan);
+            $insertedId = $model->id;
+            if ($request->hasFile('file')) {
+                $filepath = 'uploads/bmn/permohonan_penghapusan/'.$pengajuan_id;
+                $file = $request->file('file');
+                $fileName = $insertedId.'_file_fotocopy.'.$file->getClientOriginalExtension();
+                $filesave = $filepath.'/'.$fileName;
+                $file->move($filepath, $fileName);
+                $newFile = [
+                    'filename' => $file->getClientOriginalName(),
+                    'path' => $filesave,
+                    'pkey' => $insertedId,
+                    'kategori' => 'file_fotocopy',
+                    'kategori_slug' => MyHelper::generateSlug('file_fotocopy'),
+                    'filetype' => $file->getClientOriginalExtension(),
+                    'created_by' => session('userData.username'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+                $insertedFiles[] = $newFile;
+                Files::insert($insertedFiles);
+                PermohonanPenghapusanBmnFotocopy::updateOrCreate(['id' => $insertedId], ['file'=>$filesave]);
+            }
+            DB::commit();
+            return $this->resSuccess(
+                'Berhasil Disimpan!'
+            );
+        } catch (\Throwable $th) {
+            dd($th->getMessage());
+            return $this->resError('Gagal menyimpan data');
+        }
+    }
+
+    public function saveFoto(Request $request){
+        $customMessages = [
+            'ket.required' => 'Nomor harus diisi',
+            'file.required' => 'Tanggal harus diisi',
+        ];
+        $validasi = [
+            'ket' => 'required',
+            'file' => 'required',
+        ];
+
+        $request->validate($validasi, $customMessages);
+        try {
+            DB::beginTransaction();
+            $id = $request->input('id');
+            $pengajuan_id = $request->input('pengajuan_id');
+            $ket = $request->input('ket');
+            $inputan = [
+                'pengajuan_id'=>$pengajuan_id,
+                'ket'=>$ket,
+            ];
+            $model = PermohonanPenghapusanBmnFoto::updateOrCreate(['id' => $id], $inputan);
+            $insertedId = $model->id;
+            if ($request->hasFile('file')) {
+                $filepath = 'uploads/bmn/permohonan_penghapusan/'.$pengajuan_id;
+                $file = $request->file('file');
+                $fileName = $insertedId.'_file_foto.'.$file->getClientOriginalExtension();
+                $filesave = $filepath.'/'.$fileName;
+                $file->move($filepath, $fileName);
+                $newFile = [
+                    'filename' => $file->getClientOriginalName(),
+                    'path' => $filesave,
+                    'pkey' => $insertedId,
+                    'kategori' => 'file_foto',
+                    'kategori_slug' => MyHelper::generateSlug('file_foto'),
+                    'filetype' => $file->getClientOriginalExtension(),
+                    'created_by' => session('userData.username'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+                $insertedFiles[] = $newFile;
+                Files::insert($insertedFiles);
+                PermohonanPenghapusanBmnFoto::updateOrCreate(['id' => $insertedId], ['file'=>$filesave]);
+            }
+            DB::commit();
+            return $this->resSuccess(
+                'Berhasil Disimpan!'
+            );
+        } catch (\Throwable $th) {
+            dd($th->getMessage());
+            return $this->resError('Gagal menyimpan data');
+        }
+    }
+
+    /**
+     * edit admin perlengkapan
+     */
+    public function show(Request $request,string $id)
+    {
+        $data = $this->getData($id);
+        $pengajuan = Model::where('id', $id)->first();
+        if (!$pengajuan) {
+            throw new NotFoundHttpException('Data Tidak Ditemukan');
+        }
+        $satker = MsSatker::where('inst_satkerkd', $pengajuan->inst_satkerkd)->first();
+        $pengajuan->inst_nama = $satker->inst_nama;
+        //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+        $currentRole = session('userData.current_role');
+        $whereData = ['ms_satker_id' => $_GET['satker'] ?? $currentRole['ms_satker_id'], 'pengajuan_id' => $pengajuan->id];
+        $whereSatker = ['inst_satkerkd' => $_GET['satker'] ?? $currentRole['ms_satker_id']];
+
+        if ($currentRole['ms_satker_id'] == '00' && !isset($_GET['satker'])) {
+            $whereData['ms_satker_pusat_id'] = $currentRole['ms_satker_pusat_id'];
+            $whereSatker['unitkerja_idk'] = $currentRole['ms_satker_pusat_id'];
+        }
+
+        //model utama
+        $model = $pengajuan ?? [];
+        $isNew = empty($model) ? true : false;
+        $permohonan = PermohonanPenghapusanBmn::where('id',$model->pengajuan_id)->first();
+        $subkategori = $permohonan->kategori ?? '';
+        if($subkategori == 'hibah' || $subkategori == 'tukar' || $subkategori == 'penjualan'){
+            $kategori = 'pemindahtanganan';
+        }else{
+            $kategori = $subkategori;
+        }
+        //ms file
+        $pengajuanId = $pengajuan->pengajuan_id;
+        $ms_file = DB::table('ms_penghapusan_file as a')
+                ->select('a.id as ms_penghapusan_file_id','a.nm_file','a.is_nomor','b.id','b.nomor','b.tanggal','b.file','a.jenis_file','a.is_validator','a.kategori','a.sub_kategori')
+                ->leftJoin('permohonan_penghapusan_bmn_file as b', function($join) use ($pengajuanId)  {
+                    $join->on('a.id', '=', 'b.ms_penghapusan_file_id')
+                         ->where('b.pengajuan_id', '=', $pengajuanId);
+                })
+                ->where('sub_kategori',$subkategori)
+                ->where(function($q) use ($kategori){
+                    $q->where('kategori',$kategori)->orWhere('kategori','sk');
+                })
+                ->orderBy('a.id')->get()->toArray();
+
+        //aktifitas
+        $msAktivitasId = $model->ms_aktifitas_id;
+        $whereAct = ['ms_aktifitas_id' => $msAktivitasId,'group'=>'BMN'];
+        $aktifitasHistories = Aktivitas::getDetail($model->id);
+        $aktifitasOptions = [];
+        $currentAktivitas = [];
+        if($msAktivitasId==3000){
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id',[3004,3005])->get()->toArray();
+        }
+        if($msAktivitasId==3002 && $model->kategori == 'tidak_memiliki_dokumen'){
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id',[3006,3007])->get()->toArray();
+        }
+
+        $data = [
+            'model' => $model,
+            'controller' => $this->controller,
+            'aktivitasOptions' => $aktifitasOptions,
+            'aktivitas' => $currentAktivitas,
+            'aktivitasHistories' => $aktifitasHistories,
+            'breadcums' => array_merge($this->breadcums, ['Pengajuan']),
+            'isNew' => $isNew,
+            'kategoriJudul' => $this->kategoriJudul,
+            'canCreate' => $this->canCreatePermintaan(),
+            'isValidator' => $this->isValidator(),
+            'listBarang' => Master::getBarangAset(),
+            'msFile' => $ms_file,
+            'permohonan' => $permohonan,
+            'kategori' => $this->kategori,
+            'jenis' => $this->jenis,
+        ];
+        if ($request->wantsJson()) {
+            return response()->json($data);
+        } else {
+            $form = $pengajuan->kategori==2?'bmn.permohonan-sk.pengajuanFormPengelolaV':'bmn.permohonan-sk.pengajuanFormV';
+            return view($form, $data);
+        }
+    }
+
+    /**
+     * pelaksana ngisi /  validator ngeliat
+     */
+    public function edit(string $id)
+    {
+
+    }
+
+    public function savePengajuan(Request $request)
+    {
+        $validasi = [
+            'ms_aktifitas_id' => 'required',
+        ];
+        $request->validate($validasi);
+
+        if ($request->has('id')) {
+            $isNew = false;
+            $id = $request->input('id');
+        } else {
+            $isNew = true;
+            $id = null;
+        }
+        $ms_aktifitas_id = $request->input('ms_aktifitas_id');
+
+        try {
+            DB::beginTransaction();
+            $currentRole = session('userData.current_role');
+            Model::where(['id' => $id])->update(['ms_aktifitas_id' => $ms_aktifitas_id]);
+            $model =  Model::where(['id' => $id])->first();
+            $dataAktivitas = [
+                'pengajuan_id' => $id,
+                'ms_aktifitas_id' => $ms_aktifitas_id,
+                'komentar' => $request->input('komentar'),
+                'to_satker_induk' => in_array($ms_aktifitas_id, [3000, 3003, 3005, 3007]) ? false : true
+            ];
+            $acts = ["act" => [], "nextAct" => null];
+            Aktivitas::insert($acts['act']);
+
+            if (!empty($acts['nextAct'])) {
+                $newAct = $acts['nextAct'];
+                if (in_array($newAct, [3003, 3005, 3007])) { //revisi
+                    $newAct = 3000;
+                }
+                Model::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
+            }
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['id'=>$ms_aktifitas_id])->first();
+            $bmnSatker = Model::where(['id' => $id])->first();
+            if($ms_aktifitas_id == 3004) $acts['act']['ms_satker_id'] = '00';
+            $notifParams = [
+                'url' => $this->url."/".$id,
+                'judul' => 'Pengajuan SK Penghapusan ('.($aktifitasOptions->nama=='Draft'?'Revisi':$aktifitasOptions->nama).')',
+                'isi' => $dataAktivitas['komentar'],
+                'target' => 'role',
+                'targetValue' => $aktifitasOptions->can_change ?? config('constants.pelaksana_satker_role_id'),
+                'targetSatker' => [$acts['act']['ms_satker_id'] ?? $bmnSatker->inst_satkerkd],
+                'targetSatkerPusat' => [$acts['act']['ms_satker_id'] ?? $bmnSatker->inst_satkerkd],
+            ];
+            Notifikasi::sendNotif($notifParams);
+            if(!empty($request->input('ms_penghapusan_file_id'))){
+                foreach($request->input('ms_penghapusan_file_id') as $key => $ms_penghapusan_file_id){
+                    $data = [
+                        'pengajuan_id'=>$model->pengajuan_id,
+                        'ms_penghapusan_file_id'=>$ms_penghapusan_file_id,
+                        'nomor'=>$request->input('file_nomor')[$key],
+                        'tanggal'=>$request->input('file_tanggal')[$key],
+                    ];
+                    $modelFile = PermohonanPenghapusanBmnFile::updateOrCreate(['id' => $request->input('file_id')[$key]], $data);
+                    $insertedId = $modelFile->id;
+                    if ($request->hasFile('file_file.'.$key)) {
+                        $filepath = 'uploads/bmn/permohonan_penghapusan/'.$model->pengajuan_id;
+                        $file = $request->file('file_file')[$key];
+                        $fileName = $insertedId.'_'.$request->input('file_jenis_file')[$key].'.'.$file->getClientOriginalExtension();
+                        $filesave = $filepath.'/'.$fileName;
+                        $file->move($filepath, $fileName);
+                        $newFile = [
+                            'filename' => $file->getClientOriginalName(),
+                            'path' => $filesave,
+                            'pkey' => $insertedId,
+                            'kategori' => $request->input('file_jenis_file')[$key],
+                            'kategori_slug' => MyHelper::generateSlug($request->input('file_jenis_file')[$key]),
+                            'filetype' => $file->getClientOriginalExtension(),
+                            'created_by' => session('userData.username'),
+                            'created_at' => date('Y-m-d H:i:s'),
+                        ];
+                        $insertedFiles[] = $newFile;
+                        Files::insert($insertedFiles);
+                        PermohonanPenghapusanBmnFile::updateOrCreate(['id' => $insertedId], ['file'=>$filesave]);
+                    }
+                }
+            }
+
+            DB::commit();
+            return $this->resSuccess(
+                'Berhasil Disimpan!',
+                [
+                    'type' => 'redirect',
+                    'url' => \URL::to($this->controller)
+                ]
+            );
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            dd($th->getMessage());
+            return $this->resError('Gagal Menyimpan data');
+        }
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, string $id)
+    {
+        //
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(string $id)
+    {
+        try {
+            DB::beginTransaction();
+            $model = Model::where('id',$id)->first();
+            $model->delete();
+            DB::commit();
+            return $this->resSuccess('Berhasil Dihapus!');
+        } catch (\Throwable $th) {
+            dd($th->getMessage());
+            DB::rollBack();
+            return $this->resError('Gagal Menghapus data');
+        }
+    }
+
+    public function deleteFotocopy(string $id)
+    {
+        try {
+            DB::beginTransaction();
+            $fc = PermohonanPenghapusanBmnFotocopy::where('id', $id)->first();
+            if(!empty($fc)){
+                if($fc->file){
+                    $filePath = public_path($fc->file);
+                    // Delete the physical file from public directory
+                    if (FileManager::exists($filePath)) {
+                        FileManager::delete($filePath);
+                    }
+                }
+                $fc->delete();
+            }
+            DB::commit();
+            return $this->resSuccess('Berhasil Dihapus!');
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return $this->resError('Gagal Menghapus data');
+        }
+    }
+
+    public function deleteFoto(string $id)
+    {
+        try {
+            DB::beginTransaction();
+            $fc = PermohonanPenghapusanBmnFoto::where('id', $id)->first();
+            if(!empty($fc)){
+                if($fc->file){
+                    $filePath = public_path($fc->file);
+                    // Delete the physical file from public directory
+                    if (FileManager::exists($filePath)) {
+                        FileManager::delete($filePath);
+                    }
+                }
+                $fc->delete();
+            }
+            DB::commit();
+            return $this->resSuccess('Berhasil Dihapus!');
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return $this->resError('Gagal Menghapus data');
+        }
+    }
+}

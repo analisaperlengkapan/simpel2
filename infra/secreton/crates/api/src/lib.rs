@@ -126,6 +126,8 @@ pub fn create_api_router(state: ApiState) -> Router {
 
     Router::new()
         .route("/health", get(health_check))
+        .route("/ready", get(ready_check))
+        .route("/live", get(health_check))
         .route("/version", get(get_version))
         .route("/metrics", get(get_metrics))
         .route("/metrics/prometheus", get(get_prometheus_metrics))
@@ -164,6 +166,15 @@ pub async fn get_metrics(State(state): State<ApiState>) -> Json<crate::metrics::
 pub async fn health_check() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "healthy".to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        version: "1.0.0".to_string(),
+    })
+}
+
+/// Readiness check endpoint - returns ready when the service can accept traffic
+pub async fn ready_check() -> Json<HealthResponse> {
+    Json(HealthResponse {
+        status: "ready".to_string(),
         timestamp: chrono::Utc::now().to_rfc3339(),
         version: "1.0.0".to_string(),
     })

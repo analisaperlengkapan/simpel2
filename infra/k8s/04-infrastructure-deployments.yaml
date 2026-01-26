@@ -5,7 +5,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: postgres
     app.kubernetes.io/component: database
@@ -92,7 +92,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: redis
     app.kubernetes.io/component: cache
@@ -166,7 +166,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: nginx
     app.kubernetes.io/component: proxy
@@ -229,7 +229,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: authenc
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: authenc
     app.kubernetes.io/component: iam
@@ -247,7 +247,7 @@ spec:
     spec:
       containers:
         - name: authenc
-          image: registry.kejaksaan.go.id/simpelv2/authenc:latest
+          image: localhost:32000/simpelv2/authenc:latest
           ports:
             - containerPort: 8088
               name: http
@@ -317,7 +317,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: secreton
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: secreton
     app.kubernetes.io/component: secreton
@@ -337,7 +337,7 @@ spec:
     spec:
       containers:
         - name: secreton
-          image: registry.kejaksaan.go.id/simpelv2/secreton:latest
+          image: localhost:32000/simpelv2/secreton:latest
           ports:
             - containerPort: 8200
               name: http

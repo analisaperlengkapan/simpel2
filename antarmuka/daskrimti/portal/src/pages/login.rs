@@ -7,6 +7,7 @@ use crate::features::auth::{AuthService, LoginCredentials, LoginResult, UserSess
 use leptos::prelude::*;
 use shared_microfrontend::components::captcha::Captcha;
 use wasm_bindgen_futures::spawn_local;
+use web_sys;
 
 /// Login page
 #[component]
@@ -65,6 +66,21 @@ pub fn LoginPage(
                     // Full authentication complete
                     AuthService::save_session(&session);
                     on_login_success.set(Some(*session));
+
+                    // Check for redirect param
+                    let query_map = leptos_router::hooks::use_query_map();
+                    let redirect_target = query_map.with(|params| params.get("redirect").map(|s| s.to_string()));
+
+                    if let Some(target) = redirect_target {
+                        if target == "perlengkapan" {
+                            // Hard redirect to Perlengkapan root
+                            if let Some(window) = web_sys::window() {
+                                let _ = window.location().set_href("/");
+                            }
+                            return;
+                        }
+                    }
+
                     nav("/dashboard", Default::default());
                 }
                 LoginResult::MfaSetupRequired(temp_token) => {

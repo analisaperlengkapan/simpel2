@@ -671,7 +671,7 @@ mod tests {
 
         let provider = DefaultSocialProvider::new(config);
         let url = provider
-            .get_authorization_url("test-state", "http://localhost:8080/callback")
+            .get_authorization_url("test-state", "https://10.1.7.121/api/auth/callback")
             .await
             .unwrap();
 

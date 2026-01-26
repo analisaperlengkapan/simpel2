@@ -7,7 +7,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: postgres
     app.kubernetes.io/component: storage
@@ -25,7 +25,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: redis-pvc
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: redis
     app.kubernetes.io/component: storage
@@ -79,7 +79,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: authenc-raft-pvc
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: authenc
     app.kubernetes.io/component: storage
@@ -97,7 +97,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: secreton-raft-pvc
-  namespace: simpelv2-infra
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: secreton
     app.kubernetes.io/component: storage

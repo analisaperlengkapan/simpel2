@@ -199,6 +199,7 @@ pub fn validate_url(url: &str, field_name: &str) -> Result<()> {
 }
 
 /// Validate CIDR notation
+#[cfg(feature = "backend")]
 pub fn validate_cidr(cidr: &str) -> Result<()> {
     cidr.parse::<ipnetwork::IpNetwork>()
         .map_err(|e| CommonError::Validation {

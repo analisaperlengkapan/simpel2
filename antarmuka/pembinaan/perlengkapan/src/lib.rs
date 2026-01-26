@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 // SIMPEL Perlengkapan - Microfrontend
 //
 // Sistem Informasi Manajemen Perlengkapan untuk Kejaksaan RI
