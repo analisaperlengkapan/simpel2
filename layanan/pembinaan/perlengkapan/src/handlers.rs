@@ -21,6 +21,24 @@ pub struct PaginationQuery {
     pub per_page: i32,
 }
 
+impl PaginationQuery {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.page < 1 {
+            return Err(bad_request("Page must be greater than 0"));
+        }
+        if self.page > 100_000 {
+            return Err(bad_request("Page must be less than or equal to 100,000"));
+        }
+        if self.per_page < 1 {
+            return Err(bad_request("Per page must be greater than 0"));
+        }
+        if self.per_page > 1000 {
+            return Err(bad_request("Per page must be less than or equal to 1000"));
+        }
+        Ok(())
+    }
+}
+
 fn default_page() -> i32 {
     1
 }
@@ -55,6 +73,7 @@ pub async fn get_all_aset(
     Query(pagination): Query<PaginationQuery>,
     _claims: Claims,
 ) -> Result<Json<PaginatedResponse<Aset>>, AppError> {
+    pagination.validate()?;
     let (aset, total) = service
         .get_all_aset(pagination.page, pagination.per_page)
         .await?;
@@ -98,6 +117,20 @@ pub async fn create_aset(
     ))
 }
 
+// Integration handlers
+pub async fn sync_siman(
+    State(service): State<PerlengkapanService>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<String>>, AppError> {
+    // Only allow specific roles if needed, for now just auth check
+    let result = service.sync_from_siman().await?;
+
+    Ok(Json(ApiResponse::success(
+        result,
+        "Synchronization started successfully".to_string(),
+    )))
+}
+
 pub async fn update_aset(
     State(service): State<PerlengkapanService>,
     Path(id): Path<Uuid>,
@@ -121,7 +154,7 @@ pub async fn delete_aset(
     service.delete_aset(id).await?;
 
     Ok((
-        StatusCode::NO_CONTENT,
+        StatusCode::OK,
         Json(ApiResponse::success(
             "Aset deleted".to_string(),
             "Aset deleted successfully".to_string(),
@@ -135,6 +168,7 @@ pub async fn get_all_pengadaan(
     Query(pagination): Query<PaginationQuery>,
     _claims: Claims,
 ) -> Result<Json<PaginatedResponse<Pengadaan>>, AppError> {
+    pagination.validate()?;
     let (pengadaan, total) = service
         .get_all_pengadaan(pagination.page, pagination.per_page)
         .await?;
@@ -184,6 +218,7 @@ pub async fn get_all_analisis(
     Query(pagination): Query<PaginationQuery>,
     _claims: Claims,
 ) -> Result<Json<PaginatedResponse<AnalisisKebutuhan>>, AppError> {
+    pagination.validate()?;
     let (analisis, total) = service
         .get_all_analisis(pagination.page, pagination.per_page)
         .await?;

@@ -14,6 +14,8 @@ pub struct Aset {
     pub nama: String,
     pub kategori: String,
     pub kode_bmn: String,
+    pub merk: Option<String>,
+    pub nup: Option<String>,
     pub kondisi: String,
     pub lokasi: String,
     pub nilai_perolehan: Option<f64>,
@@ -33,6 +35,8 @@ impl Aset {
             nama: row.get("nama"),
             kategori: row.get("kategori"),
             kode_bmn: row.get("kode_bmn"),
+            merk: row.try_get("merk").ok(),
+            nup: row.try_get("nup").ok(),
             kondisi: row.get("kondisi"),
             lokasi: row.get("lokasi"),
             nilai_perolehan: row.get("nilai_perolehan"),
@@ -55,6 +59,10 @@ pub struct CreateAsetRequest {
     pub kategori: String,
     #[validate(length(min = 1, max = 50))]
     pub kode_bmn: String,
+    #[validate(length(min = 1, max = 100))]
+    pub merk: Option<String>,
+    #[validate(length(min = 1, max = 50))]
+    pub nup: Option<String>,
     #[validate(length(min = 1, max = 50))]
     pub kondisi: String,
     #[validate(length(min = 1, max = 255))]
@@ -70,6 +78,10 @@ pub struct UpdateAsetRequest {
     pub nama: Option<String>,
     #[validate(length(min = 1, max = 100))]
     pub kategori: Option<String>,
+    #[validate(length(min = 1, max = 100))]
+    pub merk: Option<String>,
+    #[validate(length(min = 1, max = 50))]
+    pub nup: Option<String>,
     #[validate(length(min = 1, max = 50))]
     pub kondisi: Option<String>,
     #[validate(length(min = 1, max = 255))]
@@ -224,7 +236,11 @@ pub struct PaginatedResponse<T> {
 
 impl<T> PaginatedResponse<T> {
     pub fn new(data: Vec<T>, total: i64, page: i32, per_page: i32, message: String) -> Self {
-        let total_pages = ((total as f64) / (per_page as f64)).ceil() as i32;
+        let total_pages = if per_page > 0 {
+            ((total as f64) / (per_page as f64)).ceil() as i32
+        } else {
+            0
+        };
         Self {
             success: true,
             data,
@@ -234,5 +250,66 @@ impl<T> PaginatedResponse<T> {
             total_pages,
             message,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_paginated_response_division_by_zero() {
+        let response: PaginatedResponse<String> = PaginatedResponse::new(vec![], 100, 1, 0, "Test".to_string());
+        assert_eq!(response.total_pages, 0);
+    }
+
+    #[test]
+    fn test_create_aset_validation() {
+        let request = CreateAsetRequest {
+            nama: "".to_string(), // Invalid: empty
+            kategori: "Elektronik".to_string(),
+            kode_bmn: "123".to_string(),
+            merk: Some("Sony".to_string()),
+            nup: Some("1".to_string()),
+            kondisi: "baik".to_string(),
+            lokasi: "Gudang".to_string(),
+            nilai_perolehan: Some(1000.0),
+            tanggal_perolehan: None,
+            keterangan: None,
+        };
+
+        assert!(request.validate().is_err());
+
+        let valid_request = CreateAsetRequest {
+            nama: "Laptop".to_string(),
+            kategori: "Elektronik".to_string(),
+            kode_bmn: "123".to_string(),
+            merk: Some("Sony".to_string()),
+            nup: Some("1".to_string()),
+            kondisi: "baik".to_string(),
+            lokasi: "Gudang".to_string(),
+            nilai_perolehan: Some(1000.0),
+            tanggal_perolehan: None,
+            keterangan: None,
+        };
+
+        assert!(valid_request.validate().is_ok());
+    }
+
+    #[test]
+    fn test_create_aset_validation_fields() {
+         let request = CreateAsetRequest {
+            nama: "Laptop".to_string(),
+            kategori: "Elektronik".to_string(),
+            kode_bmn: "123".to_string(),
+            merk: Some("A".repeat(101)), // Invalid: too long
+            nup: Some("1".to_string()),
+            kondisi: "baik".to_string(),
+            lokasi: "Gudang".to_string(),
+            nilai_perolehan: Some(1000.0),
+            tanggal_perolehan: None,
+            keterangan: None,
+        };
+        assert!(request.validate().is_err());
     }
 }

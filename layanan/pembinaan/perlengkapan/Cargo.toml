@@ -51,3 +51,4 @@ dotenvy = { workspace = true }
 reqwest = { workspace = true }
 bigdecimal = { workspace = true }
 lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }
+layanan-integrasi = { path = "../../daskrimti/integrasi" }
