@@ -331,7 +331,7 @@ impl PerlengkapanRepository for Database {
             .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
 
         let row = client
-            .query_one(
+            .query_opt(
                 r#"
                 UPDATE perlengkapan.aset
                 SET nama = COALESCE($2, nama),
@@ -367,7 +367,8 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(Aset::from_row(&row))
+        row.map(|r| Aset::from_row(&r))
+            .ok_or_else(|| not_found("Aset", &id.to_string()))
     }
 
     async fn delete_aset(&self, id: Uuid) -> AppResult<()> {

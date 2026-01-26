@@ -138,8 +138,8 @@ pub fn AsetList() -> impl IntoView {
                                             "Selanjutnya"
                                         </button>
                                     </div>
-                                    </div>
                                 </div>
+                            </div>
                             }.into_any()
                         }
                     })
