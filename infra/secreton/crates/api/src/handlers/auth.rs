@@ -13,10 +13,13 @@ use axum::{
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+
+static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
+use secreton_storage::{SecretEntry, SecurityLevel};
 
 use crate::{
     ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
@@ -217,7 +220,34 @@ mod tests {
 
     #[tokio::test]
     async fn test_oauth_login_returns_authorization_url() {
-        let server = create_test_server().await;
+        use crate::config::{OAuth2Config, OAuth2Provider};
+
+        let mut config = ApiConfig::default();
+        config.auth.oauth2 = Some(OAuth2Config {
+            providers: vec![OAuth2Provider {
+                name: "github".to_string(),
+                client_id: "test_client_id".to_string(),
+                client_secret: "test_client_secret".to_string(),
+                auth_url: "https://github.com/login/oauth/authorize".to_string(),
+                token_url: "https://github.com/login/oauth/access_token".to_string(),
+                user_info_url: "https://api.github.com/user".to_string(),
+            }],
+            redirect_url: "http://localhost:8200/auth/callback".to_string(),
+            scopes: vec!["read:user".to_string()],
+        });
+
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        let app = create_routes()
+            .with_state(services)
+            .layer(axum::middleware::from_fn(mock_auth_middleware));
+
+        let server = TestServer::new(app).expect("Failed to create test server");
+
         let response = server.get("/oauth/github").await;
         response.assert_status_ok();
 
@@ -225,12 +255,31 @@ mod tests {
         assert!(body.success);
         let data = body.data.expect("oauth payload");
         assert_eq!(data["provider"], "github");
-        assert!(
-            data["auth_url"]
-                .as_str()
-                .expect("auth_url should be a string")
-                .contains("https://oauth.provider.com")
-        );
+
+        let auth_url = data["auth_url"].as_str().expect("auth_url string");
+        assert!(auth_url.starts_with("https://github.com/login/oauth/authorize"));
+        assert!(auth_url.contains("client_id=test_client_id"));
+        assert!(auth_url.contains("state="));
+        assert!(auth_url.contains("scope=read%3Auser"));
+    }
+
+    #[tokio::test]
+    async fn test_oauth_callback_invalid_state() {
+        let server = create_test_server().await;
+
+        let response = server
+            .get("/oauth/github/callback")
+            .add_query_param("state", "invalid_state")
+            .add_query_param("code", "some_code")
+            .await;
+
+        // Should be 400 because state is invalid/expired (Validation error)
+        response.assert_status(StatusCode::BAD_REQUEST);
+
+        let body: ApiResponse<serde_json::Value> = response.json();
+        assert!(!body.success);
+        let error = body.error.expect("error payload");
+        assert_eq!(error.code, "INVALID_REQUEST");
     }
 }
 
@@ -920,12 +969,29 @@ pub async fn oauth_login(
 
     // 3. Store state for callback verification
     let state_path = format!("sys/oauth/states/{}", state_string);
+
+    // Encrypt state data containing provider info
+    let state_data = serde_json::json!({
+        "provider": provider,
+        "created_at": chrono::Utc::now()
+    });
+    let state_bytes = serde_json::to_vec(&state_data).map_err(|e| ApiError::Internal {
+        message: format!("Serialization failed: {}", e),
+    })?;
+
+    let encrypted_data = state
+        .crypto
+        .encrypt_simple(&state_bytes)
+        .map_err(|e| ApiError::Internal {
+            message: format!("Encryption failed: {}", e),
+        })?;
+
     let entry = secreton_storage::SecretEntry::new(
         state_path,
-        state_string.as_bytes().to_vec(),
+        encrypted_data,
         serde_json::json!({
-            "provider": provider,
-            "created_at": chrono::Utc::now()
+            "method": "simple",
+            "provider": provider
         }),
         secreton_storage::SecurityLevel::Internal,
         "system".to_string(),
@@ -946,13 +1012,18 @@ pub async fn oauth_login(
             message: e.to_string(),
         })?;
 
-    url.query_pairs_mut()
-        .append_pair("client_id", &provider_config.client_id)
-        .append_pair("redirect_uri", &oauth_config.redirect_url)
-        .append_pair("response_type", "code")
-        .append_pair("scope", &oauth_config.scopes.join(" "))
-        .append_pair("state", &state_string);
+    {
+        let mut pairs = url.query_pairs_mut();
+        pairs.append_pair("client_id", &provider_config.client_id);
+        pairs.append_pair("redirect_uri", &oauth_config.redirect_url);
+        pairs.append_pair("response_type", "code");
+        if !oauth_config.scopes.is_empty() {
+            pairs.append_pair("scope", &oauth_config.scopes.join(" "));
+        }
+        pairs.append_pair("state", &state_string);
+    }
 
+    // Store provider name in metadata/data so we know who to verify against in callback if needed
     let data = serde_json::json!({
         "provider": provider,
         "auth_url": url.to_string(),
@@ -1018,14 +1089,21 @@ pub async fn oauth_callback(
         });
     }
 
-    // Validate provider matches state
-    let stored_provider = state_entry.encryption_metadata["provider"]
-        .as_str()
-        .ok_or(ApiError::Internal {
-            message: "Invalid state metadata".to_string(),
+    // Verify provider matches (decrypt state data)
+    let decrypted_bytes =
+        state
+            .crypto
+            .decrypt_simple(&state_entry.encrypted_data)
+            .map_err(|_| ApiError::Authentication {
+                message: "Invalid state data".to_string(),
+            })?;
+
+    let state_data: serde_json::Value =
+        serde_json::from_slice(&decrypted_bytes).map_err(|_| ApiError::Authentication {
+            message: "Invalid state data".to_string(),
         })?;
 
-    if stored_provider != provider {
+    if state_data["provider"].as_str() != Some(provider.as_str()) {
         let _ = state.storage.delete_by_path(&state_path).await;
         return Err(ApiError::Validation {
             message: "Provider mismatch in OAuth state".to_string(),
@@ -1056,13 +1134,13 @@ pub async fn oauth_callback(
         })?;
 
     // 3. Exchange code for access token
-    let client = &state.http_client;
+    let client = HTTP_CLIENT.get_or_init(reqwest::Client::new);
     let token_params = [
-        ("client_id", &provider_config.client_id),
-        ("client_secret", &provider_config.client_secret),
-        ("code", code),
-        ("grant_type", &"authorization_code".to_string()),
-        ("redirect_uri", &oauth_config.redirect_url),
+        ("client_id", provider_config.client_id.as_str()),
+        ("client_secret", provider_config.client_secret.as_str()),
+        ("code", code.as_str()),
+        ("grant_type", "authorization_code"),
+        ("redirect_uri", oauth_config.redirect_url.as_str()),
     ];
 
     let token_res = client
@@ -1120,15 +1198,14 @@ pub async fn oauth_callback(
     let email = user_data["email"]
         .as_str()
         .map(|s| s.to_string())
-        .unwrap_or_else(|| {
-            let login = user_data["login"]
-                .as_str()
-                .or_else(|| user_data["sub"].as_str())
-                .unwrap_or("unknown");
-            format!("{}@{}.oauth.local", login, provider)
-        });
+        .ok_or_else(|| ApiError::Authentication {
+            message: "Email not provided by OAuth provider".to_string(),
+        })?;
 
-    let name = user_data["name"].as_str().map(|s| s.to_string());
+    let name = user_data["name"]
+        .as_str()
+        .or_else(|| user_data["login"].as_str()) // GitHub fallback
+        .map(|s| s.to_string());
 
     // Metadata from provider
     let mut metadata = HashMap::new();
