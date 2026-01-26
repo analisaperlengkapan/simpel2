@@ -160,7 +160,7 @@ async fn run_http_server(
 async fn run_grpc_server(
     state: Arc<AppState>,
     addr: SocketAddr,
-    _shutdown_rx: broadcast::Receiver<()>,
+    mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<()> {
     use crate::grpc::{GrpcConfig, create_grpc_server};
 
@@ -181,10 +181,16 @@ async fn run_grpc_server(
     info!("🔌 gRPC server listening on {}", addr);
 
     // Serve with graceful shutdown
-    router.serve(addr).await.map_err(|e| {
-        error!("gRPC server error: {}", e);
-        crate::error::AuthencError::internal(format!("gRPC server error: {}", e))
-    })?;
+    router
+        .serve_with_shutdown(addr, async move {
+            let _ = shutdown_rx.recv().await;
+            info!("gRPC server received shutdown signal");
+        })
+        .await
+        .map_err(|e| {
+            error!("gRPC server error: {}", e);
+            crate::error::AuthencError::internal(format!("gRPC server error: {}", e))
+        })?;
 
     Ok(())
 }
