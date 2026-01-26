@@ -937,12 +937,29 @@ pub async fn oauth_login(
 
     // 3. Store state for callback verification
     let state_path = format!("sys/oauth/states/{}", state_string);
+
+    // Encrypt state data containing provider info
+    let state_data = serde_json::json!({
+        "provider": provider,
+        "created_at": chrono::Utc::now()
+    });
+    let state_bytes = serde_json::to_vec(&state_data).map_err(|e| ApiError::Internal {
+        message: format!("Serialization failed: {}", e),
+    })?;
+
+    let encrypted_data = state
+        .crypto
+        .encrypt_simple(&state_bytes)
+        .map_err(|e| ApiError::Internal {
+            message: format!("Encryption failed: {}", e),
+        })?;
+
     let entry = secreton_storage::SecretEntry::new(
         state_path,
-        state_string.as_bytes().to_vec(),
+        encrypted_data,
         serde_json::json!({
-            "provider": provider,
-            "created_at": chrono::Utc::now()
+            "method": "simple",
+            "provider": provider
         }),
         secreton_storage::SecurityLevel::Internal,
         "system".to_string(),
@@ -963,12 +980,16 @@ pub async fn oauth_login(
             message: e.to_string(),
         })?;
 
-    url.query_pairs_mut()
-        .append_pair("client_id", &provider_config.client_id)
-        .append_pair("redirect_uri", &oauth_config.redirect_url)
-        .append_pair("response_type", "code")
-        .append_pair("scope", &oauth_config.scopes.join(" "))
-        .append_pair("state", &state_string);
+    {
+        let mut pairs = url.query_pairs_mut();
+        pairs.append_pair("client_id", &provider_config.client_id);
+        pairs.append_pair("redirect_uri", &oauth_config.redirect_url);
+        pairs.append_pair("response_type", "code");
+        if !oauth_config.scopes.is_empty() {
+            pairs.append_pair("scope", &oauth_config.scopes.join(" "));
+        }
+        pairs.append_pair("state", &state_string);
+    }
 
     // Store provider name in metadata/data so we know who to verify against in callback if needed
     let data = serde_json::json!({
@@ -1036,14 +1057,21 @@ pub async fn oauth_callback(
         });
     }
 
-    // Validate provider matches state
-    let stored_provider = state_entry.encryption_metadata["provider"]
-        .as_str()
-        .ok_or(ApiError::Internal {
-            message: "Invalid state metadata".to_string(),
+    // Verify provider matches (decrypt state data)
+    let decrypted_bytes =
+        state
+            .crypto
+            .decrypt_simple(&state_entry.encrypted_data)
+            .map_err(|_| ApiError::Authentication {
+                message: "Invalid state data".to_string(),
+            })?;
+
+    let state_data: serde_json::Value =
+        serde_json::from_slice(&decrypted_bytes).map_err(|_| ApiError::Authentication {
+            message: "Invalid state data".to_string(),
         })?;
 
-    if stored_provider != provider {
+    if state_data["provider"].as_str() != Some(provider.as_str()) {
         let _ = state.storage.delete_by_path(&state_path).await;
         return Err(ApiError::Validation {
             message: "Provider mismatch in OAuth state".to_string(),
@@ -1138,15 +1166,14 @@ pub async fn oauth_callback(
     let email = user_data["email"]
         .as_str()
         .map(|s| s.to_string())
-        .unwrap_or_else(|| {
-            let login = user_data["login"]
-                .as_str()
-                .or_else(|| user_data["sub"].as_str())
-                .unwrap_or("unknown");
-            format!("{}@{}.oauth.local", login, provider)
-        });
+        .ok_or_else(|| ApiError::Authentication {
+            message: "Email not provided by OAuth provider".to_string(),
+        })?;
 
-    let name = user_data["name"].as_str().map(|s| s.to_string());
+    let name = user_data["name"]
+        .as_str()
+        .or_else(|| user_data["login"].as_str()) // GitHub fallback
+        .map(|s| s.to_string());
 
     // Metadata from provider
     let mut metadata = HashMap::new();
