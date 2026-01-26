@@ -462,7 +462,15 @@ impl PerlengkapanService {
 
                 let nama = obj.get("NM_BRG").and_then(|v| v.as_str()).unwrap_or("Unknown Asset");
                 let merk = obj.get("MERK").and_then(|v| v.as_str());
-                let kondisi = "baik"; // Default, or map from SIMAN 'KONDISI'
+
+                // Map kondisi from SIMAN (KONDISI) to local format
+                let kondisi_raw = obj.get("KONDISI").and_then(|v| v.as_str()).unwrap_or("BAIK");
+                let kondisi = match kondisi_raw.to_uppercase().as_str() {
+                    "RUSAK BERAT" => "rusak berat",
+                    "RUSAK RINGAN" => "rusak ringan",
+                    _ => "baik", // Default to baik for BAIK or any unknown status
+                };
+
                 let lokasi = obj.get("NM_SATKER").and_then(|v| v.as_str()).unwrap_or("-");
                 let nilai_perolehan = obj.get("RPH_ASET").and_then(|v| v.as_f64());
 

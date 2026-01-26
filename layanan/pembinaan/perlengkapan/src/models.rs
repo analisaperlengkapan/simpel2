@@ -236,7 +236,11 @@ pub struct PaginatedResponse<T> {
 
 impl<T> PaginatedResponse<T> {
     pub fn new(data: Vec<T>, total: i64, page: i32, per_page: i32, message: String) -> Self {
-        let total_pages = ((total as f64) / (per_page as f64)).ceil() as i32;
+        let total_pages = if per_page > 0 {
+            ((total as f64) / (per_page as f64)).ceil() as i32
+        } else {
+            0
+        };
         Self {
             success: true,
             data,
@@ -252,6 +256,12 @@ impl<T> PaginatedResponse<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_paginated_response_division_by_zero() {
+        let response: PaginatedResponse<String> = PaginatedResponse::new(vec![], 100, 1, 0, "Test".to_string());
+        assert_eq!(response.total_pages, 0);
+    }
 
     #[test]
     fn test_create_aset_validation() {
