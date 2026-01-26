@@ -803,8 +803,8 @@ impl RaftCluster {
         if metrics.current_leader == Some(self.config.node_id) {
             if let Some(replication) = &metrics.replication {
                 let current_index = metrics.last_log_index.unwrap_or(0);
-                for (node_id, target_metrics) in replication.iter() {
-                    let matched_index = target_metrics.matched.map(|l| l.index).unwrap_or(0);
+                for (node_id, matched_log_id) in replication.iter() {
+                    let matched_index = matched_log_id.map(|l| l.index).unwrap_or(0);
                     let lag = current_index.saturating_sub(matched_index);
                     peer_lags.insert(*node_id, lag);
                 }
@@ -1574,20 +1574,5 @@ mod tests {
 
         // Verify valid remains
         assert!(cluster.exists("valid/path").await.unwrap());
-    }
-}
-            }
-        }
-
-        Self {
-            node_id: api_config.node_id,
-            bind_address: api_config.bind_address.to_string(),
-            peers,
-            election_timeout_ms: api_config.election_timeout_ms,
-            heartbeat_interval_ms: api_config.heartbeat_interval_ms,
-            max_payload_entries: 1000, // TODO: Make this configurable
-            enable_tick: true,
-            bootstrap: true, // TODO: Make this configurable
-        }
     }
 }

@@ -716,11 +716,50 @@ impl ServiceContainer {
         use tokio_postgres::NoTls;
 
         let mut cfg = Config::new();
-        cfg.host = Some(config.database.host.clone());
-        cfg.port = Some(config.database.port);
-        cfg.dbname = Some(config.database.database.clone());
-        cfg.user = Some(config.database.username.clone());
-        cfg.password = Some(config.database.password.clone());
+
+        // Check for DATABASE_URL environment variable first
+        if let Ok(database_url) = std::env::var("DATABASE_URL") {
+            tracing::info!("Using DATABASE_URL for database pool configuration");
+            // Parse DATABASE_URL: postgresql://user:password@host:port/database or postgres://...
+            let url_without_prefix = database_url
+                .strip_prefix("postgresql://")
+                .or_else(|| database_url.strip_prefix("postgres://"));
+            if let Some(url) = url_without_prefix {
+                // Parse user:password@host:port/database
+                let parts: Vec<&str> = url.splitn(2, '@').collect();
+                if parts.len() == 2 {
+                    // Parse user:password
+                    let auth_parts: Vec<&str> = parts[0].splitn(2, ':').collect();
+                    if auth_parts.len() == 2 {
+                        cfg.user = Some(auth_parts[0].to_string());
+                        cfg.password = Some(auth_parts[1].to_string());
+                    }
+                    // Parse host:port/database
+                    let host_parts: Vec<&str> = parts[1].splitn(2, '/').collect();
+                    if !host_parts.is_empty() {
+                        let hp: Vec<&str> = host_parts[0].splitn(2, ':').collect();
+                        cfg.host = Some(hp[0].to_string());
+                        if hp.len() == 2 {
+                            cfg.port = hp[1].parse().ok();
+                        }
+                    }
+                    if host_parts.len() == 2 {
+                        // Remove query parameters if any
+                        let db_name = host_parts[1].split('?').next().unwrap_or(host_parts[1]);
+                        cfg.dbname = Some(db_name.to_string());
+                    }
+                }
+            }
+            tracing::info!("Parsed database config: host={:?}, port={:?}, dbname={:?}",
+                cfg.host, cfg.port, cfg.dbname);
+        } else {
+            // Fall back to ApiConfig
+            cfg.host = Some(config.database.host.clone());
+            cfg.port = Some(config.database.port);
+            cfg.dbname = Some(config.database.database.clone());
+            cfg.user = Some(config.database.username.clone());
+            cfg.password = Some(config.database.password.clone());
+        }
 
         let mut pool_cfg = deadpool_postgres::PoolConfig::default();
         pool_cfg.max_size = config.database.max_connections as usize;

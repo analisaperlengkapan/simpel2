@@ -111,8 +111,14 @@ impl AuthService {
     /// Get authenc API base URL from environment or default
     fn get_api_url() -> String {
         // In production, this comes from environment variable or config
-        // For development, default to localhost:3000 (authenc default port)
-        std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
+        // For development, use current origin/api/auth
+        std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| {
+            if let Some(window) = web_sys::window() {
+                format!("{}/api/auth", window.location().origin().unwrap_or_else(|_| "http://localhost:3000".to_string()))
+            } else {
+                "http://localhost:3000".to_string()
+            }
+        })
     }
 
     /// Validate login credentials via authenc API
@@ -312,7 +318,7 @@ impl AuthService {
         let payload_str =
             String::from_utf8(payload_bytes).map_err(|e| format!("UTF-8 decode error: {}", e))?;
 
-        use lib_common::jwt::Claims;
+        use lib_common::jwt_claims::Claims;
         let claims: Claims =
             serde_json::from_str(&payload_str).map_err(|e| format!("JSON parse error: {}", e))?;
 
@@ -429,6 +435,8 @@ impl AuthService {
                 let _ = storage.remove_item("user_session");
                 let _ = storage.remove_item("auth_token");
                 let _ = storage.remove_item("refresh_token");
+                // Clear Perlengkapan token as well (Global Logout)
+                let _ = storage.remove_item("jwt_token");
             }
         }
 

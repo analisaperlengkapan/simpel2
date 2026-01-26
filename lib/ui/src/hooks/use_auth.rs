@@ -121,7 +121,13 @@ impl AuthContext {
         {
             spawn_local(async move {
                 let authenc_url = std::env::var("AUTHENC_URL")
-                    .unwrap_or_else(|_| "http://localhost:8080".to_string());
+                    .unwrap_or_else(|_| {
+                        if let Some(window) = window() {
+                            format!("{}/api/auth", window.location().origin().unwrap_or_else(|_| "http://localhost:8080".to_string()))
+                        } else {
+                            "http://localhost:8080".to_string()
+                        }
+                    });
 
                 let portal_url = get_portal_url();
                 let redirect_uri = format!("{}/logged-out", portal_url);
@@ -244,8 +250,14 @@ fn setup_storage_listener(session: RwSignal<Option<UserSession>>) {
 /// Get portal URL from environment or default
 pub fn get_portal_url() -> String {
     // In production, this comes from environment variable or config
-    // For development, default to localhost
-    std::env::var("PORTAL_URL").unwrap_or_else(|_| "http://localhost:8080".to_string())
+    // For development, default to current origin + /portal
+    std::env::var("PORTAL_URL").unwrap_or_else(|_| {
+        if let Some(window) = window() {
+            format!("{}/portal", window.location().origin().unwrap_or_else(|_| "http://localhost:8080".to_string()))
+        } else {
+            "http://localhost:8080".to_string()
+        }
+    })
 }
 
 /// Get current microfrontend app name from environment

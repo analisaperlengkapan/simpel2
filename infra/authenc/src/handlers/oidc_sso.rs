@@ -238,7 +238,7 @@ pub async fn oidc_logout_with_sso(
     let redirect_uri = params
         .get("post_logout_redirect_uri")
         .map(|s| s.as_str())
-        .unwrap_or("http://localhost:8080/");
+        .unwrap_or("https://10.1.7.121/api/auth/");
 
     // Validate post_logout_redirect_uri to prevent open redirect attacks
     // In production, this should validate against a whitelist of registered URIs
@@ -540,7 +540,7 @@ mod tests {
         use super::validate_post_logout_redirect_uri;
 
         // Valid URIs
-        assert!(validate_post_logout_redirect_uri("http://localhost:8080/").is_ok());
+        assert!(validate_post_logout_redirect_uri("https://10.1.7.121/api/auth/").is_ok());
         assert!(validate_post_logout_redirect_uri("https://simpel.kejaksaan.go.id/").is_ok());
         assert!(
             validate_post_logout_redirect_uri("https://portal.simpel.kejaksaan.go.id/logged-out")

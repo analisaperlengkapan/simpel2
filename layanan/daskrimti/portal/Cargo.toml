@@ -45,7 +45,7 @@ async-trait = { workspace = true }
 dotenvy = { workspace = true }
 
 # Shared Library
-lib-common = { path = "../../../lib/common", features = ["grpc", "encryption", "crypto", "validation"] }
+lib-common = { path = "../../../lib/common", features = ["backend", "jwt", "grpc", "encryption", "crypto", "validation"] }
 
 [dev-dependencies]
 axum-test = { workspace = true }

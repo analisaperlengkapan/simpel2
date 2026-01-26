@@ -85,27 +85,91 @@ fn default_log_format() -> String {
 // Storage Configuration
 // ================================
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// Raw storage config for TOML deserialization
+#[derive(Debug, Clone, Deserialize)]
+struct StorageConfigRaw {
+    pub backend: StorageBackend,
+    // Raft-specific fields
+    pub path: Option<PathBuf>,
+    pub node_id: Option<String>,
+    pub listener_addr: Option<String>,
+    #[serde(default)]
+    pub retry_join: Vec<RaftRetryJoin>,
+    #[serde(default)]
+    pub performance: RaftPerformanceConfig,
+    // File-specific fields
+    #[serde(default)]
+    pub sync_writes: Option<bool>,
+    // Postgres-specific fields
+    #[serde(default)]
+    pub max_connections: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct StorageConfig {
     pub backend: StorageBackend,
-
-    #[serde(flatten)]
     pub config: StorageBackendConfig,
+}
+
+impl<'de> serde::Deserialize<'de> for StorageConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = StorageConfigRaw::deserialize(deserializer)?;
+
+        let config = match raw.backend {
+            StorageBackend::Raft => {
+                let path = raw.path.ok_or_else(|| {
+                    serde::de::Error::missing_field("path")
+                })?;
+                let node_id = raw.node_id.ok_or_else(|| {
+                    serde::de::Error::missing_field("node_id")
+                })?;
+                StorageBackendConfig::Raft(RaftStorageConfig {
+                    path,
+                    node_id,
+                    listener_addr: raw.listener_addr,
+                    retry_join: raw.retry_join,
+                    performance: raw.performance,
+                })
+            }
+            StorageBackend::File => {
+                let path = raw.path.ok_or_else(|| {
+                    serde::de::Error::missing_field("path")
+                })?;
+                StorageBackendConfig::File(FileStorageConfig {
+                    path,
+                    sync_writes: raw.sync_writes.unwrap_or(true),
+                })
+            }
+            StorageBackend::Postgres => {
+                StorageBackendConfig::Postgres(PostgresStorageConfig {
+                    max_connections: raw.max_connections.unwrap_or(50),
+                })
+            }
+            StorageBackend::Memory => StorageBackendConfig::Memory,
+        };
+
+        Ok(StorageConfig {
+            backend: raw.backend,
+            config,
+        })
+    }
 }
 
 impl StorageConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
-        match (&self.backend, &self.config) {
-            (StorageBackend::Raft, StorageBackendConfig::Raft(cfg)) => cfg.validate(),
-            (StorageBackend::File, StorageBackendConfig::File(cfg)) => cfg.validate(),
-            (StorageBackend::Postgres, StorageBackendConfig::Postgres(cfg)) => cfg.validate(),
-            (StorageBackend::Memory, StorageBackendConfig::Memory) => Ok(()),
-            _ => Err(anyhow::anyhow!("Storage backend type mismatch")),
+        match &self.config {
+            StorageBackendConfig::Raft(cfg) => cfg.validate(),
+            StorageBackendConfig::File(cfg) => cfg.validate(),
+            StorageBackendConfig::Postgres(cfg) => cfg.validate(),
+            StorageBackendConfig::Memory => Ok(()),
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum StorageBackend {
     Raft,
@@ -125,8 +189,7 @@ impl ToString for StorageBackend {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, Serialize)]
 pub enum StorageBackendConfig {
     Raft(RaftStorageConfig),
     File(FileStorageConfig),
@@ -561,7 +624,7 @@ backend = "raft"
 path = "/var/lib/secreton/raft"
 node_id = "node1"
 
-[listener.http]
+[http]
 address = "0.0.0.0:8200"
 tls_enabled = false
 
@@ -575,5 +638,41 @@ threshold = 3
         assert_eq!(config.storage.backend, StorageBackend::Raft);
         assert_eq!(config.seal.seal_type, SealType::Shamir);
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_storage_config_raft() {
+        let toml = r#"
+backend = "raft"
+path = "./data/raft"
+node_id = "node1"
+listener_addr = "0.0.0.0:8300"
+"#;
+        let config: StorageConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.backend, StorageBackend::Raft);
+        match config.config {
+            StorageBackendConfig::Raft(ref raft) => {
+                assert_eq!(raft.node_id, "node1");
+                assert_eq!(raft.listener_addr.as_deref(), Some("0.0.0.0:8300"));
+            }
+            _ => panic!("Expected Raft config"),
+        }
+    }
+
+    #[test]
+    fn test_storage_config_file() {
+        let toml = r#"
+backend = "file"
+path = "/var/lib/secreton/data"
+sync_writes = false
+"#;
+        let config: StorageConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.backend, StorageBackend::File);
+        match config.config {
+            StorageBackendConfig::File(ref file) => {
+                assert!(!file.sync_writes);
+            }
+            _ => panic!("Expected File config"),
+        }
     }
 }

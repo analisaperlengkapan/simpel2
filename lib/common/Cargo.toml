@@ -7,24 +7,26 @@ edition = "2024"
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { version = "1.47.1", features = ["sync", "macros", "rt", "time"] }
 thiserror = { workspace = true }
 regex = { workspace = true }
-ipnetwork = { version = "0.20", default-features = false }
 url = { workspace = true }
 hex = { workspace = true }
 base64 = { workspace = true }
-redis = { workspace = true, optional = true }
-garde = { workspace = true, optional = true }
 tracing = { workspace = true }
 zeroize = { workspace = true, features = ["derive"] }
 uuid = { workspace = true, features = ["v4", "serde"] }
-axum = { workspace = true, optional = true }
 chrono = { workspace = true }
-jsonwebtoken = { workspace = true }
 dashmap = { workspace = true }
 anyhow = { workspace = true }
 dotenvy = { workspace = true }
+
+# Optional dependencies - backend only (not for WASM)
+tokio = { version = "1.47.1", features = ["sync", "macros", "rt", "time"], optional = true }
+ipnetwork = { version = "0.20", default-features = false, optional = true }
+redis = { workspace = true, optional = true }
+garde = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true }
 tokio-postgres = { workspace = true, optional = true }
 deadpool-postgres = { workspace = true, optional = true }
@@ -54,13 +56,18 @@ tonic = { workspace = true, optional = true }
 
 [features]
 default = []
-redis-cache = ["dep:redis"]
+# Backend features - requires tokio runtime (not for WASM)
+backend = ["dep:tokio", "dep:ipnetwork"]
+redis-cache = ["backend", "dep:redis"]
 validation = ["dep:garde"]
-axum = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:http-body", "dep:http-body-util", "dep:pin-project", "dep:futures-util"]
-telemetry = ["dep:tracing-subscriber"]
-db = ["dep:tokio-postgres", "dep:deadpool-postgres"]
+axum = ["backend", "dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:http-body", "dep:http-body-util", "dep:pin-project", "dep:futures-util"]
+telemetry = ["backend", "dep:tracing-subscriber"]
+db = ["backend", "dep:tokio-postgres", "dep:deadpool-postgres"]
+jwt = ["backend", "dep:jsonwebtoken"]
 crypto = ["dep:curve25519-dalek", "dep:sha2", "dep:subtle", "dep:rand", "dep:argon2"]
 vss = ["crypto"]
 encryption = ["crypto", "dep:aes-gcm", "dep:chacha20poly1305", "dep:hkdf", "dep:pbkdf2"]
-grpc = ["dep:tonic"]
+grpc = ["backend", "dep:tonic"]
+# Full backend feature set
+full-backend = ["backend", "jwt", "axum", "db", "telemetry", "validation", "redis-cache", "grpc"]
 

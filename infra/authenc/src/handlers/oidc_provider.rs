@@ -103,11 +103,11 @@ use serde::Deserialize;
 #[get("/.well-known/openid-configuration")]
 pub async fn oidc_discovery() -> impl Responder {
     HttpResponse::Ok().json(serde_json::json!({
-        "issuer": "http://localhost:8080/v1",
-        "authorization_endpoint": "http://localhost:8080/v1/oidc/authorize",
-        "token_endpoint": "http://localhost:8080/v1/oidc/token",
-        "userinfo_endpoint": "http://localhost:8080/v1/oidc/userinfo",
-        "jwks_uri": "http://localhost:8080/v1/oidc/jwks",
+        "issuer": "https://10.1.7.121/api/auth/v1",
+        "authorization_endpoint": "https://10.1.7.121/api/auth/v1/oidc/authorize",
+        "token_endpoint": "https://10.1.7.121/api/auth/v1/oidc/token",
+        "userinfo_endpoint": "https://10.1.7.121/api/auth/v1/oidc/userinfo",
+        "jwks_uri": "https://10.1.7.121/api/auth/v1/oidc/jwks",
         "response_types_supported": ["code", "id_token", "token id_token"],
         "subject_types_supported": ["public"],
         "id_token_signing_alg_values_supported": ["RS256"],

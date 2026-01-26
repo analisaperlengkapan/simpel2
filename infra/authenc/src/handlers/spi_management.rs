@@ -333,8 +333,8 @@ pub async fn get_provider_config(
             } else {
                 serde_json::json!({
                     "hostname": "localhost",
-                    "frontend_url": "http://localhost:8080",
-                    "admin_url": "http://localhost:8080/admin"
+                    "frontend_url": "https://10.1.7.121/api/auth",
+                    "admin_url": "https://10.1.7.121/api/auth/admin"
                 })
             }
         }
@@ -551,8 +551,8 @@ pub async fn test_provider(
                     details: Some(serde_json::json!({
                         "provider_count": providers.len(),
                         "hostname": "localhost",
-                        "frontend_url": "http://localhost:8080",
-                        "admin_url": "http://localhost:8080/admin"
+                        "frontend_url": "https://10.1.7.121/api/auth",
+                        "admin_url": "https://10.1.7.121/api/auth/admin"
                     })),
                 },
                 _ => ProviderTestResponse {

@@ -151,7 +151,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         )
         // Legacy OIDC Endpoints with Ed25519 security
         .route(
-            "/.well-known/openid_configuration",
+            "/.well-known/openid-configuration",
             get(oidc_ed25519::oidc_discovery_ed25519),
         )
         .route("/oidc/authorize", get(oidc_ed25519::oidc_authorize_ed25519))

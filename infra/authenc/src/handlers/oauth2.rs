@@ -362,7 +362,7 @@ pub fn generate_id_token(
     };
 
     let mut claims = OidcIdTokenClaims {
-        iss: "http://localhost:8080/v1".to_string(),
+        iss: "https://10.1.7.121/api/auth/v1".to_string(),
         sub: sub.to_string(),
         aud: aud.to_string(),
         exp: now + 3600,
@@ -504,14 +504,14 @@ pub fn validate_scope(
 /// Enhanced OIDC Discovery with all OAuth2 features
 pub async fn oauth2_discovery() -> Result<Json<serde_json::Value>, AuthencError> {
     let discovery = serde_json::json!({
-        "issuer": "http://localhost:8080/v1",
-        "authorization_endpoint": "http://localhost:8080/v1/oauth2/authorize",
-        "token_endpoint": "http://localhost:8080/v1/oauth2/token",
-        "introspection_endpoint": "http://localhost:8080/v1/oauth2/introspect",
-        "revocation_endpoint": "http://localhost:8080/v1/oauth2/revoke",
-        "jwks_uri": "http://localhost:8080/v1/oauth2/jwks",
-        "userinfo_endpoint": "http://localhost:8080/v1/oauth2/userinfo",
-        "device_authorization_endpoint": "http://localhost:8080/v1/oauth2/device",
+        "issuer": "https://10.1.7.121/api/auth/v1",
+        "authorization_endpoint": "https://10.1.7.121/api/auth/v1/oauth2/authorize",
+        "token_endpoint": "https://10.1.7.121/api/auth/v1/oauth2/token",
+        "introspection_endpoint": "https://10.1.7.121/api/auth/v1/oauth2/introspect",
+        "revocation_endpoint": "https://10.1.7.121/api/auth/v1/oauth2/revoke",
+        "jwks_uri": "https://10.1.7.121/api/auth/v1/oauth2/jwks",
+        "userinfo_endpoint": "https://10.1.7.121/api/auth/v1/oauth2/userinfo",
+        "device_authorization_endpoint": "https://10.1.7.121/api/auth/v1/oauth2/device",
         "response_types_supported": ["code", "id_token", "token id_token"],
         "response_modes_supported": ["query", "fragment", "form_post"],
         "grant_types_supported": [
@@ -643,7 +643,7 @@ pub async fn oauth2_authorize(
     // Build redirect URI
     let mut redirect_uri = params
         .redirect_uri
-        .unwrap_or_else(|| "http://localhost:8080/callback".to_string());
+        .unwrap_or_else(|| "https://10.1.7.121/api/auth/callback".to_string());
     redirect_uri.push_str(&format!("?code={}", auth_code));
 
     if let Some(state) = params.state {
@@ -763,7 +763,7 @@ async fn handle_authorization_code_grant(
         .unwrap_or("openid profile email");
 
     let access_token_claims = AccessTokenClaims {
-        iss: "http://localhost:8080/v1".to_string(),
+        iss: "https://10.1.7.121/api/auth/v1".to_string(),
         sub: code_entry.user_id.clone(),
         aud: client_id.clone(),
         client_id: client_id.clone(),
@@ -844,7 +844,7 @@ async fn handle_client_credentials_grant(
 
     // Generate access token for client
     let access_token_claims = AccessTokenClaims {
-        iss: "http://localhost:8080/v1".to_string(),
+        iss: "https://10.1.7.121/api/auth/v1".to_string(),
         sub: client_id.clone(),
         aud: client_id.clone(),
         client_id: client_id.clone(),
@@ -910,7 +910,7 @@ async fn handle_password_grant(
 
     // Generate tokens
     let access_token_claims = AccessTokenClaims {
-        iss: "http://localhost:8080/v1".to_string(),
+        iss: "https://10.1.7.121/api/auth/v1".to_string(),
         sub: username.clone(),
         aud: client_id.clone(),
         client_id: client_id.clone(),
@@ -1031,7 +1031,7 @@ async fn handle_refresh_token_grant(
 
     // Generate new access token
     let access_token_claims = AccessTokenClaims {
-        iss: "http://localhost:8080/v1".to_string(),
+        iss: "https://10.1.7.121/api/auth/v1".to_string(),
         sub: refresh_entry.user_id.clone(),
         aud: client_id.clone(),
         client_id: client_id.clone(),
@@ -1329,7 +1329,7 @@ pub async fn test_oauth2_authorize(
     // Build redirect URI
     let mut redirect_uri = params
         .redirect_uri
-        .unwrap_or_else(|| "http://localhost:8080/callback".to_string());
+        .unwrap_or_else(|| "https://10.1.7.121/api/auth/callback".to_string());
     redirect_uri.push_str(&format!("?code={}", auth_code));
 
     if let Some(state) = params.state {

@@ -50,4 +50,4 @@ dotenvy = { workspace = true }
 # HTTP client
 reqwest = { workspace = true }
 bigdecimal = { workspace = true }
-lib-common = { workspace = true, features = ["telemetry", "db"] }
+lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }

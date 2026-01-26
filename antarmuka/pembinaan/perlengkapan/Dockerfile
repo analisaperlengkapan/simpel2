@@ -47,35 +47,23 @@ ENV RUST_BACKTRACE=1
 RUN mkdir -p /root/.cache/trunk/wasm-bindgen-0.2.100
 RUN cp /usr/local/cargo/bin/wasm-bindgen /root/.cache/trunk/wasm-bindgen-0.2.100/wasm-bindgen || true
 
+# Set build-time environment variables for WASM baking
+ARG PORTAL_URL="https://10.1.7.121/portal"
+ARG AUTHENC_URL="https://10.1.7.121/api/auth"
+ENV PORTAL_URL=$PORTAL_URL
+ENV AUTHENC_URL=$AUTHENC_URL
+
 # Build with trunk (release mode)
 RUN trunk build --release --public-url "/"
 
 # Stage 2: Nginx untuk serving hasil build - LISTEN ON PORT 8080
 FROM nginx:alpine
 
-# Copy custom nginx config untuk listen di port 8080
-RUN echo 'server { \n\
-    listen 8080; \n\
-    listen [::]:8080; \n\
-    server_name _; \n\
-    root /usr/share/nginx/html; \n\
-    index index.html; \n\
-    \n\
-    location / { \n\
-    try_files $uri $uri/ /index.html; \n\
-    } \n\
-    \n\
-    location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \n\
-    expires 1y; \n\
-    add_header Cache-Control "public, immutable"; \n\
-    } \n\
-    \n\
-    location /health { \n\
-    access_log off; \n\
-    return 200 "healthy\\n"; \n\
-    add_header Content-Type text/plain; \n\
-    } \n\
-    }' > /etc/nginx/conf.d/default.conf
+# Copy main nginx config
+COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
+
+# Inject WASM MIME type to standard mime.types (ensure it exists)
+RUN sed -i 's|}|    application/wasm wasm;\n}|' /etc/nginx/mime.types
 
 # Copy build output ke Nginx html dir
 COPY --from=builder /workspace/antarmuka/pembinaan/perlengkapan/dist /usr/share/nginx/html

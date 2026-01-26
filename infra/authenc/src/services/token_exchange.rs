@@ -636,7 +636,7 @@ impl TokenExchangeService {
 
         // Build claims for new token
         let claims = AccessTokenClaims {
-            iss: "http://localhost:8080/v1".to_string(),
+            iss: "https://10.1.7.121/api/auth/v1".to_string(),
             sub: subject_info.user_id.to_string(),
             aud: audience.unwrap_or(client_id).to_string(),
             client_id: client_id.to_string(),

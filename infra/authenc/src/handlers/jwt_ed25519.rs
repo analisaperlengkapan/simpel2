@@ -83,7 +83,7 @@ pub fn generate_ed25519_jwt(
     };
 
     let claims = OidcIdTokenClaims {
-        iss: "http://localhost:8080/v1".to_string(),
+        iss: "https://10.1.7.121/api/auth/v1".to_string(),
         sub: sub.to_string(),
         aud: aud.to_string(),
         exp: now + 3600,
