@@ -83,7 +83,7 @@ fn build_router(service: PerlengkapanService) -> Router {
     // Combine all routes
     Router::new()
         .merge(health_routes)
-        .nest("/api", api_routes)
+        .nest("/api/pembinaan/perlengkapan", api_routes)
         .layer(TraceLayer::new_for_http())
         .layer(cors)
 }
