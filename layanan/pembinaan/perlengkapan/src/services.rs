@@ -443,41 +443,55 @@ impl PerlengkapanService {
         Option<f64>,    // nilai_perolehan
     )> {
         let obj = asset.as_object()?;
-        let kode_barang = obj.get("KD_BRG").and_then(|v| v.as_str()).unwrap_or_default();
-        let nup = obj.get("NO_ASET").and_then(|v| v.as_str()).unwrap_or_default();
+
+        // Helper to extract string from either String or Number/Int
+        let get_string = |key: &str| -> Option<String> {
+            obj.get(key).and_then(|v| {
+                if let Some(s) = v.as_str() {
+                    Some(s.to_string())
+                } else if let Some(n) = v.as_i64() {
+                    Some(n.to_string())
+                } else if let Some(f) = v.as_f64() {
+                    Some(f.to_string())
+                } else {
+                    None
+                }
+            })
+        };
+
+        let kode_barang = get_string("KD_BRG").unwrap_or_default();
+        let nup = get_string("NO_ASET").unwrap_or_default();
 
         if kode_barang.is_empty() || nup.is_empty() {
             return None;
         }
 
         let kode_bmn = format!("{}.{}", kode_barang, nup);
-        let nama = obj
-            .get("NM_BRG")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Unknown Asset")
-            .to_string();
-        let merk = obj.get("MERK").and_then(|v| v.as_str()).map(String::from);
-        let kondisi_raw = obj
-            .get("KONDISI")
-            .and_then(|v| v.as_str())
-            .unwrap_or("BAIK");
+        let nama = get_string("NM_BRG").unwrap_or_else(|| "Unknown Asset".to_string());
+        let merk = get_string("MERK");
+        let kondisi_raw = get_string("KONDISI").unwrap_or_else(|| "BAIK".to_string());
         let kondisi = match kondisi_raw.to_uppercase().as_str() {
             "RUSAK BERAT" => "rusak berat".to_string(),
             "RUSAK RINGAN" => "rusak ringan".to_string(),
             _ => "baik".to_string(),
         };
-        let lokasi = obj
-            .get("NM_SATKER")
-            .and_then(|v| v.as_str())
-            .unwrap_or("-")
-            .to_string();
-        let nilai_perolehan = obj.get("RPH_ASET").and_then(|v| v.as_f64());
+        let lokasi = get_string("NM_SATKER").unwrap_or_else(|| "-".to_string());
+
+        let nilai_perolehan = obj.get("RPH_ASET").and_then(|v| {
+            if let Some(f) = v.as_f64() {
+                Some(f)
+            } else if let Some(i) = v.as_i64() {
+                Some(i as f64)
+            } else {
+                None
+            }
+        });
 
         Some((
             nama,
             kode_bmn,
             merk,
-            nup.to_string(),
+            nup,
             kondisi,
             lokasi,
             nilai_perolehan,
@@ -647,5 +661,36 @@ mod tests {
 
         let result = PerlengkapanService::parse_siman_asset(&json_data);
         assert_eq!(result.unwrap().4, "rusak berat");
+    }
+
+    #[test]
+    fn test_parse_siman_asset_numeric_fields() {
+        let json_data = json!({
+            "KD_BRG": 101, // Integer
+            "NO_ASET": 5,  // Integer
+            "NM_BRG": "Numeric Asset",
+            "RPH_ASET": 50000 // Integer
+        });
+
+        let result = PerlengkapanService::parse_siman_asset(&json_data);
+        assert!(result.is_some());
+        let (_, kode_bmn, _, nup, _, _, nilai) = result.unwrap();
+
+        assert_eq!(kode_bmn, "101.5");
+        assert_eq!(nup, "5");
+        assert_eq!(nilai, Some(50000.0));
+    }
+
+    #[test]
+    fn test_parse_siman_asset_invalid_input() {
+        // Not an object
+        let json_data = json!(["item1", "item2"]);
+        let result = PerlengkapanService::parse_siman_asset(&json_data);
+        assert!(result.is_none());
+
+        // Null
+        let json_data = json!(null);
+        let result = PerlengkapanService::parse_siman_asset(&json_data);
+        assert!(result.is_none());
     }
 }

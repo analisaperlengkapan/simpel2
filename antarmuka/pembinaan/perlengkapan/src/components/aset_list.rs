@@ -112,14 +112,14 @@ pub fn AsetList() -> impl IntoView {
                                     <div class="flex gap-2">
                                         <button
                                             class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            prop:disabled=move || response.page <= 1
+                                            prop:disabled=move || page.get() <= 1
                                             on:click=move |_| set_page.update(|p| *p -= 1)
                                         >
                                             "Sebelumnya"
                                         </button>
                                         <button
                                             class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            prop:disabled=move || response.page >= response.total_pages
+                                            prop:disabled=move || page.get() >= response.total_pages
                                             on:click=move |_| set_page.update(|p| *p += 1)
                                         >
                                             "Selanjutnya"
