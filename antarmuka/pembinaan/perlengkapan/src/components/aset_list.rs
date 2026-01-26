@@ -36,9 +36,20 @@ pub fn AsetList() -> impl IntoView {
             <Suspense fallback=move || view! { <div class="text-center py-8">"Memuat data..."</div> }>
                 {move || {
                     assets_resource.get().flatten().map(|response| {
-                        view! {
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse">
+                        if response.data.is_empty() {
+                            view! {
+                                <div class="text-center py-12 text-gray-500">
+                                    <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
+                                    <p>"Belum ada data aset."</p>
+                                    <button class="mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                        "Tambah Aset Baru"
+                                    </button>
+                                </div>
+                            }.into_any()
+                        } else {
+                            view! {
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left border-collapse">
                                     <thead>
                                         <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
                                             <th class="p-3 font-semibold border-b">"Kode BMN"</th>
@@ -129,6 +140,7 @@ pub fn AsetList() -> impl IntoView {
                                     </div>
                                 </div>
                             </div>
+                            }.into_any()
                         }
                     })
                 }}
