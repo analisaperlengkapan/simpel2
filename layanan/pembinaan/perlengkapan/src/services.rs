@@ -457,6 +457,13 @@ impl PerlengkapanService {
                 let kode_barang = obj.get("KD_BRG").and_then(|v| v.as_str()).unwrap_or_default();
                 let nup = obj.get("NO_ASET").and_then(|v| v.as_str()).unwrap_or_default();
 
+                // Validation: Skip if both identifiers are empty to prevent "." kode_bmn
+                if kode_barang.is_empty() || nup.is_empty() {
+                    error_count += 1;
+                    error!("Skipping asset with missing identifiers: KD_BRG='{}', NO_ASET='{}'", kode_barang, nup);
+                    continue;
+                }
+
                 // Construct Unique Code BMN: KodeBarang.NUP
                 let kode_bmn = format!("{}.{}", kode_barang, nup);
 
@@ -488,6 +495,7 @@ impl PerlengkapanService {
                         nama = EXCLUDED.nama,
                         merk = EXCLUDED.merk,
                         nup = EXCLUDED.nup,
+                        kondisi = EXCLUDED.kondisi,
                         lokasi = EXCLUDED.lokasi,
                         nilai_perolehan = EXCLUDED.nilai_perolehan,
                         updated_at = NOW()
