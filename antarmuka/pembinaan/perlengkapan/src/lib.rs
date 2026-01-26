@@ -41,6 +41,9 @@ use shared_microfrontend::prelude::*;
 use wasm_bindgen::prelude::*;
 
 mod components;
+mod api;
+
+use components::aset_list::AsetList;
 
 // ============================================================================
 // Constants & Configuration
@@ -141,7 +144,7 @@ pub fn DashboardRoutes() -> impl IntoView {
 fn BankAsetRoutes() -> impl IntoView {
     view! {
         <Routes fallback=|| view! { <NotFound /> }>
-            <Route path=path!("/daftar") view=|| view! { <div>"Daftar Aset"</div> } />
+            <Route path=path!("/daftar") view=AsetList />
             <Route path=path!("/peta") view=|| view! { <div>"Peta Sebaran Aset"</div> } />
             <Route path=path!("/qr-code") view=|| view! { <div>"Cetak QR Code BMN"</div> } />
         </Routes>

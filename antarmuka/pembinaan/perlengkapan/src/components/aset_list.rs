@@ -1,121 +1,134 @@
 use leptos::prelude::*;
-use serde::{Deserialize, Serialize};
-use crate::components::auth::get_auth_token;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Aset {
-    pub id: String,
-    pub nama: String,
-    pub kategori: String,
-    pub kode_bmn: String,
-    pub merk: Option<String>,
-    pub nup: Option<String>,
-    pub kondisi: String,
-    pub lokasi: String,
-    pub nilai_perolehan: Option<f64>,
-    pub tanggal_perolehan: Option<String>,
-    pub status: String,
-    pub keterangan: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-pub struct PaginatedResponse<T> {
-    pub success: bool,
-    pub data: Vec<T>,
-}
-
-#[cfg(target_arch = "wasm32")]
-async fn fetch_asets() -> Result<Vec<Aset>, String> {
-    let token = get_auth_token().unwrap_or_default();
-    let resp = gloo_net::http::Request::get("/api/pembinaan/perlengkapan/aset?page=1&per_page=100")
-        .header("Accept", "application/json")
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !resp.ok() {
-        return Err(format!("API Error: {}", resp.status()));
-    }
-
-    let json: PaginatedResponse<Aset> = resp.json().await.map_err(|e| e.to_string())?;
-    Ok(json.data)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-async fn fetch_asets() -> Result<Vec<Aset>, String> {
-    Ok(vec![])
-}
+use crate::api::{fetch_assets, Aset};
 
 #[component]
 pub fn AsetList() -> impl IntoView {
-    let asets_resource = LocalResource::new(|| fetch_asets());
+    let (page, set_page) = signal(1);
+
+    // Resource to fetch assets when page changes
+    let assets_resource = LocalResource::new(move || async move {
+        let p = page.get();
+        match fetch_assets(p, 20).await {
+            Ok(response) => Some(response),
+            Err(e) => {
+                leptos::logging::error!("Failed to fetch assets: {:?}", e);
+                None
+            }
+        }
+    });
 
     view! {
-        <div class="overflow-x-auto">
-            <Suspense fallback=move || view! { <p class="text-center py-4">"Memuat data aset..."</p> }>
-                {move || match asets_resource.get() {
-                    None => view! { <p class="text-center py-4">"Memuat data aset..."</p> }.into_any(),
-                    Some(Err(e)) => view! {
-                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                            <strong class="font-bold">"Error! "</strong>
-                            <span class="block sm:inline">{e}</span>
-                        </div>
-                    }.into_any(),
-                    Some(Ok(data)) => view! {
-                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">"Nama Aset"</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">"Kode BMN"</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">"Merk/NUP"</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">"Kondisi"</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">"Lokasi"</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">"Status"</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">"Aksi"</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <For
-                                    each=move || data.clone()
-                                    key=|aset| aset.id.clone()
-                                    children=move |aset| {
-                                        view! {
-                                            <tr>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm font-medium text-gray-900">{aset.nama}</div>
-                                                    <div class="text-sm text-gray-500">{aset.kategori}</div>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{aset.kode_bmn}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    <div>{aset.merk.unwrap_or_default()}</div>
-                                                    <div class="text-xs text-gray-400">"NUP: " {aset.nup.unwrap_or_default()}</div>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <span class={
-                                                        let kondisi_lower = aset.kondisi.to_lowercase();
-                                                        move || format!("px-2 inline-flex text-xs leading-5 font-semibold rounded-full {}",
-                                                            if kondisi_lower == "baik" { "bg-green-100 text-green-800" }
-                                                            else if kondisi_lower.contains("rusak") { "bg-red-100 text-red-800" }
-                                                            else { "bg-yellow-100 text-yellow-800" }
-                                                        )
-                                                    }>
-                                                        {aset.kondisi.clone()}
-                                                    </span>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{aset.lokasi}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{aset.status}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <button class="text-indigo-600 hover:text-indigo-900 mr-2">"Edit"</button>
-                                                    <button class="text-red-600 hover:text-red-900">"Hapus"</button>
-                                                </td>
-                                            </tr>
-                                        }
-                                    }
-                                />
-                            </tbody>
-                        </table>
-                    }.into_any()
+        <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800">"Daftar Aset"</h2>
+                <div class="flex gap-2">
+                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-plus mr-2"></i> "Tambah Aset"
+                    </button>
+                    <button class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                         <i class="fas fa-filter mr-2"></i> "Filter"
+                    </button>
+                </div>
+            </div>
+
+            <Suspense fallback=move || view! { <div class="text-center py-8">"Memuat data..."</div> }>
+                {move || {
+                    assets_resource.get().flatten().map(|response| {
+                        view! {
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
+                                            <th class="p-3 font-semibold border-b">"Kode BMN"</th>
+                                            <th class="p-3 font-semibold border-b">"Nama Aset"</th>
+                                            <th class="p-3 font-semibold border-b">"Kategori"</th>
+                                            <th class="p-3 font-semibold border-b">"Merk"</th>
+                                            <th class="p-3 font-semibold border-b">"Kondisi"</th>
+                                            <th class="p-3 font-semibold border-b">"Lokasi"</th>
+                                            <th class="p-3 font-semibold border-b">"Nilai"</th>
+                                            <th class="p-3 font-semibold border-b">"Aksi"</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-gray-700 text-sm">
+                                        <For
+                                            each=move || response.data.clone()
+                                            key=|aset| aset.id.clone()
+                                            children=move |aset: Aset| {
+                                                view! {
+                                                    <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
+                                                        <td class="p-3 font-mono text-xs">{aset.kode_bmn}</td>
+                                                        <td class="p-3 font-medium">{aset.nama}</td>
+                                                        <td class="p-3">
+                                                            <span class="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-600">
+                                                                {aset.kategori}
+                                                            </span>
+                                                        </td>
+                                                        <td class="p-3">{aset.merk.unwrap_or("-".to_string())}</td>
+                                                        <td class="p-3">
+                                                            {
+                                                                let color_class = match aset.kondisi.to_lowercase().as_str() {
+                                                                    "baik" => "bg-green-100 text-green-700",
+                                                                    "rusak ringan" => "bg-yellow-100 text-yellow-700",
+                                                                    "rusak berat" => "bg-red-100 text-red-700",
+                                                                    _ => "bg-gray-100 text-gray-700",
+                                                                };
+                                                                view! {
+                                                                    <span class={format!("px-2 py-1 rounded-full text-xs capitalize {}", color_class)}>
+                                                                        {aset.kondisi}
+                                                                    </span>
+                                                                }
+                                                            }
+                                                        </td>
+                                                        <td class="p-3">{aset.lokasi}</td>
+                                                        <td class="p-3 text-right">
+                                                            {
+                                                                aset.nilai_perolehan
+                                                                    .map(|n| format!("Rp {:.2}", n))
+                                                                    .unwrap_or("-".to_string())
+                                                            }
+                                                        </td>
+                                                        <td class="p-3">
+                                                            <div class="flex gap-2">
+                                                                <button class="text-blue-600 hover:text-blue-800" title="Edit">
+                                                                    <i class="fas fa-edit"></i>
+                                                                </button>
+                                                                <button class="text-red-600 hover:text-red-800" title="Hapus">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        />
+                                    </tbody>
+                                </table>
+
+                                // Pagination
+                                <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                                    <div class="text-sm text-gray-500">
+                                        "Menampilkan halaman " <span class="font-medium">{response.page}</span> " dari " <span class="font-medium">{response.total_pages}</span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button
+                                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            prop:disabled=move || response.page <= 1
+                                            on:click=move |_| set_page.update(|p| *p -= 1)
+                                        >
+                                            "Sebelumnya"
+                                        </button>
+                                        <button
+                                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            prop:disabled=move || response.page >= response.total_pages
+                                            on:click=move |_| set_page.update(|p| *p += 1)
+                                        >
+                                            "Selanjutnya"
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    })
                 }}
             </Suspense>
         </div>
