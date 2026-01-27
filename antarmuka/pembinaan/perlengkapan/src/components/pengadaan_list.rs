@@ -23,10 +23,13 @@ pub fn PengadaanList() -> impl IntoView {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold text-gray-800">"Daftar Pengadaan"</h2>
-                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <a
+                    href="/dashboard/pengadaan/baru"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+                >
                     <i class="fas fa-plus mr-2"></i>
                     "Buat Pengadaan"
-                </button>
+                </a>
             </div>
 
             <Suspense fallback=move || view! { <div class="text-center py-8">"Memuat data..."</div> }>

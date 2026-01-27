@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Perlengkapan Module', () => {
   test('should navigate to dashboard and load statistics', async ({ page }) => {
-    // Navigate to the app (assuming localhost:8093)
-    await page.goto('http://localhost:8093');
+    // Navigate to the app (using relative URL, relies on baseURL)
+    await page.goto('/');
 
     // Check for dashboard title
     await expect(page).toHaveTitle(/SIMPEL Perlengkapan/);
@@ -14,7 +14,7 @@ test.describe('Perlengkapan Module', () => {
   });
 
   test('should navigate to Bank Aset', async ({ page }) => {
-    await page.goto('http://localhost:8093/dashboard/bank-aset/daftar');
+    await page.goto('/dashboard/bank-aset/daftar');
     await expect(page.getByText('Daftar Aset')).toBeVisible();
     // Check table headers
     await expect(page.getByText('No Aset')).toBeVisible();
@@ -22,7 +22,7 @@ test.describe('Perlengkapan Module', () => {
   });
 
   test('should navigate to Pengadaan and open create form', async ({ page }) => {
-    await page.goto('http://localhost:8093/dashboard/pengadaan/daftar');
+    await page.goto('/dashboard/pengadaan/daftar');
     await expect(page.getByText('Daftar Pengadaan')).toBeVisible();
 
     // Click create button
@@ -34,7 +34,7 @@ test.describe('Perlengkapan Module', () => {
   });
 
   test('should navigate to Analisis Kebutuhan and open create form', async ({ page }) => {
-    await page.goto('http://localhost:8093/dashboard/analisis/daftar');
+    await page.goto('/dashboard/analisis/daftar');
     await expect(page.getByText('Analisis Kebutuhan')).toBeVisible();
 
     // Click create button

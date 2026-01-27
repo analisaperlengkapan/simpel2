@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use crate::api::{create_analisis, CreateAnalisisRequest};
 
 #[component]
@@ -33,6 +34,7 @@ pub fn AnalisisForm() -> impl IntoView {
                     set_judul.set("".to_string());
                     set_kategori.set("".to_string());
                     set_estimasi.set("".to_string());
+                    set_prioritas.set("sedang".to_string());
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));
