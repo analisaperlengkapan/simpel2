@@ -72,10 +72,15 @@ jobs:
             fi
           done
 
+      - name: Generate Safe Name
+        id: safe-name
+        shell: bash
+        run: echo "safe_name=$(echo '${{ matrix.module }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v5
         with:
-          name: wasm-${{ matrix.module | replace("/", "-") }}
+          name: wasm-${{ steps.safe-name.outputs.safe_name }}
           path: antarmuka/${{ matrix.module }}/dist/
           retention-days: 7
 
