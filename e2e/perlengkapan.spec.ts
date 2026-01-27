@@ -26,7 +26,7 @@ test.describe('Perlengkapan Module', () => {
     await expect(page.getByText('Daftar Pengadaan')).toBeVisible();
 
     // Click create button
-    await page.getByRole('button', { name: 'Buat Pengadaan' }).click();
+    await page.getByRole('link', { name: 'Buat Pengadaan' }).click();
 
     // Verify form opened
     await expect(page.getByText('Buat Pengadaan Baru')).toBeVisible();
@@ -38,7 +38,7 @@ test.describe('Perlengkapan Module', () => {
     await expect(page.getByText('Analisis Kebutuhan')).toBeVisible();
 
     // Click create button
-    await page.getByRole('button', { name: 'Buat Analisis Baru' }).click();
+    await page.getByRole('link', { name: 'Buat Analisis Baru' }).click();
 
     // Verify form opened
     await expect(page.getByText('Buat Analisis Kebutuhan')).toBeVisible();
