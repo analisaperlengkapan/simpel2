@@ -7,11 +7,17 @@ pub struct ArchiveService;
 
 impl ArchiveService {
     pub async fn create_collection(pool: &PgPool, name: &str, description: Option<&str>, owner_id: Option<Uuid>) -> Result<ArchiveCollection, AppError> {
-        let rec = sqlx::query_as!(ArchiveCollection,
+        let rec = sqlx::query_as!(
+            ArchiveCollection,
             r#"INSERT INTO dokumen.archive_collections (id, name, description, created_at, owner_id)
             VALUES ($1, $2, $3, NOW(), $4) RETURNING *"#,
-            Uuid::new_v4(), name, description, owner_id
-        ).fetch_one(pool).await?;
+            Uuid::new_v4(),
+            name,
+            description,
+            owner_id
+        )
+        .fetch_one(pool)
+        .await?;
         Ok(rec)
     }
 
@@ -48,4 +54,4 @@ impl ArchiveService {
         ).fetch_all(pool).await?;
         Ok(docs)
     }
-} 
+}
