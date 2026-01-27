@@ -1,5 +1,0 @@
-ignore = [
-    "antarmuka/pembinaan/perlengkapan/src/api.rs",
-    "layanan/pembinaan/perlengkapan/src/tests.rs",
-    "layanan/pembinaan/perlengkapan/src/tests/handlers_test.rs",
-]
