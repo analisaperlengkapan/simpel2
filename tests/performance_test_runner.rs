@@ -580,8 +580,11 @@ fn validate_performance_requirements(results: &PerformanceResults) -> Result<(),
         let mut found = false;
         let mut actual_ms = 0;
 
-        // Check in all benchmark results
-        for benchmark_results in [&results.authenc_results, &results.secreton_results, &results.integration_results] {
+        for benchmark_results in [
+            &results.authenc_results,
+            &results.secreton_results,
+            &results.integration_results,
+        ] {
             if let Some(result) = benchmark_results.benchmarks.get(benchmark_name) {
                 actual_ms = result.mean_duration.as_millis() as u64;
                 found = true;
