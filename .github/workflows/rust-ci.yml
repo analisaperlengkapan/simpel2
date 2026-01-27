@@ -71,7 +71,6 @@ jobs:
         run: cargo test --workspace --all-targets --verbose
 
   build:
-  build:
     name: Build Release Binaries
     runs-on: self-hosted
     needs: [test]
