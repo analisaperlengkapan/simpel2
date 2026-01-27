@@ -42,10 +42,25 @@ runs:
         components: ${{ inputs.components }}
 
     - name: Install Protocol Buffers compiler
-      uses: arduino/setup-protoc@v3
-      with:
-        version: "25.x"
-        repo-token: ${{ inputs.github-token }}
+      shell: bash
+      run: |
+        PROTOC_VERSION="25.1"
+        PROTOC_ZIP="protoc-$PROTOC_VERSION-linux-x86_64.zip"
+        curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/$PROTOC_ZIP"
+
+        # Extract using python3 (avoiding unzip dependency)
+        python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1],'r').extractall('protoc')" "$PROTOC_ZIP"
+
+        # Install to local bin
+        mkdir -p $HOME/.local/bin
+        mv protoc/bin/protoc $HOME/.local/bin/
+        # Move include files if needed, but for rust normally protoc binary is enough or build script handles it?
+        # Typically prost-build needs 'protoc' in PATH.
+        chmod +x $HOME/.local/bin/protoc
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+        # Verify
+        $HOME/.local/bin/protoc --version
 
     - name: Setup Rust cache
       uses: Swatinem/rust-cache@v2
