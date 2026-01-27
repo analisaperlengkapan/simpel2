@@ -2,7 +2,7 @@
 //!
 //! Route definitions for the Perlengkapan service
 
-use axum::{Router, routing::{get, post}};
+use axum::{Router, routing::get};
 
 use crate::{handlers::*, AppState};
 
@@ -12,19 +12,14 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/health", get(health_check))
         // Dashboard routes
         .route("/dashboard/stats", get(get_dashboard_stats))
-        // Aset routes
-        .route("/aset", get(get_all_aset).post(create_aset))
-        .route(
-            "/aset/{id}",
-            get(get_aset_by_id).put(update_aset).delete(delete_aset),
-        )
+        // Asset routes (Read-Only)
+        .route("/assets", get(get_all_assets))
+        .route("/assets/:id", get(get_asset_by_id))
         // Pengadaan routes
         .route("/pengadaan", get(get_all_pengadaan).post(create_pengadaan))
-        .route("/pengadaan/{id}", get(get_pengadaan_by_id))
+        .route("/pengadaan/:id", get(get_pengadaan_by_id))
         // Analisis Kebutuhan routes
         .route("/analisis", get(get_all_analisis).post(create_analisis))
-        // Integration routes
-        .route("/sync/siman", post(sync_siman))
         // Add the service as state
         .with_state(state)
 }

@@ -6,11 +6,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use deadpool_postgres::{Config, Pool, Runtime};
 use tokio_postgres::NoTls;
-use tracing::{error, info};
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    errors::{conflict, not_found, AppError, AppResult},
+    errors::{not_found, AppError, AppResult},
     models::*,
     repository::PerlengkapanRepository,
 };
@@ -55,32 +55,7 @@ impl Database {
             .execute("CREATE SCHEMA IF NOT EXISTS perlengkapan", &[])
             .await?;
 
-        // Create aset table
-        client
-            .execute(
-                r#"
-            CREATE TABLE IF NOT EXISTS perlengkapan.aset (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                nama VARCHAR NOT NULL,
-                kategori VARCHAR NOT NULL,
-                kode_bmn VARCHAR UNIQUE NOT NULL,
-                merk VARCHAR,
-                nup VARCHAR,
-                kondisi VARCHAR NOT NULL DEFAULT 'baik',
-                lokasi VARCHAR NOT NULL,
-                nilai_perolehan DECIMAL(15,2),
-                tanggal_perolehan DATE,
-                status VARCHAR NOT NULL DEFAULT 'aktif',
-                keterangan TEXT,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW(),
-                created_by UUID,
-                updated_by UUID
-            )
-        "#,
-                &[],
-            )
-            .await?;
+        // We do NOT create perlengkapan.aset anymore, as we use integrasi.siman_aset
 
         // Create pengadaan table
         client
@@ -142,68 +117,50 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
 
-        let total_aset: i64 = client
-            .query_one("SELECT COUNT(*) as count FROM perlengkapan.aset", &[])
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .get("count");
+        // Query v_siman_summary_total with explicit casts to be safe.
+        let summary = client
+             .query_one(
+                 "SELECT
+                    total_aset,
+                    COALESCE(total_nilai_perolehan, 0)::FLOAT8 as total_nilai,
+                    total_satker,
+                    total_baik,
+                    total_rusak
+                  FROM integrasi.v_siman_summary_total",
+                 &[]
+             )
+             .await
+             .map_err(|e| AppError::Database(format!("Failed to query summary with cast: {}", e)))?;
 
-        let total_pengadaan: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.pengadaan",
-                &[],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .get("count");
+        let total_aset: i64 = summary.get("total_aset");
+        let total_nilai_aset: f64 = summary.get("total_nilai");
+        let total_satker: i64 = summary.get("total_satker");
+        let aset_baik: i64 = summary.get("total_baik");
+        let aset_rusak: i64 = summary.get("total_rusak");
 
-        let total_analisis: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.analisis_kebutuhan",
-                &[],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .get("count");
+        // Categories
+        let cat_rows = client.query(
+            "SELECT kategori_aset, total_aset, COALESCE(total_nilai_perolehan, 0)::FLOAT8 as total_nilai FROM integrasi.v_siman_summary_per_kategori ORDER BY total_aset DESC",
+            &[]
+        ).await.map_err(|e| AppError::Database(format!("Failed to query categories: {}", e)))?;
 
-        let aset_aktif: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.aset WHERE status = 'aktif'",
-                &[],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .get("count");
-
-        let pengadaan_berjalan: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.pengadaan WHERE status IN ('perencanaan', 'proses', 'tender')",
-                &[],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .get("count");
-
-        let analisis_pending: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.analisis_kebutuhan WHERE status IN ('draft', 'review')",
-                &[],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .get("count");
+        let categories = cat_rows.iter().map(|row| CategoryStat {
+            category: row.get("kategori_aset"),
+            count: row.get("total_aset"),
+            value: row.get("total_nilai"),
+        }).collect();
 
         Ok(DashboardStats {
             total_aset,
-            total_pengadaan,
-            total_analisis,
-            aset_aktif,
-            pengadaan_berjalan,
-            analisis_pending,
+            total_nilai_aset,
+            total_satker,
+            aset_baik,
+            aset_rusak,
+            categories,
         })
     }
 
-    async fn get_all_aset(&self, page: i32, per_page: i32) -> AppResult<(Vec<Aset>, i64)> {
+    async fn get_all_assets(&self, page: i32, per_page: i32, category: Option<String>) -> AppResult<(Vec<Asset>, i64)> {
         let client = self
             .pool
             .get()
@@ -212,184 +169,62 @@ impl PerlengkapanRepository for Database {
 
         let offset = (page - 1) * per_page;
 
-        let total: i64 = client
-            .query_one("SELECT COUNT(*) as count FROM perlengkapan.aset", &[])
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?
-            .get("count");
-
-        let rows = client
-            .query(
-                "SELECT id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.aset ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-                &[&(per_page as i64), &(offset as i64)],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-
-        let aset: Vec<Aset> = rows.iter().map(Aset::from_row).collect();
-
-        Ok((aset, total))
-    }
-
-    async fn get_aset_by_id(&self, id: Uuid) -> AppResult<Aset> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
-
-        let row = client
-            .query_opt("SELECT id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.aset WHERE id = $1", &[&id])
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-
-        row.map(|r| Aset::from_row(&r))
-            .ok_or_else(|| not_found("Aset", &id.to_string()))
-    }
-
-    async fn create_aset(
-        &self,
-        request: CreateAsetRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Aset> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
-
-        let id = Uuid::new_v4();
-
-        // Check is done in Service if necessary, or handled by DB unique constraint
-        // But for repo, we just try to insert. If unique violation, we catch it.
-        // However, the original service checked explicitly. Let's move the check to `check_aset_code_exists`.
-
-        let row = client
-            .query_one(
-                r#"
-                INSERT INTO perlengkapan.aset
-                (id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan, tanggal_perolehan, keterangan, created_by, updated_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                RETURNING id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by
-                "#,
-                &[
-                    &id,
-                    &request.nama,
-                    &request.kategori,
-                    &request.kode_bmn,
-                    &request.merk,
-                    &request.nup,
-                    &request.kondisi,
-                    &request.lokasi,
-                    &request.nilai_perolehan,
-                    &request.tanggal_perolehan,
-                    &request.keterangan,
-                    &user_id,
-                    &user_id,
-                ],
-            )
-            .await
-            .map_err(|e| {
-                if e.code().map(|c| c.code() == "23505").unwrap_or(false) { // Unique violation
-                     conflict("Kode BMN sudah digunakan")
-                } else {
-                     AppError::Database(e.to_string())
-                }
-            })?;
-
-        Ok(Aset::from_row(&row))
-    }
-
-    async fn check_aset_code_exists(&self, code: &str) -> AppResult<bool> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
-
-        let existing = client
-            .query_opt(
-                "SELECT id FROM perlengkapan.aset WHERE kode_bmn = $1",
-                &[&code],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-
-        Ok(existing.is_some())
-    }
-
-    async fn update_aset(
-        &self,
-        id: Uuid,
-        request: UpdateAsetRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Aset> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
-
-        let row = client
-            .query_opt(
-                r#"
-                UPDATE perlengkapan.aset
-                SET nama = COALESCE($2, nama),
-                    kategori = COALESCE($3, kategori),
-                    merk = COALESCE($4, merk),
-                    nup = COALESCE($5, nup),
-                    kondisi = COALESCE($6, kondisi),
-                    lokasi = COALESCE($7, lokasi),
-                    nilai_perolehan = COALESCE($8, nilai_perolehan),
-                    tanggal_perolehan = COALESCE($9, tanggal_perolehan),
-                    status = COALESCE($10, status),
-                    keterangan = COALESCE($11, keterangan),
-                    updated_by = $12,
-                    updated_at = NOW()
-                WHERE id = $1
-                RETURNING id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by
-                "#,
-                &[
-                    &id,
-                    &request.nama,
-                    &request.kategori,
-                    &request.merk,
-                    &request.nup,
-                    &request.kondisi,
-                    &request.lokasi,
-                    &request.nilai_perolehan,
-                    &request.tanggal_perolehan,
-                    &request.status,
-                    &request.keterangan,
-                    &user_id,
-                ],
-            )
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-
-        row.map(|r| Aset::from_row(&r))
-            .ok_or_else(|| not_found("Aset", &id.to_string()))
-    }
-
-    async fn delete_aset(&self, id: Uuid) -> AppResult<()> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
-
-        let result = client
-            .execute("DELETE FROM perlengkapan.aset WHERE id = $1", &[&id])
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-
-        if result == 0 {
-            return Err(not_found("Aset", &id.to_string()));
+        // Easier way:
+        let total: i64;
+        if let Some(cat) = &category {
+            total = client.query_one("SELECT COUNT(*) as count FROM integrasi.siman_aset WHERE kategori_aset = $1", &[cat])
+                .await.map_err(|e| AppError::Database(e.to_string()))?.get("count");
+        } else {
+             total = client.query_one("SELECT COUNT(*) as count FROM integrasi.siman_aset", &[])
+                .await.map_err(|e| AppError::Database(e.to_string()))?.get("count");
         }
 
-        Ok(())
+        let query_str = if category.is_some() {
+            "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker,
+             (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) as rph_aset,
+             tgl_perlh, updated_at
+             FROM integrasi.siman_aset
+             WHERE kategori_aset = $1
+             ORDER BY updated_at DESC LIMIT $2 OFFSET $3"
+        } else {
+             "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker,
+             (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) as rph_aset,
+             tgl_perlh, updated_at
+             FROM integrasi.siman_aset
+             ORDER BY updated_at DESC LIMIT $1 OFFSET $2"
+        };
+
+        let rows = if let Some(cat) = &category {
+            client.query(query_str, &[cat, &(per_page as i64), &(offset as i64)]).await
+        } else {
+             client.query(query_str, &[&(per_page as i64), &(offset as i64)]).await
+        }.map_err(|e| AppError::Database(e.to_string()))?;
+
+        let assets: Vec<Asset> = rows.iter().map(Asset::from_row).collect();
+
+        Ok((assets, total))
     }
 
+    async fn get_asset_by_id(&self, id: Uuid) -> AppResult<Asset> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let row = client
+            .query_opt("SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker,
+                        (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) as rph_aset,
+                        tgl_perlh, updated_at
+                        FROM integrasi.siman_aset WHERE id = $1", &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        row.map(|r| Asset::from_row(&r))
+            .ok_or_else(|| not_found("Aset", &id.to_string()))
+    }
+
+    // Pengadaan & Analisis remain same
     async fn get_all_pengadaan(
         &self,
         page: i32,
@@ -553,44 +388,5 @@ impl PerlengkapanRepository for Database {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(AnalisisKebutuhan::from_row(&row))
-    }
-
-    async fn upsert_siman_asset(&self, id: Uuid, nama: String, kategori: String, kode_bmn: String, merk: Option<String>, nup: String, kondisi: String, lokasi: String, nilai_perolehan: Option<f64>) -> AppResult<()> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
-
-        client.execute(
-            r#"
-            INSERT INTO perlengkapan.aset
-            (id, nama, kategori, kode_bmn, merk, nup, kondisi, lokasi, nilai_perolehan, status, updated_at, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'aktif', NOW(), NOW())
-            ON CONFLICT (kode_bmn)
-            DO UPDATE SET
-                nama = EXCLUDED.nama,
-                merk = EXCLUDED.merk,
-                nup = EXCLUDED.nup,
-                kondisi = EXCLUDED.kondisi,
-                lokasi = EXCLUDED.lokasi,
-                nilai_perolehan = EXCLUDED.nilai_perolehan,
-                kategori = EXCLUDED.kategori,
-                updated_at = NOW()
-            "#,
-            &[
-                &id,
-                &nama,
-                &kategori,
-                &kode_bmn,
-                &merk,
-                &Some(nup),
-                &kondisi,
-                &lokasi,
-                &nilai_perolehan
-            ]
-        ).await.map_err(|e| AppError::Database(e.to_string()))?;
-
-        Ok(())
     }
 }

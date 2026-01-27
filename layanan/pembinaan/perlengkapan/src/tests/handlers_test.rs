@@ -10,9 +10,10 @@ mod tests {
         handlers::*,
         models::*,
         services::PerlengkapanService,
-        repository::MockPerlengkapanRepository,
         middleware::Claims,
     };
+    use super::MockRepository; // Accessing MockRepository from parent tests module
+    use chrono::Utc;
 
     fn create_mock_claims() -> Claims {
         Claims {
@@ -24,20 +25,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handler_get_all_aset() {
-        let mut mock_repo = MockPerlengkapanRepository::new();
+    async fn test_handler_get_all_assets() {
+        let mut mock_repo = MockRepository::new();
 
-        mock_repo.expect_get_all_aset()
-            .with(mockall::predicate::eq(1), mockall::predicate::eq(20))
+        mock_repo.expect_get_all_assets()
+            .with(mockall::predicate::eq(1), mockall::predicate::eq(20), mockall::predicate::eq(None))
             .times(1)
-            .returning(|_, _| Ok((vec![], 0)));
+            .returning(|_, _, _| Ok((vec![], 0)));
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
-        let pagination = Query(PaginationQuery { page: 1, per_page: 20 });
+        let pagination = Query(PaginationQuery { page: 1, per_page: 20, category: None });
         let claims = create_mock_claims();
 
-        let result = get_all_aset(state, pagination, claims).await;
+        let result = get_all_assets(state, pagination, claims).await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -47,92 +48,36 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handler_create_aset() {
-        let mut mock_repo = MockPerlengkapanRepository::new();
-
-        // Expect validation check
-        mock_repo.expect_check_aset_code_exists()
-            .returning(|_| Ok(false));
-
-        // Expect creation
-        mock_repo.expect_create_aset()
-            .times(1)
-            .returning(|_, _| Ok(Aset {
-                id: Uuid::new_v4(),
-                nama: "Test Aset".to_string(),
-                kategori: "Kategori".to_string(),
-                kode_bmn: "123".to_string(),
-                merk: None,
-                nup: None,
-                kondisi: "baik".to_string(),
-                lokasi: "Lokasi".to_string(),
-                nilai_perolehan: None,
-                tanggal_perolehan: None,
-                status: "aktif".to_string(),
-                keterangan: None,
-                created_at: chrono::Utc::now(),
-                updated_at: chrono::Utc::now(),
-                created_by: None,
-                updated_by: None,
-            }));
-
-        let service = PerlengkapanService::new(Arc::new(mock_repo));
-        let state = State(service);
-        let claims = create_mock_claims();
-        let request = Json(CreateAsetRequest {
-            nama: "Test Aset".to_string(),
-            kategori: "Kategori".to_string(),
-            kode_bmn: "123".to_string(),
-            merk: None,
-            nup: Some("1".to_string()),
-            kondisi: "baik".to_string(),
-            lokasi: "Lokasi".to_string(),
-            nilai_perolehan: None,
-            tanggal_perolehan: None,
-            keterangan: None,
-        });
-
-        let result = create_aset(state, claims, request).await;
-
-        assert!(result.is_ok());
-        let (status, _response) = result.unwrap();
-        assert_eq!(status, axum::http::StatusCode::CREATED);
-    }
-
-    #[tokio::test]
-    async fn test_handler_get_aset_by_id_found() {
-        let mut mock_repo = MockPerlengkapanRepository::new();
+    async fn test_handler_get_asset_by_id_found() {
+        let mut mock_repo = MockRepository::new();
         let id = Uuid::new_v4();
 
-        mock_repo.expect_get_aset_by_id()
+        mock_repo.expect_get_asset_by_id()
             .with(mockall::predicate::eq(id))
             .times(1)
-            .returning(move |_| Ok(Aset {
+            .returning(move |_| Ok(Asset {
                 id,
-                nama: "Found Aset".to_string(),
-                kategori: "Kategori".to_string(),
-                kode_bmn: "123".to_string(),
+                kategori_aset: "Tanah".to_string(),
+                no_aset: "1".to_string(),
+                nama_aset: Some("Found Asset".to_string()),
+                kode_barang: Some("101".to_string()),
                 merk: None,
-                nup: None,
-                kondisi: "baik".to_string(),
-                lokasi: "Lokasi".to_string(),
-                nilai_perolehan: None,
-                tanggal_perolehan: None,
-                status: "aktif".to_string(),
-                keterangan: None,
-                created_at: chrono::Utc::now(),
-                updated_at: chrono::Utc::now(),
-                created_by: None,
-                updated_by: None,
+                tipe: None,
+                kondisi: Some("Baik".to_string()),
+                lokasi: Some("Jakarta".to_string()),
+                satker: Some("Pusat".to_string()),
+                nilai_perolehan: Some(1000000.0),
+                tgl_perolehan: Some("2023-01-01".to_string()),
+                updated_at: Utc::now(),
             }));
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
         let claims = create_mock_claims();
 
-        let result = get_aset_by_id(state, Path(id), claims).await;
+        let result = get_asset_by_id(state, Path(id), claims).await;
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().0.data.nama, "Found Aset");
+        assert_eq!(result.unwrap().0.data.nama_aset, Some("Found Asset".to_string()));
     }
 }
