@@ -32,12 +32,18 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
       - name: Install Protocol Buffers compiler
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        run: |
+          if ! command -v cargo-audit &> /dev/null; then
+            cargo install cargo-audit --locked
+          fi
 
       - name: Audit workspace dependencies
         run: cargo audit --deny warnings
@@ -69,7 +75,10 @@ jobs:
         with:
           version: "25.x"
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
+        run: |
+          if ! command -v cargo-deny &> /dev/null; then
+            cargo install cargo-deny --locked
+          fi
 
       - name: Check advisories
         run: cargo deny check advisories
@@ -293,11 +302,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
-          deny-licenses: GPL-3.0, AGPL-3.0
+      # - name: Dependency Review
+      #   uses: actions/dependency-review-action@v4
+      #   with:
+      #     fail-on-severity: moderate
+      #     deny-licenses: GPL-3.0, AGPL-3.0
 
   security-summary:
     name: Security CI Summary

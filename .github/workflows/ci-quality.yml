@@ -32,6 +32,9 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
       - name: Install Protocol Buffers compiler
         uses: arduino/setup-protoc@v3
         with:
@@ -121,6 +124,9 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
           components: llvm-tools-preview
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y unzip
 
       - name: Install Protocol Buffers compiler
         uses: arduino/setup-protoc@v3
