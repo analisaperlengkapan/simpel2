@@ -117,3 +117,67 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, Stri
         message: "Server-side stub".to_string(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_aset_deserialization() {
+        let json_data = json!({
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "nama": "Laptop Dell",
+            "kategori": "Elektronik",
+            "kode_bmn": "101.1",
+            "merk": "Dell Latitude",
+            "nup": "1",
+            "kondisi": "baik",
+            "lokasi": "Ruang IT",
+            "nilai_perolehan": 15000000.0,
+            "tanggal_perolehan": "2023-01-01",
+            "status": "aktif",
+            "keterangan": "Pengadaan 2023"
+        });
+
+        let aset: Aset = serde_json::from_value(json_data).expect("Failed to deserialize Aset");
+
+        assert_eq!(aset.nama, "Laptop Dell");
+        assert_eq!(aset.nilai_perolehan, Some(15000000.0));
+        assert_eq!(aset.kondisi, "baik");
+    }
+
+    #[test]
+    fn test_paginated_response_deserialization() {
+        let json_data = json!({
+            "success": true,
+            "data": [],
+            "total": 0,
+            "page": 1,
+            "per_page": 20,
+            "total_pages": 0,
+            "message": "Success"
+        });
+
+        let resp: PaginatedResponse<Aset> = serde_json::from_value(json_data).expect("Failed to deserialize PaginatedResponse");
+
+        assert!(resp.success);
+        assert_eq!(resp.total, 0);
+        assert_eq!(resp.data.len(), 0);
+    }
+
+    #[test]
+    fn test_dashboard_stats_deserialization() {
+        let json_data = json!({
+            "total_aset": 100,
+            "total_pengadaan": 10,
+            "total_analisis": 5,
+            "aset_aktif": 90,
+            "pengadaan_berjalan": 8,
+            "analisis_pending": 2
+        });
+
+        let stats: DashboardStats = serde_json::from_value(json_data).expect("Failed to deserialize DashboardStats");
+        assert_eq!(stats.total_aset, 100);
+    }
+}

@@ -6,6 +6,7 @@ use crate::{
     models::*,
 };
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait PerlengkapanRepository: Send + Sync {
     // Dashboard

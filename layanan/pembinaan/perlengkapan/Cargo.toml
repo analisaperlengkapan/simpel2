@@ -67,3 +67,5 @@ tonic-build = "0.12"
 
 [dev-dependencies]
 mockall = "0.13"
+mime = "0.3"
+axum-test = "18.1"
