@@ -593,11 +593,13 @@ fn validate_performance_requirements(results: &PerformanceResults) -> Result<(),
             let passed = actual_ms <= max_ms;
             validation_passed &= passed;
 
-            println!("{}: {} ({}ms <= {}ms)",
-                    requirement,
-                    if passed { "PASS" } else { "FAIL" },
-                    actual_ms,
-                    max_ms);
+            println!(
+                "{}: {} ({}ms <= {}ms)",
+                requirement,
+                if passed { "PASS" } else { "FAIL" },
+                actual_ms,
+                max_ms
+            );
         } else {
             println!("{}: SKIP (benchmark not found)", requirement);
         }
