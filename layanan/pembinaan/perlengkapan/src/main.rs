@@ -97,11 +97,29 @@ async fn main() -> anyhow::Result<()> {
 
     let database_url = database_url.expect("DATABASE_URL must be set (env or secreton)");
 
-    // Initialize Authenc Client
+    // Initialize Authenc Client with Retry Logic
     info!("Connecting to Authenc at {}", authenc_url);
-    let authenc_client = AuthencClient::connect(authenc_url)
-        .await
-        .expect("Failed to connect to Authenc service");
+    let authenc_client = {
+        let mut retries = 5;
+        let mut client = None;
+        let mut delay = tokio::time::Duration::from_secs(1);
+
+        while retries > 0 {
+            match AuthencClient::connect(authenc_url.clone()).await {
+                Ok(c) => {
+                    client = Some(c);
+                    break;
+                }
+                Err(e) => {
+                    error!("Failed to connect to Authenc: {}. Retrying in {:?}...", e, delay);
+                    tokio::time::sleep(delay).await;
+                    delay *= 2;
+                    retries -= 1;
+                }
+            }
+        }
+        client.expect("Failed to connect to Authenc service after retries")
+    };
 
     // Initialize database connection
     info!("Connecting to database...");
