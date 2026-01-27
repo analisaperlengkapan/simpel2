@@ -7,3 +7,5 @@ pub mod sidebar;
 pub mod sidebar_section;
 pub mod user_menu;
 pub mod aset_list;
+pub mod pengadaan_list;
+pub mod analisis_list;
