@@ -12,14 +12,16 @@ metadata:
 data:
   init.sql: |
     -- Create databases for each service
+    CREATE USER authenc WITH PASSWORD 'authenc-dev-password-2024';
+    CREATE USER secreton WITH PASSWORD 'secreton-dev-password-2024';
     CREATE DATABASE simpelv2 WITH OWNER = simpelv2;
     CREATE DATABASE simpelv2_authenc WITH OWNER = simpelv2;
     CREATE DATABASE simpelv2_secreton WITH OWNER = simpelv2;
 
     -- Grant privileges
     GRANT ALL PRIVILEGES ON DATABASE simpelv2 TO simpelv2;
-    GRANT ALL PRIVILEGES ON DATABASE simpelv2_authenc TO simpelv2;
-    GRANT ALL PRIVILEGES ON DATABASE simpelv2_secreton TO simpelv2;
+    GRANT ALL PRIVILEGES ON DATABASE simpelv2_authenc TO authenc;
+    GRANT ALL PRIVILEGES ON DATABASE simpelv2_secreton TO secreton;
 
     -- Create extension for UUID generation
     \c simpelv2

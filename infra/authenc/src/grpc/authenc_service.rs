@@ -13,6 +13,7 @@ use crate::services::cache::Cache;
 use crate::services::stores::UserStoreTrait;
 
 // Include generated proto code
+pub use super::common;
 pub mod proto {
     tonic::include_proto!("authenc.v1");
 }
@@ -72,7 +73,15 @@ use proto::{
     VerifyMfaRequest,
     VerifyMfaResponse,
     authenc_service_server::AuthencService,
+    // Captcha
+    CaptchaChallengeRequest,
+    CaptchaChallengeResponse,
+    CaptchaVerificationRequest,
+    CaptchaVerificationResponse,
+    ChallengeType,
 };
+
+use crate::services::captcha::{CaptchaServiceTrait, ChallengeType as ServiceChallengeType, BehavioralMetrics};
 
 /// gRPC service implementation for Authenc
 pub struct AuthencGrpcService {
@@ -859,6 +868,112 @@ impl AuthencService for AuthencGrpcService {
 
         Ok(Response::new(DisableMfaResponse { success: true }))
     }
+
+    // ==================== CAPTCHA ====================
+
+    async fn generate_captcha_challenge(
+        &self,
+        request: Request<CaptchaChallengeRequest>,
+    ) -> Result<Response<CaptchaChallengeResponse>, Status> {
+        let req = request.into_inner();
+        // Extract IP from metadata or use a default
+        let ip_address = "0.0.0.0".to_string();
+
+        // Convert challenge type
+        let challenge_type = match req.challenge_type {
+            1 => ServiceChallengeType::Visual,
+            2 => ServiceChallengeType::Audio,
+            3 => ServiceChallengeType::Behavioral,
+            4 => ServiceChallengeType::Logical,
+            5 => ServiceChallengeType::Hybrid,
+            _ => ServiceChallengeType::Visual,
+        };
+
+        // Generate challenge
+        let challenge = self.state.captcha_service
+            .generate_challenge(
+                challenge_type,
+                Some(req.difficulty as u8),
+                Some(req.session_id.clone()),
+                ip_address,
+            )
+            .await
+            .map_err(|e| Status::internal(format!("Failed to generate challenge: {}", e)))?;
+
+        // Convert to proto response
+        let response = CaptchaChallengeResponse {
+            challenge_id: challenge.id,
+            challenge_type: req.challenge_type,
+            challenge_data: challenge.encrypted_data,
+            difficulty: challenge.difficulty_level as u32,
+            expires_at: challenge.expires_at
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64,
+            metadata: req.metadata,
+        };
+
+        Ok(Response::new(response))
+    }
+
+    async fn verify_captcha_challenge(
+        &self,
+        request: Request<CaptchaVerificationRequest>,
+    ) -> Result<Response<CaptchaVerificationResponse>, Status> {
+        let req = request.into_inner();
+
+        // Parse behavioral data if provided
+        let behavioral_data = if !req.behavioral_data.is_empty() {
+             serde_json::from_slice::<BehavioralMetrics>(&req.behavioral_data).ok()
+        } else {
+            None
+        };
+
+        // Validate challenge
+        let validation_result = self.state.captcha_service
+            .validate_challenge(
+                req.challenge_id.clone(),
+                req.answer,
+                behavioral_data,
+            )
+            .await
+            .map_err(|e| {
+                match e {
+                    crate::services::captcha::CaptchaError::ChallengeNotFound { .. } => {
+                        Status::not_found("Challenge not found")
+                    }
+                    crate::services::captcha::CaptchaError::ChallengeExpired { .. } => {
+                        Status::failed_precondition("Challenge expired")
+                    }
+                    _ => Status::internal(format!("Validation failed: {}", e))
+                }
+            })?;
+
+        // Generate verification token if successful
+        let verification_token = if validation_result.success {
+            format!("captcha_verified_{}_{}",
+                req.challenge_id,
+                chrono::Utc::now().timestamp()
+            )
+        } else {
+            String::new()
+        };
+
+        let lockout_duration = validation_result.lockout_duration.map(|d| d.as_secs() as u32);
+
+        let response = CaptchaVerificationResponse {
+            success: validation_result.success,
+            message: validation_result.message,
+            verification_token,
+            next_difficulty: validation_result.next_difficulty as u32,
+            retry_allowed: validation_result.retry_allowed,
+            lockout_duration,
+        };
+
+        Ok(Response::new(response))
+    }
+
+
 
     // ==================== Authorization & RBAC ====================
 
@@ -1836,5 +1951,4 @@ impl AuthencService for AuthencGrpcService {
     }
 }
 
-// Include common proto types at module level
-pub use super::common;
+

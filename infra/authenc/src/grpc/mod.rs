@@ -44,6 +44,8 @@ pub mod health;
 /// Batch operations for optimized bulk processing
 pub mod batch_operations;
 
+
+
 // Re-export generated proto types
 pub use authenc_service::proto;
 pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup};
@@ -92,7 +94,8 @@ pub fn create_grpc_server(
     use interceptors::{LoggingInterceptor, MetricsInterceptor};
 
     // Create service instances
-    let authenc_service = authenc_service::AuthencGrpcService::new(state);
+    let authenc_service = authenc_service::AuthencGrpcService::new(state.clone());
+
 
     // Create interceptor stack
     let logging_interceptor = LoggingInterceptor::new();
@@ -116,13 +119,14 @@ pub fn create_grpc_server(
     }
 
     // Build router with interceptors and services
-    // Note: Health check service will be added in task 9.1
     server
         .layer(InterceptorLayer::new(metrics_interceptor))
         .layer(InterceptorLayer::new(logging_interceptor))
         .add_service(proto::authenc_service_server::AuthencServiceServer::new(
             authenc_service,
         ))
+        // TODO: Add CAPTCHA service when proto is properly generated
+        // .add_service(CaptchaServiceServer::new(captcha_grpc_service))
 }
 
 /// gRPC server configuration

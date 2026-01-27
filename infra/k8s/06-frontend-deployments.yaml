@@ -33,9 +33,9 @@ spec:
       containers:
         - name: portal
           # Option 1: Use local MicroK8s registry
-          image: localhost:32000/simpelv2/portal:latest
+          image: localhost:32000/simpelv2/daskrimti-portal:latest
           # Option 2: Use external registry (uncomment jika available)
-          # image: registry.kejaksaan.go.id/simpelv2/portal:latest
+          # image: localhost:32000/simpelv2/daskrimti-portal:latest
           imagePullPolicy: IfNotPresent # Development: avoid pull delays
           ports:
             - containerPort: 8080
@@ -44,6 +44,10 @@ spec:
           env:
             - name: RUST_LOG
               value: "debug" # Development: more verbose logging
+            - name: APP_NAME
+              value: "SIMPelv2 Portal"
+            - name: APP_DESCRIPTION
+              value: "Portal Pusat Layanan Kejaksaan RI"
             - name: NODE_ENV
               value: "development"
             - name: BACKEND_API_URL
@@ -73,14 +77,6 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 2
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 101 # nginx user
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false # Nginx needs write access to /var/cache/nginx
-            capabilities:
-              drop:
-                - ALL
 
 ---
 # Daskrimti Portal Microfrontend
@@ -174,6 +170,10 @@ spec:
           env:
             - name: RUST_LOG
               value: "info"
+            - name: APP_NAME
+              value: "SIMPEL Perlengkapan"
+            - name: APP_DESCRIPTION
+              value: "Sistem Informasi Manajemen Perlengkapan"
             - name: BACKEND_API_URL
               value: "http://layanan-pembinaan-perlengkapan.simpelv2.svc.cluster.local:3020"
           resources:
@@ -217,7 +217,7 @@ spec:
     app.kubernetes.io/name: portal
 
 ---
-# ServiceEntry untuk external API access (jika diperlukan)
+# ServiceEntry untuk external API access
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
@@ -225,10 +225,10 @@ metadata:
   namespace: simpelv2
 spec:
   hosts:
-    - "*.googleapis.com" # Jika ada API external
+    - "*.googleapis.com" # Allow all Google API subdomains
   ports:
     - number: 443
       name: https
       protocol: HTTPS
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: NONE # NONE allows wildcard hosts without specific endpoints

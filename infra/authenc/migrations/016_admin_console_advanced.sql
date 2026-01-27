@@ -1,6 +1,6 @@
 -- Admin Console Audit Log Table
 -- Comprehensive audit logging for all admin operations
-CREATE TABLE admin_audit_log (
+CREATE TABLE IF NOT EXISTS admin_audit_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     
@@ -39,7 +39,7 @@ CREATE TABLE admin_audit_log (
 
 -- Admin Dashboard Metrics Table
 -- Real-time metrics for admin console dashboard
-CREATE TABLE admin_dashboard_metrics (
+CREATE TABLE IF NOT EXISTS admin_dashboard_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     
@@ -66,7 +66,7 @@ CREATE TABLE admin_dashboard_metrics (
 
 -- Admin Console Sessions Table
 -- Track admin user sessions for security and monitoring
-CREATE TABLE admin_console_sessions (
+CREATE TABLE IF NOT EXISTS admin_console_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     
@@ -99,7 +99,7 @@ CREATE TABLE admin_console_sessions (
 
 -- Admin Notifications Table
 -- System notifications and alerts for administrators
-CREATE TABLE admin_notifications (
+CREATE TABLE IF NOT EXISTS admin_notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     
@@ -135,7 +135,7 @@ CREATE TABLE admin_notifications (
 
 -- Admin Console Preferences Table
 -- User preferences and settings for admin console
-CREATE TABLE admin_console_preferences (
+CREATE TABLE IF NOT EXISTS admin_console_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
@@ -173,29 +173,29 @@ CREATE TABLE admin_console_preferences (
 );
 
 -- Indexes
-CREATE INDEX idx_admin_audit_log_realm ON admin_audit_log(realm_id);
-CREATE INDEX idx_admin_audit_log_admin_user ON admin_audit_log(admin_user_id);
-CREATE INDEX idx_admin_audit_log_resource ON admin_audit_log(resource_type, resource_id);
-CREATE INDEX idx_admin_audit_log_operation ON admin_audit_log(operation_type, status);
-CREATE INDEX idx_admin_audit_log_created ON admin_audit_log(created_at DESC);
-CREATE INDEX idx_admin_audit_log_action ON admin_audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_realm ON admin_audit_log(realm_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_admin_user ON admin_audit_log(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_resource ON admin_audit_log(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_operation ON admin_audit_log(operation_type, status);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created ON admin_audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_action ON admin_audit_log(action);
 
-CREATE INDEX idx_dashboard_metrics_realm ON admin_dashboard_metrics(realm_id);
-CREATE INDEX idx_dashboard_metrics_type ON admin_dashboard_metrics(metric_type, metric_name);
-CREATE INDEX idx_dashboard_metrics_period ON admin_dashboard_metrics(period_start, period_end);
-CREATE INDEX idx_dashboard_metrics_aggregation ON admin_dashboard_metrics(aggregation_period);
+CREATE INDEX IF NOT EXISTS idx_dashboard_metrics_realm ON admin_dashboard_metrics(realm_id);
+CREATE INDEX IF NOT EXISTS idx_dashboard_metrics_type ON admin_dashboard_metrics(metric_type, metric_name);
+CREATE INDEX IF NOT EXISTS idx_dashboard_metrics_period ON admin_dashboard_metrics(period_start, period_end);
+CREATE INDEX IF NOT EXISTS idx_dashboard_metrics_aggregation ON admin_dashboard_metrics(aggregation_period);
 
-CREATE INDEX idx_admin_sessions_realm ON admin_console_sessions(realm_id);
-CREATE INDEX idx_admin_sessions_user ON admin_console_sessions(admin_user_id);
-CREATE INDEX idx_admin_sessions_token ON admin_console_sessions(session_token);
-CREATE INDEX idx_admin_sessions_active ON admin_console_sessions(is_active, last_activity_at) WHERE is_active = TRUE;
-CREATE INDEX idx_admin_sessions_expires ON admin_console_sessions(expires_at) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_realm ON admin_console_sessions(realm_id);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_user ON admin_console_sessions(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_console_sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_active ON admin_console_sessions(is_active, last_activity_at) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_console_sessions(expires_at) WHERE is_active = TRUE;
 
-CREATE INDEX idx_admin_notifications_realm ON admin_notifications(realm_id);
-CREATE INDEX idx_admin_notifications_target ON admin_notifications(target_admin_user_id, is_read);
-CREATE INDEX idx_admin_notifications_type ON admin_notifications(notification_type, priority);
-CREATE INDEX idx_admin_notifications_created ON admin_notifications(created_at DESC);
-CREATE INDEX idx_admin_notifications_unread ON admin_notifications(target_admin_user_id) WHERE is_read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_admin_notifications_realm ON admin_notifications(realm_id);
+CREATE INDEX IF NOT EXISTS idx_admin_notifications_target ON admin_notifications(target_admin_user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_admin_notifications_type ON admin_notifications(notification_type, priority);
+CREATE INDEX IF NOT EXISTS idx_admin_notifications_created ON admin_notifications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_notifications_unread ON admin_notifications(target_admin_user_id) WHERE is_read = FALSE;
 
-CREATE INDEX idx_admin_preferences_user ON admin_console_preferences(admin_user_id);
-CREATE INDEX idx_admin_preferences_realm ON admin_console_preferences(realm_id);
+CREATE INDEX IF NOT EXISTS idx_admin_preferences_user ON admin_console_preferences(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_preferences_realm ON admin_console_preferences(realm_id);

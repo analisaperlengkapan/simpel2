@@ -594,6 +594,103 @@ impl AuthencClient {
         .await
     }
 
+    /// Generate CAPTCHA challenge via gRPC
+    pub async fn generate_captcha(
+        &self,
+        challenge_type: &str,
+        difficulty: u8,
+        session_id: &str,
+    ) -> Result<crate::handlers::captcha::CaptchaResponse, AuthencError> {
+        let challenge_type_str = challenge_type.to_string();
+        let session_id_str = session_id.to_string();
+        let client = self.client.clone();
+
+        self.execute_with_resilience(|| {
+            let challenge_type = challenge_type_str.clone();
+            let session_id = session_id_str.clone();
+            let mut client = client.clone();
+
+            async move {
+                // Convert string to proto ChallengeType enum
+                let proto_challenge_type = match challenge_type.to_lowercase().as_str() {
+                    "audio" => 2, // ChallengeType::Audio
+                    "behavioral" => 3, // ChallengeType::Behavioral
+                    "logical" => 4, // ChallengeType::Logical
+                    "hybrid" => 5, // ChallengeType::Hybrid
+                    _ => 1, // ChallengeType::Visual (default)
+                };
+
+                use crate::proto::authenc::v1::CaptchaChallengeRequest;
+
+                let request = CaptchaChallengeRequest {
+                    session_id,
+                    challenge_type: proto_challenge_type,
+                    difficulty: difficulty as u32,
+                    metadata: std::collections::HashMap::new(),
+                };
+
+                let response = client
+                    .generate_captcha_challenge(Request::new(request))
+                    .await
+                    .map_err(AuthencError::from)?;
+
+                let resp = response.into_inner();
+
+                // Convert proto response to handler response
+                Ok(crate::handlers::captcha::CaptchaResponse {
+                    challenge_id: resp.challenge_id,
+                    challenge_type,
+                    challenge_data: resp.challenge_data,
+                    difficulty: resp.difficulty as u8,
+                    expires_at: resp.expires_at,
+                })
+            }
+        })
+        .await
+    }
+
+    /// Verify CAPTCHA response via gRPC
+    pub async fn verify_captcha(
+        &self,
+        challenge_id: &str,
+        answer: &str,
+    ) -> Result<Option<String>, AuthencError> {
+        let challenge_id_str = challenge_id.to_string();
+        let answer_str = answer.to_string();
+        let client = self.client.clone();
+
+        self.execute_with_resilience(|| {
+            let challenge_id = challenge_id_str.clone();
+            let answer = answer_str.clone();
+            let mut client = client.clone();
+
+            async move {
+                use crate::proto::authenc::v1::CaptchaVerificationRequest;
+
+                let request = CaptchaVerificationRequest {
+                    challenge_id,
+                    answer,
+                    behavioral_data: vec![], // Can be populated from frontend later
+                    session_id: String::new(),
+                };
+
+                let response = client
+                    .verify_captcha_challenge(Request::new(request))
+                    .await
+                    .map_err(AuthencError::from)?;
+
+                let resp = response.into_inner();
+
+                if resp.success {
+                    Ok(Some(resp.verification_token))
+                } else {
+                    Ok(None)
+                }
+            }
+        })
+        .await
+    }
+
     /// Health check
     pub async fn health_check(&self) -> Result<bool, AuthencError> {
         Ok(self.circuit_breaker.can_execute().await)

@@ -7,34 +7,21 @@ use crate::hooks::use_auth::{get_app_name, use_auth};
 use leptos::prelude::*;
 
 /// Login redirect page component
-///
-/// Shows a branded page with a login button that redirects to the portal.
-/// This should be the default route for unauthenticated users.
-///
-/// # Example
-/// ```rust
-/// use shared_microfrontend::components::auth::LoginRedirectPage;
-///
-/// #[component]
-/// pub fn App() -> impl IntoView {
-///     view! {
-///         <Router>
-///             <Routes>
-///                 <Route path="/" view=LoginRedirectPage />
-///       <Route path="/dashboard" view=|| view! {
-///                     <ProtectedRoute>
-///                         <DashboardPage />
-///                     </ProtectedRoute>
-///                 } />
-///             </Routes>
-///         </Router>
-///     }
-/// }
-/// ```
 #[component]
-pub fn LoginRedirectPage() -> impl IntoView {
+pub fn LoginRedirectPage(
+    /// Optional custom application name
+    #[prop(optional, into)]
+    app_name: Option<String>,
+    /// Optional custom application description
+    #[prop(optional, into)]
+    app_description: Option<String>,
+) -> impl IntoView {
     let auth = use_auth();
-    let app_name = get_app_name();
+    let default_app_name = crate::hooks::use_auth::get_app_name();
+    let default_app_desc = crate::hooks::use_auth::get_app_description();
+
+    let display_name = app_name.unwrap_or(default_app_name);
+    let display_desc = app_description.unwrap_or(default_app_desc);
 
     // Check if user is already authenticated
     Effect::new(move || {
@@ -65,10 +52,10 @@ pub fn LoginRedirectPage() -> impl IntoView {
                     // Title
                     <div>
                         <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                            {app_name}
+                            {display_name}
                         </h1>
                         <p class="text-gray-600 dark:text-gray-400">
-                            "Sistem Informasi Manajemen Perkara Elektronik"
+                            {display_desc}
                         </p>
                     </div>
 
@@ -83,7 +70,7 @@ pub fn LoginRedirectPage() -> impl IntoView {
                         on:click=move |_| handle_login()
                     >
                         <i class="fas fa-sign-in-alt mr-2"></i>
-                        "Login ke Portal"
+                        "Login"
                     </button>
 
                     // Footer info

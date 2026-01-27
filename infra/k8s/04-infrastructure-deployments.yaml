@@ -62,21 +62,17 @@ spec:
           livenessProbe:
             exec:
               command:
-                - pg_isready
-                - -U
-                - $(POSTGRES_USER)
-                - -d
-                - $(POSTGRES_DB)
+                - sh
+                - -c
+                - "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             exec:
               command:
-                - pg_isready
-                - -U
-                - $(POSTGRES_USER)
-                - -d
-                - $(POSTGRES_DB)
+                - sh
+                - -c
+                - "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
@@ -241,28 +237,27 @@ spec:
       app.kubernetes.io/name: authenc
   template:
     metadata:
+      annotations:
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyReady": true }'
       labels:
         app.kubernetes.io/name: authenc
         app.kubernetes.io/component: iam
     spec:
       containers:
         - name: authenc
-          image: localhost:32000/simpelv2/authenc:latest
+          image: localhost:32000/authenc:dev
+          imagePullPolicy: Always
           ports:
             - containerPort: 8088
               name: http
-            - containerPort: 9090
-              name: grpc
+            - containerPort: 9088
+              name: grpc-authenc
           env:
-            - name: DATABASE_URL
-              value: "postgresql://$(AUTHENC_DB_USER):$(AUTHENC_DB_PASSWORD)@postgres-service:5432/simpelv2_authenc"
-            - name: REDIS_URL
-              value: "redis://:$(REDIS_PASSWORD)@redis-service:6379"
-            - name: AUTHENC_JWT_SECRET
+            - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: simpelv2-secrets
-                  key: AUTHENC_JWT_SECRET
+                  name: redis-secrets
+                  key: REDIS_PASSWORD
             - name: AUTHENC_DB_USER
               valueFrom:
                 secretKeyRef:
@@ -273,11 +268,8 @@ spec:
                 secretKeyRef:
                   name: postgres-secrets
                   key: AUTHENC_DB_PASSWORD
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: redis-secrets
-                  key: REDIS_PASSWORD
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@redis-service.simpelv2.svc.cluster.local:6379"
             - name: SMTP_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -288,6 +280,22 @@ spec:
                 secretKeyRef:
                   name: simpelv2-secrets
                   key: SMTP_PASSWORD
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: AUTHENC_DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: AUTHENC_DB_PASSWORD
+            - name: DB_HOST
+              value: "postgres-service.simpelv2.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "simpelv2_authenc"
             - name: RUST_LOG
               value: "info"
           resources:
@@ -331,6 +339,8 @@ spec:
       app.kubernetes.io/name: secreton
   template:
     metadata:
+      annotations:
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyReady": true }'
       labels:
         app.kubernetes.io/name: secreton
         app.kubernetes.io/component: secreton
@@ -341,21 +351,9 @@ spec:
           ports:
             - containerPort: 8200
               name: http
-            - containerPort: 9200
+            - containerPort: 9000
               name: grpc
           env:
-            - name: SECRETON_DATABASE_URL
-              value: "postgresql://$(SECRETON_DB_USER):$(SECRETON_DB_PASSWORD)@postgres-service:5432/simpelv2_secreton"
-            - name: SECRETON_ADMIN_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: simpelv2-secrets
-                  key: SECRETON_ADMIN_TOKEN
-            - name: SECRETON_ENCRYPTION_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: simpelv2-secrets
-                  key: SECRETON_ENCRYPTION_KEY
             - name: SECRETON_DB_USER
               valueFrom:
                 secretKeyRef:
@@ -366,6 +364,18 @@ spec:
                 secretKeyRef:
                   name: postgres-secrets
                   key: SECRETON_DB_PASSWORD
+            - name: DATABASE_URL
+              value: "postgresql://secreton:secreton-dev-password-2024@postgres-service.simpelv2.svc.cluster.local:5432/simpelv2_secreton"
+            - name: SECRETON_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: simpelv2-secrets
+                  key: SECRETON_ADMIN_TOKEN
+            - name: SECRETON_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: simpelv2-secrets
+                  key: SECRETON_ENCRYPTION_KEY
             - name: RUST_LOG
               value: "info"
           volumeMounts:
@@ -407,7 +417,7 @@ spec:
       volumes:
         - name: secreton-storage
           persistentVolumeClaim:
-            claimName: secreton-pvc
+            claimName: secreton-raft-pvc
         - name: tls-certs
           secret:
             secretName: tls-secrets

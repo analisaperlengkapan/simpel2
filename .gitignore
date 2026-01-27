@@ -27,6 +27,7 @@ pgdata/
 *.sqlite3
 *.db
 # *.sql # commented to include .sql files
+!**/*.sql
 *.dump
 
 # ================================
@@ -114,9 +115,12 @@ yarn-error.log*
 # 💥 Build Cache & Lock Files
 # ===============================
 build/
+build_output/
 !scripts/tools/build-tools/
 output/
 artifacts/
+tmp/
+*.txt
 *.bak
 *.tmp
 *.old
@@ -131,6 +135,7 @@ lerna-debug.log*
 # 🦀 Rust/Leptos/WASM Artifacts
 # ===============================
 **/target/
+**/target_authenc/
 **/pkg/
 **/dist/
 **/output/

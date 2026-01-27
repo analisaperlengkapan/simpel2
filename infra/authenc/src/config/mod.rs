@@ -910,6 +910,53 @@ impl AppConfig {
             }
         }
 
+        // Redis configuration
+        // Prioritize individual env vars for safer URL construction (handles special chars in password)
+        let redis_host = env::var("REDIS_HOST").ok();
+        let redis_port = env::var("REDIS_PORT").ok();
+        let redis_password = env::var("REDIS_PASSWORD").ok();
+
+        if redis_host.is_some() || redis_port.is_some() || redis_password.is_some() {
+            // Get current values or defaults
+            let host = redis_host.unwrap_or_else(|| "localhost".to_string());
+            let port = redis_port.unwrap_or_else(|| "6379".to_string());
+
+            // Construct URL
+            let url = if let Some(password) = redis_password {
+                // Determine if password needs encoding?
+                // redis crate handles password in URL format: redis://:password@host:port
+                // If password has special chars like @, it might break if not encoded.
+                // However, standard format is redis://[:password@]host[:port][/db]
+                // Let's assume standard auth.
+                if !password.is_empty() {
+                     format!("redis://:{}@{}:{}/0", password, host, port)
+                } else {
+                     format!("redis://{}:{}/0", host, port)
+                }
+            } else {
+                format!("redis://{}:{}/0", host, port)
+            };
+
+            // Ensure redis config exists
+            if self.redis.is_none() {
+                self.redis = Some(RedisConfig::default());
+            }
+
+            if let Some(redis_config) = &mut self.redis {
+                redis_config.url = url;
+                redis_config.enabled = true;
+            }
+        } else if let Ok(redis_url) = env::var("REDIS_URL") {
+            // Fallback to full URL if provided directly and individual vars are missing
+             if self.redis.is_none() {
+                self.redis = Some(RedisConfig::default());
+            }
+            if let Some(redis_config) = &mut self.redis {
+                redis_config.url = redis_url;
+                redis_config.enabled = true;
+            }
+        }
+
         Ok(())
     }
 

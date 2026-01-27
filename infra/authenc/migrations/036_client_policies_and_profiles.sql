@@ -33,10 +33,10 @@ CREATE TABLE IF NOT EXISTS client_policies (
     CHECK (policy_type IN ('security', 'compliance', 'fapi-baseline', 'fapi-advanced', 'custom'))
 );
 
-CREATE INDEX idx_client_policies_realm ON client_policies(realm_id);
-CREATE INDEX idx_client_policies_enabled ON client_policies(enabled) WHERE enabled = true;
-CREATE INDEX idx_client_policies_priority ON client_policies(priority DESC);
-CREATE INDEX idx_client_policies_type ON client_policies(policy_type);
+CREATE INDEX IF NOT EXISTS idx_client_policies_realm ON client_policies(realm_id);
+CREATE INDEX IF NOT EXISTS idx_client_policies_enabled ON client_policies(enabled) WHERE enabled = true;
+CREATE INDEX IF NOT EXISTS idx_client_policies_priority ON client_policies(priority DESC);
+CREATE INDEX IF NOT EXISTS idx_client_policies_type ON client_policies(policy_type);
 
 COMMENT ON TABLE client_policies IS 'Client security policies for OAuth2/OIDC enforcement';
 COMMENT ON COLUMN client_policies.conditions IS 'Array of condition identifiers that must be met';
@@ -70,10 +70,10 @@ CREATE TABLE IF NOT EXISTS client_profiles (
     CHECK (profile_type IN ('fapi-1-baseline', 'fapi-1-advanced', 'fapi-2-security', 'fapi-2-message-signing', 'custom'))
 );
 
-CREATE INDEX idx_client_profiles_realm ON client_profiles(realm_id);
-CREATE INDEX idx_client_profiles_enabled ON client_profiles(enabled) WHERE enabled = true;
-CREATE INDEX idx_client_profiles_type ON client_profiles(profile_type);
-CREATE INDEX idx_client_profiles_builtin ON client_profiles(is_builtin) WHERE is_builtin = true;
+CREATE INDEX IF NOT EXISTS idx_client_profiles_realm ON client_profiles(realm_id);
+CREATE INDEX IF NOT EXISTS idx_client_profiles_enabled ON client_profiles(enabled) WHERE enabled = true;
+CREATE INDEX IF NOT EXISTS idx_client_profiles_type ON client_profiles(profile_type);
+CREATE INDEX IF NOT EXISTS idx_client_profiles_builtin ON client_profiles(is_builtin) WHERE is_builtin = true;
 
 COMMENT ON TABLE client_profiles IS 'Reusable collections of client policies';
 COMMENT ON COLUMN client_profiles.policy_ids IS 'Array of policy UUIDs included in this profile';
@@ -106,10 +106,10 @@ CREATE TABLE IF NOT EXISTS client_policy_assignments (
     UNIQUE(client_id, policy_id, profile_id)
 );
 
-CREATE INDEX idx_client_policy_assignments_client ON client_policy_assignments(client_id);
-CREATE INDEX idx_client_policy_assignments_policy ON client_policy_assignments(policy_id) WHERE policy_id IS NOT NULL;
-CREATE INDEX idx_client_policy_assignments_profile ON client_policy_assignments(profile_id) WHERE profile_id IS NOT NULL;
-CREATE INDEX idx_client_policy_assignments_enabled ON client_policy_assignments(enabled) WHERE enabled = true;
+CREATE INDEX IF NOT EXISTS idx_client_policy_assignments_client ON client_policy_assignments(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_policy_assignments_policy ON client_policy_assignments(policy_id) WHERE policy_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_client_policy_assignments_profile ON client_policy_assignments(profile_id) WHERE profile_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_client_policy_assignments_enabled ON client_policy_assignments(enabled) WHERE enabled = true;
 
 COMMENT ON TABLE client_policy_assignments IS 'Associates policies and profiles with clients';
 COMMENT ON COLUMN client_policy_assignments.assignment_type IS 'Either "direct" for policy or "profile" for profile assignment';
@@ -295,9 +295,9 @@ SET policy_ids = (
 WHERE profile_type = 'fapi-1-advanced';
 
 -- Grant permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON client_policies TO authenc_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON client_profiles TO authenc_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON client_policy_assignments TO authenc_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON client_policies TO authenc;
+GRANT SELECT, INSERT, UPDATE, DELETE ON client_profiles TO authenc;
+GRANT SELECT, INSERT, UPDATE, DELETE ON client_policy_assignments TO authenc;
 
 -- Create view for client policies with full details
 CREATE OR REPLACE VIEW v_client_policies_with_profiles AS
@@ -317,7 +317,7 @@ FROM client_policies cp
 LEFT JOIN client_profiles prof ON cp.id = ANY(prof.policy_ids)
 GROUP BY cp.id;
 
-GRANT SELECT ON v_client_policies_with_profiles TO authenc_app;
+GRANT SELECT ON v_client_policies_with_profiles TO authenc;
 
 -- Create view for client profile details with policies
 CREATE OR REPLACE VIEW v_client_profiles_with_policies AS
@@ -340,7 +340,7 @@ FROM client_profiles prof
 LEFT JOIN client_policies cp ON cp.id = ANY(prof.policy_ids)
 GROUP BY prof.id;
 
-GRANT SELECT ON v_client_profiles_with_policies TO authenc_app;
+GRANT SELECT ON v_client_profiles_with_policies TO authenc;
 
 -- Create view for client assignments with full details
 CREATE OR REPLACE VIEW v_client_policy_assignments_detail AS
@@ -368,7 +368,7 @@ FROM client_policy_assignments cpa
 LEFT JOIN client_policies cp ON cpa.policy_id = cp.id
 LEFT JOIN client_profiles prof ON cpa.profile_id = prof.id;
 
-GRANT SELECT ON v_client_policy_assignments_detail TO authenc_app;
+GRANT SELECT ON v_client_policy_assignments_detail TO authenc;
 
 -- Analytics: Count policies by type
 CREATE OR REPLACE VIEW v_client_policy_stats AS
@@ -382,7 +382,7 @@ SELECT
 FROM client_policies
 GROUP BY realm_id, policy_type;
 
-GRANT SELECT ON v_client_policy_stats TO authenc_app;
+GRANT SELECT ON v_client_policy_stats TO authenc;
 
 -- Analytics: Profile usage statistics
 CREATE OR REPLACE VIEW v_client_profile_usage AS
@@ -398,4 +398,4 @@ FROM client_profiles prof
 LEFT JOIN client_policy_assignments cpa ON cpa.profile_id = prof.id AND cpa.enabled = true
 GROUP BY prof.id;
 
-GRANT SELECT ON v_client_profile_usage TO authenc_app;
+GRANT SELECT ON v_client_profile_usage TO authenc;

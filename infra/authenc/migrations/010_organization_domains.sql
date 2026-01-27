@@ -25,10 +25,10 @@ CREATE TABLE IF NOT EXISTS organization_identity_providers (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_org_domains_org_id ON organization_domains(organization_id);
-CREATE INDEX idx_org_domains_domain ON organization_domains(domain);
-CREATE INDEX idx_org_domains_verified ON organization_domains(verified);
-CREATE INDEX idx_org_idps_org_id ON organization_identity_providers(organization_id);
-CREATE INDEX idx_org_members_user_id ON organization_members(user_id);
-CREATE INDEX idx_org_invitations_email ON organization_invitations(email);
-CREATE INDEX idx_org_invitations_token ON organization_invitations(token_hash);
+CREATE INDEX IF NOT EXISTS idx_org_domains_org_id ON organization_domains(organization_id);
+CREATE INDEX IF NOT EXISTS idx_org_domains_domain ON organization_domains(domain);
+CREATE INDEX IF NOT EXISTS idx_org_domains_verified ON organization_domains(verified);
+CREATE INDEX IF NOT EXISTS idx_org_idps_org_id ON organization_identity_providers(organization_id);
+CREATE INDEX IF NOT EXISTS idx_org_members_user_id ON organization_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_org_invitations_email ON organization_invitations(email);
+CREATE INDEX IF NOT EXISTS idx_org_invitations_token ON organization_invitations(token_hash);

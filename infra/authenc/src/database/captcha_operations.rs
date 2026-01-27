@@ -29,17 +29,8 @@ impl CaptchaOperations {
 
     /// Store a new CAPTCHA challenge
     pub async fn store_challenge(&self, challenge: &Challenge) -> Result<()> {
-        let created_at_secs = challenge
-            .created_at
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| AuthencError::internal("Invalid created_at timestamp"))?
-            .as_secs() as i64;
-
-        let expires_at_secs = challenge
-            .expires_at
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| AuthencError::internal("Invalid expires_at timestamp"))?
-            .as_secs() as i64;
+        let created_at: chrono::DateTime<chrono::Utc> = challenge.created_at.into();
+        let expires_at: chrono::DateTime<chrono::Utc> = challenge.expires_at.into();
 
         let challenge_type_str = match challenge.challenge_type {
             ChallengeType::Visual => "Visual",
@@ -58,7 +49,7 @@ impl CaptchaOperations {
             INSERT INTO captcha_challenges (
                 id, challenge_type, difficulty_level, encrypted_data,
                 expected_answer_hash, created_at, expires_at, session_id, ip_address
-            ) VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7), $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
         self.db
@@ -71,8 +62,8 @@ impl CaptchaOperations {
                     &(challenge.difficulty_level as i16),
                     &challenge.encrypted_data,
                     &challenge.expected_answer_hash,
-                    &created_at_secs,
-                    &expires_at_secs,
+                    &created_at,
+                    &expires_at,
                     &challenge.session_id,
                     &ip_addr,
                 ],

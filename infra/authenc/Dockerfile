@@ -38,8 +38,8 @@ WORKDIR /workspace/infra/authenc
 ENV RUSTFLAGS="-C target-feature=-crt-static"
 RUN cargo build --release
 
-# Stage 2: Runtime - Use same base as builder for GLIBC compatibility
-FROM debian:bookworm-slim
+# Stage 2: Runtime - Use Ubuntu 24.04 for GLIBC compatibility (aligns with dev environment)
+FROM ubuntu:24.04
 
 # Install runtime dependencies only (including curl for healthcheck)
 RUN apt-get update && \
@@ -51,7 +51,7 @@ RUN apt-get update && \
     apt-get clean
 
 # Create non-root user for security
-RUN useradd -m -u 1000 authenc
+RUN useradd -m -u 1001 authenc
 
 # Set working directory
 WORKDIR /app

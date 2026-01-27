@@ -213,33 +213,54 @@ pub async fn generate_challenge(
     let difficulty = req.difficulty.unwrap_or(3);
     let challenge_type = req.challenge_type.clone().unwrap_or(ChallengeType::Visual);
 
-    // Generate a simple math challenge for development
-    let (challenge_data, _answer) = match challenge_type {
+    // Generate a dynamic math challenge with randomized answer options
+    let (challenge_data, answer) = match challenge_type {
         ChallengeType::Audio => {
             // Simple audio challenge data
             let num = rand::random::<u8>() % 10;
             (
                 format!(
-                    "{{\"type\":\"audio\",\"question\":\"What number is {}?\"}}",
-                    num
+                    "{{\"type\":\"audio\",\"question\":\"What number is {}?\",\"options\":[\"{}\"]}}",
+                    num, num
                 ),
                 num.to_string(),
             )
         }
         ChallengeType::Visual | _ => {
-            // Simple visual math challenge
+            // Generate random math challenge
             let a = (rand::random::<u8>() % 10) as u32 + 1;
             let b = (rand::random::<u8>() % 10) as u32 + 1;
-            let answer = a + b;
+            let correct_answer = a + b;
+
+            // Generate 4 answer options with correct answer at random position
+            let mut options = vec![
+                correct_answer,
+                correct_answer.saturating_add(1),
+                correct_answer.saturating_sub(1),
+                correct_answer.saturating_add(2),
+            ];
+
+            // Shuffle options using Fisher-Yates algorithm
+            use rand::seq::SliceRandom;
+            let mut rng = rand::thread_rng();
+            options.shuffle(&mut rng);
+
+            // Create JSON with question, visual display, and answer options
+            let options_json = serde_json::to_string(&options)
+                .unwrap_or_else(|_| format!("[{},{},{},{}]", options[0], options[1], options[2], options[3]));
+
             (
                 format!(
-                    "{{\"type\":\"math\",\"question\":\"What is {} + {}?\",\"image_data\":\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='80'><rect fill='white' width='200' height='80'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='24' fill='black'>{} + {} = ?</text></svg>\"}}",
-                    a, b, a, b
+                    "{{\"type\":\"math\",\"question\":\"What is {} + {}?\",\"visual\":\"{} + {}\",\"options\":{}}}",
+                    a, b, a, b, options_json
                 ),
-                answer.to_string(),
+                correct_answer.to_string(),
             )
         }
     };
+
+    // Store the answer temporarily in metadata for validation
+    // TODO: In production, this should be encrypted and stored in database
 
     // Expires in 5 minutes
     let expires_at = std::time::SystemTime::now()
@@ -248,12 +269,13 @@ pub async fn generate_challenge(
         .as_secs()
         + 300;
 
-    // Create metadata
+    // Create metadata and store the correct answer (encrypted in production)
     let mut metadata = HashMap::new();
     if let Some(session_id) = &req.session_id {
         metadata.insert("session_id".to_string(), session_id.clone());
     }
     metadata.insert("ip".to_string(), ip);
+    metadata.insert("correct_answer".to_string(), answer.clone());
     if let Some(context) = req.context {
         metadata.extend(context);
     }

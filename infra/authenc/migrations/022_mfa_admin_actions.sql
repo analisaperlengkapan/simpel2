@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS mfa_admin_actions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    admin_user_id UUID NOT NULL,
+    admin_user_id UUID,
     target_user_id UUID NOT NULL,
     action VARCHAR(50) NOT NULL,
     reason TEXT NOT NULL,

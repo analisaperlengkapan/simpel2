@@ -61,30 +61,25 @@ fn build_router(state: Arc<AppState>) -> Router {
 
     // Protected routes that require authentication
     let protected_routes = Router::new()
-        // Dashboard module routes
         .nest("/dashboard", modules::dasbor::routes())
-        // Configuration module routes
         .nest("/config", modules::konfigurasi::routes())
-        // Reports module routes
         .nest("/reports", modules::laporan::routes())
-        // Apply auth middleware to all protected routes
         .layer(axum_middleware::from_fn_with_state(
             state.clone(),
             middleware::auth_middleware,
         ));
 
-    // Public routes (no auth required)
-    let public_routes = Router::new()
-        // Health endpoints
+    // Combine all routes into one router
+    Router::new()
+        // Health endpoints (no auth)
         .route("/health", get(handlers::health::health_check))
         .route("/health/ready", get(handlers::health::readiness_check))
         .route("/health/live", get(handlers::health::liveness_check))
-        // Auth endpoints (for login, logout, etc.)
-        .nest("/api/auth", handlers::auth::routes());
-
-    // Combine all routes
-    Router::new()
-        .merge(public_routes)
+        // Auth endpoints (no auth)
+        .nest("/api/auth", handlers::auth::routes())
+        // CAPTCHA endpoints (no auth)
+        .nest("/api/captcha", handlers::captcha::routes())
+        // Merge in protected routes
         .merge(protected_routes)
         // Global middleware
         .layer(TraceLayer::new_for_http())

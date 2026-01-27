@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS saml_messages (
 );
 
 -- Index for fast lookup by SAML ID
-CREATE INDEX idx_saml_messages_saml_id ON saml_messages(saml_id);
+CREATE INDEX IF NOT EXISTS idx_saml_messages_saml_id ON saml_messages(saml_id);
 
 -- Index for cleanup of expired messages
-CREATE INDEX idx_saml_messages_expires_at ON saml_messages(expires_at);
+CREATE INDEX IF NOT EXISTS idx_saml_messages_expires_at ON saml_messages(expires_at);
 
 -- Index for session association
-CREATE INDEX idx_saml_messages_session_id ON saml_messages(session_id) WHERE session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_saml_messages_session_id ON saml_messages(session_id) WHERE session_id IS NOT NULL;

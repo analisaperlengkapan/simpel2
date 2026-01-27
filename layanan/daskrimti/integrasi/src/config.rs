@@ -108,10 +108,22 @@ impl Config {
 
         // Helper to load tokens from generic env vars if needed
         let mut tokens = HashMap::new();
-        if let Ok(token) = std::env::var("MONSAKTI_TOKEN_DEFAULT") {
-            tokens.insert("default".to_string(), token);
+
+        // Define MonSAKTI modules
+        let monsakti_modules = vec!["ADM", "ANG", "AST", "BEN", "GLP", "KOM", "PEM", "PER"];
+
+        // Load specific tokens for MonSAKTI
+        for module in monsakti_modules {
+            let env_var = format!("MONSAKTI_TOKEN_{}", module);
+            if let Ok(token) = std::env::var(&env_var) {
+                tokens.insert(module.to_string(), token);
+            }
         }
-        // Specific modules can be added logic here if needed, e.g. MONSAKTI_TOKEN_AST
+
+        // Load MySIMKARI token separately (MYSIMKARI_TOKEN)
+        if let Ok(t) = std::env::var("MYSIMKARI_TOKEN") {
+            tokens.insert("MYSIMKARI".to_string(), t);
+        }
 
         // Set db_config from base.database_url if available
         let db_config = if !base.database_url.is_empty() {

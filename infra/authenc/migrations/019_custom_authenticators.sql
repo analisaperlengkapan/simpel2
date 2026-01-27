@@ -43,21 +43,21 @@ CREATE TABLE IF NOT EXISTS authenticator_execution_results (
 );
 
 -- Indexes for authenticator configs
-CREATE INDEX idx_authenticator_configs_realm ON authenticator_configs(realm_id);
-CREATE INDEX idx_authenticator_configs_type ON authenticator_configs(authenticator_type);
-CREATE INDEX idx_authenticator_configs_enabled ON authenticator_configs(realm_id, enabled) WHERE enabled = TRUE;
-CREATE INDEX idx_authenticator_configs_priority ON authenticator_configs(realm_id, priority);
+CREATE INDEX IF NOT EXISTS idx_authenticator_configs_realm ON authenticator_configs(realm_id);
+CREATE INDEX IF NOT EXISTS idx_authenticator_configs_type ON authenticator_configs(authenticator_type);
+CREATE INDEX IF NOT EXISTS idx_authenticator_configs_enabled ON authenticator_configs(realm_id, enabled) WHERE enabled = TRUE;
+CREATE INDEX IF NOT EXISTS idx_authenticator_configs_priority ON authenticator_configs(realm_id, priority);
 
 -- Indexes for executions
-CREATE INDEX idx_authenticator_executions_realm ON authenticator_executions(realm_id);
-CREATE INDEX idx_authenticator_executions_flow ON authenticator_executions(flow_id);
-CREATE INDEX idx_authenticator_executions_authenticator ON authenticator_executions(authenticator_id);
-CREATE INDEX idx_authenticator_executions_priority ON authenticator_executions(flow_id, priority);
-CREATE INDEX idx_authenticator_executions_requirement ON authenticator_executions(requirement);
+CREATE INDEX IF NOT EXISTS idx_authenticator_executions_realm ON authenticator_executions(realm_id);
+CREATE INDEX IF NOT EXISTS idx_authenticator_executions_flow ON authenticator_executions(flow_id);
+CREATE INDEX IF NOT EXISTS idx_authenticator_executions_authenticator ON authenticator_executions(authenticator_id);
+CREATE INDEX IF NOT EXISTS idx_authenticator_executions_priority ON authenticator_executions(flow_id, priority);
+CREATE INDEX IF NOT EXISTS idx_authenticator_executions_requirement ON authenticator_executions(requirement);
 
 -- Indexes for execution results
-CREATE INDEX idx_authenticator_results_execution ON authenticator_execution_results(execution_id);
-CREATE INDEX idx_authenticator_results_session ON authenticator_execution_results(session_id);
-CREATE INDEX idx_authenticator_results_user ON authenticator_execution_results(user_id);
-CREATE INDEX idx_authenticator_results_status ON authenticator_execution_results(status);
-CREATE INDEX idx_authenticator_results_created ON authenticator_execution_results(created_at);
+CREATE INDEX IF NOT EXISTS idx_authenticator_results_execution ON authenticator_execution_results(execution_id);
+CREATE INDEX IF NOT EXISTS idx_authenticator_results_session ON authenticator_execution_results(session_id);
+CREATE INDEX IF NOT EXISTS idx_authenticator_results_user ON authenticator_execution_results(user_id);
+CREATE INDEX IF NOT EXISTS idx_authenticator_results_status ON authenticator_execution_results(status);
+CREATE INDEX IF NOT EXISTS idx_authenticator_results_created ON authenticator_execution_results(created_at);

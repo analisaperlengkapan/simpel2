@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS captcha_behavioral_metrics (
     browser_fingerprint JSONB NOT NULL,
     risk_score NUMERIC(3,2) NOT NULL CHECK (risk_score >= 0.0 AND risk_score <= 1.0),
     classification VARCHAR(20) NOT NULL CHECK (classification IN ('Human', 'Suspicious', 'Bot', 'Unknown')),
-    created_at TIMESTAMPE ZONE NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- Create indexes for behavioral metrics

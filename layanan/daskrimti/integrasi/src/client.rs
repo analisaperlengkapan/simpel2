@@ -379,7 +379,7 @@ impl MonsaktiClient {
             token: String,
         }
 
-        let result: Vec<ResetTokenItem> = serde_json::from_value(response_value)
+        let mut result: Vec<ResetTokenItem> = serde_json::from_value(response_value)
             .map_err(|e| MonsaktiError::ApiError(format!("Failed to parse token array: {}", e)))?;
 
         if result.is_empty() {

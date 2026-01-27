@@ -1,6 +1,6 @@
 -- Event Listeners Configuration Table
 -- Defines event listeners and their configurations
-CREATE TABLE event_listeners (
+CREATE TABLE IF NOT EXISTS event_listeners (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     
@@ -31,7 +31,7 @@ CREATE TABLE event_listeners (
 
 -- Event Log Table
 -- Stores all events for audit trail and replay
-CREATE TABLE event_log (
+CREATE TABLE IF NOT EXISTS event_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     
@@ -71,7 +71,7 @@ CREATE TABLE event_log (
 
 -- Event Listener Executions Table
 -- Tracks listener execution results
-CREATE TABLE event_listener_executions (
+CREATE TABLE IF NOT EXISTS event_listener_executions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_log_id UUID NOT NULL REFERENCES event_log(id) ON DELETE CASCADE,
     listener_id UUID NOT NULL REFERENCES event_listeners(id) ON DELETE CASCADE,
@@ -93,7 +93,7 @@ CREATE TABLE event_listener_executions (
 
 -- Event Webhooks Table
 -- Configuration for webhook event listeners
-CREATE TABLE event_webhooks (
+CREATE TABLE IF NOT EXISTS event_webhooks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     listener_id UUID NOT NULL REFERENCES event_listeners(id) ON DELETE CASCADE,
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
@@ -126,23 +126,23 @@ CREATE TABLE event_webhooks (
 );
 
 -- Indexes
-CREATE INDEX idx_event_listeners_realm ON event_listeners(realm_id);
-CREATE INDEX idx_event_listeners_type ON event_listeners(listener_type);
-CREATE INDEX idx_event_listeners_enabled ON event_listeners(realm_id, enabled) WHERE enabled = TRUE;
-CREATE INDEX idx_event_listeners_priority ON event_listeners(priority);
+CREATE INDEX IF NOT EXISTS idx_event_listeners_realm ON event_listeners(realm_id);
+CREATE INDEX IF NOT EXISTS idx_event_listeners_type ON event_listeners(listener_type);
+CREATE INDEX IF NOT EXISTS idx_event_listeners_enabled ON event_listeners(realm_id, enabled) WHERE enabled = TRUE;
+CREATE INDEX IF NOT EXISTS idx_event_listeners_priority ON event_listeners(priority);
 
-CREATE INDEX idx_event_log_realm ON event_log(realm_id);
-CREATE INDEX idx_event_log_type ON event_log(event_type, event_category);
-CREATE INDEX idx_event_log_resource ON event_log(resource_type, resource_id);
-CREATE INDEX idx_event_log_user ON event_log(user_id);
-CREATE INDEX idx_event_log_created ON event_log(created_at DESC);
-CREATE INDEX idx_event_log_correlation ON event_log(correlation_id);
-CREATE INDEX idx_event_log_category_time ON event_log(event_category, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_event_log_realm ON event_log(realm_id);
+CREATE INDEX IF NOT EXISTS idx_event_log_type ON event_log(event_type, event_category);
+CREATE INDEX IF NOT EXISTS idx_event_log_resource ON event_log(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_event_log_user ON event_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_event_log_created ON event_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_event_log_correlation ON event_log(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_event_log_category_time ON event_log(event_category, created_at DESC);
 
-CREATE INDEX idx_listener_executions_event ON event_listener_executions(event_log_id);
-CREATE INDEX idx_listener_executions_listener ON event_listener_executions(listener_id);
-CREATE INDEX idx_listener_executions_success ON event_listener_executions(success);
-CREATE INDEX idx_listener_executions_retry ON event_listener_executions(next_retry_at) WHERE next_retry_at IS NOT NULL AND success = FALSE;
+CREATE INDEX IF NOT EXISTS idx_listener_executions_event ON event_listener_executions(event_log_id);
+CREATE INDEX IF NOT EXISTS idx_listener_executions_listener ON event_listener_executions(listener_id);
+CREATE INDEX IF NOT EXISTS idx_listener_executions_success ON event_listener_executions(success);
+CREATE INDEX IF NOT EXISTS idx_listener_executions_retry ON event_listener_executions(next_retry_at) WHERE next_retry_at IS NOT NULL AND success = FALSE;
 
-CREATE INDEX idx_webhooks_listener ON event_webhooks(listener_id);
-CREATE INDEX idx_webhooks_realm ON event_webhooks(realm_id);
+CREATE INDEX IF NOT EXISTS idx_webhooks_listener ON event_webhooks(listener_id);
+CREATE INDEX IF NOT EXISTS idx_webhooks_realm ON event_webhooks(realm_id);

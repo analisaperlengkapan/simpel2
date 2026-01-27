@@ -1,7 +1,7 @@
 -- Migration for MFA Administrative Management Features
 -- This migration adds tables and functions needed for comprehensive MFA administration
 
--- Add MFA policy management table
+DROP TABLE IF EXISTS mfa_policies CASCADE;
 CREATE TABLE IF NOT EXISTS mfa_policies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     policy_data JSONB NOT NULL,
@@ -14,16 +14,8 @@ CREATE TABLE IF NOT EXISTS mfa_policies (
 -- Add index for active policies
 CREATE INDEX IF NOT EXISTS idx_mfa_policies_active ON mfa_policies(active, created_at DESC);
 
--- Add MFA admin actions audit table
-CREATE TABLE IF NOT EXISTS mfa_admin_actions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    admin_user_id UUID REFERENCES users(id),
-    target_user_id UUID NOT NULL REFERENCES users(id),
-    action VARCHAR(100) NOT NULL,
-    reason TEXT,
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
+-- Add metadata column to mfa_admin_actions if not exists
+ALTER TABLE mfa_admin_actions ADD COLUMN IF NOT EXISTS metadata JSONB;
 
 -- Add indexes for admin actions
 CREATE INDEX IF NOT EXISTS idx_mfa_admin_actions_admin ON mfa_admin_actions(admin_user_id, created_at DESC);
@@ -37,7 +29,7 @@ ADD COLUMN IF NOT EXISTS require_mfa_setup BOOLEAN NOT NULL DEFAULT false;
 -- Add index for MFA setup requirement
 CREATE INDEX IF NOT EXISTS idx_users_require_mfa_setup ON users(require_mfa_setup) WHERE require_mfa_setup = true;
 
--- Create materialized view for MFA statistics by satker
+DROP MATERIALIZED VIEW IF EXISTS mfa_statistics CASCADE;
 CREATE MATERIALIZED VIEW IF NOT EXISTS mfa_statistics AS
 SELECT
     u.satker_code,
@@ -61,7 +53,7 @@ RETURNS void
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    REFRESH MATERIALIZED VIEW CONCURRENTLY mfa_statistics;
+    REFRESH MATERIALIZED VIEW mfa_statistics;
 END;
 $$;
 
@@ -260,10 +252,10 @@ SELECT
 WHERE NOT EXISTS (SELECT 1 FROM mfa_policies WHERE active = true);
 
 -- Create indexes for performance optimization
-CREATE INDEX IF NOT EXISTS idx_audit_logs_mfa_events ON audit_logs(event_type, created_at)
+CREATE INDEX IF NOT EXISTS idx_audit_logs_mfa_events ON audit_logs(event_type, timestamp)
 WHERE event_type IN ('mfa_verification_success', 'mfa_verification_failed', 'mfa_setup_complete');
 
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_mfa ON audit_logs(user_id, event_type, created_at)
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_mfa ON audit_logs(user_id, event_type, timestamp)
 WHERE event_type LIKE 'mfa_%';
 
 -- Add comments for documentation
@@ -271,5 +263,6 @@ COMMENT ON TABLE mfa_policies IS 'Stores MFA policy configurations for the organ
 COMMENT ON TABLE mfa_admin_actions IS 'Audit log for all MFA administrative actions';
 COMMENT ON MATERIALIZED VIEW mfa_statistics IS 'Aggregated MFA statistics by satker for reporting';
 COMMENT ON FUNCTION refresh_mfa_statistics() IS 'Refreshes the MFA statistics materialized view';
-COMMENT ON FUNCTION get_batch_mfa_status(UUID[]) IS 'Optimized function to get MFA status for multiple users';
+COMMENT ON FUNCTION get_user_mfa_status(UUID) IS 'Optimized function for single user MFA status lookup';
+COMMENT ON FUNCTION get_batch_mfa_status(user_ids UUID[]) IS 'Optimized function to get MFA status for multiple users';
 COMMENT ON FUNCTION log_mfa_admin_action(UUID, UUID, VARCHAR, TEXT, JSONB) IS 'Logs MFA administrative actions for audit purposes';

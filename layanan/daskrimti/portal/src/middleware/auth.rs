@@ -12,7 +12,7 @@ use axum::{
 };
 use serde::Serialize;
 use std::sync::Arc;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::state::AppState;
 
@@ -75,11 +75,13 @@ pub async fn auth_middleware(
     mut request: Request<Body>,
     next: Next,
 ) -> Response {
+    info!("Auth middleware seeing request: {} {}", request.method(), request.uri());
+
     // Extract bearer token
     let token = match extract_bearer_token(&request) {
         Some(token) => token,
         None => {
-            warn!("Missing or invalid Authorization header");
+            warn!("PORTAL_AUTH_FAIL: Missing or invalid Authorization header");
             return AuthError::unauthorized("Missing or invalid Authorization header")
                 .into_response();
         }

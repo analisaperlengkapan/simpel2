@@ -260,7 +260,50 @@ pub fn get_portal_url() -> String {
     })
 }
 
-/// Get current microfrontend app name from environment
+/// Get current microfrontend app name
 pub fn get_app_name() -> String {
-    std::env::var("APP_NAME").unwrap_or_else(|_| "Microfrontend".to_string())
+    // Try environment variable (SSR or build-time injection)
+    if let Ok(name) = std::env::var("APP_NAME") {
+        return name;
+    }
+
+    // Try global config object on window (CSR injection)
+    #[cfg(target_arch = "wasm32")]
+    if let Some(window) = window() {
+        if let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG")) {
+            if !value.is_undefined() && !value.is_null() {
+                if let Ok(name) = js_sys::Reflect::get(&value, &JsValue::from_str("appName")) {
+                    if let Some(s) = name.as_string() {
+                        return s;
+                    }
+                }
+            }
+        }
+    }
+
+    "Microfrontend".to_string()
+}
+
+/// Get current microfrontend app description
+pub fn get_app_description() -> String {
+    // Try environment variable
+    if let Ok(desc) = std::env::var("APP_DESCRIPTION") {
+        return desc;
+    }
+
+    // Try global config object on window
+    #[cfg(target_arch = "wasm32")]
+    if let Some(window) = window() {
+        if let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG")) {
+            if !value.is_undefined() && !value.is_null() {
+                if let Ok(desc) = js_sys::Reflect::get(&value, &JsValue::from_str("appDescription")) {
+                    if let Some(s) = desc.as_string() {
+                        return s;
+                    }
+                }
+            }
+        }
+    }
+
+    "Sistem Informasi Manajemen Perkara Elektronik".to_string()
 }

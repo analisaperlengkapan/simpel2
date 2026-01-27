@@ -19,7 +19,7 @@ spec:
     - port: 5432
       targetPort: 5432
       protocol: TCP
-      name: postgres
+      name: tcp-postgres
   selector:
     app.kubernetes.io/name: postgres
 
@@ -61,13 +61,13 @@ spec:
     - port: 9088
       targetPort: 9088
       protocol: TCP
-      name: grpc
+      name: grpc-authenc
     - port: 9090
       targetPort: 9090
       protocol: TCP
       name: metrics
   selector:
-    app: authenc
+    app.kubernetes.io/name: authenc
 
 ---
 apiVersion: v1
@@ -94,7 +94,7 @@ spec:
       protocol: TCP
       name: metrics
   selector:
-    app: secreton
+    app.kubernetes.io/name: secreton
 
 # ==========================================
 # Application Services (simpelv2)

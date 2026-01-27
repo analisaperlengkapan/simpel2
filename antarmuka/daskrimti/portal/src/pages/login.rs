@@ -32,7 +32,7 @@ pub fn LoginPage(
     };
 
     let handle_captcha_failure = move |error: String| {
-        set_error_message.set(format!("CAPTCHA verification failed: {}", error));
+        set_error_message.set(error);
         setcaptcha_token.set(None);
     };
 
@@ -177,9 +177,6 @@ pub fn LoginPage(
 
                         // CAPTCHA Component (always shown)
                         <div class="captcha-section">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                "Security Verification"
-                            </label>
                             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                                 <Captcha
                                     on_success=Callback::new(handle_captcha_success)

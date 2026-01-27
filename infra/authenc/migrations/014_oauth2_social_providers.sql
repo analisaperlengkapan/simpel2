@@ -1,6 +1,6 @@
 -- OAuth2 Provider Configurations Table
 -- Stores OAuth2/OIDC provider settings for social login
-CREATE TABLE oauth2_provider_configs (
+CREATE TABLE IF NOT EXISTS oauth2_provider_configs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     
@@ -50,7 +50,7 @@ CREATE TABLE oauth2_provider_configs (
 
 -- OAuth2 State Table
 -- Tracks OAuth2 authorization states for CSRF protection
-CREATE TABLE oauth2_states (
+CREATE TABLE IF NOT EXISTS oauth2_states (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     state_token VARCHAR(255) NOT NULL UNIQUE,
     provider_config_id UUID NOT NULL REFERENCES oauth2_provider_configs(id) ON DELETE CASCADE,
@@ -82,7 +82,7 @@ CREATE TABLE oauth2_states (
 
 -- OAuth2 Token Exchange History
 -- Audit log for token exchanges
-CREATE TABLE oauth2_token_exchanges (
+CREATE TABLE IF NOT EXISTS oauth2_token_exchanges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     provider_config_id UUID NOT NULL REFERENCES oauth2_provider_configs(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -114,7 +114,7 @@ CREATE TABLE oauth2_token_exchanges (
 
 -- Social Login Configurations per Provider
 -- Extended configuration for specific social providers
-CREATE TABLE social_login_configs (
+CREATE TABLE IF NOT EXISTS social_login_configs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     oauth2_config_id UUID NOT NULL REFERENCES oauth2_provider_configs(id) ON DELETE CASCADE,
     
@@ -154,17 +154,17 @@ CREATE TABLE social_login_configs (
 );
 
 -- Indexes
-CREATE INDEX idx_oauth2_configs_realm ON oauth2_provider_configs(realm_id);
-CREATE INDEX idx_oauth2_configs_provider ON oauth2_provider_configs(provider_name);
-CREATE INDEX idx_oauth2_configs_enabled ON oauth2_provider_configs(realm_id, enabled) WHERE enabled = TRUE;
+CREATE INDEX IF NOT EXISTS idx_oauth2_configs_realm ON oauth2_provider_configs(realm_id);
+CREATE INDEX IF NOT EXISTS idx_oauth2_configs_provider ON oauth2_provider_configs(provider_name);
+CREATE INDEX IF NOT EXISTS idx_oauth2_configs_enabled ON oauth2_provider_configs(realm_id, enabled) WHERE enabled = TRUE;
 
-CREATE INDEX idx_oauth2_states_token ON oauth2_states(state_token);
-CREATE INDEX idx_oauth2_states_expires ON oauth2_states(expires_at) WHERE NOT used;
-CREATE INDEX idx_oauth2_states_provider ON oauth2_states(provider_config_id);
+CREATE INDEX IF NOT EXISTS idx_oauth2_states_token ON oauth2_states(state_token);
+CREATE INDEX IF NOT EXISTS idx_oauth2_states_expires ON oauth2_states(expires_at) WHERE NOT used;
+CREATE INDEX IF NOT EXISTS idx_oauth2_states_provider ON oauth2_states(provider_config_id);
 
-CREATE INDEX idx_oauth2_exchanges_provider ON oauth2_token_exchanges(provider_config_id);
-CREATE INDEX idx_oauth2_exchanges_user ON oauth2_token_exchanges(user_id);
-CREATE INDEX idx_oauth2_exchanges_created ON oauth2_token_exchanges(created_at);
+CREATE INDEX IF NOT EXISTS idx_oauth2_exchanges_provider ON oauth2_token_exchanges(provider_config_id);
+CREATE INDEX IF NOT EXISTS idx_oauth2_exchanges_user ON oauth2_token_exchanges(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth2_exchanges_created ON oauth2_token_exchanges(created_at);
 
-CREATE INDEX idx_social_login_configs_oauth ON social_login_configs(oauth2_config_id);
-CREATE INDEX idx_social_login_configs_type ON social_login_configs(provider_type);
+CREATE INDEX IF NOT EXISTS idx_social_login_configs_oauth ON social_login_configs(oauth2_config_id);
+CREATE INDEX IF NOT EXISTS idx_social_login_configs_type ON social_login_configs(provider_type);

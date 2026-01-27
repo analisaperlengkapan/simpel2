@@ -268,27 +268,14 @@ impl SamlSecurityValidator {
                     } else {
                         tracing::warn!("CRL revocation status unknown (soft-fail mode)");
                     }
-                    Ok(RevocationStatus::Revoked { reason, .. }) => {
-                        return Err(anyhow!(
-                            "Certificate revoked (CRL): {}",
-                            reason.unwrap_or_else(|| "No reason provided".to_string())
-                        ));
-                    }
-                    Ok(RevocationStatus::Unknown) => {
-                        if self.config.crl_fail_on_unavailable {
-                            return Err(anyhow!("CRL revocation status unknown (hard-fail mode)"));
-                        } else {
-                            tracing::warn!("CRL revocation status unknown (soft-fail mode)");
-                        }
-                    }
-                    Err(e) => {
+                }
+                Err(e) => {
                         if self.config.crl_fail_on_unavailable {
                             return Err(anyhow!("CRL check failed (hard-fail mode): {}", e));
                         } else {
                             tracing::warn!("CRL check failed (soft-fail mode): {}", e);
                         }
                     }
-                }
             }
         }
 

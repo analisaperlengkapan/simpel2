@@ -136,6 +136,8 @@ pub fn App() -> impl IntoView {
 
     view! {
         <BrandingProvider unit="portal".to_string()>
+            // Router untuk halaman
+            // Base path disesuaikan dengan serving endpoint
             <Router>
                 <Routes fallback=|| view! { <NotFoundPage /> }>
                 // Public routes

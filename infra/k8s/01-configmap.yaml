@@ -70,10 +70,10 @@ metadata:
     app.kubernetes.io/component: backend-config
 data:
   # gRPC endpoints untuk backend-to-backend communication
-  AUTHENC_GRPC_URL: "http://authenc:9088"
-  SECRETON_GRPC_URL: "http://secreton:9000"
-  AUTHENC_GRPC_ENDPOINT: "authenc:9088"
-  SECRETON_GRPC_ENDPOINT: "secreton:9000"
+  AUTHENC_GRPC_URL: "http://authenc.simpelv2.svc.cluster.local:9088"
+  SECRETON_GRPC_URL: "http://secreton.simpelv2.svc.cluster.local:9000"
+  AUTHENC_GRPC_ENDPOINT: "authenc.simpelv2.svc.cluster.local:9088"
+  SECRETON_GRPC_ENDPOINT: "secreton.simpelv2.svc.cluster.local:9000"
 
   # Redis connection string
   REDIS_URL: "redis://redis-service:6379"

@@ -22,6 +22,34 @@ spec:
   podSelector: {}
   policyTypes:
     - Ingress
+  ingress:
+    - from:
+        - podSelector: {}  # Allow all within same namespace
+        - namespaceSelector:
+            matchLabels:
+              name: simpelv2-backend
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 8088
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 8200
+        - protocol: TCP
+          port: 9200
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 3010
+        - protocol: TCP
+          port: 3020
 
 ---
 apiVersion: networking.k8s.io/v1
@@ -49,7 +77,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              name: istio-system  # ✅ FIXED: was ingress-nginx
+              kubernetes.io/metadata.name: istio-system  # ✅ FIXED: was ingress-nginx
         - podSelector:
             matchLabels:
               istio: ingressgateway
@@ -79,7 +107,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              name: istio-system  # Istio sidecar injection
+              kubernetes.io/metadata.name: istio-system  # Istio sidecar injection
       ports:
         - protocol: TCP
           port: 9080  # gRPC port
@@ -110,12 +138,12 @@ spec:
           port: 9090  # Authenc gRPC
         - protocol: TCP
           port: 9200  # Secreton gRPC
-    
+
     # Istio sidecar communication
     - from:
         - namespaceSelector:
             matchLabels:
-              name: istio-system
+              kubernetes.io/metadata.name: istio-system
       ports:
         - protocol: TCP
           port: 8088  # Authenc HTTP (for health checks only)
@@ -204,7 +232,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              name: istio-system
+              kubernetes.io/metadata.name: istio-system
       ports:
         - protocol: TCP
           port: 3000  # Grafana
