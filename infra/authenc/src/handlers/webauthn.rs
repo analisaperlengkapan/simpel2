@@ -24,8 +24,8 @@ pub async fn register_challenge(
     let rp_id = std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
     let rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPelv2 Authenc".to_string());
-    let rp_origin =
-        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "https://10.1.7.121/api/auth".to_string());
+    let rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
+        .unwrap_or_else(|_| "https://10.1.7.121/api/auth".to_string());
 
     // Determine attestation preference from request or config
     let attestation_pref = AttestationPreference::None; // Can be configured per request
@@ -65,8 +65,8 @@ pub async fn register_verify(
     let rp_id = std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
     let rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPelv2 Authenc".to_string());
-    let rp_origin =
-        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "https://10.1.7.121/api/auth".to_string());
+    let rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
+        .unwrap_or_else(|_| "https://10.1.7.121/api/auth".to_string());
 
     let attestation_pref = AttestationPreference::None;
 
@@ -91,8 +91,8 @@ pub async fn authenticate_challenge(
     let rp_id = std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
     let rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPelv2 Authenc".to_string());
-    let rp_origin =
-        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "https://10.1.7.121/api/auth".to_string());
+    let rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
+        .unwrap_or_else(|_| "https://10.1.7.121/api/auth".to_string());
 
     let webauthn_service = WebAuthnService::new(state.database.clone(), rp_id, rp_name, rp_origin)?;
 
@@ -123,8 +123,8 @@ pub async fn authenticate_verify(
     let rp_id = std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
     let rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPelv2 Authenc".to_string());
-    let rp_origin =
-        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "https://10.1.7.121/api/auth".to_string());
+    let rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
+        .unwrap_or_else(|_| "https://10.1.7.121/api/auth".to_string());
 
     let webauthn_service = WebAuthnService::new(state.database.clone(), rp_id, rp_name, rp_origin)?;
 

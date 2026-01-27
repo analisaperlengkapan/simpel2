@@ -1010,8 +1010,10 @@ impl AuthencError {
             | AuthencError::MfaAccountLocked => StatusCode::FORBIDDEN,
 
             // UMA errors - map based on status field
-            AuthencError::Uma(uma_error) => StatusCode::from_u16(uma_error.status.unwrap_or(403u16))
-                .unwrap_or(StatusCode::FORBIDDEN),
+            AuthencError::Uma(uma_error) => {
+                StatusCode::from_u16(uma_error.status.unwrap_or(403u16))
+                    .unwrap_or(StatusCode::FORBIDDEN)
+            }
 
             // 404 Not Found
             AuthencError::UserNotFound

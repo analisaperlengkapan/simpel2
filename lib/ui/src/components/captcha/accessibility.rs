@@ -259,7 +259,6 @@ pub fn ScreenReaderAnnouncements(announcements: ReadSignal<Vec<String>>) -> impl
     }
 }
 
-
 /// Alternative input methods component for accessibility
 #[component]
 pub fn AlternativeInputs(
@@ -320,11 +319,8 @@ pub fn AlternativeInputs(
                                 &"interimResults".into(),
                                 &false.into(),
                             );
-                            let _ = js_sys::Reflect::set(
-                                &recognition,
-                                &"lang".into(),
-                                &"en-US".into(),
-                            );
+                            let _ =
+                                js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
 
                             // Set up result handler
                             let on_answer_clone = on_answer.clone();
@@ -346,7 +342,8 @@ pub fn AlternativeInputs(
                                                     &"transcript".into(),
                                                 ) {
                                                     if let Some(text) = transcript.as_string() {
-                                                        on_answer_clone.run(text.trim().to_string());
+                                                        on_answer_clone
+                                                            .run(text.trim().to_string());
                                                     }
                                                 }
                                             }

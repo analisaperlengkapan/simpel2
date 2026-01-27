@@ -178,8 +178,7 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
 
     async fn count(&self, params: &QueryParams) -> StorageResult<u64> {
         // Optimization: If no filters that require entry inspection, just count keys
-        let has_complex_filters = params.security_level.is_some()
-            || params.owner_id.is_some(); // KvAdapter list only supports these
+        let has_complex_filters = params.security_level.is_some() || params.owner_id.is_some(); // KvAdapter list only supports these
 
         if !has_complex_filters {
             let prefix = if let Some(p) = &params.path_prefix {

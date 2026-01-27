@@ -69,7 +69,8 @@ pub fn LoginPage(
 
                     // Check for redirect param
                     let query_map = leptos_router::hooks::use_query_map();
-                    let redirect_target = query_map.with(|params| params.get("redirect").map(|s| s.to_string()));
+                    let redirect_target =
+                        query_map.with(|params| params.get("redirect").map(|s| s.to_string()));
 
                     if let Some(target) = redirect_target {
                         if target == "perlengkapan" {

@@ -54,7 +54,10 @@ pub async fn generate_challenge(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CaptchaRequest>,
 ) -> impl IntoResponse {
-    info!("CAPTCHA challenge request: session_id={}", request.session_id);
+    info!(
+        "CAPTCHA challenge request: session_id={}",
+        request.session_id
+    );
 
     // Call Authenc via gRPC to generate CAPTCHA
     match state
@@ -88,7 +91,10 @@ pub async fn verify_captcha(
     State(state): State<Arc<AppState>>,
     Json(request): Json<VerifyRequest>,
 ) -> impl IntoResponse {
-    info!("CAPTCHA verify request: challenge_id={}", request.challenge_id);
+    info!(
+        "CAPTCHA verify request: challenge_id={}",
+        request.challenge_id
+    );
 
     // Call Authenc via gRPC to verify CAPTCHA
     match state

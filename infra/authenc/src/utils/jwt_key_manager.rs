@@ -123,10 +123,7 @@ impl JwtKeyManager {
 
     /// Force refresh the signing key from Secreton
     pub async fn refresh_key(&self) -> Result<Vec<u8>, JwtKeyError> {
-        info!(
-            "Fetching JWT signing key from Secreton: {}",
-            self.key_path
-        );
+        info!("Fetching JWT signing key from Secreton: {}", self.key_path);
 
         let secret = self
             .secreton
@@ -211,10 +208,7 @@ impl JwtKeyManager {
         let mut metadata = std::collections::HashMap::new();
         metadata.insert("key".to_string(), encoded_key);
         metadata.insert("algorithm".to_string(), "HS256".to_string());
-        metadata.insert(
-            "created_at".to_string(),
-            chrono::Utc::now().to_rfc3339(),
-        );
+        metadata.insert("created_at".to_string(), chrono::Utc::now().to_rfc3339());
         metadata.insert(
             "description".to_string(),
             "JWT signing key for authentication".to_string(),
@@ -251,13 +245,9 @@ impl JwtKeyManager {
     /// Get the current cached key metadata (for monitoring/debugging)
     pub async fn get_cached_key_info(&self) -> Option<(String, u64, Option<u32>)> {
         let cache = self.key_cache.read().await;
-        cache.as_ref().map(|k| {
-            (
-                k.algorithm.clone(),
-                k.remaining_ttl(),
-                k.version,
-            )
-        })
+        cache
+            .as_ref()
+            .map(|k| (k.algorithm.clone(), k.remaining_ttl(), k.version))
     }
 
     /// Rotate the JWT signing key

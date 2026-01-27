@@ -246,8 +246,12 @@ pub async fn generate_challenge(
             options.shuffle(&mut rng);
 
             // Create JSON with question, visual display, and answer options
-            let options_json = serde_json::to_string(&options)
-                .unwrap_or_else(|_| format!("[{},{},{},{}]", options[0], options[1], options[2], options[3]));
+            let options_json = serde_json::to_string(&options).unwrap_or_else(|_| {
+                format!(
+                    "[{},{},{},{}]",
+                    options[0], options[1], options[2], options[3]
+                )
+            });
 
             (
                 format!(

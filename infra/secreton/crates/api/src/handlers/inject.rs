@@ -340,8 +340,11 @@ async fn fetch_secret(
 ) -> Result<HashMap<String, String>, ApiError> {
     info!("Fetching secret from path: {}", path);
 
-    let secret_data = state.engine.get_secret(path, user_id).await.map_err(|e| {
-        match e {
+    let secret_data = state
+        .engine
+        .get_secret(path, user_id)
+        .await
+        .map_err(|e| match e {
             crate::services::secret_engine::SecretServiceError::SecretNotFound { .. } => {
                 ApiError::NotFound {
                     resource: path.to_string(),
@@ -353,8 +356,7 @@ async fn fetch_secret(
             _ => ApiError::Internal {
                 message: e.to_string(),
             },
-        }
-    })?;
+        })?;
 
     Ok(secret_data.data)
 }
@@ -379,7 +381,11 @@ async fn store_session(
         "system".to_string(),
     );
 
-    state.storage.store(&entry).await.map_err(ApiError::Storage)?;
+    state
+        .storage
+        .store(&entry)
+        .await
+        .map_err(ApiError::Storage)?;
     Ok(())
 }
 
@@ -399,11 +405,10 @@ async fn get_session_internal(
             resource: format!("Session {}", session_id),
         })?;
 
-    let session: InjectionSession = serde_json::from_slice(&entry.encrypted_data).map_err(|e| {
-        ApiError::Internal {
+    let session: InjectionSession =
+        serde_json::from_slice(&entry.encrypted_data).map_err(|e| ApiError::Internal {
             message: format!("Failed to deserialize session: {}", e),
-        }
-    })?;
+        })?;
 
     Ok(session)
 }
@@ -444,7 +449,11 @@ async fn list_active_sessions(
         ..Default::default()
     };
 
-    let entries = state.storage.list(&params).await.map_err(ApiError::Storage)?;
+    let entries = state
+        .storage
+        .list(&params)
+        .await
+        .map_err(ApiError::Storage)?;
     let mut sessions = Vec::new();
     let now = chrono::Utc::now();
 

@@ -61,14 +61,10 @@ impl PolicyService {
         limit: u32,
         offset: u32,
     ) -> Result<(Vec<String>, u64), CoreError> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Database connection error: {}", e),
-                source: None,
-            })?;
+        let client = self.pool.get().await.map_err(|e| CoreError::Internal {
+            message: format!("Database connection error: {}", e),
+            source: None,
+        })?;
 
         // Build query with filters
         let mut where_clauses = vec![];
@@ -104,7 +100,9 @@ impl PolicyService {
 
         let select_query = format!(
             "SELECT name FROM policies {} ORDER BY name ASC LIMIT ${} OFFSET ${}",
-            where_clause, param_idx, param_idx + 1
+            where_clause,
+            param_idx,
+            param_idx + 1
         );
 
         // Add limit/offset to params
@@ -135,14 +133,10 @@ impl PolicyService {
         limit: u32,
         offset: u32,
     ) -> Result<(Vec<PolicyServiceResponse>, u64), CoreError> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Database connection error: {}", e),
-                source: None,
-            })?;
+        let client = self.pool.get().await.map_err(|e| CoreError::Internal {
+            message: format!("Database connection error: {}", e),
+            source: None,
+        })?;
 
         // Build query with filters
         let mut where_clauses = vec![];
@@ -265,14 +259,10 @@ impl PolicyService {
         // Validate rules
         Self::validate_policy_rules(&rules)?;
 
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Database error: {}", e),
-                source: None,
-            })?;
+        let client = self.pool.get().await.map_err(|e| CoreError::Internal {
+            message: format!("Database error: {}", e),
+            source: None,
+        })?;
 
         // Check if policy already exists
         let existing = client
@@ -363,14 +353,10 @@ impl PolicyService {
     }
 
     pub async fn get_policy(&self, name: String) -> Result<PolicyServiceResponse, CoreError> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Database error: {}", e),
-                source: None,
-            })?;
+        let client = self.pool.get().await.map_err(|e| CoreError::Internal {
+            message: format!("Database error: {}", e),
+            source: None,
+        })?;
 
         let row = client
             .query_opt(
@@ -423,20 +409,13 @@ impl PolicyService {
             Self::validate_policy_rules(r)?;
         }
 
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Database error: {}", e),
-                source: None,
-            })?;
+        let client = self.pool.get().await.map_err(|e| CoreError::Internal {
+            message: format!("Database error: {}", e),
+            source: None,
+        })?;
 
         let existing = client
-            .query_opt(
-                "SELECT id, version FROM policies WHERE name = $1",
-                &[&name],
-            )
+            .query_opt("SELECT id, version FROM policies WHERE name = $1", &[&name])
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database error: {}", e),
@@ -482,8 +461,8 @@ impl PolicyService {
         }
 
         if updates.is_empty() {
-             // Return current state if no updates
-             return self.get_policy(name).await;
+            // Return current state if no updates
+            return self.get_policy(name).await;
         }
 
         updates.push(format!("version = ${}", param_idx));
@@ -549,14 +528,10 @@ impl PolicyService {
     }
 
     pub async fn delete_policy(&self, name: String) -> Result<(), CoreError> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Database error: {}", e),
-                source: None,
-            })?;
+        let client = self.pool.get().await.map_err(|e| CoreError::Internal {
+            message: format!("Database error: {}", e),
+            source: None,
+        })?;
 
         let row = client
             .query_opt("SELECT id FROM policies WHERE name = $1", &[&name])
@@ -617,14 +592,10 @@ impl PolicyService {
         action: String,
         context: Option<Value>,
     ) -> Result<TestPolicyResult, CoreError> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Database error: {}", e),
-                source: None,
-            })?;
+        let client = self.pool.get().await.map_err(|e| CoreError::Internal {
+            message: format!("Database error: {}", e),
+            source: None,
+        })?;
 
         let row = client
             .query_opt(
@@ -732,7 +703,10 @@ impl PolicyService {
 
             if rule.path.contains("**") && !rule.path.ends_with("**") {
                 return Err(CoreError::Validation {
-                    message: format!("Rule {}: Wildcard ** is only allowed at the end of path", idx),
+                    message: format!(
+                        "Rule {}: Wildcard ** is only allowed at the end of path",
+                        idx
+                    ),
                 });
             }
 
@@ -816,9 +790,15 @@ impl PolicyService {
                 });
             }
 
-            if expr.get("field").is_none() || expr.get("op").is_none() || expr.get("value").is_none() {
+            if expr.get("field").is_none()
+                || expr.get("op").is_none()
+                || expr.get("value").is_none()
+            {
                 return Err(CoreError::Validation {
-                    message: format!("Rule {}: expression must have field, op, and value", rule_idx),
+                    message: format!(
+                        "Rule {}: expression must have field, op, and value",
+                        rule_idx
+                    ),
                 });
             }
         }

@@ -291,7 +291,9 @@ async fn derive_params(
 /// List all zero-knowledge secret paths
 ///
 /// GET /v1/zk/list
-async fn list_secrets(State(_state): State<AppState>) -> ApiResult<Json<ApiResponse<ListResponse>>> {
+async fn list_secrets(
+    State(_state): State<AppState>,
+) -> ApiResult<Json<ApiResponse<ListResponse>>> {
     info!("Listing zero-knowledge secrets");
 
     // List secrets using the zero-knowledge service

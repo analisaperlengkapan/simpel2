@@ -120,12 +120,12 @@ impl<'de> serde::Deserialize<'de> for StorageConfig {
 
         let config = match raw.backend {
             StorageBackend::Raft => {
-                let path = raw.path.ok_or_else(|| {
-                    serde::de::Error::missing_field("path")
-                })?;
-                let node_id = raw.node_id.ok_or_else(|| {
-                    serde::de::Error::missing_field("node_id")
-                })?;
+                let path = raw
+                    .path
+                    .ok_or_else(|| serde::de::Error::missing_field("path"))?;
+                let node_id = raw
+                    .node_id
+                    .ok_or_else(|| serde::de::Error::missing_field("node_id"))?;
                 StorageBackendConfig::Raft(RaftStorageConfig {
                     path,
                     node_id,
@@ -135,19 +135,17 @@ impl<'de> serde::Deserialize<'de> for StorageConfig {
                 })
             }
             StorageBackend::File => {
-                let path = raw.path.ok_or_else(|| {
-                    serde::de::Error::missing_field("path")
-                })?;
+                let path = raw
+                    .path
+                    .ok_or_else(|| serde::de::Error::missing_field("path"))?;
                 StorageBackendConfig::File(FileStorageConfig {
                     path,
                     sync_writes: raw.sync_writes.unwrap_or(true),
                 })
             }
-            StorageBackend::Postgres => {
-                StorageBackendConfig::Postgres(PostgresStorageConfig {
-                    max_connections: raw.max_connections.unwrap_or(50),
-                })
-            }
+            StorageBackend::Postgres => StorageBackendConfig::Postgres(PostgresStorageConfig {
+                max_connections: raw.max_connections.unwrap_or(50),
+            }),
             StorageBackend::Memory => StorageBackendConfig::Memory,
         };
 

@@ -10,7 +10,11 @@ pub fn parse_challenge_question(data: Option<ChallengeResponse>) -> String {
     data.and_then(|d| {
         serde_json::from_str::<Value>(&d.challenge_data)
             .ok()
-            .and_then(|v| v.get("question").and_then(|q| q.as_str()).map(|s| s.to_string()))
+            .and_then(|v| {
+                v.get("question")
+                    .and_then(|q| q.as_str())
+                    .map(|s| s.to_string())
+            })
     })
     .unwrap_or_else(|| "Loading...".to_string())
 }
@@ -25,7 +29,9 @@ pub fn parse_challenge_visual(data: Option<ChallengeResponse>) -> String {
                     .and_then(|visual| visual.as_str().map(|s| s.to_string()))
                     .or_else(|| {
                         // Fallback to question if no visual field
-                        v.get("question").and_then(|q| q.as_str()).map(|s| s.to_string())
+                        v.get("question")
+                            .and_then(|q| q.as_str())
+                            .map(|s| s.to_string())
                     })
             })
     })

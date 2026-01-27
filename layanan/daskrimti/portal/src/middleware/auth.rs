@@ -75,7 +75,11 @@ pub async fn auth_middleware(
     mut request: Request<Body>,
     next: Next,
 ) -> Response {
-    info!("Auth middleware seeing request: {} {}", request.method(), request.uri());
+    info!(
+        "Auth middleware seeing request: {} {}",
+        request.method(),
+        request.uri()
+    );
 
     // Extract bearer token
     let token = match extract_bearer_token(&request) {

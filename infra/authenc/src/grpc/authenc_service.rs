@@ -27,6 +27,12 @@ use proto::{
     // Authentication
     AuthenticateRequest,
     AuthenticateResponse,
+    // Captcha
+    CaptchaChallengeRequest,
+    CaptchaChallengeResponse,
+    CaptchaVerificationRequest,
+    CaptchaVerificationResponse,
+    ChallengeType,
     // Authorization
     CheckPermissionRequest,
     CheckPermissionResponse,
@@ -73,15 +79,11 @@ use proto::{
     VerifyMfaRequest,
     VerifyMfaResponse,
     authenc_service_server::AuthencService,
-    // Captcha
-    CaptchaChallengeRequest,
-    CaptchaChallengeResponse,
-    CaptchaVerificationRequest,
-    CaptchaVerificationResponse,
-    ChallengeType,
 };
 
-use crate::services::captcha::{CaptchaServiceTrait, ChallengeType as ServiceChallengeType, BehavioralMetrics};
+use crate::services::captcha::{
+    BehavioralMetrics, CaptchaServiceTrait, ChallengeType as ServiceChallengeType,
+};
 
 /// gRPC service implementation for Authenc
 pub struct AuthencGrpcService {
@@ -890,7 +892,9 @@ impl AuthencService for AuthencGrpcService {
         };
 
         // Generate challenge
-        let challenge = self.state.captcha_service
+        let challenge = self
+            .state
+            .captcha_service
             .generate_challenge(
                 challenge_type,
                 Some(req.difficulty as u8),
@@ -906,7 +910,8 @@ impl AuthencService for AuthencGrpcService {
             challenge_type: req.challenge_type,
             challenge_data: challenge.encrypted_data,
             difficulty: challenge.difficulty_level as u32,
-            expires_at: challenge.expires_at
+            expires_at: challenge
+                .expires_at
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs() as i64,
@@ -924,34 +929,31 @@ impl AuthencService for AuthencGrpcService {
 
         // Parse behavioral data if provided
         let behavioral_data = if !req.behavioral_data.is_empty() {
-             serde_json::from_slice::<BehavioralMetrics>(&req.behavioral_data).ok()
+            serde_json::from_slice::<BehavioralMetrics>(&req.behavioral_data).ok()
         } else {
             None
         };
 
         // Validate challenge
-        let validation_result = self.state.captcha_service
-            .validate_challenge(
-                req.challenge_id.clone(),
-                req.answer,
-                behavioral_data,
-            )
+        let validation_result = self
+            .state
+            .captcha_service
+            .validate_challenge(req.challenge_id.clone(), req.answer, behavioral_data)
             .await
-            .map_err(|e| {
-                match e {
-                    crate::services::captcha::CaptchaError::ChallengeNotFound { .. } => {
-                        Status::not_found("Challenge not found")
-                    }
-                    crate::services::captcha::CaptchaError::ChallengeExpired { .. } => {
-                        Status::failed_precondition("Challenge expired")
-                    }
-                    _ => Status::internal(format!("Validation failed: {}", e))
+            .map_err(|e| match e {
+                crate::services::captcha::CaptchaError::ChallengeNotFound { .. } => {
+                    Status::not_found("Challenge not found")
                 }
+                crate::services::captcha::CaptchaError::ChallengeExpired { .. } => {
+                    Status::failed_precondition("Challenge expired")
+                }
+                _ => Status::internal(format!("Validation failed: {}", e)),
             })?;
 
         // Generate verification token if successful
         let verification_token = if validation_result.success {
-            format!("captcha_verified_{}_{}",
+            format!(
+                "captcha_verified_{}_{}",
                 req.challenge_id,
                 chrono::Utc::now().timestamp()
             )
@@ -959,7 +961,9 @@ impl AuthencService for AuthencGrpcService {
             String::new()
         };
 
-        let lockout_duration = validation_result.lockout_duration.map(|d| d.as_secs() as u32);
+        let lockout_duration = validation_result
+            .lockout_duration
+            .map(|d| d.as_secs() as u32);
 
         let response = CaptchaVerificationResponse {
             success: validation_result.success,
@@ -972,8 +976,6 @@ impl AuthencService for AuthencGrpcService {
 
         Ok(Response::new(response))
     }
-
-
 
     // ==================== Authorization & RBAC ====================
 
@@ -1950,5 +1952,3 @@ impl AuthencService for AuthencGrpcService {
         Err(Status::unimplemented("Health check not yet implemented"))
     }
 }
-
-

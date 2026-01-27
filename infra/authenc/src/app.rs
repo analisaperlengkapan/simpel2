@@ -610,11 +610,18 @@ impl AppState {
         // Initialize CAPTCHA service components
         tracing::info!("Initializing CAPTCHA service...");
         let captcha_db_ops = Arc::new(crate::database::CaptchaOperations::new((*database).clone()));
-        let captcha_generator = Arc::new(crate::services::captcha::generator::ChallengeGenerator::new());
-        let captcha_validator = Arc::new(crate::services::captcha::validator::ValidationEngine::new());
-        let captcha_analyzer = Arc::new(crate::services::captcha::analyzer::BehavioralAnalyzer::new());
-        let captcha_metrics = Arc::new(crate::services::captcha::metrics::MetricsCollector::new(captcha_db_ops.clone()));
-        let captcha_alerts = Arc::new(crate::services::captcha::alerting::AlertManager::new(captcha_metrics.clone()));
+        let captcha_generator =
+            Arc::new(crate::services::captcha::generator::ChallengeGenerator::new());
+        let captcha_validator =
+            Arc::new(crate::services::captcha::validator::ValidationEngine::new());
+        let captcha_analyzer =
+            Arc::new(crate::services::captcha::analyzer::BehavioralAnalyzer::new());
+        let captcha_metrics = Arc::new(crate::services::captcha::metrics::MetricsCollector::new(
+            captcha_db_ops.clone(),
+        ));
+        let captcha_alerts = Arc::new(crate::services::captcha::alerting::AlertManager::new(
+            captcha_metrics.clone(),
+        ));
 
         let captcha_service = Arc::new(crate::services::captcha::CaptchaService::new(
             captcha_db_ops,

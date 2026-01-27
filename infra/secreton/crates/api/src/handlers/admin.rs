@@ -13,8 +13,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{ApiError, ApiResponse, ApiResult, ListQuery, handlers::AppState};
 use crate::services::admin::SecurityIncident;
+use crate::{ApiError, ApiResponse, ApiResult, ListQuery, handlers::AppState};
 
 use secreton_core::services::seal::SealState;
 
@@ -717,7 +717,6 @@ pub struct SecurityFinding {
     pub recommendation: String,
     pub affected_resources: Vec<String>,
 }
-
 
 /// User management endpoints
 /// TODO: Implement using StorageBackend trait instead of direct database access

@@ -408,8 +408,8 @@ async fn store_subscription(
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     ";
 
-    let events_json =
-        serde_json::to_value(&subscription.events).map_err(|e| ApiError::internal(e.to_string()))?;
+    let events_json = serde_json::to_value(&subscription.events)
+        .map_err(|e| ApiError::internal(e.to_string()))?;
     let headers_json = serde_json::to_value(&subscription.headers)
         .map_err(|e| ApiError::internal(e.to_string()))?;
     let retry_json =
@@ -564,8 +564,8 @@ async fn update_subscription_data(
         WHERE id = $1
     ";
 
-    let events_json =
-        serde_json::to_value(&subscription.events).map_err(|e| ApiError::internal(e.to_string()))?;
+    let events_json = serde_json::to_value(&subscription.events)
+        .map_err(|e| ApiError::internal(e.to_string()))?;
     let headers_json = serde_json::to_value(&subscription.headers)
         .map_err(|e| ApiError::internal(e.to_string()))?;
     let retry_json =

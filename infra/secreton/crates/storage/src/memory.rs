@@ -119,10 +119,7 @@ impl StorageBackend for MemoryBackend {
         if only_prefix_filter && params.include_expired {
             let path_index = self.path_index.read().await;
             if let Some(prefix) = &params.path_prefix {
-                let count = path_index
-                    .keys()
-                    .filter(|k| k.starts_with(prefix))
-                    .count();
+                let count = path_index.keys().filter(|k| k.starts_with(prefix)).count();
                 return Ok(count as u64);
             } else {
                 return Ok(path_index.len() as u64);
@@ -135,7 +132,8 @@ impl StorageBackend for MemoryBackend {
             let store = self.store.read().await;
             let prefix = params.path_prefix.as_deref();
 
-            let count = store.values()
+            let count = store
+                .values()
                 .filter(|entry| {
                     // Check prefix if it exists
                     if let Some(p) = prefix {

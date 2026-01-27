@@ -613,11 +613,11 @@ impl AuthencClient {
             async move {
                 // Convert string to proto ChallengeType enum
                 let proto_challenge_type = match challenge_type.to_lowercase().as_str() {
-                    "audio" => 2, // ChallengeType::Audio
+                    "audio" => 2,      // ChallengeType::Audio
                     "behavioral" => 3, // ChallengeType::Behavioral
-                    "logical" => 4, // ChallengeType::Logical
-                    "hybrid" => 5, // ChallengeType::Hybrid
-                    _ => 1, // ChallengeType::Visual (default)
+                    "logical" => 4,    // ChallengeType::Logical
+                    "hybrid" => 5,     // ChallengeType::Hybrid
+                    _ => 1,            // ChallengeType::Visual (default)
                 };
 
                 use crate::proto::authenc::v1::CaptchaChallengeRequest;

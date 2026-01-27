@@ -114,7 +114,13 @@ impl AuthService {
         // For development, use current origin/api/auth
         std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| {
             if let Some(window) = web_sys::window() {
-                format!("{}/api/auth", window.location().origin().unwrap_or_else(|_| "http://localhost:3000".to_string()))
+                format!(
+                    "{}/api/auth",
+                    window
+                        .location()
+                        .origin()
+                        .unwrap_or_else(|_| "http://localhost:3000".to_string())
+                )
             } else {
                 "http://localhost:3000".to_string()
             }

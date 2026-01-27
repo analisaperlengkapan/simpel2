@@ -442,12 +442,13 @@ impl AuthService {
 
             let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
 
-            let token_data = decode::<Claims>(refresh_token, &decoding_key, &validation).map_err(
-                |e| match e.kind() {
+            let token_data =
+                decode::<Claims>(refresh_token, &decoding_key, &validation).map_err(|e| match e
+                    .kind()
+                {
                     jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
                     _ => AuthError::InvalidToken,
-                },
-            )?;
+                })?;
 
             token_data.claims
         };
@@ -1767,13 +1768,7 @@ mod tests {
 
         // Authenticate
         let token = auth_service
-            .authenticate(
-                "refresh_user",
-                "password",
-                None,
-                "127.0.0.1",
-                "test-agent",
-            )
+            .authenticate("refresh_user", "password", None, "127.0.0.1", "test-agent")
             .await
             .expect("authenticate");
 

@@ -272,7 +272,8 @@ mod tests {
             "password": "{{pass}}",
             "connection_string": "postgres://{{user}}:{{pass}}@localhost:5432/db"
         }
-        "#.to_string();
+        "#
+        .to_string();
 
         let transform = TransformConfig {
             mappings: None,
@@ -301,7 +302,8 @@ mod tests {
         CONFIG: |
           enabled: true
           key: {{api_key}}
-        "#.to_string();
+        "#
+        .to_string();
 
         let transform = TransformConfig {
             mappings: None,

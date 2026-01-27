@@ -77,7 +77,9 @@ impl DualServer {
             }
             #[cfg(not(feature = "grpc"))]
             {
-                tracing::warn!("gRPC enabled in config but binary compiled without 'grpc' feature. gRPC server will NOT start.");
+                tracing::warn!(
+                    "gRPC enabled in config but binary compiled without 'grpc' feature. gRPC server will NOT start."
+                );
                 None
             }
         } else {

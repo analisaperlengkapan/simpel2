@@ -929,9 +929,9 @@ impl AppConfig {
                 // However, standard format is redis://[:password@]host[:port][/db]
                 // Let's assume standard auth.
                 if !password.is_empty() {
-                     format!("redis://:{}@{}:{}/0", password, host, port)
+                    format!("redis://:{}@{}:{}/0", password, host, port)
                 } else {
-                     format!("redis://{}:{}/0", host, port)
+                    format!("redis://{}:{}/0", host, port)
                 }
             } else {
                 format!("redis://{}:{}/0", host, port)
@@ -948,7 +948,7 @@ impl AppConfig {
             }
         } else if let Ok(redis_url) = env::var("REDIS_URL") {
             // Fallback to full URL if provided directly and individual vars are missing
-             if self.redis.is_none() {
+            if self.redis.is_none() {
                 self.redis = Some(RedisConfig::default());
             }
             if let Some(redis_config) = &mut self.redis {

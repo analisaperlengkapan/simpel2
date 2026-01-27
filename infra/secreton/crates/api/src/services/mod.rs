@@ -750,8 +750,12 @@ impl ServiceContainer {
                     }
                 }
             }
-            tracing::info!("Parsed database config: host={:?}, port={:?}, dbname={:?}",
-                cfg.host, cfg.port, cfg.dbname);
+            tracing::info!(
+                "Parsed database config: host={:?}, port={:?}, dbname={:?}",
+                cfg.host,
+                cfg.port,
+                cfg.dbname
+            );
         } else {
             // Fall back to ApiConfig
             cfg.host = Some(config.database.host.clone());

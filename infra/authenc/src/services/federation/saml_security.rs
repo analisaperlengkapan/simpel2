@@ -270,12 +270,12 @@ impl SamlSecurityValidator {
                     }
                 }
                 Err(e) => {
-                        if self.config.crl_fail_on_unavailable {
-                            return Err(anyhow!("CRL check failed (hard-fail mode): {}", e));
-                        } else {
-                            tracing::warn!("CRL check failed (soft-fail mode): {}", e);
-                        }
+                    if self.config.crl_fail_on_unavailable {
+                        return Err(anyhow!("CRL check failed (hard-fail mode): {}", e));
+                    } else {
+                        tracing::warn!("CRL check failed (soft-fail mode): {}", e);
                     }
+                }
             }
         }
 

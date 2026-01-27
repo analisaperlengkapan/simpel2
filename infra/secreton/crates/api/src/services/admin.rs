@@ -727,7 +727,10 @@ impl AdminService {
             serde_json::Value::String(incident.source.clone()),
         );
 
-        self.storage.store(&entry).await.map_err(AdminError::Storage)?;
+        self.storage
+            .store(&entry)
+            .await
+            .map_err(AdminError::Storage)?;
         Ok(())
     }
 

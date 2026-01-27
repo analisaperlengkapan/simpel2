@@ -1,5 +1,5 @@
+use crate::services::cache::{Cache, RedisCache};
 use std::sync::Arc;
-use crate::services::cache::{RedisCache, Cache};
 use std::time::Duration;
 
 /// Risk Engine for assessing request risk based on behavioral patterns
@@ -20,10 +20,10 @@ impl RiskEngine {
 
         // Base difficulty from risk (0 failures = 1, 5+ failures = 8-10)
         let risk_based_difficulty = match risk_score {
-            0..=2 => 1,  // Low risk: Easy
-            3..=5 => 4,  // Medium risk: Medium
-            6..=8 => 7,  // High risk: Hard
-            _ => 9,      // Critical risk: Expert
+            0..=2 => 1, // Low risk: Easy
+            3..=5 => 4, // Medium risk: Medium
+            6..=8 => 7, // High risk: Hard
+            _ => 9,     // Critical risk: Expert
         };
 
         // If client requested a difficulty, take the higher of the two (security first)

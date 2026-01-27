@@ -44,8 +44,6 @@ pub mod health;
 /// Batch operations for optimized bulk processing
 pub mod batch_operations;
 
-
-
 // Re-export generated proto types
 pub use authenc_service::proto;
 pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup};
@@ -96,7 +94,6 @@ pub fn create_grpc_server(
     // Create service instances
     let authenc_service = authenc_service::AuthencGrpcService::new(state.clone());
 
-
     // Create interceptor stack
     let logging_interceptor = LoggingInterceptor::new();
     let metrics_interceptor = MetricsInterceptor::new();
@@ -125,8 +122,8 @@ pub fn create_grpc_server(
         .add_service(proto::authenc_service_server::AuthencServiceServer::new(
             authenc_service,
         ))
-        // TODO: Add CAPTCHA service when proto is properly generated
-        // .add_service(CaptchaServiceServer::new(captcha_grpc_service))
+    // TODO: Add CAPTCHA service when proto is properly generated
+    // .add_service(CaptchaServiceServer::new(captcha_grpc_service))
 }
 
 /// gRPC server configuration

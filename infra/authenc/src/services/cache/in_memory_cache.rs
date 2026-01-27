@@ -229,13 +229,13 @@ impl Cache for InMemoryCache {
         let len_after = cache.len();
 
         if !exists {
-             if len_before == cap && len_after == cap {
-                 // Must have evicted something
-                 self.metrics.record_eviction();
-                 // size stays same
-             } else {
-                 self.metrics.increment_cache_size();
-             }
+            if len_before == cap && len_after == cap {
+                // Must have evicted something
+                self.metrics.record_eviction();
+                // size stays same
+            } else {
+                self.metrics.increment_cache_size();
+            }
         }
 
         let elapsed = start.elapsed();
@@ -289,31 +289,34 @@ impl Cache for InMemoryCache {
         let entry_exists = cache.contains(key);
 
         if entry_exists {
-             if let Some(entry) = cache.get_mut(key) {
-                  if let Some(num) = entry.value.as_i64() {
-                      new_value = num + delta;
-                      entry.value = serde_json::Value::Number(new_value.into());
-                      entry.touch();
-                  } else {
-                      // Not a number, overwrite? Original code used `and_modify` then `or_insert`.
-                      // If exists but not number, `and_modify` skipped.
-                      // Then `or_insert`? No `or_insert` only if NOT exists.
-                      // So if exists and not number, nothing happens?
-                      // Wait, original code:
-                      /*
-                        self.cache.entry(key).and_modify(...).or_insert_with(...)
-                      */
-                      // If key exists, `and_modify` runs. If `and_modify` doesn't change anything (e.g. not a number), it stays same.
-                      // But `or_insert_with` is NOT called if key exists.
-                      // So if key exists and is not a number, we return `delta` (initial `new_value`)?
-                      // And cache is unchanged?
-                      // Yes.
-                  }
-             }
+            if let Some(entry) = cache.get_mut(key) {
+                if let Some(num) = entry.value.as_i64() {
+                    new_value = num + delta;
+                    entry.value = serde_json::Value::Number(new_value.into());
+                    entry.touch();
+                } else {
+                    // Not a number, overwrite? Original code used `and_modify` then `or_insert`.
+                    // If exists but not number, `and_modify` skipped.
+                    // Then `or_insert`? No `or_insert` only if NOT exists.
+                    // So if exists and not number, nothing happens?
+                    // Wait, original code:
+                    /*
+                      self.cache.entry(key).and_modify(...).or_insert_with(...)
+                    */
+                    // If key exists, `and_modify` runs. If `and_modify` doesn't change anything (e.g. not a number), it stays same.
+                    // But `or_insert_with` is NOT called if key exists.
+                    // So if key exists and is not a number, we return `delta` (initial `new_value`)?
+                    // And cache is unchanged?
+                    // Yes.
+                }
+            }
         } else {
-             // Insert new
-             cache.put(key.to_string(), CacheEntry::new(serde_json::Value::Number(delta.into()), self.default_ttl));
-             self.metrics.increment_cache_size(); // Assuming not full
+            // Insert new
+            cache.put(
+                key.to_string(),
+                CacheEntry::new(serde_json::Value::Number(delta.into()), self.default_ttl),
+            );
+            self.metrics.increment_cache_size(); // Assuming not full
         }
 
         debug!(
@@ -348,13 +351,13 @@ impl Cache for InMemoryCache {
         if len_before == cap && len_after == cap {
             self.metrics.record_eviction();
         } else {
-             // If we overwrote an expired item, size stays same?
-             // `put` replaces.
-             // If we replaced, size same.
-             // If we added new, size +1.
-             if len_after > len_before {
-                 self.metrics.increment_cache_size();
-             }
+            // If we overwrote an expired item, size stays same?
+            // `put` replaces.
+            // If we replaced, size same.
+            // If we added new, size +1.
+            if len_after > len_before {
+                self.metrics.increment_cache_size();
+            }
         }
 
         let elapsed = start.elapsed();
