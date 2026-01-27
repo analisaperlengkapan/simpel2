@@ -1,32 +1,39 @@
+pub mod secreton {
+    pub mod v1 {
+        tonic::include_proto!("secreton.v1");
+    }
+}
+pub mod common {
+    pub mod v1 {
+        tonic::include_proto!("common.v1");
+    }
+}
+
+use secreton::v1::secreton_service_client::SecretonServiceClient;
+use secreton::v1::GetSecretRequest;
+use tonic::transport::Channel;
 use std::collections::HashMap;
 use anyhow::Result;
 
 #[derive(Clone)]
-pub struct SecretonClient;
-
-impl SecretonClient {
-    pub async fn connect(_addr: String) -> Result<Self> {
-        // Stub implementation due to build issues with tonic/axum integration (http::Request type mismatch)
-        // In a real environment, this would connect to the Secreton gRPC service.
-        Ok(Self)
-    }
-
-    pub async fn get_secret(&self, _path: &str) -> Result<HashMap<String, String>> {
-        // Stub implementation. Returns empty map.
-        // The calling code in main.rs handles this by falling back to environment variables
-        // or failing if strictly required.
-        Ok(HashMap::new())
-    }
+pub struct SecretonClient {
+    client: SecretonServiceClient<Channel>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl SecretonClient {
+    pub async fn connect(addr: String) -> Result<Self> {
+        let client = SecretonServiceClient::connect(addr).await?;
+        Ok(Self { client })
+    }
 
-    #[tokio::test]
-    async fn test_stub_client() {
-        let client = SecretonClient::connect("http://localhost:50051".to_string()).await.unwrap();
-        let secrets = client.get_secret("test").await.unwrap();
-        assert!(secrets.is_empty());
+    pub async fn get_secret(&self, path: &str) -> Result<HashMap<String, String>> {
+        let mut client = self.client.clone();
+        let request = tonic::Request::new(GetSecretRequest {
+            path: path.to_string(),
+            version: None,
+        });
+
+        let response = client.get_secret(request).await?;
+        Ok(response.into_inner().data)
     }
 }

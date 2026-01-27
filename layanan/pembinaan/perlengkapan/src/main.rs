@@ -50,9 +50,9 @@ async fn main() -> anyhow::Result<()> {
     // Secreton Integration
     let secreton_url = std::env::var("SECRETON_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
     let mut database_url = std::env::var("DATABASE_URL").ok();
-    let mut jwt_secret = std::env::var("JWT_SECRET").ok();
+    let mut jwt_secret_val = std::env::var("JWT_SECRET").ok();
 
-    if database_url.is_none() || jwt_secret.is_none() {
+    if database_url.is_none() || jwt_secret_val.is_none() {
         info!("Connecting to Secreton at {}", secreton_url);
         match SecretonClient::connect(secreton_url).await {
             Ok(client) => {
@@ -72,12 +72,11 @@ async fn main() -> anyhow::Result<()> {
                 }
 
                 // Fetch JWT Secret
-                if jwt_secret.is_none() {
+                if jwt_secret_val.is_none() {
                     match client.get_secret("system/jwt").await {
                         Ok(data) => {
                             if let Some(secret) = data.get("secret") {
-                                jwt_secret = Some(secret.clone());
-                                unsafe { std::env::set_var("JWT_SECRET", secret); } // Middleware uses env::var
+                                jwt_secret_val = Some(secret.clone());
                                 info!("Fetched JWT_SECRET from Secreton");
                             }
                         }
@@ -92,6 +91,12 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let database_url = database_url.expect("DATABASE_URL must be set (env or secreton)");
+    let jwt_secret = jwt_secret_val.expect("JWT_SECRET must be set (env or secreton)");
+
+    // Initialize middleware configuration
+    if middleware::JWT_SECRET.set(jwt_secret).is_err() {
+        error!("Failed to initialize JWT_SECRET: already set");
+    }
 
     // Initialize database connection
     info!("Connecting to database...");

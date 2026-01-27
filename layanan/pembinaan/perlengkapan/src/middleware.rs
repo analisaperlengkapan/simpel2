@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::errors::AppError;
+use std::sync::OnceLock;
+
+pub static JWT_SECRET: OnceLock<String> = OnceLock::new();
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
@@ -49,11 +52,12 @@ where
 
         let token = &auth_str[7..];
 
-        // Get JWT secret from environment or config
-        let jwt_secret =
-            std::env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key".to_string());
+        // Get JWT secret from global state
+        let jwt_secret = JWT_SECRET
+            .get()
+            .ok_or_else(|| AppError::Internal("JWT_SECRET not configured".to_string()))?;
 
-        let decoding_key = DecodingKey::from_secret(jwt_secret.as_ref());
+        let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
         let validation = Validation::new(Algorithm::HS256);
 
         let token_data = decode::<Claims>(token, &decoding_key, &validation)
