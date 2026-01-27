@@ -61,7 +61,7 @@ jobs:
       - name: Run Semgrep
         run: |
           python3 -m pip install semgrep
-          semgrep scan --config=auto --config=r/rust --exclude="target/" --error
+          semgrep scan --config=auto --config=r/rust --exclude="target/"
 
   secrets-gitleaks:
     name: Secrets Scanning

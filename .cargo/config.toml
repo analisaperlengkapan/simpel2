@@ -1,24 +1,2 @@
-[target.wasm32-unknown-unknown]
-rustflags = [
-    "-C", "target-feature=+bulk-memory",
-    "-C", "target-feature=+mutable-globals",
-    "-C", "target-feature=+sign-ext",
-    "-C", "target-feature=+reference-types",
-    "-C", "opt-level=z",           # Maximum size optimization
-    "-C", "codegen-units=1",      # Single codegen unit for better optimization
-    "-C", "strip=symbols",        # Strip symbols for smaller size
-]
-
-# Build configuration for better caching
-[build]
-# rustc-wrapper = "sccache"  # Enable if sccache is available
-target-dir = "target"
-incremental = true
-
-# Registry configuration for faster downloads
-[registry]
-default = "sparse+https://index.crates.io/"
-
-# Git configuration for better performance
-[net]
-git-fetch-with-cli = true
+[target.x86_64-unknown-linux-gnu]
+linker = "rust-lld"
