@@ -517,7 +517,8 @@ mod performance_tests {
         }
 
         let error_duration = start_time.elapsed();
-        let error_operations_per_second = (error_operations.len() * 100) as f64 / error_duration.as_secs_f64();
+        let error_operations_per_second =
+            (error_operations.len() * 100) as f64 / error_duration.as_secs_f64();
 
         println!("Error handling: { operations in {:?}", error_operations.len() * 100, error_duration);
         println!("Error handling performance: {:.2 ops/sec", error_operations_per_second);
