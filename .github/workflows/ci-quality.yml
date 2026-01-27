@@ -16,8 +16,6 @@ jobs:
   quality:
     name: Quality Checks
     runs-on: self-hosted
-    container:
-      image: rust:1.90-bookworm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -31,8 +29,17 @@ jobs:
       - name: Install Tools
         shell: bash
         run: |
-          if ! command -v cargo-llvm-cov &> /dev/null; then cargo install cargo-llvm-cov --locked; fi
-          if ! command -v tokei &> /dev/null; then cargo install tokei --locked; fi
+          # Install cargo-llvm-cov binary
+          if ! command -v cargo-llvm-cov &> /dev/null; then
+            echo "Installing cargo-llvm-cov..."
+            curl -LsSf https://github.com/taiki-e/cargo-llvm-cov/releases/latest/download/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz | tar xzf - -C $HOME/.cargo/bin
+          fi
+
+          # Install tokei binary
+          if ! command -v tokei &> /dev/null; then
+            echo "Installing tokei..."
+            curl -LsSf https://github.com/XAMPPRocky/tokei/releases/latest/download/tokei-x86_64-unknown-linux-gnu.tar.gz | tar xzf - -C $HOME/.cargo/bin
+          fi
 
       - name: Documentation Build
         run: cargo doc --workspace --no-deps --all-features --document-private-items
