@@ -1,0 +1,48 @@
+name: 'Setup Rust Environment'
+description: 'Installs system dependencies, Rust toolchain, Protoc, and configures caching'
+
+inputs:
+  toolchain:
+    description: 'Rust toolchain version'
+    required: false
+    default: '1.90.0'
+  targets:
+    description: 'Comma-separated list of targets to install'
+    required: false
+    default: ''
+  components:
+    description: 'Comma-separated list of components to install'
+    required: false
+    default: ''
+  cache-key:
+    description: 'Additional cache key'
+    required: false
+    default: 'default'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip build-essential pkg-config libssl-dev
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        targets: ${{ inputs.targets }}
+        components: ${{ inputs.components }}
+
+    - name: Install Protocol Buffers compiler
+      uses: arduino/setup-protoc@v3
+      with:
+        version: "25.x"
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ inputs.cache-key }}
+        # Shared cache for all members in the workspace
+        workspaces: ". -> target"

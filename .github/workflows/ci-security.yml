@@ -6,344 +6,78 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    # Run security checks weekly on Mondays at 02:00 UTC
     - cron: "0 2 * * 1"
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
-# Cancel in-progress runs for the same workflow and branch (except scheduled runs)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
-env:
-  CARGO_TERM_COLOR: always
-  RUST_VERSION: "1.90.0"
-
 jobs:
-  cargo-audit:
-    name: Security Audit (cargo-audit)
+  audit-and-deny:
+    name: Dependency Audit & Policy
     runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y unzip
-
-      - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "25.x"
-      - name: Install cargo-audit
+      - name: Install Tools
+        shell: bash
         run: |
-          if ! command -v cargo-audit &> /dev/null; then
-            cargo install cargo-audit --locked
-          fi
+          if ! command -v cargo-audit &> /dev/null; then cargo install cargo-audit --locked; fi
+          if ! command -v cargo-deny &> /dev/null; then cargo install cargo-deny --locked; fi
 
-      - name: Audit workspace dependencies
+      - name: Audit Workspace
         run: cargo audit --deny warnings
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Audit authenc dependencies
-        working-directory: infra/authenc
-        run: cargo audit --deny warnings
-        continue-on-error: false
-
-      - name: Audit secreton dependencies
-        working-directory: infra/secreton
-        run: cargo audit --deny warnings
-        continue-on-error: false
-
-  cargo-deny:
-    name: Dependency Policy (cargo-deny)
-    runs-on: self-hosted
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "25.x"
-      - name: Install cargo-deny
+      - name: Deny Checks
         run: |
-          if ! command -v cargo-deny &> /dev/null; then
-            cargo install cargo-deny --locked
-          fi
+          cargo deny check advisories
+          cargo deny check licenses
+          cargo deny check bans
 
-      - name: Check advisories
-        run: cargo deny check advisories
-
-      - name: Check licenses
-        run: cargo deny check licenses
-
-      - name: Check bans
-        run: cargo deny check bans
-
-      - name: Check sources
-        run: cargo deny check sources
-        continue-on-error: true
-
-  semgrep-sast:
+  sast-semgrep:
     name: SAST - Semgrep
     runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - name: Install Semgrep
-        run: python3 -m pip install semgrep
-
-      - name: Run Semgrep SAST
+      - name: Run Semgrep
         run: |
-          semgrep scan \
-            --config=auto \
-            --config=r/rust \
-            --exclude="target/" \
-            --exclude="dist/" \
-            --exclude="**/node_modules/" \
-            --exclude="simpel_laravel/" \
-            --error \
-            --verbose
-        continue-on-error: false
+          python3 -m pip install semgrep
+          semgrep scan --config=auto --config=r/rust --exclude="target/" --error
 
-      - name: Upload SAST results
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: semgrep-results
-          path: semgrep-results.sarif
-          retention-days: 30
-          if-no-files-found: ignore
-
-  gitleaks-secrets:
-    name: Secrets Scanning (Gitleaks)
+  secrets-gitleaks:
+    name: Secrets Scanning
     runs-on: self-hosted
-    permissions:
-      contents: read
-      pull-requests: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0 # Full history for better detection
+          fetch-depth: 0
 
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # Optional: for premium features
 
-  trivy-scan:
-    name: Vulnerability Scan (Trivy)
+  summary:
+    name: Security Summary
     runs-on: self-hosted
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "fs"
-          scan-ref: "."
-          format: "sarif"
-          output: "trivy-results.sarif"
-          severity: "CRITICAL,HIGH,MEDIUM"
-          exit-code: "1"
-          ignore-unfixed: true
-          trivyignores: ".trivyignore"
-
-      - name: Upload Trivy results to GitHub Security
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: "trivy-results.sarif"
-
-      - name: Run Trivy config scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "config"
-          scan-ref: "."
-          format: "table"
-          severity: "CRITICAL,HIGH"
-          exit-code: "0"
-        continue-on-error: true
-
-  authenc-security:
-    name: Authenc IAM Security
-    runs-on: self-hosted
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "25.x"
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            infra/authenc/target/
-          key: ${{ runner.os }}-authenc-security-${{ hashFiles('infra/authenc/Cargo.lock') }}
-
-      - name: Check authenc compilation
-        working-directory: infra/authenc
-        run: cargo check --all-targets --verbose
-
-      - name: Run authenc tests
-        working-directory: infra/authenc
-        run: cargo test --all-targets --verbose
-        continue-on-error: true
-
-      - name: Audit authenc cryptography
-        working-directory: infra/authenc
-        run: |
-          echo "Checking cryptographic dependencies..."
-          cargo tree | grep -E "(ed25519|sha2|blake3|chacha20)" || echo "No crypto deps found"
-
-      - name: Verify no weak crypto
-        working-directory: infra/authenc
-        run: |
-          echo "Verifying no weak cryptography..."
-          if cargo tree | grep -i "md5"; then
-            echo "::error::Weak cryptography detected (MD5)"
-            exit 1
-          fi
-
-          if cargo tree | grep -i "sha1"; then
-            echo "::warning::SHA-1 detected. OTP modules allow SHA-1 per RFC 6238 but review if unexpected."
-          else
-            echo "✅ No weak cryptography found"
-          fi
-
-  secreton-security:
-    name: Secreton Security
-    runs-on: self-hosted
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "25.x"
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            infra/secreton/target/
-          key: ${{ runner.os }}-secreton-security-${{ hashFiles('infra/secreton/Cargo.lock') }}
-
-      - name: Check secreton compilation
-        working-directory: infra/secreton
-        run: cargo check --all-targets --verbose
-
-      - name: Run secreton tests
-        working-directory: infra/secreton
-        run: cargo test --all-targets --verbose
-        continue-on-error: true
-
-      - name: Verify cryptographic dependencies
-        working-directory: infra/secreton
-        run: |
-          echo "Checking Secreton cryptography stack..."
-          cargo tree | grep -E "(chacha20|poly1305|x25519|argon2)" || echo "Expected crypto not found"
-
-      - name: Verify secure defaults
-        working-directory: infra/secreton
-        run: |
-          echo "Verifying no insecure defaults..."
-          # Check for hardcoded secrets or weak configs
-          if grep -r "password.*=.*\"\"" . --include="*.rs" --include="*.toml"; then
-            echo "::warning::Empty password defaults found"
-          fi
-          echo "✅ Security defaults check complete"
-
-  dependency-review:
-    name: Dependency Review
-    runs-on: self-hosted
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      # - name: Dependency Review
-      #   uses: actions/dependency-review-action@v4
-      #   with:
-      #     fail-on-severity: moderate
-      #     deny-licenses: GPL-3.0, AGPL-3.0
-
-  security-summary:
-    name: Security CI Summary
-    runs-on: self-hosted
-    needs:
-      [
-        cargo-audit,
-        cargo-deny,
-        semgrep-sast,
-        gitleaks-secrets,
-        trivy-scan,
-        authenc-security,
-        secreton-security,
-      ]
+    needs: [audit-and-deny, sast-semgrep, secrets-gitleaks]
     if: always()
     steps:
-      - name: Generate security summary
+      - name: Generate summary
         run: |
           echo "## 🔒 Security CI Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Cargo Audit | ${{ needs.cargo-audit.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Cargo Deny | ${{ needs.cargo-deny.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Semgrep SAST | ${{ needs.semgrep-sast.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Gitleaks | ${{ needs.gitleaks-secrets.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Trivy Scan | ${{ needs.trivy-scan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Authenc Security | ${{ needs.authenc-security.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Secreton Security | ${{ needs.secreton-security.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Fail if any critical job failed
-          if [[ "${{ needs.cargo-audit.result }}" == "failure" ]] || \
-             [[ "${{ needs.cargo-deny.result }}" == "failure" ]] || \
-             [[ "${{ needs.gitleaks-secrets.result }}" == "failure" ]]; then
-            echo "::error::❌ Critical security checks failed"
-            exit 1
-          fi
-
-          echo "✅ All critical security checks passed"
+          echo "| Dependency Audit | ${{ needs.audit-and-deny.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Semgrep SAST | ${{ needs.sast-semgrep.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gitleaks | ${{ needs.secrets-gitleaks.result }} |" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,99 @@
+name: CI - WASM Microfrontends
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "antarmuka/**"
+      - "lib/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/wasm-ci.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "antarmuka/**"
+      - "lib/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  TRUNK_VERSION: "0.21.4"
+  RUST_VERSION: "1.90.0"
+
+jobs:
+  check-and-build:
+    name: Build WASM - ${{ matrix.module }}
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [portal, badiklat, datun, intel, pemulihan_aset, pengawasan, pidmil, pidsus, pidum, "pembinaan/keuangan", "pembinaan/perencanaan", "pembinaan/perlengkapan"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust (WASM)
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+          cache-key: wasm-${{ matrix.module }}
+
+      - name: Install Trunk
+        shell: bash
+        run: |
+          if ! command -v trunk &> /dev/null; then
+            wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xzf-
+            sudo mv trunk /usr/local/bin/
+          fi
+          trunk --version
+
+      - name: Build with Trunk (release)
+        working-directory: antarmuka/${{ matrix.module }}
+        run: trunk build --release
+
+      - name: Validate bundle size
+        working-directory: antarmuka/${{ matrix.module }}
+        shell: bash
+        run: |
+          WASM_FILES=$(find dist -name "*.wasm" -type f)
+          for wasm_file in $WASM_FILES; do
+            WASM_SIZE=$(stat -c%s "$wasm_file")
+            WASM_SIZE_MB=$(echo "scale=2; $WASM_SIZE / 1024 / 1024" | bc)
+            echo "📦 Bundle: $(basename $wasm_file) - ${WASM_SIZE_MB}MB"
+            if (( $(echo "$WASM_SIZE_MB > 2.0" | bc -l) )); then
+              echo "::error::WASM bundle too large: ${WASM_SIZE_MB}MB"
+              exit 1
+            fi
+          done
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: wasm-${{ matrix.module | replace("/", "-") }}
+          path: antarmuka/${{ matrix.module }}/dist/
+          retention-days: 7
+
+  lint-wasm:
+    name: Lint WASM Components
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          components: clippy, rustfmt
+
+      - name: Run clippy (frontend)
+        working-directory: antarmuka
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Check formatting (frontend)
+        working-directory: antarmuka
+        run: cargo fmt --all --check

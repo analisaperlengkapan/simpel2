@@ -1,0 +1,105 @@
+name: CI - Rust Core
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "layanan/**"
+      - "infra/**"
+      - "lib/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/rust-ci.yml"
+      - ".github/actions/setup-rust/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "layanan/**"
+      - "infra/**"
+      - "lib/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  check-and-lint:
+    name: Check & Lint
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          components: clippy, rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Workspace check
+        run: cargo check --workspace --all-targets --verbose
+
+      - name: Workspace clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: Test Suite
+    runs-on: self-hosted
+    needs: [check-and-lint]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: simpelv2_test
+          POSTGRES_PASSWORD: test_password_secure_2024
+          POSTGRES_DB: simpelv2_test
+        options: >-
+          --health-cmd "pg_isready -U simpelv2_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 55432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Setup database connection
+        run: |
+          echo "DATABASE_URL=postgres://simpelv2_test:test_password_secure_2024@localhost:55432/simpelv2_test" >> $GITHUB_ENV
+
+      - name: Run workspace tests
+        run: cargo test --workspace --all-targets --verbose
+
+  build:
+    name: Build Release Binaries
+    runs-on: self-hosted
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Build workspace in release mode
+        run: cargo build --workspace --release --verbose
+
+      - name: List built binaries
+        run: |
+          echo "=== Workspace Binaries ==="
+          find target/release -maxdepth 1 -type f -executable
