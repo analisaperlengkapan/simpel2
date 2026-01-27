@@ -3,7 +3,7 @@
 //! Backend microservice for Perlengkapan (asset management) within SIMPelv2.
 //! Integrates with Authenc (IAM) and Secreton (Secret Manager) via gRPC.
 
-use axum::{Router, routing::get};
+use axum::{Router, routing::get, extract::FromRef};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
@@ -19,14 +19,32 @@ mod models;
 mod repository;
 mod routes;
 mod services;
-mod secreton_client;
+mod grpc_clients;
 
 #[cfg(test)]
 mod tests;
 
 use database::Database;
 use services::PerlengkapanService;
-use secreton_client::SecretonClient;
+use grpc_clients::{SecretonClient, AuthencClient};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub service: PerlengkapanService,
+    pub authenc: AuthencClient,
+}
+
+impl FromRef<AppState> for PerlengkapanService {
+    fn from_ref(state: &AppState) -> Self {
+        state.service.clone()
+    }
+}
+
+impl FromRef<AppState> for AuthencClient {
+    fn from_ref(state: &AppState) -> Self {
+        state.authenc.clone()
+    }
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -50,38 +68,25 @@ async fn main() -> anyhow::Result<()> {
     // Secreton Integration
     let secreton_url = std::env::var("SECRETON_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
     let mut database_url = std::env::var("DATABASE_URL").ok();
-    let mut jwt_secret_val = std::env::var("JWT_SECRET").ok();
 
-    if database_url.is_none() || jwt_secret_val.is_none() {
+    // Authenc Integration
+    let authenc_url = std::env::var("AUTHENC_URL").unwrap_or_else(|_| "http://localhost:50052".to_string());
+
+    if database_url.is_none() {
         info!("Connecting to Secreton at {}", secreton_url);
         match SecretonClient::connect(secreton_url).await {
             Ok(client) => {
                 info!("Connected to Secreton");
 
                 // Fetch DB URL
-                if database_url.is_none() {
-                    match client.get_secret("perlengkapan/db").await {
-                        Ok(data) => {
-                            if let Some(url) = data.get("url") {
-                                database_url = Some(url.clone());
-                                info!("Fetched DATABASE_URL from Secreton");
-                            }
+                match client.get_secret("perlengkapan/db").await {
+                    Ok(data) => {
+                        if let Some(url) = data.get("url") {
+                            database_url = Some(url.clone());
+                            info!("Fetched DATABASE_URL from Secreton");
                         }
-                        Err(e) => error!("Failed to fetch db secret: {:?}", e),
                     }
-                }
-
-                // Fetch JWT Secret
-                if jwt_secret_val.is_none() {
-                    match client.get_secret("system/jwt").await {
-                        Ok(data) => {
-                            if let Some(secret) = data.get("secret") {
-                                jwt_secret_val = Some(secret.clone());
-                                info!("Fetched JWT_SECRET from Secreton");
-                            }
-                        }
-                        Err(e) => error!("Failed to fetch jwt secret: {:?}", e),
-                    }
+                    Err(e) => error!("Failed to fetch db secret: {:?}", e),
                 }
             }
             Err(e) => {
@@ -91,12 +96,12 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let database_url = database_url.expect("DATABASE_URL must be set (env or secreton)");
-    let jwt_secret = jwt_secret_val.expect("JWT_SECRET must be set (env or secreton)");
 
-    // Initialize middleware configuration
-    if middleware::JWT_SECRET.set(jwt_secret).is_err() {
-        error!("Failed to initialize JWT_SECRET: already set");
-    }
+    // Initialize Authenc Client
+    info!("Connecting to Authenc at {}", authenc_url);
+    let authenc_client = AuthencClient::connect(authenc_url)
+        .await
+        .expect("Failed to connect to Authenc service");
 
     // Initialize database connection
     info!("Connecting to database...");
@@ -109,8 +114,14 @@ async fn main() -> anyhow::Result<()> {
     // Create service with repository wrapper
     let service = PerlengkapanService::new(Arc::new(db));
 
+    // Create AppState
+    let state = AppState {
+        service,
+        authenc: authenc_client,
+    };
+
     // Build router
-    let app = build_router(service);
+    let app = build_router(state);
 
     // Start server
     let addr: SocketAddr = format!("{}:{}", host, port).parse()?;
@@ -122,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build_router(service: PerlengkapanService) -> Router {
+fn build_router(state: AppState) -> Router {
     let allowed_origins = std::env::var("CORS_ALLOWED_ORIGINS").unwrap_or_else(|_| "*".to_string());
 
     let cors = if allowed_origins == "*" {
@@ -150,7 +161,12 @@ fn build_router(service: PerlengkapanService) -> Router {
         .route("/health/live", get(liveness_check));
 
     // API routes with authentication
-    let api_routes = routes::create_routes(service);
+    // Note: create_routes expects PerlengkapanService, but we pass AppState
+    // We need to adjust routes.rs or pass state.service specifically if routes expects service directly.
+    // However, typical pattern is router.with_state(state).
+    // Let's check routes.rs
+
+    let api_routes = routes::create_routes(state.clone()); // Need to update routes.rs signature
 
     // Combine all routes
     Router::new()

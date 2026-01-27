@@ -4,9 +4,9 @@
 
 use axum::{Router, routing::{get, post}};
 
-use crate::{handlers::*, services::PerlengkapanService};
+use crate::{handlers::*, AppState};
 
-pub fn create_routes(service: PerlengkapanService) -> Router {
+pub fn create_routes(state: AppState) -> Router {
     Router::new()
         // Health check (no auth required)
         .route("/health", get(health_check))
@@ -26,5 +26,5 @@ pub fn create_routes(service: PerlengkapanService) -> Router {
         // Integration routes
         .route("/sync/siman", post(sync_siman))
         // Add the service as state
-        .with_state(service)
+        .with_state(state)
 }
