@@ -46,6 +46,7 @@ mod api;
 mod tests;
 
 use components::aset_list::AsetList;
+use api::fetch_dashboard_stats;
 
 // ============================================================================
 // Constants & Configuration
@@ -216,6 +217,16 @@ fn BantuanRoutes() -> impl IntoView {
 // Dashboard Home Component
 #[component]
 fn DashboardHome() -> impl IntoView {
+    let stats_resource = LocalResource::new(move || async move {
+        match fetch_dashboard_stats().await {
+            Ok(response) => Some(response.data),
+            Err(e) => {
+                leptos::logging::error!("Failed to fetch stats: {:?}", e);
+                None
+            }
+        }
+    });
+
     view! {
         <div class="space-y-6 animate-fade-in">
             // Welcome Banner dengan gradient dan animasi
@@ -254,100 +265,109 @@ fn DashboardHome() -> impl IntoView {
                 </div>
             </div>
 
-            // Quick Stats Cards dengan animasi stagger
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                // Card 1 - Total Aset
-                <div class="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-                    <div class="relative z-10">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
-                                <i class="fas fa-box text-2xl"></i>
-                            </div>
-                            <i class="fas fa-arrow-trend-up text-white/50"></i>
-                        </div>
-                        <h3 class="text-sm font-medium opacity-90 mb-1">"Total Aset"</h3>
-                        <p class="text-4xl font-bold mb-1">"1,234"</p>
-                        <p class="text-xs opacity-75">
-                            <i class="fas fa-arrow-up mr-1"></i>
-                            "+12% dari bulan lalu"
-                        </p>
-                    </div>
-                </div>
+            <Suspense fallback=move || view! { <div class="text-center py-12">"Memuat statistik..."</div> }>
+                {move || {
+                    stats_resource.get().flatten().map(|stats| {
+                        view! {
+                             // Quick Stats Cards dengan animasi stagger
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                                // Card 1 - Total Aset
+                                <div class="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left">
+                                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
+                                                <i class="fas fa-box text-2xl"></i>
+                                            </div>
+                                            <i class="fas fa-arrow-trend-up text-white/50"></i>
+                                        </div>
+                                        <h3 class="text-sm font-medium opacity-90 mb-1">"Total Aset"</h3>
+                                        <p class="text-4xl font-bold mb-1">{stats.total_aset}</p>
+                                        <p class="text-xs opacity-75">
+                                            <i class="fas fa-arrow-up mr-1"></i>
+                                            "Terintegrasi SIMAN"
+                                        </p>
+                                    </div>
+                                </div>
 
-                // Card 2 - Pengadaan Aktif
-                <div class="group relative overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.1s">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-                    <div class="relative z-10">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
-                                <i class="fas fa-shopping-cart text-2xl"></i>
-                            </div>
-                            <i class="fas fa-pulse text-white/50"></i>
-                        </div>
-                        <h3 class="text-sm font-medium opacity-90 mb-1">"Pengadaan Aktif"</h3>
-                        <p class="text-4xl font-bold mb-1">"23"</p>
-                        <p class="text-xs opacity-75">
-                            <i class="fas fa-clock mr-1"></i>
-                            "5 menunggu persetujuan"
-                        </p>
-                    </div>
-                </div>
+                                // Card 2 - Aset Baik
+                                <div class="group relative overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.1s">
+                                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
+                                                <i class="fas fa-check-circle text-2xl"></i>
+                                            </div>
+                                            <i class="fas fa-pulse text-white/50"></i>
+                                        </div>
+                                        <h3 class="text-sm font-medium opacity-90 mb-1">"Kondisi Baik"</h3>
+                                        <p class="text-4xl font-bold mb-1">{stats.aset_baik}</p>
+                                        <p class="text-xs opacity-75">
+                                            <i class="fas fa-check mr-1"></i>
+                                            "Siap Pakai"
+                                        </p>
+                                    </div>
+                                </div>
 
-                // Card 3 - Pending Approval
-                <div class="group relative overflow-hidden bg-gradient-to-br from-amber-500 to-yellow-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.2s">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-                    <div class="relative z-10">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
-                                <i class="fas fa-hourglass-half text-2xl animate-spin-slow"></i>
-                            </div>
-                            <i class="fas fa-exclamation text-white/50"></i>
-                        </div>
-                        <h3 class="text-sm font-medium opacity-90 mb-1">"Pending Approval"</h3>
-                        <p class="text-4xl font-bold mb-1">"12"</p>
-                        <p class="text-xs opacity-75">
-                            <i class="fas fa-user-clock mr-1"></i>
-                            "3 perlu tindakan segera"
-                        </p>
-                    </div>
-                </div>
+                                // Card 3 - Aset Rusak
+                                <div class="group relative overflow-hidden bg-gradient-to-br from-amber-500 to-yellow-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.2s">
+                                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
+                                                <i class="fas fa-exclamation-circle text-2xl animate-spin-slow"></i>
+                                            </div>
+                                            <i class="fas fa-exclamation text-white/50"></i>
+                                        </div>
+                                        <h3 class="text-sm font-medium opacity-90 mb-1">"Kondisi Rusak"</h3>
+                                        <p class="text-4xl font-bold mb-1">{stats.aset_rusak}</p>
+                                        <p class="text-xs opacity-75">
+                                            <i class="fas fa-tools mr-1"></i>
+                                            "Perlu Perbaikan/Penghapusan"
+                                        </p>
+                                    </div>
+                                </div>
 
-                // Card 4 - Perlu Perhatian
-                <div class="group relative overflow-hidden bg-gradient-to-br from-red-500 to-pink-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.3s">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-                    <div class="relative z-10">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
-                                <i class="fas fa-exclamation-triangle text-2xl animate-pulse"></i>
+                                // Card 4 - Total Satker
+                                <div class="group relative overflow-hidden bg-gradient-to-br from-red-500 to-pink-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.3s">
+                                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
+                                                <i class="fas fa-building text-2xl animate-pulse"></i>
+                                            </div>
+                                            <i class="fas fa-bell text-white/50 animate-swing"></i>
+                                        </div>
+                                        <h3 class="text-sm font-medium opacity-90 mb-1">"Total Satker"</h3>
+                                        <p class="text-4xl font-bold mb-1">{stats.total_satker}</p>
+                                        <p class="text-xs opacity-75">
+                                            <i class="fas fa-map-marker-alt mr-1"></i>
+                                            "Satuan Kerja Terdata"
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <i class="fas fa-bell text-white/50 animate-swing"></i>
-                        </div>
-                        <h3 class="text-sm font-medium opacity-90 mb-1">"Perlu Perhatian"</h3>
-                        <p class="text-4xl font-bold mb-1">"5"</p>
-                        <p class="text-xs opacity-75">
-                            <i class="fas fa-triangle-exclamation mr-1"></i>
-                            "Tindakan diperlukan"
-                        </p>
-                    </div>
-                </div>
-            </div>
+                        }
+                    })
+                }}
+            </Suspense>
 
             // Quick Actions Section
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-emerald-200">
+                 // Keep existing static quick actions
+                 <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-emerald-200">
                     <div class="flex items-center gap-4 mb-4">
                         <div class="p-3 bg-emerald-100 rounded-lg">
                             <i class="fas fa-plus-circle text-2xl text-emerald-600"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-900">"Pengadaan Baru"</h3>
-                            <p class="text-xs text-gray-500">"Buat pengadaan aset baru"</p>
+                            <h3 class="font-bold text-gray-900">"Bank Aset"</h3>
+                            <p class="text-xs text-gray-500">"Lihat daftar aset BMN"</p>
                         </div>
                     </div>
-                    <button class="w-full py-2 px-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:shadow-lg transition-all hover:scale-105 font-medium">
-                        "Mulai Pengadaan"
-                    </button>
+                    <a href="/dashboard/bank-aset/daftar" class="block w-full text-center py-2 px-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:shadow-lg transition-all hover:scale-105 font-medium">
+                        "Buka Bank Aset"
+                    </a>
                 </div>
 
                 <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-blue-200">

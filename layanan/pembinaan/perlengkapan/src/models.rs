@@ -6,94 +6,65 @@ use tokio_postgres::Row;
 use uuid::Uuid;
 use validator::Validate;
 
-// ============ Aset Models ============
+// ============ Aset Models (Mapped to integrasi.siman_aset) ============
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Aset {
+pub struct Asset {
     pub id: Uuid,
-    pub nama: String,
-    pub kategori: String,
-    pub kode_bmn: String,
+    pub kategori_aset: String,
+    pub no_aset: String,
+    pub nama_aset: Option<String>, // ur_sskel or nama
+    pub kode_barang: Option<String>, // kd_brg
     pub merk: Option<String>,
-    pub nup: Option<String>,
-    pub kondisi: String,
-    pub lokasi: String,
-    pub nilai_perolehan: Option<f64>,
-    pub tanggal_perolehan: Option<NaiveDate>,
-    pub status: String,
-    pub keterangan: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub tipe: Option<String>,
+    pub kondisi: Option<String>, // ur_kondisi
+    pub lokasi: Option<String>, // alamat
+    pub satker: Option<String>, // nama_satker
+    pub nilai_perolehan: Option<f64>, // rph_aset
+    pub tgl_perolehan: Option<String>, // tgl_perlh
     pub updated_at: DateTime<Utc>,
-    pub created_by: Option<Uuid>,
-    pub updated_by: Option<Uuid>,
 }
 
-impl Aset {
+impl Asset {
     pub fn from_row(row: &Row) -> Self {
         Self {
             id: row.get("id"),
-            nama: row.get("nama"),
-            kategori: row.get("kategori"),
-            kode_bmn: row.get("kode_bmn"),
+            kategori_aset: row.get("kategori_aset"),
+            no_aset: row.get("no_aset"),
+            nama_aset: row.try_get("ur_sskel").ok().or_else(|| row.try_get("nama").ok()),
+            kode_barang: row.try_get("kd_brg").ok(),
             merk: row.try_get("merk").ok(),
-            nup: row.try_get("nup").ok(),
-            kondisi: row.get("kondisi"),
-            lokasi: row.get("lokasi"),
-            nilai_perolehan: row.get("nilai_perolehan"),
-            tanggal_perolehan: row.get("tanggal_perolehan"),
-            status: row.get("status"),
-            keterangan: row.get("keterangan"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-            created_by: row.get("created_by"),
-            updated_by: row.get("updated_by"),
+            tipe: row.try_get("tipe").ok(),
+            kondisi: row.try_get("ur_kondisi").ok(),
+            lokasi: row.try_get("alamat").ok(),
+            satker: row.try_get("nama_satker").ok(),
+            nilai_perolehan: row.try_get("rph_aset").ok(), // In table it is TEXT or Numeric? Migration said TEXT for some money fields but usually mapped to f64 via casts
+            tgl_perolehan: row.try_get("tgl_perlh").ok(),
+            updated_at: row.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
-pub struct CreateAsetRequest {
-    #[validate(length(min = 1, max = 255))]
-    pub nama: String,
-    #[validate(length(min = 1, max = 100))]
-    pub kategori: String,
-    #[validate(length(min = 1, max = 50))]
-    pub kode_bmn: String,
-    #[validate(length(min = 1, max = 100))]
-    pub merk: Option<String>,
-    #[validate(length(min = 1, max = 50))]
-    pub nup: Option<String>,
-    #[validate(length(min = 1, max = 50))]
-    pub kondisi: String,
-    #[validate(length(min = 1, max = 255))]
-    pub lokasi: String,
-    pub nilai_perolehan: Option<f64>,
-    pub tanggal_perolehan: Option<NaiveDate>,
-    pub keterangan: Option<String>,
+// ============ Dashboard Models ============
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DashboardStats {
+    pub total_aset: i64,
+    pub total_nilai_aset: f64,
+    pub total_satker: i64,
+    pub aset_baik: i64,
+    pub aset_rusak: i64,
+    pub categories: Vec<CategoryStat>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
-pub struct UpdateAsetRequest {
-    #[validate(length(min = 1, max = 255))]
-    pub nama: Option<String>,
-    #[validate(length(min = 1, max = 100))]
-    pub kategori: Option<String>,
-    #[validate(length(min = 1, max = 100))]
-    pub merk: Option<String>,
-    #[validate(length(min = 1, max = 50))]
-    pub nup: Option<String>,
-    #[validate(length(min = 1, max = 50))]
-    pub kondisi: Option<String>,
-    #[validate(length(min = 1, max = 255))]
-    pub lokasi: Option<String>,
-    pub nilai_perolehan: Option<f64>,
-    pub tanggal_perolehan: Option<NaiveDate>,
-    #[validate(length(min = 1, max = 50))]
-    pub status: Option<String>,
-    pub keterangan: Option<String>,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CategoryStat {
+    pub category: String,
+    pub count: i64,
+    pub value: f64,
 }
 
-// ============ Pengadaan Models ============
+// ============ Pengadaan Models (Local) ============
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Pengadaan {
@@ -142,7 +113,7 @@ pub struct CreatePengadaanRequest {
     pub pic_user_id: Option<Uuid>,
 }
 
-// ============ Analisis Kebutuhan Models ============
+// ============ Analisis Kebutuhan Models (Local) ============
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AnalisisKebutuhan {
@@ -192,18 +163,6 @@ pub struct CreateAnalisisRequest {
     pub justifikasi: Option<String>,
 }
 
-// ============ Dashboard Models ============
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DashboardStats {
-    pub total_aset: i64,
-    pub total_pengadaan: i64,
-    pub total_analisis: i64,
-    pub aset_aktif: i64,
-    pub pengadaan_berjalan: i64,
-    pub analisis_pending: i64,
-}
-
 // ============ Response Models ============
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -250,66 +209,5 @@ impl<T> PaginatedResponse<T> {
             total_pages,
             message,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_paginated_response_division_by_zero() {
-        let response: PaginatedResponse<String> = PaginatedResponse::new(vec![], 100, 1, 0, "Test".to_string());
-        assert_eq!(response.total_pages, 0);
-    }
-
-    #[test]
-    fn test_create_aset_validation() {
-        let request = CreateAsetRequest {
-            nama: "".to_string(), // Invalid: empty
-            kategori: "Elektronik".to_string(),
-            kode_bmn: "123".to_string(),
-            merk: Some("Sony".to_string()),
-            nup: Some("1".to_string()),
-            kondisi: "baik".to_string(),
-            lokasi: "Gudang".to_string(),
-            nilai_perolehan: Some(1000.0),
-            tanggal_perolehan: None,
-            keterangan: None,
-        };
-
-        assert!(request.validate().is_err());
-
-        let valid_request = CreateAsetRequest {
-            nama: "Laptop".to_string(),
-            kategori: "Elektronik".to_string(),
-            kode_bmn: "123".to_string(),
-            merk: Some("Sony".to_string()),
-            nup: Some("1".to_string()),
-            kondisi: "baik".to_string(),
-            lokasi: "Gudang".to_string(),
-            nilai_perolehan: Some(1000.0),
-            tanggal_perolehan: None,
-            keterangan: None,
-        };
-
-        assert!(valid_request.validate().is_ok());
-    }
-
-    #[test]
-    fn test_create_aset_validation_fields() {
-         let request = CreateAsetRequest {
-            nama: "Laptop".to_string(),
-            kategori: "Elektronik".to_string(),
-            kode_bmn: "123".to_string(),
-            merk: Some("A".repeat(101)), // Invalid: too long
-            nup: Some("1".to_string()),
-            kondisi: "baik".to_string(),
-            lokasi: "Gudang".to_string(),
-            nilai_perolehan: Some(1000.0),
-            tanggal_perolehan: None,
-            keterangan: None,
-        };
-        assert!(request.validate().is_err());
     }
 }

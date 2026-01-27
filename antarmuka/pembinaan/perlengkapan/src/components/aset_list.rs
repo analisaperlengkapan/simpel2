@@ -1,15 +1,17 @@
 use leptos::prelude::*;
-use crate::api::{fetch_assets, Aset};
+use crate::api::{fetch_assets, Asset};
 
 #[component]
 pub fn AsetList() -> impl IntoView {
     let (page, set_page) = signal(1);
+    let (category, set_category) = signal(None::<String>);
 
     // Resource to fetch assets when page changes
     let assets_resource = LocalResource::new(move || {
         let p = page.get();
+        let c = category.get();
         async move {
-            match fetch_assets(p, 20).await {
+            match fetch_assets(p, 20, c).await {
                 Ok(response) => Some(response),
                 Err(e) => {
                     leptos::logging::error!("Failed to fetch assets: {:?}", e);
@@ -24,12 +26,25 @@ pub fn AsetList() -> impl IntoView {
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold text-gray-800">"Daftar Aset"</h2>
                 <div class="flex gap-2">
-                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-plus mr-2"></i> "Tambah Aset"
-                    </button>
-                    <button class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                         <i class="fas fa-filter mr-2"></i> "Filter"
-                    </button>
+                    <select
+                        class="px-3 py-2 border rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        on:change=move |ev| {
+                            let val = event_target_value(&ev);
+                            if val.is_empty() {
+                                set_category.set(None);
+                            } else {
+                                set_category.set(Some(val));
+                            }
+                            set_page.set(1); // Reset to page 1
+                        }
+                    >
+                        <option value="">"Semua Kategori"</option>
+                        <option value="Tanah">"Tanah"</option>
+                        <option value="Gedung Bangunan">"Gedung dan Bangunan"</option>
+                        <option value="Alat Besar">"Alat Besar"</option>
+                        <option value="Angkutan Bermotor">"Angkutan Bermotor"</option>
+                        // Add other categories as needed
+                    </select>
                 </div>
             </div>
 
@@ -41,9 +56,6 @@ pub fn AsetList() -> impl IntoView {
                                 <div class="text-center py-12 text-gray-500">
                                     <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
                                     <p>"Belum ada data aset."</p>
-                                    <button class="mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                        "Tambah Aset Baru"
-                                    </button>
                                 </div>
                             }.into_any()
                         } else {
@@ -52,12 +64,12 @@ pub fn AsetList() -> impl IntoView {
                                     <table class="w-full text-left border-collapse">
                                     <thead>
                                         <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-                                            <th class="p-3 font-semibold border-b">"Kode BMN"</th>
+                                            <th class="p-3 font-semibold border-b">"No Aset"</th>
+                                            <th class="p-3 font-semibold border-b">"Kode Barang"</th>
                                             <th class="p-3 font-semibold border-b">"Nama Aset"</th>
                                             <th class="p-3 font-semibold border-b">"Kategori"</th>
-                                            <th class="p-3 font-semibold border-b">"Merk"</th>
                                             <th class="p-3 font-semibold border-b">"Kondisi"</th>
-                                            <th class="p-3 font-semibold border-b">"Lokasi"</th>
+                                            <th class="p-3 font-semibold border-b">"Satker"</th>
                                             <th class="p-3 font-semibold border-b">"Nilai"</th>
                                             <th class="p-3 font-semibold border-b">"Aksi"</th>
                                         </tr>
@@ -66,20 +78,21 @@ pub fn AsetList() -> impl IntoView {
                                         <For
                                             each=move || response.data.clone()
                                             key=|aset| aset.id.clone()
-                                            children=move |aset: Aset| {
+                                            children=move |aset: Asset| {
                                                 view! {
                                                     <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
-                                                        <td class="p-3 font-mono text-xs">{aset.kode_bmn}</td>
-                                                        <td class="p-3 font-medium">{aset.nama}</td>
+                                                        <td class="p-3 font-mono text-xs">{aset.no_aset}</td>
+                                                        <td class="p-3 font-mono text-xs">{aset.kode_barang.unwrap_or("-".to_string())}</td>
+                                                        <td class="p-3 font-medium">{aset.nama_aset.unwrap_or("-".to_string())}</td>
                                                         <td class="p-3">
                                                             <span class="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-600">
-                                                                {aset.kategori}
+                                                                {aset.kategori_aset}
                                                             </span>
                                                         </td>
-                                                        <td class="p-3">{aset.merk.unwrap_or("-".to_string())}</td>
                                                         <td class="p-3">
                                                             {
-                                                                let color_class = match aset.kondisi.to_lowercase().as_str() {
+                                                                let kond = aset.kondisi.unwrap_or("-".to_string());
+                                                                let color_class = match kond.to_lowercase().as_str() {
                                                                     "baik" => "bg-green-100 text-green-700",
                                                                     "rusak ringan" => "bg-yellow-100 text-yellow-700",
                                                                     "rusak berat" => "bg-red-100 text-red-700",
@@ -87,12 +100,12 @@ pub fn AsetList() -> impl IntoView {
                                                                 };
                                                                 view! {
                                                                     <span class={format!("px-2 py-1 rounded-full text-xs capitalize {}", color_class)}>
-                                                                        {aset.kondisi}
+                                                                        {kond}
                                                                     </span>
                                                                 }
                                                             }
                                                         </td>
-                                                        <td class="p-3">{aset.lokasi}</td>
+                                                        <td class="p-3">{aset.satker.unwrap_or("-".to_string())}</td>
                                                         <td class="p-3 text-right">
                                                             {
                                                                 aset.nilai_perolehan
@@ -102,11 +115,8 @@ pub fn AsetList() -> impl IntoView {
                                                         </td>
                                                         <td class="p-3">
                                                             <div class="flex gap-2">
-                                                                <button class="text-blue-600 hover:text-blue-800" title="Edit">
-                                                                    <i class="fas fa-edit"></i>
-                                                                </button>
-                                                                <button class="text-red-600 hover:text-red-800" title="Hapus">
-                                                                    <i class="fas fa-trash"></i>
+                                                                <button class="text-blue-600 hover:text-blue-800" title="Detail">
+                                                                    <i class="fas fa-eye"></i>
                                                                 </button>
                                                             </div>
                                                         </td>

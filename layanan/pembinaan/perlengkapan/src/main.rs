@@ -61,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
     // Load configuration from environment
     let host = std::env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port = std::env::var("SERVER_PORT")
-        .unwrap_or_else(|_| "3020".to_string())
+        .unwrap_or_else(|_| "8093".to_string())
         .parse::<u16>()
         .expect("SERVER_PORT must be a valid port number");
 
