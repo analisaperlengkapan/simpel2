@@ -779,8 +779,6 @@ mod tests {
 
 // Module declarations
 pub mod postgresql;
-    pub parameters: HashMap<String, String>,
-}
 
 /// Storage Transaction
 #[async_trait]

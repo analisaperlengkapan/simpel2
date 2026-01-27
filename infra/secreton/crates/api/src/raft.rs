@@ -3,7 +3,7 @@
 //! API endpoints for managing Raft cluster operations.
 
 use axum::
-    extract::Path, State,
+    extract::{Path, State},
     http::StatusCode,
     response::Json,
     routing::delete, get, post,
