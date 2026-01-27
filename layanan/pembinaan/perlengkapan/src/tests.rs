@@ -190,3 +190,6 @@ mod tests {
         assert_eq!(errors, 1);
     }
 }
+
+// Register handler tests
+mod handlers_test;
