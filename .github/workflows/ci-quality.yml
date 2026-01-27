@@ -32,13 +32,13 @@ jobs:
           # Install cargo-llvm-cov binary
           if ! command -v cargo-llvm-cov &> /dev/null; then
             echo "Installing cargo-llvm-cov..."
-            curl -LsSf https://github.com/taiki-e/cargo-llvm-cov/releases/latest/download/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz | tar xzf - -C $HOME/.cargo/bin
+            curl -LsSf https://github.com/taiki-e/cargo-llvm-cov/releases/latest/download/cargo-llvm-cov-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C $HOME/.cargo/bin
           fi
 
           # Install tokei binary
           if ! command -v tokei &> /dev/null; then
             echo "Installing tokei..."
-            curl -LsSf https://github.com/XAMPPRocky/tokei/releases/latest/download/tokei-x86_64-unknown-linux-gnu.tar.gz | tar xzf - -C $HOME/.cargo/bin
+            curl -LsSf https://github.com/XAMPPRocky/tokei/releases/latest/download/tokei-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C $HOME/.cargo/bin
           fi
 
       - name: Documentation Build
