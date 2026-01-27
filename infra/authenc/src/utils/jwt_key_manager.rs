@@ -144,7 +144,11 @@ impl JwtKeyManager {
             base64::decode(&key_data[7..])
                 .map_err(|e| JwtKeyError::InvalidKeyFormat(format!("Base64 decode error: {}", e)))?
         } else {
-            key_data.as_bytes().to_vec()
+            let bytes = key_data.as_bytes().to_vec();
+            if bytes.is_empty() {
+                return Err(JwtKeyError::InvalidKeyFormat("Empty key data".to_string()));
+            }
+            bytes
         };
 
         // Extract algorithm

@@ -1,5 +1,6 @@
 # Docker ignore file
 target/
+target_authenc/
 .git/
 .env
 .idea/
@@ -10,3 +11,9 @@ dist/
 tmp/
 coverage/
 doc/
+build_output/
+*.txt
+*.log
+.kiro/
+.claude/
+.windsurf/

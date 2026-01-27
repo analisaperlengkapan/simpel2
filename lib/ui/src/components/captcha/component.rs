@@ -81,7 +81,7 @@ pub fn Captcha(
                 .and_then(|w| w.location().origin().ok())
                 .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-            let verify_url = format!("{}/api/portal/captcha/verify", backend_url);
+            let verify_url = format!("{}/api/captcha/verify", backend_url);
 
             // Prepare validation request
             let validation_request = ValidationRequest {
@@ -92,6 +92,7 @@ pub fn Captcha(
 
             let mut success = false;
             let mut error_msg = "Verification failed".to_string();
+            let mut val_resp: Option<ValidationResponse> = None;
 
             // Make API call to Authenc
             match web_sys::window() {
@@ -125,16 +126,17 @@ pub fn Captcha(
                                         )
                                         .await
                                         {
-                                            if let Ok(val_resp) = serde_wasm_bindgen::from_value::<
+                                            if let Ok(parsed_resp) = serde_wasm_bindgen::from_value::<
                                                 ValidationResponse,
                                             >(
                                                 json
                                             ) {
-                                                if val_resp.success {
+                                                if parsed_resp.success {
                                                     success = true;
                                                 } else {
-                                                    error_msg = val_resp.message;
+                                                    error_msg = parsed_resp.message.clone();
                                                 }
+                                                val_resp = Some(parsed_resp);
                                             }
                                         }
                                     } else {
@@ -158,7 +160,8 @@ pub fn Captcha(
 
             if success {
                 set_validation_status.set(ValidationStatus::Success);
-                on_success_clone.run(format!("captcha_verified_{}", session_id_val));
+                let token = val_resp.and_then(|r| r.token).unwrap_or_else(|| format!("captcha_verified_{}", session_id_val));
+                on_success_clone.run(token);
             } else {
                 set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
                 set_state.update(|s| {
@@ -196,7 +199,7 @@ pub fn Captcha(
                 .and_then(|w| w.location().origin().ok())
                 .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-            let challenge_url = format!("{}/api/portal/captcha/challenge", backend_url);
+            let challenge_url = format!("{}/api/captcha/challenge", backend_url);
 
             // Prepare request payload
             let request_payload = serde_json::json!({
@@ -742,7 +745,7 @@ pub fn ChallengeInput(
                 .and_then(|w| w.location().origin().ok())
                 .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-            let verify_url = format!("{}/api/portal/captcha/verify", backend_url);
+            let verify_url = format!("{}/api/captcha/verify", backend_url);
 
             // Prepare validation request
             let validation_request = ValidationRequest {
@@ -753,6 +756,7 @@ pub fn ChallengeInput(
 
             let mut success = false;
             let mut error_msg = "Verification failed".to_string();
+            let mut val_resp: Option<ValidationResponse> = None;
 
             // Make API call to Authenc
             match web_sys::window() {
@@ -786,16 +790,17 @@ pub fn ChallengeInput(
                                         )
                                         .await
                                         {
-                                            if let Ok(val_resp) = serde_wasm_bindgen::from_value::<
+                                            if let Ok(parsed_resp) = serde_wasm_bindgen::from_value::<
                                                 ValidationResponse,
                                             >(
                                                 json
                                             ) {
-                                                if val_resp.success {
+                                                if parsed_resp.success {
                                                     success = true;
                                                 } else {
-                                                    error_msg = val_resp.message;
+                                                    error_msg = parsed_resp.message.clone();
                                                 }
+                                                val_resp = Some(parsed_resp);
                                             }
                                         }
                                     } else {
@@ -819,13 +824,8 @@ pub fn ChallengeInput(
 
             if success {
                 set_validation_status.set(ValidationStatus::Success);
-                // The token is the response or we generate one? usually the backend returns a token.
-                // For now, assuming successful verification implies we can proceed.
-                // Ideally, the validation response should contain the token.
-                // But `ValidationResponse` in `types.rs` doesn't have a token field?
-                // Let's assume we pass the session_id or a signed token.
-                // For now, retaining the previous logic but with success flag
-                on_submit.run(format!("captcha_verified_{}", session_id_val));
+                let token = val_resp.and_then(|r| r.token).unwrap_or_else(|| format!("captcha_verified_{}", session_id_val));
+                on_submit.run(token);
             } else {
                 set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
                 set_state.update(|s| {

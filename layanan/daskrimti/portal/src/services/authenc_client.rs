@@ -654,14 +654,19 @@ impl AuthencClient {
         &self,
         challenge_id: &str,
         answer: &str,
+        behavioral_data: Option<serde_json::Value>,
     ) -> Result<Option<String>, AuthencError> {
         let challenge_id_str = challenge_id.to_string();
         let answer_str = answer.to_string();
+        let behavior_bytes = behavioral_data
+            .and_then(|v| serde_json::to_vec(&v).ok())
+            .unwrap_or_default();
         let client = self.client.clone();
 
         self.execute_with_resilience(|| {
             let challenge_id = challenge_id_str.clone();
             let answer = answer_str.clone();
+            let behavior = behavior_bytes.clone();
             let mut client = client.clone();
 
             async move {
@@ -670,7 +675,7 @@ impl AuthencClient {
                 let request = CaptchaVerificationRequest {
                     challenge_id,
                     answer,
-                    behavioral_data: vec![], // Can be populated from frontend later
+                    behavioral_data: behavior,
                     session_id: String::new(),
                 };
 

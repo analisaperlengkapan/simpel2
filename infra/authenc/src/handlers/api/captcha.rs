@@ -170,6 +170,8 @@ pub struct ValidationResponse {
     pub lockout_duration: Option<u64>,
     /// Response message
     pub message: String,
+    /// Verification token (if successful)
+    pub token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -279,7 +281,7 @@ pub async fn generate_challenge(
         metadata.insert("session_id".to_string(), session_id.clone());
     }
     metadata.insert("ip".to_string(), ip);
-    metadata.insert("correct_answer".to_string(), answer.clone());
+    // REMOVED: correct_answer leak (Bug 2)
     if let Some(context) = req.context {
         metadata.extend(context);
     }
@@ -354,7 +356,7 @@ pub async fn validate_challenge(
 
     // Validate challenge
     let result = captcha_service
-        .validate_challenge(req.challenge_id, req.answer, req.behavioral_data)
+        .validate_challenge(req.challenge_id.clone(), req.answer.clone(), req.behavioral_data.clone())
         .await
         .map_err(|e| match e {
             CaptchaError::ValidationFailed { message, .. } => AuthencError::validation(&message),
@@ -393,6 +395,18 @@ pub async fn validate_challenge(
         retry_allowed: result.retry_allowed,
         lockout_duration,
         message: result.message,
+        token: if result.success {
+            Some(format!(
+                "captcha_verified_{}_{}",
+                req.challenge_id,
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            ))
+        } else {
+            None
+        },
     };
 
     Ok(Json(response))

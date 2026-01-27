@@ -135,9 +135,9 @@ spec:
         - protocol: TCP
           port: 6379  # Redis
         - protocol: TCP
-          port: 9090  # Authenc gRPC
+          port: 9088  # Authenc gRPC (Updated from 9090)
         - protocol: TCP
-          port: 9200  # Secreton gRPC
+          port: 9000  # Secreton gRPC (Updated from 9200)
 
     # Istio sidecar communication
     - from:

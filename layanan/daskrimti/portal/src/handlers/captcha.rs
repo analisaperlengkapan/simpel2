@@ -99,7 +99,7 @@ pub async fn verify_captcha(
     // Call Authenc via gRPC to verify CAPTCHA
     match state
         .authenc
-        .verify_captcha(&request.challenge_id, &request.answer)
+        .verify_captcha(&request.challenge_id, &request.answer, request.behavioral_data)
         .await
     {
         Ok(token_opt) => {

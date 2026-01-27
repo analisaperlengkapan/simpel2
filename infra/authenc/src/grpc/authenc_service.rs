@@ -877,9 +877,13 @@ impl AuthencService for AuthencGrpcService {
         &self,
         request: Request<CaptchaChallengeRequest>,
     ) -> Result<Response<CaptchaChallengeResponse>, Status> {
+        // Extract real client IP from gRPC metadata before consuming the request
+        let ip_address = request
+            .remote_addr()
+            .map(|addr| addr.ip().to_string())
+            .unwrap_or_else(|| "0.0.0.0".to_string());
+
         let req = request.into_inner();
-        // Extract IP from metadata or use a default
-        let ip_address = "0.0.0.0".to_string();
 
         // Convert challenge type
         let challenge_type = match req.challenge_type {

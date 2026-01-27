@@ -1,6 +1,6 @@
 -- User Sessions Table
 -- Stores active user authentication sessions with tokens and metadata
-DROP TABLE IF EXISTS user_sessions CASCADE;
+-- Create user_sessions table if it doesn't exist
 CREATE TABLE IF NOT EXISTS user_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

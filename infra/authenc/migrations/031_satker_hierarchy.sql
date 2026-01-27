@@ -1,7 +1,7 @@
 -- Migration: Satker Hierarchy for Organization-Aware Authorization
 -- Description: Create satkers table and related structures for hierarchical organization management
 
-DROP TABLE IF EXISTS satkers CASCADE;
+-- Create satkers table if it doesn't exist
 CREATE TABLE IF NOT EXISTS satkers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) NOT NULL UNIQUE,
@@ -49,7 +49,7 @@ END $$;
 -- Create index on users.satker_code for efficient lookups
 CREATE INDEX IF NOT EXISTS idx_users_satker_code ON users(satker_code);
 
-DROP TABLE IF EXISTS satker_permissions CASCADE;
+-- Create satker_permissions table if it doesn't exist
 CREATE TABLE IF NOT EXISTS satker_permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,

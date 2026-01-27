@@ -929,7 +929,8 @@ impl AppConfig {
                 // However, standard format is redis://[:password@]host[:port][/db]
                 // Let's assume standard auth.
                 if !password.is_empty() {
-                    format!("redis://:{}@{}:{}/0", password, host, port)
+                    let encoded_password = url::form_urlencoded::byte_serialize(password.as_bytes()).collect::<String>();
+                    format!("redis://:{}@{}:{}/0", encoded_password, host, port)
                 } else {
                     format!("redis://{}:{}/0", host, port)
                 }
