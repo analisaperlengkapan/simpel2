@@ -36,27 +36,6 @@ runs:
           sudo -n apt-get install -y unzip build-essential pkg-config libssl-dev gcc perl >/dev/null 2>&1 || true
         fi
 
-        # Fallback: Install Zig as portable C compiler if 'cc' is still missing
-        if ! command -v cc &> /dev/null; then
-          echo "System 'cc' not found. Installing portable Zig as C compiler..."
-          ZIG_VERSION="0.13.0"
-          curl -Lo zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz"
-          mkdir -p $HOME/.local/bin
-          tar -xf zig.tar.xz
-          mv zig-linux-x86_64-${ZIG_VERSION}/* $HOME/.local/bin/
-
-          # Create shims
-          echo '#!/bin/sh' > $HOME/.local/bin/cc
-          echo 'exec '$HOME'/.local/bin/zig cc "$@"' >> $HOME/.local/bin/cc
-          chmod +x $HOME/.local/bin/cc
-
-          echo '#!/bin/sh' > $HOME/.local/bin/gcc
-          echo 'exec '$HOME'/.local/bin/zig cc "$@"' >> $HOME/.local/bin/gcc
-          chmod +x $HOME/.local/bin/gcc
-
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "Zig installed and configured as 'cc'."
-        fi
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable

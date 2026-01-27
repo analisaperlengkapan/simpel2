@@ -33,7 +33,6 @@ jobs:
   check-and-lint:
     name: Check & Lint
     runs-on: self-hosted
-    container: rust:1.93-bookworm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -56,22 +55,7 @@ jobs:
   test:
     name: Test Suite
     runs-on: self-hosted
-    container: rust:1.93-bookworm
     needs: [check-and-lint]
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: simpelv2_test
-          POSTGRES_PASSWORD: test_password_secure_2024
-          POSTGRES_DB: simpelv2_test
-        options: >-
-          --health-cmd "pg_isready -U simpelv2_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 55432:5432
 
     steps:
       - name: Checkout repository
@@ -82,17 +66,14 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup database connection
-        run: |
-          echo "DATABASE_URL=postgres://simpelv2_test:test_password_secure_2024@localhost:55432/simpelv2_test" >> $GITHUB_ENV
 
       - name: Run workspace tests
         run: cargo test --workspace --all-targets --verbose
 
   build:
+  build:
     name: Build Release Binaries
     runs-on: self-hosted
-    container: rust:1.93-bookworm
     needs: [test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
