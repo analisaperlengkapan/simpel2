@@ -33,6 +33,7 @@ jobs:
   check-and-lint:
     name: Check & Lint
     runs-on: self-hosted
+    container: rust:1.93-bookworm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -55,6 +56,7 @@ jobs:
   test:
     name: Test Suite
     runs-on: self-hosted
+    container: rust:1.93-bookworm
     needs: [check-and-lint]
     services:
       postgres:
@@ -90,6 +92,7 @@ jobs:
   build:
     name: Build Release Binaries
     runs-on: self-hosted
+    container: rust:1.93-bookworm
     needs: [test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:

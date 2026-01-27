@@ -16,6 +16,7 @@ jobs:
   quality:
     name: Quality Checks
     runs-on: self-hosted
+    container: rust:1.93-bookworm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
