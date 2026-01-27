@@ -649,7 +649,12 @@ impl BenchmarkResults {
         }
     }
 
-    fn add_benchmark_result(&mut self, category: &str, result: BenchmarkResult, duration: Duration) {
+    fn add_benchmark_result(
+        &mut self,
+        category: &str,
+        result: BenchmarkResult,
+        duration: Duration,
+    ) {
         self.benchmarks.insert(category.to_string(), result);
         self.total_duration += duration;
     }
