@@ -40,10 +40,20 @@ pub fn AsetList() -> impl IntoView {
                     >
                         <option value="">"Semua Kategori"</option>
                         <option value="Tanah">"Tanah"</option>
-                        <option value="Gedung Bangunan">"Gedung dan Bangunan"</option>
+                        <option value="Gedung Bangunan">"Gedung Bangunan"</option>
                         <option value="Alat Besar">"Alat Besar"</option>
                         <option value="Angkutan Bermotor">"Angkutan Bermotor"</option>
-                        // Add other categories as needed
+                        <option value="Alat Persenjataan">"Alat Persenjataan"</option>
+                        <option value="Bangunan Air">"Bangunan Air"</option>
+                        <option value="Instalasi Jaringan">"Instalasi Jaringan"</option>
+                        <option value="Jalan dan Jembatan">"Jalan dan Jembatan"</option>
+                        <option value="KDP">"KDP"</option>
+                        <option value="Khusus TIK">"Khusus TIK"</option>
+                        <option value="Non TIK">"Non TIK"</option>
+                        <option value="Rumah">"Rumah"</option>
+                        <option value="Tak Berwujud">"Tak Berwujud"</option>
+                        <option value="Tetap Lainnya">"Tetap Lainnya"</option>
+                        <option value="Tetap Renovasi">"Tetap Renovasi"</option>
                     </select>
                 </div>
             </div>

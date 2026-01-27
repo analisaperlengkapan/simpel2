@@ -180,12 +180,16 @@ impl PerlengkapanRepository for Database {
         }
 
         let query_str = if category.is_some() {
-            "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, rph_aset::FLOAT8, tgl_perlh, updated_at
+            "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker,
+             (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) as rph_aset,
+             tgl_perlh, updated_at
              FROM integrasi.siman_aset
              WHERE kategori_aset = $1
              ORDER BY updated_at DESC LIMIT $2 OFFSET $3"
         } else {
-             "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, rph_aset::FLOAT8, tgl_perlh, updated_at
+             "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker,
+             (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) as rph_aset,
+             tgl_perlh, updated_at
              FROM integrasi.siman_aset
              ORDER BY updated_at DESC LIMIT $1 OFFSET $2"
         };
@@ -209,7 +213,9 @@ impl PerlengkapanRepository for Database {
             .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
 
         let row = client
-            .query_opt("SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, rph_aset::FLOAT8, tgl_perlh, updated_at
+            .query_opt("SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker,
+                        (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) as rph_aset,
+                        tgl_perlh, updated_at
                         FROM integrasi.siman_aset WHERE id = $1", &[&id])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;

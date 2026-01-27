@@ -1,34 +1,35 @@
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        models::*,
-        repository::PerlengkapanRepository,
-        services::PerlengkapanService,
-        errors::{AppError, AppResult},
-    };
-    use async_trait::async_trait;
-    use mockall::mock;
-    use mockall::predicate::*;
-    use std::sync::Arc;
-    use uuid::Uuid;
-    use chrono::Utc;
+use crate::{
+    models::*,
+    repository::PerlengkapanRepository,
+    errors::AppResult,
+};
+use async_trait::async_trait;
+use mockall::mock;
+use uuid::Uuid;
 
-    // Define the mock repository
-    mock! {
-        pub Repository {}
-        #[async_trait]
-        impl PerlengkapanRepository for Repository {
-            async fn get_dashboard_stats(&self) -> AppResult<DashboardStats>;
-            async fn get_all_assets(&self, page: i32, per_page: i32, category: Option<String>) -> AppResult<(Vec<Asset>, i64)>;
-            async fn get_asset_by_id(&self, id: Uuid) -> AppResult<Asset>;
-            async fn get_all_pengadaan(&self, page: i32, per_page: i32) -> AppResult<(Vec<Pengadaan>, i64)>;
-            async fn get_pengadaan_by_id(&self, id: Uuid) -> AppResult<Pengadaan>;
-            async fn create_pengadaan(&self, request: CreatePengadaanRequest, user_id: Option<Uuid>) -> AppResult<Pengadaan>;
-            async fn get_all_analisis(&self, page: i32, per_page: i32) -> AppResult<(Vec<AnalisisKebutuhan>, i64)>;
-            async fn create_analisis(&self, request: CreateAnalisisRequest, user_id: Option<Uuid>) -> AppResult<AnalisisKebutuhan>;
-        }
+// Define the mock repository at file scope so it's visible to submodules
+mock! {
+    pub Repository {}
+    #[async_trait]
+    impl PerlengkapanRepository for Repository {
+        async fn get_dashboard_stats(&self) -> AppResult<DashboardStats>;
+        async fn get_all_assets(&self, page: i32, per_page: i32, category: Option<String>) -> AppResult<(Vec<Asset>, i64)>;
+        async fn get_asset_by_id(&self, id: Uuid) -> AppResult<Asset>;
+        async fn get_all_pengadaan(&self, page: i32, per_page: i32) -> AppResult<(Vec<Pengadaan>, i64)>;
+        async fn get_pengadaan_by_id(&self, id: Uuid) -> AppResult<Pengadaan>;
+        async fn create_pengadaan(&self, request: CreatePengadaanRequest, user_id: Option<Uuid>) -> AppResult<Pengadaan>;
+        async fn get_all_analisis(&self, page: i32, per_page: i32) -> AppResult<(Vec<AnalisisKebutuhan>, i64)>;
+        async fn create_analisis(&self, request: CreateAnalisisRequest, user_id: Option<Uuid>) -> AppResult<AnalisisKebutuhan>;
     }
+}
+
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+    use crate::services::PerlengkapanService;
+    use std::sync::Arc;
+    use mockall::predicate::*;
+    use chrono::Utc;
 
     #[tokio::test]
     async fn test_get_dashboard_stats() {
@@ -127,4 +128,5 @@ mod tests {
 }
 
 // Register handler tests
+#[cfg(test)]
 mod handlers_test;
