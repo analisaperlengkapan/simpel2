@@ -18,6 +18,9 @@ jobs:
     name: Dependency Audit & Policy
     runs-on: self-hosted
     steps:
+      - name: Fix Permissions
+        run: sudo chown -R $USER:$USER . && sudo chmod -R u+rw .
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -54,6 +57,9 @@ jobs:
     name: SAST - Semgrep
     runs-on: self-hosted
     steps:
+      - name: Fix Permissions
+        run: sudo chown -R $USER:$USER . && sudo chmod -R u+rw .
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -71,6 +77,9 @@ jobs:
     name: Secrets Scanning
     runs-on: self-hosted
     steps:
+      - name: Fix Permissions
+        run: sudo chown -R $USER:$USER . && sudo chmod -R u+rw .
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
