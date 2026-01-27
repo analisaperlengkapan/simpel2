@@ -17,8 +17,8 @@ jobs:
     name: Quality Checks
     runs-on: self-hosted
     steps:
-      - name: Fix Permissions
-        run: sudo chown -R $USER:$USER . && sudo chmod -R u+rw .
+      - name: Fix permissions
+        run: sudo -n chown -R $USER:$USER . || true
 
       - name: Checkout repository
         uses: actions/checkout@v6

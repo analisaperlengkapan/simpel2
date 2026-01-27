@@ -571,9 +571,21 @@ fn validate_performance_requirements(results: &PerformanceResults) -> Result<(),
     let requirements = vec![
         ("JWT signing should be < 10ms", "pegawai_jwt_signing", 10),
         ("Token validation should be < 8ms", "token_validation", 8),
-        ("Secret retrieval should be < 15ms", "secret_retrieval_by_role", 15),
-        ("Batch operations should be < 50ms", "satker_batch_operations", 50),
-        ("Post-quantum operations should be < 100ms", "post_quantum_operations", 100),
+        (
+            "Secret retrieval should be < 15ms",
+            "secret_retrieval_by_role",
+            15,
+        ),
+        (
+            "Batch operations should be < 50ms",
+            "satker_batch_operations",
+            50,
+        ),
+        (
+            "Post-quantum operations should be < 100ms",
+            "post_quantum_operations",
+            100,
+        ),
     ];
 
     for (requirement, benchmark_name, max_ms) in requirements {
