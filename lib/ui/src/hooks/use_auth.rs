@@ -120,14 +120,19 @@ impl AuthContext {
         #[cfg(target_arch = "wasm32")]
         {
             spawn_local(async move {
-                let authenc_url = std::env::var("AUTHENC_URL")
-                    .unwrap_or_else(|_| {
-                        if let Some(window) = window() {
-                            format!("{}/api/auth", window.location().origin().unwrap_or_else(|_| "http://localhost:8080".to_string()))
-                        } else {
-                            "http://localhost:8080".to_string()
-                        }
-                    });
+                let authenc_url = std::env::var("AUTHENC_URL").unwrap_or_else(|_| {
+                    if let Some(window) = window() {
+                        format!(
+                            "{}/api/auth",
+                            window
+                                .location()
+                                .origin()
+                                .unwrap_or_else(|_| "http://localhost:8080".to_string())
+                        )
+                    } else {
+                        "http://localhost:8080".to_string()
+                    }
+                });
 
                 let portal_url = get_portal_url();
                 let redirect_uri = format!("{}/logged-out", portal_url);
@@ -253,7 +258,13 @@ pub fn get_portal_url() -> String {
     // For development, default to current origin + /portal
     std::env::var("PORTAL_URL").unwrap_or_else(|_| {
         if let Some(window) = window() {
-            format!("{}/portal", window.location().origin().unwrap_or_else(|_| "http://localhost:8080".to_string()))
+            format!(
+                "{}/portal",
+                window
+                    .location()
+                    .origin()
+                    .unwrap_or_else(|_| "http://localhost:8080".to_string())
+            )
         } else {
             "http://localhost:8080".to_string()
         }
@@ -296,7 +307,8 @@ pub fn get_app_description() -> String {
     if let Some(window) = window() {
         if let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG")) {
             if !value.is_undefined() && !value.is_null() {
-                if let Ok(desc) = js_sys::Reflect::get(&value, &JsValue::from_str("appDescription")) {
+                if let Ok(desc) = js_sys::Reflect::get(&value, &JsValue::from_str("appDescription"))
+                {
                     if let Some(s) = desc.as_string() {
                         return s;
                     }

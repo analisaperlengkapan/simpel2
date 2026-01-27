@@ -29,9 +29,10 @@ runs:
     - name: Install system dependencies
       shell: bash
       run: |
-        if ! command -v unzip &> /dev/null || ! command -v pkg-config &> /dev/null; then
+        if ! command -v unzip &> /dev/null || ! command -v pkg-config &> /dev/null || ! command -v cc &> /dev/null; then
+          echo "Missing dependencies. Attempting to install..."
           sudo -n apt-get update || true
-          sudo -n apt-get install -y unzip build-essential pkg-config libssl-dev || echo "Warning: Could not install dependencies with sudo"
+          sudo -n apt-get install -y unzip build-essential pkg-config libssl-dev gcc || echo "Warning: Could not install dependencies with sudo"
         fi
 
     - name: Install Rust toolchain
