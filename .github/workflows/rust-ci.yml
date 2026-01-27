@@ -34,8 +34,6 @@ jobs:
     name: Check & Lint
     runs-on: self-hosted
     steps:
-      - name: Fix Permissions
-        run: sudo chown -R $USER:$USER . && sudo chmod -R u+rw .
 
       - name: Checkout repository
         uses: actions/checkout@v6
