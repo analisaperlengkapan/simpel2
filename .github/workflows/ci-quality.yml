@@ -24,6 +24,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: llvm-tools-preview
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Tools
         shell: bash

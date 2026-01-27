@@ -18,6 +18,10 @@ inputs:
     description: 'Additional cache key'
     required: false
     default: 'default'
+  github-token:
+    description: 'GitHub token for API requests'
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -41,6 +45,7 @@ runs:
       uses: arduino/setup-protoc@v3
       with:
         version: "25.x"
+        repo-token: ${{ inputs.github-token }}
 
     - name: Setup Rust cache
       uses: Swatinem/rust-cache@v2

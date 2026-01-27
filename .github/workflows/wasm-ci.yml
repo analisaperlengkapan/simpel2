@@ -42,6 +42,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
           cache-key: wasm-${{ matrix.module }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Trunk
         shell: bash
@@ -89,6 +90,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           components: clippy, rustfmt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run clippy (frontend)
         working-directory: antarmuka
