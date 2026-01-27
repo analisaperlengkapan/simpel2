@@ -34,6 +34,9 @@ jobs:
         module: [portal, badiklat, datun, intel, pemulihan_aset, pengawasan, pidmil, pidsus, pidum, "pembinaan/keuangan", "pembinaan/perencanaan", "pembinaan/perlengkapan"]
 
     steps:
+      - name: Fix Permissions
+        run: sudo chown -R $USER:$USER . && sudo chmod -R u+rw .
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
