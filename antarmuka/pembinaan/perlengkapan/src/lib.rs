@@ -48,6 +48,8 @@ mod tests;
 use components::aset_list::AsetList;
 use components::pengadaan_list::PengadaanList;
 use components::analisis_list::AnalisisList;
+use components::pengadaan_form::PengadaanForm;
+use components::analisis_form::AnalisisForm;
 use api::fetch_dashboard_stats;
 
 // ============================================================================
@@ -163,6 +165,7 @@ fn AnalisisRoutes() -> impl IntoView {
         <Routes fallback=|| view! { <NotFound /> }>
             <Route path=path!("/") view=AnalisisList />
             <Route path=path!("/daftar") view=AnalisisList />
+            <Route path=path!("/baru") view=AnalisisForm />
             <Route path=path!("/pakaian/*") view=|| view! { <div>"Kebutuhan Pakaian"</div> } />
             <Route path=path!("/bmn/*") view=|| view! { <div>"Kebutuhan BMN"</div> } />
             <Route path=path!("/standardisasi/*") view=|| view! { <div>"Standardisasi BMN"</div> } />
@@ -177,6 +180,7 @@ fn PengadaanRoutes() -> impl IntoView {
         <Routes fallback=|| view! { <NotFound /> }>
             <Route path=path!("/") view=PengadaanList />
             <Route path=path!("/daftar") view=PengadaanList />
+            <Route path=path!("/baru") view=PengadaanForm />
             <Route path=path!("/administrasi") view=|| view! { <div>"Administrasi Pengadaan"</div> } />
             <Route path=path!("/distribusi") view=|| view! { <div>"Distribusi"</div> } />
         </Routes>

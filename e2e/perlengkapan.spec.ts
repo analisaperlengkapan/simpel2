@@ -21,15 +21,27 @@ test.describe('Perlengkapan Module', () => {
     await expect(page.getByText('Nama Aset')).toBeVisible();
   });
 
-  test('should navigate to Pengadaan', async ({ page }) => {
+  test('should navigate to Pengadaan and open create form', async ({ page }) => {
     await page.goto('http://localhost:8093/dashboard/pengadaan/daftar');
     await expect(page.getByText('Daftar Pengadaan')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Buat Pengadaan' })).toBeVisible();
+
+    // Click create button
+    await page.getByRole('button', { name: 'Buat Pengadaan' }).click();
+
+    // Verify form opened
+    await expect(page.getByText('Buat Pengadaan Baru')).toBeVisible();
+    await expect(page.getByLabel('Judul Pengadaan')).toBeVisible();
   });
 
-  test('should navigate to Analisis Kebutuhan', async ({ page }) => {
+  test('should navigate to Analisis Kebutuhan and open create form', async ({ page }) => {
     await page.goto('http://localhost:8093/dashboard/analisis/daftar');
     await expect(page.getByText('Analisis Kebutuhan')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Buat Analisis Baru' })).toBeVisible();
+
+    // Click create button
+    await page.getByRole('button', { name: 'Buat Analisis Baru' }).click();
+
+    // Verify form opened
+    await expect(page.getByText('Buat Analisis Kebutuhan')).toBeVisible();
+    await expect(page.getByLabel('Judul Analisis')).toBeVisible();
   });
 });
