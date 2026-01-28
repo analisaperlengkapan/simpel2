@@ -96,6 +96,7 @@ impl Default for CorrelationContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn test_generate_correlation_id() {
