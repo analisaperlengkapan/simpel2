@@ -151,6 +151,43 @@ pub async fn create_pengadaan(
     ))
 }
 
+// Hibah handlers
+pub async fn get_all_hibah(
+    State(service): State<PerlengkapanService>,
+    Query(pagination): Query<PaginationQuery>,
+    _claims: Claims,
+) -> Result<Json<PaginatedResponse<Hibah>>, AppError> {
+    pagination.validate()?;
+    let (hibah, total) = service
+        .get_all_hibah(pagination.page, pagination.per_page)
+        .await?;
+
+    Ok(Json(PaginatedResponse::new(
+        hibah,
+        total,
+        pagination.page,
+        pagination.per_page,
+        "Hibah retrieved successfully".to_string(),
+    )))
+}
+
+pub async fn create_hibah(
+    State(service): State<PerlengkapanService>,
+    claims: Claims,
+    Json(request): Json<CreateHibahRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<Hibah>>), AppError> {
+    let user_id = Some(claims.user_id);
+    let hibah = service.create_hibah(request, user_id).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(
+            hibah,
+            "Hibah recorded successfully".to_string(),
+        )),
+    ))
+}
+
 // Pemakaian handlers
 pub async fn get_all_pemakaian(
     State(service): State<PerlengkapanService>,

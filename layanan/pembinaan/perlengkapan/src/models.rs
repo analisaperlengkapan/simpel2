@@ -208,6 +208,50 @@ pub struct CreatePemakaianRequest {
     pub keperluan: Option<String>,
 }
 
+// ============ Hibah Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Hibah {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub pemberi: String,
+    pub penerima: String,
+    pub tanggal_hibah: NaiveDate,
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Hibah {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            pemberi: row.get("pemberi"),
+            penerima: row.get("penerima"),
+            tanggal_hibah: row.get("tanggal_hibah"),
+            keterangan: row.get("keterangan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreateHibahRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 255))]
+    pub pemberi: String,
+    #[validate(length(min = 1, max = 255))]
+    pub penerima: String,
+    pub tanggal_hibah: NaiveDate,
+    pub keterangan: Option<String>,
+}
+
 // ============ Response Models ============
 
 #[derive(Debug, Serialize, Deserialize)]

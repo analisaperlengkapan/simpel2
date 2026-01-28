@@ -22,6 +22,8 @@ mock! {
         async fn create_analisis(&self, request: CreateAnalisisRequest, user_id: Option<Uuid>) -> AppResult<AnalisisKebutuhan>;
         async fn get_all_pemakaian(&self, page: i32, per_page: i32) -> AppResult<(Vec<Pemakaian>, i64)>;
         async fn create_pemakaian(&self, request: CreatePemakaianRequest, user_id: Option<Uuid>) -> AppResult<Pemakaian>;
+        async fn get_all_hibah(&self, page: i32, per_page: i32) -> AppResult<(Vec<Hibah>, i64)>;
+        async fn create_hibah(&self, request: CreateHibahRequest, user_id: Option<Uuid>) -> AppResult<Hibah>;
     }
 }
 
@@ -247,6 +249,45 @@ mod unit_tests {
 
         assert_eq!(result.piminjam_nama, "John Doe");
         assert_eq!(result.status, "dipinjam");
+    }
+
+    #[tokio::test]
+    async fn test_create_hibah() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+        let req = CreateHibahRequest {
+            asset_id,
+            pemberi: "Donor A".to_string(),
+            penerima: "Satker B".to_string(),
+            tanggal_hibah: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            keterangan: Some("Hibah aset TI".to_string()),
+        };
+
+        mock_repo
+            .expect_create_hibah()
+            .with(always(), eq(Some(user_id)))
+            .times(1)
+            .returning(|req, uid| {
+                Ok(Hibah {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    pemberi: req.pemberi,
+                    penerima: req.penerima,
+                    tanggal_hibah: req.tanggal_hibah,
+                    keterangan: req.keterangan,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let result = service.create_hibah(req, Some(user_id)).await.unwrap();
+
+        assert_eq!(result.pemberi, "Donor A");
+        assert_eq!(result.penerima, "Satker B");
     }
 }
 

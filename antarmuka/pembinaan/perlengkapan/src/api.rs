@@ -87,6 +87,27 @@ pub struct CreatePemakaianRequest {
     pub keperluan: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Hibah {
+    pub id: String,
+    pub asset_id: String,
+    pub pemberi: String,
+    pub penerima: String,
+    pub tanggal_hibah: String,
+    pub keterangan: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CreateHibahRequest {
+    pub asset_id: String,
+    pub pemberi: String,
+    pub penerima: String,
+    pub tanggal_hibah: String,
+    pub keterangan: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaginatedResponse<T> {
     pub success: bool,
@@ -403,5 +424,66 @@ pub async fn create_pemakaian(request: CreatePemakaianRequest) -> Result<ApiResp
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pemakaian(_request: CreatePemakaianRequest) -> Result<ApiResponse<Pemakaian>, String> {
+    Err("Server-side stub".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_hibah(page: i32, per_page: i32) -> Result<PaginatedResponse<Hibah>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = format!("/api/pembinaan/perlengkapan/hibah?page={}&per_page={}", page, per_page);
+
+    let token = get_auth_token().unwrap_or_default();
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: PaginatedResponse<Hibah> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_hibah(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Hibah>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_hibah(request: CreateHibahRequest) -> Result<ApiResponse<Hibah>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = "/api/pembinaan/perlengkapan/hibah";
+    let token = get_auth_token().unwrap_or_default();
+
+    let resp = Request::post(url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: ApiResponse<Hibah> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_hibah(_request: CreateHibahRequest) -> Result<ApiResponse<Hibah>, String> {
     Err("Server-side stub".to_string())
 }

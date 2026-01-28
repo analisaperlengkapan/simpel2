@@ -93,4 +93,23 @@ impl PerlengkapanService {
         request.validate()?;
         self.repo.create_pemakaian(request, user_id).await
     }
+
+    // ============ Hibah Services ============
+
+    pub async fn get_all_hibah(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Hibah>, i64)> {
+        self.repo.get_all_hibah(page, per_page).await
+    }
+
+    pub async fn create_hibah(
+        &self,
+        request: CreateHibahRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Hibah> {
+        request.validate()?;
+        self.repo.create_hibah(request, user_id).await
+    }
 }

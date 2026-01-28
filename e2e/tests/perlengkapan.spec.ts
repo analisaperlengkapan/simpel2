@@ -82,4 +82,32 @@ test.describe('Perlengkapan Module', () => {
     await expect(page.getByText('E2E User')).toBeVisible();
     await expect(page.getByText('E2E Testing Usage')).toBeVisible();
   });
+
+  test('should create new hibah', async ({ page }) => {
+    await page.goto('/dashboard/pengelolaan/hibah/daftar');
+
+    // Check heading
+    await expect(page.getByRole('heading', { name: 'Daftar Hibah BMN' })).toBeVisible();
+
+    // Click "Catat Hibah"
+    await page.getByRole('link', { name: 'Catat Hibah' }).click();
+    await expect(page).toHaveURL('/dashboard/pengelolaan/hibah/baru');
+
+    // Fill Form
+    await page.getByLabel('Asset ID').fill('550e8400-e29b-41d4-a716-446655440000');
+    await page.getByLabel('Pemberi Hibah').fill('E2E Donor');
+    await page.getByLabel('Penerima Hibah').fill('E2E Receiver');
+    await page.getByLabel('Tanggal Hibah').fill('2024-02-01');
+    await page.getByLabel('Keterangan').fill('E2E Testing Hibah');
+
+    // Submit
+    await page.getByRole('button', { name: 'Simpan' }).click();
+
+    // Expect redirect to list
+    await expect(page).toHaveURL('/dashboard/pengelolaan/hibah/daftar');
+
+    // Expect new item to be in the list
+    await expect(page.getByText('E2E Donor')).toBeVisible();
+    await expect(page.getByText('E2E Receiver')).toBeVisible();
+  });
 });

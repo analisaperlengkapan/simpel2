@@ -288,4 +288,47 @@ mod tests {
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.piminjam_nama, "Jane Doe");
     }
+
+    #[tokio::test]
+    async fn test_handler_create_hibah() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+
+        mock_repo.expect_create_hibah()
+             .with(mockall::predicate::always(), mockall::predicate::always())
+            .times(1)
+            .returning(move |req, uid| Ok(Hibah {
+                id: Uuid::new_v4(),
+                asset_id: req.asset_id,
+                pemberi: req.pemberi,
+                penerima: req.penerima,
+                tanggal_hibah: req.tanggal_hibah,
+                keterangan: req.keterangan,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                created_by: uid,
+                updated_by: uid,
+            }));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let mut claims = create_mock_claims();
+        claims.user_id = user_id;
+
+        let request = Json(CreateHibahRequest {
+            asset_id,
+            pemberi: "Donor Handler".to_string(),
+            penerima: "Receiver Handler".to_string(),
+            tanggal_hibah: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            keterangan: None,
+        });
+
+        let result = create_hibah(state, claims, request).await;
+
+        assert!(result.is_ok());
+         let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        assert_eq!(json.0.data.pemberi, "Donor Handler");
+    }
 }
