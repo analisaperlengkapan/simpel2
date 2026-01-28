@@ -125,6 +125,87 @@ mod unit_tests {
 
         assert_eq!(asset.id, asset_id);
     }
+
+    #[tokio::test]
+    async fn test_create_pengadaan() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let req = CreatePengadaanRequest {
+            judul: "New Pengadaan".to_string(),
+            deskripsi: Some("Desc".to_string()),
+            jenis: "TIK".to_string(),
+            anggaran: Some(5000000.0),
+            target_selesai: None,
+            pic_user_id: None,
+        };
+
+        mock_repo
+            .expect_create_pengadaan()
+            .with(always(), eq(Some(user_id)))
+            .times(1)
+            .returning(|req, uid| {
+                Ok(Pengadaan {
+                    id: Uuid::new_v4(),
+                    judul: req.judul,
+                    deskripsi: req.deskripsi,
+                    jenis: req.jenis,
+                    status: "perencanaan".to_string(),
+                    anggaran: req.anggaran,
+                    target_selesai: req.target_selesai,
+                    pic_user_id: req.pic_user_id,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let result = service.create_pengadaan(req, Some(user_id)).await.unwrap();
+
+        assert_eq!(result.judul, "New Pengadaan");
+        assert_eq!(result.created_by, Some(user_id));
+    }
+
+    #[tokio::test]
+    async fn test_create_analisis() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let req = CreateAnalisisRequest {
+            judul: "New Analisis".to_string(),
+            kategori: "TIK".to_string(),
+            deskripsi: Some("Desc".to_string()),
+            prioritas: "tinggi".to_string(),
+            estimasi_biaya: Some(100000.0),
+            justifikasi: None,
+        };
+
+        mock_repo
+            .expect_create_analisis()
+            .with(always(), eq(Some(user_id)))
+            .times(1)
+            .returning(|req, uid| {
+                Ok(AnalisisKebutuhan {
+                    id: Uuid::new_v4(),
+                    judul: req.judul,
+                    kategori: req.kategori,
+                    deskripsi: req.deskripsi,
+                    prioritas: req.prioritas,
+                    status: "draft".to_string(),
+                    estimasi_biaya: req.estimasi_biaya,
+                    justifikasi: req.justifikasi,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let result = service.create_analisis(req, Some(user_id)).await.unwrap();
+
+        assert_eq!(result.judul, "New Analisis");
+    }
 }
 
 // Register handler tests

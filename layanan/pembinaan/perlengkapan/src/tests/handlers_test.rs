@@ -154,4 +154,94 @@ mod tests {
         assert_eq!(response.0.data.len(), 1);
         assert_eq!(response.0.data[0].judul, "Analisis Server");
     }
+
+    #[tokio::test]
+    async fn test_handler_create_pengadaan() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+
+        mock_repo.expect_create_pengadaan()
+            .with(mockall::predicate::always(), mockall::predicate::always())
+            .times(1)
+            .returning(move |req, uid| Ok(Pengadaan {
+                id: Uuid::new_v4(),
+                judul: req.judul,
+                deskripsi: req.deskripsi,
+                jenis: req.jenis,
+                status: "perencanaan".to_string(),
+                anggaran: req.anggaran,
+                target_selesai: req.target_selesai,
+                pic_user_id: req.pic_user_id,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                created_by: uid,
+                updated_by: uid,
+            }));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let mut claims = create_mock_claims();
+        claims.user_id = user_id;
+
+        let request = Json(CreatePengadaanRequest {
+            judul: "Handler Test".to_string(),
+            deskripsi: None,
+            jenis: "TIK".to_string(),
+            anggaran: None,
+            target_selesai: None,
+            pic_user_id: None,
+        });
+
+        let result = create_pengadaan(state, claims, request).await;
+
+        assert!(result.is_ok());
+        let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        assert_eq!(json.0.data.judul, "Handler Test");
+    }
+
+    #[tokio::test]
+    async fn test_handler_create_analisis() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+
+        mock_repo.expect_create_analisis()
+             .with(mockall::predicate::always(), mockall::predicate::always())
+            .times(1)
+            .returning(move |req, uid| Ok(AnalisisKebutuhan {
+                id: Uuid::new_v4(),
+                judul: req.judul,
+                kategori: req.kategori,
+                deskripsi: req.deskripsi,
+                prioritas: req.prioritas,
+                status: "draft".to_string(),
+                estimasi_biaya: req.estimasi_biaya,
+                justifikasi: req.justifikasi,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                created_by: uid,
+                updated_by: uid,
+            }));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let mut claims = create_mock_claims();
+        claims.user_id = user_id;
+
+        let request = Json(CreateAnalisisRequest {
+            judul: "Handler Analisis".to_string(),
+            kategori: "UMUM".to_string(),
+            deskripsi: None,
+            prioritas: "sedang".to_string(),
+            estimasi_biaya: None,
+            justifikasi: None,
+        });
+
+        let result = create_analisis(state, claims, request).await;
+
+        assert!(result.is_ok());
+         let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        assert_eq!(json.0.data.judul, "Handler Analisis");
+    }
 }
