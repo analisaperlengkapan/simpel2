@@ -42,6 +42,7 @@ pub fn PemeliharaanForm() -> impl IntoView {
         spawn_local(async move {
             match create_pemeliharaan(req).await {
                 Ok(_) => {
+                    set_loading.set(false);
                     navigate("/dashboard/pengelolaan/pemeliharaan/daftar", Default::default());
                 },
                 Err(e) => {
