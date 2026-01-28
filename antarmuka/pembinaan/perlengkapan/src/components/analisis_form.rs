@@ -29,6 +29,7 @@ pub fn AnalisisForm() -> impl IntoView {
             justifikasi: None,
         };
 
+        let navigate = navigate.clone();
         spawn_local(async move {
             match create_analisis(req).await {
                 Ok(_) => {
