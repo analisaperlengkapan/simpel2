@@ -33,7 +33,7 @@ env:
 jobs:
   check:
     name: Cargo Check
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -74,21 +74,8 @@ jobs:
 
   test:
     name: Test Suite
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: simpelv2_test
-          POSTGRES_PASSWORD: test_password_secure_2024
-          POSTGRES_DB: simpelv2_test
-        options: >-
-          --health-cmd "pg_isready -U simpelv2_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 55432:5432
+    runs-on: self-hosted
+    # docker not available on self-hosted runner
 
     steps:
       - name: Checkout repository
@@ -138,7 +125,7 @@ jobs:
 
   clippy:
     name: Clippy Linting
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -180,7 +167,7 @@ jobs:
 
   fmt:
     name: Code Formatting
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -209,7 +196,7 @@ jobs:
 
   build-release:
     name: Build Release Binaries
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [check, clippy, fmt]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
