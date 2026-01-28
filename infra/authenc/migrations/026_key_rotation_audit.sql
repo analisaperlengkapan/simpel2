@@ -3,7 +3,7 @@
 -- Version: 026
 -- Date: 2024-10-30
 
-DROP TABLE IF EXISTS key_rotation_audit CASCADE;
+-- Date: 2024-10-30
 CREATE TABLE IF NOT EXISTS key_rotation_audit (
     id UUID PRIMARY KEY,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -226,6 +226,7 @@ END;
 $$;
 
 -- Create triggers on users table to refresh statistics
+DROP TRIGGER IF EXISTS trigger_users_mfa_stats_refresh ON users;
 CREATE TRIGGER trigger_users_mfa_stats_refresh
     AFTER INSERT OR UPDATE OF mfa_enabled, mfa_setup_at, mfa_last_used OR DELETE
     ON users

@@ -32,7 +32,6 @@ CREATE TABLE IF NOT EXISTS federated_identity_links (
 
 -- Identity Provider Mappers Table
 -- Maps attributes from external IdPs to local user attributes
-DROP TABLE IF EXISTS identity_provider_mappers CASCADE;
 CREATE TABLE IF NOT EXISTS identity_provider_mappers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
