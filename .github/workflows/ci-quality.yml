@@ -31,6 +31,9 @@ jobs:
             docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine rm -rf protoc .build_config || true
           fi
 
+          # Fix corrupted cargo registry
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
