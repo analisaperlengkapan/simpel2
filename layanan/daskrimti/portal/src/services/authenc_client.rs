@@ -266,16 +266,19 @@ impl AuthencClient {
         &self,
         username: &str,
         password: &str,
+        captcha_token: Option<&str>,
         mfa_code: Option<&str>,
     ) -> Result<AuthResult, AuthencError> {
         let username = username.to_string();
         let password = password.to_string();
+        let captcha_token = captcha_token.map(|s| s.to_string());
         let mfa_code = mfa_code.map(|s| s.to_string());
         let client = self.client.clone();
 
         self.execute_with_resilience(|| {
             let username = username.clone();
             let password = password.clone();
+            let captcha_token = captcha_token.clone();
             let mfa_code = mfa_code.clone();
             let mut client = client.clone();
 
@@ -286,6 +289,7 @@ impl AuthencClient {
                     mfa_code,
                     device_id: None,
                     metadata: Default::default(),
+                    captcha_token,
                 };
 
                 let response = client

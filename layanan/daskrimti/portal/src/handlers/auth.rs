@@ -125,14 +125,12 @@ pub async fn login(
 ) -> impl IntoResponse {
     info!("Login attempt for user: {}", request.username);
 
-    // TODO: Validate CAPTCHA token via secreton encryption
-    // For now, just proceed with authentication
-
     match state
         .authenc
         .authenticate(
             &request.username,
             &request.password,
+            request.captcha_token.as_deref(),
             request.mfa_code.as_deref(),
         )
         .await

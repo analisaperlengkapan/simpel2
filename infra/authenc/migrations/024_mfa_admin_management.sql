@@ -1,7 +1,6 @@
 -- Migration for MFA Administrative Management Features
 -- This migration adds tables and functions needed for comprehensive MFA administration
 
-DROP TABLE IF EXISTS mfa_policies CASCADE;
 CREATE TABLE IF NOT EXISTS mfa_policies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     policy_data JSONB NOT NULL,
@@ -29,7 +28,6 @@ ADD COLUMN IF NOT EXISTS require_mfa_setup BOOLEAN NOT NULL DEFAULT false;
 -- Add index for MFA setup requirement
 CREATE INDEX IF NOT EXISTS idx_users_require_mfa_setup ON users(require_mfa_setup) WHERE require_mfa_setup = true;
 
-DROP MATERIALIZED VIEW IF EXISTS mfa_statistics CASCADE;
 CREATE MATERIALIZED VIEW IF NOT EXISTS mfa_statistics AS
 SELECT
     u.satker_code,
@@ -228,7 +226,6 @@ END;
 $$;
 
 -- Create triggers on users table to refresh statistics
-DROP TRIGGER IF EXISTS trigger_users_mfa_stats_refresh ON users;
 CREATE TRIGGER trigger_users_mfa_stats_refresh
     AFTER INSERT OR UPDATE OF mfa_enabled, mfa_setup_at, mfa_last_used OR DELETE
     ON users

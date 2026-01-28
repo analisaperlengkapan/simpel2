@@ -42,7 +42,6 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 
 -- Device Sessions Table
 -- Tracks device-specific session information for security and analytics
-DROP TABLE IF EXISTS device_sessions CASCADE;
 CREATE TABLE IF NOT EXISTS device_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
@@ -72,7 +71,6 @@ CREATE TABLE IF NOT EXISTS device_sessions (
 
 -- Offline Tokens Table
 -- Stores long-lived offline tokens for background access
-DROP TABLE IF EXISTS offline_tokens CASCADE;
 CREATE TABLE IF NOT EXISTS offline_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -100,7 +98,6 @@ CREATE TABLE IF NOT EXISTS offline_tokens (
 
 -- Refresh Token Rotation History
 -- Tracks refresh token rotation for security auditing
-DROP TABLE IF EXISTS refresh_token_history CASCADE;
 CREATE TABLE IF NOT EXISTS refresh_token_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_session_id UUID NOT NULL REFERENCES user_sessions(id) ON DELETE CASCADE,

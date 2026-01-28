@@ -11,6 +11,8 @@ use crate::app::AppState;
 use crate::error::AuthencError;
 use crate::services::cache::Cache;
 use crate::services::stores::UserStoreTrait;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 
 // Include generated proto code
 pub use super::common;
@@ -120,6 +122,46 @@ impl AuthencService for AuthencGrpcService {
     ) -> Result<Response<AuthenticateResponse>, Status> {
         let req = request.into_inner();
         info!("gRPC Authenticate request for user: {}", req.username);
+
+        // CAPTCHA Validation
+        if let Some(token) = &req.captcha_token {
+            let parts: Vec<&str> = token.split(':').collect();
+            if parts.len() != 3 {
+                return Err(Status::invalid_argument("Invalid CAPTCHA token format"));
+            }
+
+            let challenge_id = parts[0];
+            let timestamp_str = parts[1];
+            let signature = parts[2];
+
+            let timestamp: u64 = timestamp_str.parse().map_err(|_| Status::invalid_argument("Invalid CAPTCHA timestamp"))?;
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            // Token valid for 10 minutes
+            if now > timestamp + 600 {
+                return Err(Status::unauthenticated("CAPTCHA token expired"));
+            }
+
+            let payload = format!("{}:{}", challenge_id, timestamp_str);
+            let secret = &self.state.config.security.jwt_secret;
+
+            type HmacSha256 = Hmac<Sha256>;
+            let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+                .expect("HMAC can take key of any size");
+            mac.update(payload.as_bytes());
+
+            if let Err(_) = mac.verify_slice(&hex::decode(signature).map_err(|_| Status::invalid_argument("Invalid CAPTCHA signature encoding"))?) {
+                return Err(Status::unauthenticated("Invalid CAPTCHA signature"));
+            }
+        } else {
+            // For now, allow requests without captcha if not strictly required,
+            // but the bug report says it should be enforced.
+            warn!("Login attempt without CAPTCHA token for user: {}", req.username);
+            return Err(Status::unauthenticated("CAPTCHA verification required"));
+        }
 
         // OPTIMIZATION: Parallel DB + cache checks using tokio::join!
         let (user_result, cache_result) = tokio::join!(

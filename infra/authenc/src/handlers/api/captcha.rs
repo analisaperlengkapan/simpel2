@@ -25,6 +25,8 @@ use axum::{
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -396,14 +398,22 @@ pub async fn validate_challenge(
         lockout_duration,
         message: result.message,
         token: if result.success {
-            Some(format!(
-                "captcha_verified_{}_{}",
-                req.challenge_id,
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs()
-            ))
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            let payload = format!("{}:{}", req.challenge_id, timestamp);
+            let secret = &state.config.security.jwt_secret;
+
+            type HmacSha256 = Hmac<Sha256>;
+            let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+                .expect("HMAC can take key of any size");
+            mac.update(payload.as_bytes());
+            let result_mac = mac.finalize();
+            let signature = hex::encode(result_mac.into_bytes());
+
+            Some(format!("{}:{}:{}", req.challenge_id, timestamp, signature))
         } else {
             None
         },

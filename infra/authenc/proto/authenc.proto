@@ -58,6 +58,7 @@ message AuthenticateRequest {
   optional string mfa_code = 3;
   optional string device_id = 4;
   map<string, string> metadata = 5;
+  optional string captcha_token = 6;
 }
 
 message AuthenticateResponse {
