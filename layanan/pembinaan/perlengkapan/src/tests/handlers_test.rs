@@ -12,7 +12,7 @@ mod tests {
         services::PerlengkapanService,
         middleware::Claims,
     };
-    use super::MockRepository; // Accessing MockRepository from parent tests module
+    use crate::tests::MockRepository; // Accessing MockRepository from parent tests module
     use chrono::Utc;
 
     fn create_mock_claims() -> Claims {
@@ -79,5 +79,79 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap().0.data.nama_aset, Some("Found Asset".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_all_pengadaan() {
+        let mut mock_repo = MockRepository::new();
+
+        mock_repo.expect_get_all_pengadaan()
+            .with(mockall::predicate::eq(1), mockall::predicate::eq(20))
+            .times(1)
+            .returning(|_, _| Ok((vec![
+                Pengadaan {
+                    id: Uuid::new_v4(),
+                    judul: "Pengadaan Laptop".to_string(),
+                    deskripsi: None,
+                    jenis: "TIK".to_string(),
+                    status: "perencanaan".to_string(),
+                    anggaran: Some(10000000.0),
+                    target_selesai: None,
+                    pic_user_id: None,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: None,
+                    updated_by: None,
+                }
+            ], 1)));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let pagination = Query(PaginationQuery { page: 1, per_page: 20, category: None });
+        let claims = create_mock_claims();
+
+        let result = get_all_pengadaan(state, pagination, claims).await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.0.data.len(), 1);
+        assert_eq!(response.0.data[0].judul, "Pengadaan Laptop");
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_all_analisis() {
+        let mut mock_repo = MockRepository::new();
+
+        mock_repo.expect_get_all_analisis()
+            .with(mockall::predicate::eq(1), mockall::predicate::eq(20))
+            .times(1)
+            .returning(|_, _| Ok((vec![
+                AnalisisKebutuhan {
+                    id: Uuid::new_v4(),
+                    judul: "Analisis Server".to_string(),
+                    kategori: "TIK".to_string(),
+                    deskripsi: None,
+                    prioritas: "tinggi".to_string(),
+                    status: "draft".to_string(),
+                    estimasi_biaya: Some(50000000.0),
+                    justifikasi: None,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: None,
+                    updated_by: None,
+                }
+            ], 1)));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let pagination = Query(PaginationQuery { page: 1, per_page: 20, category: None });
+        let claims = create_mock_claims();
+
+        let result = get_all_analisis(state, pagination, claims).await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.0.data.len(), 1);
+        assert_eq!(response.0.data[0].judul, "Analisis Server");
     }
 }
