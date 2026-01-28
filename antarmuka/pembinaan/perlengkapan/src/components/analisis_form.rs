@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_router::hooks::use_navigate;
 use crate::api::{create_analisis, CreateAnalisisRequest};
 
 #[component]
@@ -11,6 +12,7 @@ pub fn AnalisisForm() -> impl IntoView {
     let (error, set_error) = signal(None::<String>);
     let (success, set_success) = signal(false);
     let (loading, set_loading) = signal(false);
+    let navigate = use_navigate();
 
     let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
@@ -31,10 +33,9 @@ pub fn AnalisisForm() -> impl IntoView {
             match create_analisis(req).await {
                 Ok(_) => {
                     set_success.set(true);
-                    set_judul.set("".to_string());
-                    set_kategori.set("".to_string());
-                    set_estimasi.set("".to_string());
-                    set_prioritas.set("sedang".to_string());
+                    // Redirect after short delay to show success
+                    gloo_timers::future::TimeoutFuture::new(1000).await;
+                    navigate("/dashboard/analisis/daftar", Default::default());
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));
