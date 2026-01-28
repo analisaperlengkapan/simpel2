@@ -23,15 +23,11 @@ spec:
         app.kubernetes.io/name: postgres
         app.kubernetes.io/component: database
     spec:
-      securityContext:
-        runAsNonRoot: true
-        fsGroup: 999
       containers:
         - name: postgres
           image: postgres:15-alpine
           securityContext:
             allowPrivilegeEscalation: false
-            runAsUser: 999
           ports:
             - containerPort: 5432
               name: postgres
