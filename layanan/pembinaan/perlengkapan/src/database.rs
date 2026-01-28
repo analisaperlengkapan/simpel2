@@ -50,11 +50,6 @@ impl Database {
     async fn create_tables(&self) -> Result<()> {
         let client = self.pool.get().await?;
 
-        // Enable pgcrypto extension for UUID generation
-        client
-            .execute("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\"", &[])
-            .await?;
-
         // Create schema if not exists
         client
             .execute("CREATE SCHEMA IF NOT EXISTS perlengkapan", &[])
@@ -67,7 +62,7 @@ impl Database {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY,
                 judul VARCHAR NOT NULL,
                 deskripsi TEXT,
                 jenis VARCHAR NOT NULL,
@@ -90,7 +85,7 @@ impl Database {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.analisis_kebutuhan (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY,
                 judul VARCHAR NOT NULL,
                 kategori VARCHAR NOT NULL,
                 deskripsi TEXT,
@@ -113,7 +108,7 @@ impl Database {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pemakaian (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY,
                 asset_id UUID NOT NULL,
                 piminjam_nama VARCHAR NOT NULL,
                 tanggal_mulai DATE NOT NULL,
@@ -135,7 +130,7 @@ impl Database {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.hibah (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY,
                 asset_id UUID NOT NULL,
                 pemberi VARCHAR NOT NULL,
                 penerima VARCHAR NOT NULL,
@@ -156,7 +151,7 @@ impl Database {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.mutasi (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY,
                 asset_id UUID NOT NULL,
                 asal_satker VARCHAR NOT NULL,
                 tujuan_satker VARCHAR NOT NULL,
@@ -179,7 +174,7 @@ impl Database {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.penghapusan (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY,
                 asset_id UUID NOT NULL,
                 tanggal_penghapusan DATE NOT NULL,
                 alasan TEXT NOT NULL,
@@ -201,7 +196,7 @@ impl Database {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengalihan (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY,
                 asset_id UUID NOT NULL,
                 pihak_lama VARCHAR NOT NULL,
                 pihak_baru VARCHAR NOT NULL,
@@ -224,7 +219,7 @@ impl Database {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pemeliharaan (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY,
                 asset_id UUID NOT NULL,
                 jenis_pemeliharaan VARCHAR NOT NULL,
                 biaya DECIMAL(15,2),
