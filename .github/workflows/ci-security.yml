@@ -16,7 +16,8 @@ concurrency:
 jobs:
   audit-and-deny:
     name: Dependency Audit & Policy
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    # Use github-hosted runner to ensure tool installation succeeds (no sudo prompts).
     steps:
       - name: Fix permissions
         run: sudo -n chown -R $USER:$USER . || true
@@ -57,7 +58,8 @@ jobs:
 
   sast-semgrep:
     name: SAST - Semgrep
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    # Use github-hosted runner so python/pip installs work without elevated sudo.
     steps:
       - name: Fix permissions
         run: sudo -n chown -R $USER:$USER . || true
@@ -79,7 +81,8 @@ jobs:
 
   secrets-gitleaks:
     name: Secrets Scanning
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    # Use github-hosted runner to avoid missing dependencies on self-hosted runners.
     steps:
       - name: Fix permissions
         run: sudo -n chown -R $USER:$USER . || true

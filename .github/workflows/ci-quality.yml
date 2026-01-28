@@ -15,7 +15,8 @@ concurrency:
 jobs:
   quality:
     name: Quality Checks
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    # Use github-hosted runner to ensure system build tools (gcc/cc) are available by default.
     steps:
       - name: Fix permissions
         run: sudo -n chown -R $USER:$USER . || true
