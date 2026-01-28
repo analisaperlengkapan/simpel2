@@ -1,5 +1,5 @@
 // Unit tests for MFA (Multi-Factor Authentication) system
-use std::collections::HashMap, sync::{Arc, time::Duration};
+use std::{collections::HashMap, sync::{Arc, time::Duration}};
 use tokio::time::{timeout, sleep};
 
 // Import test utilities from parent crate
