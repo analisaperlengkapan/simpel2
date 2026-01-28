@@ -60,6 +60,8 @@ use components::penghapusan_list::PenghapusanList;
 use components::penghapusan_form::PenghapusanForm;
 use components::pengalihan_list::PengalihanList;
 use components::pengalihan_form::PengalihanForm;
+use components::pemeliharaan_list::PemeliharaanList;
+use components::pemeliharaan_form::PemeliharaanForm;
 use api::fetch_dashboard_stats;
 
 // ============================================================================
@@ -133,6 +135,9 @@ pub fn DashboardRoutes() -> impl IntoView {
                         // Pengelolaan BMN routes
                         <Route path=path!("/pengelolaan/*") view=PengelolaanRoutes />
 
+            // Pemeliharaan Routes (alias to Pengelolaan/Pemeliharaan for shortcut if needed, or stick to Pengelolaan)
+            <Route path=path!("/pemeliharaan/*") view=PemeliharaanRoutes />
+
                         // Pengguna routes
                         <Route path=path!("/pengguna/*") view=PenggunaRoutes />
 
@@ -197,6 +202,18 @@ fn PengadaanRoutes() -> impl IntoView {
     }
 }
 
+// Pemeliharaan Routes
+#[component]
+fn PemeliharaanRoutes() -> impl IntoView {
+    view! {
+        <Routes fallback=|| view! { <NotFound /> }>
+            <Route path=path!("/") view=PemeliharaanList />
+            <Route path=path!("/daftar") view=PemeliharaanList />
+            <Route path=path!("/baru") view=PemeliharaanForm />
+        </Routes>
+    }
+}
+
 // Pengelolaan BMN Routes
 #[component]
 fn PengelolaanRoutes() -> impl IntoView {
@@ -211,6 +228,9 @@ fn PengelolaanRoutes() -> impl IntoView {
             <Route path=path!("/pengalihan") view=PengalihanList />
             <Route path=path!("/pengalihan/daftar") view=PengalihanList />
             <Route path=path!("/pengalihan/baru") view=PengalihanForm />
+            <Route path=path!("/pemeliharaan") view=PemeliharaanList />
+            <Route path=path!("/pemeliharaan/daftar") view=PemeliharaanList />
+            <Route path=path!("/pemeliharaan/baru") view=PemeliharaanForm />
             <Route path=path!("/mutasi") view=MutasiList />
             <Route path=path!("/mutasi/daftar") view=MutasiList />
             <Route path=path!("/mutasi/baru") view=MutasiForm />

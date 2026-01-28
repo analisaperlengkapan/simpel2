@@ -467,4 +467,52 @@ mod tests {
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.pihak_lama, "Handler Lama");
     }
+
+    #[tokio::test]
+    async fn test_handler_create_pemeliharaan() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+
+        mock_repo.expect_create_pemeliharaan()
+             .with(mockall::predicate::always(), mockall::predicate::always())
+            .times(1)
+            .returning(move |req, uid| Ok(Pemeliharaan {
+                id: Uuid::new_v4(),
+                asset_id: req.asset_id,
+                jenis_pemeliharaan: req.jenis_pemeliharaan,
+                biaya: req.biaya,
+                tanggal_mulai: req.tanggal_mulai,
+                tanggal_selesai: req.tanggal_selesai,
+                pelaksana: req.pelaksana,
+                status: "terjadwal".to_string(),
+                keterangan: req.keterangan,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                created_by: uid,
+                updated_by: uid,
+            }));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let mut claims = create_mock_claims();
+        claims.user_id = user_id;
+
+        let request = Json(CreatePemeliharaanRequest {
+            asset_id,
+            jenis_pemeliharaan: "Handler Maintain".to_string(),
+            biaya: None,
+            tanggal_mulai: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            tanggal_selesai: None,
+            pelaksana: "Handler Tech".to_string(),
+            keterangan: None,
+        });
+
+        let result = create_pemeliharaan(state, claims, request).await;
+
+        assert!(result.is_ok());
+         let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        assert_eq!(json.0.data.jenis_pemeliharaan, "Handler Maintain");
+    }
 }

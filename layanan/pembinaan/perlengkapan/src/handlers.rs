@@ -188,6 +188,43 @@ pub async fn create_pengalihan(
     ))
 }
 
+// Pemeliharaan handlers
+pub async fn get_all_pemeliharaan(
+    State(service): State<PerlengkapanService>,
+    Query(pagination): Query<PaginationQuery>,
+    _claims: Claims,
+) -> Result<Json<PaginatedResponse<Pemeliharaan>>, AppError> {
+    pagination.validate()?;
+    let (pemeliharaan, total) = service
+        .get_all_pemeliharaan(pagination.page, pagination.per_page)
+        .await?;
+
+    Ok(Json(PaginatedResponse::new(
+        pemeliharaan,
+        total,
+        pagination.page,
+        pagination.per_page,
+        "Pemeliharaan retrieved successfully".to_string(),
+    )))
+}
+
+pub async fn create_pemeliharaan(
+    State(service): State<PerlengkapanService>,
+    claims: Claims,
+    Json(request): Json<CreatePemeliharaanRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<Pemeliharaan>>), AppError> {
+    let user_id = Some(claims.user_id);
+    let pemeliharaan = service.create_pemeliharaan(request, user_id).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(
+            pemeliharaan,
+            "Pemeliharaan recorded successfully".to_string(),
+        )),
+    ))
+}
+
 // Penghapusan handlers
 pub async fn get_all_penghapusan(
     State(service): State<PerlengkapanService>,

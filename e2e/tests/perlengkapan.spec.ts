@@ -216,4 +216,53 @@ test.describe('Perlengkapan Module', () => {
     await expect(page.getByText('E2E Old Party')).toBeVisible();
     await expect(page.getByText('E2E New Party')).toBeVisible();
   });
+
+  test('should create new pemeliharaan', async ({ page }) => {
+    // Mock assets for the select dropdown
+    await page.route('**/api/pembinaan/perlengkapan/assets*', async route => {
+      const json = {
+          success: true,
+          data: [{
+              id: '550e8400-e29b-41d4-a716-446655440000',
+              kategori_aset: 'Tanah',
+              no_aset: '1',
+              nama_aset: 'Mock Asset',
+              updated_at: new Date().toISOString()
+          }],
+          total: 1,
+          page: 1,
+          per_page: 100,
+          total_pages: 1,
+          message: 'Mock assets'
+      };
+      await route.fulfill({ json });
+    });
+
+    await page.goto('/dashboard/pengelolaan/pemeliharaan/daftar');
+
+    // Check heading
+    await expect(page.getByRole('heading', { name: 'Daftar Pemeliharaan Aset' })).toBeVisible();
+
+    // Click "Catat Pemeliharaan"
+    await page.getByRole('link', { name: 'Catat Pemeliharaan' }).click();
+    await expect(page).toHaveURL('/dashboard/pengelolaan/pemeliharaan/baru');
+
+    // Fill Form
+    await page.getByLabel('Pilih Aset').selectOption({ label: '1 - Mock Asset' });
+
+    await page.getByLabel('Jenis Pemeliharaan').selectOption('Rutin');
+    await page.getByLabel('Pelaksana').fill('E2E Vendor');
+    await page.getByLabel('Tanggal Mulai').fill('2024-06-01');
+    await page.getByLabel('Biaya (Rp)').fill('500000');
+
+    // Submit
+    await page.getByRole('button', { name: 'Simpan' }).click();
+
+    // Expect redirect to list
+    await expect(page).toHaveURL('/dashboard/pengelolaan/pemeliharaan/daftar');
+
+    // Expect new item to be in the list
+    await expect(page.getByText('E2E Vendor')).toBeVisible();
+    await expect(page.getByText('Rp 500000.00').or(page.getByText('500000'))).toBeVisible();
+  });
 });

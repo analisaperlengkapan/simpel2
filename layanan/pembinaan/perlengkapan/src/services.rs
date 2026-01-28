@@ -169,4 +169,23 @@ impl PerlengkapanService {
         request.validate()?;
         self.repo.create_pengalihan(request, user_id).await
     }
+
+    // ============ Pemeliharaan Services ============
+
+    pub async fn get_all_pemeliharaan(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Pemeliharaan>, i64)> {
+        self.repo.get_all_pemeliharaan(page, per_page).await
+    }
+
+    pub async fn create_pemeliharaan(
+        &self,
+        request: CreatePemeliharaanRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Pemeliharaan> {
+        request.validate()?;
+        self.repo.create_pemeliharaan(request, user_id).await
+    }
 }

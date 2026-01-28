@@ -214,6 +214,30 @@ impl Database {
             )
             .await?;
 
+        // Create pemeliharaan table
+        client
+            .execute(
+                r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.pemeliharaan (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                asset_id UUID NOT NULL,
+                jenis_pemeliharaan VARCHAR NOT NULL,
+                biaya DECIMAL(15,2),
+                tanggal_mulai DATE NOT NULL,
+                tanggal_selesai DATE,
+                pelaksana VARCHAR NOT NULL,
+                status VARCHAR NOT NULL DEFAULT 'terjadwal',
+                keterangan TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                created_by UUID,
+                updated_by UUID
+            )
+        "#,
+                &[],
+            )
+            .await?;
+
         info!("Database tables created successfully");
         Ok(())
     }
@@ -866,5 +890,80 @@ impl PerlengkapanRepository for Database {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(Pengalihan::from_row(&row))
+    }
+
+    async fn get_all_pemeliharaan(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Pemeliharaan>, i64)> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let offset = (page - 1) * per_page;
+
+        let total: i64 = client
+            .query_one(
+                "SELECT COUNT(*) as count FROM perlengkapan.pemeliharaan",
+                &[],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .get("count");
+
+        let rows = client
+            .query(
+                "SELECT id, asset_id, jenis_pemeliharaan, biaya::FLOAT8, tanggal_mulai, tanggal_selesai, pelaksana, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.pemeliharaan ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+                &[&(per_page as i64), &(offset as i64)],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let pemeliharaan: Vec<Pemeliharaan> = rows.iter().map(Pemeliharaan::from_row).collect();
+
+        Ok((pemeliharaan, total))
+    }
+
+    async fn create_pemeliharaan(
+        &self,
+        request: CreatePemeliharaanRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Pemeliharaan> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let id = Uuid::new_v4();
+
+        let row = client
+            .query_one(
+                r#"
+                INSERT INTO perlengkapan.pemeliharaan
+                (id, asset_id, jenis_pemeliharaan, biaya, tanggal_mulai, tanggal_selesai, pelaksana, keterangan, created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING id, asset_id, jenis_pemeliharaan, biaya::FLOAT8, tanggal_mulai, tanggal_selesai, pelaksana, status, keterangan, created_at, updated_at, created_by, updated_by
+                "#,
+                &[
+                    &id,
+                    &request.asset_id,
+                    &request.jenis_pemeliharaan,
+                    &request.biaya,
+                    &request.tanggal_mulai,
+                    &request.tanggal_selesai,
+                    &request.pelaksana,
+                    &request.keterangan,
+                    &user_id,
+                    &user_id,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(Pemeliharaan::from_row(&row))
     }
 }

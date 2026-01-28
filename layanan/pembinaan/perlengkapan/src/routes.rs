@@ -30,6 +30,8 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/penghapusan", get(get_all_penghapusan).post(create_penghapusan))
         // Pengalihan routes
         .route("/pengalihan", get(get_all_pengalihan).post(create_pengalihan))
+        // Pemeliharaan routes
+        .route("/pemeliharaan", get(get_all_pemeliharaan).post(create_pemeliharaan))
         // Add the service as state
         .with_state(state)
 }

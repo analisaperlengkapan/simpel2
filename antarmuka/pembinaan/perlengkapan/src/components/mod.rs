@@ -21,3 +21,5 @@ pub mod penghapusan_list;
 pub mod penghapusan_form;
 pub mod pengalihan_list;
 pub mod pengalihan_form;
+pub mod pemeliharaan_list;
+pub mod pemeliharaan_form;

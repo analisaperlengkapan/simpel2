@@ -397,6 +397,58 @@ pub struct CreatePengalihanRequest {
     pub keterangan: Option<String>,
 }
 
+// ============ Pemeliharaan Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Pemeliharaan {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub jenis_pemeliharaan: String, // Rutin, Perbaikan, etc.
+    pub biaya: Option<f64>,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: Option<NaiveDate>,
+    pub pelaksana: String, // Vendor or Internal
+    pub status: String, // Terjadwal, Proses, Selesai
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Pemeliharaan {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            jenis_pemeliharaan: row.get("jenis_pemeliharaan"),
+            biaya: row.get("biaya"),
+            tanggal_mulai: row.get("tanggal_mulai"),
+            tanggal_selesai: row.get("tanggal_selesai"),
+            pelaksana: row.get("pelaksana"),
+            status: row.get("status"),
+            keterangan: row.get("keterangan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePemeliharaanRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 100))]
+    pub jenis_pemeliharaan: String,
+    pub biaya: Option<f64>,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: Option<NaiveDate>,
+    #[validate(length(min = 1, max = 255))]
+    pub pelaksana: String,
+    pub keterangan: Option<String>,
+}
+
 // ============ Response Models ============
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -44,4 +44,8 @@ pub trait PerlengkapanRepository: Send + Sync {
     // Pengalihan (Local)
     async fn get_all_pengalihan(&self, page: i32, per_page: i32) -> AppResult<(Vec<Pengalihan>, i64)>;
     async fn create_pengalihan(&self, request: CreatePengalihanRequest, user_id: Option<Uuid>) -> AppResult<Pengalihan>;
+
+    // Pemeliharaan (Local)
+    async fn get_all_pemeliharaan(&self, page: i32, per_page: i32) -> AppResult<(Vec<Pemeliharaan>, i64)>;
+    async fn create_pemeliharaan(&self, request: CreatePemeliharaanRequest, user_id: Option<Uuid>) -> AppResult<Pemeliharaan>;
 }
