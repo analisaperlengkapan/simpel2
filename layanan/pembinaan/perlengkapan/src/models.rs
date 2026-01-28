@@ -302,6 +302,52 @@ pub struct CreateMutasiRequest {
     pub keterangan: Option<String>,
 }
 
+// ============ Penghapusan Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Penghapusan {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub tanggal_penghapusan: NaiveDate,
+    pub alasan: String,
+    pub metode_penghapusan: String,
+    pub status: String,
+    pub nilai_residu: Option<f64>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Penghapusan {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            tanggal_penghapusan: row.get("tanggal_penghapusan"),
+            alasan: row.get("alasan"),
+            metode_penghapusan: row.get("metode_penghapusan"),
+            status: row.get("status"),
+            nilai_residu: row.get("nilai_residu"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePenghapusanRequest {
+    pub asset_id: Uuid,
+    pub tanggal_penghapusan: NaiveDate,
+    #[validate(length(min = 1))]
+    pub alasan: String,
+    #[validate(length(min = 1, max = 100))]
+    pub metode_penghapusan: String,
+    pub nilai_residu: Option<f64>,
+}
+
 // ============ Response Models ============
 
 #[derive(Debug, Serialize, Deserialize)]

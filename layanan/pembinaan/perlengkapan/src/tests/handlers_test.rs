@@ -377,4 +377,48 @@ mod tests {
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.asal_satker, "Satker Handler A");
     }
+
+    #[tokio::test]
+    async fn test_handler_create_penghapusan() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+
+        mock_repo.expect_create_penghapusan()
+             .with(mockall::predicate::always(), mockall::predicate::always())
+            .times(1)
+            .returning(move |req, uid| Ok(Penghapusan {
+                id: Uuid::new_v4(),
+                asset_id: req.asset_id,
+                tanggal_penghapusan: req.tanggal_penghapusan,
+                alasan: req.alasan,
+                metode_penghapusan: req.metode_penghapusan,
+                status: "usulan".to_string(),
+                nilai_residu: req.nilai_residu,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                created_by: uid,
+                updated_by: uid,
+            }));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let mut claims = create_mock_claims();
+        claims.user_id = user_id;
+
+        let request = Json(CreatePenghapusanRequest {
+            asset_id,
+            tanggal_penghapusan: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            alasan: "Handler Disposal".to_string(),
+            metode_penghapusan: "Musnah".to_string(),
+            nilai_residu: None,
+        });
+
+        let result = create_penghapusan(state, claims, request).await;
+
+        assert!(result.is_ok());
+         let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        assert_eq!(json.0.data.alasan, "Handler Disposal");
+    }
 }

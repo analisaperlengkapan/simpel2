@@ -169,6 +169,28 @@ impl Database {
             )
             .await?;
 
+        // Create penghapusan table
+        client
+            .execute(
+                r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.penghapusan (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                asset_id UUID NOT NULL,
+                tanggal_penghapusan DATE NOT NULL,
+                alasan TEXT NOT NULL,
+                metode_penghapusan VARCHAR NOT NULL,
+                status VARCHAR NOT NULL DEFAULT 'usulan',
+                nilai_residu DECIMAL(15,2),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                created_by UUID,
+                updated_by UUID
+            )
+        "#,
+                &[],
+            )
+            .await?;
+
         info!("Database tables created successfully");
         Ok(())
     }
@@ -674,5 +696,78 @@ impl PerlengkapanRepository for Database {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(Mutasi::from_row(&row))
+    }
+
+    async fn get_all_penghapusan(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Penghapusan>, i64)> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let offset = (page - 1) * per_page;
+
+        let total: i64 = client
+            .query_one(
+                "SELECT COUNT(*) as count FROM perlengkapan.penghapusan",
+                &[],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .get("count");
+
+        let rows = client
+            .query(
+                "SELECT id, asset_id, tanggal_penghapusan, alasan, metode_penghapusan, status, nilai_residu::FLOAT8, created_at, updated_at, created_by, updated_by FROM perlengkapan.penghapusan ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+                &[&(per_page as i64), &(offset as i64)],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let penghapusan: Vec<Penghapusan> = rows.iter().map(Penghapusan::from_row).collect();
+
+        Ok((penghapusan, total))
+    }
+
+    async fn create_penghapusan(
+        &self,
+        request: CreatePenghapusanRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Penghapusan> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let id = Uuid::new_v4();
+
+        let row = client
+            .query_one(
+                r#"
+                INSERT INTO perlengkapan.penghapusan
+                (id, asset_id, tanggal_penghapusan, alasan, metode_penghapusan, nilai_residu, created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING id, asset_id, tanggal_penghapusan, alasan, metode_penghapusan, status, nilai_residu::FLOAT8, created_at, updated_at, created_by, updated_by
+                "#,
+                &[
+                    &id,
+                    &request.asset_id,
+                    &request.tanggal_penghapusan,
+                    &request.alasan,
+                    &request.metode_penghapusan,
+                    &request.nilai_residu,
+                    &user_id,
+                    &user_id,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(Penghapusan::from_row(&row))
     }
 }

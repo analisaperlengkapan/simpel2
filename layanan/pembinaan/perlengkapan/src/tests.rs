@@ -26,6 +26,8 @@ mock! {
         async fn create_hibah(&self, request: CreateHibahRequest, user_id: Option<Uuid>) -> AppResult<Hibah>;
         async fn get_all_mutasi(&self, page: i32, per_page: i32) -> AppResult<(Vec<Mutasi>, i64)>;
         async fn create_mutasi(&self, request: CreateMutasiRequest, user_id: Option<Uuid>) -> AppResult<Mutasi>;
+        async fn get_all_penghapusan(&self, page: i32, per_page: i32) -> AppResult<(Vec<Penghapusan>, i64)>;
+        async fn create_penghapusan(&self, request: CreatePenghapusanRequest, user_id: Option<Uuid>) -> AppResult<Penghapusan>;
     }
 }
 
@@ -332,6 +334,46 @@ mod unit_tests {
 
         assert_eq!(result.asal_satker, "Satker A");
         assert_eq!(result.tujuan_satker, "Satker B");
+    }
+
+    #[tokio::test]
+    async fn test_create_penghapusan() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+        let req = CreatePenghapusanRequest {
+            asset_id,
+            tanggal_penghapusan: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            alasan: "Rusak berat".to_string(),
+            metode_penghapusan: "Lelang".to_string(),
+            nilai_residu: Some(100000.0),
+        };
+
+        mock_repo
+            .expect_create_penghapusan()
+            .with(always(), eq(Some(user_id)))
+            .times(1)
+            .returning(|req, uid| {
+                Ok(Penghapusan {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    tanggal_penghapusan: req.tanggal_penghapusan,
+                    alasan: req.alasan,
+                    metode_penghapusan: req.metode_penghapusan,
+                    status: "usulan".to_string(),
+                    nilai_residu: req.nilai_residu,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let result = service.create_penghapusan(req, Some(user_id)).await.unwrap();
+
+        assert_eq!(result.alasan, "Rusak berat");
+        assert_eq!(result.status, "usulan");
     }
 }
 

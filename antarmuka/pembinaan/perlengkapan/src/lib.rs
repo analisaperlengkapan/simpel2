@@ -56,6 +56,8 @@ use components::hibah_list::HibahList;
 use components::hibah_form::HibahForm;
 use components::mutasi_list::MutasiList;
 use components::mutasi_form::MutasiForm;
+use components::penghapusan_list::PenghapusanList;
+use components::penghapusan_form::PenghapusanForm;
 use api::fetch_dashboard_stats;
 
 // ============================================================================
@@ -208,7 +210,9 @@ fn PengelolaanRoutes() -> impl IntoView {
             <Route path=path!("/mutasi") view=MutasiList />
             <Route path=path!("/mutasi/daftar") view=MutasiList />
             <Route path=path!("/mutasi/baru") view=MutasiForm />
-            <Route path=path!("/penghapusan/*") view=|| view! { <div>"Penghapusan BMN"</div> } />
+            <Route path=path!("/penghapusan") view=PenghapusanList />
+            <Route path=path!("/penghapusan/daftar") view=PenghapusanList />
+            <Route path=path!("/penghapusan/baru") view=PenghapusanForm />
         </Routes>
     }
 }

@@ -151,6 +151,43 @@ pub async fn create_pengadaan(
     ))
 }
 
+// Penghapusan handlers
+pub async fn get_all_penghapusan(
+    State(service): State<PerlengkapanService>,
+    Query(pagination): Query<PaginationQuery>,
+    _claims: Claims,
+) -> Result<Json<PaginatedResponse<Penghapusan>>, AppError> {
+    pagination.validate()?;
+    let (penghapusan, total) = service
+        .get_all_penghapusan(pagination.page, pagination.per_page)
+        .await?;
+
+    Ok(Json(PaginatedResponse::new(
+        penghapusan,
+        total,
+        pagination.page,
+        pagination.per_page,
+        "Penghapusan retrieved successfully".to_string(),
+    )))
+}
+
+pub async fn create_penghapusan(
+    State(service): State<PerlengkapanService>,
+    claims: Claims,
+    Json(request): Json<CreatePenghapusanRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<Penghapusan>>), AppError> {
+    let user_id = Some(claims.user_id);
+    let penghapusan = service.create_penghapusan(request, user_id).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(
+            penghapusan,
+            "Penghapusan recorded successfully".to_string(),
+        )),
+    ))
+}
+
 // Mutasi handlers
 pub async fn get_all_mutasi(
     State(service): State<PerlengkapanService>,

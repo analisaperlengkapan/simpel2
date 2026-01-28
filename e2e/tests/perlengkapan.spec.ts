@@ -139,4 +139,32 @@ test.describe('Perlengkapan Module', () => {
     await expect(page.getByText('Satker A')).toBeVisible();
     await expect(page.getByText('Satker B')).toBeVisible();
   });
+
+  test('should create new penghapusan', async ({ page }) => {
+    await page.goto('/dashboard/pengelolaan/penghapusan/daftar');
+
+    // Check heading
+    await expect(page.getByRole('heading', { name: 'Daftar Penghapusan BMN' })).toBeVisible();
+
+    // Click "Usul Penghapusan"
+    await page.getByRole('link', { name: 'Usul Penghapusan' }).click();
+    await expect(page).toHaveURL('/dashboard/pengelolaan/penghapusan/baru');
+
+    // Fill Form
+    await page.getByLabel('Asset ID').fill('550e8400-e29b-41d4-a716-446655440000');
+    await page.getByLabel('Tanggal Penghapusan').fill('2024-04-01');
+    await page.getByLabel('Metode Penghapusan').selectOption('Musnah');
+    await page.getByLabel('Alasan').fill('E2E Testing Penghapusan');
+    await page.getByLabel('Nilai Residu').fill('0');
+
+    // Submit
+    await page.getByRole('button', { name: 'Simpan' }).click();
+
+    // Expect redirect to list
+    await expect(page).toHaveURL('/dashboard/pengelolaan/penghapusan/daftar');
+
+    // Expect new item to be in the list
+    await expect(page.getByText('Musnah')).toBeVisible();
+    await expect(page.getByText('E2E Testing Penghapusan')).toBeVisible();
+  });
 });

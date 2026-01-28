@@ -131,4 +131,23 @@ impl PerlengkapanService {
         request.validate()?;
         self.repo.create_mutasi(request, user_id).await
     }
+
+    // ============ Penghapusan Services ============
+
+    pub async fn get_all_penghapusan(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Penghapusan>, i64)> {
+        self.repo.get_all_penghapusan(page, per_page).await
+    }
+
+    pub async fn create_penghapusan(
+        &self,
+        request: CreatePenghapusanRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Penghapusan> {
+        request.validate()?;
+        self.repo.create_penghapusan(request, user_id).await
+    }
 }
