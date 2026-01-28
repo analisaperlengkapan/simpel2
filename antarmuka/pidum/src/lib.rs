@@ -8,7 +8,7 @@ use leptos_router::{
     StaticSegment,
     components::{Route, Router, Routes},
 };
-use shared_microfrontend::components::auth::{
+use lib_ui::components::auth::{
     LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
 };
 use wasm_bindgen::prelude::*;

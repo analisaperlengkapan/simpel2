@@ -5,7 +5,7 @@
 use crate::components::layout::AuthLayout;
 use crate::features::auth::{AuthService, LoginCredentials, LoginResult, UserSession};
 use leptos::prelude::*;
-use shared_microfrontend::components::captcha::Captcha;
+use lib_ui::components::captcha::Captcha;
 use wasm_bindgen_futures::spawn_local;
 use web_sys;
 

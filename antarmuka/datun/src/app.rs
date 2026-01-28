@@ -16,10 +16,10 @@ use leptos_router::{
 use serde::{Deserialize, Serialize};
 
 // Import shared components - Modern Leptos 0.7.8
-use shared_microfrontend::components::auth::{
+use lib_ui::components::auth::{
     LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
 };
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 
 // Import local components
 use crate::components::DatunFooter;

@@ -5,7 +5,7 @@
 use crate::components::sidebar::Sidebar;
 use crate::components::user_menu::{UserMenu, UserMenuItem};
 use leptos::prelude::*;
-use shared_microfrontend::components::Footer;
+use lib_ui::components::Footer;
 
 /// User information structure
 #[derive(Clone, Debug)]

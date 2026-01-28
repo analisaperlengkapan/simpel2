@@ -3,7 +3,7 @@
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
-use shared_microfrontend::components::monitoring_dashboard::MonitoringDashboard;
+use lib_ui::components::monitoring_dashboard::MonitoringDashboard;
 
 /// Monitoring page component - displays system monitoring dashboard
 #[component]

@@ -34,10 +34,10 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::*;
-use shared_microfrontend::components::auth::{
+use lib_ui::components::auth::{
     LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
 };
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 use wasm_bindgen::prelude::*;
 
 mod components;

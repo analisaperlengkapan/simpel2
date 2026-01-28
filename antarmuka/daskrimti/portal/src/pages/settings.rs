@@ -3,7 +3,7 @@
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
-use shared_microfrontend::components::{BrandingEditor, ThemeEditor};
+use lib_ui::components::{BrandingEditor, ThemeEditor};
 
 /// Settings page component - user preferences and customization
 #[component]

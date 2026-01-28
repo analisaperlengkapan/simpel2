@@ -9,7 +9,7 @@ use leptos::prelude::*;
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::GlobalSearchBar;
+/// use lib_ui::components::GlobalSearchBar;
 /// use leptos::prelude::*;
 ///
 /// #[component]

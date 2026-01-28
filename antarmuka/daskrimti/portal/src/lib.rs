@@ -39,8 +39,8 @@ pub mod prelude {
     pub use leptos::prelude::*;
     pub use leptos_router::*;
     // Re-export shared components without glob to avoid conflicts
-    pub use shared_microfrontend::components;
-    pub use shared_microfrontend::core;
-    pub use shared_microfrontend::hooks;
-    pub use shared_microfrontend::utils;
+    pub use lib_ui::components;
+    pub use lib_ui::core;
+    pub use lib_ui::hooks;
+    pub use lib_ui::utils;
 }

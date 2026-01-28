@@ -7,7 +7,7 @@ use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos_router;
 use serde::{Deserialize, Serialize};
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
 /// MFA verification request body

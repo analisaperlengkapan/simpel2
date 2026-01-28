@@ -20,7 +20,7 @@ leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
 
 # Shared Components Library - Government compliant UI
-shared-microfrontend = { workspace = true }
+lib-ui = { workspace = true }
 
 # Web Assembly bindings - Performance optimized
 wasm-bindgen = { workspace = true }

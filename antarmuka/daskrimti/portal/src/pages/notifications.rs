@@ -5,7 +5,7 @@
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
-use shared_microfrontend::components::NotificationList;
+use lib_ui::components::NotificationList;
 
 /// Notifications history page component - displays all user notifications
 #[component]

@@ -1,7 +1,7 @@
 //! Header component for Badiklat Training & Education System
 
 use leptos::prelude::*;
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 
 /// Header component khusus untuk sistem Badiklat
 #[component]

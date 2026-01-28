@@ -15,10 +15,10 @@ use leptos_router::{
 };
 
 // Import shared components
-use shared_microfrontend::components::auth::{
+use lib_ui::components::auth::{
     LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
 };
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 
 // Import local types and api
 use crate::api::fetch_cases;

@@ -4,65 +4,65 @@
 
 -- Users table indexes
 -- These indexes improve performance for authentication and user lookup operations
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email
+CREATE INDEX IF NOT EXISTS idx_users_email
     ON users(email)
     WHERE deleted_at IS NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_username
+CREATE INDEX IF NOT EXISTS idx_users_username
     ON users(username)
     WHERE deleted_at IS NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_satker_code
+CREATE INDEX IF NOT EXISTS idx_users_satker_code
     ON users(satker_code)
     WHERE deleted_at IS NULL;
 
 -- Composite index for common query patterns (realm + satker filtering)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_realm_satker
+CREATE INDEX IF NOT EXISTS idx_users_realm_satker
     ON users(realm_id, satker_code)
     WHERE deleted_at IS NULL;
 
 -- Session table indexes (if not already present)
 -- Note: user_sessions already has idx_user_sessions_user_id and idx_user_sessions_expires_at
 -- Adding composite index for common query patterns
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_sessions_user_expires
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_expires
     ON user_sessions(user_id, expires_at)
     WHERE NOT revoked;
 
 -- Audit logs indexes (events table)
 -- Composite index for user + timestamp queries (common for audit trail lookups)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_user_time
+CREATE INDEX IF NOT EXISTS idx_events_user_time
     ON events(user_id, time DESC)
     WHERE user_id IS NOT NULL;
 
 -- Composite index for realm + event type queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_realm_type_time
+CREATE INDEX IF NOT EXISTS idx_events_realm_type_time
     ON events(realm_id, event_type, time DESC);
 
 -- Admin events indexes
 -- Composite index for admin user + timestamp queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_admin_events_user_time
+CREATE INDEX IF NOT EXISTS idx_admin_events_user_time
     ON admin_events(auth_user_id, time DESC)
     WHERE auth_user_id IS NOT NULL;
 
 -- Composite index for realm + resource type queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_admin_events_realm_resource_time
+CREATE INDEX IF NOT EXISTS idx_admin_events_realm_resource_time
     ON admin_events(realm_id, resource_type, time DESC);
 
 -- User roles indexes
 -- These indexes improve permission check performance
 -- Using direct CREATE INDEX CONCURRENTLY (will fail if table doesn't exist, which is expected for optional tables)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_roles_user_role
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_role
     ON user_roles(user_id, role_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_roles_role
+CREATE INDEX IF NOT EXISTS idx_user_roles_role
     ON user_roles(role_id);
 
 -- Permissions table indexes
 -- These indexes improve authorization check performance
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_permissions_user_resource
+CREATE INDEX IF NOT EXISTS idx_permissions_user_resource
     ON permissions(user_id, resource);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_permissions_resource
+CREATE INDEX IF NOT EXISTS idx_permissions_resource
     ON permissions(resource);
 
 -- Add comments for documentation

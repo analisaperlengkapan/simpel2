@@ -998,11 +998,20 @@ impl AuthencService for AuthencGrpcService {
 
         // Generate verification token if successful
         let verification_token = if validation_result.success {
-            format!(
-                "captcha_verified_{}_{}",
-                req.challenge_id,
-                chrono::Utc::now().timestamp()
-            )
+            let timestamp = chrono::Utc::now().timestamp();
+
+            // Format: challenge_id:timestamp:signature
+            let payload = format!("{}:{}", req.challenge_id, timestamp);
+            let secret = &self.state.config.security.jwt_secret;
+
+            type HmacSha256 = Hmac<Sha256>;
+            let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+                .map_err(|_| Status::internal("HMAC initialization failed"))?;
+            mac.update(payload.as_bytes());
+            let result_mac = mac.finalize();
+            let signature = hex::encode(result_mac.into_bytes());
+
+            format!("{}:{}:{}", req.challenge_id, timestamp, signature)
         } else {
             String::new()
         };

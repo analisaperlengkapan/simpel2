@@ -12,7 +12,7 @@ use leptos::prelude::*;
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::NotificationBell;
+/// use lib_ui::components::NotificationBell;
 /// use leptos::prelude::*;
 ///
 /// #[component]
@@ -202,7 +202,7 @@ pub fn NotificationBell(
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::NotificationList;
+/// use lib_ui::components::NotificationList;
 /// use leptos::prelude::*;
 ///
 /// #[component]

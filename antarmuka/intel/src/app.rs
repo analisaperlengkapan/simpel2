@@ -5,7 +5,7 @@ use leptos_router::{
     components::{Route, Router, Routes},
 };
 use serde::{Deserialize, Serialize};
-use shared_microfrontend::components::auth::{
+use lib_ui::components::auth::{
     LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
 };
 

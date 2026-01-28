@@ -179,7 +179,7 @@ proc-macro2 = "1.0.103"
 # Note: Removed paste/pastey - using inline macros instead (paste is unmaintained)
 
 # Frontend Shared Dependencies
-shared-microfrontend = { path = "lib/ui" }
+lib-ui = { path = "lib/ui" }
 lib-common = { path = "lib/common" }
 regex = "1.11"
 urlencoding = "2.1"

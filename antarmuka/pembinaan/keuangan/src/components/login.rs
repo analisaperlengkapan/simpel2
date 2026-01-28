@@ -5,7 +5,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use shared_microfrontend::components::{Card, Logo, LogoSize};
+use lib_ui::components::{Card, Logo, LogoSize};
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 

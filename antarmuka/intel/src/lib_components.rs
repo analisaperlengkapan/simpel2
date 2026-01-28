@@ -2,7 +2,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 
 // Import shared components
-use shared_microfrontend::KejaksaanHeader;
+use lib_ui::KejaksaanHeader;
 
 mod pages;
 use pages::IntelDashboard;

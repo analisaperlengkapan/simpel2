@@ -11,7 +11,7 @@ use crate::pages::secrets::SecretsPage;
 use crate::pages::*;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use shared_microfrontend::components::BrandingProvider;
+use lib_ui::components::BrandingProvider;
 
 use leptos_router::{
     StaticSegment,
@@ -350,7 +350,7 @@ pub fn App() -> impl IntoView {
 /// Setup global search providers
 fn setup_search_providers() {
     use crate::features::microfrontends::MicrofrontendRegistry;
-    use shared_microfrontend::hooks::{SearchCategory, SearchResult, use_search};
+    use lib_ui::hooks::{SearchCategory, SearchResult, use_search};
 
     let search_ctx = use_search();
 

@@ -185,7 +185,7 @@ impl AuthContext {
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::hooks::use_auth::use_auth;
+/// use lib_ui::hooks::use_auth::use_auth;
 /// use leptos::prelude::*;
 ///
 /// #[component]

@@ -91,7 +91,7 @@ pub fn LoginRedirectPage(
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::auth::ProtectedRoute;
+/// use lib_ui::components::auth::ProtectedRoute;
 ///
 /// #[component]
 /// pub fn DashboardPage() -> impl IntoView {
@@ -158,7 +158,7 @@ pub fn ProtectedRoute(
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::auth::LogoutButton;
+/// use lib_ui::components::auth::LogoutButton;
 ///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
@@ -204,7 +204,7 @@ pub fn LogoutButton(
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::auth::UserProfile;
+/// use lib_ui::components::auth::UserProfile;
 ///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
@@ -261,7 +261,7 @@ pub fn UserProfile(
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::auth::PermissionGuard;
+/// use lib_ui::components::auth::PermissionGuard;
 ///
 /// #[component]
 /// pub fn AdminPanel() -> impl IntoView {
