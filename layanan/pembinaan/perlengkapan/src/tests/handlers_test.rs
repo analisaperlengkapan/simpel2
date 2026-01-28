@@ -421,4 +421,50 @@ mod tests {
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.alasan, "Handler Disposal");
     }
+
+    #[tokio::test]
+    async fn test_handler_create_pengalihan() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+
+        mock_repo.expect_create_pengalihan()
+             .with(mockall::predicate::always(), mockall::predicate::always())
+            .times(1)
+            .returning(move |req, uid| Ok(Pengalihan {
+                id: Uuid::new_v4(),
+                asset_id: req.asset_id,
+                pihak_lama: req.pihak_lama,
+                pihak_baru: req.pihak_baru,
+                tanggal_pengalihan: req.tanggal_pengalihan,
+                dasar_pengalihan: req.dasar_pengalihan,
+                status: "proses".to_string(),
+                keterangan: req.keterangan,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                created_by: uid,
+                updated_by: uid,
+            }));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let mut claims = create_mock_claims();
+        claims.user_id = user_id;
+
+        let request = Json(CreatePengalihanRequest {
+            asset_id,
+            pihak_lama: "Handler Lama".to_string(),
+            pihak_baru: "Handler Baru".to_string(),
+            tanggal_pengalihan: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            dasar_pengalihan: None,
+            keterangan: None,
+        });
+
+        let result = create_pengalihan(state, claims, request).await;
+
+        assert!(result.is_ok());
+         let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        assert_eq!(json.0.data.pihak_lama, "Handler Lama");
+    }
 }

@@ -348,6 +348,55 @@ pub struct CreatePenghapusanRequest {
     pub nilai_residu: Option<f64>,
 }
 
+// ============ Pengalihan Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Pengalihan {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub pihak_lama: String,
+    pub pihak_baru: String,
+    pub tanggal_pengalihan: NaiveDate,
+    pub dasar_pengalihan: Option<String>,
+    pub status: String,
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Pengalihan {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            pihak_lama: row.get("pihak_lama"),
+            pihak_baru: row.get("pihak_baru"),
+            tanggal_pengalihan: row.get("tanggal_pengalihan"),
+            dasar_pengalihan: row.get("dasar_pengalihan"),
+            status: row.get("status"),
+            keterangan: row.get("keterangan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengalihanRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 255))]
+    pub pihak_lama: String,
+    #[validate(length(min = 1, max = 255))]
+    pub pihak_baru: String,
+    pub tanggal_pengalihan: NaiveDate,
+    pub dasar_pengalihan: Option<String>,
+    pub keterangan: Option<String>,
+}
+
 // ============ Response Models ============
 
 #[derive(Debug, Serialize, Deserialize)]

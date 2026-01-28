@@ -151,6 +151,43 @@ pub async fn create_pengadaan(
     ))
 }
 
+// Pengalihan handlers
+pub async fn get_all_pengalihan(
+    State(service): State<PerlengkapanService>,
+    Query(pagination): Query<PaginationQuery>,
+    _claims: Claims,
+) -> Result<Json<PaginatedResponse<Pengalihan>>, AppError> {
+    pagination.validate()?;
+    let (pengalihan, total) = service
+        .get_all_pengalihan(pagination.page, pagination.per_page)
+        .await?;
+
+    Ok(Json(PaginatedResponse::new(
+        pengalihan,
+        total,
+        pagination.page,
+        pagination.per_page,
+        "Pengalihan retrieved successfully".to_string(),
+    )))
+}
+
+pub async fn create_pengalihan(
+    State(service): State<PerlengkapanService>,
+    claims: Claims,
+    Json(request): Json<CreatePengalihanRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<Pengalihan>>), AppError> {
+    let user_id = Some(claims.user_id);
+    let pengalihan = service.create_pengalihan(request, user_id).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(
+            pengalihan,
+            "Pengalihan recorded successfully".to_string(),
+        )),
+    ))
+}
+
 // Penghapusan handlers
 pub async fn get_all_penghapusan(
     State(service): State<PerlengkapanService>,

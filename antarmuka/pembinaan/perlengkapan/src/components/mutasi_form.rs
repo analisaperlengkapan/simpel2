@@ -31,6 +31,7 @@ pub fn MutasiForm() -> impl IntoView {
             keterangan: if keterangan.get().is_empty() { None } else { Some(keterangan.get()) },
         };
 
+        let navigate = navigate.clone();
         spawn_local(async move {
             match create_mutasi(req).await {
                 Ok(_) => {
@@ -66,8 +67,9 @@ pub fn MutasiForm() -> impl IntoView {
 
             <form on:submit=on_submit class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Asset ID (UUID)"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="asset_id">"Asset ID (UUID)"</label>
                     <input
+                        id="asset_id"
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="Contoh: 550e8400-e29b-41d4-a716-446655440000"
@@ -79,8 +81,9 @@ pub fn MutasiForm() -> impl IntoView {
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Satker Asal"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="asal">"Satker Asal"</label>
                         <input
+                            id="asal"
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="Nama Satker Asal"
@@ -90,8 +93,9 @@ pub fn MutasiForm() -> impl IntoView {
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Satker Tujuan"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="tujuan">"Satker Tujuan"</label>
                         <input
+                            id="tujuan"
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="Nama Satker Tujuan"
@@ -103,8 +107,9 @@ pub fn MutasiForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Penanggung Jawab"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="pj">"Penanggung Jawab"</label>
                     <input
+                        id="pj"
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="Nama PJ"
@@ -115,8 +120,9 @@ pub fn MutasiForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Mutasi"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="tanggal">"Tanggal Mutasi"</label>
                     <input
+                        id="tanggal"
                         type="date"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         prop:value=move || tanggal.get()
@@ -126,8 +132,9 @@ pub fn MutasiForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Keterangan"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="keterangan">"Keterangan"</label>
                     <textarea
+                        id="keterangan"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         rows="3"
                         prop:value=move || keterangan.get()

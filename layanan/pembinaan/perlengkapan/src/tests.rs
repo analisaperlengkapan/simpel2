@@ -28,6 +28,8 @@ mock! {
         async fn create_mutasi(&self, request: CreateMutasiRequest, user_id: Option<Uuid>) -> AppResult<Mutasi>;
         async fn get_all_penghapusan(&self, page: i32, per_page: i32) -> AppResult<(Vec<Penghapusan>, i64)>;
         async fn create_penghapusan(&self, request: CreatePenghapusanRequest, user_id: Option<Uuid>) -> AppResult<Penghapusan>;
+        async fn get_all_pengalihan(&self, page: i32, per_page: i32) -> AppResult<(Vec<Pengalihan>, i64)>;
+        async fn create_pengalihan(&self, request: CreatePengalihanRequest, user_id: Option<Uuid>) -> AppResult<Pengalihan>;
     }
 }
 
@@ -374,6 +376,48 @@ mod unit_tests {
 
         assert_eq!(result.alasan, "Rusak berat");
         assert_eq!(result.status, "usulan");
+    }
+
+    #[tokio::test]
+    async fn test_create_pengalihan() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+        let req = CreatePengalihanRequest {
+            asset_id,
+            pihak_lama: "Lama".to_string(),
+            pihak_baru: "Baru".to_string(),
+            tanggal_pengalihan: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            dasar_pengalihan: Some("SK 123".to_string()),
+            keterangan: Some("Ket".to_string()),
+        };
+
+        mock_repo
+            .expect_create_pengalihan()
+            .with(always(), eq(Some(user_id)))
+            .times(1)
+            .returning(|req, uid| {
+                Ok(Pengalihan {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    pihak_lama: req.pihak_lama,
+                    pihak_baru: req.pihak_baru,
+                    tanggal_pengalihan: req.tanggal_pengalihan,
+                    dasar_pengalihan: req.dasar_pengalihan,
+                    status: "proses".to_string(),
+                    keterangan: req.keterangan,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let result = service.create_pengalihan(req, Some(user_id)).await.unwrap();
+
+        assert_eq!(result.pihak_lama, "Lama");
+        assert_eq!(result.status, "proses");
     }
 }
 

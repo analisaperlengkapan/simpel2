@@ -19,3 +19,5 @@ pub mod mutasi_list;
 pub mod mutasi_form;
 pub mod penghapusan_list;
 pub mod penghapusan_form;
+pub mod pengalihan_list;
+pub mod pengalihan_form;

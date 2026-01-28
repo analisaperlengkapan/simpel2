@@ -29,6 +29,7 @@ pub fn PengadaanForm() -> impl IntoView {
             pic_user_id: None,
         };
 
+        let navigate = navigate.clone();
         spawn_local(async move {
             match create_pengadaan(req).await {
                 Ok(_) => {

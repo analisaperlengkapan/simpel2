@@ -29,6 +29,7 @@ pub fn PenghapusanForm() -> impl IntoView {
             nilai_residu: residu.get().parse::<f64>().ok(),
         };
 
+        let navigate = navigate.clone();
         spawn_local(async move {
             match create_penghapusan(req).await {
                 Ok(_) => {
@@ -64,8 +65,9 @@ pub fn PenghapusanForm() -> impl IntoView {
 
             <form on:submit=on_submit class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Asset ID (UUID)"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="asset_id">"Asset ID (UUID)"</label>
                     <input
+                        id="asset_id"
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="Contoh: 550e8400-e29b-41d4-a716-446655440000"
@@ -76,8 +78,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Penghapusan"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="tanggal">"Tanggal Penghapusan"</label>
                     <input
+                        id="tanggal"
                         type="date"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         prop:value=move || tanggal.get()
@@ -87,8 +90,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Metode Penghapusan"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="metode">"Metode Penghapusan"</label>
                     <select
+                        id="metode"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         prop:value=move || metode.get()
                         on:change=move |ev| set_metode.set(event_target_value(&ev))
@@ -103,8 +107,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Alasan"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="alasan">"Alasan"</label>
                     <textarea
+                        id="alasan"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         rows="3"
                         placeholder="Kondisi rusak berat, hilang, dsb."
@@ -115,8 +120,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nilai Residu (Rp)"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="residu">"Nilai Residu (Rp)"</label>
                     <input
+                        id="residu"
                         type="number"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="0"

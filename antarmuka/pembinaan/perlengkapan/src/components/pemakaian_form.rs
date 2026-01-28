@@ -28,6 +28,7 @@ pub fn PemakaianForm() -> impl IntoView {
             keperluan: if keperluan.get().is_empty() { None } else { Some(keperluan.get()) },
         };
 
+        let navigate = navigate.clone();
         spawn_local(async move {
             match create_pemakaian(req).await {
                 Ok(_) => {
@@ -63,8 +64,9 @@ pub fn PemakaianForm() -> impl IntoView {
 
             <form on:submit=on_submit class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Peminjam"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="peminjam">"Nama Peminjam"</label>
                     <input
+                        id="peminjam"
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="Nama Pegawai / Satker"
@@ -75,8 +77,9 @@ pub fn PemakaianForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Asset ID (UUID)"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="asset_id">"Asset ID (UUID)"</label>
                     <input
+                        id="asset_id"
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="Contoh: 550e8400-e29b-41d4-a716-446655440000"
@@ -88,8 +91,9 @@ pub fn PemakaianForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Mulai"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="tanggal_mulai">"Tanggal Mulai"</label>
                     <input
+                        id="tanggal_mulai"
                         type="date"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         prop:value=move || tanggal_mulai.get()
@@ -99,8 +103,9 @@ pub fn PemakaianForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Keperluan"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="keperluan">"Keperluan"</label>
                     <textarea
+                        id="keperluan"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         rows="3"
                         prop:value=move || keperluan.get()

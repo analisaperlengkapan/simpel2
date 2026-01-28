@@ -150,4 +150,23 @@ impl PerlengkapanService {
         request.validate()?;
         self.repo.create_penghapusan(request, user_id).await
     }
+
+    // ============ Pengalihan Services ============
+
+    pub async fn get_all_pengalihan(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Pengalihan>, i64)> {
+        self.repo.get_all_pengalihan(page, per_page).await
+    }
+
+    pub async fn create_pengalihan(
+        &self,
+        request: CreatePengalihanRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Pengalihan> {
+        request.validate()?;
+        self.repo.create_pengalihan(request, user_id).await
+    }
 }
