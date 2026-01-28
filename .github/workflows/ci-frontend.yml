@@ -48,9 +48,6 @@ jobs:
           - pidum
 
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -85,9 +82,6 @@ jobs:
     name: Test WASM Components
     runs-on: self-hosted
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -157,9 +151,6 @@ jobs:
           - pidum
 
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -234,9 +225,6 @@ jobs:
     name: Lint Frontend Code
     runs-on: self-hosted
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 

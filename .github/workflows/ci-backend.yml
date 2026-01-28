@@ -35,9 +35,6 @@ jobs:
     name: Cargo Check
     runs-on: self-hosted
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -50,6 +47,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -78,9 +76,6 @@ jobs:
     name: Test Suite
     runs-on: self-hosted
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -93,6 +88,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -150,9 +146,6 @@ jobs:
     name: Clippy Linting
     runs-on: self-hosted
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -166,6 +159,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -194,9 +188,6 @@ jobs:
     name: Code Formatting
     runs-on: self-hosted
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -210,6 +201,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check formatting (workspace)
         run: cargo fmt --all --check
 
@@ -227,9 +219,6 @@ jobs:
     needs: [check, clippy, fmt]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - name: Fix permissions before checkout
-        run: sudo chown -R $USER:$USER . || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -242,6 +231,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
