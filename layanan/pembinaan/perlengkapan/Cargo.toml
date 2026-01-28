@@ -22,7 +22,7 @@ tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-# Database - PostgreSQL only using tokio-postgres (no RSA vulnerability RUSTSEC-2023-0071)
+# Database
 tokio-postgres = { workspace = true }
 deadpool-postgres = { workspace = true }
 
@@ -44,10 +44,28 @@ jsonwebtoken = { workspace = true }
 # Validation
 validator = { workspace = true }
 
-# Environment variables (FIXED: using maintained dotenvy)
+# Environment variables
 dotenvy = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
 bigdecimal = { workspace = true }
 lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }
+layanan-integrasi = { path = "../../daskrimti/integrasi" }
+
+# gRPC
+tonic = "0.12"
+prost = "0.13"
+http = { workspace = true }
+http-body = { workspace = true }
+http-body-util = { workspace = true }
+
+async-trait = "0.1"
+
+[build-dependencies]
+tonic-build = "0.12"
+
+[dev-dependencies]
+mockall = "0.13"
+mime = "0.3"
+axum-test = "18.1"

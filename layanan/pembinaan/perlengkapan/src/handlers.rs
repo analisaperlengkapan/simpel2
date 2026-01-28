@@ -19,6 +19,25 @@ pub struct PaginationQuery {
     pub page: i32,
     #[serde(default = "default_per_page")]
     pub per_page: i32,
+    pub category: Option<String>,
+}
+
+impl PaginationQuery {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.page < 1 {
+            return Err(bad_request("Page must be greater than 0"));
+        }
+        if self.page > 100_000 {
+            return Err(bad_request("Page must be less than or equal to 100,000"));
+        }
+        if self.per_page < 1 {
+            return Err(bad_request("Per page must be greater than 0"));
+        }
+        if self.per_page > 1000 {
+            return Err(bad_request("Per page must be less than or equal to 1000"));
+        }
+        Ok(())
+    }
 }
 
 fn default_page() -> i32 {
@@ -49,84 +68,37 @@ pub async fn get_dashboard_stats(
     )))
 }
 
-// Aset handlers
-pub async fn get_all_aset(
+// Asset handlers (Read-Only)
+pub async fn get_all_assets(
     State(service): State<PerlengkapanService>,
     Query(pagination): Query<PaginationQuery>,
     _claims: Claims,
-) -> Result<Json<PaginatedResponse<Aset>>, AppError> {
-    let (aset, total) = service
-        .get_all_aset(pagination.page, pagination.per_page)
+) -> Result<Json<PaginatedResponse<Asset>>, AppError> {
+    pagination.validate()?;
+    let (assets, total) = service
+        .get_all_assets(pagination.page, pagination.per_page, pagination.category)
         .await?;
 
     Ok(Json(PaginatedResponse::new(
-        aset,
+        assets,
         total,
         pagination.page,
         pagination.per_page,
-        "Aset retrieved successfully".to_string(),
+        "Assets retrieved successfully".to_string(),
     )))
 }
 
-pub async fn get_aset_by_id(
+pub async fn get_asset_by_id(
     State(service): State<PerlengkapanService>,
     Path(id): Path<Uuid>,
     _claims: Claims,
-) -> Result<Json<ApiResponse<Aset>>, AppError> {
-    let aset = service.get_aset_by_id(id).await?;
+) -> Result<Json<ApiResponse<Asset>>, AppError> {
+    let asset = service.get_asset_by_id(id).await?;
 
     Ok(Json(ApiResponse::success(
-        aset,
-        "Aset retrieved successfully".to_string(),
+        asset,
+        "Asset retrieved successfully".to_string(),
     )))
-}
-
-pub async fn create_aset(
-    State(service): State<PerlengkapanService>,
-    claims: Claims,
-    Json(request): Json<CreateAsetRequest>,
-) -> Result<(StatusCode, Json<ApiResponse<Aset>>), AppError> {
-    let user_id = Some(claims.user_id);
-    let aset = service.create_aset(request, user_id).await?;
-
-    Ok((
-        StatusCode::CREATED,
-        Json(ApiResponse::success(
-            aset,
-            "Aset created successfully".to_string(),
-        )),
-    ))
-}
-
-pub async fn update_aset(
-    State(service): State<PerlengkapanService>,
-    Path(id): Path<Uuid>,
-    claims: Claims,
-    Json(request): Json<UpdateAsetRequest>,
-) -> Result<Json<ApiResponse<Aset>>, AppError> {
-    let user_id = Some(claims.user_id);
-    let aset = service.update_aset(id, request, user_id).await?;
-
-    Ok(Json(ApiResponse::success(
-        aset,
-        "Aset updated successfully".to_string(),
-    )))
-}
-
-pub async fn delete_aset(
-    State(service): State<PerlengkapanService>,
-    Path(id): Path<Uuid>,
-    _claims: Claims,
-) -> Result<(StatusCode, Json<ApiResponse<String>>), AppError> {
-    service.delete_aset(id).await?;
-
-    Ok((
-        StatusCode::NO_CONTENT,
-        Json(ApiResponse::success(
-            "Aset deleted".to_string(),
-            "Aset deleted successfully".to_string(),
-        )),
-    ))
 }
 
 // Pengadaan handlers
@@ -135,6 +107,7 @@ pub async fn get_all_pengadaan(
     Query(pagination): Query<PaginationQuery>,
     _claims: Claims,
 ) -> Result<Json<PaginatedResponse<Pengadaan>>, AppError> {
+    pagination.validate()?;
     let (pengadaan, total) = service
         .get_all_pengadaan(pagination.page, pagination.per_page)
         .await?;
@@ -184,6 +157,7 @@ pub async fn get_all_analisis(
     Query(pagination): Query<PaginationQuery>,
     _claims: Claims,
 ) -> Result<Json<PaginatedResponse<AnalisisKebutuhan>>, AppError> {
+    pagination.validate()?;
     let (analisis, total) = service
         .get_all_analisis(pagination.page, pagination.per_page)
         .await?;

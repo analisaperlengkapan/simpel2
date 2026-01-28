@@ -1,14 +1,19 @@
 use leptos::prelude::*;
+use crate::components::aset_list::AsetList;
 
 #[component]
 pub fn BankAsetContent() -> impl IntoView {
     view! {
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 mb-6">"Bank Aset"</h1>
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">"Manajemen Bank Aset"</h3>
-                <p class="text-gray-600">"Fitur bank aset untuk mengelola katalog, kategori, dan spesifikasi aset."</p>
-                <p class="text-sm text-gray-500 mt-2">"Implementasi backend dan integrasi API akan ditambahkan setelah frontend selesai."</p>
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">"Bank Aset"</h1>
+                <button class="bg-primary text-white px-4 py-2 rounded hover:bg-primary-dark">
+                    "Tambah Aset"
+                </button>
+            </div>
+
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <AsetList />
             </div>
         </div>
     }

@@ -210,6 +210,17 @@ impl MicrofrontendRegistry {
                 required_role: None,
                 status: AppStatus::Active,
             },
+            MicrofrontendApp {
+                id: "perlengkapan".to_string(),
+                name: "Perlengkapan".to_string(),
+                description: "Manajemen Aset dan Logistik".to_string(),
+                icon: "📦".to_string(),
+                url: "http://localhost:8093".to_string(),
+                color: AppColor::Orange,
+                category: AppCategory::Asset,
+                required_role: None,
+                status: AppStatus::Active,
+            },
             // Intelligence
             MicrofrontendApp {
                 id: "intel".to_string(),

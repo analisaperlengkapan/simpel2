@@ -1,18 +1,15 @@
 //! # JWT Authentication Middleware
 //!
-//! JWT token validation and user authentication
+//! JWT token validation and user authentication using Authenc Service
 
 use axum::{
-    extract::{FromRequestParts, Request},
+    extract::{FromRef, FromRequestParts},
     http::{header::AUTHORIZATION, request::Parts},
-    middleware::Next,
-    response::Response,
 };
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::errors::AppError;
+use crate::{errors::AppError, grpc_clients::AuthencClient};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
@@ -20,17 +17,18 @@ pub struct Claims {
     pub username: String,
     pub role: String,
     pub permissions: Vec<String>,
-    pub exp: usize,
-    pub iat: usize,
 }
 
 impl<S> FromRequestParts<S> for Claims
 where
     S: Send + Sync,
+    AuthencClient: FromRef<S>,
 {
     type Rejection = AppError;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let authenc = AuthencClient::from_ref(state);
+
         // Extract the token from the Authorization header
         let auth_header = parts
             .headers
@@ -49,17 +47,48 @@ where
 
         let token = &auth_str[7..];
 
-        // Get JWT secret from environment or config
-        let jwt_secret =
-            std::env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key".to_string());
+        // Validate token via Authenc gRPC
+        match authenc.validate_token(token).await {
+            Ok(resp) => {
+                if !resp.valid {
+                    return Err(AppError::Authentication(
+                        resp.error.unwrap_or_else(|| "Invalid token".to_string()),
+                    ));
+                }
 
-        let decoding_key = DecodingKey::from_secret(jwt_secret.as_ref());
-        let validation = Validation::new(Algorithm::HS256);
+                // Construct claims from response
+                // Authenc response: user_id (string), scopes (vec<string>)
+                // We map scopes to permissions/roles roughly here
+                let user_id = resp
+                    .user_id
+                    .ok_or_else(|| AppError::Authentication("Token missing user_id".to_string()))?
+                    .parse::<Uuid>()
+                    .map_err(|_| AppError::Authentication("Invalid user_id format".to_string()))?;
 
-        let token_data = decode::<Claims>(token, &decoding_key, &validation)
-            .map_err(|e| AppError::Authentication(format!("Invalid token: {}", e)))?;
+                // TODO: Enhance Authenc ValidateTokenResponse to return more user info (username, role)
+                // For now, we stub or infer based on scopes if available, or fetch user info
+                // In production, ValidateToken should return richer context or we call GetUser.
+                // Assuming "scopes" contains role info for now.
 
-        Ok(token_data.claims)
+                let role = resp
+                    .scopes
+                    .iter()
+                    .find(|s| s.starts_with("role:"))
+                    .map(|s| s.trim_start_matches("role:").to_string())
+                    .unwrap_or_else(|| "user".to_string());
+
+                Ok(Claims {
+                    user_id,
+                    username: "unknown".to_string(), // Missing from ValidateTokenResponse currently
+                    role,
+                    permissions: resp.scopes,
+                })
+            }
+            Err(e) => {
+                tracing::error!("Authenc validation failed: {}", e);
+                Err(AppError::Internal("Authentication service unavailable".to_string()))
+            }
+        }
     }
 }
 
@@ -95,44 +124,5 @@ pub fn require_permission(
                 permission
             )))
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use jsonwebtoken::{EncodingKey, Header, encode};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    #[test]
-    fn test_jwt_claims_creation() {
-        let claims = Claims {
-            user_id: Uuid::new_v4(),
-            username: "test_user".to_string(),
-            role: "user".to_string(),
-            permissions: vec!["read".to_string(), "write".to_string()],
-            exp: (SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-                + 3600) as usize,
-            iat: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs() as usize,
-        };
-
-        let jwt_secret = "test-secret";
-        let encoding_key = EncodingKey::from_secret(jwt_secret.as_ref());
-        let token = encode(&Header::default(), &claims, &encoding_key).unwrap();
-
-        // Test decoding
-        let decoding_key = DecodingKey::from_secret(jwt_secret.as_ref());
-        let validation = Validation::new(Algorithm::HS256);
-        let decoded = decode::<Claims>(&token, &decoding_key, &validation).unwrap();
-
-        assert_eq!(decoded.claims.username, claims.username);
-        assert_eq!(decoded.claims.role, claims.role);
-        assert_eq!(decoded.claims.permissions, claims.permissions);
     }
 }
