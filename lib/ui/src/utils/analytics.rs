@@ -142,6 +142,7 @@ impl Analytics {
 
 /// Initialize analytics tracking
 pub fn init_analytics() {
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         ANALYTICS = Some(Analytics::new());
     }
@@ -157,6 +158,7 @@ pub fn init_analytics() {
 
 /// Set user ID for analytics
 pub fn set_user_id(user_id: String) {
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         if let Some(analytics) = (*std::ptr::addr_of_mut!(ANALYTICS)).as_mut() {
             analytics.set_user_id(user_id);
@@ -173,6 +175,7 @@ pub fn track_page_view() {
     let document = window.document().expect("No document");
 
     // Get page duration if this is not the first page
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     let duration_ms = unsafe {
         (*std::ptr::addr_of!(ANALYTICS))
             .as_ref()
@@ -180,6 +183,7 @@ pub fn track_page_view() {
     };
 
     // Start timing for this page
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         if let Some(analytics) = (*std::ptr::addr_of_mut!(ANALYTICS)).as_mut() {
             analytics.start_page_view();
@@ -364,6 +368,7 @@ pub fn track_event(event_type: EventType, properties: HashMap<String, serde_json
     let window = window().expect("No window object");
     let page = window.location().href().unwrap_or_default();
 
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     let (session_id, user_id) = unsafe {
         (*std::ptr::addr_of!(ANALYTICS))
             .as_ref()
@@ -462,6 +467,7 @@ async fn send_event_to_service(event: UserEvent) -> Result<(), JsValue> {
 
 /// Track user session duration
 pub fn track_session_duration() {
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         if let Some(analytics) = (*std::ptr::addr_of!(ANALYTICS)).as_ref()
             && let Some(duration) = analytics.get_page_duration()

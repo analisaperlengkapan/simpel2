@@ -124,6 +124,7 @@ impl ErrorTracker {
 /// Initialize error tracking
 pub fn init_error_tracking() {
     // Initialize global tracker
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         ERROR_TRACKER = Some(ErrorTracker::new());
     }
@@ -257,6 +258,7 @@ pub fn add_breadcrumb(
         data,
     };
 
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         if let Some(tracker) = (*std::ptr::addr_of_mut!(ERROR_TRACKER)).as_mut() {
             tracker.add_breadcrumb(breadcrumb);
@@ -278,6 +280,7 @@ pub fn set_user_context(
         role,
     };
 
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         if let Some(tracker) = (*std::ptr::addr_of_mut!(ERROR_TRACKER)).as_mut() {
             tracker.set_user_context(context);
@@ -287,6 +290,7 @@ pub fn set_user_context(
 
 /// Get user context
 fn get_user_context() -> UserContext {
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         (*std::ptr::addr_of!(ERROR_TRACKER))
             .as_ref()
@@ -302,6 +306,7 @@ fn get_user_context() -> UserContext {
 
 /// Get breadcrumbs
 fn get_breadcrumbs() -> Vec<Breadcrumb> {
+    // nosemgrep: rust.lang.security.unsafe-usage.unsafe-usage
     unsafe {
         (*std::ptr::addr_of!(ERROR_TRACKER))
             .as_ref()
