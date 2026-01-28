@@ -50,6 +50,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -84,6 +86,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -153,6 +157,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -227,6 +233,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

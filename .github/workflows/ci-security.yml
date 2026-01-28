@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -59,6 +61,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -92,6 +96,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -133,6 +139,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          clean: false
           fetch-depth: 0 # Full history for better detection
 
       - name: Run Gitleaks
@@ -151,6 +158,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
@@ -186,6 +195,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -243,6 +254,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -296,6 +309,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4

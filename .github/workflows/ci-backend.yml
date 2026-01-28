@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -47,6 +49,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -74,24 +77,13 @@ jobs:
   test:
     name: Test Suite
     runs-on: self-hosted
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: simpelv2_test
-          POSTGRES_PASSWORD: test_password_secure_2024
-          POSTGRES_DB: simpelv2_test
-        options: >-
-          --health-cmd "pg_isready -U simpelv2_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 55432:5432
+    # services removed due to missing docker on runner
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -140,6 +132,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -181,6 +175,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -211,6 +207,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
