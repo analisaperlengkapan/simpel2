@@ -70,7 +70,7 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
     Router::new()
         .route("/captcha/challenge", post(generate_challenge))
         .route("/captcha/challenge/{id}", get(get_challenge))
-        .route("/captcha/validate", post(validate_challenge))
+        .route("/captcha/verify", post(validate_challenge))
         .route("/captcha/refresh/{id}", post(refresh_challenge))
         .route("/captcha/difficulty", post(adjust_difficulty))
         // Dashboard endpoints

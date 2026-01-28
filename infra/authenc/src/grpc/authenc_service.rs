@@ -1060,8 +1060,13 @@ impl AuthencService for AuthencGrpcService {
             let payload = format!("{}:{}", req.challenge_id, timestamp);
             let secret = &self.state.config.security.jwt_secret;
 
+            let hk = hkdf::Hkdf::<Sha256>::new(None, secret.as_bytes());
+            let mut captcha_key = [0u8; 32];
+            hk.expand(b"captcha-v1", &mut captcha_key)
+                .map_err(|_| Status::internal("HKDF expansion failed"))?;
+
             type HmacSha256 = Hmac<Sha256>;
-            let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+            let mut mac = HmacSha256::new_from_slice(&captcha_key)
                 .map_err(|_| Status::internal("HMAC initialization failed"))?;
             mac.update(payload.as_bytes());
             let result_mac = mac.finalize();

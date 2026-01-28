@@ -281,7 +281,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
                                 enabled: true,
                                 suspicious_threshold_rpm: 50,
                                 monitored_paths: vec![
-                                    "/captcha/validate".to_string(),
+                                    "/captcha/verify".to_string(),
                                     "/captcha/challenge".to_string(),
                                 ],
                                 log_auth_attempts: true,

@@ -83,6 +83,17 @@ spec:
               number: 3010
       timeout: 30s
 
+    # CAPTCHA API (Proxies to Authenc via gRPC)
+    - match:
+        - uri:
+            prefix: /api/captcha/
+      route:
+        - destination:
+            host: layanan-daskrimti-portal.simpelv2.svc.cluster.local
+            port:
+              number: 3010
+      timeout: 30s
+
     # ========================================
     # Portal Microfrontend Routes (/portal)
     # ========================================
