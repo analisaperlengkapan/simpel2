@@ -107,14 +107,13 @@ jobs:
             ${{ runner.os }}-cargo-test-
             ${{ runner.os }}-cargo-
 
-      - name: Setup database connection
-        run: |
-          echo "DATABASE_URL=postgres://simpelv2_test:test_password_secure_2024@localhost:55432/simpelv2_test" >> $GITHUB_ENV
+      # Removed DATABASE_URL setup because we are using mockall for unit tests
+      # and postgres service is not available on self-hosted runners.
+      # If integration tests needing real DB are added, we must handle that conditionally.
 
       - name: Run workspace tests
         run: cargo test --workspace --all-targets --verbose
-        env:
-          DATABASE_URL: postgres://simpelv2_test:test_password_secure_2024@localhost:55432/simpelv2_test
+        # Removed env: DATABASE_URL since no DB is running
 
       - name: Test authenc (separate workspace)
         working-directory: infra/authenc

@@ -2,16 +2,17 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Perlengkapan Module', () => {
   test.beforeEach(async ({ page }) => {
-    // Assuming we have a way to mock login or we use a seed
-    // For now, we assume the app starts at login or we can bypass if using a specific test env
     // Navigate to dashboard root
     await page.goto('/');
 
-    // If login is needed, handle it here (Simplified for this example)
-    // await page.getByPlaceholder('Username').fill('admin');
-    // await page.getByPlaceholder('Password').fill('password');
-    // await page.getByRole('button', { name: 'Login' }).click();
-    // await expect(page).toHaveURL('/dashboard');
+    // Check if login is required and perform login if necessary
+    const loginButton = page.getByRole('button', { name: 'Masuk' });
+    if (await loginButton.isVisible()) {
+        await page.getByLabel('NIP / Email').fill('admin@kejaksaan.go.id');
+        await page.getByLabel('Kata Sandi').fill('password');
+        await loginButton.click();
+        await expect(page).toHaveURL(/\/dashboard/);
+    }
   });
 
   test('should display asset list', async ({ page }) => {

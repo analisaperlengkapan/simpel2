@@ -85,6 +85,10 @@ impl PerlengkapanService {
         self.repo.get_all_pemakaian(page, per_page).await
     }
 
+    pub async fn get_pemakaian_by_id(&self, id: Uuid) -> AppResult<Pemakaian> {
+        self.repo.get_pemakaian_by_id(id).await
+    }
+
     pub async fn create_pemakaian(
         &self,
         request: CreatePemakaianRequest,
@@ -102,6 +106,10 @@ impl PerlengkapanService {
         per_page: i32,
     ) -> AppResult<(Vec<Hibah>, i64)> {
         self.repo.get_all_hibah(page, per_page).await
+    }
+
+    pub async fn get_hibah_by_id(&self, id: Uuid) -> AppResult<Hibah> {
+        self.repo.get_hibah_by_id(id).await
     }
 
     pub async fn create_hibah(
@@ -123,6 +131,10 @@ impl PerlengkapanService {
         self.repo.get_all_mutasi(page, per_page).await
     }
 
+    pub async fn get_mutasi_by_id(&self, id: Uuid) -> AppResult<Mutasi> {
+        self.repo.get_mutasi_by_id(id).await
+    }
+
     pub async fn create_mutasi(
         &self,
         request: CreateMutasiRequest,
@@ -140,6 +152,10 @@ impl PerlengkapanService {
         per_page: i32,
     ) -> AppResult<(Vec<Penghapusan>, i64)> {
         self.repo.get_all_penghapusan(page, per_page).await
+    }
+
+    pub async fn get_penghapusan_by_id(&self, id: Uuid) -> AppResult<Penghapusan> {
+        self.repo.get_penghapusan_by_id(id).await
     }
 
     pub async fn create_penghapusan(
@@ -161,6 +177,10 @@ impl PerlengkapanService {
         self.repo.get_all_pengalihan(page, per_page).await
     }
 
+    pub async fn get_pengalihan_by_id(&self, id: Uuid) -> AppResult<Pengalihan> {
+        self.repo.get_pengalihan_by_id(id).await
+    }
+
     pub async fn create_pengalihan(
         &self,
         request: CreatePengalihanRequest,
@@ -178,6 +198,10 @@ impl PerlengkapanService {
         per_page: i32,
     ) -> AppResult<(Vec<Pemeliharaan>, i64)> {
         self.repo.get_all_pemeliharaan(page, per_page).await
+    }
+
+    pub async fn get_pemeliharaan_by_id(&self, id: Uuid) -> AppResult<Pemeliharaan> {
+        self.repo.get_pemeliharaan_by_id(id).await
     }
 
     pub async fn create_pemeliharaan(

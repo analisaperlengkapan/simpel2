@@ -42,7 +42,7 @@ pub fn PemeliharaanForm() -> impl IntoView {
         spawn_local(async move {
             match create_pemeliharaan(req).await {
                 Ok(_) => {
-                    navigate("/dashboard/pengelolaan/pemeliharaan", Default::default());
+                    navigate("/dashboard/pengelolaan/pemeliharaan/daftar", Default::default());
                 },
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan pemeliharaan: {}", e)));

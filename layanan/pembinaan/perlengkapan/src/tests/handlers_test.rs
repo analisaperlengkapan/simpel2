@@ -251,6 +251,26 @@ mod tests {
         let user_id = Uuid::new_v4();
         let asset_id = Uuid::new_v4();
 
+        // Expect get_asset_by_id to be called for validation
+        mock_repo.expect_get_asset_by_id()
+            .with(mockall::predicate::always())
+            .times(1)
+            .returning(move |_| Ok(Asset {
+                id: asset_id,
+                kategori_aset: "Tanah".to_string(),
+                no_aset: "1".to_string(),
+                nama_aset: Some("Found Asset".to_string()),
+                kode_barang: Some("101".to_string()),
+                merk: None,
+                tipe: None,
+                kondisi: Some("Baik".to_string()),
+                lokasi: Some("Jakarta".to_string()),
+                satker: Some("Pusat".to_string()),
+                nilai_perolehan: Some(1000000.0),
+                tgl_perolehan: Some("2023-01-01".to_string()),
+                updated_at: Utc::now(),
+            }));
+
         mock_repo.expect_create_pemakaian()
              .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
@@ -295,6 +315,26 @@ mod tests {
         let user_id = Uuid::new_v4();
         let asset_id = Uuid::new_v4();
 
+        // Expect get_asset_by_id to be called for validation
+        mock_repo.expect_get_asset_by_id()
+            .with(mockall::predicate::always())
+            .times(1)
+            .returning(move |_| Ok(Asset {
+                id: asset_id,
+                kategori_aset: "Tanah".to_string(),
+                no_aset: "1".to_string(),
+                nama_aset: Some("Found Asset".to_string()),
+                kode_barang: Some("101".to_string()),
+                merk: None,
+                tipe: None,
+                kondisi: Some("Baik".to_string()),
+                lokasi: Some("Jakarta".to_string()),
+                satker: Some("Pusat".to_string()),
+                nilai_perolehan: Some(1000000.0),
+                tgl_perolehan: Some("2023-01-01".to_string()),
+                updated_at: Utc::now(),
+            }));
+
         mock_repo.expect_create_hibah()
              .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
@@ -337,6 +377,26 @@ mod tests {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
         let asset_id = Uuid::new_v4();
+
+        // Expect get_asset_by_id to be called for validation
+        mock_repo.expect_get_asset_by_id()
+            .with(mockall::predicate::always())
+            .times(1)
+            .returning(move |_| Ok(Asset {
+                id: asset_id,
+                kategori_aset: "Tanah".to_string(),
+                no_aset: "1".to_string(),
+                nama_aset: Some("Found Asset".to_string()),
+                kode_barang: Some("101".to_string()),
+                merk: None,
+                tipe: None,
+                kondisi: Some("Baik".to_string()),
+                lokasi: Some("Jakarta".to_string()),
+                satker: Some("Pusat".to_string()),
+                nilai_perolehan: Some(1000000.0),
+                tgl_perolehan: Some("2023-01-01".to_string()),
+                updated_at: Utc::now(),
+            }));
 
         mock_repo.expect_create_mutasi()
              .with(mockall::predicate::always(), mockall::predicate::always())
@@ -384,6 +444,26 @@ mod tests {
         let user_id = Uuid::new_v4();
         let asset_id = Uuid::new_v4();
 
+        // Expect get_asset_by_id to be called for validation
+        mock_repo.expect_get_asset_by_id()
+            .with(mockall::predicate::always())
+            .times(1)
+            .returning(move |_| Ok(Asset {
+                id: asset_id,
+                kategori_aset: "Tanah".to_string(),
+                no_aset: "1".to_string(),
+                nama_aset: Some("Found Asset".to_string()),
+                kode_barang: Some("101".to_string()),
+                merk: None,
+                tipe: None,
+                kondisi: Some("Baik".to_string()),
+                lokasi: Some("Jakarta".to_string()),
+                satker: Some("Pusat".to_string()),
+                nilai_perolehan: Some(1000000.0),
+                tgl_perolehan: Some("2023-01-01".to_string()),
+                updated_at: Utc::now(),
+            }));
+
         mock_repo.expect_create_penghapusan()
              .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
@@ -427,6 +507,26 @@ mod tests {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
         let asset_id = Uuid::new_v4();
+
+        // Expect get_asset_by_id to be called for validation
+        mock_repo.expect_get_asset_by_id()
+            .with(mockall::predicate::always())
+            .times(1)
+            .returning(move |_| Ok(Asset {
+                id: asset_id,
+                kategori_aset: "Tanah".to_string(),
+                no_aset: "1".to_string(),
+                nama_aset: Some("Found Asset".to_string()),
+                kode_barang: Some("101".to_string()),
+                merk: None,
+                tipe: None,
+                kondisi: Some("Baik".to_string()),
+                lokasi: Some("Jakarta".to_string()),
+                satker: Some("Pusat".to_string()),
+                nilai_perolehan: Some(1000000.0),
+                tgl_perolehan: Some("2023-01-01".to_string()),
+                updated_at: Utc::now(),
+            }));
 
         mock_repo.expect_create_pengalihan()
              .with(mockall::predicate::always(), mockall::predicate::always())
@@ -473,6 +573,26 @@ mod tests {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
         let asset_id = Uuid::new_v4();
+
+        // Expect get_asset_by_id to be called for validation
+        mock_repo.expect_get_asset_by_id()
+            .with(mockall::predicate::always())
+            .times(1)
+            .returning(move |_| Ok(Asset {
+                id: asset_id,
+                kategori_aset: "Tanah".to_string(),
+                no_aset: "1".to_string(),
+                nama_aset: Some("Found Asset".to_string()),
+                kode_barang: Some("101".to_string()),
+                merk: None,
+                tipe: None,
+                kondisi: Some("Baik".to_string()),
+                lokasi: Some("Jakarta".to_string()),
+                satker: Some("Pusat".to_string()),
+                nilai_perolehan: Some(1000000.0),
+                tgl_perolehan: Some("2023-01-01".to_string()),
+                updated_at: Utc::now(),
+            }));
 
         mock_repo.expect_create_pemeliharaan()
              .with(mockall::predicate::always(), mockall::predicate::always())

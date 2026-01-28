@@ -560,6 +560,22 @@ impl PerlengkapanRepository for Database {
         Ok((pemakaian, total))
     }
 
+    async fn get_pemakaian_by_id(&self, id: Uuid) -> AppResult<Pemakaian> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let row = client
+            .query_opt("SELECT id, asset_id, piminjam_nama, tanggal_mulai, tanggal_selesai, status, keperluan, created_at, updated_at, created_by, updated_by FROM perlengkapan.pemakaian WHERE id = $1", &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        row.map(|r| Pemakaian::from_row(&r))
+            .ok_or_else(|| not_found("Pemakaian", &id.to_string()))
+    }
+
     async fn create_pemakaian(
         &self,
         request: CreatePemakaianRequest,
@@ -633,6 +649,22 @@ impl PerlengkapanRepository for Database {
         Ok((hibah, total))
     }
 
+    async fn get_hibah_by_id(&self, id: Uuid) -> AppResult<Hibah> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let row = client
+            .query_opt("SELECT id, asset_id, pemberi, penerima, tanggal_hibah, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.hibah WHERE id = $1", &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        row.map(|r| Hibah::from_row(&r))
+            .ok_or_else(|| not_found("Hibah", &id.to_string()))
+    }
+
     async fn create_hibah(
         &self,
         request: CreateHibahRequest,
@@ -704,6 +736,22 @@ impl PerlengkapanRepository for Database {
         let mutasi: Vec<Mutasi> = rows.iter().map(Mutasi::from_row).collect();
 
         Ok((mutasi, total))
+    }
+
+    async fn get_mutasi_by_id(&self, id: Uuid) -> AppResult<Mutasi> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let row = client
+            .query_opt("SELECT id, asset_id, asal_satker, tujuan_satker, penanggung_jawab, tanggal_mutasi, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.mutasi WHERE id = $1", &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        row.map(|r| Mutasi::from_row(&r))
+            .ok_or_else(|| not_found("Mutasi", &id.to_string()))
     }
 
     async fn create_mutasi(
@@ -780,6 +828,22 @@ impl PerlengkapanRepository for Database {
         Ok((penghapusan, total))
     }
 
+    async fn get_penghapusan_by_id(&self, id: Uuid) -> AppResult<Penghapusan> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let row = client
+            .query_opt("SELECT id, asset_id, tanggal_penghapusan, alasan, metode_penghapusan, status, nilai_residu::FLOAT8, created_at, updated_at, created_by, updated_by FROM perlengkapan.penghapusan WHERE id = $1", &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        row.map(|r| Penghapusan::from_row(&r))
+            .ok_or_else(|| not_found("Penghapusan", &id.to_string()))
+    }
+
     async fn create_penghapusan(
         &self,
         request: CreatePenghapusanRequest,
@@ -851,6 +915,22 @@ impl PerlengkapanRepository for Database {
         let pengalihan: Vec<Pengalihan> = rows.iter().map(Pengalihan::from_row).collect();
 
         Ok((pengalihan, total))
+    }
+
+    async fn get_pengalihan_by_id(&self, id: Uuid) -> AppResult<Pengalihan> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let row = client
+            .query_opt("SELECT id, asset_id, pihak_lama, pihak_baru, tanggal_pengalihan, dasar_pengalihan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.pengalihan WHERE id = $1", &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        row.map(|r| Pengalihan::from_row(&r))
+            .ok_or_else(|| not_found("Pengalihan", &id.to_string()))
     }
 
     async fn create_pengalihan(
@@ -925,6 +1005,22 @@ impl PerlengkapanRepository for Database {
         let pemeliharaan: Vec<Pemeliharaan> = rows.iter().map(Pemeliharaan::from_row).collect();
 
         Ok((pemeliharaan, total))
+    }
+
+    async fn get_pemeliharaan_by_id(&self, id: Uuid) -> AppResult<Pemeliharaan> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let row = client
+            .query_opt("SELECT id, asset_id, jenis_pemeliharaan, biaya::FLOAT8, tanggal_mulai, tanggal_selesai, pelaksana, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.pemeliharaan WHERE id = $1", &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        row.map(|r| Pemeliharaan::from_row(&r))
+            .ok_or_else(|| not_found("Pemeliharaan", &id.to_string()))
     }
 
     async fn create_pemeliharaan(

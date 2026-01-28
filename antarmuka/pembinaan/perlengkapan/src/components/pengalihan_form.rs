@@ -40,7 +40,7 @@ pub fn PengalihanForm() -> impl IntoView {
         spawn_local(async move {
             match create_pengalihan(req).await {
                 Ok(_) => {
-                    navigate("/dashboard/pengelolaan/pengalihan", Default::default());
+                    navigate("/dashboard/pengelolaan/pengalihan/daftar", Default::default());
                 },
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan pengalihan: {}", e)));

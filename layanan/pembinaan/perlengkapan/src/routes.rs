@@ -22,16 +22,22 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/analisis", get(get_all_analisis).post(create_analisis))
         // Pemakaian routes
         .route("/pemakaian", get(get_all_pemakaian).post(create_pemakaian))
+        .route("/pemakaian/:id", get(get_pemakaian_by_id))
         // Hibah routes
         .route("/hibah", get(get_all_hibah).post(create_hibah))
+        .route("/hibah/:id", get(get_hibah_by_id))
         // Mutasi routes
         .route("/mutasi", get(get_all_mutasi).post(create_mutasi))
+        .route("/mutasi/:id", get(get_mutasi_by_id))
         // Penghapusan routes
         .route("/penghapusan", get(get_all_penghapusan).post(create_penghapusan))
+        .route("/penghapusan/:id", get(get_penghapusan_by_id))
         // Pengalihan routes
         .route("/pengalihan", get(get_all_pengalihan).post(create_pengalihan))
+        .route("/pengalihan/:id", get(get_pengalihan_by_id))
         // Pemeliharaan routes
         .route("/pemeliharaan", get(get_all_pemeliharaan).post(create_pemeliharaan))
+        .route("/pemeliharaan/:id", get(get_pemeliharaan_by_id))
         // Add the service as state
         .with_state(state)
 }

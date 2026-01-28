@@ -177,6 +177,9 @@ pub async fn create_pengalihan(
     Json(request): Json<CreatePengalihanRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<Pengalihan>>), AppError> {
     let user_id = Some(claims.user_id);
+    // Validate asset exists
+    service.get_asset_by_id(request.asset_id).await?;
+
     let pengalihan = service.create_pengalihan(request, user_id).await?;
 
     Ok((
@@ -208,12 +211,28 @@ pub async fn get_all_pemeliharaan(
     )))
 }
 
+pub async fn get_pemeliharaan_by_id(
+    State(service): State<PerlengkapanService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Pemeliharaan>>, AppError> {
+    let pemeliharaan = service.get_pemeliharaan_by_id(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        pemeliharaan,
+        "Pemeliharaan retrieved successfully".to_string(),
+    )))
+}
+
 pub async fn create_pemeliharaan(
     State(service): State<PerlengkapanService>,
     claims: Claims,
     Json(request): Json<CreatePemeliharaanRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<Pemeliharaan>>), AppError> {
     let user_id = Some(claims.user_id);
+    // Validate asset exists
+    service.get_asset_by_id(request.asset_id).await?;
+
     let pemeliharaan = service.create_pemeliharaan(request, user_id).await?;
 
     Ok((
@@ -251,6 +270,9 @@ pub async fn create_penghapusan(
     Json(request): Json<CreatePenghapusanRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<Penghapusan>>), AppError> {
     let user_id = Some(claims.user_id);
+    // Validate asset exists
+    service.get_asset_by_id(request.asset_id).await?;
+
     let penghapusan = service.create_penghapusan(request, user_id).await?;
 
     Ok((
@@ -282,12 +304,28 @@ pub async fn get_all_mutasi(
     )))
 }
 
+pub async fn get_mutasi_by_id(
+    State(service): State<PerlengkapanService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Mutasi>>, AppError> {
+    let mutasi = service.get_mutasi_by_id(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        mutasi,
+        "Mutasi retrieved successfully".to_string(),
+    )))
+}
+
 pub async fn create_mutasi(
     State(service): State<PerlengkapanService>,
     claims: Claims,
     Json(request): Json<CreateMutasiRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<Mutasi>>), AppError> {
     let user_id = Some(claims.user_id);
+    // Validate asset exists
+    service.get_asset_by_id(request.asset_id).await?;
+
     let mutasi = service.create_mutasi(request, user_id).await?;
 
     Ok((
@@ -319,12 +357,28 @@ pub async fn get_all_hibah(
     )))
 }
 
+pub async fn get_hibah_by_id(
+    State(service): State<PerlengkapanService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Hibah>>, AppError> {
+    let hibah = service.get_hibah_by_id(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        hibah,
+        "Hibah retrieved successfully".to_string(),
+    )))
+}
+
 pub async fn create_hibah(
     State(service): State<PerlengkapanService>,
     claims: Claims,
     Json(request): Json<CreateHibahRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<Hibah>>), AppError> {
     let user_id = Some(claims.user_id);
+    // Validate asset exists
+    service.get_asset_by_id(request.asset_id).await?;
+
     let hibah = service.create_hibah(request, user_id).await?;
 
     Ok((
@@ -356,12 +410,41 @@ pub async fn get_all_pemakaian(
     )))
 }
 
+pub async fn get_pemakaian_by_id(
+    State(service): State<PerlengkapanService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Pemakaian>>, AppError> {
+    let pemakaian = service.get_pemakaian_by_id(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        pemakaian,
+        "Pemakaian retrieved successfully".to_string(),
+    )))
+}
+
+pub async fn get_penghapusan_by_id(
+    State(service): State<PerlengkapanService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Penghapusan>>, AppError> {
+    let penghapusan = service.get_penghapusan_by_id(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        penghapusan,
+        "Penghapusan retrieved successfully".to_string(),
+    )))
+}
+
 pub async fn create_pemakaian(
     State(service): State<PerlengkapanService>,
     claims: Claims,
     Json(request): Json<CreatePemakaianRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<Pemakaian>>), AppError> {
     let user_id = Some(claims.user_id);
+    // Validate asset exists
+    service.get_asset_by_id(request.asset_id).await?;
+
     let pemakaian = service.create_pemakaian(request, user_id).await?;
 
     Ok((
@@ -390,6 +473,19 @@ pub async fn get_all_analisis(
         pagination.page,
         pagination.per_page,
         "Analisis kebutuhan retrieved successfully".to_string(),
+    )))
+}
+
+pub async fn get_pengalihan_by_id(
+    State(service): State<PerlengkapanService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Pengalihan>>, AppError> {
+    let pengalihan = service.get_pengalihan_by_id(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        pengalihan,
+        "Pengalihan retrieved successfully".to_string(),
     )))
 }
 
