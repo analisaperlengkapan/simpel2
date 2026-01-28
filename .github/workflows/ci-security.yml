@@ -22,8 +22,11 @@ env:
 jobs:
   cargo-audit:
     name: Security Audit (cargo-audit)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -54,8 +57,11 @@ jobs:
 
   cargo-deny:
     name: Dependency Policy (cargo-deny)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -86,8 +92,11 @@ jobs:
 
   semgrep-sast:
     name: SAST - Semgrep
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -123,11 +132,14 @@ jobs:
 
   gitleaks-secrets:
     name: Secrets Scanning (Gitleaks)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       pull-requests: read
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -141,12 +153,15 @@ jobs:
 
   trivy-scan:
     name: Vulnerability Scan (Trivy)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       security-events: write
       actions: read
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -180,8 +195,11 @@ jobs:
 
   authenc-security:
     name: Authenc IAM Security
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -236,8 +254,11 @@ jobs:
 
   secreton-security:
     name: Secreton Security
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -287,9 +308,12 @@ jobs:
 
   dependency-review:
     name: Dependency Review
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.event_name == 'pull_request'
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -301,7 +325,7 @@ jobs:
 
   security-summary:
     name: Security CI Summary
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       [
         cargo-audit,

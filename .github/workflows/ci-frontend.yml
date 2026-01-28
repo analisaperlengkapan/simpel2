@@ -29,7 +29,7 @@ env:
 jobs:
   check-wasm:
     name: Check WASM - ${{ matrix.module }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -48,6 +48,9 @@ jobs:
           - pidum
 
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -80,8 +83,11 @@ jobs:
 
   test-wasm:
     name: Test WASM Components
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -131,7 +137,7 @@ jobs:
 
   build-wasm:
     name: Build WASM - ${{ matrix.module }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [check-wasm]
     strategy:
       fail-fast: false
@@ -151,6 +157,9 @@ jobs:
           - pidum
 
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -223,8 +232,11 @@ jobs:
 
   lint-frontend:
     name: Lint Frontend Code
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
+      - name: Fix permissions before checkout
+        run: sudo chown -R $USER:$USER . || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -257,7 +269,7 @@ jobs:
 
   summary:
     name: Frontend CI Summary
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [check-wasm, test-wasm, build-wasm, lint-frontend]
     if: always()
     steps:
