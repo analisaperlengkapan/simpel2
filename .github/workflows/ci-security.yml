@@ -16,11 +16,17 @@ concurrency:
 jobs:
   audit-and-deny:
     name: Dependency Audit & Policy
-    runs-on: ubuntu-latest
-    # Use github-hosted runner to ensure tool installation succeeds (no sudo prompts).
+    runs-on: self-hosted
+    container:
+      image: ubuntu:22.04
+    # Running inside Ubuntu container on self-hosted runner; install required packages in-container.
     steps:
+      - name: Prepare container (install packages)
+        run: |
+          apt-get update
+          apt-get install -y build-essential unzip pkg-config libssl-dev gcc perl python3
       - name: Fix permissions
-        run: sudo -n chown -R $USER:$USER . || true
+        run: chown -R $(id -u):$(id -g) . || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -58,11 +64,17 @@ jobs:
 
   sast-semgrep:
     name: SAST - Semgrep
-    runs-on: ubuntu-latest
-    # Use github-hosted runner so python/pip installs work without elevated sudo.
+    runs-on: self-hosted
+    container:
+      image: ubuntu:22.04
+    # Running inside Ubuntu container so python/pip installs work (no sudo needed inside container).
     steps:
+      - name: Prepare container (install python/pip)
+        run: |
+          apt-get update
+          apt-get install -y python3 python3-venv python3-pip
       - name: Fix permissions
-        run: sudo -n chown -R $USER:$USER . || true
+        run: chown -R $(id -u):$(id -g) . || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -81,11 +93,17 @@ jobs:
 
   secrets-gitleaks:
     name: Secrets Scanning
-    runs-on: ubuntu-latest
-    # Use github-hosted runner to avoid missing dependencies on self-hosted runners.
+    runs-on: self-hosted
+    container:
+      image: ubuntu:22.04
+    # Running inside Ubuntu container to ensure gitleaks action dependencies are present.
     steps:
+      - name: Prepare container (install curl/unzip/git)
+        run: |
+          apt-get update
+          apt-get install -y curl unzip git
       - name: Fix permissions
-        run: sudo -n chown -R $USER:$USER . || true
+        run: chown -R $(id -u):$(id -g) . || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
