@@ -7953,10 +7953,8 @@ pub async fn store_event(db: &Database, event: &Event) -> Result<()> {
     })?;
 
     // Parse IP address to proper type, or use null if invalid
-    let ip_addr: Option<std::net::IpAddr> = event
-        .ip_address
-        .as_ref()
-        .and_then(|ip| ip.parse().ok());
+    let ip_addr: Option<std::net::IpAddr> =
+        event.ip_address.as_ref().and_then(|ip| ip.parse().ok());
 
     let query = r#"
             INSERT INTO events (
@@ -10929,8 +10927,7 @@ pub mod service_accounts {
         let limit = max.unwrap_or(100).min(1000);
         let offset = first.unwrap_or(0);
 
-        let rows: Vec<tokio_postgres::Row> =
-            db.query(query, &[&realm_id, &limit, &offset]).await?;
+        let rows: Vec<tokio_postgres::Row> = db.query(query, &[&realm_id, &limit, &offset]).await?;
 
         let mut service_accounts = Vec::new();
 
@@ -11078,10 +11075,13 @@ pub mod service_accounts {
     pub async fn delete_service_account(db: &Database, service_account_id: Uuid) -> Result<()> {
         let query = "DELETE FROM service_accounts WHERE id = $1";
 
-        let rows_affected = db.execute(query, &[&service_account_id]).await.map_err(|e| {
-            error!("Service account deletion failed: {}", e);
-            AuthencError::database(format!("Failed to delete service account: {}", e))
-        })?;
+        let rows_affected = db
+            .execute(query, &[&service_account_id])
+            .await
+            .map_err(|e| {
+                error!("Service account deletion failed: {}", e);
+                AuthencError::database(format!("Failed to delete service account: {}", e))
+            })?;
 
         if rows_affected == 0 {
             return Err(AuthencError::not_found("Service account not found"));
@@ -11108,23 +11108,23 @@ pub mod service_accounts {
             ON CONFLICT (service_account_id, role_id) DO NOTHING
         "#;
 
-        db.execute(query, &[&id, &service_account_id, &role_id, &now, &granted_by])
-            .await
-            .map_err(|e| {
-                error!("Failed to assign role to service account: {}", e);
-                AuthencError::database(format!("Failed to assign role: {}", e))
-            })?;
+        db.execute(
+            query,
+            &[&id, &service_account_id, &role_id, &now, &granted_by],
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to assign role to service account: {}", e);
+            AuthencError::database(format!("Failed to assign role: {}", e))
+        })?;
 
         Ok(())
     }
 
     /// Revoke role from service account
-    pub async fn revoke_role(
-        db: &Database,
-        service_account_id: Uuid,
-        role_id: Uuid,
-    ) -> Result<()> {
-        let query = "DELETE FROM service_account_roles WHERE service_account_id = $1 AND role_id = $2";
+    pub async fn revoke_role(db: &Database, service_account_id: Uuid, role_id: Uuid) -> Result<()> {
+        let query =
+            "DELETE FROM service_account_roles WHERE service_account_id = $1 AND role_id = $2";
 
         let rows_affected = db
             .execute(query, &[&service_account_id, &role_id])

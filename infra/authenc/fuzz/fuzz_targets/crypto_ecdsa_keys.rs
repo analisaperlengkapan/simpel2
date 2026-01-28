@@ -1,7 +1,7 @@
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use authenc::crypto::ecdsa_keys::{EcdsaJwk, EcdsaJwkSet};
+use libfuzzer_sys::fuzz_target;
 use serde_json;
 
 fuzz_target!(|data: &[u8]| {

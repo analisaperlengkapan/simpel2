@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod storage_backends_integration_tests {
     use secreton_storage::StorageBackend;
-    
+
     /// Test Redis storage backend module
     #[test]
     fn test_redis_backend_exists() {
@@ -18,7 +18,7 @@ mod storage_backends_integration_tests {
         println!("✅ Redis storage backend exists");
         assert!(true);
     }
-    
+
     /// Test MySQL storage backend module
     #[test]
     fn test_mysql_backend_exists() {
@@ -26,7 +26,7 @@ mod storage_backends_integration_tests {
         println!("✅ MySQL storage backend exists");
         assert!(true);
     }
-    
+
     /// Test PostgreSQL storage backend module
     #[test]
     fn test_postgres_backend_exists() {
@@ -34,7 +34,7 @@ mod storage_backends_integration_tests {
         println!("✅ PostgreSQL storage backend exists");
         assert!(true);
     }
-    
+
     /// Test Consul storage backend module
     #[test]
     fn test_consul_backend_exists() {
@@ -42,7 +42,7 @@ mod storage_backends_integration_tests {
         println!("✅ Consul storage backend exists");
         assert!(true);
     }
-    
+
     /// Test DynamoDB storage backend module
     #[test]
     fn test_dynamodb_backend_exists() {
@@ -50,7 +50,7 @@ mod storage_backends_integration_tests {
         println!("✅ DynamoDB storage backend exists");
         assert!(true);
     }
-    
+
     /// Test etcd storage backend module
     #[test]
     fn test_etcd_backend_exists() {
@@ -58,7 +58,7 @@ mod storage_backends_integration_tests {
         println!("✅ etcd storage backend exists");
         assert!(true);
     }
-    
+
     /// Test S3 storage backend module
     #[test]
     fn test_s3_backend_exists() {
@@ -66,7 +66,7 @@ mod storage_backends_integration_tests {
         println!("✅ S3 storage backend exists");
         assert!(true);
     }
-    
+
     /// Test CockroachDB storage backend module
     #[test]
     fn test_cockroachdb_backend_exists() {
@@ -74,7 +74,7 @@ mod storage_backends_integration_tests {
         println!("✅ CockroachDB storage backend exists");
         assert!(true);
     }
-    
+
     /// Test Cassandra storage backend module
     #[test]
     fn test_cassandra_backend_exists() {
@@ -82,7 +82,7 @@ mod storage_backends_integration_tests {
         println!("✅ Cassandra storage backend exists");
         assert!(true);
     }
-    
+
     /// Test MongoDB storage backend module
     #[test]
     fn test_mongodb_backend_exists() {
@@ -90,7 +90,7 @@ mod storage_backends_integration_tests {
         println!("✅ MongoDB storage backend exists");
         assert!(true);
     }
-    
+
     /// Test Azure Blob storage backend module
     #[test]
     fn test_azure_blob_backend_exists() {
@@ -99,7 +99,7 @@ mod storage_backends_integration_tests {
         println!("✅ Azure Blob storage backend exists (mock)");
         assert!(true);
     }
-    
+
     /// Test GCS (Google Cloud Storage) backend module
     #[test]
     fn test_gcs_backend_exists() {
@@ -107,7 +107,7 @@ mod storage_backends_integration_tests {
         println!("✅ GCS storage backend exists");
         assert!(true);
     }
-    
+
     /// Test Raft storage backend module
     #[test]
     fn test_raft_backend_exists() {
@@ -115,7 +115,7 @@ mod storage_backends_integration_tests {
         println!("✅ Raft storage backend exists");
         assert!(true);
     }
-    
+
     /// Test File storage backend module
     #[test]
     fn test_file_backend_exists() {
@@ -123,7 +123,7 @@ mod storage_backends_integration_tests {
         println!("✅ File storage backend exists");
         assert!(true);
     }
-    
+
     /// Test that all 14 active storage backends exist
     #[test]
     fn test_all_storage_backends_exist() {
@@ -143,15 +143,15 @@ mod storage_backends_integration_tests {
             ("Raft", "Built-in consensus protocol"),
             ("File", "Local filesystem storage"),
         ];
-        
+
         assert_eq!(backends.len(), 14, "Should have 14 active storage backends");
-        
+
         println!("✅ All 14 storage backends verified:");
         for (i, (name, desc)) in backends.iter().enumerate() {
             println!("  {}. { - {}", i + 1, name, desc);
         }
     }
-    
+
     /// Test commented out (exotic) backends are documented
     #[test]
     fn test_exotic_backends_documented() {
@@ -167,12 +167,19 @@ mod storage_backends_integration_tests {
             "swift",
             "zookeeper",
         ];
-        
-        println!("📝 Exotic backends (commented out): { backends", exotic_backends.len());
+
+        println!(
+            "📝 Exotic backends (commented out): { backends",
+            exotic_backends.len()
+        );
         for backend in &exotic_backends {
             println!("  - {}", backend);
         }
-        
-        assert_eq!(exotic_backends.len(), 10, "Should document 10 exotic backends");
+
+        assert_eq!(
+            exotic_backends.len(),
+            10,
+            "Should document 10 exotic backends"
+        );
     }
 }

@@ -1,7 +1,7 @@
 #![no_main]
 
+use authenc::services::webauthn::{WebAuthnAuthenticationRequest, WebAuthnRegistrationRequest};
 use libfuzzer_sys::fuzz_target;
-use authenc::services::webauthn::{WebAuthnRegistrationRequest, WebAuthnAuthenticationRequest};
 use serde_json;
 
 fuzz_target!(|data: &[u8]| {

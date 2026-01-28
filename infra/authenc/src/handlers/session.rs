@@ -1,6 +1,6 @@
 use crate::services::session_store::SessionStore;
 // TODO: Migrate to Axum - temporarily commented out
-use jsonwebtoken::{decode, DecodingKey, Validation};
+use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

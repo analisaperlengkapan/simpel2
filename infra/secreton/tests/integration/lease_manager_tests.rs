@@ -697,4 +697,3 @@ async fn test_get_stats() {
     assert_eq!(stats.unique_users, 2);
     assert_eq!(stats.unique_namespaces, 2);
 }
-

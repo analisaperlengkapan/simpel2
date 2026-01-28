@@ -1,4 +1,4 @@
-use crate::pages::{FinancialMetrics, BudgetItem, Transaction};
+use crate::pages::{BudgetItem, FinancialMetrics, Transaction};
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 
@@ -42,9 +42,7 @@ fn authenticated_request(url: &str) -> Request {
 }
 
 fn authenticated_post(url: &str, body: &impl Serialize) -> Result<Request, String> {
-    let mut req = Request::post(url)
-        .json(body)
-        .map_err(|e| e.to_string())?;
+    let mut req = Request::post(url).json(body).map_err(|e| e.to_string())?;
 
     if let Some(token) = get_token() {
         req = req.header("Authorization", &format!("Bearer {}", token));

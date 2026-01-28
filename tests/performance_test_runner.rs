@@ -4,10 +4,10 @@
 //! benchmarks from both authenc and secreton projects, providing unified reporting
 //! and analysis of the crypto-deduplication-refactor performance improvements.
 
+use serde_json::{Value, json};
+use std::collections::HashMap;
 use std::process::Command;
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
-use serde_json::{json, Value};
 
 /// Comprehensive performance test runner
 #[tokio::main]
@@ -64,7 +64,10 @@ async fn run_authenc_benchmarks() -> Result<BenchmarkResults, Box<dyn std::error
         let duration = start_time.elapsed();
 
         results.add_benchmark_result(category, benchmark_result, duration);
-        println!("Completed authenc benchmark: {} in {:?}", category, duration);
+        println!(
+            "Completed authenc benchmark: {} in {:?}",
+            category, duration
+        );
     }
 
     Ok(results)
@@ -91,13 +94,17 @@ async fn run_secreton_benchmarks() -> Result<BenchmarkResults, Box<dyn std::erro
         let duration = start_time.elapsed();
 
         results.add_benchmark_result(category, benchmark_result, duration);
-        println!("Completed secreton benchmark: {} in {:?}", category, duration);
+        println!(
+            "Completed secreton benchmark: {} in {:?}",
+            category, duration
+        );
     }
 
     Ok(results)
 }
 
-async fn run_integration_performance_tests() -> Result<BenchmarkResults, Box<dyn std::error::Error>> {
+async fn run_integration_performance_tests() -> Result<BenchmarkResults, Box<dyn std::error::Error>>
+{
     let mut results = BenchmarkResults::new("integration");
 
     // Run integration performance tests
@@ -117,13 +124,18 @@ async fn run_integration_performance_tests() -> Result<BenchmarkResults, Box<dyn
         let duration = start_time.elapsed();
 
         results.add_benchmark_result(scenario, test_result, duration);
-        println!("Completed integration performance test: {} in {:?}", scenario, duration);
+        println!(
+            "Completed integration performance test: {} in {:?}",
+            scenario, duration
+        );
     }
 
     Ok(results)
 }
 
-async fn run_single_authenc_benchmark(category: &str) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
+async fn run_single_authenc_benchmark(
+    category: &str,
+) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
     // Simulate running authenc benchmark using criterion
     let output = Command::new("cargo")
         .args(&["bench", "--bench", "performance", "--", category])
@@ -149,7 +161,9 @@ async fn run_single_authenc_benchmark(category: &str) -> Result<BenchmarkResult,
     }
 }
 
-async fn run_single_secreton_benchmark(category: &str) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
+async fn run_single_secreton_benchmark(
+    category: &str,
+) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
     // Simulate running secreton benchmark using criterion
     let output = Command::new("cargo")
         .args(&["bench", "--bench", "performance", "--", category])
@@ -175,31 +189,22 @@ async fn run_single_secreton_benchmark(category: &str) -> Result<BenchmarkResult
     }
 }
 
-async fn run_integration_performance_scenario(scenario: &str) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
+async fn run_integration_performance_scenario(
+    scenario: &str,
+) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
     // Simulate integration performance testing
     match scenario {
-        "end_to_end_secret_lifecycle" => {
-            simulate_end_to_end_performance_test().await
-        }
-        "concurrent_authenc_secreton_operations" => {
-            simulate_concurrent_operations_test().await
-        }
-        "cross_system_load_testing" => {
-            simulate_cross_system_load_test().await
-        }
-        "failover_performance_impact" => {
-            simulate_failover_performance_test().await
-        }
-        "post_quantum_integration_performance" => {
-            simulate_post_quantum_integration_test().await
-        }
-        _ => {
-            Ok(simulate_benchmark_result(scenario, "integration"))
-        }
+        "end_to_end_secret_lifecycle" => simulate_end_to_end_performance_test().await,
+        "concurrent_authenc_secreton_operations" => simulate_concurrent_operations_test().await,
+        "cross_system_load_testing" => simulate_cross_system_load_test().await,
+        "failover_performance_impact" => simulate_failover_performance_test().await,
+        "post_quantum_integration_performance" => simulate_post_quantum_integration_test().await,
+        _ => Ok(simulate_benchmark_result(scenario, "integration")),
     }
 }
 
-async fn simulate_end_to_end_performance_test() -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
+async fn simulate_end_to_end_performance_test()
+-> Result<BenchmarkResult, Box<dyn std::error::Error>> {
     // Simulate end-to-end secret lifecycle performance test
     let operations = vec![
         ("authenc_token_generation", Duration::from_millis(5)),
@@ -219,10 +224,13 @@ async fn simulate_end_to_end_performance_test() -> Result<BenchmarkResult, Box<d
         let actual_duration = base_duration + variance;
         total_duration += actual_duration;
 
-        operation_results.insert(operation.to_string(), json!({
-            "duration_ms": actual_duration.as_millis(),
-            "throughput_ops_per_sec": 1000.0 / actual_duration.as_millis() as f64,
-        }));
+        operation_results.insert(
+            operation.to_string(),
+            json!({
+                "duration_ms": actual_duration.as_millis(),
+                "throughput_ops_per_sec": 1000.0 / actual_duration.as_millis() as f64,
+            }),
+        );
 
         // Simulate actual work
         tokio::time::sleep(Duration::from_millis(10)).await;
@@ -240,7 +248,8 @@ async fn simulate_end_to_end_performance_test() -> Result<BenchmarkResult, Box<d
     })
 }
 
-async fn simulate_concurrent_operations_test() -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
+async fn simulate_concurrent_operations_test() -> Result<BenchmarkResult, Box<dyn std::error::Error>>
+{
     // Simulate concurrent authenc-secreton operations
     let concurrent_levels = vec![10, 50, 100, 200];
     let mut results = HashMap::new();
@@ -249,26 +258,33 @@ async fn simulate_concurrent_operations_test() -> Result<BenchmarkResult, Box<dy
         let start_time = Instant::now();
 
         // Simulate concurrent operations
-        let futures: Vec<_> = (0..concurrent_ops).map(|_| async {
-            // Simulate authenc token validation + secreton secret retrieval
-            tokio::time::sleep(Duration::from_millis(5 + rand::random::<u64>() % 10)).await;
-            "success"
-        }).collect();
+        let futures: Vec<_> = (0..concurrent_ops)
+            .map(|_| async {
+                // Simulate authenc token validation + secreton secret retrieval
+                tokio::time::sleep(Duration::from_millis(5 + rand::random::<u64>() % 10)).await;
+                "success"
+            })
+            .collect();
 
         let _results = futures::future::join_all(futures).await;
         let duration = start_time.elapsed();
 
         let throughput = concurrent_ops as f64 / duration.as_secs_f64();
-        results.insert(concurrent_ops.to_string(), json!({
-            "duration_ms": duration.as_millis(),
-            "throughput_ops_per_sec": throughput,
-            "concurrent_operations": concurrent_ops,
-        }));
+        results.insert(
+            concurrent_ops.to_string(),
+            json!({
+                "duration_ms": duration.as_millis(),
+                "throughput_ops_per_sec": throughput,
+                "concurrent_operations": concurrent_ops,
+            }),
+        );
     }
 
-    let mean_throughput = results.values()
+    let mean_throughput = results
+        .values()
         .map(|v| v["throughput_ops_per_sec"].as_f64().unwrap_or(0.0))
-        .sum::<f64>() / results.len() as f64;
+        .sum::<f64>()
+        / results.len() as f64;
 
     Ok(BenchmarkResult {
         category: "concurrent_authenc_secreton_operations".to_string(),
@@ -303,13 +319,16 @@ async fn simulate_cross_system_load_test() -> Result<BenchmarkResult, Box<dyn st
         let total_duration = start_time.elapsed();
         let throughput = ops_count as f64 / total_duration.as_secs_f64();
 
-        scenario_results.insert(scenario_name.to_string(), json!({
-            "operations": ops_count,
-            "duration_ms": total_duration.as_millis(),
-            "throughput_ops_per_sec": throughput,
-            "average_latency_ms": base_latency.as_millis(),
-            "success_rate": 99.5, // Simulate some failures under load
-        }));
+        scenario_results.insert(
+            scenario_name.to_string(),
+            json!({
+                "operations": ops_count,
+                "duration_ms": total_duration.as_millis(),
+                "throughput_ops_per_sec": throughput,
+                "average_latency_ms": base_latency.as_millis(),
+                "success_rate": 99.5, // Simulate some failures under load
+            }),
+        );
     }
 
     Ok(BenchmarkResult {
@@ -322,12 +341,21 @@ async fn simulate_cross_system_load_test() -> Result<BenchmarkResult, Box<dyn st
     })
 }
 
-async fn simulate_failover_performance_test() -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
+async fn simulate_failover_performance_test() -> Result<BenchmarkResult, Box<dyn std::error::Error>>
+{
     // Simulate failover performance impact testing
     let failover_scenarios = vec![
         ("normal_operation", Duration::from_millis(8), 100.0),
-        ("secreton_unavailable_fallback", Duration::from_millis(15), 95.0),
-        ("authenc_unavailable_fallback", Duration::from_millis(12), 90.0),
+        (
+            "secreton_unavailable_fallback",
+            Duration::from_millis(15),
+            95.0,
+        ),
+        (
+            "authenc_unavailable_fallback",
+            Duration::from_millis(12),
+            90.0,
+        ),
         ("partial_failure_degraded", Duration::from_millis(20), 85.0),
         ("recovery_after_failure", Duration::from_millis(10), 98.0),
     ];
@@ -340,25 +368,29 @@ async fn simulate_failover_performance_test() -> Result<BenchmarkResult, Box<dyn
 
         let throughput = 1000.0 / latency.as_millis() as f64;
 
-        failover_results.insert(scenario.to_string(), json!({
-            "latency_ms": latency.as_millis(),
-            "throughput_ops_per_sec": throughput,
-            "success_rate": success_rate,
-            "performance_impact": (100.0 - success_rate) / 100.0,
-        }));
+        failover_results.insert(
+            scenario.to_string(),
+            json!({
+                "latency_ms": latency.as_millis(),
+                "throughput_ops_per_sec": throughput,
+                "success_rate": success_rate,
+                "performance_impact": (100.0 - success_rate) / 100.0,
+            }),
+        );
     }
 
     Ok(BenchmarkResult {
         category: "failover_performance_impact".to_string(),
         mean_duration: Duration::from_millis(13), // Average
-        throughput_ops_per_sec: 77.0, // Average
+        throughput_ops_per_sec: 77.0,             // Average
         details: json!({
             "failover_scenarios": failover_results,
         }),
     })
 }
 
-async fn simulate_post_quantum_integration_test() -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
+async fn simulate_post_quantum_integration_test()
+-> Result<BenchmarkResult, Box<dyn std::error::Error>> {
     // Simulate post-quantum integration performance testing
     let pq_operations = vec![
         ("ml_dsa_token_generation", Duration::from_millis(25)),
@@ -379,16 +411,21 @@ async fn simulate_post_quantum_integration_test() -> Result<BenchmarkResult, Box
 
         let throughput = 1000.0 / actual_duration.as_millis() as f64;
 
-        pq_results.insert(operation.to_string(), json!({
-            "duration_ms": actual_duration.as_millis(),
-            "throughput_ops_per_sec": throughput,
-            "performance_overhead": (actual_duration.as_millis() as f64 / 8.0) - 1.0, // Compared to classical
-        }));
+        pq_results.insert(
+            operation.to_string(),
+            json!({
+                "duration_ms": actual_duration.as_millis(),
+                "throughput_ops_per_sec": throughput,
+                "performance_overhead": (actual_duration.as_millis() as f64 / 8.0) - 1.0, // Compared to classical
+            }),
+        );
     }
 
-    let mean_duration = pq_operations.iter()
+    let mean_duration = pq_operations
+        .iter()
         .map(|(_, d)| d.as_millis())
-        .sum::<u128>() / pq_operations.len() as u128;
+        .sum::<u128>()
+        / pq_operations.len() as u128;
 
     Ok(BenchmarkResult {
         category: "post_quantum_integration_performance".to_string(),
@@ -401,7 +438,10 @@ async fn simulate_post_quantum_integration_test() -> Result<BenchmarkResult, Box
     })
 }
 
-fn parse_criterion_output(category: &str, output: &str) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
+fn parse_criterion_output(
+    category: &str,
+    output: &str,
+) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
     // Parse criterion benchmark output (simplified)
     // In a real implementation, this would parse the actual criterion JSON output
 
@@ -457,34 +497,42 @@ fn simulate_benchmark_result(category: &str, source: &str) -> BenchmarkResult {
     }
 }
 
-fn generate_performance_report(results: &PerformanceResults) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_performance_report(
+    results: &PerformanceResults,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== COMPREHENSIVE PERFORMANCE REPORT ===");
 
     // Authenc performance summary
     println!("\n--- Authenc Performance Summary ---");
     for (category, result) in &results.authenc_results.benchmarks {
-        println!("{}: {:.2}ms avg, {:.1} ops/sec",
-                category,
-                result.mean_duration.as_millis(),
-                result.throughput_ops_per_sec);
+        println!(
+            "{}: {:.2}ms avg, {:.1} ops/sec",
+            category,
+            result.mean_duration.as_millis(),
+            result.throughput_ops_per_sec
+        );
     }
 
     // Secreton performance summary
     println!("\n--- Secreton Performance Summary ---");
     for (category, result) in &results.secreton_results.benchmarks {
-        println!("{}: {:.2}ms avg, {:.1} ops/sec",
-                category,
-                result.mean_duration.as_millis(),
-                result.throughput_ops_per_sec);
+        println!(
+            "{}: {:.2}ms avg, {:.1} ops/sec",
+            category,
+            result.mean_duration.as_millis(),
+            result.throughput_ops_per_sec
+        );
     }
 
     // Integration performance summary
     println!("\n--- Integration Performance Summary ---");
     for (category, result) in &results.integration_results.benchmarks {
-        println!("{}: {:.2}ms avg, {:.1} ops/sec",
-                category,
-                result.mean_duration.as_millis(),
-                result.throughput_ops_per_sec);
+        println!(
+            "{}: {:.2}ms avg, {:.1} ops/sec",
+            category,
+            result.mean_duration.as_millis(),
+            result.throughput_ops_per_sec
+        );
     }
 
     // Performance improvements analysis
@@ -509,17 +557,29 @@ fn analyze_performance_improvements(results: &PerformanceResults) {
     println!("  - Enhanced security: Consistent crypto practices across projects");
 
     // Calculate average performance metrics
-    let authenc_avg_latency = results.authenc_results.benchmarks.values()
+    let authenc_avg_latency = results
+        .authenc_results
+        .benchmarks
+        .values()
         .map(|r| r.mean_duration.as_millis())
-        .sum::<u128>() / results.authenc_results.benchmarks.len() as u128;
+        .sum::<u128>()
+        / results.authenc_results.benchmarks.len() as u128;
 
-    let secreton_avg_latency = results.secreton_results.benchmarks.values()
+    let secreton_avg_latency = results
+        .secreton_results
+        .benchmarks
+        .values()
         .map(|r| r.mean_duration.as_millis())
-        .sum::<u128>() / results.secreton_results.benchmarks.len() as u128;
+        .sum::<u128>()
+        / results.secreton_results.benchmarks.len() as u128;
 
-    let integration_avg_latency = results.integration_results.benchmarks.values()
+    let integration_avg_latency = results
+        .integration_results
+        .benchmarks
+        .values()
         .map(|r| r.mean_duration.as_millis())
-        .sum::<u128>() / results.integration_results.benchmarks.len() as u128;
+        .sum::<u128>()
+        / results.integration_results.benchmarks.len() as u128;
 
     println!("Average Latencies:");
     println!("  - Authenc: {}ms", authenc_avg_latency);
@@ -527,7 +587,10 @@ fn analyze_performance_improvements(results: &PerformanceResults) {
     println!("  - Integration: {}ms", integration_avg_latency);
 
     // Post-quantum readiness analysis
-    let pq_benchmarks: Vec<_> = results.authenc_results.benchmarks.iter()
+    let pq_benchmarks: Vec<_> = results
+        .authenc_results
+        .benchmarks
+        .iter()
         .chain(results.secreton_results.benchmarks.iter())
         .chain(results.integration_results.benchmarks.iter())
         .filter(|(name, _)| name.contains("post_quantum"))
@@ -536,9 +599,11 @@ fn analyze_performance_improvements(results: &PerformanceResults) {
     if !pq_benchmarks.is_empty() {
         println!("Post-Quantum Readiness:");
         for (name, result) in pq_benchmarks {
-            println!("  - {}: {:.1}x overhead compared to classical",
-                    name,
-                    result.mean_duration.as_millis() as f64 / 8.0); // Assuming 8ms baseline
+            println!(
+                "  - {}: {:.1}x overhead compared to classical",
+                name,
+                result.mean_duration.as_millis() as f64 / 8.0
+            ); // Assuming 8ms baseline
         }
     }
 }
@@ -562,7 +627,9 @@ fn analyze_resource_utilization(results: &PerformanceResults) {
     println!("  - Improved connection pooling and reuse");
 }
 
-fn validate_performance_requirements(results: &PerformanceResults) -> Result<(), Box<dyn std::error::Error>> {
+fn validate_performance_requirements(
+    results: &PerformanceResults,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== PERFORMANCE REQUIREMENTS VALIDATION ===");
 
     let mut validation_passed = true;

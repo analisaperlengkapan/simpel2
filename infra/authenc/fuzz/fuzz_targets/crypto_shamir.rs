@@ -1,7 +1,7 @@
 #![no_main]
 
+use authenc::crypto::shamir::{ShamirConfig, generate_shares_with_commitments, reconstruct_secret};
 use libfuzzer_sys::fuzz_target;
-use authenc::crypto::shamir::{generate_shares_with_commitments, reconstruct_secret, ShamirConfig};
 
 fuzz_target!(|data: &[u8]| {
     if data.len() < 16 {

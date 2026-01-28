@@ -11,8 +11,8 @@ use std::time::{Duration, Instant};
 use tokio::sync::Barrier;
 use tokio::time::sleep;
 
-use crate::handlers::engine::*;
 use crate::config::ApiConfig;
+use crate::handlers::engine::*;
 use crate::services::ServiceContainer;
 use axum_test::TestServer;
 
@@ -61,7 +61,10 @@ mod performance_tests {
                         .await;
 
                     if !response.status_code().is_success() {
-                        return Err(anyhow::anyhow!("Failed operation: {}", response.status_code()));
+                        return Err(anyhow::anyhow!(
+                            "Failed operation: {}",
+                            response.status_code()
+                        ));
                     }
 
                     // Add small delay to prevent overwhelming the system
@@ -80,12 +83,21 @@ mod performance_tests {
         let total_duration = start_time.elapsed();
         let operations_per_second = num_operations as f64 / total_duration.as_secs_f64();
 
-        println!("Concurrent operations: { ops in {:?}", num_operations, total_duration);
+        println!(
+            "Concurrent operations: { ops in {:?}",
+            num_operations, total_duration
+        );
         println!("Performance: {:.2 ops/sec", operations_per_second);
 
         // Performance assertions
-        assert!(operations_per_second > 10.0, "Should achieve reasonable throughput");
-        assert!(total_duration < Duration::from_secs(30), "Should complete within reasonable time");
+        assert!(
+            operations_per_second > 10.0,
+            "Should achieve reasonable throughput"
+        );
+        assert!(
+            total_duration < Duration::from_secs(30),
+            "Should complete within reasonable time"
+        );
 
         Ok(())
     }
@@ -119,13 +131,18 @@ mod performance_tests {
         let final_memory = get_memory_usage();
         let memory_growth = final_memory - initial_memory;
 
-        println!("Memory usage - Initial: { MB, Final: { MB, Growth: { MB",
-                initial_memory / 1024 / 1024,
-                final_memory / 1024 / 1024,
-                memory_growth / 1024 / 1024);
+        println!(
+            "Memory usage - Initial: { MB, Final: { MB, Growth: { MB",
+            initial_memory / 1024 / 1024,
+            final_memory / 1024 / 1024,
+            memory_growth / 1024 / 1024
+        );
 
         // Memory growth should be reasonable
-        assert!(memory_growth < 100 * 1024 * 1024, "Memory growth should be reasonable (< 100MB)");
+        assert!(
+            memory_growth < 100 * 1024 * 1024,
+            "Memory growth should be reasonable (< 100MB)"
+        );
 
         Ok(())
     }
@@ -139,7 +156,10 @@ mod performance_tests {
 
         // Create test data first
         let payload = json!({"data": {"test": "response_time_test"}});
-        let response = server.post("/secrets/response_time_test").json(&payload).await;
+        let response = server
+            .post("/secrets/response_time_test")
+            .json(&payload)
+            .await;
         response.assert_status_ok();
 
         // Measure response times for reads
@@ -154,7 +174,8 @@ mod performance_tests {
         }
 
         // Analyze response time distribution
-        let avg_response_time = response_times.iter().sum::<Duration>() / response_times.len() as u32;
+        let avg_response_time =
+            response_times.iter().sum::<Duration>() / response_times.len() as u32;
         let max_response_time = response_times.iter().max().unwrap();
         let min_response_time = response_times.iter().min().unwrap();
 
@@ -180,8 +201,14 @@ mod performance_tests {
         }
 
         // Performance assertions
-        assert!(avg_response_time < Duration::from_millis(100), "Average response time should be < 100ms");
-        assert!(max_response_time < Duration::from_millis(1000), "Max response time should be < 1s");
+        assert!(
+            avg_response_time < Duration::from_millis(100),
+            "Average response time should be < 100ms"
+        );
+        assert!(
+            max_response_time < Duration::from_millis(1000),
+            "Max response time should be < 1s"
+        );
 
         Ok(())
     }
@@ -232,11 +259,17 @@ mod performance_tests {
         let total_operations = num_concurrent_connections * operations_per_connection;
         let operations_per_second = total_operations as f64 / total_duration.as_secs_f64();
 
-        println!("Connection pool test: { operations in {:?}", total_operations, total_duration);
+        println!(
+            "Connection pool test: { operations in {:?}",
+            total_operations, total_duration
+        );
         println!("Performance: {:.2 ops/sec", operations_per_second);
 
         // Should handle concurrent connections efficiently
-        assert!(operations_per_second > 50.0, "Should handle concurrent connections efficiently");
+        assert!(
+            operations_per_second > 50.0,
+            "Should handle concurrent connections efficiently"
+        );
 
         Ok(())
     }
@@ -294,16 +327,30 @@ mod performance_tests {
             }
 
             if !encrypt_times.is_empty() {
-                let avg_encrypt = encrypt_times.iter().sum::<Duration>() / encrypt_times.len() as u32;
+                let avg_encrypt =
+                    encrypt_times.iter().sum::<Duration>() / encrypt_times.len() as u32;
                 let avg_decrypt = if !decrypt_times.is_empty() {
                     decrypt_times.iter().sum::<Duration>() / decrypt_times.len() as u32
-                 } else { Duration::from_secs(0) };
+                } else {
+                    Duration::from_secs(0)
+                };
 
-                println!("Data size {}KB - Encrypt: {:?, Decrypt: {:?}", data_size / 1024, avg_encrypt, avg_decrypt);
+                println!(
+                    "Data size {}KB - Encrypt: {:?, Decrypt: {:?}",
+                    data_size / 1024,
+                    avg_encrypt,
+                    avg_decrypt
+                );
 
                 // Performance should scale reasonably with data size
-                assert!(avg_encrypt < Duration::from_millis(100), "Encryption should be fast");
-                assert!(avg_decrypt < Duration::from_millis(100), "Decryption should be fast");
+                assert!(
+                    avg_encrypt < Duration::from_millis(100),
+                    "Encryption should be fast"
+                );
+                assert!(
+                    avg_decrypt < Duration::from_millis(100),
+                    "Decryption should be fast"
+                );
             }
         }
 
@@ -370,14 +417,20 @@ mod performance_tests {
         let final_cpu = get_cpu_usage();
         let final_memory = get_memory_usage();
 
-        println!("Resource usage - CPU: {}% -> {}%, Memory: { MB -> { MB",
-                initial_cpu, final_cpu,
-                initial_memory / 1024 / 1024,
-                final_memory / 1024 / 1024);
+        println!(
+            "Resource usage - CPU: {}% -> {}%, Memory: { MB -> { MB",
+            initial_cpu,
+            final_cpu,
+            initial_memory / 1024 / 1024,
+            final_memory / 1024 / 1024
+        );
 
         // Resource usage should be reasonable
         assert!(final_cpu < 90.0, "CPU usage should not be excessive");
-        assert!(final_memory - initial_memory < 500 * 1024 * 1024, "Memory usage should not grow excessively");
+        assert!(
+            final_memory - initial_memory < 500 * 1024 * 1024,
+            "Memory usage should not grow excessively"
+        );
 
         Ok(())
     }
@@ -410,7 +463,10 @@ mod performance_tests {
         let duration = start_time.elapsed();
         let operations_per_second = num_operations as f64 / duration.as_secs_f64();
 
-        println!("Audit logging performance: { operations in {:?}", num_operations, duration);
+        println!(
+            "Audit logging performance: { operations in {:?}",
+            num_operations, duration
+        );
         println!("Performance: {:.2 ops/sec", operations_per_second);
 
         // Check that audit logs were created
@@ -425,7 +481,10 @@ mod performance_tests {
         }
 
         // Performance should be reasonable even with audit logging
-        assert!(operations_per_second > 50.0, "Should handle audit logging efficiently");
+        assert!(
+            operations_per_second > 50.0,
+            "Should handle audit logging efficiently"
+        );
 
         Ok(())
     }
@@ -479,11 +538,17 @@ mod performance_tests {
         let total_operations = operations.len() * num_iterations;
         let operations_per_second = total_operations as f64 / total_duration.as_secs_f64();
 
-        println!("Mixed workload: { operations in {:?}", total_operations, total_duration);
+        println!(
+            "Mixed workload: { operations in {:?}",
+            total_operations, total_duration
+        );
         println!("Performance: {:.2 ops/sec", operations_per_second);
 
         // Should handle mixed workloads efficiently
-        assert!(operations_per_second > 20.0, "Should handle mixed workloads efficiently");
+        assert!(
+            operations_per_second > 20.0,
+            "Should handle mixed workloads efficiently"
+        );
 
         Ok(())
     }
@@ -520,11 +585,21 @@ mod performance_tests {
         let error_operations_per_second =
             (error_operations.len() * 100) as f64 / error_duration.as_secs_f64();
 
-        println!("Error handling: { operations in {:?}", error_operations.len() * 100, error_duration);
-        println!("Error handling performance: {:.2 ops/sec", error_operations_per_second);
+        println!(
+            "Error handling: { operations in {:?}",
+            error_operations.len() * 100,
+            error_duration
+        );
+        println!(
+            "Error handling performance: {:.2 ops/sec",
+            error_operations_per_second
+        );
 
         // Error handling should be fast
-        assert!(error_operations_per_second > 100.0, "Error handling should be fast");
+        assert!(
+            error_operations_per_second > 100.0,
+            "Error handling should be fast"
+        );
 
         Ok(())
     }
@@ -561,7 +636,8 @@ mod performance_tests {
             }
 
             // Wait for all operations at this load level
-            let successful_ops = handles.into_iter()
+            let successful_ops = handles
+                .into_iter()
                 .map(|h| h.await.unwrap_or(false))
                 .filter(|&success| success)
                 .count();
@@ -569,11 +645,17 @@ mod performance_tests {
             let duration = start_time.elapsed();
             let ops_per_second = load as f64 / duration.as_secs_f64();
 
-            println!("Load level {}: { successful ops in {:? ({:.2 ops/sec)",
-                    load, successful_ops, duration, ops_per_second);
+            println!(
+                "Load level {}: { successful ops in {:? ({:.2 ops/sec)",
+                load, successful_ops, duration, ops_per_second
+            );
 
             // Performance should degrade gracefully
-            assert!(ops_per_second > 1.0, "Should maintain reasonable performance at load level {}", load);
+            assert!(
+                ops_per_second > 1.0,
+                "Should maintain reasonable performance at load level {}",
+                load
+            );
         }
 
         Ok(())

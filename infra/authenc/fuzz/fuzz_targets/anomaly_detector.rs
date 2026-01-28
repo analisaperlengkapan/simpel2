@@ -1,7 +1,7 @@
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use authenc::services::anomaly_detector::{AnomalyDetector, AnomalyDetectorTrait};
+use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     if data.len() < 2 {
@@ -17,7 +17,7 @@ fuzz_target!(|data: &[u8]| {
 
     if let (Ok(user_id), Ok(ip)) = (
         std::str::from_utf8(user_id_bytes),
-        std::str::from_utf8(ip_bytes)
+        std::str::from_utf8(ip_bytes),
     ) {
         // Test anomaly detection
         let _ = detector.is_new_ip(user_id, ip);

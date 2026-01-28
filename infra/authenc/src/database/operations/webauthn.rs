@@ -53,16 +53,15 @@ pub async fn store_credential(
             ],
         )
         .await
-        .map_err(|e| AuthencError::internal(&format!("Failed to store WebAuthn credential: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::internal(&format!("Failed to store WebAuthn credential: {}", e))
+        })?;
 
     Ok(())
 }
 
 /// Get all WebAuthn credentials for a user
-pub async fn get_user_credentials(
-    db: &Database,
-    user_id: Uuid,
-) -> Result<Vec<WebauthnCredential>> {
+pub async fn get_user_credentials(db: &Database, user_id: Uuid) -> Result<Vec<WebauthnCredential>> {
     let client = db.get_connection().await?;
 
     let query = r#"
@@ -76,12 +75,9 @@ pub async fn get_user_credentials(
         ORDER BY created_at DESC
     "#;
 
-    let rows = client
-        .query(query, &[&user_id])
-        .await
-        .map_err(|e| {
-            AuthencError::internal(&format!("Failed to get WebAuthn credentials: {}", e))
-        })?;
+    let rows = client.query(query, &[&user_id]).await.map_err(|e| {
+        AuthencError::internal(&format!("Failed to get WebAuthn credentials: {}", e))
+    })?;
 
     let credentials = rows
         .iter()
@@ -173,7 +169,13 @@ pub async fn update_signature_count(
     "#;
 
     let rows_affected = client
-        .execute(query, &[&new_counter, &hex::decode(credential_id).unwrap_or_default()])
+        .execute(
+            query,
+            &[
+                &new_counter,
+                &hex::decode(credential_id).unwrap_or_default(),
+            ],
+        )
         .await
         .map_err(|e| {
             AuthencError::internal(&format!("Failed to update signature counter: {}", e))
@@ -275,9 +277,7 @@ pub async fn get_user_credential_count(db: &Database, user_id: Uuid) -> Result<i
     let row = client
         .query_one(query, &[&user_id])
         .await
-        .map_err(|e| {
-            AuthencError::internal(&format!("Failed to count credentials: {}", e))
-        })?;
+        .map_err(|e| AuthencError::internal(&format!("Failed to count credentials: {}", e)))?;
 
     Ok(row.get("count"))
 }

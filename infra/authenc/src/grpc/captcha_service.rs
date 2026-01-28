@@ -2,11 +2,13 @@
 //!
 //! gRPC service layer that wraps the CAPTCHA service for remote access via gRPC
 
-use tonic::{Request, Response, Status};
 use std::sync::Arc;
+use tonic::{Request, Response, Status};
 
 use crate::app::AppState;
-use crate::services::captcha::{CaptchaServiceTrait, ChallengeType as ServiceChallengeType, BehavioralMetrics};
+use crate::services::captcha::{
+    BehavioralMetrics, CaptchaServiceTrait, ChallengeType as ServiceChallengeType,
+};
 
 // Include generated proto code
 pub mod proto {
@@ -18,9 +20,8 @@ pub mod proto {
 }
 
 use proto::authenc::v1::{
-    CaptchaChallengeRequest, CaptchaChallengeResponse,
-    CaptchaVerificationRequest, CaptchaVerificationResponse,
-    ChallengeType,
+    CaptchaChallengeRequest, CaptchaChallengeResponse, CaptchaVerificationRequest,
+    CaptchaVerificationResponse, ChallengeType,
 };
 
 /// CAPTCHA gRPC service implementation
@@ -74,12 +75,16 @@ impl CaptchaGrpcService {
 
         let challenge_type = Self::convert_challenge_type(req.challenge_type);
         // Generate dynamic difficulty based on risk
-        let difficulty = self.state.risk_engine
+        let difficulty = self
+            .state
+            .risk_engine
             .calculate_difficulty(&ip_address, Some(req.difficulty as u8))
             .await;
 
         // Generate challenge
-        let challenge = self.state.captcha_service
+        let challenge = self
+            .state
+            .captcha_service
             .generate_challenge(
                 challenge_type,
                 Some(difficulty),
@@ -95,7 +100,8 @@ impl CaptchaGrpcService {
             challenge_type: Self::convert_challenge_type_to_proto(&challenge.challenge_type),
             challenge_data: challenge.encrypted_data,
             difficulty: challenge.difficulty_level as u32,
-            expires_at: challenge.expires_at
+            expires_at: challenge
+                .expires_at
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs() as i64,
@@ -124,30 +130,23 @@ impl CaptchaGrpcService {
         // Parse behavioral data if provided
         let behavioral_data = if !req.behavioral_data.is_empty() {
             // Try to deserialize JSON behavioral data
-            serde_json::from_slice::<BehavioralMetrics>(&req.behavioral_data)
-                .ok()
+            serde_json::from_slice::<BehavioralMetrics>(&req.behavioral_data).ok()
         } else {
             None
         };
 
         // Validate challenge
         let validation_result = captcha_service
-            .validate_challenge(
-                req.challenge_id.clone(),
-                req.answer,
-                behavioral_data,
-            )
+            .validate_challenge(req.challenge_id.clone(), req.answer, behavioral_data)
             .await
-            .map_err(|e| {
-                match e {
-                    crate::services::captcha::CaptchaError::ChallengeNotFound { .. } => {
-                        Status::not_found("Challenge not found")
-                    }
-                    crate::services::captcha::CaptchaError::ChallengeExpired { .. } => {
-                        Status::failed_precondition("Challenge expired")
-                    }
-                    _ => Status::internal(format!("Validation failed: {}", e))
+            .map_err(|e| match e {
+                crate::services::captcha::CaptchaError::ChallengeNotFound { .. } => {
+                    Status::not_found("Challenge not found")
                 }
+                crate::services::captcha::CaptchaError::ChallengeExpired { .. } => {
+                    Status::failed_precondition("Challenge expired")
+                }
+                _ => Status::internal(format!("Validation failed: {}", e)),
             })?;
 
         // Update risk score based on validation result
@@ -160,7 +159,8 @@ impl CaptchaGrpcService {
         // Generate verification token if successful
         let verification_token = if validation_result.success {
             // Generate a one-time verification token
-            format!("captcha_verified_{}_{}",
+            format!(
+                "captcha_verified_{}_{}",
                 req.challenge_id,
                 chrono::Utc::now().timestamp()
             )
@@ -169,7 +169,8 @@ impl CaptchaGrpcService {
         };
 
         // Calculate lockout duration in seconds
-        let lockout_duration = validation_result.lockout_duration
+        let lockout_duration = validation_result
+            .lockout_duration
             .map(|d| d.as_secs() as u32);
 
         // Convert to proto response

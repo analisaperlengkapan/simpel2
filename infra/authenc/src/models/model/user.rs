@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct User {
@@ -8,5 +8,5 @@ pub struct User {
     pub password_hash: String,
     pub is_active: bool,
     pub roles: Vec<String>, // list of role names in this realm
-    pub realm: String, // realm name or id
+    pub realm: String,      // realm name or id
 }

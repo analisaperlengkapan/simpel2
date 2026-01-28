@@ -1,7 +1,7 @@
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use authenc::middleware::input_validation_axum::InputValidationConfig;
+use libfuzzer_sys::fuzz_target;
 use serde_json;
 
 fuzz_target!(|data: &[u8]| {
@@ -45,7 +45,9 @@ fuzz_target!(|data: &[u8]| {
             };
 
             // Test content type checking
-            let is_allowed = config.allowed_content_types.contains(&content_type_str.to_string());
+            let is_allowed = config
+                .allowed_content_types
+                .contains(&content_type_str.to_string());
             let _ = is_allowed;
         }
     }
@@ -55,10 +57,10 @@ fuzz_target!(|data: &[u8]| {
         let suspicious_data = &data[20..];
         if let Ok(suspicious_str) = std::str::from_utf8(suspicious_data) {
             // Test various suspicious patterns that might be detected
-            let has_suspicious = suspicious_str.contains("..") ||
-                                suspicious_str.contains("../") ||
-                                suspicious_str.contains("<script") ||
-                                suspicious_str.contains("javascript:");
+            let has_suspicious = suspicious_str.contains("..")
+                || suspicious_str.contains("../")
+                || suspicious_str.contains("<script")
+                || suspicious_str.contains("javascript:");
             let _ = has_suspicious;
         }
     }

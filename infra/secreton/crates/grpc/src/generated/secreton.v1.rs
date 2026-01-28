@@ -5,10 +5,8 @@ pub struct StoreSecretRequest {
     #[prost(string, tag = "1")]
     pub path: ::prost::alloc::string::String,
     #[prost(map = "string, string", tag = "2")]
-    pub data: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub data:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     #[prost(enumeration = "SecurityLevel", tag = "3")]
     pub security_level: i32,
     #[prost(string, repeated, tag = "4")]
@@ -39,10 +37,8 @@ pub struct GetSecretResponse {
     #[prost(string, tag = "2")]
     pub path: ::prost::alloc::string::String,
     #[prost(map = "string, string", tag = "3")]
-    pub data: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub data:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     #[prost(uint32, tag = "4")]
     pub version: u32,
     #[prost(enumeration = "SecurityLevel", tag = "5")]
@@ -297,10 +293,8 @@ pub struct CreateNamespaceRequest {
     #[prost(message, optional, tag = "6")]
     pub quotas: ::core::option::Option<NamespaceQuotas>,
     #[prost(map = "string, string", tag = "7")]
-    pub metadata: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub metadata:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateNamespaceResponse {
@@ -328,10 +322,8 @@ pub struct UpdateNamespaceRequest {
     #[prost(message, optional, tag = "4")]
     pub quotas: ::core::option::Option<NamespaceQuotas>,
     #[prost(map = "string, string", tag = "5")]
-    pub metadata: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub metadata:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     #[prost(bool, optional, tag = "6")]
     pub is_active: ::core::option::Option<bool>,
 }
@@ -393,10 +385,8 @@ pub struct NamespaceInfo {
     #[prost(message, optional, tag = "7")]
     pub quotas: ::core::option::Option<NamespaceQuotas>,
     #[prost(map = "string, string", tag = "8")]
-    pub metadata: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub metadata:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     #[prost(int64, tag = "9")]
     pub created_at: i64,
     #[prost(int64, tag = "10")]
@@ -448,10 +438,7 @@ pub struct MetricsResponse {
     #[prost(double, tag = "4")]
     pub avg_response_time_ms: f64,
     #[prost(map = "string, int64", tag = "5")]
-    pub operation_counts: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        i64,
-    >,
+    pub operation_counts: ::std::collections::HashMap<::prost::alloc::string::String, i64>,
 }
 /// Dynamic Secrets Messages
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -598,9 +585,7 @@ pub struct ConfigureDatabaseConnectionRequest {
     #[prost(bool, tag = "7")]
     pub verify_connection: bool,
     #[prost(string, repeated, tag = "8")]
-    pub root_rotation_statements: ::prost::alloc::vec::Vec<
-        ::prost::alloc::string::String,
-    >,
+    pub root_rotation_statements: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConfigureDatabaseConnectionResponse {
@@ -721,10 +706,8 @@ pub struct LookupLeaseResponse {
     #[prost(string, repeated, tag = "16")]
     pub child_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(map = "string, string", tag = "17")]
-    pub metadata: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub metadata:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListLeasesRequest {
@@ -773,10 +756,7 @@ pub struct GetLeaseStatsResponse {
     #[prost(int64, tag = "6")]
     pub unique_namespaces: i64,
     #[prost(map = "string, int64", tag = "7")]
-    pub by_resource_type: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        i64,
-    >,
+    pub by_resource_type: ::std::collections::HashMap<::prost::alloc::string::String, i64>,
     #[prost(map = "string, int64", tag = "8")]
     pub by_namespace: ::std::collections::HashMap<::prost::alloc::string::String, i64>,
 }
@@ -1252,7 +1232,7 @@ pub mod secreton_service_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with SecretonServiceServer.
@@ -1262,39 +1242,24 @@ pub mod secreton_service_server {
         async fn store_secret(
             &self,
             request: tonic::Request<super::StoreSecretRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::StoreSecretResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::StoreSecretResponse>, tonic::Status>;
         async fn get_secret(
             &self,
             request: tonic::Request<super::GetSecretRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetSecretResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetSecretResponse>, tonic::Status>;
         async fn delete_secret(
             &self,
             request: tonic::Request<super::DeleteSecretRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::DeleteSecretResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::DeleteSecretResponse>, tonic::Status>;
         async fn list_secrets(
             &self,
             request: tonic::Request<super::ListSecretsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListSecretsResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListSecretsResponse>, tonic::Status>;
         /// Transit Engine - Encryption as a Service
         async fn create_key(
             &self,
             request: tonic::Request<super::CreateKeyRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::CreateKeyResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::CreateKeyResponse>, tonic::Status>;
         async fn encrypt(
             &self,
             request: tonic::Request<super::EncryptRequest>,
@@ -1314,25 +1279,16 @@ pub mod secreton_service_server {
         async fn rotate_key(
             &self,
             request: tonic::Request<super::RotateKeyRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::RotateKeyResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::RotateKeyResponse>, tonic::Status>;
         /// Raft Cluster Management
         async fn get_cluster_status(
             &self,
             request: tonic::Request<super::ClusterStatusRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ClusterStatusResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ClusterStatusResponse>, tonic::Status>;
         async fn list_peers(
             &self,
             request: tonic::Request<super::ListPeersRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListPeersResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListPeersResponse>, tonic::Status>;
         async fn add_node(
             &self,
             request: tonic::Request<super::AddNodeRequest>,
@@ -1340,53 +1296,32 @@ pub mod secreton_service_server {
         async fn remove_node(
             &self,
             request: tonic::Request<super::RemoveNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::RemoveNodeResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::RemoveNodeResponse>, tonic::Status>;
         /// Namespace Management
         async fn list_namespaces(
             &self,
             request: tonic::Request<super::ListNamespacesRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListNamespacesResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListNamespacesResponse>, tonic::Status>;
         async fn create_namespace(
             &self,
             request: tonic::Request<super::CreateNamespaceRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::CreateNamespaceResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::CreateNamespaceResponse>, tonic::Status>;
         async fn get_namespace(
             &self,
             request: tonic::Request<super::GetNamespaceRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetNamespaceResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetNamespaceResponse>, tonic::Status>;
         async fn update_namespace(
             &self,
             request: tonic::Request<super::UpdateNamespaceRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::UpdateNamespaceResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::UpdateNamespaceResponse>, tonic::Status>;
         async fn delete_namespace(
             &self,
             request: tonic::Request<super::DeleteNamespaceRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::DeleteNamespaceResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::DeleteNamespaceResponse>, tonic::Status>;
         async fn get_namespace_stats(
             &self,
             request: tonic::Request<super::GetNamespaceStatsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetNamespaceStatsResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetNamespaceStatsResponse>, tonic::Status>;
         /// Dynamic Secrets - Database Credentials
         async fn generate_database_credentials(
             &self,
@@ -1398,38 +1333,23 @@ pub mod secreton_service_server {
         async fn create_database_role(
             &self,
             request: tonic::Request<super::CreateDatabaseRoleRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::CreateDatabaseRoleResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::CreateDatabaseRoleResponse>, tonic::Status>;
         async fn get_database_role(
             &self,
             request: tonic::Request<super::GetDatabaseRoleRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetDatabaseRoleResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetDatabaseRoleResponse>, tonic::Status>;
         async fn list_database_roles(
             &self,
             request: tonic::Request<super::ListDatabaseRolesRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListDatabaseRolesResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListDatabaseRolesResponse>, tonic::Status>;
         async fn update_database_role(
             &self,
             request: tonic::Request<super::UpdateDatabaseRoleRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::UpdateDatabaseRoleResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::UpdateDatabaseRoleResponse>, tonic::Status>;
         async fn delete_database_role(
             &self,
             request: tonic::Request<super::DeleteDatabaseRoleRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::DeleteDatabaseRoleResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::DeleteDatabaseRoleResponse>, tonic::Status>;
         async fn configure_database_connection(
             &self,
             request: tonic::Request<super::ConfigureDatabaseConnectionRequest>,
@@ -1441,117 +1361,69 @@ pub mod secreton_service_server {
         async fn renew_lease(
             &self,
             request: tonic::Request<super::RenewLeaseRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::RenewLeaseResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::RenewLeaseResponse>, tonic::Status>;
         async fn revoke_lease(
             &self,
             request: tonic::Request<super::RevokeLeaseRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::RevokeLeaseResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::RevokeLeaseResponse>, tonic::Status>;
         async fn revoke_lease_prefix(
             &self,
             request: tonic::Request<super::RevokeLeasePrefixRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::RevokeLeasePrefixResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::RevokeLeasePrefixResponse>, tonic::Status>;
         async fn lookup_lease(
             &self,
             request: tonic::Request<super::LookupLeaseRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::LookupLeaseResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::LookupLeaseResponse>, tonic::Status>;
         async fn list_leases(
             &self,
             request: tonic::Request<super::ListLeasesRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListLeasesResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListLeasesResponse>, tonic::Status>;
         async fn get_lease_stats(
             &self,
             request: tonic::Request<super::GetLeaseStatsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetLeaseStatsResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetLeaseStatsResponse>, tonic::Status>;
         /// Policy Management
         async fn list_policies(
             &self,
             request: tonic::Request<super::ListPoliciesRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListPoliciesResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListPoliciesResponse>, tonic::Status>;
         async fn create_policy(
             &self,
             request: tonic::Request<super::CreatePolicyRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::CreatePolicyResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::CreatePolicyResponse>, tonic::Status>;
         async fn get_policy(
             &self,
             request: tonic::Request<super::GetPolicyRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetPolicyResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetPolicyResponse>, tonic::Status>;
         async fn update_policy(
             &self,
             request: tonic::Request<super::UpdatePolicyRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::UpdatePolicyResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::UpdatePolicyResponse>, tonic::Status>;
         async fn delete_policy(
             &self,
             request: tonic::Request<super::DeletePolicyRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::DeletePolicyResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::DeletePolicyResponse>, tonic::Status>;
         async fn test_policy(
             &self,
             request: tonic::Request<super::TestPolicyRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::TestPolicyResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::TestPolicyResponse>, tonic::Status>;
         /// Response Wrapping
         async fn wrap_data(
             &self,
             request: tonic::Request<super::WrapDataRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::WrapDataResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::WrapDataResponse>, tonic::Status>;
         async fn unwrap_token(
             &self,
             request: tonic::Request<super::UnwrapTokenRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::UnwrapTokenResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::UnwrapTokenResponse>, tonic::Status>;
         async fn lookup_wrapping_token(
             &self,
             request: tonic::Request<super::LookupWrappingTokenRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::LookupWrappingTokenResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::LookupWrappingTokenResponse>, tonic::Status>;
         async fn rewrap_token(
             &self,
             request: tonic::Request<super::RewrapTokenRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::RewrapTokenResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::RewrapTokenResponse>, tonic::Status>;
         /// Health & Metrics
         async fn health_check(
             &self,
@@ -1587,10 +1459,7 @@ pub mod secreton_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1645,15 +1514,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/StoreSecret" => {
                     #[allow(non_camel_case_types)]
                     struct StoreSecretSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::StoreSecretRequest>
-                    for StoreSecretSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::StoreSecretRequest>
+                        for StoreSecretSvc<T>
+                    {
                         type Response = super::StoreSecretResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StoreSecretRequest>,
@@ -1690,15 +1555,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/GetSecret" => {
                     #[allow(non_camel_case_types)]
                     struct GetSecretSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::GetSecretRequest>
-                    for GetSecretSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::GetSecretRequest> for GetSecretSvc<T> {
                         type Response = super::GetSecretResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetSecretRequest>,
@@ -1735,15 +1594,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/DeleteSecret" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteSecretSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::DeleteSecretRequest>
-                    for DeleteSecretSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::DeleteSecretRequest>
+                        for DeleteSecretSvc<T>
+                    {
                         type Response = super::DeleteSecretResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteSecretRequest>,
@@ -1780,15 +1635,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/ListSecrets" => {
                     #[allow(non_camel_case_types)]
                     struct ListSecretsSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::ListSecretsRequest>
-                    for ListSecretsSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::ListSecretsRequest>
+                        for ListSecretsSvc<T>
+                    {
                         type Response = super::ListSecretsResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListSecretsRequest>,
@@ -1825,15 +1676,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/CreateKey" => {
                     #[allow(non_camel_case_types)]
                     struct CreateKeySvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::CreateKeyRequest>
-                    for CreateKeySvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::CreateKeyRequest> for CreateKeySvc<T> {
                         type Response = super::CreateKeyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateKeyRequest>,
@@ -1870,15 +1715,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/Encrypt" => {
                     #[allow(non_camel_case_types)]
                     struct EncryptSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::EncryptRequest>
-                    for EncryptSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::EncryptRequest> for EncryptSvc<T> {
                         type Response = super::EncryptResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::EncryptRequest>,
@@ -1915,15 +1754,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/Decrypt" => {
                     #[allow(non_camel_case_types)]
                     struct DecryptSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::DecryptRequest>
-                    for DecryptSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::DecryptRequest> for DecryptSvc<T> {
                         type Response = super::DecryptResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DecryptRequest>,
@@ -1960,22 +1793,16 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/Sign" => {
                     #[allow(non_camel_case_types)]
                     struct SignSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::SignRequest> for SignSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::SignRequest> for SignSvc<T> {
                         type Response = super::SignResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SignRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as SecretonService>::sign(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as SecretonService>::sign(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -2004,15 +1831,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/Verify" => {
                     #[allow(non_camel_case_types)]
                     struct VerifySvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::VerifyRequest>
-                    for VerifySvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::VerifyRequest> for VerifySvc<T> {
                         type Response = super::VerifyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::VerifyRequest>,
@@ -2049,15 +1870,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/RotateKey" => {
                     #[allow(non_camel_case_types)]
                     struct RotateKeySvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::RotateKeyRequest>
-                    for RotateKeySvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::RotateKeyRequest> for RotateKeySvc<T> {
                         type Response = super::RotateKeyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RotateKeyRequest>,
@@ -2094,23 +1909,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/GetClusterStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetClusterStatusSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::ClusterStatusRequest>
-                    for GetClusterStatusSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::ClusterStatusRequest>
+                        for GetClusterStatusSvc<T>
+                    {
                         type Response = super::ClusterStatusResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ClusterStatusRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::get_cluster_status(&inner, request)
-                                    .await
+                                <T as SecretonService>::get_cluster_status(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2140,15 +1951,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/ListPeers" => {
                     #[allow(non_camel_case_types)]
                     struct ListPeersSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::ListPeersRequest>
-                    for ListPeersSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::ListPeersRequest> for ListPeersSvc<T> {
                         type Response = super::ListPeersResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListPeersRequest>,
@@ -2185,15 +1990,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/AddNode" => {
                     #[allow(non_camel_case_types)]
                     struct AddNodeSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::AddNodeRequest>
-                    for AddNodeSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::AddNodeRequest> for AddNodeSvc<T> {
                         type Response = super::AddNodeResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::AddNodeRequest>,
@@ -2230,15 +2029,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/RemoveNode" => {
                     #[allow(non_camel_case_types)]
                     struct RemoveNodeSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::RemoveNodeRequest>
-                    for RemoveNodeSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::RemoveNodeRequest>
+                        for RemoveNodeSvc<T>
+                    {
                         type Response = super::RemoveNodeResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RemoveNodeRequest>,
@@ -2275,23 +2070,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/ListNamespaces" => {
                     #[allow(non_camel_case_types)]
                     struct ListNamespacesSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::ListNamespacesRequest>
-                    for ListNamespacesSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::ListNamespacesRequest>
+                        for ListNamespacesSvc<T>
+                    {
                         type Response = super::ListNamespacesResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListNamespacesRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::list_namespaces(&inner, request)
-                                    .await
+                                <T as SecretonService>::list_namespaces(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2321,23 +2112,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/CreateNamespace" => {
                     #[allow(non_camel_case_types)]
                     struct CreateNamespaceSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::CreateNamespaceRequest>
-                    for CreateNamespaceSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::CreateNamespaceRequest>
+                        for CreateNamespaceSvc<T>
+                    {
                         type Response = super::CreateNamespaceResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateNamespaceRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::create_namespace(&inner, request)
-                                    .await
+                                <T as SecretonService>::create_namespace(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2367,15 +2154,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/GetNamespace" => {
                     #[allow(non_camel_case_types)]
                     struct GetNamespaceSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::GetNamespaceRequest>
-                    for GetNamespaceSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::GetNamespaceRequest>
+                        for GetNamespaceSvc<T>
+                    {
                         type Response = super::GetNamespaceResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetNamespaceRequest>,
@@ -2412,23 +2195,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/UpdateNamespace" => {
                     #[allow(non_camel_case_types)]
                     struct UpdateNamespaceSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::UpdateNamespaceRequest>
-                    for UpdateNamespaceSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::UpdateNamespaceRequest>
+                        for UpdateNamespaceSvc<T>
+                    {
                         type Response = super::UpdateNamespaceResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UpdateNamespaceRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::update_namespace(&inner, request)
-                                    .await
+                                <T as SecretonService>::update_namespace(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2458,23 +2237,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/DeleteNamespace" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteNamespaceSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::DeleteNamespaceRequest>
-                    for DeleteNamespaceSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::DeleteNamespaceRequest>
+                        for DeleteNamespaceSvc<T>
+                    {
                         type Response = super::DeleteNamespaceResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteNamespaceRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::delete_namespace(&inner, request)
-                                    .await
+                                <T as SecretonService>::delete_namespace(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2504,23 +2279,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/GetNamespaceStats" => {
                     #[allow(non_camel_case_types)]
                     struct GetNamespaceStatsSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::GetNamespaceStatsRequest>
-                    for GetNamespaceStatsSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::GetNamespaceStatsRequest>
+                        for GetNamespaceStatsSvc<T>
+                    {
                         type Response = super::GetNamespaceStatsResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetNamespaceStatsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::get_namespace_stats(&inner, request)
-                                    .await
+                                <T as SecretonService>::get_namespace_stats(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2549,32 +2320,23 @@ pub mod secreton_service_server {
                 }
                 "/secreton.v1.SecretonService/GenerateDatabaseCredentials" => {
                     #[allow(non_camel_case_types)]
-                    struct GenerateDatabaseCredentialsSvc<T: SecretonService>(
-                        pub Arc<T>,
-                    );
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<
-                        super::GenerateDatabaseCredentialsRequest,
-                    > for GenerateDatabaseCredentialsSvc<T> {
+                    struct GenerateDatabaseCredentialsSvc<T: SecretonService>(pub Arc<T>);
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::GenerateDatabaseCredentialsRequest>
+                        for GenerateDatabaseCredentialsSvc<T>
+                    {
                         type Response = super::GenerateDatabaseCredentialsResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
-                            request: tonic::Request<
-                                super::GenerateDatabaseCredentialsRequest,
-                            >,
+                            request: tonic::Request<super::GenerateDatabaseCredentialsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as SecretonService>::generate_database_credentials(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                    &inner, request,
+                                )
+                                .await
                             };
                             Box::pin(fut)
                         }
@@ -2604,26 +2366,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/CreateDatabaseRole" => {
                     #[allow(non_camel_case_types)]
                     struct CreateDatabaseRoleSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::CreateDatabaseRoleRequest>
-                    for CreateDatabaseRoleSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::CreateDatabaseRoleRequest>
+                        for CreateDatabaseRoleSvc<T>
+                    {
                         type Response = super::CreateDatabaseRoleResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateDatabaseRoleRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::create_database_role(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as SecretonService>::create_database_role(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2653,23 +2408,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/GetDatabaseRole" => {
                     #[allow(non_camel_case_types)]
                     struct GetDatabaseRoleSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::GetDatabaseRoleRequest>
-                    for GetDatabaseRoleSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::GetDatabaseRoleRequest>
+                        for GetDatabaseRoleSvc<T>
+                    {
                         type Response = super::GetDatabaseRoleResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetDatabaseRoleRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::get_database_role(&inner, request)
-                                    .await
+                                <T as SecretonService>::get_database_role(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2699,23 +2450,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/ListDatabaseRoles" => {
                     #[allow(non_camel_case_types)]
                     struct ListDatabaseRolesSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::ListDatabaseRolesRequest>
-                    for ListDatabaseRolesSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::ListDatabaseRolesRequest>
+                        for ListDatabaseRolesSvc<T>
+                    {
                         type Response = super::ListDatabaseRolesResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListDatabaseRolesRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::list_database_roles(&inner, request)
-                                    .await
+                                <T as SecretonService>::list_database_roles(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2745,26 +2492,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/UpdateDatabaseRole" => {
                     #[allow(non_camel_case_types)]
                     struct UpdateDatabaseRoleSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::UpdateDatabaseRoleRequest>
-                    for UpdateDatabaseRoleSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::UpdateDatabaseRoleRequest>
+                        for UpdateDatabaseRoleSvc<T>
+                    {
                         type Response = super::UpdateDatabaseRoleResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UpdateDatabaseRoleRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::update_database_role(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as SecretonService>::update_database_role(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2794,26 +2534,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/DeleteDatabaseRole" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteDatabaseRoleSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::DeleteDatabaseRoleRequest>
-                    for DeleteDatabaseRoleSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::DeleteDatabaseRoleRequest>
+                        for DeleteDatabaseRoleSvc<T>
+                    {
                         type Response = super::DeleteDatabaseRoleResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteDatabaseRoleRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::delete_database_role(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as SecretonService>::delete_database_role(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2842,32 +2575,23 @@ pub mod secreton_service_server {
                 }
                 "/secreton.v1.SecretonService/ConfigureDatabaseConnection" => {
                     #[allow(non_camel_case_types)]
-                    struct ConfigureDatabaseConnectionSvc<T: SecretonService>(
-                        pub Arc<T>,
-                    );
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<
-                        super::ConfigureDatabaseConnectionRequest,
-                    > for ConfigureDatabaseConnectionSvc<T> {
+                    struct ConfigureDatabaseConnectionSvc<T: SecretonService>(pub Arc<T>);
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::ConfigureDatabaseConnectionRequest>
+                        for ConfigureDatabaseConnectionSvc<T>
+                    {
                         type Response = super::ConfigureDatabaseConnectionResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
-                            request: tonic::Request<
-                                super::ConfigureDatabaseConnectionRequest,
-                            >,
+                            request: tonic::Request<super::ConfigureDatabaseConnectionRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as SecretonService>::configure_database_connection(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                    &inner, request,
+                                )
+                                .await
                             };
                             Box::pin(fut)
                         }
@@ -2897,15 +2621,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/RenewLease" => {
                     #[allow(non_camel_case_types)]
                     struct RenewLeaseSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::RenewLeaseRequest>
-                    for RenewLeaseSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::RenewLeaseRequest>
+                        for RenewLeaseSvc<T>
+                    {
                         type Response = super::RenewLeaseResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RenewLeaseRequest>,
@@ -2942,15 +2662,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/RevokeLease" => {
                     #[allow(non_camel_case_types)]
                     struct RevokeLeaseSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::RevokeLeaseRequest>
-                    for RevokeLeaseSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::RevokeLeaseRequest>
+                        for RevokeLeaseSvc<T>
+                    {
                         type Response = super::RevokeLeaseResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RevokeLeaseRequest>,
@@ -2987,23 +2703,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/RevokeLeasePrefix" => {
                     #[allow(non_camel_case_types)]
                     struct RevokeLeasePrefixSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::RevokeLeasePrefixRequest>
-                    for RevokeLeasePrefixSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::RevokeLeasePrefixRequest>
+                        for RevokeLeasePrefixSvc<T>
+                    {
                         type Response = super::RevokeLeasePrefixResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RevokeLeasePrefixRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::revoke_lease_prefix(&inner, request)
-                                    .await
+                                <T as SecretonService>::revoke_lease_prefix(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3033,15 +2745,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/LookupLease" => {
                     #[allow(non_camel_case_types)]
                     struct LookupLeaseSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::LookupLeaseRequest>
-                    for LookupLeaseSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::LookupLeaseRequest>
+                        for LookupLeaseSvc<T>
+                    {
                         type Response = super::LookupLeaseResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::LookupLeaseRequest>,
@@ -3078,15 +2786,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/ListLeases" => {
                     #[allow(non_camel_case_types)]
                     struct ListLeasesSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::ListLeasesRequest>
-                    for ListLeasesSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::ListLeasesRequest>
+                        for ListLeasesSvc<T>
+                    {
                         type Response = super::ListLeasesResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListLeasesRequest>,
@@ -3123,23 +2827,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/GetLeaseStats" => {
                     #[allow(non_camel_case_types)]
                     struct GetLeaseStatsSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::GetLeaseStatsRequest>
-                    for GetLeaseStatsSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::GetLeaseStatsRequest>
+                        for GetLeaseStatsSvc<T>
+                    {
                         type Response = super::GetLeaseStatsResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetLeaseStatsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::get_lease_stats(&inner, request)
-                                    .await
+                                <T as SecretonService>::get_lease_stats(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3169,15 +2869,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/ListPolicies" => {
                     #[allow(non_camel_case_types)]
                     struct ListPoliciesSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::ListPoliciesRequest>
-                    for ListPoliciesSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::ListPoliciesRequest>
+                        for ListPoliciesSvc<T>
+                    {
                         type Response = super::ListPoliciesResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListPoliciesRequest>,
@@ -3214,15 +2910,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/CreatePolicy" => {
                     #[allow(non_camel_case_types)]
                     struct CreatePolicySvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::CreatePolicyRequest>
-                    for CreatePolicySvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::CreatePolicyRequest>
+                        for CreatePolicySvc<T>
+                    {
                         type Response = super::CreatePolicyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreatePolicyRequest>,
@@ -3259,15 +2951,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/GetPolicy" => {
                     #[allow(non_camel_case_types)]
                     struct GetPolicySvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::GetPolicyRequest>
-                    for GetPolicySvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::GetPolicyRequest> for GetPolicySvc<T> {
                         type Response = super::GetPolicyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetPolicyRequest>,
@@ -3304,15 +2990,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/UpdatePolicy" => {
                     #[allow(non_camel_case_types)]
                     struct UpdatePolicySvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::UpdatePolicyRequest>
-                    for UpdatePolicySvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::UpdatePolicyRequest>
+                        for UpdatePolicySvc<T>
+                    {
                         type Response = super::UpdatePolicyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UpdatePolicyRequest>,
@@ -3349,15 +3031,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/DeletePolicy" => {
                     #[allow(non_camel_case_types)]
                     struct DeletePolicySvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::DeletePolicyRequest>
-                    for DeletePolicySvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::DeletePolicyRequest>
+                        for DeletePolicySvc<T>
+                    {
                         type Response = super::DeletePolicyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeletePolicyRequest>,
@@ -3394,15 +3072,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/TestPolicy" => {
                     #[allow(non_camel_case_types)]
                     struct TestPolicySvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::TestPolicyRequest>
-                    for TestPolicySvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::TestPolicyRequest>
+                        for TestPolicySvc<T>
+                    {
                         type Response = super::TestPolicyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::TestPolicyRequest>,
@@ -3439,15 +3113,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/WrapData" => {
                     #[allow(non_camel_case_types)]
                     struct WrapDataSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::WrapDataRequest>
-                    for WrapDataSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::WrapDataRequest> for WrapDataSvc<T> {
                         type Response = super::WrapDataResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::WrapDataRequest>,
@@ -3484,15 +3152,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/UnwrapToken" => {
                     #[allow(non_camel_case_types)]
                     struct UnwrapTokenSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::UnwrapTokenRequest>
-                    for UnwrapTokenSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::UnwrapTokenRequest>
+                        for UnwrapTokenSvc<T>
+                    {
                         type Response = super::UnwrapTokenResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UnwrapTokenRequest>,
@@ -3529,26 +3193,19 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/LookupWrappingToken" => {
                     #[allow(non_camel_case_types)]
                     struct LookupWrappingTokenSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::LookupWrappingTokenRequest>
-                    for LookupWrappingTokenSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<super::LookupWrappingTokenRequest>
+                        for LookupWrappingTokenSvc<T>
+                    {
                         type Response = super::LookupWrappingTokenResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::LookupWrappingTokenRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as SecretonService>::lookup_wrapping_token(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as SecretonService>::lookup_wrapping_token(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3578,15 +3235,11 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/RewrapToken" => {
                     #[allow(non_camel_case_types)]
                     struct RewrapTokenSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::RewrapTokenRequest>
-                    for RewrapTokenSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::RewrapTokenRequest>
+                        for RewrapTokenSvc<T>
+                    {
                         type Response = super::RewrapTokenResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RewrapTokenRequest>,
@@ -3623,16 +3276,13 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/HealthCheck" => {
                     #[allow(non_camel_case_types)]
                     struct HealthCheckSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<
-                        super::super::super::common::v1::HealthCheckRequest,
-                    > for HealthCheckSvc<T> {
+                    impl<T: SecretonService>
+                        tonic::server::UnaryService<
+                            super::super::super::common::v1::HealthCheckRequest,
+                        > for HealthCheckSvc<T>
+                    {
                         type Response = super::super::super::common::v1::HealthCheckResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<
@@ -3671,15 +3321,9 @@ pub mod secreton_service_server {
                 "/secreton.v1.SecretonService/GetMetrics" => {
                     #[allow(non_camel_case_types)]
                     struct GetMetricsSvc<T: SecretonService>(pub Arc<T>);
-                    impl<
-                        T: SecretonService,
-                    > tonic::server::UnaryService<super::MetricsRequest>
-                    for GetMetricsSvc<T> {
+                    impl<T: SecretonService> tonic::server::UnaryService<super::MetricsRequest> for GetMetricsSvc<T> {
                         type Response = super::MetricsResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::MetricsRequest>,
@@ -3713,23 +3357,19 @@ pub mod secreton_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        let mut response = http::Response::new(empty_body());
-                        let headers = response.headers_mut();
-                        headers
-                            .insert(
-                                tonic::Status::GRPC_STATUS,
-                                (tonic::Code::Unimplemented as i32).into(),
-                            );
-                        headers
-                            .insert(
-                                http::header::CONTENT_TYPE,
-                                tonic::metadata::GRPC_CONTENT_TYPE,
-                            );
-                        Ok(response)
-                    })
-                }
+                _ => Box::pin(async move {
+                    let mut response = http::Response::new(empty_body());
+                    let headers = response.headers_mut();
+                    headers.insert(
+                        tonic::Status::GRPC_STATUS,
+                        (tonic::Code::Unimplemented as i32).into(),
+                    );
+                    headers.insert(
+                        http::header::CONTENT_TYPE,
+                        tonic::metadata::GRPC_CONTENT_TYPE,
+                    );
+                    Ok(response)
+                }),
             }
         }
     }

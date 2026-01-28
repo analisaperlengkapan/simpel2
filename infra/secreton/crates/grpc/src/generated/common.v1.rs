@@ -19,10 +19,8 @@ pub struct ErrorDetail {
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
     #[prost(map = "string, string", tag = "3")]
-    pub metadata: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub metadata:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 /// Timestamp range
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -36,15 +34,11 @@ pub struct TimeRange {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Metadata {
     #[prost(map = "string, string", tag = "1")]
-    pub labels: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub labels:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     #[prost(map = "string, string", tag = "2")]
-    pub annotations: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub annotations:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     #[prost(int64, tag = "3")]
     pub created_at: i64,
     #[prost(int64, tag = "4")]
@@ -68,10 +62,8 @@ pub struct RequestContext {
     #[prost(string, tag = "5")]
     pub user_agent: ::prost::alloc::string::String,
     #[prost(map = "string, string", tag = "6")]
-    pub headers: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub headers:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 /// Response status
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -105,10 +97,8 @@ pub struct AuditTrail {
     #[prost(string, tag = "9")]
     pub ip_address: ::prost::alloc::string::String,
     #[prost(map = "string, string", tag = "10")]
-    pub metadata: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub metadata:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 /// Health check common
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -132,10 +122,7 @@ pub struct HealthInfo {
     #[prost(int64, tag = "4")]
     pub uptime_seconds: i64,
     #[prost(map = "string, message", tag = "5")]
-    pub dependencies: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        DependencyHealth,
-    >,
+    pub dependencies: ::std::collections::HashMap<::prost::alloc::string::String, DependencyHealth>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DependencyHealth {
@@ -158,10 +145,7 @@ pub struct MetricsSnapshot {
     #[prost(map = "string, int64", tag = "3")]
     pub counters: ::std::collections::HashMap<::prost::alloc::string::String, i64>,
     #[prost(map = "string, message", tag = "4")]
-    pub histograms: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        Histogram,
-    >,
+    pub histograms: ::std::collections::HashMap<::prost::alloc::string::String, Histogram>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Histogram {

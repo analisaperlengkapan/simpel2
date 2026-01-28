@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use tokio::time::{self, Duration};
 use crate::storage::StorageBackend;
 use anyhow::Result;
-use tracing::{info, error, instrument};
+use std::sync::Arc;
+use tokio::time::{self, Duration};
+use tracing::{error, info, instrument};
 
 #[derive(Clone)]
 pub struct KeyManager {
@@ -55,7 +55,10 @@ impl KeyManager {
         let mut last_id: Option<String> = None;
 
         loop {
-            let batch = self.storage.get_secrets_batch(batch_size, last_id.clone()).await?;
+            let batch = self
+                .storage
+                .get_secrets_batch(batch_size, last_id.clone())
+                .await?;
             if batch.is_empty() {
                 break;
             }

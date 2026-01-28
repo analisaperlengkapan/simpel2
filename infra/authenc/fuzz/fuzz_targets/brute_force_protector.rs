@@ -1,7 +1,7 @@
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use authenc::services::brute_force_protector::BruteForceProtector;
+use libfuzzer_sys::fuzz_target;
 use std::time::Duration;
 
 fuzz_target!(|data: &[u8]| {

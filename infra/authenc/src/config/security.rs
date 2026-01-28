@@ -205,7 +205,7 @@ impl InputValidationConfig {
     pub fn development() -> Self {
         Self {
             max_request_body_size: 10 * 1024 * 1024, // 10MB for development
-            validate_content_type: false, // More permissive in development
+            validate_content_type: false,            // More permissive in development
             ..Self::secure()
         }
     }
@@ -250,11 +250,11 @@ pub struct SecurityMiddlewareStack {
 
 impl SecurityMiddlewareStack {
     /// Create a new security middleware stack
-    pub fn new(
-        config: SecurityConfig,
-        audit_store: Option<Arc<PgAuditLogStore>>,
-    ) -> Self {
-        Self { config, audit_store }
+    pub fn new(config: SecurityConfig, audit_store: Option<Arc<PgAuditLogStore>>) -> Self {
+        Self {
+            config,
+            audit_store,
+        }
     }
 
     /// Build the complete security middleware stack
@@ -303,18 +303,10 @@ impl SecurityMiddlewareStack {
 
 /// Enum representing different security middleware types
 pub enum SecurityMiddleware {
-    SecurityMonitoring {
-        state: Arc<SecurityMonitoringState>,
-    },
-    InputValidation {
-        config: Arc<InputValidationConfig>,
-    },
-    RateLimiting {
-        state: Arc<RateLimiterState>,
-    },
-    CsrfProtection {
-        state: Arc<CsrfState>,
-    },
+    SecurityMonitoring { state: Arc<SecurityMonitoringState> },
+    InputValidation { config: Arc<InputValidationConfig> },
+    RateLimiting { state: Arc<RateLimiterState> },
+    CsrfProtection { state: Arc<CsrfState> },
     SecurityHeaders,
 }
 

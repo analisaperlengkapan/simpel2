@@ -1,9 +1,9 @@
 use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::OcrResult;
-use uuid::Uuid;
 use reqwest::Client;
 use serde_json::json;
+use uuid::Uuid;
 
 pub struct OcrService {
     pub config: AppConfig,
@@ -18,15 +18,24 @@ impl OcrService {
         }
     }
 
-    pub async fn request_ocr(&self, document_id: Uuid, file_bytes: Vec<u8>) -> Result<OcrResult, AppError> {
+    pub async fn request_ocr(
+        &self,
+        document_id: Uuid,
+        file_bytes: Vec<u8>,
+    ) -> Result<OcrResult, AppError> {
         let url = format!("{}/ocr", self.config.ai_service_url);
-        let mut req = self.client.post(&url)
+        let mut req = self
+            .client
+            .post(&url)
             .header("Content-Type", "application/octet-stream");
         if let Some(ref key) = self.config.ai_service_api_key {
             req = req.header("x-api-key", key);
         }
-        let resp = req.body(file_bytes)
-            .send().await.map_err(|e| AppError::Ai(e.to_string()))?;
+        let resp = req
+            .body(file_bytes)
+            .send()
+            .await
+            .map_err(|e| AppError::Ai(e.to_string()))?;
         if !resp.status().is_success() {
             return Err(AppError::Ai(format!("AI OCR gagal: {}", resp.status())));
         }
@@ -42,9 +51,13 @@ impl OcrService {
         }
         let resp = req.send().await.map_err(|e| AppError::Ai(e.to_string()))?;
         if !resp.status().is_success() {
-            return Err(AppError::Ai(format!("AI OCR status gagal: {}", resp.status())));
+            return Err(AppError::Ai(format!(
+                "AI OCR status gagal: {}",
+                resp.status()
+            )));
         }
-        let status: serde_json::Value = resp.json().await.map_err(|e| AppError::Ai(e.to_string()))?;
+        let status: serde_json::Value =
+            resp.json().await.map_err(|e| AppError::Ai(e.to_string()))?;
         Ok(status["status"].as_str().unwrap_or("unknown").to_string())
     }
 
@@ -56,9 +69,12 @@ impl OcrService {
         }
         let resp = req.send().await.map_err(|e| AppError::Ai(e.to_string()))?;
         if !resp.status().is_success() {
-            return Err(AppError::Ai(format!("AI OCR text gagal: {}", resp.status())));
+            return Err(AppError::Ai(format!(
+                "AI OCR text gagal: {}",
+                resp.status()
+            )));
         }
         let text: serde_json::Value = resp.json().await.map_err(|e| AppError::Ai(e.to_string()))?;
         Ok(text["text"].as_str().unwrap_or("").to_string())
     }
-} 
+}
