@@ -34,8 +34,47 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
-      - name: Install unzip (required for setup-protoc)
-        run: sudo apt-get update && sudo apt-get install -y unzip || echo "Failed to install unzip, continuing hope it exists or protoc is pre-installed"
+      - name: Create python wrapper for unzip (required for setup-protoc)
+        run: |
+          mkdir -p $HOME/.local/bin
+          cat <<EOF > $HOME/.local/bin/unzip
+          #!/usr/bin/env python3
+          import zipfile
+          import sys
+          import os
+
+          # Usage: unzip [-o] <zipfile> [-d <dest>]
+
+          args = sys.argv[1:]
+          zip_path = None
+          dest = "."
+
+          # Simple argument parsing
+          i = 0
+          while i < len(args):
+              arg = args[i]
+              if arg == "-o":
+                  pass # overwrite, default behavior for extractall
+              elif arg == "-d":
+                  i += 1
+                  if i < len(args):
+                      dest = args[i]
+              elif not arg.startswith("-"):
+                  zip_path = arg
+              i += 1
+
+          if zip_path and os.path.exists(zip_path):
+              print(f"Extracting {zip_path} to {dest}")
+              with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                  zip_ref.extractall(dest)
+          else:
+              print("Usage: unzip [-o] <zipfile> [-d <dest>]")
+              # Don't fail if just checking for existence
+              if len(args) > 0:
+                  sys.exit(1)
+          EOF
+          chmod +x $HOME/.local/bin/unzip
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install Protocol Buffers compiler
         uses: arduino/setup-protoc@v3
@@ -131,10 +170,53 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: llvm-tools-preview
 
+      - name: Create python wrapper for unzip (required for setup-protoc)
+        run: |
+          mkdir -p $HOME/.local/bin
+          cat <<EOF > $HOME/.local/bin/unzip
+          #!/usr/bin/env python3
+          import zipfile
+          import sys
+          import os
+
+          # Usage: unzip [-o] <zipfile> [-d <dest>]
+
+          args = sys.argv[1:]
+          zip_path = None
+          dest = "."
+
+          # Simple argument parsing
+          i = 0
+          while i < len(args):
+              arg = args[i]
+              if arg == "-o":
+                  pass # overwrite, default behavior for extractall
+              elif arg == "-d":
+                  i += 1
+                  if i < len(args):
+                      dest = args[i]
+              elif not arg.startswith("-"):
+                  zip_path = arg
+              i += 1
+
+          if zip_path and os.path.exists(zip_path):
+              print(f"Extracting {zip_path} to {dest}")
+              with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                  zip_ref.extractall(dest)
+          else:
+              print("Usage: unzip [-o] <zipfile> [-d <dest>]")
+              # Don't fail if just checking for existence
+              if len(args) > 0:
+                  sys.exit(1)
+          EOF
+          chmod +x $HOME/.local/bin/unzip
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Install Protocol Buffers compiler
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -267,17 +349,18 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
-      - name: Install cargo-outdated
-        run: cargo install cargo-outdated --locked
+      # cargo-outdated requires C compiler which is not available on self-hosted runners
+      # - name: Install cargo-outdated
+      #   run: cargo install cargo-outdated --locked
 
-      - name: Check outdated dependencies
-        run: |
-          echo "## 📦 Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          cargo outdated --workspace --root-deps-only || echo "All dependencies up to date"
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        continue-on-error: true
+      # - name: Check outdated dependencies
+      #   run: |
+      #     echo "## 📦 Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
+      #     echo "" >> $GITHUB_STEP_SUMMARY
+      #     echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      #     cargo outdated --workspace --root-deps-only || echo "All dependencies up to date"
+      #     echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      #   continue-on-error: true
 
       - name: Install nightly Rust for udeps
         uses: dtolnay/rust-toolchain@nightly
