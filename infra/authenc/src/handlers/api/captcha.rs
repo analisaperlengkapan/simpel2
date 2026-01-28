@@ -361,8 +361,15 @@ pub async fn validate_challenge(
             let payload = format!("{}:{}", req.challenge_id, timestamp);
             let secret = &state.config.security.jwt_secret;
 
+            // Use HKDF to derive a specific key for CAPTCHA tokens
+            // This prevents key reuse between JWTs and CAPTCHA tokens (Bug 10)
+            let hk = hkdf::Hkdf::<Sha256>::new(None, secret.as_bytes());
+            let mut captcha_key = [0u8; 32];
+            hk.expand(b"captcha-v1", &mut captcha_key)
+                .expect("HKDF expand failed");
+
             type HmacSha256 = Hmac<Sha256>;
-            let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+            let mut mac = HmacSha256::new_from_slice(&captcha_key)
                 .expect("HMAC can take key of any size");
             mac.update(payload.as_bytes());
             let result_mac = mac.finalize();

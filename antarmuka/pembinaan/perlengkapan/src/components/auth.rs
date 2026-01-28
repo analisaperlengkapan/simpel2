@@ -1,4 +1,3 @@
-use leptos::prelude::*;
 
 // Auth utility functions
 pub fn get_auth_token() -> Option<String> {

@@ -2,10 +2,7 @@
 mod tests {
     use crate::tests::MockRepository; // Accessing MockRepository from parent tests module
     use crate::{handlers::*, middleware::Claims, models::*, services::PerlengkapanService};
-    use axum::{
-        Json,
-        extract::{Path, Query, State},
-    };
+    use axum::extract::{Path, Query, State};
     use chrono::Utc;
     use std::sync::Arc;
     use uuid::Uuid;

@@ -258,6 +258,11 @@ spec:
                 secretKeyRef:
                   name: redis-secrets
                   key: REDIS_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: simpelv2-secrets
+                  key: AUTHENC_JWT_SECRET
             - name: AUTHENC_DB_USER
               valueFrom:
                 secretKeyRef:

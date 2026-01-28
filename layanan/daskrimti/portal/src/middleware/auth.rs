@@ -12,7 +12,7 @@ use axum::{
 };
 use serde::Serialize;
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 use crate::state::AppState;
 
