@@ -50,6 +50,11 @@ impl Database {
     async fn create_tables(&self) -> Result<()> {
         let client = self.pool.get().await?;
 
+        // Enable pgcrypto extension for UUID generation
+        client
+            .execute("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\"", &[])
+            .await?;
+
         // Create schema if not exists
         client
             .execute("CREATE SCHEMA IF NOT EXISTS perlengkapan", &[])
