@@ -1,7 +1,7 @@
+use crate::api::{CreatePengadaanRequest, create_pengadaan};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_pengadaan, CreatePengadaanRequest};
 
 #[component]
 pub fn PengadaanForm() -> impl IntoView {
@@ -25,7 +25,11 @@ pub fn PengadaanForm() -> impl IntoView {
             deskripsi: None,
             jenis: jenis.get(),
             anggaran: anggaran.get().parse::<f64>().ok(),
-            target_selesai: if target.get().is_empty() { None } else { Some(target.get()) },
+            target_selesai: if target.get().is_empty() {
+                None
+            } else {
+                Some(target.get())
+            },
             pic_user_id: None,
         };
 

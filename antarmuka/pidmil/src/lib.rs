@@ -5,9 +5,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::StaticSegment;
 use leptos_router::components::{Route, Router, Routes};
-use lib_ui::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
 use wasm_bindgen::prelude::*;
 
 mod api;
@@ -46,7 +44,7 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=|| "Page not found".into_view()>
-                <Route path=StaticSegment("") view=LoginRedirectPage />
+                <Route path=StaticSegment("") view=|| view! { <LoginRedirectPage /> } />
                 <Route path=StaticSegment("dashboard") view=DashboardPage />
             </Routes>
         </Router>

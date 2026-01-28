@@ -34,23 +34,21 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::*;
-use lib_ui::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
 use lib_ui::prelude::*;
 use wasm_bindgen::prelude::*;
 
-mod components;
 mod api;
+mod components;
 #[cfg(test)]
 mod tests;
 
-use components::aset_list::AsetList;
-use components::pengadaan_list::PengadaanList;
-use components::analisis_list::AnalisisList;
-use components::pengadaan_form::PengadaanForm;
-use components::analisis_form::AnalisisForm;
 use api::fetch_dashboard_stats;
+use components::analisis_form::AnalisisForm;
+use components::analisis_list::AnalisisList;
+use components::aset_list::AsetList;
+use components::pengadaan_form::PengadaanForm;
+use components::pengadaan_list::PengadaanList;
 
 // ============================================================================
 // Constants & Configuration

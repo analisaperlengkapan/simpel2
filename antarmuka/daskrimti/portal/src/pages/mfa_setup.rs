@@ -4,9 +4,9 @@
 
 use crate::components::layout::AuthLayout;
 use leptos::prelude::*;
-use serde::{Deserialize, Serialize};
 use lib_ui::components::captcha::Captcha;
 use lib_ui::prelude::*;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen_futures::spawn_local;
 
 /// MFA setup data from API

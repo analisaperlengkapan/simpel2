@@ -7,9 +7,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::*;
-use lib_ui::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
 use lib_ui::prelude::*;
 
 pub mod api;

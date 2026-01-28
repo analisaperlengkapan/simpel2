@@ -1,5 +1,5 @@
+use crate::api::{Pengadaan, fetch_pengadaan};
 use leptos::prelude::*;
-use crate::api::{fetch_pengadaan, Pengadaan};
 
 #[component]
 pub fn PengadaanList() -> impl IntoView {

@@ -16,16 +16,9 @@ jobs:
   quality:
     name: Quality Checks
     runs-on: self-hosted
-    container:
-      image: ubuntu:22.04
-    # Running inside Ubuntu container on self-hosted runner; install build tools in-container (no sudo needed).
     steps:
-      - name: Prepare container (install build tools)
-        run: |
-          apt-get update
-          apt-get install -y build-essential unzip pkg-config libssl-dev gcc perl python3
       - name: Fix permissions
-        run: chown -R $(id -u):$(id -g) . || true
+        run: sudo -n chown -R $USER:$USER . || true
 
       - name: Checkout repository
         uses: actions/checkout@v6

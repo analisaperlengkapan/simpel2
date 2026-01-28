@@ -160,7 +160,9 @@ pub fn Captcha(
 
             if success {
                 set_validation_status.set(ValidationStatus::Success);
-                let token = val_resp.and_then(|r| r.token).unwrap_or_else(|| format!("captcha_verified_{}", session_id_val));
+                let token = val_resp
+                    .and_then(|r| r.token)
+                    .unwrap_or_else(|| format!("captcha_verified_{}", session_id_val));
                 on_success_clone.run(token);
             } else {
                 set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
@@ -824,7 +826,9 @@ pub fn ChallengeInput(
 
             if success {
                 set_validation_status.set(ValidationStatus::Success);
-                let token = val_resp.and_then(|r| r.token).unwrap_or_else(|| format!("captcha_verified_{}", session_id_val));
+                let token = val_resp
+                    .and_then(|r| r.token)
+                    .unwrap_or_else(|| format!("captcha_verified_{}", session_id_val));
                 on_submit.run(token);
             } else {
                 set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));

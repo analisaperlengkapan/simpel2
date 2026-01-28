@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use crate::components::aset_list::AsetList;
+use leptos::prelude::*;
 
 #[component]
 pub fn BankAsetContent() -> impl IntoView {

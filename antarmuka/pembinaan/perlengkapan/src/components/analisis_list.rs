@@ -1,5 +1,5 @@
+use crate::api::{AnalisisKebutuhan, fetch_analisis};
 use leptos::prelude::*;
-use crate::api::{fetch_analisis, AnalisisKebutuhan};
 
 #[component]
 pub fn AnalisisList() -> impl IntoView {

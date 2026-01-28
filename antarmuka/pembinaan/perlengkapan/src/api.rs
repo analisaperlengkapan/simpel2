@@ -101,11 +101,18 @@ pub struct ApiResponse<T> {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_assets(page: i32, per_page: i32, category: Option<String>) -> Result<PaginatedResponse<Asset>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_assets(
+    page: i32,
+    per_page: i32,
+    category: Option<String>,
+) -> Result<PaginatedResponse<Asset>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let mut url = format!("/api/pembinaan/perlengkapan/assets?page={}&per_page={}", page, per_page);
+    let mut url = format!(
+        "/api/pembinaan/perlengkapan/assets?page={}&per_page={}",
+        page, per_page
+    );
     if let Some(cat) = category {
         use urlencoding::encode;
         url.push_str(&format!("&category={}", encode(&cat)));
@@ -118,7 +125,10 @@ pub async fn fetch_assets(page: i32, per_page: i32, category: Option<String>) ->
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<Asset> = resp.json().await?;
@@ -126,7 +136,11 @@ pub async fn fetch_assets(page: i32, per_page: i32, category: Option<String>) ->
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_assets(_page: i32, _per_page: i32, _category: Option<String>) -> Result<PaginatedResponse<Asset>, String> {
+pub async fn fetch_assets(
+    _page: i32,
+    _per_page: i32,
+    _category: Option<String>,
+) -> Result<PaginatedResponse<Asset>, String> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -140,8 +154,8 @@ pub async fn fetch_assets(_page: i32, _per_page: i32, _category: Option<String>)
 
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, gloo_net::Error> {
-    use gloo_net::http::Request;
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/dashboard/stats";
 
@@ -152,7 +166,10 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, gloo
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<DashboardStats> = resp.json().await?;
@@ -161,7 +178,7 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, gloo
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, String> {
-     Ok(ApiResponse {
+    Ok(ApiResponse {
         success: true,
         data: DashboardStats {
             total_aset: 0,
@@ -177,8 +194,8 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, Stri
 
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_asset_by_id(id: String) -> Result<ApiResponse<Asset>, gloo_net::Error> {
-    use gloo_net::http::Request;
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = format!("/api/pembinaan/perlengkapan/assets/{}", id);
 
@@ -189,7 +206,10 @@ pub async fn fetch_asset_by_id(id: String) -> Result<ApiResponse<Asset>, gloo_ne
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<Asset> = resp.json().await?;
@@ -202,11 +222,17 @@ pub async fn fetch_asset_by_id(_id: String) -> Result<ApiResponse<Asset>, String
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_pengadaan(page: i32, per_page: i32) -> Result<PaginatedResponse<Pengadaan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_pengadaan(
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResponse<Pengadaan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/pengadaan?page={}&per_page={}", page, per_page);
+    let url = format!(
+        "/api/pembinaan/perlengkapan/pengadaan?page={}&per_page={}",
+        page, per_page
+    );
 
     let token = get_auth_token().unwrap_or_default();
     let resp = Request::get(&url)
@@ -215,7 +241,10 @@ pub async fn fetch_pengadaan(page: i32, per_page: i32) -> Result<PaginatedRespon
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<Pengadaan> = resp.json().await?;
@@ -223,7 +252,10 @@ pub async fn fetch_pengadaan(page: i32, per_page: i32) -> Result<PaginatedRespon
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_pengadaan(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Pengadaan>, String> {
+pub async fn fetch_pengadaan(
+    _page: i32,
+    _per_page: i32,
+) -> Result<PaginatedResponse<Pengadaan>, String> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -236,9 +268,11 @@ pub async fn fetch_pengadaan(_page: i32, _per_page: i32) -> Result<PaginatedResp
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_pengadaan(request: CreatePengadaanRequest) -> Result<ApiResponse<Pengadaan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn create_pengadaan(
+    request: CreatePengadaanRequest,
+) -> Result<ApiResponse<Pengadaan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengadaan";
     let token = get_auth_token().unwrap_or_default();
@@ -250,7 +284,10 @@ pub async fn create_pengadaan(request: CreatePengadaanRequest) -> Result<ApiResp
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<Pengadaan> = resp.json().await?;
@@ -258,16 +295,24 @@ pub async fn create_pengadaan(request: CreatePengadaanRequest) -> Result<ApiResp
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_pengadaan(_request: CreatePengadaanRequest) -> Result<ApiResponse<Pengadaan>, String> {
+pub async fn create_pengadaan(
+    _request: CreatePengadaanRequest,
+) -> Result<ApiResponse<Pengadaan>, String> {
     Err("Server-side stub".to_string())
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_analisis(page: i32, per_page: i32) -> Result<PaginatedResponse<AnalisisKebutuhan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_analisis(
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResponse<AnalisisKebutuhan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/analisis?page={}&per_page={}", page, per_page);
+    let url = format!(
+        "/api/pembinaan/perlengkapan/analisis?page={}&per_page={}",
+        page, per_page
+    );
 
     let token = get_auth_token().unwrap_or_default();
     let resp = Request::get(&url)
@@ -276,7 +321,10 @@ pub async fn fetch_analisis(page: i32, per_page: i32) -> Result<PaginatedRespons
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<AnalisisKebutuhan> = resp.json().await?;
@@ -284,7 +332,10 @@ pub async fn fetch_analisis(page: i32, per_page: i32) -> Result<PaginatedRespons
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_analisis(_page: i32, _per_page: i32) -> Result<PaginatedResponse<AnalisisKebutuhan>, String> {
+pub async fn fetch_analisis(
+    _page: i32,
+    _per_page: i32,
+) -> Result<PaginatedResponse<AnalisisKebutuhan>, String> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -297,9 +348,11 @@ pub async fn fetch_analisis(_page: i32, _per_page: i32) -> Result<PaginatedRespo
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_analisis(request: CreateAnalisisRequest) -> Result<ApiResponse<AnalisisKebutuhan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn create_analisis(
+    request: CreateAnalisisRequest,
+) -> Result<ApiResponse<AnalisisKebutuhan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/analisis";
     let token = get_auth_token().unwrap_or_default();
@@ -311,7 +364,10 @@ pub async fn create_analisis(request: CreateAnalisisRequest) -> Result<ApiRespon
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<AnalisisKebutuhan> = resp.json().await?;
@@ -319,6 +375,8 @@ pub async fn create_analisis(request: CreateAnalisisRequest) -> Result<ApiRespon
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_analisis(_request: CreateAnalisisRequest) -> Result<ApiResponse<AnalisisKebutuhan>, String> {
+pub async fn create_analisis(
+    _request: CreateAnalisisRequest,
+) -> Result<ApiResponse<AnalisisKebutuhan>, String> {
     Err("Server-side stub".to_string())
 }

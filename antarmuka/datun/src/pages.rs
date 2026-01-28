@@ -15,9 +15,7 @@ use leptos_router::{
 };
 
 // Import shared components
-use lib_ui::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
 use lib_ui::prelude::*;
 
 // Import local types and api
@@ -35,7 +33,7 @@ pub fn App() -> impl IntoView {
         <Meta name="description" content="Sistem Informasi Bidang Perdata dan Tata Usaha Negara Kejaksaan RI"/>
         <Router>
             <Routes fallback=|| "Page not found".into_view()>
-                <Route path=StaticSegment("") view=LoginRedirectPage />
+                <Route path=StaticSegment("") view=|| view! { <LoginRedirectPage /> } />
                 <Route path=StaticSegment("dashboard") view=DashboardPage />
             </Routes>
         </Router>

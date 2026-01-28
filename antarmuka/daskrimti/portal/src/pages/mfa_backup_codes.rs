@@ -6,9 +6,9 @@ use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use serde::{Deserialize, Serialize};
 use lib_ui::components::{Alert, Loading};
 use lib_ui::core::types::AlertVariant;
+use serde::{Deserialize, Serialize};
 
 /// Backup codes response from API
 #[derive(Debug, Clone, Serialize, Deserialize)]

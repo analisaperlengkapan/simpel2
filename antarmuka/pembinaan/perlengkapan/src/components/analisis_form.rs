@@ -1,7 +1,7 @@
+use crate::api::{CreateAnalisisRequest, create_analisis};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_analisis, CreateAnalisisRequest};
 
 #[component]
 pub fn AnalisisForm() -> impl IntoView {
