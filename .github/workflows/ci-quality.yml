@@ -26,16 +26,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install unzip (required for setup-protoc)
+        run: sudo apt-get update && sudo apt-get install -y unzip || echo "Failed to install unzip, continuing hope it exists or protoc is pre-installed"
+
       - name: Install Protocol Buffers compiler
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -97,24 +103,27 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: self-hosted
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: simpelv2_test
-          POSTGRES_PASSWORD: coverage_test_2024
-          POSTGRES_DB: simpelv2_coverage
-        options: >-
-          --health-cmd "pg_isready -U simpelv2_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 56432:5432
+    # Services removed due to Docker issues on self-hosted runners
+    # services:
+    #   postgres:
+    #     image: postgres:15-alpine
+    #     env:
+    #       POSTGRES_USER: simpelv2_test
+    #       POSTGRES_PASSWORD: coverage_test_2024
+    #       POSTGRES_DB: simpelv2_coverage
+    #     options: >-
+    #       --health-cmd "pg_isready -U simpelv2_test"
+    #       --health-interval 10s
+    #       --health-timeout 5s
+    #       --health-retries 5
+    #     ports:
+    #       - 56432:5432
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -198,6 +207,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -248,6 +259,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -287,10 +300,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install tokei
         run: |
-          cargo install tokei --locked
+          # Use pre-built binary instead of compiling from source
+          curl -L https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv tokei /usr/local/bin/ || (mkdir -p ~/.local/bin && mv tokei ~/.local/bin/ && echo "$HOME/.local/bin" >> $GITHUB_PATH)
 
       - name: Generate code metrics
         run: |
