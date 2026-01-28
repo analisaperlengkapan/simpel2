@@ -331,4 +331,50 @@ mod tests {
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.pemberi, "Donor Handler");
     }
+
+    #[tokio::test]
+    async fn test_handler_create_mutasi() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+
+        mock_repo.expect_create_mutasi()
+             .with(mockall::predicate::always(), mockall::predicate::always())
+            .times(1)
+            .returning(move |req, uid| Ok(Mutasi {
+                id: Uuid::new_v4(),
+                asset_id: req.asset_id,
+                asal_satker: req.asal_satker,
+                tujuan_satker: req.tujuan_satker,
+                penanggung_jawab: req.penanggung_jawab,
+                tanggal_mutasi: req.tanggal_mutasi,
+                status: "proses".to_string(),
+                keterangan: req.keterangan,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                created_by: uid,
+                updated_by: uid,
+            }));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let mut claims = create_mock_claims();
+        claims.user_id = user_id;
+
+        let request = Json(CreateMutasiRequest {
+            asset_id,
+            asal_satker: "Satker Handler A".to_string(),
+            tujuan_satker: "Satker Handler B".to_string(),
+            penanggung_jawab: "Handler Officer".to_string(),
+            tanggal_mutasi: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            keterangan: None,
+        });
+
+        let result = create_mutasi(state, claims, request).await;
+
+        assert!(result.is_ok());
+         let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        assert_eq!(json.0.data.asal_satker, "Satker Handler A");
+    }
 }

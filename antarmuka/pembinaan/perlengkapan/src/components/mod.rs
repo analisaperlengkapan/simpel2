@@ -15,3 +15,5 @@ pub mod pemakaian_list;
 pub mod pemakaian_form;
 pub mod hibah_list;
 pub mod hibah_form;
+pub mod mutasi_list;
+pub mod mutasi_form;

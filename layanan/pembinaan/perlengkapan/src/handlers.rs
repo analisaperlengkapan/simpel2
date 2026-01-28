@@ -151,6 +151,43 @@ pub async fn create_pengadaan(
     ))
 }
 
+// Mutasi handlers
+pub async fn get_all_mutasi(
+    State(service): State<PerlengkapanService>,
+    Query(pagination): Query<PaginationQuery>,
+    _claims: Claims,
+) -> Result<Json<PaginatedResponse<Mutasi>>, AppError> {
+    pagination.validate()?;
+    let (mutasi, total) = service
+        .get_all_mutasi(pagination.page, pagination.per_page)
+        .await?;
+
+    Ok(Json(PaginatedResponse::new(
+        mutasi,
+        total,
+        pagination.page,
+        pagination.per_page,
+        "Mutasi retrieved successfully".to_string(),
+    )))
+}
+
+pub async fn create_mutasi(
+    State(service): State<PerlengkapanService>,
+    claims: Claims,
+    Json(request): Json<CreateMutasiRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<Mutasi>>), AppError> {
+    let user_id = Some(claims.user_id);
+    let mutasi = service.create_mutasi(request, user_id).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(
+            mutasi,
+            "Mutasi recorded successfully".to_string(),
+        )),
+    ))
+}
+
 // Hibah handlers
 pub async fn get_all_hibah(
     State(service): State<PerlengkapanService>,

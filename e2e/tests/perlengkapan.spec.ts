@@ -110,4 +110,33 @@ test.describe('Perlengkapan Module', () => {
     await expect(page.getByText('E2E Donor')).toBeVisible();
     await expect(page.getByText('E2E Receiver')).toBeVisible();
   });
+
+  test('should create new mutasi', async ({ page }) => {
+    await page.goto('/dashboard/pengelolaan/mutasi/daftar');
+
+    // Check heading
+    await expect(page.getByRole('heading', { name: 'Daftar Mutasi BMN' })).toBeVisible();
+
+    // Click "Catat Mutasi"
+    await page.getByRole('link', { name: 'Catat Mutasi' }).click();
+    await expect(page).toHaveURL('/dashboard/pengelolaan/mutasi/baru');
+
+    // Fill Form
+    await page.getByLabel('Asset ID').fill('550e8400-e29b-41d4-a716-446655440000');
+    await page.getByLabel('Satker Asal').fill('Satker A');
+    await page.getByLabel('Satker Tujuan').fill('Satker B');
+    await page.getByLabel('Penanggung Jawab').fill('E2E Officer');
+    await page.getByLabel('Tanggal Mutasi').fill('2024-03-01');
+    await page.getByLabel('Keterangan').fill('E2E Testing Mutasi');
+
+    // Submit
+    await page.getByRole('button', { name: 'Simpan' }).click();
+
+    // Expect redirect to list
+    await expect(page).toHaveURL('/dashboard/pengelolaan/mutasi/daftar');
+
+    // Expect new item to be in the list
+    await expect(page.getByText('Satker A')).toBeVisible();
+    await expect(page.getByText('Satker B')).toBeVisible();
+  });
 });

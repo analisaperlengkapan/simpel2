@@ -24,6 +24,8 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/pemakaian", get(get_all_pemakaian).post(create_pemakaian))
         // Hibah routes
         .route("/hibah", get(get_all_hibah).post(create_hibah))
+        // Mutasi routes
+        .route("/mutasi", get(get_all_mutasi).post(create_mutasi))
         // Add the service as state
         .with_state(state)
 }

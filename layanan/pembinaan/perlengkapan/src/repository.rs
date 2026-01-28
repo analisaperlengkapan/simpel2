@@ -32,4 +32,8 @@ pub trait PerlengkapanRepository: Send + Sync {
     // Hibah (Local)
     async fn get_all_hibah(&self, page: i32, per_page: i32) -> AppResult<(Vec<Hibah>, i64)>;
     async fn create_hibah(&self, request: CreateHibahRequest, user_id: Option<Uuid>) -> AppResult<Hibah>;
+
+    // Mutasi (Local)
+    async fn get_all_mutasi(&self, page: i32, per_page: i32) -> AppResult<(Vec<Mutasi>, i64)>;
+    async fn create_mutasi(&self, request: CreateMutasiRequest, user_id: Option<Uuid>) -> AppResult<Mutasi>;
 }

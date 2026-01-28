@@ -252,6 +252,56 @@ pub struct CreateHibahRequest {
     pub keterangan: Option<String>,
 }
 
+// ============ Mutasi Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Mutasi {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub asal_satker: String,
+    pub tujuan_satker: String,
+    pub penanggung_jawab: String,
+    pub tanggal_mutasi: NaiveDate,
+    pub status: String,
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Mutasi {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            asal_satker: row.get("asal_satker"),
+            tujuan_satker: row.get("tujuan_satker"),
+            penanggung_jawab: row.get("penanggung_jawab"),
+            tanggal_mutasi: row.get("tanggal_mutasi"),
+            status: row.get("status"),
+            keterangan: row.get("keterangan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreateMutasiRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 255))]
+    pub asal_satker: String,
+    #[validate(length(min = 1, max = 255))]
+    pub tujuan_satker: String,
+    #[validate(length(min = 1, max = 255))]
+    pub penanggung_jawab: String,
+    pub tanggal_mutasi: NaiveDate,
+    pub keterangan: Option<String>,
+}
+
 // ============ Response Models ============
 
 #[derive(Debug, Serialize, Deserialize)]
