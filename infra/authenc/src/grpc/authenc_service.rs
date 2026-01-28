@@ -156,6 +156,23 @@ impl AuthencService for AuthencGrpcService {
             if let Err(_) = mac.verify_slice(&hex::decode(signature).map_err(|_| Status::invalid_argument("Invalid CAPTCHA signature encoding"))?) {
                 return Err(Status::unauthenticated("Invalid CAPTCHA signature"));
             }
+
+            // prevent-replay: check if token already used
+            if let Some(redis_cache) = &self.state.redis_cache {
+                let used_key = format!("used_captcha:{}", challenge_id);
+                if redis_cache.get(&used_key).await.ok().flatten().is_some() {
+                    warn!("Replay attack detected for CAPTCHA challenge: {}", challenge_id);
+                    return Err(Status::unauthenticated("CAPTCHA token already used"));
+                }
+                // Mark token as used (TTL matches token validity: 10 mins)
+                 let _ = redis_cache
+                    .set(
+                        &used_key,
+                        &serde_json::json!(true),
+                        std::time::Duration::from_secs(600),
+                    )
+                    .await;
+            }
         } else {
             // For now, allow requests without captcha if not strictly required,
             // but the bug report says it should be enforced.
