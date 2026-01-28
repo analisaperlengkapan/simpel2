@@ -275,6 +275,10 @@ spec:
                   key: AUTHENC_DB_PASSWORD
             - name: REDIS_URL
               value: "redis://:$(REDIS_PASSWORD)@redis-service.simpelv2.svc.cluster.local:6379"
+            - name: REDIS_HOST
+              value: "redis-service.simpelv2.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
             - name: SMTP_USERNAME
               valueFrom:
                 secretKeyRef:

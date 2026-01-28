@@ -295,19 +295,10 @@ impl Cache for InMemoryCache {
                     entry.value = serde_json::Value::Number(new_value.into());
                     entry.touch();
                 } else {
-                    // Not a number, overwrite? Original code used `and_modify` then `or_insert`.
-                    // If exists but not number, `and_modify` skipped.
-                    // Then `or_insert`? No `or_insert` only if NOT exists.
-                    // So if exists and not number, nothing happens?
-                    // Wait, original code:
-                    /*
-                      self.cache.entry(key).and_modify(...).or_insert_with(...)
-                    */
-                    // If key exists, `and_modify` runs. If `and_modify` doesn't change anything (e.g. not a number), it stays same.
-                    // But `or_insert_with` is NOT called if key exists.
-                    // So if key exists and is not a number, we return `delta` (initial `new_value`)?
-                    // And cache is unchanged?
-                    // Yes.
+                    // Not a number, overwrite with delta as suggested
+                    new_value = delta;
+                    entry.value = serde_json::Value::Number(new_value.into());
+                    entry.touch();
                 }
             }
         } else {
@@ -509,6 +500,26 @@ mod tests {
         // Negative increment
         let result = cache.increment(key, -2).await.unwrap();
         assert_eq!(result, 4);
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_cache_increment_non_numeric() {
+        let cache = InMemoryCache::new(100, Duration::from_secs(60));
+        let key = "not_a_number";
+
+        // Set a non-numeric value
+        cache
+            .set(key, &serde_json::json!("string_value"), Duration::from_secs(60))
+            .await
+            .unwrap();
+
+        // Increment should overwrite and return delta
+        let result = cache.increment(key, 10).await.unwrap();
+        assert_eq!(result, 10);
+
+        // Verify it was actually stored
+        let stored = cache.get(key).await.unwrap();
+        assert_eq!(stored, Some(serde_json::json!(10)));
     }
 
     #[tokio::test]
