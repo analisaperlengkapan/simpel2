@@ -39,9 +39,15 @@ jobs:
 
       - name: Fix permissions
         run: |
-          sudo chown -R $USER:$USER ${{ github.workspace }}
-          sudo chmod -R u+rwX ${{ github.workspace }}
-          sudo rm -rf ${{ github.workspace }}/protoc ${{ github.workspace }}/.build_config
+          # Attempt 1: Standard cleanup
+          chmod -R u+w ${{ github.workspace }} || true
+          rm -rf ${{ github.workspace }}/protoc ${{ github.workspace }}/.build_config || true
+
+          # Attempt 2: Docker cleanup for root-owned files
+          if [ -d "${{ github.workspace }}/protoc" ] || [ -f "${{ github.workspace }}/.build_config" ]; then
+            echo "Attempting docker cleanup..."
+            docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine rm -rf protoc .build_config || true
+          fi
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -102,9 +108,15 @@ jobs:
     steps:
       - name: Fix permissions
         run: |
-          sudo chown -R $USER:$USER ${{ github.workspace }}
-          sudo chmod -R u+rwX ${{ github.workspace }}
-          sudo rm -rf ${{ github.workspace }}/protoc ${{ github.workspace }}/.build_config
+          # Attempt 1: Standard cleanup
+          chmod -R u+w ${{ github.workspace }} || true
+          rm -rf ${{ github.workspace }}/protoc ${{ github.workspace }}/.build_config || true
+
+          # Attempt 2: Docker cleanup for root-owned files
+          if [ -d "${{ github.workspace }}/protoc" ] || [ -f "${{ github.workspace }}/.build_config" ]; then
+            echo "Attempting docker cleanup..."
+            docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine rm -rf protoc .build_config || true
+          fi
 
       - name: Checkout repository
         uses: actions/checkout@v6
