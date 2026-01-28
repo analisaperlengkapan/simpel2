@@ -1,6 +1,6 @@
-use tonic::transport::Channel;
-use std::collections::HashMap;
 use anyhow::Result;
+use std::collections::HashMap;
+use tonic::transport::Channel;
 
 pub mod secreton {
     pub mod v1 {
@@ -20,11 +20,11 @@ pub mod common {
     }
 }
 
-use secreton::v1::secreton_service_client::SecretonServiceClient;
 use secreton::v1::GetSecretRequest;
+use secreton::v1::secreton_service_client::SecretonServiceClient;
 
-use authenc::v1::authenc_service_client::AuthencServiceClient;
 use authenc::v1::ValidateTokenRequest;
+use authenc::v1::authenc_service_client::AuthencServiceClient;
 
 #[derive(Clone)]
 pub struct SecretonClient {

@@ -4,7 +4,7 @@
 
 use axum::{Router, routing::get};
 
-use crate::{handlers::*, AppState};
+use crate::{AppState, handlers::*};
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()

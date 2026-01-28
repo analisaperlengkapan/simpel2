@@ -134,7 +134,9 @@ impl AuthencService for AuthencGrpcService {
             let timestamp_str = parts[1];
             let signature = parts[2];
 
-            let timestamp: u64 = timestamp_str.parse().map_err(|_| Status::invalid_argument("Invalid CAPTCHA timestamp"))?;
+            let timestamp: u64 = timestamp_str
+                .parse()
+                .map_err(|_| Status::invalid_argument("Invalid CAPTCHA timestamp"))?;
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -153,7 +155,10 @@ impl AuthencService for AuthencGrpcService {
                 .expect("HMAC can take key of any size");
             mac.update(payload.as_bytes());
 
-            if let Err(_) = mac.verify_slice(&hex::decode(signature).map_err(|_| Status::invalid_argument("Invalid CAPTCHA signature encoding"))?) {
+            if let Err(_) = mac.verify_slice(
+                &hex::decode(signature)
+                    .map_err(|_| Status::invalid_argument("Invalid CAPTCHA signature encoding"))?,
+            ) {
                 return Err(Status::unauthenticated("Invalid CAPTCHA signature"));
             }
 
@@ -161,11 +166,14 @@ impl AuthencService for AuthencGrpcService {
             if let Some(redis_cache) = &self.state.redis_cache {
                 let used_key = format!("used_captcha:{}", challenge_id);
                 if redis_cache.get(&used_key).await.ok().flatten().is_some() {
-                    warn!("Replay attack detected for CAPTCHA challenge: {}", challenge_id);
+                    warn!(
+                        "Replay attack detected for CAPTCHA challenge: {}",
+                        challenge_id
+                    );
                     return Err(Status::unauthenticated("CAPTCHA token already used"));
                 }
                 // Mark token as used (TTL matches token validity: 10 mins)
-                 let _ = redis_cache
+                let _ = redis_cache
                     .set(
                         &used_key,
                         &serde_json::json!(true),
@@ -176,7 +184,10 @@ impl AuthencService for AuthencGrpcService {
         } else {
             // For now, allow requests without captcha if not strictly required,
             // but the bug report says it should be enforced.
-            warn!("Login attempt without CAPTCHA token for user: {}", req.username);
+            warn!(
+                "Login attempt without CAPTCHA token for user: {}",
+                req.username
+            );
             return Err(Status::unauthenticated("CAPTCHA verification required"));
         }
 

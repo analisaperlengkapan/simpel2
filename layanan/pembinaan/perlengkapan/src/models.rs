@@ -13,14 +13,14 @@ pub struct Asset {
     pub id: Uuid,
     pub kategori_aset: String,
     pub no_aset: String,
-    pub nama_aset: Option<String>, // ur_sskel or nama
+    pub nama_aset: Option<String>,   // ur_sskel or nama
     pub kode_barang: Option<String>, // kd_brg
     pub merk: Option<String>,
     pub tipe: Option<String>,
-    pub kondisi: Option<String>, // ur_kondisi
-    pub lokasi: Option<String>, // alamat
-    pub satker: Option<String>, // nama_satker
-    pub nilai_perolehan: Option<f64>, // rph_aset
+    pub kondisi: Option<String>,       // ur_kondisi
+    pub lokasi: Option<String>,        // alamat
+    pub satker: Option<String>,        // nama_satker
+    pub nilai_perolehan: Option<f64>,  // rph_aset
     pub tgl_perolehan: Option<String>, // tgl_perlh
     pub updated_at: DateTime<Utc>,
 }
@@ -31,7 +31,10 @@ impl Asset {
             id: row.get("id"),
             kategori_aset: row.get("kategori_aset"),
             no_aset: row.get("no_aset"),
-            nama_aset: row.try_get("ur_sskel").ok().or_else(|| row.try_get("nama").ok()),
+            nama_aset: row
+                .try_get("ur_sskel")
+                .ok()
+                .or_else(|| row.try_get("nama").ok()),
             kode_barang: row.try_get("kd_brg").ok(),
             merk: row.try_get("merk").ok(),
             tipe: row.try_get("tipe").ok(),

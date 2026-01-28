@@ -3,30 +3,30 @@
 //! Backend microservice for Perlengkapan (asset management) within SIMPelv2.
 //! Integrates with Authenc (IAM) and Secreton (Secret Manager) via gRPC.
 
-use axum::{Router, routing::get, extract::FromRef};
+use axum::http::HeaderValue;
+use axum::{Router, extract::FromRef, routing::get};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing::{info, error};
-use axum::http::HeaderValue;
+use tracing::{error, info};
 
 mod database;
 mod errors;
+mod grpc_clients;
 mod handlers;
 mod middleware;
 mod models;
 mod repository;
 mod routes;
 mod services;
-mod grpc_clients;
 
 #[cfg(test)]
 mod tests;
 
 use database::Database;
+use grpc_clients::{AuthencClient, SecretonClient};
 use services::PerlengkapanService;
-use grpc_clients::{SecretonClient, AuthencClient};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -66,11 +66,13 @@ async fn main() -> anyhow::Result<()> {
         .expect("SERVER_PORT must be a valid port number");
 
     // Secreton Integration
-    let secreton_url = std::env::var("SECRETON_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
+    let secreton_url =
+        std::env::var("SECRETON_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
     let mut database_url = std::env::var("DATABASE_URL").ok();
 
     // Authenc Integration
-    let authenc_url = std::env::var("AUTHENC_URL").unwrap_or_else(|_| "http://localhost:50052".to_string());
+    let authenc_url =
+        std::env::var("AUTHENC_URL").unwrap_or_else(|_| "http://localhost:50052".to_string());
 
     if database_url.is_none() {
         info!("Connecting to Secreton at {}", secreton_url);
@@ -90,7 +92,10 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             Err(e) => {
-                error!("Failed to connect to Secreton: {}. Falling back to environment variables.", e);
+                error!(
+                    "Failed to connect to Secreton: {}. Falling back to environment variables.",
+                    e
+                );
             }
         }
     }
@@ -111,7 +116,10 @@ async fn main() -> anyhow::Result<()> {
                     break;
                 }
                 Err(e) => {
-                    error!("Failed to connect to Authenc: {}. Retrying in {:?}...", e, delay);
+                    error!(
+                        "Failed to connect to Authenc: {}. Retrying in {:?}...",
+                        e, delay
+                    );
                     tokio::time::sleep(delay).await;
                     delay *= 2;
                     retries -= 1;
@@ -162,7 +170,11 @@ fn build_router(state: AppState) -> Router {
     } else {
         let origins: Vec<HeaderValue> = allowed_origins
             .split(',')
-            .map(|s| s.trim().parse::<HeaderValue>().unwrap_or(HeaderValue::from_static("")))
+            .map(|s| {
+                s.trim()
+                    .parse::<HeaderValue>()
+                    .unwrap_or(HeaderValue::from_static(""))
+            })
             .filter(|h| !h.is_empty())
             .collect();
 

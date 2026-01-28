@@ -1,8 +1,4 @@
-use crate::{
-    models::*,
-    repository::PerlengkapanRepository,
-    errors::AppResult,
-};
+use crate::{errors::AppResult, models::*, repository::PerlengkapanRepository};
 use async_trait::async_trait;
 use mockall::mock;
 use uuid::Uuid;
@@ -27,9 +23,9 @@ mock! {
 mod unit_tests {
     use super::*;
     use crate::services::PerlengkapanService;
-    use std::sync::Arc;
-    use mockall::predicate::*;
     use chrono::Utc;
+    use mockall::predicate::*;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_get_dashboard_stats() {
@@ -82,7 +78,7 @@ mod unit_tests {
                         tgl_perolehan: Some("2023-01-01".to_string()),
                         updated_at: Utc::now(),
                     }],
-                    1
+                    1,
                 ))
             });
 

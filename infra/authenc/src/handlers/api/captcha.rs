@@ -24,8 +24,8 @@ use axum::{
     response::Json,
     routing::{get, post},
 };
-use serde::{Deserialize, Serialize};
 use hmac::{Hmac, Mac};
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -309,7 +309,11 @@ pub async fn validate_challenge(
 
     // Validate challenge
     let result = captcha_service
-        .validate_challenge(req.challenge_id.clone(), req.answer.clone(), req.behavioral_data.clone())
+        .validate_challenge(
+            req.challenge_id.clone(),
+            req.answer.clone(),
+            req.behavioral_data.clone(),
+        )
         .await
         .map_err(|e| match e {
             CaptchaError::ValidationFailed { message, .. } => AuthencError::validation(&message),
