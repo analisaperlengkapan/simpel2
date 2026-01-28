@@ -15,20 +15,20 @@ mod mfa_unit_tests {
         let storage = create_test_storage();
 
         let config = MfaManagerConfig {
-            rate_limit: Secreton_core::auth::mfa::RateLimitConfig {
+            rate_limit: secreton_core::auth::mfa::RateLimitConfig {
                 max_attempts: 5,
                 window: Duration::from_secs(300),
                 use_exponential_backoff: true,
                 base_backoff: Duration::from_secs(60),
                 max_backoff: Duration::from_secs(3600),
-            ,
-            recovery_codes: Secreton_core::auth::mfa::RecoveryCodeSettings {
+            },
+            recovery_codes: secreton_core::auth::mfa::RecoveryCodeSettings {
                 count: 10,
                 length: 16,
                 group_size: 4,
                 charset: "0123456789ABCDEF".to_string(),
                 lifetime_days: 90,
-            ,
+            },
             totp_issuer: "Secreton Test Engine".to_string(),
         };
 
@@ -137,10 +137,10 @@ mod mfa_unit_tests {
                     Err(MfaError::RateLimitExceeded(_)) => {
                         // Rate limiting may kick in earlier in some implementations
                         break;
-                    ,
+                    },
                     Err(e) => panic!("Unexpected error: {:?}", e),
                 }
-             else {
+            } else {
                 // 6th attempt should be rate limited
                 match result {
                     Err(MfaError::RateLimitExceeded(_)) => (),
@@ -169,7 +169,7 @@ mod mfa_unit_tests {
                 if !status.is_empty() {
                     println!("MFA is enabled with methods: {:?}", status);
                 }
-            ,
+            },
             Err(_) => {
                 // Status check may not be implemented yet
                 println!("MFA status check not available");
@@ -219,7 +219,7 @@ mod mfa_unit_tests {
         // Verify all setups succeeded
         for task_result in results {
             let (user_id, setup_result) = task_result?;
-            assert!(setup_result.is_ok(), "Setup for { should succeed: {:?}", user_id, setup_result);
+            assert!(setup_result.is_ok(), "Setup for {} should succeed: {:?}", user_id, setup_result);
         }
 
         Ok(())
