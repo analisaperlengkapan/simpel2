@@ -206,99 +206,50 @@ pub struct DifficultyResponse {
 /// Generate a new CAPTCHA challenge
 pub async fn generate_challenge(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(_state): State<Arc<crate::app::AppState>>,
+    State(state): State<Arc<crate::app::AppState>>,
     Json(req): Json<ChallengeRequest>,
 ) -> Result<Json<ChallengeResponse>, AuthencError> {
     let ip = addr.ip().to_string();
 
-    // Generate simple in-memory challenge without database dependency
-    // This is suitable for development/testing environments
-    let challenge_id = uuid::Uuid::new_v4().to_string();
-    let difficulty = req.difficulty.unwrap_or(3);
-    let challenge_type = req.challenge_type.clone().unwrap_or(ChallengeType::Visual);
+    // Use the captcha service from AppState to generate and persist the challenge
+    let challenge = state
+        .captcha_service
+        .generate_challenge(
+            req.challenge_type.clone().unwrap_or(ChallengeType::Visual),
+            req.difficulty,
+            req.session_id.clone(),
+            ip,
+        )
+        .await
+        .map_err(|e| match e {
+            CaptchaError::RateLimitExceeded { .. } => {
+                AuthencError::too_many_requests("CAPTCHA generation rate limit exceeded")
+            }
+            CaptchaError::DatabaseError { message, .. } => AuthencError::internal(&message),
+            _ => AuthencError::internal(&format!("Failed to generate challenge: {}", e)),
+        })?;
 
-    // Generate a dynamic math challenge with randomized answer options
-    let (challenge_data, answer) = match challenge_type {
-        ChallengeType::Audio => {
-            // Simple audio challenge data
-            let num = rand::random::<u8>() % 10;
-            (
-                format!(
-                    "{{\"type\":\"audio\",\"question\":\"What number is {}?\",\"options\":[\"{}\"]}}",
-                    num, num
-                ),
-                num.to_string(),
-            )
-        }
-        ChallengeType::Visual | _ => {
-            // Generate random math challenge
-            let a = (rand::random::<u8>() % 10) as u32 + 1;
-            let b = (rand::random::<u8>() % 10) as u32 + 1;
-            let correct_answer = a + b;
-
-            // Generate 4 answer options with correct answer at random position
-            let mut options = vec![
-                correct_answer,
-                correct_answer.saturating_add(1),
-                correct_answer.saturating_sub(1),
-                correct_answer.saturating_add(2),
-            ];
-
-            // Shuffle options using Fisher-Yates algorithm
-            use rand::seq::SliceRandom;
-            let mut rng = rand::thread_rng();
-            options.shuffle(&mut rng);
-
-            // Create JSON with question, visual display, and answer options
-            let options_json = serde_json::to_string(&options).unwrap_or_else(|_| {
-                format!(
-                    "[{},{},{},{}]",
-                    options[0], options[1], options[2], options[3]
-                )
-            });
-
-            (
-                format!(
-                    "{{\"type\":\"math\",\"question\":\"What is {} + {}?\",\"visual\":\"{} + {}\",\"options\":{}}}",
-                    a, b, a, b, options_json
-                ),
-                correct_answer.to_string(),
-            )
-        }
-    };
-
-    // Store the answer temporarily in metadata for validation
-    // TODO: In production, this should be encrypted and stored in database
-
-    // Expires in 5 minutes
-    let expires_at = std::time::SystemTime::now()
+    // Convert SystemTime to timestamp
+    let expires_at = challenge
+        .expires_at
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-        + 300;
+        .map_err(|_| AuthencError::internal("Invalid expiration time"))?
+        .as_secs();
 
-    // Create metadata and store the correct answer (encrypted in production)
-    let mut metadata = HashMap::new();
-    if let Some(session_id) = &req.session_id {
-        metadata.insert("session_id".to_string(), session_id.clone());
-    }
-    metadata.insert("ip".to_string(), ip);
-    // REMOVED: correct_answer leak (Bug 2)
-    if let Some(context) = req.context {
-        metadata.extend(context);
+    // Context metadata if provided
+    let mut metadata = req.context.clone();
+    if let Some(meta) = &mut metadata {
+        // Ensure strictly internal fields are not exposed or overwritten
+        meta.remove("correct_answer");
     }
 
     let response = ChallengeResponse {
-        challenge_id,
-        challenge_type,
-        challenge_data,
-        difficulty,
+        challenge_id: challenge.id,
+        challenge_type: challenge.challenge_type,
+        challenge_data: challenge.encrypted_data,
+        difficulty: challenge.difficulty_level,
         expires_at,
-        metadata: if metadata.is_empty() {
-            None
-        } else {
-            Some(metadata)
-        },
+        metadata,
     };
 
     Ok(Json(response))

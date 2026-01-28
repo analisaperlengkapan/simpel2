@@ -19,7 +19,7 @@ echo "3. Checking Secreton Health..."
 SECRETON_POD=$($KUBECTL get pods -l app.kubernetes.io/name=secreton -n simpelv2 --no-headers | grep Running | head -n 1 | awk '{print $1}')
 if [ -n "$SECRETON_POD" ]; then
     # Use crypto-specific health check for more detail
-    $KUBECTL exec -n simpelv2 "$SECRETON_POD" -- curl -s localhost:9090/health || echo "Secreton Health Check Failed"
+    $KUBECTL exec -n simpelv2 "$SECRETON_POD" -- curl -s localhost:8200/v1/health || echo "Secreton Health Check Failed"
 else
     echo "Secreton Pod not found or not running"
 fi
@@ -33,6 +33,6 @@ else
 fi
 
 echo "5. Testing Authenc -> Secreton Connectivity..."
-$KUBECTL exec -n simpelv2 $AUTHENC_POD -- curl -v http://secreton.simpelv2.svc.cluster.local:9090/health || echo "Connectivity Check Failed"
+$KUBECTL exec -n simpelv2 $AUTHENC_POD -- curl -v http://secreton.simpelv2.svc.cluster.local:8200/v1/health || echo "Connectivity Check Failed"
 
 echo "Verification complete."
