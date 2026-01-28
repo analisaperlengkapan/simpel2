@@ -19,7 +19,10 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Fix permissions
-        run: sudo -n chown -R $(id -u):$(id -g) . || true
+        run: |
+          sudo -n chown -R $(id -u):$(id -g) . || true
+          sudo chmod -R u+w . || true
+          sudo rm -rf protoc .build_config || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -60,7 +63,10 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Fix permissions
-        run: sudo -n chown -R $(id -u):$(id -g) . || true
+        run: |
+          sudo -n chown -R $(id -u):$(id -g) . || true
+          sudo chmod -R u+w . || true
+          sudo rm -rf protoc .build_config || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -82,7 +88,10 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Fix permissions
-        run: sudo -n chown -R $(id -u):$(id -g) . || true
+        run: |
+          sudo -n chown -R $(id -u):$(id -g) . || true
+          sudo chmod -R u+w . || true
+          sudo rm -rf protoc .build_config || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
