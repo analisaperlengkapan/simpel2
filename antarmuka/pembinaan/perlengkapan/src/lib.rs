@@ -50,6 +50,8 @@ use components::pengadaan_list::PengadaanList;
 use components::analisis_list::AnalisisList;
 use components::pengadaan_form::PengadaanForm;
 use components::analisis_form::AnalisisForm;
+use components::pemakaian_list::PemakaianList;
+use components::pemakaian_form::PemakaianForm;
 use api::fetch_dashboard_stats;
 
 // ============================================================================
@@ -192,7 +194,9 @@ fn PengadaanRoutes() -> impl IntoView {
 fn PengelolaanRoutes() -> impl IntoView {
     view! {
         <Routes fallback=|| view! { <NotFound /> }>
-            <Route path=path!("/pemakaian/*") view=|| view! { <div>"Pemakaian BMN"</div> } />
+            <Route path=path!("/pemakaian") view=PemakaianList />
+            <Route path=path!("/pemakaian/daftar") view=PemakaianList />
+            <Route path=path!("/pemakaian/baru") view=PemakaianForm />
             <Route path=path!("/hibah/*") view=|| view! { <div>"Penerimaan Hibah"</div> } />
             <Route path=path!("/pengalihan/*") view=|| view! { <div>"Pengalihan BMN"</div> } />
             <Route path=path!("/mutasi/*") view=|| view! { <div>"Mutasi BMN"</div> } />

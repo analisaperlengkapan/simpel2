@@ -65,6 +65,28 @@ pub struct CreateAnalisisRequest {
     pub justifikasi: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Pemakaian {
+    pub id: String,
+    pub asset_id: String,
+    pub piminjam_nama: String,
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: Option<String>,
+    pub status: String,
+    pub keperluan: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CreatePemakaianRequest {
+    pub asset_id: String,
+    pub piminjam_nama: String,
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: Option<String>,
+    pub keperluan: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaginatedResponse<T> {
     pub success: bool,
@@ -320,5 +342,66 @@ pub async fn create_analisis(request: CreateAnalisisRequest) -> Result<ApiRespon
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_analisis(_request: CreateAnalisisRequest) -> Result<ApiResponse<AnalisisKebutuhan>, String> {
+    Err("Server-side stub".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pemakaian(page: i32, per_page: i32) -> Result<PaginatedResponse<Pemakaian>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = format!("/api/pembinaan/perlengkapan/pemakaian?page={}&per_page={}", page, per_page);
+
+    let token = get_auth_token().unwrap_or_default();
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: PaginatedResponse<Pemakaian> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pemakaian(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Pemakaian>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_pemakaian(request: CreatePemakaianRequest) -> Result<ApiResponse<Pemakaian>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = "/api/pembinaan/perlengkapan/pemakaian";
+    let token = get_auth_token().unwrap_or_default();
+
+    let resp = Request::post(url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: ApiResponse<Pemakaian> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_pemakaian(_request: CreatePemakaianRequest) -> Result<ApiResponse<Pemakaian>, String> {
     Err("Server-side stub".to_string())
 }

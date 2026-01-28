@@ -151,6 +151,43 @@ pub async fn create_pengadaan(
     ))
 }
 
+// Pemakaian handlers
+pub async fn get_all_pemakaian(
+    State(service): State<PerlengkapanService>,
+    Query(pagination): Query<PaginationQuery>,
+    _claims: Claims,
+) -> Result<Json<PaginatedResponse<Pemakaian>>, AppError> {
+    pagination.validate()?;
+    let (pemakaian, total) = service
+        .get_all_pemakaian(pagination.page, pagination.per_page)
+        .await?;
+
+    Ok(Json(PaginatedResponse::new(
+        pemakaian,
+        total,
+        pagination.page,
+        pagination.per_page,
+        "Pemakaian retrieved successfully".to_string(),
+    )))
+}
+
+pub async fn create_pemakaian(
+    State(service): State<PerlengkapanService>,
+    claims: Claims,
+    Json(request): Json<CreatePemakaianRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<Pemakaian>>), AppError> {
+    let user_id = Some(claims.user_id);
+    let pemakaian = service.create_pemakaian(request, user_id).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(
+            pemakaian,
+            "Pemakaian recorded successfully".to_string(),
+        )),
+    ))
+}
+
 // Analisis Kebutuhan handlers
 pub async fn get_all_analisis(
     State(service): State<PerlengkapanService>,

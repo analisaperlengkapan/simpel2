@@ -74,4 +74,23 @@ impl PerlengkapanService {
         request.validate()?;
         self.repo.create_analisis(request, user_id).await
     }
+
+    // ============ Pemakaian Services ============
+
+    pub async fn get_all_pemakaian(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Pemakaian>, i64)> {
+        self.repo.get_all_pemakaian(page, per_page).await
+    }
+
+    pub async fn create_pemakaian(
+        &self,
+        request: CreatePemakaianRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Pemakaian> {
+        request.validate()?;
+        self.repo.create_pemakaian(request, user_id).await
+    }
 }

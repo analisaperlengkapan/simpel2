@@ -11,3 +11,5 @@ pub mod pengadaan_list;
 pub mod analisis_list;
 pub mod pengadaan_form;
 pub mod analisis_form;
+pub mod pemakaian_list;
+pub mod pemakaian_form;

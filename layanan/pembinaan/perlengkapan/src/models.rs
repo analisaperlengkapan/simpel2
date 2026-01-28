@@ -163,6 +163,51 @@ pub struct CreateAnalisisRequest {
     pub justifikasi: Option<String>,
 }
 
+// ============ Pemakaian Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Pemakaian {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub piminjam_nama: String,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: Option<NaiveDate>,
+    pub status: String, // dipinjam, kembali
+    pub keperluan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Pemakaian {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            piminjam_nama: row.get("piminjam_nama"),
+            tanggal_mulai: row.get("tanggal_mulai"),
+            tanggal_selesai: row.get("tanggal_selesai"),
+            status: row.get("status"),
+            keperluan: row.get("keperluan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePemakaianRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 100))]
+    pub piminjam_nama: String,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: Option<NaiveDate>,
+    pub keperluan: Option<String>,
+}
+
 // ============ Response Models ============
 
 #[derive(Debug, Serialize, Deserialize)]

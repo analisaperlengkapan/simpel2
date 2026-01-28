@@ -244,4 +244,48 @@ mod tests {
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.judul, "Handler Analisis");
     }
+
+    #[tokio::test]
+    async fn test_handler_create_pemakaian() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+
+        mock_repo.expect_create_pemakaian()
+             .with(mockall::predicate::always(), mockall::predicate::always())
+            .times(1)
+            .returning(move |req, uid| Ok(Pemakaian {
+                id: Uuid::new_v4(),
+                asset_id: req.asset_id,
+                piminjam_nama: req.piminjam_nama,
+                tanggal_mulai: req.tanggal_mulai,
+                tanggal_selesai: req.tanggal_selesai,
+                status: "dipinjam".to_string(),
+                keperluan: req.keperluan,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                created_by: uid,
+                updated_by: uid,
+            }));
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let state = State(service);
+        let mut claims = create_mock_claims();
+        claims.user_id = user_id;
+
+        let request = Json(CreatePemakaianRequest {
+            asset_id,
+            piminjam_nama: "Jane Doe".to_string(),
+            tanggal_mulai: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            tanggal_selesai: None,
+            keperluan: None,
+        });
+
+        let result = create_pemakaian(state, claims, request).await;
+
+        assert!(result.is_ok());
+         let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        assert_eq!(json.0.data.piminjam_nama, "Jane Doe");
+    }
 }

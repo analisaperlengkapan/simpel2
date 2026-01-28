@@ -20,6 +20,8 @@ mock! {
         async fn create_pengadaan(&self, request: CreatePengadaanRequest, user_id: Option<Uuid>) -> AppResult<Pengadaan>;
         async fn get_all_analisis(&self, page: i32, per_page: i32) -> AppResult<(Vec<AnalisisKebutuhan>, i64)>;
         async fn create_analisis(&self, request: CreateAnalisisRequest, user_id: Option<Uuid>) -> AppResult<AnalisisKebutuhan>;
+        async fn get_all_pemakaian(&self, page: i32, per_page: i32) -> AppResult<(Vec<Pemakaian>, i64)>;
+        async fn create_pemakaian(&self, request: CreatePemakaianRequest, user_id: Option<Uuid>) -> AppResult<Pemakaian>;
     }
 }
 
@@ -205,6 +207,46 @@ mod unit_tests {
         let result = service.create_analisis(req, Some(user_id)).await.unwrap();
 
         assert_eq!(result.judul, "New Analisis");
+    }
+
+    #[tokio::test]
+    async fn test_create_pemakaian() {
+        let mut mock_repo = MockRepository::new();
+        let user_id = Uuid::new_v4();
+        let asset_id = Uuid::new_v4();
+        let req = CreatePemakaianRequest {
+            asset_id,
+            piminjam_nama: "John Doe".to_string(),
+            tanggal_mulai: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            tanggal_selesai: None,
+            keperluan: Some("Project A".to_string()),
+        };
+
+        mock_repo
+            .expect_create_pemakaian()
+            .with(always(), eq(Some(user_id)))
+            .times(1)
+            .returning(|req, uid| {
+                Ok(Pemakaian {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    piminjam_nama: req.piminjam_nama,
+                    tanggal_mulai: req.tanggal_mulai,
+                    tanggal_selesai: req.tanggal_selesai,
+                    status: "dipinjam".to_string(),
+                    keperluan: req.keperluan,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let result = service.create_pemakaian(req, Some(user_id)).await.unwrap();
+
+        assert_eq!(result.piminjam_nama, "John Doe");
+        assert_eq!(result.status, "dipinjam");
     }
 }
 

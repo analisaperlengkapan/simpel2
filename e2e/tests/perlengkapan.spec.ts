@@ -55,4 +55,31 @@ test.describe('Perlengkapan Module', () => {
       await page.goto('/dashboard/analisis/daftar');
       await expect(page.getByRole('heading', { name: 'Analisis Kebutuhan' })).toBeVisible();
   });
+
+  test('should create new pemakaian', async ({ page }) => {
+    await page.goto('/dashboard/pengelolaan/pemakaian/daftar');
+
+    // Check heading
+    await expect(page.getByRole('heading', { name: 'Daftar Pemakaian BMN' })).toBeVisible();
+
+    // Click "Catat Pemakaian"
+    await page.getByRole('link', { name: 'Catat Pemakaian' }).click();
+    await expect(page).toHaveURL('/dashboard/pengelolaan/pemakaian/baru');
+
+    // Fill Form
+    await page.getByLabel('Nama Peminjam').fill('E2E User');
+    await page.getByLabel('Asset ID').fill('550e8400-e29b-41d4-a716-446655440000');
+    await page.getByLabel('Tanggal Mulai').fill('2024-01-01');
+    await page.getByLabel('Keperluan').fill('E2E Testing Usage');
+
+    // Submit
+    await page.getByRole('button', { name: 'Simpan' }).click();
+
+    // Expect redirect to list
+    await expect(page).toHaveURL('/dashboard/pengelolaan/pemakaian/daftar');
+
+    // Expect new item to be in the list
+    await expect(page.getByText('E2E User')).toBeVisible();
+    await expect(page.getByText('E2E Testing Usage')).toBeVisible();
+  });
 });

@@ -20,6 +20,8 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/pengadaan/:id", get(get_pengadaan_by_id))
         // Analisis Kebutuhan routes
         .route("/analisis", get(get_all_analisis).post(create_analisis))
+        // Pemakaian routes
+        .route("/pemakaian", get(get_all_pemakaian).post(create_pemakaian))
         // Add the service as state
         .with_state(state)
 }
