@@ -63,7 +63,7 @@ pub fn DashboardLayout(
         if let Some(window) = web_sys::window() {
             if let Ok(Some(storage)) = window.local_storage() {
                 let _ = storage.remove_item("auth_token");
-                let _ = storage.remove_item("auth_token");
+                let _ = storage.remove_item("jwt_token");
                 let _ = storage.remove_item("user_session");
             }
             // Redirect to Portal Login

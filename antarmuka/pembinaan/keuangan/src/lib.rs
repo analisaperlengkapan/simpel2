@@ -106,7 +106,7 @@ pub fn AuthCallback() -> impl IntoView {
                     && let Ok(storage) = window.local_storage()
                     && let Some(storage) = storage
                 {
-                    let _ = storage.set_item("jwt_token", &token);
+                    let _ = storage.set_item("auth_token", &token);
                 }
 
                 // Redirect to dashboard
@@ -339,7 +339,7 @@ fn is_authenticated() -> bool {
         && let Ok(storage) = window.local_storage()
         && let Some(storage) = storage
     {
-        return storage.get_item("jwt_token").unwrap_or(None).is_some();
+        return storage.get_item("auth_token").unwrap_or(None).is_some();
     }
     false
 }
