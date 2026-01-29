@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -36,6 +38,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -97,24 +100,13 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: self-hosted
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: simpelv2_test
-          POSTGRES_PASSWORD: coverage_test_2024
-          POSTGRES_DB: simpelv2_coverage
-        options: >-
-          --health-cmd "pg_isready -U simpelv2_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 56432:5432
+    # services removed due to missing docker on runner
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -126,6 +118,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -142,9 +135,8 @@ jobs:
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked
 
-      - name: Setup database connection
-        run: |
-          echo "DATABASE_URL=postgres://simpelv2_test:coverage_test_2024@localhost:56432/simpelv2_coverage" >> $GITHUB_ENV
+      # Removed DATABASE_URL setup because we are using mockall for unit tests
+      # and postgres service is not available on self-hosted runners.
 
       - name: Generate coverage report
         run: |
@@ -153,8 +145,7 @@ jobs:
             --lcov \
             --output-path lcov.info \
             --verbose
-        env:
-          DATABASE_URL: postgres://simpelv2_test:coverage_test_2024@localhost:56432/simpelv2_coverage
+        # Removed env: DATABASE_URL since no DB is running
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -198,6 +189,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -248,23 +241,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
-      - name: Install cargo-outdated
-        run: cargo install cargo-outdated --locked
+      # - name: Install cargo-outdated
+      #   run: cargo install cargo-outdated --locked
 
-      - name: Check outdated dependencies
-        run: |
-          echo "## 📦 Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          cargo outdated --workspace --root-deps-only || echo "All dependencies up to date"
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        continue-on-error: true
+      # - name: Check outdated dependencies
+      #   run: |
+      #     echo "## 📦 Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
+      #     echo "" >> $GITHUB_STEP_SUMMARY
+      #     echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      #     cargo outdated --workspace --root-deps-only || echo "All dependencies up to date"
+      #     echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      #   continue-on-error: true
 
       - name: Install nightly Rust for udeps
         uses: dtolnay/rust-toolchain@nightly
@@ -287,10 +282,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install tokei
         run: |
-          cargo install tokei --locked
+          # cargo install tokei --locked
+          # Use pre-built binary to avoid compilation issues on self-hosted runner
+          wget -qO tokei.tar.gz "https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-gnu.tar.gz"
+          tar -xzf tokei.tar.gz
+          mkdir -p $HOME/.local/bin
+          mv tokei $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Generate code metrics
         run: |

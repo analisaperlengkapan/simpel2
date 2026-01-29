@@ -20,4 +20,6 @@ FROM debian:bookworm-slim
 COPY --from=builder /workspace/target/release /app
 WORKDIR /app
 EXPOSE 7000
+RUN useradd -m nonroot
+USER nonroot
 CMD ["./src"]

@@ -19,8 +19,12 @@ spec:
         app: layanan-daskrimti-portal
         component: backend
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: portal-backend
+          securityContext:
+            allowPrivilegeEscalation: false
           image: localhost:32000/simpelv2/layanan-daskrimti-portal:latest
           imagePullPolicy: Always
           ports:
@@ -95,8 +99,12 @@ spec:
         app: layanan-pembinaan-perlengkapan
         component: backend
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: perlengkapan-backend
+          securityContext:
+            allowPrivilegeEscalation: false
           image: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan:latest
           imagePullPolicy: Always
           ports:

@@ -1,14 +1,15 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_pengadaan, CreatePengadaanRequest};
+use crate::api::{create_hibah, CreateHibahRequest};
 
 #[component]
-pub fn PengadaanForm() -> impl IntoView {
-    let (judul, set_judul) = signal("".to_string());
-    let (jenis, set_jenis) = signal("".to_string());
-    let (anggaran, set_anggaran) = signal("".to_string());
-    let (target, set_target) = signal("".to_string());
+pub fn HibahForm() -> impl IntoView {
+    let (pemberi, set_pemberi) = signal("".to_string());
+    let (penerima, set_penerima) = signal("".to_string());
+    let (tanggal, set_tanggal) = signal("".to_string());
+    let (keterangan, set_keterangan) = signal("".to_string());
+    let (asset_id, set_asset_id) = signal("".to_string());
     let (error, set_error) = signal(None::<String>);
     let (success, set_success) = signal(false);
     let (loading, set_loading) = signal(false);
@@ -20,23 +21,21 @@ pub fn PengadaanForm() -> impl IntoView {
         set_error.set(None);
         set_success.set(false);
 
-        let req = CreatePengadaanRequest {
-            judul: judul.get(),
-            deskripsi: None,
-            jenis: jenis.get(),
-            anggaran: anggaran.get().parse::<f64>().ok(),
-            target_selesai: if target.get().is_empty() { None } else { Some(target.get()) },
-            pic_user_id: None,
+        let req = CreateHibahRequest {
+            asset_id: asset_id.get(),
+            pemberi: pemberi.get(),
+            penerima: penerima.get(),
+            tanggal_hibah: tanggal.get(),
+            keterangan: if keterangan.get().is_empty() { None } else { Some(keterangan.get()) },
         };
 
         let navigate = navigate.clone();
         spawn_local(async move {
-            match create_pengadaan(req).await {
+            match create_hibah(req).await {
                 Ok(_) => {
                     set_success.set(true);
-                    // Redirect after short delay to show success
                     gloo_timers::future::TimeoutFuture::new(1000).await;
-                    navigate("/dashboard/pengadaan/daftar", Default::default());
+                    navigate("/dashboard/pengelolaan/hibah/daftar", Default::default());
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));
@@ -48,12 +47,12 @@ pub fn PengadaanForm() -> impl IntoView {
 
     view! {
         <div class="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h2 class="text-xl font-bold text-gray-800 mb-6">"Buat Pengadaan Baru"</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-6">"Catat Hibah BMN"</h2>
 
             <Show when=move || success.get()>
                 <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
                     <i class="fas fa-check-circle"></i>
-                    "Data pengadaan berhasil disimpan!"
+                    "Data hibah berhasil disimpan!"
                 </div>
             </Show>
 
@@ -66,59 +65,71 @@ pub fn PengadaanForm() -> impl IntoView {
 
             <form on:submit=on_submit class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Judul Pengadaan"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="asset_id">"Asset ID (UUID)"</label>
                     <input
+                        id="asset_id"
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                        placeholder="Contoh: Pengadaan Laptop 2024"
-                        prop:value=move || judul.get()
-                        on:input=move |ev| set_judul.set(event_target_value(&ev))
+                        placeholder="Contoh: 550e8400-e29b-41d4-a716-446655440000"
+                        prop:value=move || asset_id.get()
+                        on:input=move |ev| set_asset_id.set(event_target_value(&ev))
                         required
                     />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Jenis Pengadaan"</label>
-                        <select
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            prop:value=move || jenis.get()
-                            on:change=move |ev| set_jenis.set(event_target_value(&ev))
-                            required
-                        >
-                            <option value="">"Pilih Jenis"</option>
-                            <option value="TIK">"TIK"</option>
-                            <option value="Non-TIK">"Non-TIK"</option>
-                            <option value="Jasa">"Jasa"</option>
-                            <option value="Konstruksi">"Konstruksi"</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Anggaran (Rp)"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="pemberi">"Pemberi Hibah"</label>
                         <input
-                            type="number"
+                            id="pemberi"
+                            type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            placeholder="0"
-                            prop:value=move || anggaran.get()
-                            on:input=move |ev| set_anggaran.set(event_target_value(&ev))
+                            placeholder="Nama Pemberi"
+                            prop:value=move || pemberi.get()
+                            on:input=move |ev| set_pemberi.set(event_target_value(&ev))
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="penerima">"Penerima Hibah"</label>
+                        <input
+                            id="penerima"
+                            type="text"
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            placeholder="Nama Penerima"
+                            prop:value=move || penerima.get()
+                            on:input=move |ev| set_penerima.set(event_target_value(&ev))
+                            required
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Target Selesai"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="tanggal">"Tanggal Hibah"</label>
                     <input
+                        id="tanggal"
                         type="date"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                        prop:value=move || target.get()
-                        on:input=move |ev| set_target.set(event_target_value(&ev))
+                        prop:value=move || tanggal.get()
+                        on:input=move |ev| set_tanggal.set(event_target_value(&ev))
+                        required
                     />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="keterangan">"Keterangan"</label>
+                    <textarea
+                        id="keterangan"
+                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        rows="3"
+                        prop:value=move || keterangan.get()
+                        on:input=move |ev| set_keterangan.set(event_target_value(&ev))
+                    ></textarea>
                 </div>
 
                 <div class="pt-4 flex justify-end gap-3">
                     <a
-                        href="/dashboard/pengadaan/daftar"
+                        href="/dashboard/pengelolaan/hibah/daftar"
                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

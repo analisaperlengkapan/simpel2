@@ -50,6 +50,18 @@ use components::pengadaan_list::PengadaanList;
 use components::analisis_list::AnalisisList;
 use components::pengadaan_form::PengadaanForm;
 use components::analisis_form::AnalisisForm;
+use components::pemakaian_list::PemakaianList;
+use components::pemakaian_form::PemakaianForm;
+use components::hibah_list::HibahList;
+use components::hibah_form::HibahForm;
+use components::mutasi_list::MutasiList;
+use components::mutasi_form::MutasiForm;
+use components::penghapusan_list::PenghapusanList;
+use components::penghapusan_form::PenghapusanForm;
+use components::pengalihan_list::PengalihanList;
+use components::pengalihan_form::PengalihanForm;
+use components::pemeliharaan_list::PemeliharaanList;
+use components::pemeliharaan_form::PemeliharaanForm;
 use api::fetch_dashboard_stats;
 
 // ============================================================================
@@ -123,6 +135,9 @@ pub fn DashboardRoutes() -> impl IntoView {
                         // Pengelolaan BMN routes
                         <Route path=path!("/pengelolaan/*") view=PengelolaanRoutes />
 
+            // Pemeliharaan Routes (alias to Pengelolaan/Pemeliharaan for shortcut if needed, or stick to Pengelolaan)
+            <Route path=path!("/pemeliharaan/*") view=PemeliharaanRoutes />
+
                         // Pengguna routes
                         <Route path=path!("/pengguna/*") view=PenggunaRoutes />
 
@@ -187,16 +202,41 @@ fn PengadaanRoutes() -> impl IntoView {
     }
 }
 
+// Pemeliharaan Routes
+#[component]
+fn PemeliharaanRoutes() -> impl IntoView {
+    view! {
+        <Routes fallback=|| view! { <NotFound /> }>
+            <Route path=path!("/") view=PemeliharaanList />
+            <Route path=path!("/daftar") view=PemeliharaanList />
+            <Route path=path!("/baru") view=PemeliharaanForm />
+        </Routes>
+    }
+}
+
 // Pengelolaan BMN Routes
 #[component]
 fn PengelolaanRoutes() -> impl IntoView {
     view! {
         <Routes fallback=|| view! { <NotFound /> }>
-            <Route path=path!("/pemakaian/*") view=|| view! { <div>"Pemakaian BMN"</div> } />
-            <Route path=path!("/hibah/*") view=|| view! { <div>"Penerimaan Hibah"</div> } />
-            <Route path=path!("/pengalihan/*") view=|| view! { <div>"Pengalihan BMN"</div> } />
-            <Route path=path!("/mutasi/*") view=|| view! { <div>"Mutasi BMN"</div> } />
-            <Route path=path!("/penghapusan/*") view=|| view! { <div>"Penghapusan BMN"</div> } />
+            <Route path=path!("/pemakaian") view=PemakaianList />
+            <Route path=path!("/pemakaian/daftar") view=PemakaianList />
+            <Route path=path!("/pemakaian/baru") view=PemakaianForm />
+            <Route path=path!("/hibah") view=HibahList />
+            <Route path=path!("/hibah/daftar") view=HibahList />
+            <Route path=path!("/hibah/baru") view=HibahForm />
+            <Route path=path!("/pengalihan") view=PengalihanList />
+            <Route path=path!("/pengalihan/daftar") view=PengalihanList />
+            <Route path=path!("/pengalihan/baru") view=PengalihanForm />
+            <Route path=path!("/pemeliharaan") view=PemeliharaanList />
+            <Route path=path!("/pemeliharaan/daftar") view=PemeliharaanList />
+            <Route path=path!("/pemeliharaan/baru") view=PemeliharaanForm />
+            <Route path=path!("/mutasi") view=MutasiList />
+            <Route path=path!("/mutasi/daftar") view=MutasiList />
+            <Route path=path!("/mutasi/baru") view=MutasiForm />
+            <Route path=path!("/penghapusan") view=PenghapusanList />
+            <Route path=path!("/penghapusan/daftar") view=PenghapusanList />
+            <Route path=path!("/penghapusan/baru") view=PenghapusanForm />
         </Routes>
     }
 }

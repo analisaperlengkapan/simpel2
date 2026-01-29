@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -47,6 +49,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -74,24 +77,13 @@ jobs:
   test:
     name: Test Suite
     runs-on: self-hosted
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: simpelv2_test
-          POSTGRES_PASSWORD: test_password_secure_2024
-          POSTGRES_DB: simpelv2_test
-        options: >-
-          --health-cmd "pg_isready -U simpelv2_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 55432:5432
+    # services removed due to missing docker on runner
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -115,14 +107,13 @@ jobs:
             ${{ runner.os }}-cargo-test-
             ${{ runner.os }}-cargo-
 
-      - name: Setup database connection
-        run: |
-          echo "DATABASE_URL=postgres://simpelv2_test:test_password_secure_2024@localhost:55432/simpelv2_test" >> $GITHUB_ENV
+      # Removed DATABASE_URL setup because we are using mockall for unit tests
+      # and postgres service is not available on self-hosted runners.
+      # If integration tests needing real DB are added, we must handle that conditionally.
 
       - name: Run workspace tests
         run: cargo test --workspace --all-targets --verbose
-        env:
-          DATABASE_URL: postgres://simpelv2_test:test_password_secure_2024@localhost:55432/simpelv2_test
+        # Removed env: DATABASE_URL since no DB is running
 
       - name: Test authenc (separate workspace)
         working-directory: infra/authenc
@@ -140,6 +131,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -181,6 +174,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -211,6 +206,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          clean: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

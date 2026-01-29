@@ -65,6 +65,95 @@ pub struct CreateAnalisisRequest {
     pub justifikasi: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Pemakaian {
+    pub id: String,
+    pub asset_id: String,
+    pub piminjam_nama: String,
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: Option<String>,
+    pub status: String,
+    pub keperluan: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CreatePemakaianRequest {
+    pub asset_id: String,
+    pub piminjam_nama: String,
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: Option<String>,
+    pub keperluan: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Hibah {
+    pub id: String,
+    pub asset_id: String,
+    pub pemberi: String,
+    pub penerima: String,
+    pub tanggal_hibah: String,
+    pub keterangan: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CreateHibahRequest {
+    pub asset_id: String,
+    pub pemberi: String,
+    pub penerima: String,
+    pub tanggal_hibah: String,
+    pub keterangan: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Mutasi {
+    pub id: String,
+    pub asset_id: String,
+    pub asal_satker: String,
+    pub tujuan_satker: String,
+    pub penanggung_jawab: String,
+    pub tanggal_mutasi: String,
+    pub status: String,
+    pub keterangan: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CreateMutasiRequest {
+    pub asset_id: String,
+    pub asal_satker: String,
+    pub tujuan_satker: String,
+    pub penanggung_jawab: String,
+    pub tanggal_mutasi: String,
+    pub keterangan: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Penghapusan {
+    pub id: String,
+    pub asset_id: String,
+    pub tanggal_penghapusan: String,
+    pub alasan: String,
+    pub metode_penghapusan: String,
+    pub status: String,
+    pub nilai_residu: Option<f64>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CreatePenghapusanRequest {
+    pub asset_id: String,
+    pub tanggal_penghapusan: String,
+    pub alasan: String,
+    pub metode_penghapusan: String,
+    pub nilai_residu: Option<f64>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaginatedResponse<T> {
     pub success: bool,
@@ -320,5 +409,421 @@ pub async fn create_analisis(request: CreateAnalisisRequest) -> Result<ApiRespon
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_analisis(_request: CreateAnalisisRequest) -> Result<ApiResponse<AnalisisKebutuhan>, String> {
+    Err("Server-side stub".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pemakaian(page: i32, per_page: i32) -> Result<PaginatedResponse<Pemakaian>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = format!("/api/pembinaan/perlengkapan/pemakaian?page={}&per_page={}", page, per_page);
+
+    let token = get_auth_token().unwrap_or_default();
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: PaginatedResponse<Pemakaian> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pemakaian(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Pemakaian>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_pemakaian(request: CreatePemakaianRequest) -> Result<ApiResponse<Pemakaian>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = "/api/pembinaan/perlengkapan/pemakaian";
+    let token = get_auth_token().unwrap_or_default();
+
+    let resp = Request::post(url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: ApiResponse<Pemakaian> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_pemakaian(_request: CreatePemakaianRequest) -> Result<ApiResponse<Pemakaian>, String> {
+    Err("Server-side stub".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_hibah(page: i32, per_page: i32) -> Result<PaginatedResponse<Hibah>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = format!("/api/pembinaan/perlengkapan/hibah?page={}&per_page={}", page, per_page);
+
+    let token = get_auth_token().unwrap_or_default();
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: PaginatedResponse<Hibah> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_hibah(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Hibah>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_hibah(request: CreateHibahRequest) -> Result<ApiResponse<Hibah>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = "/api/pembinaan/perlengkapan/hibah";
+    let token = get_auth_token().unwrap_or_default();
+
+    let resp = Request::post(url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: ApiResponse<Hibah> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_hibah(_request: CreateHibahRequest) -> Result<ApiResponse<Hibah>, String> {
+    Err("Server-side stub".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_mutasi(page: i32, per_page: i32) -> Result<PaginatedResponse<Mutasi>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = format!("/api/pembinaan/perlengkapan/mutasi?page={}&per_page={}", page, per_page);
+
+    let token = get_auth_token().unwrap_or_default();
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: PaginatedResponse<Mutasi> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_mutasi(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Mutasi>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_mutasi(request: CreateMutasiRequest) -> Result<ApiResponse<Mutasi>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = "/api/pembinaan/perlengkapan/mutasi";
+    let token = get_auth_token().unwrap_or_default();
+
+    let resp = Request::post(url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: ApiResponse<Mutasi> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_mutasi(_request: CreateMutasiRequest) -> Result<ApiResponse<Mutasi>, String> {
+    Err("Server-side stub".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_penghapusan(page: i32, per_page: i32) -> Result<PaginatedResponse<Penghapusan>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = format!("/api/pembinaan/perlengkapan/penghapusan?page={}&per_page={}", page, per_page);
+
+    let token = get_auth_token().unwrap_or_default();
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: PaginatedResponse<Penghapusan> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_penghapusan(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Penghapusan>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_penghapusan(request: CreatePenghapusanRequest) -> Result<ApiResponse<Penghapusan>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = "/api/pembinaan/perlengkapan/penghapusan";
+    let token = get_auth_token().unwrap_or_default();
+
+    let resp = Request::post(url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: ApiResponse<Penghapusan> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_penghapusan(_request: CreatePenghapusanRequest) -> Result<ApiResponse<Penghapusan>, String> {
+    Err("Server-side stub".to_string())
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Pengalihan {
+    pub id: String,
+    pub asset_id: String,
+    pub pihak_lama: String,
+    pub pihak_baru: String,
+    pub tanggal_pengalihan: String,
+    pub dasar_pengalihan: Option<String>,
+    pub status: String,
+    pub keterangan: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CreatePengalihanRequest {
+    pub asset_id: String,
+    pub pihak_lama: String,
+    pub pihak_baru: String,
+    pub tanggal_pengalihan: String,
+    pub dasar_pengalihan: Option<String>,
+    pub keterangan: Option<String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pengalihan(page: i32, per_page: i32) -> Result<PaginatedResponse<Pengalihan>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = format!("/api/pembinaan/perlengkapan/pengalihan?page={}&per_page={}", page, per_page);
+
+    let token = get_auth_token().unwrap_or_default();
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: PaginatedResponse<Pengalihan> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pengalihan(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Pengalihan>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_pengalihan(request: CreatePengalihanRequest) -> Result<ApiResponse<Pengalihan>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = "/api/pembinaan/perlengkapan/pengalihan";
+    let token = get_auth_token().unwrap_or_default();
+
+    let resp = Request::post(url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: ApiResponse<Pengalihan> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_pengalihan(_request: CreatePengalihanRequest) -> Result<ApiResponse<Pengalihan>, String> {
+    Err("Server-side stub".to_string())
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Pemeliharaan {
+    pub id: String,
+    pub asset_id: String,
+    pub jenis_pemeliharaan: String,
+    pub biaya: Option<f64>,
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: Option<String>,
+    pub pelaksana: String,
+    pub status: String,
+    pub keterangan: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CreatePemeliharaanRequest {
+    pub asset_id: String,
+    pub jenis_pemeliharaan: String,
+    pub biaya: Option<f64>,
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: Option<String>,
+    pub pelaksana: String,
+    pub keterangan: Option<String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pemeliharaan(page: i32, per_page: i32) -> Result<PaginatedResponse<Pemeliharaan>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = format!("/api/pembinaan/perlengkapan/pemeliharaan?page={}&per_page={}", page, per_page);
+
+    let token = get_auth_token().unwrap_or_default();
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: PaginatedResponse<Pemeliharaan> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pemeliharaan(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Pemeliharaan>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_pemeliharaan(request: CreatePemeliharaanRequest) -> Result<ApiResponse<Pemeliharaan>, gloo_net::Error> {
+    use gloo_net::http::Request;
+    use crate::components::auth::get_auth_token;
+
+    let url = "/api/pembinaan/perlengkapan/pemeliharaan";
+    let token = get_auth_token().unwrap_or_default();
+
+    let resp = Request::post(url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+    }
+
+    let result: ApiResponse<Pemeliharaan> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_pemeliharaan(_request: CreatePemeliharaanRequest) -> Result<ApiResponse<Pemeliharaan>, String> {
     Err("Server-side stub".to_string())
 }

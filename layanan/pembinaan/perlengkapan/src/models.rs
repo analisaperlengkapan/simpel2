@@ -163,6 +163,292 @@ pub struct CreateAnalisisRequest {
     pub justifikasi: Option<String>,
 }
 
+// ============ Pemakaian Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Pemakaian {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub piminjam_nama: String,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: Option<NaiveDate>,
+    pub status: String, // dipinjam, kembali
+    pub keperluan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Pemakaian {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            piminjam_nama: row.get("piminjam_nama"),
+            tanggal_mulai: row.get("tanggal_mulai"),
+            tanggal_selesai: row.get("tanggal_selesai"),
+            status: row.get("status"),
+            keperluan: row.get("keperluan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePemakaianRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 100))]
+    pub piminjam_nama: String,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: Option<NaiveDate>,
+    pub keperluan: Option<String>,
+}
+
+// ============ Hibah Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Hibah {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub pemberi: String,
+    pub penerima: String,
+    pub tanggal_hibah: NaiveDate,
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Hibah {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            pemberi: row.get("pemberi"),
+            penerima: row.get("penerima"),
+            tanggal_hibah: row.get("tanggal_hibah"),
+            keterangan: row.get("keterangan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreateHibahRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 255))]
+    pub pemberi: String,
+    #[validate(length(min = 1, max = 255))]
+    pub penerima: String,
+    pub tanggal_hibah: NaiveDate,
+    pub keterangan: Option<String>,
+}
+
+// ============ Mutasi Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Mutasi {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub asal_satker: String,
+    pub tujuan_satker: String,
+    pub penanggung_jawab: String,
+    pub tanggal_mutasi: NaiveDate,
+    pub status: String,
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Mutasi {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            asal_satker: row.get("asal_satker"),
+            tujuan_satker: row.get("tujuan_satker"),
+            penanggung_jawab: row.get("penanggung_jawab"),
+            tanggal_mutasi: row.get("tanggal_mutasi"),
+            status: row.get("status"),
+            keterangan: row.get("keterangan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreateMutasiRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 255))]
+    pub asal_satker: String,
+    #[validate(length(min = 1, max = 255))]
+    pub tujuan_satker: String,
+    #[validate(length(min = 1, max = 255))]
+    pub penanggung_jawab: String,
+    pub tanggal_mutasi: NaiveDate,
+    pub keterangan: Option<String>,
+}
+
+// ============ Penghapusan Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Penghapusan {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub tanggal_penghapusan: NaiveDate,
+    pub alasan: String,
+    pub metode_penghapusan: String,
+    pub status: String,
+    pub nilai_residu: Option<f64>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Penghapusan {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            tanggal_penghapusan: row.get("tanggal_penghapusan"),
+            alasan: row.get("alasan"),
+            metode_penghapusan: row.get("metode_penghapusan"),
+            status: row.get("status"),
+            nilai_residu: row.get("nilai_residu"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePenghapusanRequest {
+    pub asset_id: Uuid,
+    pub tanggal_penghapusan: NaiveDate,
+    #[validate(length(min = 1))]
+    pub alasan: String,
+    #[validate(length(min = 1, max = 100))]
+    pub metode_penghapusan: String,
+    pub nilai_residu: Option<f64>,
+}
+
+// ============ Pengalihan Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Pengalihan {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub pihak_lama: String,
+    pub pihak_baru: String,
+    pub tanggal_pengalihan: NaiveDate,
+    pub dasar_pengalihan: Option<String>,
+    pub status: String,
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Pengalihan {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            pihak_lama: row.get("pihak_lama"),
+            pihak_baru: row.get("pihak_baru"),
+            tanggal_pengalihan: row.get("tanggal_pengalihan"),
+            dasar_pengalihan: row.get("dasar_pengalihan"),
+            status: row.get("status"),
+            keterangan: row.get("keterangan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengalihanRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 255))]
+    pub pihak_lama: String,
+    #[validate(length(min = 1, max = 255))]
+    pub pihak_baru: String,
+    pub tanggal_pengalihan: NaiveDate,
+    pub dasar_pengalihan: Option<String>,
+    pub keterangan: Option<String>,
+}
+
+// ============ Pemeliharaan Models (Local) ============
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Pemeliharaan {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub jenis_pemeliharaan: String, // Rutin, Perbaikan, etc.
+    pub biaya: Option<f64>,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: Option<NaiveDate>,
+    pub pelaksana: String, // Vendor or Internal
+    pub status: String, // Terjadwal, Proses, Selesai
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl Pemeliharaan {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            asset_id: row.get("asset_id"),
+            jenis_pemeliharaan: row.get("jenis_pemeliharaan"),
+            biaya: row.get("biaya"),
+            tanggal_mulai: row.get("tanggal_mulai"),
+            tanggal_selesai: row.get("tanggal_selesai"),
+            pelaksana: row.get("pelaksana"),
+            status: row.get("status"),
+            keterangan: row.get("keterangan"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+            updated_by: row.get("updated_by"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePemeliharaanRequest {
+    pub asset_id: Uuid,
+    #[validate(length(min = 1, max = 100))]
+    pub jenis_pemeliharaan: String,
+    pub biaya: Option<f64>,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: Option<NaiveDate>,
+    #[validate(length(min = 1, max = 255))]
+    pub pelaksana: String,
+    pub keterangan: Option<String>,
+}
+
 // ============ Response Models ============
 
 #[derive(Debug, Serialize, Deserialize)]

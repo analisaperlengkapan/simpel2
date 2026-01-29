@@ -66,6 +66,10 @@ impl PerlengkapanService {
         self.repo.get_all_analisis(page, per_page).await
     }
 
+    pub async fn get_analisis_by_id(&self, id: Uuid) -> AppResult<AnalisisKebutuhan> {
+        self.repo.get_analisis_by_id(id).await
+    }
+
     pub async fn create_analisis(
         &self,
         request: CreateAnalisisRequest,
@@ -73,5 +77,143 @@ impl PerlengkapanService {
     ) -> AppResult<AnalisisKebutuhan> {
         request.validate()?;
         self.repo.create_analisis(request, user_id).await
+    }
+
+    // ============ Pemakaian Services ============
+
+    pub async fn get_all_pemakaian(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Pemakaian>, i64)> {
+        self.repo.get_all_pemakaian(page, per_page).await
+    }
+
+    pub async fn get_pemakaian_by_id(&self, id: Uuid) -> AppResult<Pemakaian> {
+        self.repo.get_pemakaian_by_id(id).await
+    }
+
+    pub async fn create_pemakaian(
+        &self,
+        request: CreatePemakaianRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Pemakaian> {
+        request.validate()?;
+        self.repo.create_pemakaian(request, user_id).await
+    }
+
+    // ============ Hibah Services ============
+
+    pub async fn get_all_hibah(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Hibah>, i64)> {
+        self.repo.get_all_hibah(page, per_page).await
+    }
+
+    pub async fn get_hibah_by_id(&self, id: Uuid) -> AppResult<Hibah> {
+        self.repo.get_hibah_by_id(id).await
+    }
+
+    pub async fn create_hibah(
+        &self,
+        request: CreateHibahRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Hibah> {
+        request.validate()?;
+        self.repo.create_hibah(request, user_id).await
+    }
+
+    // ============ Mutasi Services ============
+
+    pub async fn get_all_mutasi(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Mutasi>, i64)> {
+        self.repo.get_all_mutasi(page, per_page).await
+    }
+
+    pub async fn get_mutasi_by_id(&self, id: Uuid) -> AppResult<Mutasi> {
+        self.repo.get_mutasi_by_id(id).await
+    }
+
+    pub async fn create_mutasi(
+        &self,
+        request: CreateMutasiRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Mutasi> {
+        request.validate()?;
+        self.repo.create_mutasi(request, user_id).await
+    }
+
+    // ============ Penghapusan Services ============
+
+    pub async fn get_all_penghapusan(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Penghapusan>, i64)> {
+        self.repo.get_all_penghapusan(page, per_page).await
+    }
+
+    pub async fn get_penghapusan_by_id(&self, id: Uuid) -> AppResult<Penghapusan> {
+        self.repo.get_penghapusan_by_id(id).await
+    }
+
+    pub async fn create_penghapusan(
+        &self,
+        request: CreatePenghapusanRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Penghapusan> {
+        request.validate()?;
+        self.repo.create_penghapusan(request, user_id).await
+    }
+
+    // ============ Pengalihan Services ============
+
+    pub async fn get_all_pengalihan(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Pengalihan>, i64)> {
+        self.repo.get_all_pengalihan(page, per_page).await
+    }
+
+    pub async fn get_pengalihan_by_id(&self, id: Uuid) -> AppResult<Pengalihan> {
+        self.repo.get_pengalihan_by_id(id).await
+    }
+
+    pub async fn create_pengalihan(
+        &self,
+        request: CreatePengalihanRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Pengalihan> {
+        request.validate()?;
+        self.repo.create_pengalihan(request, user_id).await
+    }
+
+    // ============ Pemeliharaan Services ============
+
+    pub async fn get_all_pemeliharaan(
+        &self,
+        page: i32,
+        per_page: i32,
+    ) -> AppResult<(Vec<Pemeliharaan>, i64)> {
+        self.repo.get_all_pemeliharaan(page, per_page).await
+    }
+
+    pub async fn get_pemeliharaan_by_id(&self, id: Uuid) -> AppResult<Pemeliharaan> {
+        self.repo.get_pemeliharaan_by_id(id).await
+    }
+
+    pub async fn create_pemeliharaan(
+        &self,
+        request: CreatePemeliharaanRequest,
+        user_id: Option<Uuid>,
+    ) -> AppResult<Pemeliharaan> {
+        request.validate()?;
+        self.repo.create_pemeliharaan(request, user_id).await
     }
 }

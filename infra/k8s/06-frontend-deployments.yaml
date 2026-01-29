@@ -106,8 +106,12 @@ spec:
       annotations:
         sidecar.istio.io/inject: "true"
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: daskrimti-portal
+          securityContext:
+            allowPrivilegeEscalation: false
           image: localhost:32000/simpelv2/daskrimti-portal:latest
           imagePullPolicy: Always
           ports:
@@ -163,8 +167,12 @@ spec:
       annotations:
         sidecar.istio.io/inject: "true"
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: pembinaan-perlengkapan
+          securityContext:
+            allowPrivilegeEscalation: false
           image: localhost:32000/simpelv2/pembinaan-perlengkapan:latest
           imagePullPolicy: Always
           ports:
