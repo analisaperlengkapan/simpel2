@@ -43,6 +43,7 @@ mod components;
 #[cfg(test)]
 mod tests;
 
+use api::fetch_dashboard_stats;
 use components::analisis_form::AnalisisForm;
 use components::analisis_list::AnalisisList;
 use components::aset_list::AsetList;

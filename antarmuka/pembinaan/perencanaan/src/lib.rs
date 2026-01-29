@@ -29,7 +29,7 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=|| view! { <NotFound /> }>
-                <Route path=path!("/") view=LoginRedirectPage />
+                <Route path=path!("/") view=|| view! { <LoginRedirectPage /> } />
                 <Route path=path!("/dashboard/*") view=DashboardRoutes />
             </Routes>
         </Router>
@@ -78,19 +78,19 @@ pub fn DashboardRoutes() -> impl IntoView {
                 <main class="container mx-auto px-6 py-8">
                     <Routes fallback=|| view! { <pages::dashboard_home::DashboardHome /> }>
                         // Dashboard utama
-                        <Route path=path!("/") view=pages::dashboard_home::DashboardHome />
+                        <Route path=path!("/") view=|| view! { <pages::dashboard_home::DashboardHome /> } />
 
                         // Rencana Pengadaan routes
-                        <Route path=path!("/pengadaan") view=pages::rencana_pengadaan::RencanaPengadaan />
+                        <Route path=path!("/pengadaan") view=|| view! { <pages::rencana_pengadaan::RencanaPengadaan /> } />
 
                         // Rencana Pemeliharaan routes
-                        <Route path=path!("/pemeliharaan") view=pages::rencana_pemeliharaan::RencanaPemeliharaan />
+                        <Route path=path!("/pemeliharaan") view=|| view! { <pages::rencana_pemeliharaan::RencanaPemeliharaan /> } />
 
                         // Rencana Pengembangan routes
-                        <Route path=path!("/pengembangan") view=pages::rencana_pengembangan::RencanaPengembangan />
+                        <Route path=path!("/pengembangan") view=|| view! { <pages::rencana_pengembangan::RencanaPengembangan /> } />
 
                         // Laporan Perencanaan routes
-                        <Route path=path!("/laporan") view=pages::laporan_perencanaan::LaporanPerencanaan />
+                        <Route path=path!("/laporan") view=|| view! { <pages::laporan_perencanaan::LaporanPerencanaan /> } />
                     </Routes>
                 </main>
 
