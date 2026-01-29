@@ -325,7 +325,7 @@ impl SshEngine {
                 self.generate_certificate_credentials(&role, username, ip, now, expires_at)
                     .await?
             }
-        ;
+        };
 
         // Store credentials
         let mut creds_store = self.credentials.write().await;

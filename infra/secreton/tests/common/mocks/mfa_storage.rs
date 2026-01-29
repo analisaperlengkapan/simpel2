@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use Secreton_adhyaksa::
-    auth::mfa::MfaMethod, MfaStatus, MfaStorage,
+use Secreton_adhyaksa::{
+    auth::mfa::{MfaMethod, MfaStatus, MfaStorage},
     storage::StorageError,
-;
+};
 use mockall::mock;
 use std::collections::HashMap;
 use uuid::Uuid;

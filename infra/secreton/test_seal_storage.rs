@@ -91,7 +91,7 @@ async fn main() {
             secret_shares: 5,
             secret_threshold: 3,
             created_at: Utc::now(),
-        ,
+        },
         storage,
     );
     let loaded = service2.load_from_storage().await.expect("Failed to load");

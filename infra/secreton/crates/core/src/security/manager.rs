@@ -116,27 +116,27 @@ pub struct SecurityRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SecurityOperation {
     /// Cryptographic operations
-    GenerateKey { algorithm: String, key_size: u32 ,
-    EncryptData { data: Vec<u8>, key_id: String ,
-    DecryptData { data: Vec<u8>, key_id: String ,
-    SignData { data: Vec<u8>, key_id: String ,
-    VerifySignature { data: Vec<u8>, signature: Vec<u8>, key_id: String ,
-    
+    GenerateKey { algorithm: String, key_size: u32 },
+    EncryptData { data: Vec<u8>, key_id: String },
+    DecryptData { data: Vec<u8>, key_id: String },
+    SignData { data: Vec<u8>, key_id: String },
+    VerifySignature { data: Vec<u8>, signature: Vec<u8>, key_id: String },
+
     /// Secret management
-    CreateSecret { path: String, value: String ,
-    ReadSecret { path: String ,
-    UpdateSecret { path: String, value: String ,
-    DeleteSecret { path: String ,
-    
+    CreateSecret { path: String, value: String },
+    ReadSecret { path: String },
+    UpdateSecret { path: String, value: String },
+    DeleteSecret { path: String },
+
     /// Policy management
-    CreatePolicy { name: String, policy: String ,
-    UpdatePolicy { name: String, policy: String ,
-    DeletePolicy { name: String ,
-    
+    CreatePolicy { name: String, policy: String },
+    UpdatePolicy { name: String, policy: String },
+    DeletePolicy { name: String },
+
     /// Administrative operations
-    RotateKeys { key_ids: Vec<String> ,
-    BackupData { backup_id: String ,
-    RestoreData { backup_id: String ,
+    RotateKeys { key_ids: Vec<String> },
+    BackupData { backup_id: String },
+    RestoreData { backup_id: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
