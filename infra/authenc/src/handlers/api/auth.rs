@@ -201,7 +201,9 @@ pub async fn login(
         let signature = parts[2];
 
         // 1. Check expiration (e.g., 10 minutes)
-        let timestamp: u64 = timestamp_str.parse().map_err(|_| AuthencError::validation("Invalid CAPTCHA timestamp"))?;
+        let timestamp: u64 = timestamp_str
+            .parse()
+            .map_err(|_| AuthencError::validation("Invalid CAPTCHA timestamp"))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -218,10 +220,12 @@ pub async fn login(
         // Use HKDF to derive key (matching gRPC and Validation logic)
         let hk = hkdf::Hkdf::<Sha256>::new(None, secret.as_bytes());
         let mut captcha_key = [0u8; 32];
-        hk.expand(b"captcha-v1", &mut captcha_key).map_err(|_| AuthencError::internal("HKDF expansion failed"))?;
+        hk.expand(b"captcha-v1", &mut captcha_key)
+            .map_err(|_| AuthencError::internal("HKDF expansion failed"))?;
 
         type HmacSha256 = Hmac<Sha256>;
-        let mut mac = HmacSha256::new_from_slice(&captcha_key).map_err(|_| AuthencError::internal("HMAC initialization failed"))?;
+        let mut mac = HmacSha256::new_from_slice(&captcha_key)
+            .map_err(|_| AuthencError::internal("HMAC initialization failed"))?;
         mac.update(payload.as_bytes());
         let result_mac = mac.finalize();
         let expected_signature = hex::encode(result_mac.into_bytes());
@@ -325,7 +329,7 @@ pub async fn login(
 }
 
 /// Check if MFA should be required for a user based on policy
-async fn should_require_mfa(user: &crate::models::user::User) -> Result<bool, AuthencError> {
+async fn should_require_mfa(_user: &crate::models::user::User) -> Result<bool, AuthencError> {
     // Policy-based MFA requirement logic
     // For government employees, MFA might be required based on:
     // - Role (admin, sensitive positions)

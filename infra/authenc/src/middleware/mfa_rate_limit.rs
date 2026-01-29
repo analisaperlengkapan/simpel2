@@ -250,7 +250,7 @@ impl MfaRateLimiterState {
         let count = counter.increment();
         if count > self.config.max_setup_attempts_per_hour_per_ip {
             warn!(%ip, count, "MFA setup rate limit exceeded");
-            return Err(AuthencError::RateLimitExceeded);
+            return Err(AuthencError::rate_limit_exceeded());
         }
 
         debug!(%ip, count, "MFA setup request within rate limit");
@@ -353,7 +353,7 @@ impl MfaRateLimiterState {
         let count = counter.increment();
         if count > self.config.max_attempts_per_minute_per_ip {
             warn!(%ip, count, "MFA verification IP rate limit exceeded");
-            return Err(AuthencError::RateLimitExceeded);
+            return Err(AuthencError::rate_limit_exceeded());
         }
 
         debug!(%ip, count, "MFA verification request within IP rate limit");
@@ -373,7 +373,7 @@ impl MfaRateLimiterState {
         let count = counter.increment();
         if count > self.config.max_attempts_per_minute_per_user {
             warn!(%user_id, count, "MFA verification user rate limit exceeded");
-            return Err(AuthencError::RateLimitExceeded);
+            return Err(AuthencError::rate_limit_exceeded());
         }
 
         debug!(%user_id, count, "MFA verification request within user rate limit");
@@ -421,7 +421,7 @@ pub async fn mfa_rate_limit_middleware(
 
     match rate_limit_result {
         Ok(_) => Ok(next.run(request).await),
-        Err(AuthencError::RateLimitExceeded) => {
+        Err(AuthencError::RateLimitExceeded { .. }) => {
             warn!(%ip, %path, "MFA rate limit exceeded");
             Err(StatusCode::TOO_MANY_REQUESTS)
         }

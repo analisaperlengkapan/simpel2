@@ -492,7 +492,7 @@ fn CaptchaContainer(
                                 view! {
                                     <ChallengeDisplay
                                         challenge_type=current_state.challenge_type
-                                        difficulty=current_state.difficulty
+                                        _difficulty=current_state.difficulty
                                         challenge_data=challenge_data.get()
                                         accessibility_enabled=accessibility_enabled
                                     />
@@ -557,7 +557,7 @@ fn CaptchaContainer(
 #[component]
 pub fn ChallengeDisplay(
     challenge_type: ChallengeType,
-    difficulty: u8,
+    _difficulty: u8,
     challenge_data: Option<ChallengeResponse>,
     accessibility_enabled: bool,
 ) -> impl IntoView {
@@ -874,7 +874,7 @@ pub fn ChallengeInput(
                             <div class="grid grid-cols-2 gap-3">
                                 {
                                     let options = challenge_parser::parse_answer_options(challenge_data.clone());
-                                    options.into_iter().enumerate().map(|(idx, option)| {
+                                    options.into_iter().enumerate().map(|(_idx, option)| {
                                         let option_clone = option.clone();
                                         view! {
                                             <button

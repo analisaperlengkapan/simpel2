@@ -255,7 +255,7 @@ impl SecretService {
         &self,
         key_name: &str,
         key_type: &str,
-        metadata: KeyMetadata,
+        _metadata: KeyMetadata,
         user_id: &str,
     ) -> Result<KeyInfo, SecretServiceError> {
         // Log audit trail

@@ -224,20 +224,11 @@ impl SoftwareStatementValidator for ProductionSoftwareStatementValidator {
         let kid = header.kid.as_deref();
 
         // Decode without validation first to get the issuer
-        // Use a temporary validation that doesn't check signature
-        let mut temp_validation = Validation::default();
-        temp_validation.insecure_disable_signature_validation();
-        temp_validation.validate_exp = false;
-
-        let untrusted_claims: SoftwareStatementClaims = decode::<SoftwareStatementClaims>(
-            statement_jwt,
-            &DecodingKey::from_secret(&[]), // Dummy key since we're not validating
-            &temp_validation,
-        )
-        .map_err(|e| AuthencError::ValidationError {
-            message: format!("Failed to decode JWT: {}", e),
-        })?
-        .claims;
+        let untrusted_claims = jsonwebtoken::dangerous::insecure_decode::<SoftwareStatementClaims>(statement_jwt)
+            .map_err(|e| AuthencError::ValidationError {
+                message: format!("Failed to decode JWT: {}", e),
+            })?
+            .claims;
 
         // Get issuer configuration from database
         let issuer_config =

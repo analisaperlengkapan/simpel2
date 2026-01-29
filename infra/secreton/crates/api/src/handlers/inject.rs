@@ -6,7 +6,6 @@
 use axum::{
     Json,
     extract::{Extension, Path, State},
-    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -350,7 +349,7 @@ async fn fetch_secret(
                     resource: path.to_string(),
                 }
             }
-            crate::services::secret_engine::SecretServiceError::PermissionDenied(msg) => {
+            crate::services::secret_engine::SecretServiceError::PermissionDenied(_msg) => {
                 ApiError::Forbidden
             }
             _ => ApiError::Internal {

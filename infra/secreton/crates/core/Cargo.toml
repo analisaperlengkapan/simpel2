@@ -112,6 +112,9 @@ proptest.workspace = true
 [features]
 default = []
 test-utils = []
+enable-inline-tests = []
+consul = ["secreton-storage/consul"]
+redis = []
 
 # Forward storage backend features
 postgres = ["secreton-storage/postgres"]

@@ -1732,6 +1732,7 @@ impl SecretonGrpcService {
     ) -> Result<Response<RestoreSnapshotResponse>, Status> {
         #[cfg(not(feature = "raft-consensus"))]
         {
+            let _ = request;
             return Err(Status::unimplemented("Raft consensus feature not enabled"));
         }
 

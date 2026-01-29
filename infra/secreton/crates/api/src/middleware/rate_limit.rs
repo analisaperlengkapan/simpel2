@@ -4,7 +4,6 @@
 // as specified in Requirements 13.4
 
 use axum::{
-    body::Body,
     extract::{ConnectInfo, Request, State},
     http::{HeaderMap, HeaderValue, StatusCode},
     middleware::Next,

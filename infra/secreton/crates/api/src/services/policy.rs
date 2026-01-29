@@ -3,9 +3,8 @@
 //! Handles policy management operations using PostgreSQL storage.
 
 use deadpool_postgres::Pool;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
-use tracing::info;
 
 use secreton_core::{
     error::CoreError,
@@ -807,6 +806,7 @@ impl PolicyService {
     }
 
     // Unused in current implementation but kept for future
+    #[allow(dead_code)]
     async fn check_circular_dependencies(
         &self,
         pool: &deadpool_postgres::Pool,

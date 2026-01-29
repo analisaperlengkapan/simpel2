@@ -641,7 +641,7 @@ impl ChallengeGenerator {
                     challenge_type,
                     ChallengeType::Audio | ChallengeType::Behavioral | ChallengeType::Hybrid
                 ) {
-                     Ok("placeholder_answer".to_string())
+                    Ok("placeholder_answer".to_string())
                 } else {
                     Err(CaptchaError::GenerationFailed {
                         message: format!("Failed to extract answer from challenge data: {}", e),

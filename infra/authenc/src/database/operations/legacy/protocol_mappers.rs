@@ -55,7 +55,7 @@ pub async fn get_client_mappers(
     "#,
     );
 
-    let mut param_idx = 2;
+    let param_idx = 2;
     let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![&client_id];
 
     let protocol_owned;
@@ -63,7 +63,6 @@ pub async fn get_client_mappers(
         protocol_owned = p.clone();
         query.push_str(&format!(" AND protocol = ${}", param_idx));
         params.push(&protocol_owned);
-        param_idx += 1;
     }
 
     query.push_str(" ORDER BY name");
@@ -102,7 +101,7 @@ pub async fn get_realm_mappers(
     "#,
     );
 
-    let mut param_idx = 2;
+    let param_idx = 2;
     let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![&realm_id];
 
     let protocol_owned;
@@ -110,7 +109,6 @@ pub async fn get_realm_mappers(
         protocol_owned = p.clone();
         query.push_str(&format!(" AND protocol = ${}", param_idx));
         params.push(&protocol_owned);
-        param_idx += 1;
     }
 
     query.push_str(" ORDER BY name");

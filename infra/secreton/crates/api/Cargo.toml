@@ -83,6 +83,8 @@ lib-common = { workspace = true, features = ["axum", "telemetry", "db"] }
 
 [features]
 default = []
+postgres = ["secreton-storage/postgres"]
+consul = ["secreton-storage/consul"]
 # High-availability mode with Raft consensus (experimental)
 # Note: Raft implementation is currently under development
 raft-consensus = ["secreton-storage/raft-consensus"]

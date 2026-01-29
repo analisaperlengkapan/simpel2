@@ -209,6 +209,7 @@ struct RateLimitEntry {
 }
 
 #[derive(Clone)]
+#[allow(missing_docs)]
 pub struct RateLimitInterceptor {
     /// Requests per minute limit
     pub limit: u32,

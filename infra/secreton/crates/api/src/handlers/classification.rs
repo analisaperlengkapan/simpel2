@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tracing::{error, info, instrument};
 
 use secreton_core::services::classification::{
-    ClassificationLevel, ClassificationReport, ClassificationService,
+    ClassificationLevel, ClassificationService,
 };
 
 /// Shared application state

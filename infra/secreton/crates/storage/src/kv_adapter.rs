@@ -33,6 +33,7 @@ impl<B: KvBackend> KvBackendAdapter<B> {
         format!("entry/id/{}", id)
     }
 
+    #[allow(dead_code)]
     fn key_for_path(path: &str) -> String {
         format!("entry/path/{}", path)
     }

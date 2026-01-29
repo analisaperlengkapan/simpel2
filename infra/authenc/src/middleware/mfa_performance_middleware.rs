@@ -226,7 +226,7 @@ impl MfaServiceMonitor {
         let error_type = if let Err(ref error) = result {
             match error {
                 crate::error::AuthencError::InvalidOtpCode => Some("invalid_otp"),
-                crate::error::AuthencError::RateLimitExceeded => Some("rate_limit"),
+                crate::error::AuthencError::RateLimitExceeded { .. } => Some("rate_limit"),
                 crate::error::AuthencError::DatabaseError { .. } => Some("database"),
                 _ => Some("other"),
             }
@@ -272,7 +272,7 @@ impl MfaServiceMonitor {
         let duration = start_time.elapsed();
 
         let violated = match &result {
-            Err(crate::error::AuthencError::RateLimitExceeded) => true,
+            Err(crate::error::AuthencError::RateLimitExceeded { .. }) => true,
             _ => false,
         };
 

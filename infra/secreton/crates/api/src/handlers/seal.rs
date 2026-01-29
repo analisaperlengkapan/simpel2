@@ -3,7 +3,7 @@
 //! Provides REST endpoints for engine seal/unseal operations,
 //! initialization, and rekey functionality.
 
-use axum::{Extension, extract::State, http::StatusCode, response::Json};
+use axum::{extract::State, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -727,7 +727,7 @@ pub async fn rekey_update(
 }
 
 /// Generate root token with JWT
-async fn generate_root_token(state: &AppState) -> Result<String, String> {
+async fn generate_root_token(_state: &AppState) -> Result<String, String> {
     use jsonwebtoken::{EncodingKey, Header, encode};
     use serde::{Deserialize, Serialize};
 

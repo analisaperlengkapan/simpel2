@@ -40,7 +40,7 @@ mod auth_service {
             .local_storage()
             .map_err(|e| format!("Failed to access localStorage: {:?}", e))?
             .ok_or("localStorage not available")?
-            .set_item("jwt_token", token)
+            .set_item("auth_token", token)
             .map_err(|e| format!("Failed to store token: {:?}", e))
     }
 
@@ -50,7 +50,7 @@ mod auth_service {
         if let Some(window) = window()
             && let Ok(Some(storage)) = window.local_storage()
         {
-            return storage.get_item("jwt_token").ok().flatten().is_some();
+            return storage.get_item("auth_token").ok().flatten().is_some();
         }
         false
     }

@@ -8,8 +8,7 @@
 //! 5. Apply environment variable overrides
 
 use crate::config::AppConfig;
-use crate::error::{AuthencError, Result};
-use std::env;
+use crate::error::Result;
 use tracing::{debug, info, warn};
 
 /// Hybrid configuration loader

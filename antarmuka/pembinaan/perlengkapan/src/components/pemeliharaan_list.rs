@@ -1,5 +1,5 @@
+use crate::api::{Pemeliharaan, fetch_pemeliharaan};
 use leptos::prelude::*;
-use crate::api::{fetch_pemeliharaan, Pemeliharaan};
 
 #[component]
 pub fn PemeliharaanList() -> impl IntoView {

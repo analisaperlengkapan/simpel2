@@ -411,7 +411,7 @@ pub struct Pemeliharaan {
     pub tanggal_mulai: NaiveDate,
     pub tanggal_selesai: Option<NaiveDate>,
     pub pelaksana: String, // Vendor or Internal
-    pub status: String, // Terjadwal, Proses, Selesai
+    pub status: String,    // Terjadwal, Proses, Selesai
     pub keterangan: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

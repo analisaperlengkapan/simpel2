@@ -1,4 +1,3 @@
-
 // Auth utility functions
 pub fn get_auth_token() -> Option<String> {
     if let Some(window) = web_sys::window() {

@@ -5,7 +5,7 @@
 
 use axum::{
     Router,
-    extract::{Path, State},
+    extract::State,
     response::Json,
     routing::post,
 };
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
-use secreton_crypto::transit::algorithms::{HashAlgorithm, generate_random};
+use secreton_crypto::transit::algorithms::generate_random;
 
 use super::AppState;
 

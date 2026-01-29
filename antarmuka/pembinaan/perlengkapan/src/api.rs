@@ -207,7 +207,9 @@ pub async fn fetch_assets(
         url.push_str(&format!("&category={}", encode(&cat)));
     }
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -248,7 +250,9 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, gloo
 
     let url = "/api/pembinaan/perlengkapan/dashboard/stats";
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -288,7 +292,9 @@ pub async fn fetch_asset_by_id(id: String) -> Result<ApiResponse<Asset>, gloo_ne
 
     let url = format!("/api/pembinaan/perlengkapan/assets/{}", id);
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -323,7 +329,9 @@ pub async fn fetch_pengadaan(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -364,7 +372,9 @@ pub async fn create_pengadaan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengadaan";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -403,7 +413,9 @@ pub async fn fetch_analisis(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -444,7 +456,9 @@ pub async fn create_analisis(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/analisis";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -471,20 +485,31 @@ pub async fn create_analisis(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_pemakaian(page: i32, per_page: i32) -> Result<PaginatedResponse<Pemakaian>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_pemakaian(
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResponse<Pemakaian>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/pemakaian?page={}&per_page={}", page, per_page);
+    let url = format!(
+        "/api/pembinaan/perlengkapan/pemakaian?page={}&per_page={}",
+        page, per_page
+    );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<Pemakaian> = resp.json().await?;
@@ -492,7 +517,10 @@ pub async fn fetch_pemakaian(page: i32, per_page: i32) -> Result<PaginatedRespon
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_pemakaian(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Pemakaian>, String> {
+pub async fn fetch_pemakaian(
+    _page: i32,
+    _per_page: i32,
+) -> Result<PaginatedResponse<Pemakaian>, String> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -505,12 +533,16 @@ pub async fn fetch_pemakaian(_page: i32, _per_page: i32) -> Result<PaginatedResp
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_pemakaian(request: CreatePemakaianRequest) -> Result<ApiResponse<Pemakaian>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn create_pemakaian(
+    request: CreatePemakaianRequest,
+) -> Result<ApiResponse<Pemakaian>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pemakaian";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -519,7 +551,10 @@ pub async fn create_pemakaian(request: CreatePemakaianRequest) -> Result<ApiResp
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<Pemakaian> = resp.json().await?;
@@ -527,25 +562,38 @@ pub async fn create_pemakaian(request: CreatePemakaianRequest) -> Result<ApiResp
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_pemakaian(_request: CreatePemakaianRequest) -> Result<ApiResponse<Pemakaian>, String> {
+pub async fn create_pemakaian(
+    _request: CreatePemakaianRequest,
+) -> Result<ApiResponse<Pemakaian>, String> {
     Err("Server-side stub".to_string())
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_hibah(page: i32, per_page: i32) -> Result<PaginatedResponse<Hibah>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_hibah(
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResponse<Hibah>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/hibah?page={}&per_page={}", page, per_page);
+    let url = format!(
+        "/api/pembinaan/perlengkapan/hibah?page={}&per_page={}",
+        page, per_page
+    );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<Hibah> = resp.json().await?;
@@ -566,12 +614,16 @@ pub async fn fetch_hibah(_page: i32, _per_page: i32) -> Result<PaginatedResponse
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_hibah(request: CreateHibahRequest) -> Result<ApiResponse<Hibah>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn create_hibah(
+    request: CreateHibahRequest,
+) -> Result<ApiResponse<Hibah>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/hibah";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -580,7 +632,10 @@ pub async fn create_hibah(request: CreateHibahRequest) -> Result<ApiResponse<Hib
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<Hibah> = resp.json().await?;
@@ -593,20 +648,31 @@ pub async fn create_hibah(_request: CreateHibahRequest) -> Result<ApiResponse<Hi
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_mutasi(page: i32, per_page: i32) -> Result<PaginatedResponse<Mutasi>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_mutasi(
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResponse<Mutasi>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/mutasi?page={}&per_page={}", page, per_page);
+    let url = format!(
+        "/api/pembinaan/perlengkapan/mutasi?page={}&per_page={}",
+        page, per_page
+    );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<Mutasi> = resp.json().await?;
@@ -627,12 +693,16 @@ pub async fn fetch_mutasi(_page: i32, _per_page: i32) -> Result<PaginatedRespons
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_mutasi(request: CreateMutasiRequest) -> Result<ApiResponse<Mutasi>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn create_mutasi(
+    request: CreateMutasiRequest,
+) -> Result<ApiResponse<Mutasi>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/mutasi";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -641,7 +711,10 @@ pub async fn create_mutasi(request: CreateMutasiRequest) -> Result<ApiResponse<M
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<Mutasi> = resp.json().await?;
@@ -654,20 +727,31 @@ pub async fn create_mutasi(_request: CreateMutasiRequest) -> Result<ApiResponse<
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_penghapusan(page: i32, per_page: i32) -> Result<PaginatedResponse<Penghapusan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_penghapusan(
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResponse<Penghapusan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/penghapusan?page={}&per_page={}", page, per_page);
+    let url = format!(
+        "/api/pembinaan/perlengkapan/penghapusan?page={}&per_page={}",
+        page, per_page
+    );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<Penghapusan> = resp.json().await?;
@@ -675,7 +759,10 @@ pub async fn fetch_penghapusan(page: i32, per_page: i32) -> Result<PaginatedResp
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_penghapusan(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Penghapusan>, String> {
+pub async fn fetch_penghapusan(
+    _page: i32,
+    _per_page: i32,
+) -> Result<PaginatedResponse<Penghapusan>, String> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -688,12 +775,16 @@ pub async fn fetch_penghapusan(_page: i32, _per_page: i32) -> Result<PaginatedRe
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_penghapusan(request: CreatePenghapusanRequest) -> Result<ApiResponse<Penghapusan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn create_penghapusan(
+    request: CreatePenghapusanRequest,
+) -> Result<ApiResponse<Penghapusan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/penghapusan";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -702,7 +793,10 @@ pub async fn create_penghapusan(request: CreatePenghapusanRequest) -> Result<Api
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<Penghapusan> = resp.json().await?;
@@ -710,7 +804,9 @@ pub async fn create_penghapusan(request: CreatePenghapusanRequest) -> Result<Api
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_penghapusan(_request: CreatePenghapusanRequest) -> Result<ApiResponse<Penghapusan>, String> {
+pub async fn create_penghapusan(
+    _request: CreatePenghapusanRequest,
+) -> Result<ApiResponse<Penghapusan>, String> {
     Err("Server-side stub".to_string())
 }
 
@@ -739,20 +835,31 @@ pub struct CreatePengalihanRequest {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_pengalihan(page: i32, per_page: i32) -> Result<PaginatedResponse<Pengalihan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_pengalihan(
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResponse<Pengalihan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/pengalihan?page={}&per_page={}", page, per_page);
+    let url = format!(
+        "/api/pembinaan/perlengkapan/pengalihan?page={}&per_page={}",
+        page, per_page
+    );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<Pengalihan> = resp.json().await?;
@@ -760,7 +867,10 @@ pub async fn fetch_pengalihan(page: i32, per_page: i32) -> Result<PaginatedRespo
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_pengalihan(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Pengalihan>, String> {
+pub async fn fetch_pengalihan(
+    _page: i32,
+    _per_page: i32,
+) -> Result<PaginatedResponse<Pengalihan>, String> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -773,12 +883,16 @@ pub async fn fetch_pengalihan(_page: i32, _per_page: i32) -> Result<PaginatedRes
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_pengalihan(request: CreatePengalihanRequest) -> Result<ApiResponse<Pengalihan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn create_pengalihan(
+    request: CreatePengalihanRequest,
+) -> Result<ApiResponse<Pengalihan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengalihan";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -787,7 +901,10 @@ pub async fn create_pengalihan(request: CreatePengalihanRequest) -> Result<ApiRe
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<Pengalihan> = resp.json().await?;
@@ -795,7 +912,9 @@ pub async fn create_pengalihan(request: CreatePengalihanRequest) -> Result<ApiRe
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_pengalihan(_request: CreatePengalihanRequest) -> Result<ApiResponse<Pengalihan>, String> {
+pub async fn create_pengalihan(
+    _request: CreatePengalihanRequest,
+) -> Result<ApiResponse<Pengalihan>, String> {
     Err("Server-side stub".to_string())
 }
 
@@ -826,20 +945,31 @@ pub struct CreatePemeliharaanRequest {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_pemeliharaan(page: i32, per_page: i32) -> Result<PaginatedResponse<Pemeliharaan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn fetch_pemeliharaan(
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResponse<Pemeliharaan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/pemeliharaan?page={}&per_page={}", page, per_page);
+    let url = format!(
+        "/api/pembinaan/perlengkapan/pemeliharaan?page={}&per_page={}",
+        page, per_page
+    );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: PaginatedResponse<Pemeliharaan> = resp.json().await?;
@@ -847,7 +977,10 @@ pub async fn fetch_pemeliharaan(page: i32, per_page: i32) -> Result<PaginatedRes
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_pemeliharaan(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Pemeliharaan>, String> {
+pub async fn fetch_pemeliharaan(
+    _page: i32,
+    _per_page: i32,
+) -> Result<PaginatedResponse<Pemeliharaan>, String> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -860,12 +993,16 @@ pub async fn fetch_pemeliharaan(_page: i32, _per_page: i32) -> Result<PaginatedR
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_pemeliharaan(request: CreatePemeliharaanRequest) -> Result<ApiResponse<Pemeliharaan>, gloo_net::Error> {
-    use gloo_net::http::Request;
+pub async fn create_pemeliharaan(
+    request: CreatePemeliharaanRequest,
+) -> Result<ApiResponse<Pemeliharaan>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pemeliharaan";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -874,7 +1011,10 @@ pub async fn create_pemeliharaan(request: CreatePemeliharaanRequest) -> Result<A
         .await?;
 
     if !resp.ok() {
-         return Err(gloo_net::Error::GlooError(format!("API Error: {}", resp.status())));
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
     }
 
     let result: ApiResponse<Pemeliharaan> = resp.json().await?;
@@ -882,6 +1022,8 @@ pub async fn create_pemeliharaan(request: CreatePemeliharaanRequest) -> Result<A
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_pemeliharaan(_request: CreatePemeliharaanRequest) -> Result<ApiResponse<Pemeliharaan>, String> {
+pub async fn create_pemeliharaan(
+    _request: CreatePemeliharaanRequest,
+) -> Result<ApiResponse<Pemeliharaan>, String> {
     Err("Server-side stub".to_string())
 }

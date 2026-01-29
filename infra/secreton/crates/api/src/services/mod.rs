@@ -14,7 +14,7 @@ pub use secret_engine as engine;
 use anyhow::Result;
 use std::sync::Arc;
 
-use crate::config::{ApiConfig, RaftConfig};
+use crate::config::ApiConfig;
 use secreton_core::audit::AuditLogger;
 use secreton_core::namespace::NamespaceService;
 use secreton_core::services::identity::IdentityService;

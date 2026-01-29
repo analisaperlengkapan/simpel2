@@ -246,6 +246,7 @@ impl Commitment {
         }
     }
 
+    #[allow(dead_code)]
     fn commitments(&self) -> Result<Vec<Vec<RistrettoPoint>>> {
         self.commitments_bytes
             .iter()

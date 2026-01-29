@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    
+
     use crate::api::{Asset, DashboardStats};
     use serde_json::json;
 
