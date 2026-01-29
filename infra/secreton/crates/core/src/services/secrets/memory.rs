@@ -727,9 +727,8 @@ impl crate::services::secrets::SecretEngine for MemorySecretEngine {
     }
 }
 mod tests {
-
-
-
+    use super::*;
+    use crate::storage::InMemoryStorage;
 
     #[tokio::test]
     async fn test_enhanced_secret_engine_creation() {

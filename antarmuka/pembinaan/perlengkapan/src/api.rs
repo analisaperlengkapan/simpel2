@@ -207,7 +207,9 @@ pub async fn fetch_assets(
         url.push_str(&format!("&category={}", encode(&cat)));
     }
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -248,7 +250,9 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, gloo
 
     let url = "/api/pembinaan/perlengkapan/dashboard/stats";
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -288,7 +292,9 @@ pub async fn fetch_asset_by_id(id: String) -> Result<ApiResponse<Asset>, gloo_ne
 
     let url = format!("/api/pembinaan/perlengkapan/assets/{}", id);
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -323,7 +329,9 @@ pub async fn fetch_pengadaan(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -364,7 +372,9 @@ pub async fn create_pengadaan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengadaan";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -403,7 +413,9 @@ pub async fn fetch_analisis(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -444,7 +456,9 @@ pub async fn create_analisis(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/analisis";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -483,7 +497,9 @@ pub async fn fetch_pemakaian(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -524,7 +540,9 @@ pub async fn create_pemakaian(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pemakaian";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -563,7 +581,9 @@ pub async fn fetch_hibah(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -601,7 +621,9 @@ pub async fn create_hibah(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/hibah";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -638,7 +660,9 @@ pub async fn fetch_mutasi(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -676,7 +700,9 @@ pub async fn create_mutasi(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/mutasi";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -713,7 +739,9 @@ pub async fn fetch_penghapusan(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -754,7 +782,9 @@ pub async fn create_penghapusan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/penghapusan";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -817,7 +847,9 @@ pub async fn fetch_pengalihan(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -858,7 +890,9 @@ pub async fn create_pengalihan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengalihan";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -923,7 +957,9 @@ pub async fn fetch_pemeliharaan(
         page, per_page
     );
 
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -964,7 +1000,9 @@ pub async fn create_pemeliharaan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pemeliharaan";
-    let token = get_auth_token().unwrap_or_default();
+    let token = get_auth_token().ok_or_else(|| {
+        gloo_net::Error::GlooError("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))

@@ -49,14 +49,23 @@ pub mod captcha_service;
 
 // Centralized Proto Registry
 #[allow(missing_docs)]
+#[allow(unused)]
 pub mod proto {
+    #[allow(missing_docs)]
+    #[allow(unused)]
     pub mod common {
         pub mod v1 {
+            #![allow(missing_docs)]
+            #![allow(unused)]
             tonic::include_proto!("common.v1");
         }
     }
+    #[allow(missing_docs)]
+    #[allow(unused)]
     pub mod authenc {
         pub mod v1 {
+            #![allow(missing_docs)]
+            #![allow(unused)]
             tonic::include_proto!("authenc.v1");
         }
     }

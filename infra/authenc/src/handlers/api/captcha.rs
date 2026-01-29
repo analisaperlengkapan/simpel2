@@ -56,7 +56,7 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
     };
 
     // Create security monitoring configuration
-    let security_monitoring_config = SecurityMonitoringConfig {
+    let _security_monitoring_config = SecurityMonitoringConfig {
         enabled: true,
         suspicious_threshold_rpm: 50, // Lower threshold for CAPTCHA endpoints
         monitored_paths: vec![
@@ -258,7 +258,7 @@ pub async fn generate_challenge(
 /// Get an existing CAPTCHA challenge
 pub async fn get_challenge(
     Path(challenge_id): Path<String>,
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<ChallengeResponse>, AuthencError> {
     // Create CAPTCHA service instance
     let captcha_service = CaptchaService::simple().await;
@@ -302,7 +302,7 @@ pub async fn validate_challenge(
     State(state): State<Arc<crate::app::AppState>>,
     Json(req): Json<ValidationRequest>,
 ) -> Result<Json<ValidationResponse>, AuthencError> {
-    let ip = addr.ip().to_string();
+    let _ip = addr.ip().to_string();
 
     // Create CAPTCHA service instance
     let captcha_service = CaptchaService::simple().await;
@@ -369,8 +369,8 @@ pub async fn validate_challenge(
                 .expect("HKDF expand failed");
 
             type HmacSha256 = Hmac<Sha256>;
-            let mut mac =
-                HmacSha256::new_from_slice(&captcha_key).expect("HMAC can take key of any size");
+            let mut mac = HmacSha256::new_from_slice(&captcha_key)
+                .expect("HMAC can take key of any size");
             mac.update(payload.as_bytes());
             let result_mac = mac.finalize();
             let signature = hex::encode(result_mac.into_bytes());
@@ -388,9 +388,9 @@ pub async fn validate_challenge(
 pub async fn refresh_challenge(
     Path(challenge_id): Path<String>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<ChallengeResponse>, AuthencError> {
-    let ip = addr.ip().to_string();
+    let _ip = addr.ip().to_string();
 
     // Create CAPTCHA service instance
     let captcha_service = CaptchaService::simple().await;
@@ -432,7 +432,7 @@ pub async fn refresh_challenge(
 /// Adjust CAPTCHA difficulty for specific patterns
 pub async fn adjust_difficulty(
     Query(query): Query<DifficultyQuery>,
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
     Json(req): Json<DifficultyRequest>,
 ) -> Result<Json<DifficultyResponse>, AuthencError> {
     // Validate difficulty level
@@ -466,7 +466,7 @@ pub async fn adjust_difficulty(
 
 /// Get complete dashboard data
 pub async fn get_dashboard_data(
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<DashboardData>, AuthencError> {
     // Create dashboard service instance
     let captcha_service = CaptchaService::simple().await;
@@ -496,7 +496,7 @@ pub struct MetricsQuery {
 /// Get metrics summary
 pub async fn get_metrics_summary(
     Query(query): Query<MetricsQuery>,
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<crate::services::captcha::metrics::MetricsSummary>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
     let time_window = query.time_window.unwrap_or(60); // Default to 1 hour
@@ -513,7 +513,7 @@ pub async fn get_metrics_summary(
 
 /// Get current alerts
 pub async fn get_alerts(
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<Vec<Alert>>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
     let dashboard_service = DashboardService::new(
@@ -533,7 +533,7 @@ pub async fn get_alerts(
 /// Acknowledge an alert
 pub async fn acknowledge_alert(
     Path(alert_id): Path<String>,
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<serde_json::Value>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
     let dashboard_service = DashboardService::new(
@@ -556,7 +556,7 @@ pub async fn acknowledge_alert(
 /// Resolve an alert
 pub async fn resolve_alert(
     Path(alert_id): Path<String>,
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<serde_json::Value>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
     let dashboard_service = DashboardService::new(
@@ -578,7 +578,7 @@ pub async fn resolve_alert(
 
 /// Get system health status
 pub async fn get_system_health(
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<crate::services::captcha::dashboard::SystemHealthStatus>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
     let dashboard_service = DashboardService::new(
@@ -597,7 +597,7 @@ pub async fn get_system_health(
 
 /// Get all alert rules
 pub async fn get_alert_rules(
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<Vec<AlertRule>>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
 
@@ -615,7 +615,7 @@ pub struct AddAlertRuleRequest {
 
 /// Add a new alert rule
 pub async fn add_alert_rule(
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
     Json(req): Json<AddAlertRuleRequest>,
 ) -> Result<Json<serde_json::Value>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
@@ -643,7 +643,7 @@ pub struct TestAlertRequest {
 
 /// Trigger a test alert
 pub async fn trigger_test_alert(
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
     Json(req): Json<TestAlertRequest>,
 ) -> Result<Json<serde_json::Value>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
@@ -668,7 +668,7 @@ pub async fn trigger_test_alert(
 
 /// Check system health and trigger alerts if needed
 pub async fn check_system_health(
-    State(state): State<Arc<crate::app::AppState>>,
+    State(_state): State<Arc<crate::app::AppState>>,
 ) -> Result<Json<serde_json::Value>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
 

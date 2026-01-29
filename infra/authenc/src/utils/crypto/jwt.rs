@@ -220,7 +220,7 @@ pub fn verify_jwt(token: &str) -> Result<Claims, String> {
 /// * `skip_blacklist_check` - If true, skips blacklist validation (used for cached results)
 /// # Returns
 /// A `Result` containing the decoded `Claims` on success, or an error string on failure
-fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims, String> {
+fn verify_jwt_internal(token: &str, _skip_blacklist_check: bool) -> Result<Claims, String> {
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
         return Err("Invalid JWT format".to_string());

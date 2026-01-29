@@ -169,9 +169,9 @@ impl XmlSignature {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        let mut in_signature = false;
         let mut in_signed_info = false;
         let mut in_reference = false;
+        let mut in_signature = false;
         let mut in_signature_value = false;
         let mut in_key_info = false;
         let mut in_x509_cert = false;
@@ -328,7 +328,6 @@ impl XmlSignature {
                             in_x509_cert = false;
                         }
                         "Signature" | "ds:Signature" => {
-                            in_signature = false;
                             break; // Found complete signature
                         }
                         _ => {}

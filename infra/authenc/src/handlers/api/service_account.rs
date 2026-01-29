@@ -64,13 +64,13 @@ pub fn create_service_account_routes() -> Router<Arc<AppState>> {
 }
 
 #[derive(Deserialize)]
-struct ListQueryParams {
+pub struct ListQueryParams {
     first: Option<i64>,
     max: Option<i64>,
 }
 
 #[derive(Deserialize)]
-struct AuditLogQueryParams {
+pub struct AuditLogQueryParams {
     limit: Option<i64>,
     offset: Option<i64>,
 }

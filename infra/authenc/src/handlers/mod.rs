@@ -136,7 +136,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         ))
         .with_state(oauth2_state.clone());
 
-    let mut router = Router::new()
+    let router = Router::new()
         .route("/health", get(health::health))
         .route("/ready", get(health::ready))
         .route("/live", get(health::live))

@@ -329,7 +329,7 @@ pub async fn login(
 }
 
 /// Check if MFA should be required for a user based on policy
-async fn should_require_mfa(user: &crate::models::user::User) -> Result<bool, AuthencError> {
+async fn should_require_mfa(_user: &crate::models::user::User) -> Result<bool, AuthencError> {
     // Policy-based MFA requirement logic
     // For government employees, MFA might be required based on:
     // - Role (admin, sensitive positions)

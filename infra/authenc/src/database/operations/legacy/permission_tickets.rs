@@ -167,7 +167,7 @@ pub async fn get_granted_resources(
     let offset = first.unwrap_or(0);
     let limit = max.unwrap_or(100);
 
-    let query = if let Some(name_pattern) = name_filter {
+    let query = if let Some(_name_pattern) = name_filter {
         r#"
             SELECT DISTINCT pt.resource_id
             FROM permission_tickets pt
@@ -236,7 +236,7 @@ pub async fn get_tickets_for_resource(
     resource_id: Uuid,
     granted: Option<bool>,
 ) -> Result<Vec<PermissionTicket>> {
-    let query = if let Some(granted_filter) = granted {
+    let query = if let Some(_granted_filter) = granted {
         r#"
             SELECT
                 id, resource_id, scope_id, owner, requester, granted,
@@ -274,7 +274,7 @@ pub async fn get_tickets_for_requester(
     requester: &str,
     granted: Option<bool>,
 ) -> Result<Vec<PermissionTicket>> {
-    let query = if let Some(granted_filter) = granted {
+    let query = if let Some(_granted_filter) = granted {
         r#"
             SELECT
                 id, resource_id, scope_id, owner, requester, granted,

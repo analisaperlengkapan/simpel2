@@ -13,6 +13,7 @@ use crate::services::user_store::UserStoreTrait;
 
 /// Batch permission check result
 #[derive(Debug, Clone)]
+#[allow(missing_docs)]
 pub struct BatchPermissionResult {
     pub user_id: String,
     pub resource: String,

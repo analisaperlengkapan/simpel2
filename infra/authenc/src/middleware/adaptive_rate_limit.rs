@@ -351,7 +351,7 @@ pub async fn adaptive_rate_limit_middleware(
             Ok(response)
         }
         Err(AuthencError::RateLimitExceeded) => {
-            let threat_level = state.get_threat_level();
+            let _threat_level = state.get_threat_level();
             Err(StatusCode::TOO_MANY_REQUESTS)
         }
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),

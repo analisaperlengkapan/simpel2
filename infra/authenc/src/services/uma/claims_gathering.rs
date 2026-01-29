@@ -57,23 +57,23 @@ pub enum ClaimValue {
 
 /// Claims gathering state
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ClaimsGatheringState {
+pub struct ClaimsGatheringState {
     /// State ID
-    id: String,
+    pub id: String,
     /// Permission ticket
-    ticket: String,
+    pub ticket: String,
     /// Required claims
-    required_claims: Vec<ClaimRequirement>,
+    pub required_claims: Vec<ClaimRequirement>,
     /// Subject ID
-    subject_id: String,
+    pub subject_id: String,
     /// Client ID
-    client_id: String,
+    pub client_id: String,
     /// Realm ID
-    realm_id: String,
+    pub realm_id: String,
     /// Expiration timestamp
-    expires_at: i64,
+    pub expires_at: i64,
     /// Collected claims so far
-    collected_claims: HashMap<String, ClaimValue>,
+    pub collected_claims: HashMap<String, ClaimValue>,
 }
 
 /// Claims gathering service

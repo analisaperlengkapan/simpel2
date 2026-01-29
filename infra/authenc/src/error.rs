@@ -704,7 +704,7 @@ impl AuthencError {
     }
 
     /// Create a too many requests error with custom message
-    pub fn too_many_requests<T: Into<String>>(message: T) -> Self {
+    pub fn too_many_requests<T: Into<String>>(_message: T) -> Self {
         Self::RateLimitExceeded
     }
 

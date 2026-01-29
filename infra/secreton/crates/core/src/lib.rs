@@ -5,8 +5,7 @@
 //! error handling, and common data structures.
 
 #![allow(async_fn_in_trait)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
+#![allow(unused)]
 
 // Re-export shared types from secreton-types
 pub use secreton_types::{Metadata, ResourceId, SecurityLevel, Tags};

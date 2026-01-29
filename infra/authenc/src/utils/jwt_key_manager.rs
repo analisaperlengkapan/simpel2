@@ -5,9 +5,9 @@
 
 use crate::secreton_client::{SecretonError, secreton_client::SecretonClient};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// JWT signing key with metadata
 #[derive(Clone, Debug)]
