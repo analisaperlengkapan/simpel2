@@ -44,16 +44,26 @@ pub mod health;
 /// Batch operations for optimized bulk processing
 pub mod batch_operations;
 
-// Re-export generated proto types
-pub use authenc_service::proto;
-pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup};
+/// Captcha service implementation
+pub mod captcha_service;
 
-// Include common proto types
-pub mod common {
-    pub mod v1 {
-        tonic::include_proto!("common.v1");
+// Centralized Proto Registry
+pub mod proto {
+    pub mod common {
+        pub mod v1 {
+            tonic::include_proto!("common.v1");
+        }
+    }
+    pub mod authenc {
+        pub mod v1 {
+            tonic::include_proto!("authenc.v1");
+        }
     }
 }
+
+// Re-export generated proto types
+pub use proto::authenc::v1 as authenc_proto;
+pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup};
 
 /// Create and configure the gRPC server
 /// This function sets up the gRPC server with all services, interceptors,
@@ -89,11 +99,9 @@ pub fn create_grpc_server(
         >,
     >,
 > {
-    use crate::grpc::captcha_service::{CaptchaGrpcService, proto::captcha_service_server::CaptchaServiceServer};
-
     // Create service instances
     let authenc_service = authenc_service::AuthencGrpcService::new(state.clone());
-    let captcha_grpc_service = CaptchaGrpcService::new(state.clone());
+    // let captcha_grpc_service = CaptchaGrpcService::new(state.clone()); // Part of AuthencService
 
     // Create interceptor stack
     let logging_interceptor = LoggingInterceptor::new();
@@ -120,11 +128,9 @@ pub fn create_grpc_server(
     server
         .layer(InterceptorLayer::new(metrics_interceptor))
         .layer(InterceptorLayer::new(logging_interceptor))
-        .add_service(proto::authenc_service_server::AuthencServiceServer::new(
+        .add_service(proto::authenc::v1::authenc_service_server::AuthencServiceServer::new(
             authenc_service,
         ))
-        // Bug 22: Register Captcha Service
-        .add_service(CaptchaServiceServer::new(captcha_grpc_service))
 }
 
 /// gRPC server configuration

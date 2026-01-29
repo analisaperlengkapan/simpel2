@@ -10,16 +10,8 @@ use crate::services::captcha::{
     BehavioralMetrics, CaptchaServiceTrait, ChallengeType as ServiceChallengeType,
 };
 
-// Include generated proto code
-pub mod proto {
-    pub mod authenc {
-        pub mod v1 {
-            tonic::include_proto!("authenc.v1");
-        }
-    }
-}
-
-use proto::authenc::v1::{
+use crate::grpc::proto::authenc::v1 as proto;
+use proto::{
     CaptchaChallengeRequest, CaptchaChallengeResponse, CaptchaVerificationRequest,
     CaptchaVerificationResponse, ChallengeType,
 };

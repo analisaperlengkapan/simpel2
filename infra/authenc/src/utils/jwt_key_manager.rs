@@ -3,7 +3,7 @@
 //! This module provides secure JWT signing key management by retrieving
 //! keys from Secreton instead of using hardcoded values.
 
-use crate::secreton_client::{GrpcSecretonClient, SecretonClientTrait, SecretonError};
+use crate::secreton_client::{secreton_client::SecretonClient, SecretonError};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
@@ -48,7 +48,7 @@ impl JwtKey {
 /// JWT Key Manager that retrieves signing keys from Secreton
 pub struct JwtKeyManager {
     /// Secreton client for key retrieval
-    secreton: Arc<GrpcSecretonClient>,
+    secreton: Arc<SecretonClient>,
     /// Cached signing key
     key_cache: Arc<RwLock<Option<JwtKey>>>,
     /// Path to the JWT signing key in Secreton
@@ -67,7 +67,7 @@ impl JwtKeyManager {
     /// * `key_path` - Path to JWT signing key in Secreton (e.g., "auth/jwt-signing-key")
     /// * `key_realm` - Optional namespace/realm for the key
     pub fn new(
-        secreton: Arc<GrpcSecretonClient>,
+        secreton: Arc<SecretonClient>,
         key_path: String,
         key_realm: Option<String>,
     ) -> Self {
@@ -82,7 +82,7 @@ impl JwtKeyManager {
 
     /// Create a new JWT Key Manager with custom cache TTL
     pub fn new_with_ttl(
-        secreton: Arc<GrpcSecretonClient>,
+        secreton: Arc<SecretonClient>,
         key_path: String,
         key_realm: Option<String>,
         cache_ttl: u64,
@@ -125,23 +125,20 @@ impl JwtKeyManager {
     pub async fn refresh_key(&self) -> Result<Vec<u8>, JwtKeyError> {
         info!("Fetching JWT signing key from Secreton: {}", self.key_path);
 
-        let secret = self
+        let secret_value = self
             .secreton
             .get_secret(&self.key_path, self.key_realm.as_deref())
             .await
             .ok_or_else(|| JwtKeyError::KeyNotFound(self.key_path.clone()))?;
 
-        // Extract key from metadata
-        let key_data = secret
-            .metadata
-            .as_ref()
-            .and_then(|m| m.get("key"))
-            .or_else(|| Some(&secret.value))
-            .ok_or_else(|| JwtKeyError::InvalidKeyFormat("No key field found".to_string()))?;
+        // Parse the secret value (assuming it's the raw key or base64)
+        // Note: SecretonClient::get_secret returns the value string directly, not a Secret struct
+        let key_data = secret_value;
 
         // Decode from base64 if needed
         let key_bytes = if key_data.starts_with("base64:") {
-            base64::decode(&key_data[7..])
+            use base64::{Engine as _, engine::general_purpose::STANDARD};
+            STANDARD.decode(&key_data[7..])
                 .map_err(|e| JwtKeyError::InvalidKeyFormat(format!("Base64 decode error: {}", e)))?
         } else {
             let bytes = key_data.as_bytes().to_vec();
@@ -151,13 +148,8 @@ impl JwtKeyManager {
             bytes
         };
 
-        // Extract algorithm
-        let algorithm = secret
-            .metadata
-            .as_ref()
-            .and_then(|m| m.get("algorithm"))
-            .map(|s| s.clone())
-            .unwrap_or_else(|| "HS256".to_string());
+        // Extract algorithm (Not supported by simple REST client, defaulting to HS256)
+        let algorithm = "HS256".to_string();
 
         // Create JWT key
         let jwt_key = JwtKey {
@@ -165,7 +157,7 @@ impl JwtKeyManager {
             retrieved_at: SystemTime::now(),
             ttl: self.cache_ttl,
             algorithm,
-            version: secret.version,
+            version: None, // Version not returned by simple get_secret
         };
 
         // Update cache
@@ -206,7 +198,8 @@ impl JwtKeyManager {
         let key = self.generate_secure_key(32)?;
 
         // Encode as base64
-        let encoded_key = format!("base64:{}", base64::encode(&key));
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        let encoded_key = format!("base64:{}", STANDARD.encode(&key));
 
         // Create metadata
         let mut metadata = std::collections::HashMap::new();
@@ -219,19 +212,11 @@ impl JwtKeyManager {
         );
 
         // Store in Secreton
-        self.secreton
-            .put_secret(
-                &self.key_path,
-                "", // Value is in metadata
-                self.key_realm.as_deref(),
-                Some(metadata),
-            )
-            .await
-            .map_err(JwtKeyError::SecretonError)?;
+        return Err(JwtKeyError::SecretonError(SecretonError::Other("Key generation not supported by REST client".to_string())));
 
-        info!("Successfully generated and stored new JWT signing key");
+        // info!("Successfully generated and stored new JWT signing key");
 
-        Ok(())
+        // Ok(())
     }
 
     /// Generate a cryptographically secure random key

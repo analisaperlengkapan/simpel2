@@ -658,6 +658,7 @@ fn row_to_challenge(row: Row) -> Result<Challenge> {
         ip_address: ip_address.to_string(),
         encrypted_challenge_data: None, // Legacy records don't have encrypted metadata
         is_encrypted: false,            // Legacy records use unencrypted storage
+        plaintext_data: None,
     })
 }
 

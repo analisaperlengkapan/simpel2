@@ -13,12 +13,8 @@ use crate::health::checks::{
     DatabaseHealthCheck, KafkaHealthCheck, RedisHealthCheck, SecretonHealthCheck,
 };
 
-// Include common proto for health check types
-pub mod common {
-    pub mod v1 {
-        tonic::include_proto!("common.v1");
-    }
-}
+// Use shared proto from grpc module
+pub use crate::grpc::proto::common;
 
 use common::v1::{DependencyHealth, HealthInfo, HealthStatus};
 

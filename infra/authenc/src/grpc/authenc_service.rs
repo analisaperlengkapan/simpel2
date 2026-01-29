@@ -14,11 +14,9 @@ use crate::services::stores::UserStoreTrait;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-// Include generated proto code
-pub use super::common;
-pub mod proto {
-    tonic::include_proto!("authenc.v1");
-}
+// Use shared proto from grpc module
+pub use crate::grpc::proto::authenc::v1 as proto;
+pub use crate::grpc::proto::common;
 
 use proto::{
     AssignRoleRequest,

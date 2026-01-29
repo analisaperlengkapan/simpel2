@@ -57,10 +57,14 @@ runs:
         # Install to local bin
         mkdir -p $HOME/.local/bin
         mv protoc/bin/protoc $HOME/.local/bin/
-        # Move include files if needed, but for rust normally protoc binary is enough or build script handles it?
-        # Typically prost-build needs 'protoc' in PATH.
+
+        # Install include files (Critical for Google standard types like Timestamp)
+        mkdir -p $HOME/.local/include
+        mv protoc/include/* $HOME/.local/include/
+
         chmod +x $HOME/.local/bin/protoc
         echo "$HOME/.local/bin" >> $GITHUB_PATH
+        echo "PROTOC_INCLUDE=$HOME/.local/include" >> $GITHUB_ENV
 
         # Verify
         $HOME/.local/bin/protoc --version

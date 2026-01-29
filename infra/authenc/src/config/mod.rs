@@ -581,6 +581,9 @@ pub struct BasicSecurityConfig {
     /// Secret key for JWT signing and validation
     pub jwt_secret: String,
 
+    /// Path to JWT signing key in Secreton
+    pub jwt_secret_path: Option<String>,
+
     /// JWT token expiration time in seconds
     #[serde(default = "default_jwt_expiry")]
     pub jwt_expiry: u64,
@@ -618,6 +621,7 @@ impl Default for BasicSecurityConfig {
     fn default() -> Self {
         Self {
             jwt_secret: "default_jwt_secret_change_in_production".to_string(),
+            jwt_secret_path: None,
             jwt_expiry: default_jwt_expiry(),
             password_min_length: default_password_min_length(),
             rate_limit_requests: default_rate_limit_requests(),
@@ -1068,6 +1072,7 @@ impl Default for AppConfig {
             security: BasicSecurityConfig {
                 jwt_secret: env::var("JWT_SECRET")
                     .unwrap_or_else(|_| "default_jwt_secret_change_in_production".to_string()),
+                jwt_secret_path: None,
                 jwt_expiry: default_jwt_expiry(),
                 password_min_length: default_password_min_length(),
                 rate_limit_requests: default_rate_limit_requests(),
