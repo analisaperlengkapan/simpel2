@@ -47,11 +47,10 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
             if status.is_success() {
                 println!("   ✅ Connectivity: OK");
 
-                if let Ok(health) = response.json::<serde_json::Value>().await {
-                    if let Some(version) = health.get("version").and_then(|v| v.as_str()) {
+                if let Ok(health) = response.json::<serde_json::Value>().await
+                    && let Some(version) = health.get("version").and_then(|v| v.as_str()) {
                         println!("   📦 Version: {}", version);
                     }
-                }
             } else {
                 println!(
                     "   ⚠️  Connectivity: Server responded with status {}",

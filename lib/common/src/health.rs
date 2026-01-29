@@ -5,6 +5,7 @@ use std::collections::HashMap;
 /// Overall health status of a service or dependency
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum HealthStatus {
     /// Service is fully operational
     Healthy,
@@ -13,14 +14,10 @@ pub enum HealthStatus {
     /// Service is not operational
     Unhealthy,
     /// Status cannot be determined
+    #[default]
     Unknown,
 }
 
-impl Default for HealthStatus {
-    fn default() -> Self {
-        Self::Unknown
-    }
-}
 
 impl HealthStatus {
     /// Convert to i32 for protobuf compatibility

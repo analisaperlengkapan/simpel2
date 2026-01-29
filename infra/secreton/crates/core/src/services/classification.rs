@@ -291,8 +291,8 @@ impl ClassificationService for InMemoryClassificationService {
         let mut classifications = self.classifications.write().await;
 
         // Check if downgrading classification
-        if let Some(existing) = classifications.get(path) {
-            if level < existing.level {
+        if let Some(existing) = classifications.get(path)
+            && level < existing.level {
                 warn!(
                     path = %path,
                     old_level = %existing.level,
@@ -320,7 +320,6 @@ impl ClassificationService for InMemoryClassificationService {
                     "Cannot downgrade classification level",
                 ));
             }
-        }
 
         let metadata = ClassificationMetadata::new(level, user_id.to_string());
         classifications.insert(path.to_string(), metadata);
@@ -610,7 +609,7 @@ impl ClassificationService for InMemoryClassificationService {
     async fn get_violations(&self, limit: usize) -> Result<Vec<PolicyViolation>> {
         let violations = self.violations.read().await;
         let len = violations.len();
-        let start = if len > limit { len - limit } else { 0 };
+        let start = len.saturating_sub(limit);
         Ok(violations[start..].to_vec())
     }
 

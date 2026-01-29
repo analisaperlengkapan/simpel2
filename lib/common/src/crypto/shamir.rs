@@ -446,7 +446,7 @@ pub struct ShamirConfig {
 
 impl ShamirConfig {
     pub fn new(threshold: usize, num_shares: usize) -> Result<Self> {
-        if threshold < 2 || threshold > MAX_THRESHOLD {
+        if !(2..=MAX_THRESHOLD).contains(&threshold) {
             return Err(ShamirError::InvalidThreshold);
         }
         if num_shares <= threshold || num_shares > MAX_SHARES {
@@ -655,7 +655,7 @@ fn lagrange_interpolate(points: &[(Scalar, Scalar)]) -> Result<Scalar> {
 
 /// Reconstruct secret from shares
 pub fn reconstruct_secret(shares: &[Share], threshold: usize) -> Result<Vec<u8>> {
-    if threshold < 2 || threshold > MAX_THRESHOLD {
+    if !(2..=MAX_THRESHOLD).contains(&threshold) {
         return Err(ShamirError::InvalidThreshold);
     }
     if shares.len() < threshold {

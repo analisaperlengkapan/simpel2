@@ -368,7 +368,7 @@ pub fn PidumDashboard() -> impl IntoView {
 #[component]
 pub fn DaftarPerkara() -> impl IntoView {
     // Using a local resource for non-Send futures (WASM)
-    let perkara_resource = LocalResource::new(|| fetch_perkara_list());
+    let perkara_resource = LocalResource::new(fetch_perkara_list);
 
     view! {
         <div class="space-y-6">

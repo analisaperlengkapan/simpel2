@@ -477,11 +477,10 @@ pub async fn logout(
     };
 
     // Invalidate token
-    if !token.is_empty() {
-        if let Err(e) = state.auth.revoke_token(token).await {
+    if !token.is_empty()
+        && let Err(e) = state.auth.revoke_token(token).await {
             tracing::warn!("Failed to revoke token during logout: {}", e);
         }
-    }
 
     // Audit log
     let audit_entry = secreton_core::audit::AuditLog {

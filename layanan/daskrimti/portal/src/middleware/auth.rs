@@ -201,9 +201,9 @@ pub async fn optional_auth_middleware(
     // Try to extract bearer token
     if let Some(token) = extract_bearer_token(&request) {
         // Try to validate token
-        if let Ok(validation) = state.authenc.validate_token(&token).await {
-            if validation.valid {
-                if let Some(user_id) = validation.user_id {
+        if let Ok(validation) = state.authenc.validate_token(&token).await
+            && validation.valid
+                && let Some(user_id) = validation.user_id {
                     let auth_context = AuthContext {
                         user_id: user_id.clone(),
                         username: user_id.clone(),
@@ -215,8 +215,6 @@ pub async fn optional_auth_middleware(
                     request.extensions_mut().insert(user_id);
                     request.extensions_mut().insert(token);
                 }
-            }
-        }
     }
 
     // Continue regardless of auth status

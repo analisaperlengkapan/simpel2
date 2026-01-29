@@ -55,7 +55,7 @@ pub fn AudioChallenge(
                         utterance.set_volume(0.8);
 
                         // Set up event handlers
-                        let set_audio_playing_clone = set_audio_playing.clone();
+                        let set_audio_playing_clone = set_audio_playing;
                         let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                             set_audio_playing_clone.set(false);
                         })
@@ -132,7 +132,8 @@ pub fn AudioChallenge(
                              </Button>
                          }.into_any()
                      } else {
-                         view! {}.into_any()
+                         let _: () = view! {};
+                         ().into_any()
                      }}
                  </div>
 
@@ -323,8 +324,8 @@ pub fn AlternativeInputs(
                                 js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
 
                             // Set up result handler
-                            let on_answer_clone = on_answer.clone();
-                            let set_voice_input_active_clone = set_voice_input_active.clone();
+                            let on_answer_clone = on_answer;
+                            let set_voice_input_active_clone = set_voice_input_active;
                             let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
                                 move |event: web_sys::Event| {
                                     // Extract speech result
@@ -362,7 +363,7 @@ pub fn AlternativeInputs(
                             onresult.forget();
 
                             // Set up error handler
-                            let set_voice_input_active_clone_err = set_voice_input_active.clone();
+                            let set_voice_input_active_clone_err = set_voice_input_active;
                             let onerror = wasm_bindgen::closure::Closure::wrap(Box::new(
                                 move |_e: web_sys::Event| {
                                     set_voice_input_active_clone_err.set(false);
@@ -377,7 +378,7 @@ pub fn AlternativeInputs(
                             onerror.forget();
 
                             // Set up end handler
-                            let set_voice_input_active_clone_end = set_voice_input_active.clone();
+                            let set_voice_input_active_clone_end = set_voice_input_active;
                             let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                                 set_voice_input_active_clone_end.set(false);
                             })
@@ -559,7 +560,7 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
                             let on_end = wasm_bindgen::closure::Closure::once_into_js(move || {
                                 let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
                             });
-                            let _ = utterance.set_onend(Some(on_end.as_ref().unchecked_ref()));
+                            utterance.set_onend(Some(on_end.as_ref().unchecked_ref()));
 
                             // Error handler
                             let resolve_error = resolve.clone();
@@ -567,7 +568,7 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
                                 wasm_bindgen::closure::Closure::once_into_js(move || {
                                     let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
                                 });
-                            let _ = utterance.set_onerror(Some(on_error.as_ref().unchecked_ref()));
+                            utterance.set_onerror(Some(on_error.as_ref().unchecked_ref()));
 
                             synthesis.speak(&utterance);
                         });

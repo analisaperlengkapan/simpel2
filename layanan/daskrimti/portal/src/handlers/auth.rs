@@ -198,20 +198,18 @@ pub async fn logout(
     let mut success = true;
 
     // Revoke access token if provided
-    if let Some(access_token) = &request.access_token {
-        if let Err(err) = state.authenc.revoke_token(access_token, false).await {
+    if let Some(access_token) = &request.access_token
+        && let Err(err) = state.authenc.revoke_token(access_token, false).await {
             error!("Failed to revoke access token: {}", err);
             success = false;
         }
-    }
 
     // Revoke refresh token if provided
-    if let Some(refresh_token) = &request.refresh_token {
-        if let Err(err) = state.authenc.revoke_token(refresh_token, true).await {
+    if let Some(refresh_token) = &request.refresh_token
+        && let Err(err) = state.authenc.revoke_token(refresh_token, true).await {
             error!("Failed to revoke refresh token: {}", err);
             success = false;
         }
-    }
 
     if success {
         info!("Logout successful");

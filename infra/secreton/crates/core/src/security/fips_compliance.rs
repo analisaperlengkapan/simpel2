@@ -9,8 +9,10 @@ use serde::{Deserialize, Serialize};
 
 /// FIPS 140 Compliance Levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum FipsLevel {
     /// Not FIPS compliant
+    #[default]
     None,
     /// FIPS 140-2 Level 1
     Fips140_2Level1,
@@ -30,11 +32,6 @@ pub enum FipsLevel {
     Fips140_3Level4,
 }
 
-impl Default for FipsLevel {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
 /// Trait for components that can report their FIPS compliance level
 pub trait FipsCompliant {

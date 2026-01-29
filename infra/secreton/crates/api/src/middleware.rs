@@ -145,12 +145,11 @@ pub fn validate_client_certificate(
 ) -> CertificateValidation {
     // Check cache first
     let cache_key = generate_cache_key(cert_der, allowed_subjects);
-    if let Some(cache) = get_cert_cache() {
-        if let Some(validation) = cache.get(&cache_key) {
+    if let Some(cache) = get_cert_cache()
+        && let Some(validation) = cache.get(&cache_key) {
             debug!("Certificate cache hit for key: {}", cache_key);
             return validation;
         }
-    }
 
     // Parse certificate
     match x509_parser::parse_x509_certificate(cert_der) {
@@ -559,8 +558,8 @@ pub async fn auth_middleware(
             .to_string(),
         user_id: Some(user.id.to_string()),
         user_email: Some(user.email.clone()),
-        user_roles: user_roles,
-        user_permissions: user_permissions,
+        user_roles,
+        user_permissions,
         start_time: Instant::now(),
         jwt_claims,
         auth_token: Some(token),
@@ -589,9 +588,9 @@ pub async fn rate_limit(
     let client_ip = ctx.ip_address.as_deref().unwrap_or("unknown");
 
     // Check rate limit
-    if let Ok(mut limiter_guard) = RATE_LIMITER.lock() {
-        if let Some(ref mut limiter) = *limiter_guard {
-            if !limiter.check_rate_limit(client_ip) {
+    if let Ok(mut limiter_guard) = RATE_LIMITER.lock()
+        && let Some(ref mut limiter) = *limiter_guard
+            && !limiter.check_rate_limit(client_ip) {
                 warn!("Rate limit exceeded for client: {}", client_ip);
                 return Err((
                     StatusCode::TOO_MANY_REQUESTS,
@@ -602,8 +601,6 @@ pub async fn rate_limit(
                     })),
                 ));
             }
-        }
-    }
     // Guard is dropped here
 
     Ok(next.run(request).await)
@@ -631,10 +628,10 @@ pub async fn request_size_limit(
     const MAX_REQUEST_SIZE: usize = 1024 * 1024; // 1MB
 
     // Check content-length header
-    if let Some(content_length) = request.headers().get("content-length") {
-        if let Ok(length_str) = content_length.to_str() {
-            if let Ok(length) = length_str.parse::<usize>() {
-                if length > MAX_REQUEST_SIZE {
+    if let Some(content_length) = request.headers().get("content-length")
+        && let Ok(length_str) = content_length.to_str()
+            && let Ok(length) = length_str.parse::<usize>()
+                && length > MAX_REQUEST_SIZE {
                     return Err((
                         StatusCode::PAYLOAD_TOO_LARGE,
                         Json(serde_json::json!({
@@ -644,9 +641,6 @@ pub async fn request_size_limit(
                         })),
                     ));
                 }
-            }
-        }
-    }
 
     Ok(next.run(request).await)
 }
@@ -719,7 +713,7 @@ fn is_whitelisted(path: &str) -> bool {
         "/v1/sys/init",
         "/api/v1/sys/init",
     ];
-    WHITELISTED_PATHS.contains(&(&path))
+    WHITELISTED_PATHS.contains((&path))
 }
 
 /// Metrics middleware
@@ -1089,8 +1083,8 @@ pub async fn policy_check_middleware(
         record_policy_evaluation_metrics(allowed, evaluation_time);
 
         // Extract context for audit logging
-        let client_ip = extract_ip_from_headers(request.headers()).map(String::from);
-        let user_agent = extract_user_agent_from_headers(request.headers()).map(String::from);
+        let client_ip = extract_ip_from_headers(request.headers());
+        let user_agent = extract_user_agent_from_headers(request.headers());
         let namespace = extract_namespace_from_path(path);
 
         if !allowed {

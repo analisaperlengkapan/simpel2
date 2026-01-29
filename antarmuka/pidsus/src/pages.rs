@@ -37,7 +37,8 @@ pub fn PidsusDashboard() -> impl IntoView {
             {move || if let Some(err) = error_msg.get() {
                  view! { <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">{err}</div> }.into_any()
             } else {
-                 view! {}.into_any()
+                 let _: () = view! {};
+                 ().into_any()
             }}
 
             // Quick Statistics

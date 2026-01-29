@@ -189,7 +189,7 @@ impl DependencyGraph {
     fn add_dependency(&mut self, parent: String, child: String) {
         self.dependencies
             .entry(parent)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(child);
     }
 

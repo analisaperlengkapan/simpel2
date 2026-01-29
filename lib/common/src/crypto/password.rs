@@ -171,11 +171,10 @@ pub fn check_password_history(
     let check_count = password_history.len().min(history_limit);
 
     for hash in password_history.iter().take(check_count) {
-        if let Ok(matches) = verify_password(hash, password) {
-            if matches {
+        if let Ok(matches) = verify_password(hash, password)
+            && matches {
                 return true;
             }
-        }
     }
 
     false

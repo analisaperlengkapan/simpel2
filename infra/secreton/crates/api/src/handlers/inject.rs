@@ -59,18 +59,15 @@ pub struct SecretPath {
 /// Environment variable format
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum EnvFormat {
     /// Flat format: SECRET_KEY=value
+    #[default]
     Flat,
     /// Nested format: SECRET_PATH_KEY=value
     Nested,
 }
 
-impl Default for EnvFormat {
-    fn default() -> Self {
-        Self::Flat
-    }
-}
 
 /// Response containing environment variables
 #[derive(Debug, Serialize)]
@@ -126,7 +123,7 @@ pub async fn inject_env(
 
     // Calculate expiration
     let ttl = request.ttl.unwrap_or(3600);
-    if ttl < 1 || ttl > 86400 {
+    if !(1..=86400).contains(&ttl) {
         return Err(ApiError::BadRequest {
             message: "TTL must be between 1 and 86400 seconds".to_string(),
         });

@@ -55,13 +55,12 @@ impl CircuitBreaker {
             CircuitBreakerState::Closed => true,
             CircuitBreakerState::Open => {
                 drop(state);
-                if let Some(last_failure) = *self.last_failure_time.read().await {
-                    if last_failure.elapsed() >= self.timeout {
+                if let Some(last_failure) = *self.last_failure_time.read().await
+                    && last_failure.elapsed() >= self.timeout {
                         *self.state.write().await = CircuitBreakerState::HalfOpen;
                         *self.success_count.write().await = 0;
                         return true;
                     }
-                }
                 false
             }
             CircuitBreakerState::HalfOpen => true,

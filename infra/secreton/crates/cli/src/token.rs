@@ -357,8 +357,8 @@ async fn token_renew_command(config: &CliConfig, increment: Option<String>) -> R
     }
 
     // Update stored token with new expiration
-    if let Some(expires_str) = &renew_data.expires_at {
-        if let Ok(expires_dt) = chrono::DateTime::parse_from_rfc3339(expires_str) {
+    if let Some(expires_str) = &renew_data.expires_at
+        && let Ok(expires_dt) = chrono::DateTime::parse_from_rfc3339(expires_str) {
             let mut updated_metadata = current_token.metadata.clone();
             updated_metadata.expires_at = Some(expires_dt.with_timezone(&chrono::Utc));
 
@@ -366,7 +366,6 @@ async fn token_renew_command(config: &CliConfig, increment: Option<String>) -> R
                 .store_token(&current_token.token, &updated_metadata)
                 .context("Failed to update stored token")?;
         }
-    }
 
     Ok(())
 }

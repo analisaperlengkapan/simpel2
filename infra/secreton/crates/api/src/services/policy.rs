@@ -715,21 +715,19 @@ impl PolicyService {
                 });
             }
 
-            if rule.action != "*" && Capability::from_str(&rule.action).is_none() {
-                if !rule.action.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            if rule.action != "*" && Capability::from_str(&rule.action).is_none()
+                && !rule.action.chars().all(|c| c.is_alphanumeric() || c == '_') {
                     return Err(CoreError::Validation {
                         message: format!("Rule {}: Invalid action format", idx),
                     });
                 }
-            }
 
-            if let Some(cg) = &rule.control_group {
-                if cg.required_approvals == 0 {
+            if let Some(cg) = &rule.control_group
+                && cg.required_approvals == 0 {
                     return Err(CoreError::Validation {
                         message: format!("Rule {}: Control group approvals must be > 0", idx),
                     });
                 }
-            }
 
             if let Some(condition) = &rule.condition {
                 Self::validate_condition(condition, idx)?;
@@ -753,34 +751,29 @@ impl PolicyService {
                 });
             }
 
-            if let Some(start) = time_range.get("start") {
-                if let Some(start_str) = start.as_str() {
-                    if chrono::DateTime::parse_from_rfc3339(start_str).is_err() {
+            if let Some(start) = time_range.get("start")
+                && let Some(start_str) = start.as_str()
+                    && chrono::DateTime::parse_from_rfc3339(start_str).is_err() {
                         return Err(CoreError::Validation {
                             message: format!("Rule {}: Invalid start time format", rule_idx),
                         });
                     }
-                }
-            }
 
-            if let Some(end) = time_range.get("end") {
-                if let Some(end_str) = end.as_str() {
-                    if chrono::DateTime::parse_from_rfc3339(end_str).is_err() {
+            if let Some(end) = time_range.get("end")
+                && let Some(end_str) = end.as_str()
+                    && chrono::DateTime::parse_from_rfc3339(end_str).is_err() {
                         return Err(CoreError::Validation {
                             message: format!("Rule {}: Invalid end time format", rule_idx),
                         });
                     }
-                }
-            }
         }
 
-        if let Some(allowed_ips) = condition.get("allowed_ips") {
-            if !allowed_ips.is_array() {
+        if let Some(allowed_ips) = condition.get("allowed_ips")
+            && !allowed_ips.is_array() {
                 return Err(CoreError::Validation {
                     message: format!("Rule {}: allowed_ips must be an array", rule_idx),
                 });
             }
-        }
 
         if let Some(expr) = condition.get("expression") {
             if !expr.is_object() {

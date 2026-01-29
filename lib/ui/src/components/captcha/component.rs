@@ -71,8 +71,8 @@ pub fn Captcha(
         let session_id_val = session_id_verify.clone();
 
         // Clone callbacks for async block
-        let on_success_clone = on_success.clone();
-        let on_failure_clone = on_failure.clone();
+        let on_success_clone = on_success;
+        let on_failure_clone = on_failure;
 
         spawn_local(async move {
             // Get backend URL - use window.location.origin for same-origin requests
@@ -86,7 +86,7 @@ pub fn Captcha(
             // Prepare validation request
             let validation_request = ValidationRequest {
                 challenge_id: challenge_id_val,
-                answer: answer,
+                answer,
                 behavioral_data: Some(behavioral_data_val),
             };
 
@@ -752,7 +752,7 @@ pub fn ChallengeInput(
             // Prepare validation request
             let validation_request = ValidationRequest {
                 challenge_id: challenge_id_val,
-                answer: answer,
+                answer,
                 behavioral_data: Some(behavioral_data_val),
             };
 
@@ -874,7 +874,7 @@ pub fn ChallengeInput(
                             <div class="grid grid-cols-2 gap-3">
                                 {
                                     let options = challenge_parser::parse_answer_options(challenge_data.clone());
-                                    options.into_iter().enumerate().map(|(_idx, option)| {
+                                    options.into_iter().map(|option| {
                                         let option_clone = option.clone();
                                         view! {
                                             <button

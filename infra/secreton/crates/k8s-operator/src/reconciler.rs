@@ -42,13 +42,12 @@ impl Reconciler {
         }
 
         // Validate refresh interval
-        if let Some(interval) = spec.refresh_interval {
-            if interval < 10 {
+        if let Some(interval) = spec.refresh_interval
+            && interval < 10 {
                 return Err(Error::ReconciliationFailed(
                     "Refresh interval must be at least 10 seconds".to_string(),
                 ));
             }
-        }
 
         Ok(())
     }
