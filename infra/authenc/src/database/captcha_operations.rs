@@ -214,6 +214,14 @@ impl CaptchaOperations {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
+        tracing::info!(
+            "Recording validation attempt: challenge_id={}, ip={}, success={}, risk={}",
+            challenge_id,
+            ip_address,
+            success,
+            risk_assessment_str
+        );
+
         self.db
             .execute(
                 query,
@@ -391,6 +399,13 @@ impl CaptchaOperations {
                 memory_usage_mb, cpu_usage_percent
             ) VALUES ($1, to_timestamp($2), $3, $4, $5, $6, $7, $8, $9, $10)
         "#;
+
+        tracing::info!(
+            "Storing performance metrics: id={}, latency={}, success_rate={}",
+            metrics.metric_id,
+            metrics.challenge_generation_latency_ms,
+            metrics.success_rate
+        );
 
         self.db
             .execute(

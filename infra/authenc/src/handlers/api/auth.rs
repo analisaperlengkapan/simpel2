@@ -215,6 +215,7 @@ pub async fn login(
         let payload = format!("{}:{}", challenge_id, timestamp_str);
         let secret = &state.config.security.jwt_secret;
 
+        // Use HKDF to derive key (matching gRPC and Validation logic)
         let hk = hkdf::Hkdf::<Sha256>::new(None, secret.as_bytes());
         let mut captcha_key = [0u8; 32];
         hk.expand(b"captcha-v1", &mut captcha_key).map_err(|_| AuthencError::internal("HKDF expansion failed"))?;
@@ -229,9 +230,7 @@ pub async fn login(
             return Err(AuthencError::unauthorized("Invalid CAPTCHA signature"));
         }
     } else {
-        // In government security policy, CAPTCHA is often mandatory for login
-        // But we'll allow it to be optional for now if the user hasn't failed yet,
-        // OR we can make it mandatory. Since daskrimti-portal ALWAYS sends it, we'll enforce it.
+        // Policy: Require CAPTCHA for all login attempts
         return Err(AuthencError::unauthorized("CAPTCHA verification required"));
     }
 

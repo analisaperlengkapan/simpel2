@@ -60,7 +60,7 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
         enabled: true,
         suspicious_threshold_rpm: 50, // Lower threshold for CAPTCHA endpoints
         monitored_paths: vec![
-            "/captcha/validate".to_string(),
+            "/captcha/verify".to_string(),
             "/captcha/challenge".to_string(),
         ],
         log_auth_attempts: true,

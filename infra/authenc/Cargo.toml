@@ -134,26 +134,15 @@ bcrypt = "0.17.1"
 # RSA REMOVED: Vulnerable to timing attacks (RUSTSEC-2023-0071) - replaced with Ed25519
 
 # Database
-tokio-postgres = { version = "0.7.14", optional = true, features = [
-    "with-serde_json-1",
-    "with-uuid-1",
-    "with-time-0_3",
-    "with-chrono-0_4",
-] }
-deadpool-postgres = { version = "0.14.1", optional = true, features = [
-    "serde",
-] }
-
-# Caching
-redis = { version = "0.32.7", features = [
-    "tokio-comp",
-    "connection-manager",
-    "json",
-] }
+tokio-postgres = { workspace = true, optional = true }
+deadpool-postgres = { workspace = true, optional = true }
+postgres-types = { workspace = true, features = ["derive"] }
+refinery = { workspace = true, features = ["tokio-postgres"] }
+redis = { workspace = true }
 lru = "0.16.3"
 
 # Serialization & Data
-uuid = { version = "1.11.1", features = ["v4", "serde", "js"] }
+uuid = { workspace = true, features = ["v4", "serde", "js"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.140"
 toml = "0.8"

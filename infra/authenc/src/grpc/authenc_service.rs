@@ -1060,6 +1060,7 @@ impl AuthencService for AuthencGrpcService {
             let payload = format!("{}:{}", req.challenge_id, timestamp);
             let secret = &self.state.config.security.jwt_secret;
 
+            // Use HKDF to derive a specific key for CAPTCHA tokens (matching REST/Validation logic)
             let hk = hkdf::Hkdf::<Sha256>::new(None, secret.as_bytes());
             let mut captcha_key = [0u8; 32];
             hk.expand(b"captcha-v1", &mut captcha_key)
