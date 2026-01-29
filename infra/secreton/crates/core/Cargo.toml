@@ -113,7 +113,7 @@ proptest.workspace = true
 default = []
 test-utils = []
 enable-inline-tests = []
-consul = []
+consul = ["secreton-storage/consul"]
 redis = []
 
 # Forward storage backend features
