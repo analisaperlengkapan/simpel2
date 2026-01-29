@@ -75,6 +75,9 @@ pub struct Challenge {
     /// Flag indicating if challenge is encrypted
     #[serde(default)]
     pub is_encrypted: bool,
+    /// Transient field to hold plaintext data for immediate response (not stored/serialized)
+    #[serde(skip)]
+    pub plaintext_data: Option<String>,
 }
 
 impl Challenge {
@@ -102,6 +105,7 @@ impl Challenge {
             ip_address,
             encrypted_challenge_data: None,
             is_encrypted: false,
+            plaintext_data: None,
         }
     }
 
@@ -114,6 +118,12 @@ impl Challenge {
     /// Set encryption flag
     pub fn with_encryption_flag(mut self, is_encrypted: bool) -> Self {
         self.is_encrypted = is_encrypted;
+        self
+    }
+
+    /// Set plaintext data (transient)
+    pub fn with_plaintext_data(mut self, data: String) -> Self {
+        self.plaintext_data = Some(data);
         self
     }
 

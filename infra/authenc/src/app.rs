@@ -114,6 +114,8 @@ pub struct AppState {
     pub captcha_service: Arc<crate::services::captcha::CaptchaService>,
     /// Risk engine for dynamic difficulty
     pub risk_engine: Arc<crate::services::risk_engine::RiskEngine>,
+    /// JWT Key Manager for dynamic key retrieval
+    pub jwt_key_manager: Arc<crate::utils::jwt_key_manager::JwtKeyManager>,
 }
 
 impl AppState {
@@ -514,6 +516,18 @@ impl AppState {
             secreton_token,
         ));
 
+        // Initialize JWT Key Manager
+        let jwt_key_manager = Arc::new(crate::utils::jwt_key_manager::JwtKeyManager::new(
+            secreton_client.clone(),
+            config.security.jwt_secret_path.clone().unwrap_or_else(|| "auth/jwt-signing-key".to_string()),
+            None,
+        ));
+
+        // Ensure key exists
+        if let Err(e) = jwt_key_manager.initialize_key_if_missing().await {
+             tracing::warn!("Failed to initialize JWT key in Secreton: {}", e);
+        }
+
         // Get database pool for direct access
         let db_pool = database.get_pool();
 
@@ -755,6 +769,7 @@ impl AppState {
 
             captcha_service,
             risk_engine,
+            jwt_key_manager,
         })
     }
 

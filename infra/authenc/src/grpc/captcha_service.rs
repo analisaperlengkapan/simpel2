@@ -98,7 +98,8 @@ impl CaptchaGrpcService {
         let response = CaptchaChallengeResponse {
             challenge_id: challenge.id,
             challenge_type: Self::convert_challenge_type_to_proto(&challenge.challenge_type),
-            challenge_data: challenge.encrypted_data,
+            // Use plaintext data if available (Bug 17 fix), otherwise fallback to encrypted_data field
+            challenge_data: challenge.plaintext_data.unwrap_or(challenge.encrypted_data),
             difficulty: challenge.difficulty_level as u32,
             expires_at: challenge
                 .expires_at
@@ -116,13 +117,13 @@ impl CaptchaGrpcService {
         &self,
         request: Request<CaptchaVerificationRequest>,
     ) -> Result<Response<CaptchaVerificationResponse>, Status> {
-        let req = request.into_inner();
-
-        // Get IP from metadata
+        // Get IP from metadata (must be done before consuming request)
         let ip_address = request
             .remote_addr()
             .map(|addr| addr.ip().to_string())
             .unwrap_or_else(|| "0.0.0.0".to_string());
+
+        let req = request.into_inner();
 
         // Get CAPTCHA service from app state
         let captcha_service = &self.state.captcha_service;

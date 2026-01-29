@@ -32,6 +32,7 @@ pub struct CaptchaResponse {
 pub struct VerifyRequest {
     pub challenge_id: String,
     pub answer: String,
+    pub session_id: String,
     pub behavioral_data: Option<serde_json::Value>,
 }
 
@@ -102,6 +103,7 @@ pub async fn verify_captcha(
         .verify_captcha(
             &request.challenge_id,
             &request.answer,
+            &request.session_id,
             request.behavioral_data,
         )
         .await

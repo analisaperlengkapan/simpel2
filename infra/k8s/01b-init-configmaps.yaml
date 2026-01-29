@@ -10,31 +10,37 @@ metadata:
     app.kubernetes.io/name: postgres
     app.kubernetes.io/component: initialization
 data:
-  init.sql: |
-    -- Create databases for each service
-    CREATE USER authenc WITH PASSWORD 'authenc-dev-password-2024';
-    CREATE USER secreton WITH PASSWORD 'secreton-dev-password-2024';
-    CREATE DATABASE simpelv2 WITH OWNER = simpelv2;
-    CREATE DATABASE simpelv2_authenc WITH OWNER = simpelv2;
-    CREATE DATABASE simpelv2_secreton WITH OWNER = simpelv2;
+  init.sh: |
+    #!/bin/bash
+    set -e
 
-    -- Grant privileges
-    GRANT ALL PRIVILEGES ON DATABASE simpelv2 TO simpelv2;
-    GRANT ALL PRIVILEGES ON DATABASE simpelv2_authenc TO authenc;
-    GRANT ALL PRIVILEGES ON DATABASE simpelv2_secreton TO secreton;
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        -- Create databases for each service
+        CREATE USER authenc WITH PASSWORD '${AUTHENC_DB_PASSWORD}';
+        CREATE USER secreton WITH PASSWORD '${SECRETON_DB_PASSWORD}';
 
-    -- Create extension for UUID generation
-    \c simpelv2
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+        CREATE DATABASE simpelv2 WITH OWNER = simpelv2;
+        CREATE DATABASE simpelv2_authenc WITH OWNER = simpelv2;
+        CREATE DATABASE simpelv2_secreton WITH OWNER = simpelv2;
 
-    \c simpelv2_authenc
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+        -- Grant privileges
+        GRANT ALL PRIVILEGES ON DATABASE simpelv2 TO simpelv2;
+        GRANT ALL PRIVILEGES ON DATABASE simpelv2_authenc TO authenc;
+        GRANT ALL PRIVILEGES ON DATABASE simpelv2_secreton TO secreton;
 
-    \c simpelv2_secreton
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+        -- Create extension for UUID generation
+        \c simpelv2
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+        \c simpelv2_authenc
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+        \c simpelv2_secreton
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    EOSQL
 
 ---
 # Nginx ConfigMap
@@ -53,8 +59,14 @@ data:
     }
 
     http {
+        client_max_body_size 50M;
+
         upstream portal {
-            server portal-service.simpelv2-frontend.svc.cluster.local:8080;
+            server portal-service.simpelv2.svc.cluster.local:8080;
+        }
+
+        upstream perlengkapan {
+            server pembinaan-perlengkapan.simpelv2.svc.cluster.local:8080;
         }
 
         server {
@@ -65,6 +77,15 @@ data:
                 access_log off;
                 return 200 "OK\n";
                 add_header Content-Type text/plain;
+            }
+
+            location /perlengkapan {
+                proxy_pass http://perlengkapan;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
             }
 
             location / {

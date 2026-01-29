@@ -266,12 +266,12 @@ impl AuthencClient {
         &self,
         username: &str,
         password: &str,
-        captcha_token: Option<&str>,
+        captcha_token: &str,
         mfa_code: Option<&str>,
     ) -> Result<AuthResult, AuthencError> {
         let username = username.to_string();
         let password = password.to_string();
-        let captcha_token = captcha_token.map(|s| s.to_string());
+        let captcha_token = Some(captcha_token.to_string());
         let mfa_code = mfa_code.map(|s| s.to_string());
         let client = self.client.clone();
 
@@ -658,10 +658,12 @@ impl AuthencClient {
         &self,
         challenge_id: &str,
         answer: &str,
+        session_id: &str,
         behavioral_data: Option<serde_json::Value>,
     ) -> Result<Option<String>, AuthencError> {
         let challenge_id_str = challenge_id.to_string();
         let answer_str = answer.to_string();
+        let session_id_str = session_id.to_string();
         let behavior_bytes = behavioral_data
             .and_then(|v| serde_json::to_vec(&v).ok())
             .unwrap_or_default();
@@ -670,6 +672,7 @@ impl AuthencClient {
         self.execute_with_resilience(|| {
             let challenge_id = challenge_id_str.clone();
             let answer = answer_str.clone();
+            let session_id = session_id_str.clone();
             let behavior = behavior_bytes.clone();
             let mut client = client.clone();
 
@@ -680,7 +683,7 @@ impl AuthencClient {
                     challenge_id,
                     answer,
                     behavioral_data: behavior,
-                    session_id: String::new(),
+                    session_id,
                 };
 
                 let response = client

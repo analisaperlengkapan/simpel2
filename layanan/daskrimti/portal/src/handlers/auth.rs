@@ -130,7 +130,7 @@ pub async fn login(
         .authenticate(
             &request.username,
             &request.password,
-            request.captcha_token.as_deref(),
+            request.captcha_token.as_deref().unwrap_or(""),
             request.mfa_code.as_deref(),
         )
         .await

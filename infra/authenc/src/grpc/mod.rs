@@ -89,10 +89,11 @@ pub fn create_grpc_server(
         >,
     >,
 > {
-    use interceptors::{LoggingInterceptor, MetricsInterceptor};
+    use crate::grpc::captcha_service::{CaptchaGrpcService, proto::captcha_service_server::CaptchaServiceServer};
 
     // Create service instances
     let authenc_service = authenc_service::AuthencGrpcService::new(state.clone());
+    let captcha_grpc_service = CaptchaGrpcService::new(state.clone());
 
     // Create interceptor stack
     let logging_interceptor = LoggingInterceptor::new();
@@ -122,8 +123,8 @@ pub fn create_grpc_server(
         .add_service(proto::authenc_service_server::AuthencServiceServer::new(
             authenc_service,
         ))
-    // TODO: Add CAPTCHA service when proto is properly generated
-    // .add_service(CaptchaServiceServer::new(captcha_grpc_service))
+        // Bug 22: Register Captcha Service
+        .add_service(CaptchaServiceServer::new(captcha_grpc_service))
 }
 
 /// gRPC server configuration
