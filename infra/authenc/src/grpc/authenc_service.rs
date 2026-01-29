@@ -155,8 +155,8 @@ impl AuthencService for AuthencGrpcService {
                 .expect("HKDF expand failed");
 
             type HmacSha256 = Hmac<Sha256>;
-            let mut mac = HmacSha256::new_from_slice(&captcha_key)
-                .expect("HMAC can take key of any size");
+            let mut mac =
+                HmacSha256::new_from_slice(&captcha_key).expect("HMAC can take key of any size");
             mac.update(payload.as_bytes());
 
             if let Err(_) = mac.verify_slice(
@@ -168,8 +168,6 @@ impl AuthencService for AuthencGrpcService {
 
             // Note: Token usage check is deferred until after credential verification
             // to prevent DoS where failed logins consume tokens (Bug 1)
-
-
         } else {
             // For now, allow requests without captcha if not strictly required,
             // but the bug report says it should be enforced.
@@ -270,24 +268,35 @@ impl AuthencService for AuthencGrpcService {
                     // Atomic check-and-set using SET NX
                     // If it returns true: Key was set (we claimed it first) -> OK
                     // If it returns false: Key existed (replay attempt) -> FAIL
-                    match redis_cache.set_nx(
-                        &used_key,
-                        &serde_json::json!(true),
-                        std::time::Duration::from_secs(600)
-                    ).await {
+                    match redis_cache
+                        .set_nx(
+                            &used_key,
+                            &serde_json::json!(true),
+                            std::time::Duration::from_secs(600),
+                        )
+                        .await
+                    {
                         Ok(true) => {
-                            debug!("CAPTCHA token {} successfully consumed for user {}", challenge_id, req.username);
-                        },
+                            debug!(
+                                "CAPTCHA token {} successfully consumed for user {}",
+                                challenge_id, req.username
+                            );
+                        }
                         Ok(false) => {
-                            warn!("Replay attack detected: CAPTCHA token {} already used (race condition check)", challenge_id);
+                            warn!(
+                                "Replay attack detected: CAPTCHA token {} already used (race condition check)",
+                                challenge_id
+                            );
                             // Even though password was correct, we fail because the token was reused
                             return Err(Status::unauthenticated("CAPTCHA token already used"));
-                        },
+                        }
                         Err(e) => {
                             warn!("Redis error checking CAPTCHA replay: {}", e);
                             // Fail open or closed? Security-wise should fail closed, but availability-wise...
                             // Let's fail closed for now as this is a security feature
-                            return Err(Status::internal("Internal error verifying CAPTCHA status"));
+                            return Err(Status::internal(
+                                "Internal error verifying CAPTCHA status",
+                            ));
                         }
                     }
                 }

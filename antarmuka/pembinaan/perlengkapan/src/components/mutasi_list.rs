@@ -1,5 +1,5 @@
+use crate::api::{Mutasi, fetch_mutasi};
 use leptos::prelude::*;
-use crate::api::{fetch_mutasi, Mutasi};
 
 #[component]
 pub fn MutasiList() -> impl IntoView {

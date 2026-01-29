@@ -1,7 +1,7 @@
+use crate::api::{CreatePemeliharaanRequest, create_pemeliharaan, fetch_assets};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_pemeliharaan, CreatePemeliharaanRequest, fetch_assets};
 
 #[component]
 pub fn PemeliharaanForm() -> impl IntoView {
@@ -33,9 +33,17 @@ pub fn PemeliharaanForm() -> impl IntoView {
             jenis_pemeliharaan: jenis.get(),
             biaya: biaya.get().parse::<f64>().ok(),
             tanggal_mulai: tanggal_mulai.get(),
-            tanggal_selesai: if tanggal_selesai.get().is_empty() { None } else { Some(tanggal_selesai.get()) },
+            tanggal_selesai: if tanggal_selesai.get().is_empty() {
+                None
+            } else {
+                Some(tanggal_selesai.get())
+            },
             pelaksana: pelaksana.get(),
-            keterangan: if keterangan.get().is_empty() { None } else { Some(keterangan.get()) },
+            keterangan: if keterangan.get().is_empty() {
+                None
+            } else {
+                Some(keterangan.get())
+            },
         };
 
         let navigate = navigate.clone();
@@ -43,8 +51,11 @@ pub fn PemeliharaanForm() -> impl IntoView {
             match create_pemeliharaan(req).await {
                 Ok(_) => {
                     set_loading.set(false);
-                    navigate("/dashboard/pengelolaan/pemeliharaan/daftar", Default::default());
-                },
+                    navigate(
+                        "/dashboard/pengelolaan/pemeliharaan/daftar",
+                        Default::default(),
+                    );
+                }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan pemeliharaan: {}", e)));
                     set_loading.set(false);

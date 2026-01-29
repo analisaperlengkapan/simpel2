@@ -509,7 +509,11 @@ mod tests {
 
         // Set a non-numeric value
         cache
-            .set(key, &serde_json::json!("string_value"), Duration::from_secs(60))
+            .set(
+                key,
+                &serde_json::json!("string_value"),
+                Duration::from_secs(60),
+            )
             .await
             .unwrap();
 

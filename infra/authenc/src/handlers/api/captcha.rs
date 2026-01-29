@@ -369,8 +369,8 @@ pub async fn validate_challenge(
                 .expect("HKDF expand failed");
 
             type HmacSha256 = Hmac<Sha256>;
-            let mut mac = HmacSha256::new_from_slice(&captcha_key)
-                .expect("HMAC can take key of any size");
+            let mut mac =
+                HmacSha256::new_from_slice(&captcha_key).expect("HMAC can take key of any size");
             mac.update(payload.as_bytes());
             let result_mac = mac.finalize();
             let signature = hex::encode(result_mac.into_bytes());

@@ -3,7 +3,7 @@
 //! This module provides secure JWT signing key management by retrieving
 //! keys from Secreton instead of using hardcoded values.
 
-use crate::secreton_client::{secreton_client::SecretonClient, SecretonError};
+use crate::secreton_client::{SecretonError, secreton_client::SecretonClient};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
@@ -66,11 +66,7 @@ impl JwtKeyManager {
     /// * `secreton` - Secreton gRPC client
     /// * `key_path` - Path to JWT signing key in Secreton (e.g., "auth/jwt-signing-key")
     /// * `key_realm` - Optional namespace/realm for the key
-    pub fn new(
-        secreton: Arc<SecretonClient>,
-        key_path: String,
-        key_realm: Option<String>,
-    ) -> Self {
+    pub fn new(secreton: Arc<SecretonClient>, key_path: String, key_realm: Option<String>) -> Self {
         Self {
             secreton,
             key_cache: Arc::new(RwLock::new(None)),
@@ -138,7 +134,8 @@ impl JwtKeyManager {
         // Decode from base64 if needed
         let key_bytes = if key_data.starts_with("base64:") {
             use base64::{Engine as _, engine::general_purpose::STANDARD};
-            STANDARD.decode(&key_data[7..])
+            STANDARD
+                .decode(&key_data[7..])
                 .map_err(|e| JwtKeyError::InvalidKeyFormat(format!("Base64 decode error: {}", e)))?
         } else {
             let bytes = key_data.as_bytes().to_vec();
@@ -212,7 +209,9 @@ impl JwtKeyManager {
         );
 
         // Store in Secreton
-        return Err(JwtKeyError::SecretonError(SecretonError::Other("Key generation not supported by REST client".to_string())));
+        return Err(JwtKeyError::SecretonError(SecretonError::Other(
+            "Key generation not supported by REST client".to_string(),
+        )));
 
         // info!("Successfully generated and stored new JWT signing key");
 

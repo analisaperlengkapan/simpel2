@@ -35,7 +35,7 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=|| view! { <NotFound /> }>
-                <Route path=path!("/") view=LoginRedirectPage />
+                <Route path=path!("/") view=|| view! { <LoginRedirectPage /> } />
                 <Route path=path!("/dashboard/*") view=DashboardRoutes />
             </Routes>
         </Router>

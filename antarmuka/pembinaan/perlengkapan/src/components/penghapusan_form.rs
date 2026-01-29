@@ -1,7 +1,7 @@
+use crate::api::{CreatePenghapusanRequest, create_penghapusan};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_penghapusan, CreatePenghapusanRequest};
 
 #[component]
 pub fn PenghapusanForm() -> impl IntoView {
@@ -35,7 +35,10 @@ pub fn PenghapusanForm() -> impl IntoView {
                 Ok(_) => {
                     set_success.set(true);
                     gloo_timers::future::TimeoutFuture::new(1000).await;
-                    navigate("/dashboard/pengelolaan/penghapusan/daftar", Default::default());
+                    navigate(
+                        "/dashboard/pengelolaan/penghapusan/daftar",
+                        Default::default(),
+                    );
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));

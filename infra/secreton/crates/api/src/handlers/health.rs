@@ -476,7 +476,7 @@ async fn check_storage_health(state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
     // Use the built-in health_check method from StorageBackend trait
-    let (status, message, details) = match state.storage.health_check().await {
+    let (status, message, _details) = match state.storage.health_check().await {
         Ok(health_status) => {
             let mut details = HashMap::new();
             details.insert(

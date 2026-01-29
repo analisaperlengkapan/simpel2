@@ -19,7 +19,6 @@ static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
-use secreton_storage::{SecretEntry, SecurityLevel};
 
 use crate::{
     ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,

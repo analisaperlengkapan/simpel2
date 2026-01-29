@@ -2,8 +2,8 @@
 mod tests {
     use crate::tests::MockRepository; // Accessing MockRepository from parent tests module
     use crate::{handlers::*, middleware::Claims, models::*, services::PerlengkapanService};
-    use axum::extract::{Path, Query, State};
     use axum::Json;
+    use axum::extract::{Path, Query, State};
     use chrono::Utc;
     use std::sync::Arc;
     use uuid::Uuid;
@@ -184,23 +184,26 @@ mod tests {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
 
-        mock_repo.expect_create_pengadaan()
+        mock_repo
+            .expect_create_pengadaan()
             .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
-            .returning(move |req, uid| Ok(Pengadaan {
-                id: Uuid::new_v4(),
-                judul: req.judul,
-                deskripsi: req.deskripsi,
-                jenis: req.jenis,
-                status: "perencanaan".to_string(),
-                anggaran: req.anggaran,
-                target_selesai: req.target_selesai,
-                pic_user_id: req.pic_user_id,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-                created_by: uid,
-                updated_by: uid,
-            }));
+            .returning(move |req, uid| {
+                Ok(Pengadaan {
+                    id: Uuid::new_v4(),
+                    judul: req.judul,
+                    deskripsi: req.deskripsi,
+                    jenis: req.jenis,
+                    status: "perencanaan".to_string(),
+                    anggaran: req.anggaran,
+                    target_selesai: req.target_selesai,
+                    pic_user_id: req.pic_user_id,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
@@ -229,23 +232,26 @@ mod tests {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
 
-        mock_repo.expect_create_analisis()
-             .with(mockall::predicate::always(), mockall::predicate::always())
+        mock_repo
+            .expect_create_analisis()
+            .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
-            .returning(move |req, uid| Ok(AnalisisKebutuhan {
-                id: Uuid::new_v4(),
-                judul: req.judul,
-                kategori: req.kategori,
-                deskripsi: req.deskripsi,
-                prioritas: req.prioritas,
-                status: "draft".to_string(),
-                estimasi_biaya: req.estimasi_biaya,
-                justifikasi: req.justifikasi,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-                created_by: uid,
-                updated_by: uid,
-            }));
+            .returning(move |req, uid| {
+                Ok(AnalisisKebutuhan {
+                    id: Uuid::new_v4(),
+                    judul: req.judul,
+                    kategori: req.kategori,
+                    deskripsi: req.deskripsi,
+                    prioritas: req.prioritas,
+                    status: "draft".to_string(),
+                    estimasi_biaya: req.estimasi_biaya,
+                    justifikasi: req.justifikasi,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
@@ -264,7 +270,7 @@ mod tests {
         let result = create_analisis(state, claims, request).await;
 
         assert!(result.is_ok());
-         let (status, json) = result.unwrap();
+        let (status, json) = result.unwrap();
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.judul, "Handler Analisis");
     }
@@ -276,41 +282,47 @@ mod tests {
         let asset_id = Uuid::new_v4();
 
         // Expect get_asset_by_id to be called for validation
-        mock_repo.expect_get_asset_by_id()
+        mock_repo
+            .expect_get_asset_by_id()
             .with(mockall::predicate::always())
             .times(1)
-            .returning(move |_| Ok(Asset {
-                id: asset_id,
-                kategori_aset: "Tanah".to_string(),
-                no_aset: "1".to_string(),
-                nama_aset: Some("Found Asset".to_string()),
-                kode_barang: Some("101".to_string()),
-                merk: None,
-                tipe: None,
-                kondisi: Some("Baik".to_string()),
-                lokasi: Some("Jakarta".to_string()),
-                satker: Some("Pusat".to_string()),
-                nilai_perolehan: Some(1000000.0),
-                tgl_perolehan: Some("2023-01-01".to_string()),
-                updated_at: Utc::now(),
-            }));
+            .returning(move |_| {
+                Ok(Asset {
+                    id: asset_id,
+                    kategori_aset: "Tanah".to_string(),
+                    no_aset: "1".to_string(),
+                    nama_aset: Some("Found Asset".to_string()),
+                    kode_barang: Some("101".to_string()),
+                    merk: None,
+                    tipe: None,
+                    kondisi: Some("Baik".to_string()),
+                    lokasi: Some("Jakarta".to_string()),
+                    satker: Some("Pusat".to_string()),
+                    nilai_perolehan: Some(1000000.0),
+                    tgl_perolehan: Some("2023-01-01".to_string()),
+                    updated_at: Utc::now(),
+                })
+            });
 
-        mock_repo.expect_create_pemakaian()
-             .with(mockall::predicate::always(), mockall::predicate::always())
+        mock_repo
+            .expect_create_pemakaian()
+            .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
-            .returning(move |req, uid| Ok(Pemakaian {
-                id: Uuid::new_v4(),
-                asset_id: req.asset_id,
-                piminjam_nama: req.piminjam_nama,
-                tanggal_mulai: req.tanggal_mulai,
-                tanggal_selesai: req.tanggal_selesai,
-                status: "dipinjam".to_string(),
-                keperluan: req.keperluan,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-                created_by: uid,
-                updated_by: uid,
-            }));
+            .returning(move |req, uid| {
+                Ok(Pemakaian {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    piminjam_nama: req.piminjam_nama,
+                    tanggal_mulai: req.tanggal_mulai,
+                    tanggal_selesai: req.tanggal_selesai,
+                    status: "dipinjam".to_string(),
+                    keperluan: req.keperluan,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
@@ -328,7 +340,7 @@ mod tests {
         let result = create_pemakaian(state, claims, request).await;
 
         assert!(result.is_ok());
-         let (status, json) = result.unwrap();
+        let (status, json) = result.unwrap();
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.piminjam_nama, "Jane Doe");
     }
@@ -340,40 +352,46 @@ mod tests {
         let asset_id = Uuid::new_v4();
 
         // Expect get_asset_by_id to be called for validation
-        mock_repo.expect_get_asset_by_id()
+        mock_repo
+            .expect_get_asset_by_id()
             .with(mockall::predicate::always())
             .times(1)
-            .returning(move |_| Ok(Asset {
-                id: asset_id,
-                kategori_aset: "Tanah".to_string(),
-                no_aset: "1".to_string(),
-                nama_aset: Some("Found Asset".to_string()),
-                kode_barang: Some("101".to_string()),
-                merk: None,
-                tipe: None,
-                kondisi: Some("Baik".to_string()),
-                lokasi: Some("Jakarta".to_string()),
-                satker: Some("Pusat".to_string()),
-                nilai_perolehan: Some(1000000.0),
-                tgl_perolehan: Some("2023-01-01".to_string()),
-                updated_at: Utc::now(),
-            }));
+            .returning(move |_| {
+                Ok(Asset {
+                    id: asset_id,
+                    kategori_aset: "Tanah".to_string(),
+                    no_aset: "1".to_string(),
+                    nama_aset: Some("Found Asset".to_string()),
+                    kode_barang: Some("101".to_string()),
+                    merk: None,
+                    tipe: None,
+                    kondisi: Some("Baik".to_string()),
+                    lokasi: Some("Jakarta".to_string()),
+                    satker: Some("Pusat".to_string()),
+                    nilai_perolehan: Some(1000000.0),
+                    tgl_perolehan: Some("2023-01-01".to_string()),
+                    updated_at: Utc::now(),
+                })
+            });
 
-        mock_repo.expect_create_hibah()
-             .with(mockall::predicate::always(), mockall::predicate::always())
+        mock_repo
+            .expect_create_hibah()
+            .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
-            .returning(move |req, uid| Ok(Hibah {
-                id: Uuid::new_v4(),
-                asset_id: req.asset_id,
-                pemberi: req.pemberi,
-                penerima: req.penerima,
-                tanggal_hibah: req.tanggal_hibah,
-                keterangan: req.keterangan,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-                created_by: uid,
-                updated_by: uid,
-            }));
+            .returning(move |req, uid| {
+                Ok(Hibah {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    pemberi: req.pemberi,
+                    penerima: req.penerima,
+                    tanggal_hibah: req.tanggal_hibah,
+                    keterangan: req.keterangan,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
@@ -391,7 +409,7 @@ mod tests {
         let result = create_hibah(state, claims, request).await;
 
         assert!(result.is_ok());
-         let (status, json) = result.unwrap();
+        let (status, json) = result.unwrap();
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.pemberi, "Donor Handler");
     }
@@ -403,42 +421,48 @@ mod tests {
         let asset_id = Uuid::new_v4();
 
         // Expect get_asset_by_id to be called for validation
-        mock_repo.expect_get_asset_by_id()
+        mock_repo
+            .expect_get_asset_by_id()
             .with(mockall::predicate::always())
             .times(1)
-            .returning(move |_| Ok(Asset {
-                id: asset_id,
-                kategori_aset: "Tanah".to_string(),
-                no_aset: "1".to_string(),
-                nama_aset: Some("Found Asset".to_string()),
-                kode_barang: Some("101".to_string()),
-                merk: None,
-                tipe: None,
-                kondisi: Some("Baik".to_string()),
-                lokasi: Some("Jakarta".to_string()),
-                satker: Some("Pusat".to_string()),
-                nilai_perolehan: Some(1000000.0),
-                tgl_perolehan: Some("2023-01-01".to_string()),
-                updated_at: Utc::now(),
-            }));
+            .returning(move |_| {
+                Ok(Asset {
+                    id: asset_id,
+                    kategori_aset: "Tanah".to_string(),
+                    no_aset: "1".to_string(),
+                    nama_aset: Some("Found Asset".to_string()),
+                    kode_barang: Some("101".to_string()),
+                    merk: None,
+                    tipe: None,
+                    kondisi: Some("Baik".to_string()),
+                    lokasi: Some("Jakarta".to_string()),
+                    satker: Some("Pusat".to_string()),
+                    nilai_perolehan: Some(1000000.0),
+                    tgl_perolehan: Some("2023-01-01".to_string()),
+                    updated_at: Utc::now(),
+                })
+            });
 
-        mock_repo.expect_create_mutasi()
-             .with(mockall::predicate::always(), mockall::predicate::always())
+        mock_repo
+            .expect_create_mutasi()
+            .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
-            .returning(move |req, uid| Ok(Mutasi {
-                id: Uuid::new_v4(),
-                asset_id: req.asset_id,
-                asal_satker: req.asal_satker,
-                tujuan_satker: req.tujuan_satker,
-                penanggung_jawab: req.penanggung_jawab,
-                tanggal_mutasi: req.tanggal_mutasi,
-                status: "proses".to_string(),
-                keterangan: req.keterangan,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-                created_by: uid,
-                updated_by: uid,
-            }));
+            .returning(move |req, uid| {
+                Ok(Mutasi {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    asal_satker: req.asal_satker,
+                    tujuan_satker: req.tujuan_satker,
+                    penanggung_jawab: req.penanggung_jawab,
+                    tanggal_mutasi: req.tanggal_mutasi,
+                    status: "proses".to_string(),
+                    keterangan: req.keterangan,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
@@ -457,7 +481,7 @@ mod tests {
         let result = create_mutasi(state, claims, request).await;
 
         assert!(result.is_ok());
-         let (status, json) = result.unwrap();
+        let (status, json) = result.unwrap();
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.asal_satker, "Satker Handler A");
     }
@@ -469,41 +493,47 @@ mod tests {
         let asset_id = Uuid::new_v4();
 
         // Expect get_asset_by_id to be called for validation
-        mock_repo.expect_get_asset_by_id()
+        mock_repo
+            .expect_get_asset_by_id()
             .with(mockall::predicate::always())
             .times(1)
-            .returning(move |_| Ok(Asset {
-                id: asset_id,
-                kategori_aset: "Tanah".to_string(),
-                no_aset: "1".to_string(),
-                nama_aset: Some("Found Asset".to_string()),
-                kode_barang: Some("101".to_string()),
-                merk: None,
-                tipe: None,
-                kondisi: Some("Baik".to_string()),
-                lokasi: Some("Jakarta".to_string()),
-                satker: Some("Pusat".to_string()),
-                nilai_perolehan: Some(1000000.0),
-                tgl_perolehan: Some("2023-01-01".to_string()),
-                updated_at: Utc::now(),
-            }));
+            .returning(move |_| {
+                Ok(Asset {
+                    id: asset_id,
+                    kategori_aset: "Tanah".to_string(),
+                    no_aset: "1".to_string(),
+                    nama_aset: Some("Found Asset".to_string()),
+                    kode_barang: Some("101".to_string()),
+                    merk: None,
+                    tipe: None,
+                    kondisi: Some("Baik".to_string()),
+                    lokasi: Some("Jakarta".to_string()),
+                    satker: Some("Pusat".to_string()),
+                    nilai_perolehan: Some(1000000.0),
+                    tgl_perolehan: Some("2023-01-01".to_string()),
+                    updated_at: Utc::now(),
+                })
+            });
 
-        mock_repo.expect_create_penghapusan()
-             .with(mockall::predicate::always(), mockall::predicate::always())
+        mock_repo
+            .expect_create_penghapusan()
+            .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
-            .returning(move |req, uid| Ok(Penghapusan {
-                id: Uuid::new_v4(),
-                asset_id: req.asset_id,
-                tanggal_penghapusan: req.tanggal_penghapusan,
-                alasan: req.alasan,
-                metode_penghapusan: req.metode_penghapusan,
-                status: "usulan".to_string(),
-                nilai_residu: req.nilai_residu,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-                created_by: uid,
-                updated_by: uid,
-            }));
+            .returning(move |req, uid| {
+                Ok(Penghapusan {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    tanggal_penghapusan: req.tanggal_penghapusan,
+                    alasan: req.alasan,
+                    metode_penghapusan: req.metode_penghapusan,
+                    status: "usulan".to_string(),
+                    nilai_residu: req.nilai_residu,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
@@ -521,7 +551,7 @@ mod tests {
         let result = create_penghapusan(state, claims, request).await;
 
         assert!(result.is_ok());
-         let (status, json) = result.unwrap();
+        let (status, json) = result.unwrap();
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.alasan, "Handler Disposal");
     }
@@ -533,42 +563,48 @@ mod tests {
         let asset_id = Uuid::new_v4();
 
         // Expect get_asset_by_id to be called for validation
-        mock_repo.expect_get_asset_by_id()
+        mock_repo
+            .expect_get_asset_by_id()
             .with(mockall::predicate::always())
             .times(1)
-            .returning(move |_| Ok(Asset {
-                id: asset_id,
-                kategori_aset: "Tanah".to_string(),
-                no_aset: "1".to_string(),
-                nama_aset: Some("Found Asset".to_string()),
-                kode_barang: Some("101".to_string()),
-                merk: None,
-                tipe: None,
-                kondisi: Some("Baik".to_string()),
-                lokasi: Some("Jakarta".to_string()),
-                satker: Some("Pusat".to_string()),
-                nilai_perolehan: Some(1000000.0),
-                tgl_perolehan: Some("2023-01-01".to_string()),
-                updated_at: Utc::now(),
-            }));
+            .returning(move |_| {
+                Ok(Asset {
+                    id: asset_id,
+                    kategori_aset: "Tanah".to_string(),
+                    no_aset: "1".to_string(),
+                    nama_aset: Some("Found Asset".to_string()),
+                    kode_barang: Some("101".to_string()),
+                    merk: None,
+                    tipe: None,
+                    kondisi: Some("Baik".to_string()),
+                    lokasi: Some("Jakarta".to_string()),
+                    satker: Some("Pusat".to_string()),
+                    nilai_perolehan: Some(1000000.0),
+                    tgl_perolehan: Some("2023-01-01".to_string()),
+                    updated_at: Utc::now(),
+                })
+            });
 
-        mock_repo.expect_create_pengalihan()
-             .with(mockall::predicate::always(), mockall::predicate::always())
+        mock_repo
+            .expect_create_pengalihan()
+            .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
-            .returning(move |req, uid| Ok(Pengalihan {
-                id: Uuid::new_v4(),
-                asset_id: req.asset_id,
-                pihak_lama: req.pihak_lama,
-                pihak_baru: req.pihak_baru,
-                tanggal_pengalihan: req.tanggal_pengalihan,
-                dasar_pengalihan: req.dasar_pengalihan,
-                status: "proses".to_string(),
-                keterangan: req.keterangan,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-                created_by: uid,
-                updated_by: uid,
-            }));
+            .returning(move |req, uid| {
+                Ok(Pengalihan {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    pihak_lama: req.pihak_lama,
+                    pihak_baru: req.pihak_baru,
+                    tanggal_pengalihan: req.tanggal_pengalihan,
+                    dasar_pengalihan: req.dasar_pengalihan,
+                    status: "proses".to_string(),
+                    keterangan: req.keterangan,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
@@ -587,7 +623,7 @@ mod tests {
         let result = create_pengalihan(state, claims, request).await;
 
         assert!(result.is_ok());
-         let (status, json) = result.unwrap();
+        let (status, json) = result.unwrap();
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.pihak_lama, "Handler Lama");
     }
@@ -599,43 +635,49 @@ mod tests {
         let asset_id = Uuid::new_v4();
 
         // Expect get_asset_by_id to be called for validation
-        mock_repo.expect_get_asset_by_id()
+        mock_repo
+            .expect_get_asset_by_id()
             .with(mockall::predicate::always())
             .times(1)
-            .returning(move |_| Ok(Asset {
-                id: asset_id,
-                kategori_aset: "Tanah".to_string(),
-                no_aset: "1".to_string(),
-                nama_aset: Some("Found Asset".to_string()),
-                kode_barang: Some("101".to_string()),
-                merk: None,
-                tipe: None,
-                kondisi: Some("Baik".to_string()),
-                lokasi: Some("Jakarta".to_string()),
-                satker: Some("Pusat".to_string()),
-                nilai_perolehan: Some(1000000.0),
-                tgl_perolehan: Some("2023-01-01".to_string()),
-                updated_at: Utc::now(),
-            }));
+            .returning(move |_| {
+                Ok(Asset {
+                    id: asset_id,
+                    kategori_aset: "Tanah".to_string(),
+                    no_aset: "1".to_string(),
+                    nama_aset: Some("Found Asset".to_string()),
+                    kode_barang: Some("101".to_string()),
+                    merk: None,
+                    tipe: None,
+                    kondisi: Some("Baik".to_string()),
+                    lokasi: Some("Jakarta".to_string()),
+                    satker: Some("Pusat".to_string()),
+                    nilai_perolehan: Some(1000000.0),
+                    tgl_perolehan: Some("2023-01-01".to_string()),
+                    updated_at: Utc::now(),
+                })
+            });
 
-        mock_repo.expect_create_pemeliharaan()
-             .with(mockall::predicate::always(), mockall::predicate::always())
+        mock_repo
+            .expect_create_pemeliharaan()
+            .with(mockall::predicate::always(), mockall::predicate::always())
             .times(1)
-            .returning(move |req, uid| Ok(Pemeliharaan {
-                id: Uuid::new_v4(),
-                asset_id: req.asset_id,
-                jenis_pemeliharaan: req.jenis_pemeliharaan,
-                biaya: req.biaya,
-                tanggal_mulai: req.tanggal_mulai,
-                tanggal_selesai: req.tanggal_selesai,
-                pelaksana: req.pelaksana,
-                status: "terjadwal".to_string(),
-                keterangan: req.keterangan,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-                created_by: uid,
-                updated_by: uid,
-            }));
+            .returning(move |req, uid| {
+                Ok(Pemeliharaan {
+                    id: Uuid::new_v4(),
+                    asset_id: req.asset_id,
+                    jenis_pemeliharaan: req.jenis_pemeliharaan,
+                    biaya: req.biaya,
+                    tanggal_mulai: req.tanggal_mulai,
+                    tanggal_selesai: req.tanggal_selesai,
+                    pelaksana: req.pelaksana,
+                    status: "terjadwal".to_string(),
+                    keterangan: req.keterangan,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    created_by: uid,
+                    updated_by: uid,
+                })
+            });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
         let state = State(service);
@@ -655,7 +697,7 @@ mod tests {
         let result = create_pemeliharaan(state, claims, request).await;
 
         assert!(result.is_ok());
-         let (status, json) = result.unwrap();
+        let (status, json) = result.unwrap();
         assert_eq!(status, axum::http::StatusCode::CREATED);
         assert_eq!(json.0.data.jenis_pemeliharaan, "Handler Maintain");
     }

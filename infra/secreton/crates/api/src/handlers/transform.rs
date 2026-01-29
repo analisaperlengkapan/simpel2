@@ -163,9 +163,9 @@ async fn list_transformations(
 /// Delete transformation
 /// # Endpoint
 /// `DELETE /v1/transform/transformation/{name}`
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip(_state))]
 async fn delete_transformation(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     info!("Deleting transformation: {}", name);

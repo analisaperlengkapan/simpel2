@@ -48,6 +48,7 @@ pub mod batch_operations;
 pub mod captcha_service;
 
 // Centralized Proto Registry
+#[allow(missing_docs)]
 pub mod proto {
     pub mod common {
         pub mod v1 {
@@ -62,8 +63,8 @@ pub mod proto {
 }
 
 // Re-export generated proto types
-pub use proto::authenc::v1 as authenc_proto;
 pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup};
+pub use proto::authenc::v1 as authenc_proto;
 
 /// Create and configure the gRPC server
 /// This function sets up the gRPC server with all services, interceptors,
@@ -128,9 +129,9 @@ pub fn create_grpc_server(
     server
         .layer(InterceptorLayer::new(metrics_interceptor))
         .layer(InterceptorLayer::new(logging_interceptor))
-        .add_service(proto::authenc::v1::authenc_service_server::AuthencServiceServer::new(
-            authenc_service,
-        ))
+        .add_service(
+            proto::authenc::v1::authenc_service_server::AuthencServiceServer::new(authenc_service),
+        )
 }
 
 /// gRPC server configuration

@@ -1,5 +1,5 @@
+use crate::api::{Pengalihan, fetch_pengalihan};
 use leptos::prelude::*;
-use crate::api::{fetch_pengalihan, Pengalihan};
 
 #[component]
 pub fn PengalihanList() -> impl IntoView {

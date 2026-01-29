@@ -1,5 +1,5 @@
+use crate::api::{Penghapusan, fetch_penghapusan};
 use leptos::prelude::*;
-use crate::api::{fetch_penghapusan, Penghapusan};
 
 #[component]
 pub fn PenghapusanList() -> impl IntoView {

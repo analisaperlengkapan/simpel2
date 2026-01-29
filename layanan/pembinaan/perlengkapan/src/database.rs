@@ -499,11 +499,10 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_analisis_by_id(&self, id: Uuid) -> AppResult<AnalisisKebutuhan> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let row = client
             .query_opt("SELECT id, judul, kategori, deskripsi, prioritas, status, estimasi_biaya::FLOAT8, justifikasi, created_at, updated_at, created_by, updated_by FROM perlengkapan.analisis_kebutuhan WHERE id = $1", &[&id])
@@ -557,19 +556,15 @@ impl PerlengkapanRepository for Database {
         page: i32,
         per_page: i32,
     ) -> AppResult<(Vec<Pemakaian>, i64)> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let offset = (page - 1) * per_page;
 
         let total: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.pemakaian",
-                &[],
-            )
+            .query_one("SELECT COUNT(*) as count FROM perlengkapan.pemakaian", &[])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
             .get("count");
@@ -588,11 +583,10 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pemakaian_by_id(&self, id: Uuid) -> AppResult<Pemakaian> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let row = client
             .query_opt("SELECT id, asset_id, piminjam_nama, tanggal_mulai, tanggal_selesai, status, keperluan, created_at, updated_at, created_by, updated_by FROM perlengkapan.pemakaian WHERE id = $1", &[&id])
@@ -608,11 +602,10 @@ impl PerlengkapanRepository for Database {
         request: CreatePemakaianRequest,
         user_id: Option<Uuid>,
     ) -> AppResult<Pemakaian> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let id = Uuid::new_v4();
 
@@ -641,24 +634,16 @@ impl PerlengkapanRepository for Database {
         Ok(Pemakaian::from_row(&row))
     }
 
-    async fn get_all_hibah(
-        &self,
-        page: i32,
-        per_page: i32,
-    ) -> AppResult<(Vec<Hibah>, i64)> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+    async fn get_all_hibah(&self, page: i32, per_page: i32) -> AppResult<(Vec<Hibah>, i64)> {
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let offset = (page - 1) * per_page;
 
         let total: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.hibah",
-                &[],
-            )
+            .query_one("SELECT COUNT(*) as count FROM perlengkapan.hibah", &[])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
             .get("count");
@@ -677,11 +662,10 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_hibah_by_id(&self, id: Uuid) -> AppResult<Hibah> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let row = client
             .query_opt("SELECT id, asset_id, pemberi, penerima, tanggal_hibah, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.hibah WHERE id = $1", &[&id])
@@ -697,11 +681,10 @@ impl PerlengkapanRepository for Database {
         request: CreateHibahRequest,
         user_id: Option<Uuid>,
     ) -> AppResult<Hibah> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let id = Uuid::new_v4();
 
@@ -730,24 +713,16 @@ impl PerlengkapanRepository for Database {
         Ok(Hibah::from_row(&row))
     }
 
-    async fn get_all_mutasi(
-        &self,
-        page: i32,
-        per_page: i32,
-    ) -> AppResult<(Vec<Mutasi>, i64)> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+    async fn get_all_mutasi(&self, page: i32, per_page: i32) -> AppResult<(Vec<Mutasi>, i64)> {
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let offset = (page - 1) * per_page;
 
         let total: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.mutasi",
-                &[],
-            )
+            .query_one("SELECT COUNT(*) as count FROM perlengkapan.mutasi", &[])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
             .get("count");
@@ -766,11 +741,10 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_mutasi_by_id(&self, id: Uuid) -> AppResult<Mutasi> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let row = client
             .query_opt("SELECT id, asset_id, asal_satker, tujuan_satker, penanggung_jawab, tanggal_mutasi, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.mutasi WHERE id = $1", &[&id])
@@ -786,11 +760,10 @@ impl PerlengkapanRepository for Database {
         request: CreateMutasiRequest,
         user_id: Option<Uuid>,
     ) -> AppResult<Mutasi> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let id = Uuid::new_v4();
 
@@ -825,11 +798,10 @@ impl PerlengkapanRepository for Database {
         page: i32,
         per_page: i32,
     ) -> AppResult<(Vec<Penghapusan>, i64)> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let offset = (page - 1) * per_page;
 
@@ -856,11 +828,10 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_penghapusan_by_id(&self, id: Uuid) -> AppResult<Penghapusan> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let row = client
             .query_opt("SELECT id, asset_id, tanggal_penghapusan, alasan, metode_penghapusan, status, nilai_residu::FLOAT8, created_at, updated_at, created_by, updated_by FROM perlengkapan.penghapusan WHERE id = $1", &[&id])
@@ -876,11 +847,10 @@ impl PerlengkapanRepository for Database {
         request: CreatePenghapusanRequest,
         user_id: Option<Uuid>,
     ) -> AppResult<Penghapusan> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let id = Uuid::new_v4();
 
@@ -914,19 +884,15 @@ impl PerlengkapanRepository for Database {
         page: i32,
         per_page: i32,
     ) -> AppResult<(Vec<Pengalihan>, i64)> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let offset = (page - 1) * per_page;
 
         let total: i64 = client
-            .query_one(
-                "SELECT COUNT(*) as count FROM perlengkapan.pengalihan",
-                &[],
-            )
+            .query_one("SELECT COUNT(*) as count FROM perlengkapan.pengalihan", &[])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
             .get("count");
@@ -945,11 +911,10 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pengalihan_by_id(&self, id: Uuid) -> AppResult<Pengalihan> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let row = client
             .query_opt("SELECT id, asset_id, pihak_lama, pihak_baru, tanggal_pengalihan, dasar_pengalihan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.pengalihan WHERE id = $1", &[&id])
@@ -965,11 +930,10 @@ impl PerlengkapanRepository for Database {
         request: CreatePengalihanRequest,
         user_id: Option<Uuid>,
     ) -> AppResult<Pengalihan> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let id = Uuid::new_v4();
 
@@ -1004,11 +968,10 @@ impl PerlengkapanRepository for Database {
         page: i32,
         per_page: i32,
     ) -> AppResult<(Vec<Pemeliharaan>, i64)> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let offset = (page - 1) * per_page;
 
@@ -1035,11 +998,10 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pemeliharaan_by_id(&self, id: Uuid) -> AppResult<Pemeliharaan> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let row = client
             .query_opt("SELECT id, asset_id, jenis_pemeliharaan, biaya::FLOAT8, tanggal_mulai, tanggal_selesai, pelaksana, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.pemeliharaan WHERE id = $1", &[&id])
@@ -1055,11 +1017,10 @@ impl PerlengkapanRepository for Database {
         request: CreatePemeliharaanRequest,
         user_id: Option<Uuid>,
     ) -> AppResult<Pemeliharaan> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let id = Uuid::new_v4();
 

@@ -1,7 +1,7 @@
+use crate::api::{CreateHibahRequest, create_hibah};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_hibah, CreateHibahRequest};
 
 #[component]
 pub fn HibahForm() -> impl IntoView {
@@ -26,7 +26,11 @@ pub fn HibahForm() -> impl IntoView {
             pemberi: pemberi.get(),
             penerima: penerima.get(),
             tanggal_hibah: tanggal.get(),
-            keterangan: if keterangan.get().is_empty() { None } else { Some(keterangan.get()) },
+            keterangan: if keterangan.get().is_empty() {
+                None
+            } else {
+                Some(keterangan.get())
+            },
         };
 
         let navigate = navigate.clone();

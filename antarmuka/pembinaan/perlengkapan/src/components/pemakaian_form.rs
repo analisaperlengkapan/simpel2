@@ -1,7 +1,7 @@
+use crate::api::{CreatePemakaianRequest, create_pemakaian};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_pemakaian, CreatePemakaianRequest};
 
 #[component]
 pub fn PemakaianForm() -> impl IntoView {
@@ -25,7 +25,11 @@ pub fn PemakaianForm() -> impl IntoView {
             piminjam_nama: peminjam.get(),
             tanggal_mulai: tanggal_mulai.get(),
             tanggal_selesai: None,
-            keperluan: if keperluan.get().is_empty() { None } else { Some(keperluan.get()) },
+            keperluan: if keperluan.get().is_empty() {
+                None
+            } else {
+                Some(keperluan.get())
+            },
         };
 
         let navigate = navigate.clone();
@@ -34,7 +38,10 @@ pub fn PemakaianForm() -> impl IntoView {
                 Ok(_) => {
                     set_success.set(true);
                     gloo_timers::future::TimeoutFuture::new(1000).await;
-                    navigate("/dashboard/pengelolaan/pemakaian/daftar", Default::default());
+                    navigate(
+                        "/dashboard/pengelolaan/pemakaian/daftar",
+                        Default::default(),
+                    );
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));

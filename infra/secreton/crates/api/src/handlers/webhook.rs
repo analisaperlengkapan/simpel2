@@ -3,10 +3,7 @@
 //! This module provides endpoints for managing webhook subscriptions and
 //! sending notifications on secret changes with retry policy.
 
-use axum::{
-    extract::{Json, Path, State},
-    response::Json as JsonResponse,
-};
+use axum::extract::{Json, Path, State};
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

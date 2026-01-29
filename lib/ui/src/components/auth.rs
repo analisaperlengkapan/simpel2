@@ -3,7 +3,7 @@
 //! Provides reusable authentication UI components
 
 use crate::components::layout::*;
-use crate::hooks::use_auth::{get_app_name, use_auth};
+use crate::hooks::use_auth::use_auth;
 use leptos::prelude::*;
 
 /// Login redirect page component

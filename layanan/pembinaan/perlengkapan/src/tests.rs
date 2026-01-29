@@ -377,7 +377,10 @@ mod unit_tests {
             });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
-        let result = service.create_penghapusan(req, Some(user_id)).await.unwrap();
+        let result = service
+            .create_penghapusan(req, Some(user_id))
+            .await
+            .unwrap();
 
         assert_eq!(result.alasan, "Rusak berat");
         assert_eq!(result.status, "usulan");
@@ -463,7 +466,10 @@ mod unit_tests {
             });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
-        let result = service.create_pemeliharaan(req, Some(user_id)).await.unwrap();
+        let result = service
+            .create_pemeliharaan(req, Some(user_id))
+            .await
+            .unwrap();
 
         assert_eq!(result.jenis_pemeliharaan, "Rutin");
         assert_eq!(result.status, "terjadwal");

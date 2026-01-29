@@ -1,4 +1,5 @@
-#![warn(missing_docs)]
+#![allow(missing_docs)]
+#![allow(unused)]
 #![warn(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

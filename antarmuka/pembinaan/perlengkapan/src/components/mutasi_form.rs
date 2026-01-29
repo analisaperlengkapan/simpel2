@@ -1,7 +1,7 @@
+use crate::api::{CreateMutasiRequest, create_mutasi};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_mutasi, CreateMutasiRequest};
 
 #[component]
 pub fn MutasiForm() -> impl IntoView {
@@ -28,7 +28,11 @@ pub fn MutasiForm() -> impl IntoView {
             tujuan_satker: tujuan.get(),
             penanggung_jawab: pj.get(),
             tanggal_mutasi: tanggal.get(),
-            keterangan: if keterangan.get().is_empty() { None } else { Some(keterangan.get()) },
+            keterangan: if keterangan.get().is_empty() {
+                None
+            } else {
+                Some(keterangan.get())
+            },
         };
 
         let navigate = navigate.clone();

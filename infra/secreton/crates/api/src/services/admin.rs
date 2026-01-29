@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::{MemoryBackend, QueryParams, SecretEntry, SecurityLevel, StorageBackend};
+use secreton_storage::{QueryParams, SecretEntry, SecurityLevel, StorageBackend};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
