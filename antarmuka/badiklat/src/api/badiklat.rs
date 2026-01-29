@@ -5,7 +5,7 @@
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 
-use super::{ApiError, ApiResponse, API_BASE_URL};
+use super::{API_BASE_URL, ApiError, ApiResponse};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Training {
