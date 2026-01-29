@@ -20,6 +20,7 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/pengadaan/:id", get(get_pengadaan_by_id))
         // Analisis Kebutuhan routes
         .route("/analisis", get(get_all_analisis).post(create_analisis))
+        .route("/analisis/:id", get(get_analisis_by_id))
         // Pemakaian routes
         .route("/pemakaian", get(get_all_pemakaian).post(create_pemakaian))
         .route("/pemakaian/:id", get(get_pemakaian_by_id))

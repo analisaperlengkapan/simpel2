@@ -486,6 +486,22 @@ impl PerlengkapanRepository for Database {
         Ok((analisis, total))
     }
 
+    async fn get_analisis_by_id(&self, id: Uuid) -> AppResult<AnalisisKebutuhan> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
+
+        let row = client
+            .query_opt("SELECT id, judul, kategori, deskripsi, prioritas, status, estimasi_biaya::FLOAT8, justifikasi, created_at, updated_at, created_by, updated_by FROM perlengkapan.analisis_kebutuhan WHERE id = $1", &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        row.map(|r| AnalisisKebutuhan::from_row(&r))
+            .ok_or_else(|| not_found("Analisis Kebutuhan", &id.to_string()))
+    }
+
     async fn create_analisis(
         &self,
         request: CreateAnalisisRequest,

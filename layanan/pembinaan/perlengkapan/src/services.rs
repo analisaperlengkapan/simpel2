@@ -66,6 +66,10 @@ impl PerlengkapanService {
         self.repo.get_all_analisis(page, per_page).await
     }
 
+    pub async fn get_analisis_by_id(&self, id: Uuid) -> AppResult<AnalisisKebutuhan> {
+        self.repo.get_analisis_by_id(id).await
+    }
+
     pub async fn create_analisis(
         &self,
         request: CreateAnalisisRequest,

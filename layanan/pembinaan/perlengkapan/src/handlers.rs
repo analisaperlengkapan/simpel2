@@ -489,6 +489,19 @@ pub async fn get_pengalihan_by_id(
     )))
 }
 
+pub async fn get_analisis_by_id(
+    State(service): State<PerlengkapanService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<AnalisisKebutuhan>>, AppError> {
+    let analisis = service.get_analisis_by_id(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        analisis,
+        "Analisis kebutuhan retrieved successfully".to_string(),
+    )))
+}
+
 pub async fn create_analisis(
     State(service): State<PerlengkapanService>,
     claims: Claims,
