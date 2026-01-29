@@ -1028,6 +1028,7 @@ impl StorageProviderFactory {
             StorageProviderType::MongoDB => return Err(AuthencError::ConfigurationError { message: "MongoDB provider not implemented".to_string() }),
             StorageProviderType::Custom(name) => return Err(AuthencError::ConfigurationError { message: format!("Custom provider '{}' not implemented", name) }),
         }
+    }
 }
 
 /// Storage Manager - Central storage coordination
