@@ -47,26 +47,42 @@ runs:
     - name: Install Protocol Buffers compiler
       shell: bash
       run: |
+        # Check if protoc is already installed and has the correct version
+        if command -v protoc &> /dev/null; then
+          INSTALLED_VERSION=$(protoc --version | grep -oP '\d+\.\d+' || echo "0.0")
+          if [[ "$INSTALLED_VERSION" == "25.1" ]]; then
+            echo "protoc $INSTALLED_VERSION already installed, skipping..."
+            exit 0
+          fi
+        fi
+
         PROTOC_VERSION="25.1"
         PROTOC_ZIP="protoc-$PROTOC_VERSION-linux-x86_64.zip"
+
+        # Download protoc
         curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/$PROTOC_ZIP"
 
         # Extract using python3 (avoiding unzip dependency)
+        rm -rf protoc
         python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1],'r').extractall('protoc')" "$PROTOC_ZIP"
 
         # Install to local bin
         mkdir -p $HOME/.local/bin
-        mv protoc/bin/protoc $HOME/.local/bin/
+        cp -f protoc/bin/protoc $HOME/.local/bin/
 
         # Install include files (Critical for Google standard types like Timestamp)
         mkdir -p $HOME/.local/include
-        mv protoc/include/* $HOME/.local/include/
+        cp -r protoc/include/* $HOME/.local/include/ || true
 
+        # Cleanup
+        rm -rf protoc "$PROTOC_ZIP"
+
+        # Set permissions and PATH
         chmod +x $HOME/.local/bin/protoc
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         echo "PROTOC_INCLUDE=$HOME/.local/include" >> $GITHUB_ENV
 
-        # Verify
+        # Verify installation
         $HOME/.local/bin/protoc --version
 
     - name: Setup Rust cache
