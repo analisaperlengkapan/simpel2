@@ -572,26 +572,26 @@ mod tests {
         let discovery = result.unwrap().0;
 
         // Verify issuer
-        assert_eq!(discovery["issuer"], "https://10.1.7.121/api/auth/v1");
+        assert_eq!(discovery["issuer"], "https://10.1.7.121/api/auth");
 
         // Verify JWKS endpoint is present at standard location
         assert_eq!(
             discovery["jwks_uri"],
-            "https://10.1.7.121/api/auth/v1/.well-known/jwks.json"
+            "https://10.1.7.121/api/auth/oidc/jwks"
         );
 
         // Verify refresh, revocation, and logout endpoints
         assert_eq!(
             discovery["refresh_endpoint"],
-            "https://10.1.7.121/api/auth/v1/oidc/refresh"
+            "https://10.1.7.121/api/auth/oidc/refresh"
         );
         assert_eq!(
             discovery["revocation_endpoint"],
-            "https://10.1.7.121/api/auth/v1/oidc/revoke"
+            "https://10.1.7.121/api/auth/oidc/revoke"
         );
         assert_eq!(
             discovery["end_session_endpoint"],
-            "https://10.1.7.121/api/auth/v1/oidc/logout"
+            "https://10.1.7.121/api/auth/oidc/logout"
         );
 
         // Verify supported grant types

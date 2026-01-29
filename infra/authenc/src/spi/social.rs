@@ -678,7 +678,7 @@ mod tests {
         assert!(url.contains("client_id=test-client"));
         assert!(url.contains("response_type=code"));
         assert!(url.contains("state=test-state"));
-        assert!(url.contains("redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback"));
+        assert!(url.contains("redirect_uri=https%3A%2F%2F10.1.7.121%2Fapi%2Fauth%2Fcallback"));
     }
 
     #[tokio::test]

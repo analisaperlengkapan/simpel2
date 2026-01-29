@@ -75,8 +75,8 @@ data:
 
             location /health {
                 access_log off;
-                return 200 "OK\n";
                 add_header Content-Type text/plain;
+                return 200 "OK\n";
             }
 
             location /perlengkapan {
