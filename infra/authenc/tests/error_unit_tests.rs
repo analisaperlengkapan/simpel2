@@ -43,7 +43,12 @@ mod tests {
         );
         assert_eq!(format!("{}", AuthencError::UserNotFound), "User not found");
         assert_eq!(
-            format!("{}", AuthencError::RateLimitExceeded { message: "Rate limit exceeded".to_string() }),
+            format!(
+                "{}",
+                AuthencError::RateLimitExceeded {
+                    message: "Rate limit exceeded".to_string()
+                }
+            ),
             "Rate limit exceeded"
         );
         assert_eq!(
@@ -253,7 +258,10 @@ mod tests {
             "EXTERNAL_SERVICE_ERROR"
         );
         assert_eq!(
-            AuthencError::RateLimitExceeded { message: "Rate limit exceeded".to_string() }.error_code(),
+            AuthencError::RateLimitExceeded {
+                message: "Rate limit exceeded".to_string()
+            }
+            .error_code(),
             "RATE_LIMIT_EXCEEDED"
         );
         assert_eq!(
@@ -379,7 +387,12 @@ mod tests {
             }
             .should_log_as_error()
         );
-        assert!(!AuthencError::RateLimitExceeded { message: "Rate limit exceeded".to_string() }.should_log_as_error());
+        assert!(
+            !AuthencError::RateLimitExceeded {
+                message: "Rate limit exceeded".to_string()
+            }
+            .should_log_as_error()
+        );
         assert!(
             !AuthencError::SerializationError {
                 message: "".to_string()
@@ -497,7 +510,10 @@ mod tests {
 
         // 429 Too Many Requests
         assert_eq!(
-            AuthencError::RateLimitExceeded { message: "Rate limit exceeded".to_string() }.status_code(),
+            AuthencError::RateLimitExceeded {
+                message: "Rate limit exceeded".to_string()
+            }
+            .status_code(),
             StatusCode::TOO_MANY_REQUESTS
         );
 
