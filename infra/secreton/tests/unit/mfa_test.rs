@@ -281,7 +281,7 @@ mod mfa_integration_tests {
             match status {
                 Ok(mfa_status) => {
                     println!("MFA status persisted: {:?}", mfa_status);
-                ,
+                }
                 Err(_) => {
                     // Persistence may not be implemented in test storage
                     println!("MFA persistence test skipped - using in-memory storage");

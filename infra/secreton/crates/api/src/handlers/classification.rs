@@ -12,9 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info, instrument};
 
-use secreton_core::services::classification::{
-    ClassificationLevel, ClassificationService,
-};
+use secreton_core::services::classification::{ClassificationLevel, ClassificationService};
 
 /// Shared application state
 #[derive(Clone)]
