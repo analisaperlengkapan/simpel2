@@ -1,6 +1,6 @@
+use crate::app::{CreateOperationRequest, IntelOperation, IntelReport};
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
-use crate::app::{IntelOperation, CreateOperationRequest, IntelReport};
 
 // Best practice: Use relative path for production compatibility behind a proxy,
 // or use a configurable base URL. For this dev setup, we'll use the direct URL

@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::{MemoryBackend, QueryParams, SecretEntry, SecurityLevel, StorageBackend};
+use secreton_storage::{QueryParams, SecretEntry, SecurityLevel, StorageBackend};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
@@ -480,15 +480,15 @@ impl AdminService {
             .into_iter()
             .filter(|event| {
                 // Filter by time range
-                if let Some(start) = start_time {
-                    if event.timestamp < start {
-                        return false;
-                    }
+                if let Some(start) = start_time
+                    && event.timestamp < start
+                {
+                    return false;
                 }
-                if let Some(end) = end_time {
-                    if event.timestamp > end {
-                        return false;
-                    }
+                if let Some(end) = end_time
+                    && event.timestamp > end
+                {
+                    return false;
                 }
                 // Filter by action
                 if let Some(action_filter) = action {
@@ -727,7 +727,10 @@ impl AdminService {
             serde_json::Value::String(incident.source.clone()),
         );
 
-        self.storage.store(&entry).await.map_err(AdminError::Storage)?;
+        self.storage
+            .store(&entry)
+            .await
+            .map_err(AdminError::Storage)?;
         Ok(())
     }
 

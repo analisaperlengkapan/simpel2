@@ -22,6 +22,7 @@ spec:
         protocol: HTTP
       hosts:
         - "10.1.7.121"
+        - "simpel.kejaksaan.go.id"
         - "*"
     # HTTPS dengan TLS
     - port:
@@ -30,6 +31,7 @@ spec:
         protocol: HTTPS
       hosts:
         - "10.1.7.121"
+        - "simpel.kejaksaan.go.id"
         - "*"
       tls:
         mode: SIMPLE
@@ -53,8 +55,49 @@ spec:
     - istio-system/simpelv2-dev-gateway
   http:
     # ========================================
+    # Legacy CAPTCHA Routes (for backwards compatibility with cached WASM)
+    # ========================================
+    # Redirect old /captcha/* to backend API
+    - match:
+        - uri:
+            prefix: /captcha/
+      rewrite:
+        uri: /api/captcha/
+      route:
+        - destination:
+            host: layanan-daskrimti-portal.simpelv2.svc.cluster.local
+            port:
+              number: 3010
+      timeout: 30s
+
+    # Also handle /api/auth/captcha/* variant (another cached pattern)
+    - match:
+        - uri:
+            prefix: /api/auth/captcha/
+      rewrite:
+        uri: /api/captcha/
+      route:
+        - destination:
+            host: layanan-daskrimti-portal.simpelv2.svc.cluster.local
+            port:
+              number: 3010
+      timeout: 30s
+
+    # CAPTCHA API (Proxies to Authenc via gRPC)
+    - match:
+        - uri:
+            prefix: /api/captcha/
+      route:
+        - destination:
+            host: layanan-daskrimti-portal.simpelv2.svc.cluster.local
+            port:
+              number: 3010
+      timeout: 30s
+
+    # ========================================
     # Portal Microfrontend Routes (/portal)
     # ========================================
+    # Serve portal at /portal prefix
     - match:
         - uri:
             prefix: /portal
@@ -63,6 +106,37 @@ spec:
       route:
         - destination:
             host: daskrimti-portal.simpelv2.svc.cluster.local
+            port:
+              number: 8080
+
+    # Serve portal at root paths (/, /login, etc) - no rewrite needed
+    - match:
+        - uri:
+            exact: /
+      route:
+        - destination:
+            host: daskrimti-portal.simpelv2.svc.cluster.local
+            port:
+              number: 8080
+
+    - match:
+        - uri:
+            exact: /login
+      route:
+        - destination:
+            host: daskrimti-portal.simpelv2.svc.cluster.local
+            port:
+              number: 8080
+
+    # Serve perlengkapan frontend at /perlengkapan
+    - match:
+        - uri:
+            prefix: /perlengkapan
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: pembinaan-perlengkapan.simpelv2.svc.cluster.local
             port:
               number: 8080
 
@@ -106,7 +180,7 @@ spec:
         uri: /health
       route:
         - destination:
-            host: authenc.simpelv2-infra.svc.cluster.local
+            host: authenc.simpelv2.svc.cluster.local
             port:
               number: 8088
 
@@ -118,7 +192,7 @@ spec:
         uri: /api/v1/auth
       route:
         - destination:
-            host: authenc.simpelv2-infra.svc.cluster.local
+            host: authenc.simpelv2.svc.cluster.local
             port:
               number: 8088
       timeout: 30s
@@ -131,7 +205,7 @@ spec:
         uri: /v1
       route:
         - destination:
-            host: secreton.simpelv2-infra.svc.cluster.local
+            host: secreton.simpelv2.svc.cluster.local
             port:
               number: 8200
       timeout: 30s
@@ -149,10 +223,10 @@ spec:
               number: 8080
 
     # ========================================
-    # Default: Route to Perlengkapan (Root)
+    # Default: Route to Portal (Main Landing Page)
     # ========================================
     - route:
         - destination:
-            host: pembinaan-perlengkapan.simpelv2.svc.cluster.local
+            host: daskrimti-portal.simpelv2.svc.cluster.local
             port:
               number: 8080

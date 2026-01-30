@@ -170,6 +170,6 @@ pub mod authenc_provider;
 
 // Re-export commonly used types
 pub use authenc_provider::{
-    AuthProvider, AuthResult, AuthencAuthProvider, Credentials, PostQuantumValidator, PqSignature,
-    TokenCache, TokenValidation, User, ValidationCache,
+    AuthProvider, AuthResult, AuthencAuthProvider, AuthencUserInfo, Credentials,
+    PostQuantumValidator, PqSignature, TokenCache, TokenValidation, ValidationCache,
 };

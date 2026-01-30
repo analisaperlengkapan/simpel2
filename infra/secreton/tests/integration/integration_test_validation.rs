@@ -20,7 +20,8 @@ mod secreton_integration_test_validation {
         let result = timeout(Duration::from_secs(1), async {
             tokio::time::sleep(Duration::from_millis(100)).await;
             "secreton_framework_ready"
-        }).await;
+        })
+        .await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "secreton_framework_ready");
@@ -42,12 +43,16 @@ mod secreton_integration_test_validation {
         ];
 
         for (token_type, satker_code, should_be_valid) in token_scenarios {
-            println!("Framework ready for token validation: { for { (expect: {})",
-                    token_type, satker_code, if should_be_valid  { "valid" } else { "invalid" });
+            println!(
+                "Framework ready for token validation: { for { (expect: {})",
+                token_type,
+                satker_code,
+                if should_be_valid { "valid" } else { "invalid" }
+            );
 
             // Simulate token validation logic
-            let is_valid = token_type.starts_with("valid_token") &&
-                          !token_type.contains("cross_satker");
+            let is_valid =
+                token_type.starts_with("valid_token") && !token_type.contains("cross_satker");
 
             if should_be_valid {
                 assert!(is_valid || token_type.starts_with("valid_"));
@@ -65,16 +70,36 @@ mod secreton_integration_test_validation {
         println!("Testing role-based secret access framework");
 
         let access_scenarios = vec![
-            ("KEJATI_DKI_JAKPUS", "secrets/KEJATI_DKI_JAKPUS/database_config", true),
-            ("KEJATI_DKI_JAKPUS", "secrets/KEJATI_DKI_JAKSEL/api_keys", false),
-            ("KEJATI_DKI_JAKSEL", "secrets/KEJATI_DKI_JAKSEL/api_keys", true),
+            (
+                "KEJATI_DKI_JAKPUS",
+                "secrets/KEJATI_DKI_JAKPUS/database_config",
+                true,
+            ),
+            (
+                "KEJATI_DKI_JAKPUS",
+                "secrets/KEJATI_DKI_JAKSEL/api_keys",
+                false,
+            ),
+            (
+                "KEJATI_DKI_JAKSEL",
+                "secrets/KEJATI_DKI_JAKSEL/api_keys",
+                true,
+            ),
             ("KEJARI_SOLO", "secrets/KEJARI_SOLO/credentials", true),
-            ("KEJARI_SOLO", "secrets/KEJATI_DKI_JAKPUS/database_config", false),
+            (
+                "KEJARI_SOLO",
+                "secrets/KEJATI_DKI_JAKPUS/database_config",
+                false,
+            ),
         ];
 
         for (token_satker, secret_path, should_have_access) in access_scenarios {
-            println!("Framework ready for access control: { -> { (expect: {})",
-                    token_satker, secret_path, if should_have_access  { "allow" } else { "deny" });
+            println!(
+                "Framework ready for access control: { -> { (expect: {})",
+                token_satker,
+                secret_path,
+                if should_have_access { "allow" } else { "deny" }
+            );
 
             // Simulate access control logic
             let path_satker = secret_path.split('/').nth(1).unwrap_or("");
@@ -93,19 +118,67 @@ mod secreton_integration_test_validation {
         println!("Testing hierarchical admin access framework");
 
         let admin_scenarios = vec![
-            ("AdminPusat", "KEJAGUNG", "KEJATI_DKI_JAKPUS", "read_secret", true),
-            ("AdminPusat", "KEJAGUNG", "KEJATI_JABAR_BANDUNG", "create_secret", true),
-            ("AdminEselonI", "KEJAGUNG", "KEJATI_DKI_JAKPUS", "read_secret", true),
-            ("AdminWilayah", "KEJATI_DKI", "KEJATI_DKI_JAKPUS", "read_secret", true),
-            ("AdminWilayah", "KEJATI_DKI", "KEJATI_JABAR_BANDUNG", "read_secret", false),
-            ("AdminSatker", "KEJATI_DKI_JAKPUS", "KEJATI_DKI_JAKPUS", "read_secret", true),
-            ("AdminSatker", "KEJATI_DKI_JAKPUS", "KEJATI_DKI_JAKSEL", "read_secret", false),
+            (
+                "AdminPusat",
+                "KEJAGUNG",
+                "KEJATI_DKI_JAKPUS",
+                "read_secret",
+                true,
+            ),
+            (
+                "AdminPusat",
+                "KEJAGUNG",
+                "KEJATI_JABAR_BANDUNG",
+                "create_secret",
+                true,
+            ),
+            (
+                "AdminEselonI",
+                "KEJAGUNG",
+                "KEJATI_DKI_JAKPUS",
+                "read_secret",
+                true,
+            ),
+            (
+                "AdminWilayah",
+                "KEJATI_DKI",
+                "KEJATI_DKI_JAKPUS",
+                "read_secret",
+                true,
+            ),
+            (
+                "AdminWilayah",
+                "KEJATI_DKI",
+                "KEJATI_JABAR_BANDUNG",
+                "read_secret",
+                false,
+            ),
+            (
+                "AdminSatker",
+                "KEJATI_DKI_JAKPUS",
+                "KEJATI_DKI_JAKPUS",
+                "read_secret",
+                true,
+            ),
+            (
+                "AdminSatker",
+                "KEJATI_DKI_JAKPUS",
+                "KEJATI_DKI_JAKSEL",
+                "read_secret",
+                false,
+            ),
         ];
 
-        for (admin_level, admin_satker, target_satker, operation, should_succeed) in admin_scenarios {
-            println!("Framework ready for admin operation: { { -> { { (expect: {})",
-                    admin_level, admin_satker, operation, target_satker,
-                    if should_succeed  { "success" } else { "deny" });
+        for (admin_level, admin_satker, target_satker, operation, should_succeed) in admin_scenarios
+        {
+            println!(
+                "Framework ready for admin operation: { { -> { { (expect: {})",
+                admin_level,
+                admin_satker,
+                operation,
+                target_satker,
+                if should_succeed { "success" } else { "deny" }
+            );
 
             // Simulate hierarchical access control
             let access_granted = match admin_level {
@@ -136,7 +209,10 @@ mod secreton_integration_test_validation {
         ];
 
         for scenario in fallback_scenarios {
-            println!("Framework ready for authenc fallback scenario: {}", scenario);
+            println!(
+                "Framework ready for authenc fallback scenario: {}",
+                scenario
+            );
 
             // Simulate fallback handling from secreton perspective
             let fallback_result = timeout(Duration::from_millis(50), async {
@@ -148,10 +224,15 @@ mod secreton_integration_test_validation {
                     "partial_failure" => "limited_functionality_mode",
                     _ => "unknown_fallback_mode",
                 }
-            }).await;
+            })
+            .await;
 
             assert!(fallback_result.is_ok());
-            println!("Authenc fallback scenario { handled: {}", scenario, fallback_result.unwrap());
+            println!(
+                "Authenc fallback scenario { handled: {}",
+                scenario,
+                fallback_result.unwrap()
+            );
 
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
@@ -165,9 +246,15 @@ mod secreton_integration_test_validation {
         println!("Testing cross-satker isolation framework");
 
         let satker_secrets = vec![
-            ("KEJATI_DKI_JAKPUS", vec!["config", "credentials", "certificates"]),
+            (
+                "KEJATI_DKI_JAKPUS",
+                vec!["config", "credentials", "certificates"],
+            ),
             ("KEJATI_DKI_JAKSEL", vec!["config", "api_keys", "database"]),
-            ("KEJATI_JABAR_BANDUNG", vec!["config", "certificates", "keys"]),
+            (
+                "KEJATI_JABAR_BANDUNG",
+                vec!["config", "certificates", "keys"],
+            ),
             ("KEJARI_SOLO", vec!["config", "credentials"]),
         ];
 
@@ -178,9 +265,12 @@ mod secreton_integration_test_validation {
                     let secret_path = format!("secrets/{}/{}", target_satker, secret_type);
                     let should_have_access = requesting_satker == target_satker;
 
-                    println!("Framework ready for isolation test: { -> { (expect: {})",
-                            requesting_satker, secret_path,
-                            if should_have_access  { "allow" } else { "deny" });
+                    println!(
+                        "Framework ready for isolation test: { -> { (expect: {})",
+                        requesting_satker,
+                        secret_path,
+                        if should_have_access { "allow" } else { "deny" }
+                    );
 
                     // Simulate isolation enforcement
                     let access_allowed = requesting_satker == target_satker;
@@ -206,7 +296,10 @@ mod secreton_integration_test_validation {
         ];
 
         for (operation, resource) in audit_operations {
-            println!("Framework ready for audit operation: { on {}", operation, resource);
+            println!(
+                "Framework ready for audit operation: { on {}",
+                operation, resource
+            );
 
             // Simulate audit trail creation
             let audit_entry = format!("audit_entry_{}_{}", operation, resource.replace('/', "_"));
@@ -244,11 +337,16 @@ mod secreton_integration_test_validation {
                     "decrypt_with_pq" => "ML-KEM_decryption_complete",
                     _ => "unknown_pq_operation",
                 }
-            }).await;
+            })
+            .await;
 
             assert!(pq_result.is_ok());
             let result = pq_result.unwrap();
-            assert!(result.contains("ML-DSA") || result.contains("ML-KEM") || result.contains("unknown"));
+            assert!(
+                result.contains("ML-DSA")
+                    || result.contains("ML-KEM")
+                    || result.contains("unknown")
+            );
 
             println!("Post-quantum operation { result: {}", operation, result);
         }

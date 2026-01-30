@@ -137,8 +137,11 @@ pub enum AuthencError {
     },
 
     /// Rate limit exceeded for the operation
-    #[error("Rate limit exceeded")]
-    RateLimitExceeded,
+    #[error("Rate limit exceeded: {message}")]
+    RateLimitExceeded {
+        /// The detailed error message
+        message: String,
+    },
 
     /// Service is temporarily unavailable
     #[error("Service temporarily unavailable")]
@@ -700,12 +703,16 @@ impl AuthencError {
 
     /// Create a rate limit exceeded error
     pub fn rate_limit_exceeded() -> Self {
-        Self::RateLimitExceeded
+        Self::RateLimitExceeded {
+            message: "Rate limit exceeded".to_string(),
+        }
     }
 
     /// Create a too many requests error with custom message
     pub fn too_many_requests<T: Into<String>>(message: T) -> Self {
-        Self::RateLimitExceeded
+        Self::RateLimitExceeded {
+            message: message.into(),
+        }
     }
 
     /// Create an invalid recovery code error
@@ -872,7 +879,7 @@ impl AuthencError {
             AuthencError::DatabaseError { .. } => "DATABASE_ERROR",
             AuthencError::ConfigurationError { .. } => "CONFIG_ERROR",
             AuthencError::ExternalServiceError { .. } => "EXTERNAL_SERVICE_ERROR",
-            AuthencError::RateLimitExceeded => "RATE_LIMIT_EXCEEDED",
+            AuthencError::RateLimitExceeded { .. } => "RATE_LIMIT_EXCEEDED",
             AuthencError::ServiceUnavailable => "SERVICE_UNAVAILABLE",
             AuthencError::InternalError { .. } => "INTERNAL_ERROR",
             AuthencError::CryptographicError => "CRYPTO_ERROR",
@@ -1010,8 +1017,10 @@ impl AuthencError {
             | AuthencError::MfaAccountLocked => StatusCode::FORBIDDEN,
 
             // UMA errors - map based on status field
-            AuthencError::Uma(uma_error) => StatusCode::from_u16(uma_error.status.unwrap_or(403u16))
-                .unwrap_or(StatusCode::FORBIDDEN),
+            AuthencError::Uma(uma_error) => {
+                StatusCode::from_u16(uma_error.status.unwrap_or(403u16))
+                    .unwrap_or(StatusCode::FORBIDDEN)
+            }
 
             // 404 Not Found
             AuthencError::UserNotFound
@@ -1026,7 +1035,7 @@ impl AuthencError {
             | AuthencError::MfaAlreadyEnabled => StatusCode::CONFLICT,
 
             // 429 Too Many Requests
-            AuthencError::RateLimitExceeded | AuthencError::MfaRateLimitExceeded => {
+            AuthencError::RateLimitExceeded { .. } | AuthencError::MfaRateLimitExceeded => {
                 StatusCode::TOO_MANY_REQUESTS
             }
 

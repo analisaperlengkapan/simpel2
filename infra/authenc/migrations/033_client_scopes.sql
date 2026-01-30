@@ -6,7 +6,7 @@
 -- TABLE: client_scopes
 -- Reusable scope definitions with metadata
 -- =====================================================================
-CREATE TABLE client_scopes (
+CREATE TABLE IF NOT EXISTS client_scopes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
 
@@ -42,16 +42,16 @@ CREATE TABLE client_scopes (
     UNIQUE(realm_id, name)
 );
 
-CREATE INDEX idx_client_scopes_realm ON client_scopes(realm_id);
-CREATE INDEX idx_client_scopes_name ON client_scopes(realm_id, name);
-CREATE INDEX idx_client_scopes_protocol ON client_scopes(protocol);
-CREATE INDEX idx_client_scopes_enabled ON client_scopes(realm_id, enabled) WHERE enabled = TRUE;
+CREATE INDEX IF NOT EXISTS idx_client_scopes_realm ON client_scopes(realm_id);
+CREATE INDEX IF NOT EXISTS idx_client_scopes_name ON client_scopes(realm_id, name);
+CREATE INDEX IF NOT EXISTS idx_client_scopes_protocol ON client_scopes(protocol);
+CREATE INDEX IF NOT EXISTS idx_client_scopes_enabled ON client_scopes(realm_id, enabled) WHERE enabled = TRUE;
 
 -- =====================================================================
 -- TABLE: client_default_scopes
 -- Default scopes automatically granted to clients
 -- =====================================================================
-CREATE TABLE client_default_scopes (
+CREATE TABLE IF NOT EXISTS client_default_scopes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id UUID NOT NULL REFERENCES oauth2_clients(id) ON DELETE CASCADE,
     scope_id UUID NOT NULL REFERENCES client_scopes(id) ON DELETE CASCADE,
@@ -61,14 +61,14 @@ CREATE TABLE client_default_scopes (
     UNIQUE(client_id, scope_id)
 );
 
-CREATE INDEX idx_client_default_scopes_client ON client_default_scopes(client_id);
-CREATE INDEX idx_client_default_scopes_scope ON client_default_scopes(scope_id);
+CREATE INDEX IF NOT EXISTS idx_client_default_scopes_client ON client_default_scopes(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_default_scopes_scope ON client_default_scopes(scope_id);
 
 -- =====================================================================
 -- TABLE: client_optional_scopes
 -- Optional scopes that can be requested by clients (require consent)
 -- =====================================================================
-CREATE TABLE client_optional_scopes (
+CREATE TABLE IF NOT EXISTS client_optional_scopes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id UUID NOT NULL REFERENCES oauth2_clients(id) ON DELETE CASCADE,
     scope_id UUID NOT NULL REFERENCES client_scopes(id) ON DELETE CASCADE,
@@ -78,14 +78,14 @@ CREATE TABLE client_optional_scopes (
     UNIQUE(client_id, scope_id)
 );
 
-CREATE INDEX idx_client_optional_scopes_client ON client_optional_scopes(client_id);
-CREATE INDEX idx_client_optional_scopes_scope ON client_optional_scopes(scope_id);
+CREATE INDEX IF NOT EXISTS idx_client_optional_scopes_client ON client_optional_scopes(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_optional_scopes_scope ON client_optional_scopes(scope_id);
 
 -- =====================================================================
 -- TABLE: client_scope_mappings
 -- Maps scopes to protocol mappers for claim generation
 -- =====================================================================
-CREATE TABLE client_scope_mappings (
+CREATE TABLE IF NOT EXISTS client_scope_mappings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     scope_id UUID NOT NULL REFERENCES client_scopes(id) ON DELETE CASCADE,
     protocol_mapper_id UUID NOT NULL REFERENCES protocol_mappers(id) ON DELETE CASCADE,
@@ -95,8 +95,8 @@ CREATE TABLE client_scope_mappings (
     UNIQUE(scope_id, protocol_mapper_id)
 );
 
-CREATE INDEX idx_client_scope_mappings_scope ON client_scope_mappings(scope_id);
-CREATE INDEX idx_client_scope_mappings_mapper ON client_scope_mappings(protocol_mapper_id);
+CREATE INDEX IF NOT EXISTS idx_client_scope_mappings_scope ON client_scope_mappings(scope_id);
+CREATE INDEX IF NOT EXISTS idx_client_scope_mappings_mapper ON client_scope_mappings(protocol_mapper_id);
 
 -- =====================================================================
 -- UPDATE: user_consents table to reference client_scopes
@@ -105,7 +105,7 @@ CREATE INDEX idx_client_scope_mappings_mapper ON client_scope_mappings(protocol_
 -- Note: user_consents.scopes is currently TEXT[] (array of scope names)
 -- We'll keep this for backward compatibility but add a new table for structured consent
 
-CREATE TABLE user_consent_scopes (
+CREATE TABLE IF NOT EXISTS user_consent_scopes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     client_id UUID NOT NULL REFERENCES oauth2_clients(id) ON DELETE CASCADE,
@@ -121,10 +121,10 @@ CREATE TABLE user_consent_scopes (
     UNIQUE(user_id, client_id, scope_id)
 );
 
-CREATE INDEX idx_user_consent_scopes_user ON user_consent_scopes(user_id);
-CREATE INDEX idx_user_consent_scopes_client ON user_consent_scopes(client_id);
-CREATE INDEX idx_user_consent_scopes_scope ON user_consent_scopes(scope_id);
-CREATE INDEX idx_user_consent_scopes_expires ON user_consent_scopes(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_user_consent_scopes_user ON user_consent_scopes(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_consent_scopes_client ON user_consent_scopes(client_id);
+CREATE INDEX IF NOT EXISTS idx_user_consent_scopes_scope ON user_consent_scopes(scope_id);
+CREATE INDEX IF NOT EXISTS idx_user_consent_scopes_expires ON user_consent_scopes(expires_at) WHERE expires_at IS NOT NULL;
 
 -- =====================================================================
 -- SEED: Standard OIDC Scopes

@@ -1,6 +1,6 @@
 -- Performance Optimization Indexes Migration
 -- Adds indexes for frequently queried columns to improve query performance
--- Uses CREATE INDEX CONCURRENTLY to avoid table locking during index creation
+-- Uses CREATE INDEX CONCURRENTLY IF NOT EXISTS to avoid table locking (where supported)
 
 -- Users table indexes
 -- These indexes improve performance for authentication and user lookup operations
@@ -48,41 +48,36 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_admin_events_user_time
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_admin_events_realm_resource_time
     ON admin_events(realm_id, resource_type, time DESC);
 
--- User roles indexes (if table exists)
+-- User roles indexes
 -- These indexes improve permission check performance
+-- Using DO block to check for table existence (cannot use CONCURRENTLY inside DO block)
 DO $$
 BEGIN
-    -- Check if user_roles table exists before creating indexes
-    IF EXISTS (
-        SELECT 1 FROM information_schema.tables
-        WHERE table_name = 'user_roles'
-    ) THEN
-        -- Composite index for user + role lookups
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_roles_user_role
-            ON user_roles(user_id, role_id);
-
-        -- Index for role-based queries
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_roles_role
-            ON user_roles(role_id);
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_roles') THEN
+        CREATE INDEX IF NOT EXISTS idx_user_roles_user_role ON user_roles(user_id, role_id);
     END IF;
 END $$;
 
--- Permissions table indexes (if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_roles') THEN
+         CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role_id);
+    END IF;
+END $$;
+
+-- Permissions table indexes
 -- These indexes improve authorization check performance
 DO $$
 BEGIN
-    -- Check if permissions table exists before creating indexes
-    IF EXISTS (
-        SELECT 1 FROM information_schema.tables
-        WHERE table_name = 'permissions'
-    ) THEN
-        -- Composite index for user + resource permission checks
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_permissions_user_resource
-            ON permissions(user_id, resource);
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'permissions') THEN
+        CREATE INDEX IF NOT EXISTS idx_permissions_user_resource ON permissions(user_id, resource);
+    END IF;
+END $$;
 
-        -- Index for resource-based queries
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_permissions_resource
-            ON permissions(resource);
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'permissions') THEN
+        CREATE INDEX IF NOT EXISTS idx_permissions_resource ON permissions(resource);
     END IF;
 END $$;
 

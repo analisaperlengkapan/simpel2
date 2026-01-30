@@ -247,7 +247,11 @@ impl SecretStoreService {
     }
 
     /// Add a secreton provider
-    pub fn add_provider(&mut self, name: String, provider: std::sync::Arc<dyn SecretStoreProvider>) {
+    pub fn add_provider(
+        &mut self,
+        name: String,
+        provider: std::sync::Arc<dyn SecretStoreProvider>,
+    ) {
         self.providers.insert(name, provider);
     }
 

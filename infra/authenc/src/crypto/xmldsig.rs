@@ -169,12 +169,13 @@ impl XmlSignature {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        let mut in_signature = false;
         let mut in_signed_info = false;
         let mut in_reference = false;
+        let mut in_signature = false;
         let mut in_signature_value = false;
         let mut in_key_info = false;
         let mut in_x509_cert = false;
+        let mut in_digest_value = false;
 
         let mut signed_info_xml = String::new();
         let mut signature_value = String::new();
@@ -270,7 +271,8 @@ impl XmlSignature {
                             }
                         }
                         "DigestValue" | "ds:DigestValue" if in_reference => {
-                            // Start capturing digest value text
+                            in_digest_value = true;
+                            digest_value_text.clear();
                         }
                         "SignatureValue" | "ds:SignatureValue" if in_signature => {
                             in_signature_value = true;
@@ -294,7 +296,7 @@ impl XmlSignature {
                         signature_value.push_str(&text);
                     } else if in_x509_cert {
                         x509_cert.push_str(&text);
-                    } else if in_reference && !digest_value_text.is_empty() {
+                    } else if in_digest_value {
                         digest_value_text.push_str(&text);
                     }
                 }
@@ -315,8 +317,8 @@ impl XmlSignature {
                             references.push(current_ref.clone());
                             digest_value_text.clear();
                         }
-                        "DigestValue" | "ds:DigestValue" if !digest_value_text.is_empty() => {
-                            // Digest value text captured in Text event
+                        "DigestValue" | "ds:DigestValue" => {
+                            in_digest_value = false;
                         }
                         "SignatureValue" | "ds:SignatureValue" => {
                             in_signature_value = false;
@@ -328,7 +330,6 @@ impl XmlSignature {
                             in_x509_cert = false;
                         }
                         "Signature" | "ds:Signature" => {
-                            in_signature = false;
                             break; // Found complete signature
                         }
                         _ => {}

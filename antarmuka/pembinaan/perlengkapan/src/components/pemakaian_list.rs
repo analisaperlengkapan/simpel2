@@ -1,5 +1,5 @@
+use crate::api::{Pemakaian, fetch_pemakaian};
 use leptos::prelude::*;
-use crate::api::{fetch_pemakaian, Pemakaian};
 
 #[component]
 pub fn PemakaianList() -> impl IntoView {

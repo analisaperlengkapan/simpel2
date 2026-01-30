@@ -82,6 +82,9 @@ pub mod key_rotation;
 /// AI-resistant CAPTCHA service for bot detection and prevention
 pub mod captcha;
 
+/// Risk engine for dynamic difficulty assessment
+pub mod risk_engine;
+
 // Caching services
 /// Caching services for performance optimization
 pub mod cache;

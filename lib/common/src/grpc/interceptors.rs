@@ -182,7 +182,7 @@ impl MetricsInterceptor {
 
     /// Extract method name for metrics
     pub fn extract_method_name(&self, path: &str) -> String {
-        path.split('/').last().unwrap_or("unknown").to_string()
+        path.split('/').next_back().unwrap_or("unknown").to_string()
     }
 }
 

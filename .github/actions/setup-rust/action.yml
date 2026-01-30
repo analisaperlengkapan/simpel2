@@ -1,0 +1,96 @@
+name: 'Setup Rust Environment'
+description: 'Installs system dependencies, Rust toolchain, Protoc, and configures caching'
+
+inputs:
+  toolchain:
+    description: 'Rust toolchain version'
+    required: false
+    default: '1.90.0'
+  targets:
+    description: 'Comma-separated list of targets to install'
+    required: false
+    default: ''
+  components:
+    description: 'Comma-separated list of components to install'
+    required: false
+    default: ''
+  cache-key:
+    description: 'Additional cache key'
+    required: false
+    default: 'default'
+  github-token:
+    description: 'GitHub token for API requests'
+    required: false
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        # Install clang in addition to gcc to avoid --target flag incompatibility
+        # Recent cc crate versions use Clang-style --target flag which GCC doesn't support
+        # Also install TPM libraries for secreton-core
+        sudo -n apt-get update >/dev/null 2>&1 || true
+        sudo -n apt-get install -y unzip build-essential pkg-config libssl-dev clang gcc perl libzstd-dev zlib1g-dev libtss2-dev >/dev/null 2>&1 || true
+
+        # Use clang as the default C compiler to avoid --target flag issues
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        targets: ${{ inputs.targets }}
+        components: ${{ inputs.components }}
+
+    - name: Install Protocol Buffers compiler
+      shell: bash
+      run: |
+        # Check if protoc is already installed and has the correct version
+        if command -v protoc &> /dev/null; then
+          INSTALLED_VERSION=$(protoc --version | grep -oP '\d+\.\d+' || echo "0.0")
+          if [[ "$INSTALLED_VERSION" == "25.1" ]]; then
+            echo "protoc $INSTALLED_VERSION already installed, skipping..."
+            exit 0
+          fi
+        fi
+
+        PROTOC_VERSION="25.1"
+        PROTOC_ZIP="protoc-$PROTOC_VERSION-linux-x86_64.zip"
+
+        # Download protoc
+        curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/$PROTOC_ZIP"
+
+        # Extract using python3 (avoiding unzip dependency)
+        rm -rf protoc
+        python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1],'r').extractall('protoc')" "$PROTOC_ZIP"
+
+        # Install to local bin
+        mkdir -p $HOME/.local/bin
+        cp -f protoc/bin/protoc $HOME/.local/bin/
+
+        # Install include files (Critical for Google standard types like Timestamp)
+        mkdir -p $HOME/.local/include
+        cp -r protoc/include/* $HOME/.local/include/ || true
+
+        # Cleanup
+        rm -rf protoc "$PROTOC_ZIP"
+
+        # Set permissions and PATH
+        chmod +x $HOME/.local/bin/protoc
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        echo "PROTOC_INCLUDE=$HOME/.local/include" >> $GITHUB_ENV
+
+        # Verify installation
+        $HOME/.local/bin/protoc --version
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ inputs.cache-key }}
+        # Shared cache for all members in the workspace
+        workspaces: ". -> target"

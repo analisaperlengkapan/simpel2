@@ -45,7 +45,7 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'event_log' AND column_name = 'user_agent'
     ) THEN
-        ALTE event_log ADD COLUMN user_agent TEXT;
+        ALTER TABLE event_log ADD COLUMN user_agent TEXT;
         COMMENT ON COLUMN event_log.user_agent IS 'User agent string from the client';
     END IF;
 END $$;
@@ -84,7 +84,7 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'event_log' AND column_name = 'correlation_id'
     ) THEN
-        ALTERLE event_log ADD COLUMN correlation_id UUID;
+        ALTER TABLE event_log ADD COLUMN correlation_id UUID;
         COMMENT ON COLUMN event_log.correlation_id IS 'Correlation ID for tracing related events';
     END IF;
 END $$;
@@ -191,17 +191,17 @@ SELECT
     'ADMIN' as event_category,
     resource_type,
     resource_id,
-    auth_user_id as user_id,
-    auth_username as username,
-    auth_ip_address as ip_address,
-    auth_user_agent as user_agent,
+    admin_user_id as user_id,
+    admin_username as username,
+    admin_ip_address as ip_address,
+    NULL as user_agent,
     NULL as session_id,
     NULL as correlation_id,
     geolocation_data,
     request_payload,
     response_payload,
-    (error IS NULL) as success,
-    error as error_message,
+    (error_message IS NULL) as success,
+    error_message as error_message,
     'admin_audit_log' as source_table
 FROM admin_audit_log
 ORDER BY created_at DESC;

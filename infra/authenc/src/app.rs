@@ -110,6 +110,12 @@ pub struct AppState {
     pub uma_claims_gathering: Arc<tokio::sync::Mutex<crate::services::uma::ClaimsGatheringService>>,
     /// UMA 2.0 resource owner authorization service
     pub uma_resource_owner_auth: Arc<crate::services::uma::ResourceOwnerAuthService>,
+    /// CAPTCHA service for challenge generation and validation
+    pub captcha_service: Arc<crate::services::captcha::CaptchaService>,
+    /// Risk engine for dynamic difficulty
+    pub risk_engine: Arc<crate::services::risk_engine::RiskEngine>,
+    /// JWT Key Manager for dynamic key retrieval
+    pub jwt_key_manager: Arc<crate::utils::jwt_key_manager::JwtKeyManager>,
 }
 
 impl AppState {
@@ -510,6 +516,22 @@ impl AppState {
             secreton_token,
         ));
 
+        // Initialize JWT Key Manager
+        let jwt_key_manager = Arc::new(crate::utils::jwt_key_manager::JwtKeyManager::new(
+            secreton_client.clone(),
+            config
+                .security
+                .jwt_secret_path
+                .clone()
+                .unwrap_or_else(|| "auth/jwt-signing-key".to_string()),
+            None,
+        ));
+
+        // Ensure key exists
+        if let Err(e) = jwt_key_manager.initialize_key_if_missing().await {
+            tracing::warn!("Failed to initialize JWT key in Secreton: {}", e);
+        }
+
         // Get database pool for direct access
         let db_pool = database.get_pool();
 
@@ -602,6 +624,37 @@ impl AppState {
         } else {
             tracing::info!("User sync scheduler not configured");
         }
+
+        // Initialize CAPTCHA service components
+        tracing::info!("Initializing CAPTCHA service...");
+        let captcha_db_ops = Arc::new(crate::database::CaptchaOperations::new((*database).clone()));
+        let captcha_generator =
+            Arc::new(crate::services::captcha::generator::ChallengeGenerator::new());
+        let captcha_validator =
+            Arc::new(crate::services::captcha::validator::ValidationEngine::new());
+        let captcha_analyzer =
+            Arc::new(crate::services::captcha::analyzer::BehavioralAnalyzer::new());
+        let captcha_metrics = Arc::new(crate::services::captcha::metrics::MetricsCollector::new(
+            captcha_db_ops.clone(),
+        ));
+        let captcha_alerts = Arc::new(crate::services::captcha::alerting::AlertManager::new(
+            captcha_metrics.clone(),
+        ));
+
+        let captcha_service = Arc::new(crate::services::captcha::CaptchaService::new(
+            captcha_db_ops,
+            captcha_generator,
+            captcha_validator,
+            captcha_analyzer,
+            captcha_metrics,
+            captcha_alerts,
+        ));
+        tracing::info!("CAPTCHA service initialized successfully");
+
+        // Initialize Risk Engine
+        let risk_engine = Arc::new(crate::services::risk_engine::RiskEngine::new(
+            redis_cache.clone(),
+        ));
 
         // Clone Arc references needed for later field initializers before moving
         let config_ref = config.clone();
@@ -717,6 +770,10 @@ impl AppState {
                 resource_store.clone(),
                 permission_ticket_store.clone(),
             )),
+
+            captcha_service,
+            risk_engine,
+            jwt_key_manager,
         })
     }
 

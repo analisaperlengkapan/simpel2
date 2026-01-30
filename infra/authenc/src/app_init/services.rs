@@ -10,7 +10,9 @@ use std::sync::Arc;
 pub fn initialize_user_store(
     database: Arc<crate::database::Database>,
 ) -> Arc<crate::services::stores::user_store::UserStore> {
-    Arc::new(crate::services::stores::user_store::UserStore::new(database))
+    Arc::new(crate::services::stores::user_store::UserStore::new(
+        database,
+    ))
 }
 
 /// Initialize session store
@@ -43,7 +45,8 @@ pub fn initialize_role_store() -> Arc<crate::services::stores::role_store::RoleS
 }
 
 /// Initialize permission store
-pub fn initialize_permission_store() -> Arc<crate::services::stores::permission_store::PermissionStore> {
+pub fn initialize_permission_store()
+-> Arc<crate::services::stores::permission_store::PermissionStore> {
     Arc::new(crate::services::stores::permission_store::PermissionStore::new())
 }
 
@@ -51,7 +54,9 @@ pub fn initialize_permission_store() -> Arc<crate::services::stores::permission_
 pub fn initialize_resource_store(
     database: Arc<crate::database::Database>,
 ) -> Arc<crate::services::resource_store::ResourceStore> {
-    Arc::new(crate::services::resource_store::ResourceStore::new(database))
+    Arc::new(crate::services::resource_store::ResourceStore::new(
+        database,
+    ))
 }
 
 /// Initialize resource server store

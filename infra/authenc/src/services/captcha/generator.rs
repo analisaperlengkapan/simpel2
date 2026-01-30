@@ -584,7 +584,8 @@ impl ChallengeGeneratorTrait for ChallengeGenerator {
             "127.0.0.1".to_string(), // Placeholder IP - will be extracted from request context
         )
         .with_encrypted_data(encrypted_challenge_data)
-        .with_encryption_flag(is_encrypted);
+        .with_encryption_flag(is_encrypted)
+        .with_plaintext_data(challenge_data);
 
         Ok(challenge)
     }
@@ -618,43 +619,36 @@ impl ChallengeGeneratorTrait for ChallengeGenerator {
 }
 
 impl ChallengeGenerator {
-    /// Extract the expected answer from challenge data for hashing
     fn extract_answer_from_challenge(
         &self,
         challenge_data: &str,
         challenge_type: &ChallengeType,
     ) -> Result<String, CaptchaError> {
-        match challenge_type {
-            ChallengeType::Visual => {
-                match serde_json::from_str::<VisualChallenge>(challenge_data) {
-                    Ok(visual) => Ok(visual.answer),
-                    Err(_) => {
-                        let image: ImageChallenge =
-                            serde_json::from_str(challenge_data).map_err(|e| {
-                                CaptchaError::GenerationFailed {
-                                    message: format!("Failed to parse visual challenge: {}", e),
-                                    recoverable: true,
-                                    retry_after: Some(Duration::from_secs(1)),
-                                }
-                            })?;
-                        Ok(image.answer)
-                    }
+        // Generic structure to extract answer from any challenge type
+        #[derive(Deserialize)]
+        struct AnswerExtractor {
+            answer: String,
+        }
+
+        // Try to extract answer field from the JSON data
+        // This works for VisualChallenge, ImageChallenge, and LogicalChallenge
+        // as they all have a top-level "answer" field
+        match serde_json::from_str::<AnswerExtractor>(challenge_data) {
+            Ok(extractor) => Ok(extractor.answer),
+            Err(e) => {
+                // If parsing fails, checks if it's one of the placeholder types
+                if matches!(
+                    challenge_type,
+                    ChallengeType::Audio | ChallengeType::Behavioral | ChallengeType::Hybrid
+                ) {
+                    Ok("placeholder_answer".to_string())
+                } else {
+                    Err(CaptchaError::GenerationFailed {
+                        message: format!("Failed to extract answer from challenge data: {}", e),
+                        recoverable: true,
+                        retry_after: Some(Duration::from_secs(1)),
+                    })
                 }
-            }
-            ChallengeType::Logical => {
-                let logical: LogicalChallenge =
-                    serde_json::from_str(challenge_data).map_err(|e| {
-                        CaptchaError::GenerationFailed {
-                            message: format!("Failed to parse logical challenge: {}", e),
-                            recoverable: true,
-                            retry_after: Some(Duration::from_secs(1)),
-                        }
-                    })?;
-                Ok(logical.answer)
-            }
-            ChallengeType::Audio | ChallengeType::Behavioral | ChallengeType::Hybrid => {
-                // For now, return a placeholder - these will be implemented in future tasks
-                Ok("placeholder_answer".to_string())
             }
         }
     }

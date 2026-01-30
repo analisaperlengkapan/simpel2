@@ -779,8 +779,6 @@ mod tests {
 
 // Module declarations
 pub mod postgresql;
-    pub parameters: HashMap<String, String>,
-}
 
 /// Storage Transaction
 #[async_trait]
@@ -1030,6 +1028,7 @@ impl StorageProviderFactory {
             StorageProviderType::MongoDB => return Err(AuthencError::ConfigurationError { message: "MongoDB provider not implemented".to_string() }),
             StorageProviderType::Custom(name) => return Err(AuthencError::ConfigurationError { message: format!("Custom provider '{}' not implemented", name) }),
         }
+    }
 }
 
 /// Storage Manager - Central storage coordination
@@ -1088,16 +1087,16 @@ impl StorageManager {
                     return Err(AuthencError::ConfigurationError { message: "PostgreSQL support not enabled. Enable the 'db' feature.".to_string() });
                 }
             }
-            _ => return Err(AuthencError::ConfigurationError { message: "Repository not implemented for provider type".to_string( })),
+            _ => return Err(AuthencError::ConfigurationError { message: "Repository not implemented for provider type".to_string()),
         };
 
         let realm_repository: Box<dyn RealmStorageRepository> = match config.provider_type {
             StorageProviderType::InMemory => {
                 let in_memory_provider = provider.as_ref().downcast_ref::<InMemoryStorageProvider>()
-                    .ok_or_else(|| AuthencError::ConfigurationError { message: "Invalid provider type".to_string( }))?;
+                    .ok_or_else(|| AuthencError::ConfigurationError { message: "Invalid provider type".to_string())?;
                 Box::new(InMemoryRealmRepository::new(in_memory_provider.data.clone()))
             }
-            _ => return Err(AuthencError::ConfigurationError { message: "Repository not implemented for provider type".to_string( })),
+            _ => return Err(AuthencError::ConfigurationError { message: "Repository not implemented for provider type".to_string()),
         };
 
         Ok(Self {
@@ -1152,7 +1151,7 @@ impl StorageRepository<crate::models::user::User> for InMemoryUserRepository {
         if let Some(user_store) = storage.get("users") {
             if let Some(value) = user_store.get(id) {
                 let user: crate::models::user::User = serde_json::from_value(value.clone())
-                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize user".to_string( }))?;
+                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize user".to_string())?;
                 Ok(Some(user))
             } else {
                 Ok(None)
@@ -1169,7 +1168,7 @@ impl StorageRepository<crate::models::user::User> for InMemoryUserRepository {
         if let Some(user_store) = storage.get("users") {
             for value in user_store.values() {
                 let user: crate::models::user::User = serde_json::from_value(value.clone())
-                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize user".to_string( }))?;
+                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize user".to_string())?;
                 users.push(user);
             }
         }
@@ -1182,7 +1181,7 @@ impl StorageRepository<crate::models::user::User> for InMemoryUserRepository {
         let user_store = storage.entry("users".to_string()).or_insert_with(HashMap::new);
 
         let value = serde_json::to_value(user)
-            .map_err(|_| AuthencError::SerializationError { message: "Failed to serialize user".to_string( }))?;
+            .map_err(|_| AuthencError::SerializationError { message: "Failed to serialize user".to_string())?;
 
         user_store.insert(user.id.to_string(), value);
         Ok(())
@@ -1246,7 +1245,7 @@ impl StorageRepository<crate::models::oauth2::OAuth2Client> for InMemoryClientRe
         if let Some(client_store) = storage.get("clients") {
             if let Some(value) = client_store.get(id) {
                 let client: crate::models::oauth2::OAuth2Client = serde_json::from_value(value.clone())
-                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize client".to_string( }))?;
+                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize client".to_string())?;
                 Ok(Some(client))
             } else {
                 Ok(None)
@@ -1263,7 +1262,7 @@ impl StorageRepository<crate::models::oauth2::OAuth2Client> for InMemoryClientRe
         if let Some(client_store) = storage.get("clients") {
             for value in client_store.values() {
                 let client: crate::models::oauth2::OAuth2Client = serde_json::from_value(value.clone())
-                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize client".to_string( }))?;
+                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize client".to_string())?;
                 clients.push(client);
             }
         }
@@ -1276,7 +1275,7 @@ impl StorageRepository<crate::models::oauth2::OAuth2Client> for InMemoryClientRe
         let client_store = storage.entry("clients".to_string()).or_insert_with(HashMap::new);
 
         let value = serde_json::to_value(client)
-            .map_err(|_| AuthencError::SerializationError { message: "Failed to serialize client".to_string( }))?;
+            .map_err(|_| AuthencError::SerializationError { message: "Failed to serialize client".to_string())?;
 
         client_store.insert(client.client_id.clone(), value);
         Ok(())
@@ -1335,7 +1334,7 @@ impl StorageRepository<crate::models::realm::Realm> for InMemoryRealmRepository 
         if let Some(realm_store) = storage.get("realms") {
             if let Some(value) = realm_store.get(id) {
                 let realm: crate::models::realm::Realm = serde_json::from_value(value.clone())
-                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize realm".to_string( }))?;
+                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize realm".to_string())?;
                 Ok(Some(realm))
             } else {
                 Ok(None)
@@ -1352,7 +1351,7 @@ impl StorageRepository<crate::models::realm::Realm> for InMemoryRealmRepository 
         if let Some(realm_store) = storage.get("realms") {
             for value in realm_store.values() {
                 let realm: crate::models::realm::Realm = serde_json::from_value(value.clone())
-                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize realm".to_string( }))?;
+                    .map_err(|_| AuthencError::SerializationError { message: "Failed to deserialize realm".to_string())?;
                 realms.push(realm);
             }
         }
@@ -1365,7 +1364,7 @@ impl StorageRepository<crate::models::realm::Realm> for InMemoryRealmRepository 
         let realm_store = storage.entry("realms".to_string()).or_insert_with(HashMap::new);
 
         let value = serde_json::to_value(realm)
-            .map_err(|_| AuthencError::SerializationError { message: "Failed to serialize realm".to_string( }))?;
+            .map_err(|_| AuthencError::SerializationError { message: "Failed to serialize realm".to_string())?;
 
         realm_store.insert(realm.id.to_string(), value);
         Ok(())

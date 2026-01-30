@@ -419,29 +419,29 @@ impl AuditQuery {
     /// Check if an audit entry matches this query
     pub fn matches(&self, entry: &SignedAuditEntry) -> bool {
         // Time range filter
-        if let Some(start) = self.start_time {
-            if entry.event.timestamp < start {
-                return false;
-            }
+        if let Some(start) = self.start_time
+            && entry.event.timestamp < start
+        {
+            return false;
         }
-        if let Some(end) = self.end_time {
-            if entry.event.timestamp > end {
-                return false;
-            }
+        if let Some(end) = self.end_time
+            && entry.event.timestamp > end
+        {
+            return false;
         }
 
         // Actor filter
-        if let Some(ref principal) = self.principal {
-            if entry.event.principal.as_ref() != Some(principal) {
-                return false;
-            }
+        if let Some(ref principal) = self.principal
+            && entry.event.principal.as_ref() != Some(principal)
+        {
+            return false;
         }
 
         // Action filter
-        if let Some(ref action) = self.action {
-            if &entry.event.action != action {
-                return false;
-            }
+        if let Some(ref action) = self.action
+            && &entry.event.action != action
+        {
+            return false;
         }
 
         // Resource pattern filter (simple contains match)
@@ -456,38 +456,38 @@ impl AuditQuery {
         }
 
         // Target filter
-        if let Some(ref target) = self.target {
-            if entry.event.target.as_ref() != Some(target) {
-                return false;
-            }
+        if let Some(ref target) = self.target
+            && entry.event.target.as_ref() != Some(target)
+        {
+            return false;
         }
 
         // Severity filter
-        if let Some(severity) = self.severity {
-            if entry.event.severity != severity {
-                return false;
-            }
+        if let Some(severity) = self.severity
+            && entry.event.severity != severity
+        {
+            return false;
         }
 
         // Category filter
-        if let Some(ref category) = self.category {
-            if &entry.event.category != category {
-                return false;
-            }
+        if let Some(ref category) = self.category
+            && &entry.event.category != category
+        {
+            return false;
         }
 
         // Source IP filter
-        if let Some(ref source_ip) = self.source_ip {
-            if entry.event.source_ip.as_ref() != Some(source_ip) {
-                return false;
-            }
+        if let Some(ref source_ip) = self.source_ip
+            && entry.event.source_ip.as_ref() != Some(source_ip)
+        {
+            return false;
         }
 
         // Correlation ID filter
-        if let Some(ref correlation_id) = self.correlation_id {
-            if entry.event.correlation_id.as_ref() != Some(correlation_id) {
-                return false;
-            }
+        if let Some(ref correlation_id) = self.correlation_id
+            && entry.event.correlation_id.as_ref() != Some(correlation_id)
+        {
+            return false;
         }
 
         true
@@ -1015,14 +1015,11 @@ impl AdvancedAuditSystem {
                                     config_guard.clone()
                                 };
 
-                                if let Some(config) = siem_config_data {
-                                    if config.enabled {
-                                        if let Err(e) =
-                                            Self::send_to_siem(&signed_entry, &config).await
-                                        {
-                                            warn!("Failed to send to SIEM: {}", e);
-                                        }
-                                    }
+                                if let Some(config) = siem_config_data
+                                    && config.enabled
+                                    && let Err(e) = Self::send_to_siem(&signed_entry, &config).await
+                                {
+                                    warn!("Failed to send to SIEM: {}", e);
                                 }
                             }
                         }

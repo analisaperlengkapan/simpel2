@@ -1,7 +1,7 @@
 -- Migration: Satker Hierarchy for Organization-Aware Authorization
 -- Description: Create satkers table and related structures for hierarchical organization management
 
--- Create satkers table
+-- Create satkers table if it doesn't exist
 CREATE TABLE IF NOT EXISTS satkers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) NOT NULL UNIQUE,
@@ -49,7 +49,7 @@ END $$;
 -- Create index on users.satker_code for efficient lookups
 CREATE INDEX IF NOT EXISTS idx_users_satker_code ON users(satker_code);
 
--- Create satker_permissions table for explicit satker-level permissions
+-- Create satker_permissions table if it doesn't exist
 CREATE TABLE IF NOT EXISTS satker_permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
@@ -198,8 +198,8 @@ WITH RECURSIVE satker_tree AS (
         level,
         satker_type,
         active,
-        code AS path,
-        name AS full_path
+        code::TEXT AS path,
+        name::TEXT AS full_path
     FROM satkers
     WHERE parent_code IS NULL AND active = true
 
@@ -224,11 +224,11 @@ SELECT * FROM satker_tree
 ORDER BY level, code;
 
 -- Grant permissions (adjust as needed for your setup)
--- GRANT SELECT, INSERT, UPDATE, DELETE ON satkers TO authenc_app;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON satker_permissions TO authenc_app;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON satker_admin_roles TO authenc_app;
--- GRANT SELECT, INSERT ON satker_audit_logs TO authenc_app;
--- GRANT SELECT ON satker_hierarchy_view TO authenc_app;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON satkers TO authenc;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON satker_permissions TO authenc;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON satker_admin_roles TO authenc;
+-- GRANT SELECT, INSERT ON satker_audit_logs TO authenc;
+-- GRANT SELECT ON satker_hierarchy_view TO authenc;
 
 -- Add comments for documentation
 COMMENT ON TABLE satkers IS 'Organizational units (Satuan Kerja) in the Attorney General''s Office hierarchy';

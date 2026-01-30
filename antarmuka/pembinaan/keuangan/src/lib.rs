@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 //! # SIMPEL Keuangan - Microfrontend
 //!
 //! Sistem Informasi Manajemen Keuangan untuk Kejaksaan RI
@@ -9,10 +11,8 @@ use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::hooks::use_navigate;
 use leptos_router::*;
-use shared_microfrontend::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
-use shared_microfrontend::prelude::*;
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
+use lib_ui::prelude::*;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
@@ -37,7 +37,7 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=|| view! { <NotFound /> }>
-                <Route path=path!("/") view=LoginRedirectPage />
+                <Route path=path!("/") view=|| view! { <LoginRedirectPage /> } />
                 <Route path=path!("/dashboard/*") view=DashboardRoutes />
             </Routes>
         </Router>
@@ -108,7 +108,7 @@ pub fn AuthCallback() -> impl IntoView {
                     && let Ok(storage) = window.local_storage()
                     && let Some(storage) = storage
                 {
-                    let _ = storage.set_item("jwt_token", &token);
+                    let _ = storage.set_item("auth_token", &token);
                 }
 
                 // Redirect to dashboard
@@ -341,7 +341,7 @@ fn is_authenticated() -> bool {
         && let Ok(storage) = window.local_storage()
         && let Some(storage) = storage
     {
-        return storage.get_item("jwt_token").unwrap_or(None).is_some();
+        return storage.get_item("auth_token").unwrap_or(None).is_some();
     }
     false
 }

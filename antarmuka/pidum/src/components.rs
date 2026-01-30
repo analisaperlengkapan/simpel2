@@ -53,7 +53,7 @@ pub fn SearchBox(#[prop(into)] on_search: Callback<String>) -> impl IntoView {
     let (search_value, set_search_value) = create_signal(String::new());
 
     let handle_search = move |_| {
-    on_search.run(search_value.get());
+        on_search.run(search_value.get());
     };
 
     let handle_input = move |ev| {
@@ -81,7 +81,7 @@ pub fn ActionButton(
     #[prop(into)] text: String,
     #[prop(into)] icon: &'static str,
     #[prop(into)] class: &'static str,
-    #[prop(into)] on_click: Callback<()>
+    #[prop(into)] on_click: Callback<()>,
 ) -> impl IntoView {
     view! {
     <button class=class on:click=move |_| on_click.run(())>
@@ -110,11 +110,11 @@ pub fn FormGroup(
     #[prop(into)] input_type: &'static str,
     #[prop(into)] placeholder: String,
     #[prop(into)] value: Signal<String>,
-    #[prop(into)] on_change: Callback<String>
+    #[prop(into)] on_change: Callback<String>,
 ) -> impl IntoView {
     let handle_input = move |ev| {
         let value = event_target_value(&ev);
-    on_change.run(value);
+        on_change.run(value);
     };
 
     view! {
@@ -135,11 +135,11 @@ pub fn FormSelect(
     #[prop(into)] label: String,
     #[prop(into)] options: Vec<(String, String)>,
     #[prop(into)] value: Signal<String>,
-    #[prop(into)] on_change: Callback<String>
+    #[prop(into)] on_change: Callback<String>,
 ) -> impl IntoView {
     let handle_change = move |ev| {
         let value = event_target_value(&ev);
-    on_change.run(value);
+        on_change.run(value);
     };
 
     view! {

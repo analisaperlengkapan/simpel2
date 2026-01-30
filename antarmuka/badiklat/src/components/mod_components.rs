@@ -1,8 +1,8 @@
 //! BADIKLAT specific components
 
 use leptos::*;
-use simpelv2_shared::*;
 use serde::{Deserialize, Serialize};
+use simpelv2_shared::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PelatihanItem {
@@ -161,17 +161,35 @@ pub fn PesertaCard(
 pub fn StatistikPelatihan() -> impl IntoView {
     // Mock data - in real app, this would come from API
     let stats = vec![
-        ("fa-chalkboard-teacher", "Pelatihan Aktif", "12", Some("green"), None),
-        ("fa-users", "Peserta Aktif", "245", Some("blue"), Some(Trend {
-            percentage: 15.3,
-            direction: TrendDirection::Up,
-            period: "vs bulan lalu".to_string(),
-        })),
-        ("fa-certificate", "Sertifikat Diterbitkan", "186", Some("purple"), Some(Trend {
-            percentage: 8.7,
-            direction: TrendDirection::Up,
-            period: "bulan ini".to_string(),
-        })),
+        (
+            "fa-chalkboard-teacher",
+            "Pelatihan Aktif",
+            "12",
+            Some("green"),
+            None,
+        ),
+        (
+            "fa-users",
+            "Peserta Aktif",
+            "245",
+            Some("blue"),
+            Some(Trend {
+                percentage: 15.3,
+                direction: TrendDirection::Up,
+                period: "vs bulan lalu".to_string(),
+            }),
+        ),
+        (
+            "fa-certificate",
+            "Sertifikat Diterbitkan",
+            "186",
+            Some("purple"),
+            Some(Trend {
+                percentage: 8.7,
+                direction: TrendDirection::Up,
+                period: "bulan ini".to_string(),
+            }),
+        ),
         ("fa-user-tie", "Instruktur", "24", Some("orange"), None),
     ];
 
@@ -220,7 +238,7 @@ pub fn PelatihanFilter(
     ];
 
     let handle_filter_change = move |_| {
-    on_filter_change.run((selected_kategori.get(), selected_status.get()));
+        on_filter_change.run((selected_kategori.get(), selected_status.get()));
     };
 
     view! {

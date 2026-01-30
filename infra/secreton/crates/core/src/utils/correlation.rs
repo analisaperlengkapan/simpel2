@@ -4,7 +4,6 @@
 //! to enable end-to-end request tracing.
 
 use lib_common::correlation::{CORRELATION_ID_HEADER, CorrelationId, REQUEST_ID_HEADER};
-use uuid::Uuid;
 
 /// HTTP header name for correlation ID
 // pub const CORRELATION_ID_HEADER: &str = "X-Correlation-ID"; // Imported from lib_common
@@ -97,6 +96,7 @@ impl Default for CorrelationContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn test_generate_correlation_id() {

@@ -42,12 +42,12 @@ impl Reconciler {
         }
 
         // Validate refresh interval
-        if let Some(interval) = spec.refresh_interval {
-            if interval < 10 {
-                return Err(Error::ReconciliationFailed(
-                    "Refresh interval must be at least 10 seconds".to_string(),
-                ));
-            }
+        if let Some(interval) = spec.refresh_interval
+            && interval < 10
+        {
+            return Err(Error::ReconciliationFailed(
+                "Refresh interval must be at least 10 seconds".to_string(),
+            ));
         }
 
         Ok(())
@@ -272,7 +272,8 @@ mod tests {
             "password": "{{pass}}",
             "connection_string": "postgres://{{user}}:{{pass}}@localhost:5432/db"
         }
-        "#.to_string();
+        "#
+        .to_string();
 
         let transform = TransformConfig {
             mappings: None,
@@ -301,7 +302,8 @@ mod tests {
         CONFIG: |
           enabled: true
           key: {{api_key}}
-        "#.to_string();
+        "#
+        .to_string();
 
         let transform = TransformConfig {
             mappings: None,

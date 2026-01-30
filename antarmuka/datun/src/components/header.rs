@@ -1,7 +1,7 @@
 //! Header component for Datun Criminal Prosecution System
 
 use leptos::prelude::*;
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 
 /// Header component khusus untuk sistem Datun
 #[component]

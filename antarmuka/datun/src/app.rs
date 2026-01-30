@@ -16,10 +16,8 @@ use leptos_router::{
 use serde::{Deserialize, Serialize};
 
 // Import shared components - Modern Leptos 0.7.8
-use shared_microfrontend::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
-use shared_microfrontend::prelude::*;
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
+use lib_ui::prelude::*;
 
 // Import local components
 use crate::components::DatunFooter;
@@ -209,7 +207,7 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=|| "Page not found".into_view()>
-                <Route path=StaticSegment("") view=LoginRedirectPage />
+                <Route path=StaticSegment("") view=|| view! { <LoginRedirectPage /> } />
                 <Route path=StaticSegment("dashboard") view=DashboardPage />
             </Routes>
         </Router>

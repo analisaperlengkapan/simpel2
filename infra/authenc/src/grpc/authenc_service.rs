@@ -11,11 +11,12 @@ use crate::app::AppState;
 use crate::error::AuthencError;
 use crate::services::cache::Cache;
 use crate::services::stores::UserStoreTrait;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 
-// Include generated proto code
-pub mod proto {
-    tonic::include_proto!("authenc.v1");
-}
+// Use shared proto from grpc module
+pub use crate::grpc::proto::authenc::v1 as proto;
+pub use crate::grpc::proto::common;
 
 use proto::{
     AssignRoleRequest,
@@ -26,6 +27,12 @@ use proto::{
     // Authentication
     AuthenticateRequest,
     AuthenticateResponse,
+    // Captcha
+    CaptchaChallengeRequest,
+    CaptchaChallengeResponse,
+    CaptchaVerificationRequest,
+    CaptchaVerificationResponse,
+    ChallengeType,
     // Authorization
     CheckPermissionRequest,
     CheckPermissionResponse,
@@ -74,6 +81,10 @@ use proto::{
     authenc_service_server::AuthencService,
 };
 
+use crate::services::captcha::{
+    BehavioralMetrics, CaptchaServiceTrait, ChallengeType as ServiceChallengeType,
+};
+
 /// gRPC service implementation for Authenc
 pub struct AuthencGrpcService {
     state: Arc<AppState>,
@@ -109,6 +120,63 @@ impl AuthencService for AuthencGrpcService {
     ) -> Result<Response<AuthenticateResponse>, Status> {
         let req = request.into_inner();
         info!("gRPC Authenticate request for user: {}", req.username);
+
+        // CAPTCHA Validation
+        if let Some(token) = &req.captcha_token {
+            let parts: Vec<&str> = token.split(':').collect();
+            if parts.len() != 3 {
+                return Err(Status::invalid_argument("Invalid CAPTCHA token format"));
+            }
+
+            let challenge_id = parts[0];
+            let timestamp_str = parts[1];
+            let signature = parts[2];
+
+            let timestamp: u64 = timestamp_str
+                .parse()
+                .map_err(|_| Status::invalid_argument("Invalid CAPTCHA timestamp"))?;
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            // Token valid for 10 minutes
+            if now > timestamp + 600 {
+                return Err(Status::unauthenticated("CAPTCHA token expired"));
+            }
+
+            let payload = format!("{}:{}", challenge_id, timestamp_str);
+            let secret = &self.state.config.security.jwt_secret;
+
+            // Use HKDF to derive the same key used for signing (Bug 10)
+            let hk = hkdf::Hkdf::<Sha256>::new(None, secret.as_bytes());
+            let mut captcha_key = [0u8; 32];
+            hk.expand(b"captcha-v1", &mut captcha_key)
+                .expect("HKDF expand failed");
+
+            type HmacSha256 = Hmac<Sha256>;
+            let mut mac =
+                HmacSha256::new_from_slice(&captcha_key).expect("HMAC can take key of any size");
+            mac.update(payload.as_bytes());
+
+            if let Err(_) = mac.verify_slice(
+                &hex::decode(signature)
+                    .map_err(|_| Status::invalid_argument("Invalid CAPTCHA signature encoding"))?,
+            ) {
+                return Err(Status::unauthenticated("Invalid CAPTCHA signature"));
+            }
+
+            // Note: Token usage check is deferred until after credential verification
+            // to prevent DoS where failed logins consume tokens (Bug 1)
+        } else {
+            // For now, allow requests without captcha if not strictly required,
+            // but the bug report says it should be enforced.
+            warn!(
+                "Login attempt without CAPTCHA token for user: {}",
+                req.username
+            );
+            return Err(Status::unauthenticated("CAPTCHA verification required"));
+        }
 
         // OPTIMIZATION: Parallel DB + cache checks using tokio::join!
         let (user_result, cache_result) = tokio::join!(
@@ -185,6 +253,54 @@ impl AuthencService for AuthencGrpcService {
             });
 
             return Err(Status::unauthenticated("Invalid credentials"));
+        }
+
+        // Check if MFA is required
+        // BUG FIX: Mark CAPTCHA token as used ONLY after password verification succeeds
+        // This prevents "Token Burning" attacks (Bug 1) and uses atomic SET NX to prevent races (Bug 2)
+        if let Some(token) = &req.captcha_token {
+            let parts: Vec<&str> = token.split(':').collect();
+            // We already validated format/signature above, so this unwrap logic is safe enough or we re-parse
+            if let Some(challenge_id) = parts.first() {
+                if let Some(redis_cache) = &self.state.redis_cache {
+                    let used_key = format!("used_captcha:{}", challenge_id);
+
+                    // Atomic check-and-set using SET NX
+                    // If it returns true: Key was set (we claimed it first) -> OK
+                    // If it returns false: Key existed (replay attempt) -> FAIL
+                    match redis_cache
+                        .set_nx(
+                            &used_key,
+                            &serde_json::json!(true),
+                            std::time::Duration::from_secs(600),
+                        )
+                        .await
+                    {
+                        Ok(true) => {
+                            debug!(
+                                "CAPTCHA token {} successfully consumed for user {}",
+                                challenge_id, req.username
+                            );
+                        }
+                        Ok(false) => {
+                            warn!(
+                                "Replay attack detected: CAPTCHA token {} already used (race condition check)",
+                                challenge_id
+                            );
+                            // Even though password was correct, we fail because the token was reused
+                            return Err(Status::unauthenticated("CAPTCHA token already used"));
+                        }
+                        Err(e) => {
+                            warn!("Redis error checking CAPTCHA replay: {}", e);
+                            // Fail open or closed? Security-wise should fail closed, but availability-wise...
+                            // Let's fail closed for now as this is a security feature
+                            return Err(Status::internal(
+                                "Internal error verifying CAPTCHA status",
+                            ));
+                        }
+                    }
+                }
+            }
         }
 
         // Check if MFA is required
@@ -858,6 +974,131 @@ impl AuthencService for AuthencGrpcService {
         let _ = event_manager.fire_event(event).await;
 
         Ok(Response::new(DisableMfaResponse { success: true }))
+    }
+
+    // ==================== CAPTCHA ====================
+
+    async fn generate_captcha_challenge(
+        &self,
+        request: Request<CaptchaChallengeRequest>,
+    ) -> Result<Response<CaptchaChallengeResponse>, Status> {
+        // Extract real client IP from gRPC metadata before consuming the request
+        let ip_address = request
+            .remote_addr()
+            .map(|addr| addr.ip().to_string())
+            .unwrap_or_else(|| "0.0.0.0".to_string());
+
+        let req = request.into_inner();
+
+        // Convert challenge type
+        let challenge_type = match req.challenge_type {
+            1 => ServiceChallengeType::Visual,
+            2 => ServiceChallengeType::Audio,
+            3 => ServiceChallengeType::Behavioral,
+            4 => ServiceChallengeType::Logical,
+            5 => ServiceChallengeType::Hybrid,
+            _ => ServiceChallengeType::Visual,
+        };
+
+        // Generate challenge
+        let challenge = self
+            .state
+            .captcha_service
+            .generate_challenge(
+                challenge_type,
+                Some(req.difficulty as u8),
+                Some(req.session_id.clone()),
+                ip_address,
+            )
+            .await
+            .map_err(|e| Status::internal(format!("Failed to generate challenge: {}", e)))?;
+
+        // Convert to proto response
+        let response = CaptchaChallengeResponse {
+            challenge_id: challenge.id,
+            challenge_type: req.challenge_type,
+            challenge_data: challenge.encrypted_data,
+            difficulty: challenge.difficulty_level as u32,
+            expires_at: challenge
+                .expires_at
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64,
+            metadata: req.metadata,
+        };
+
+        Ok(Response::new(response))
+    }
+
+    async fn verify_captcha_challenge(
+        &self,
+        request: Request<CaptchaVerificationRequest>,
+    ) -> Result<Response<CaptchaVerificationResponse>, Status> {
+        let req = request.into_inner();
+
+        // Parse behavioral data if provided
+        let behavioral_data = if !req.behavioral_data.is_empty() {
+            serde_json::from_slice::<BehavioralMetrics>(&req.behavioral_data).ok()
+        } else {
+            None
+        };
+
+        // Validate challenge
+        let validation_result = self
+            .state
+            .captcha_service
+            .validate_challenge(req.challenge_id.clone(), req.answer, behavioral_data)
+            .await
+            .map_err(|e| match e {
+                crate::services::captcha::CaptchaError::ChallengeNotFound { .. } => {
+                    Status::not_found("Challenge not found")
+                }
+                crate::services::captcha::CaptchaError::ChallengeExpired { .. } => {
+                    Status::failed_precondition("Challenge expired")
+                }
+                _ => Status::internal(format!("Validation failed: {}", e)),
+            })?;
+
+        // Generate verification token if successful
+        let verification_token = if validation_result.success {
+            let timestamp = chrono::Utc::now().timestamp();
+
+            // Format: challenge_id:timestamp:signature
+            let payload = format!("{}:{}", req.challenge_id, timestamp);
+            let secret = &self.state.config.security.jwt_secret;
+
+            // Use HKDF to derive a specific key for CAPTCHA tokens (matching REST/Validation logic)
+            let hk = hkdf::Hkdf::<Sha256>::new(None, secret.as_bytes());
+            let mut captcha_key = [0u8; 32];
+            hk.expand(b"captcha-v1", &mut captcha_key)
+                .map_err(|_| Status::internal("HKDF expansion failed"))?;
+
+            type HmacSha256 = Hmac<Sha256>;
+            let mut mac = HmacSha256::new_from_slice(&captcha_key)
+                .map_err(|_| Status::internal("HMAC initialization failed"))?;
+            mac.update(payload.as_bytes());
+            let result_mac = mac.finalize();
+            let signature = hex::encode(result_mac.into_bytes());
+
+            format!("{}:{}:{}", req.challenge_id, timestamp, signature)
+        } else {
+            String::new()
+        };
+
+        let lockout_duration = validation_result
+            .lockout_duration
+            .map(|d| d.as_secs() as u32);
+
+        let response = CaptchaVerificationResponse {
+            success: validation_result.success,
+            message: validation_result.message,
+            verification_token,
+            next_difficulty: validation_result.next_difficulty as u32,
+            retry_allowed: validation_result.retry_allowed,
+            lockout_duration,
+        };
+
+        Ok(Response::new(response))
     }
 
     // ==================== Authorization & RBAC ====================
@@ -1835,6 +2076,3 @@ impl AuthencService for AuthencGrpcService {
         Err(Status::unimplemented("Health check not yet implemented"))
     }
 }
-
-// Include common proto types at module level
-pub use super::common;

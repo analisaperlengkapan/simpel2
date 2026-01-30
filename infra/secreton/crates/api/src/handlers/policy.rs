@@ -21,10 +21,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
 
-use secreton_core::{
-    error::CoreError,
-    models::PolicyRule,
-};
+use secreton_core::{error::CoreError, models::PolicyRule};
 
 use crate::{
     ApiError, ApiResponse, ApiResult, PaginationQuery, handlers::AppState,
@@ -227,7 +224,11 @@ pub async fn list_policies(
         })
         .collect();
 
-    info!("Found {} policies (total: {})", response_policies.len(), total);
+    info!(
+        "Found {} policies (total: {})",
+        response_policies.len(),
+        total
+    );
 
     Ok(Json(PaginatedResponse::new(
         response_policies,
@@ -260,13 +261,7 @@ pub async fn create_policy(
 
     let p = state
         .policy_service
-        .create_policy(
-            name,
-            req.namespace,
-            req.description,
-            req.rules,
-            user,
-        )
+        .create_policy(name, req.namespace, req.description, req.rules, user)
         .await
         .map_err(ApiError::Core)?;
 
@@ -361,13 +356,7 @@ pub async fn update_policy(
 
     let p = state
         .policy_service
-        .update_policy(
-            name,
-            req.description,
-            req.rules,
-            req.is_active,
-            user,
-        )
+        .update_policy(name, req.description, req.rules, req.is_active, user)
         .await
         .map_err(ApiError::Core)?;
 

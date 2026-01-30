@@ -1,5 +1,5 @@
+use crate::api::{fetch_budgets, fetch_metrics, fetch_transactions};
 use crate::components::{footer::Footer, header::Header};
-use crate::api::{fetch_metrics, fetch_budgets, fetch_transactions};
 use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};

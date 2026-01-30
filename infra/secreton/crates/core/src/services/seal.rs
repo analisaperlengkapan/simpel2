@@ -512,7 +512,7 @@ impl SealService {
 
         // Generate 32-byte master key using cryptographically secure RNG
         let mut master_key_bytes = Zeroizing::new(vec![0u8; 32]);
-        OsRng.fill_bytes(&mut *master_key_bytes);
+        OsRng.fill_bytes(&mut master_key_bytes);
 
         // Create Shamir configuration
         let shamir_config = ShamirConfig::new(threshold, num_shares)

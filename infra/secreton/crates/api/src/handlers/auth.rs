@@ -19,7 +19,6 @@ static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
-use secreton_storage::{SecretEntry, SecurityLevel};
 
 use crate::{
     ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
@@ -478,10 +477,10 @@ pub async fn logout(
     };
 
     // Invalidate token
-    if !token.is_empty() {
-        if let Err(e) = state.auth.revoke_token(token).await {
-            tracing::warn!("Failed to revoke token during logout: {}", e);
-        }
+    if !token.is_empty()
+        && let Err(e) = state.auth.revoke_token(token).await
+    {
+        tracing::warn!("Failed to revoke token during logout: {}", e);
     }
 
     // Audit log
@@ -979,12 +978,13 @@ pub async fn oauth_login(
         message: format!("Serialization failed: {}", e),
     })?;
 
-    let encrypted_data = state
-        .crypto
-        .encrypt_simple(&state_bytes)
-        .map_err(|e| ApiError::Internal {
-            message: format!("Encryption failed: {}", e),
-        })?;
+    let encrypted_data =
+        state
+            .crypto
+            .encrypt_simple(&state_bytes)
+            .map_err(|e| ApiError::Internal {
+                message: format!("Encryption failed: {}", e),
+            })?;
 
     let entry = secreton_storage::SecretEntry::new(
         state_path,
@@ -1007,10 +1007,9 @@ pub async fn oauth_login(
         })?;
 
     // 4. Build authorization URL
-    let mut url = url::Url::parse(&provider_config.auth_url)
-        .map_err(|e| ApiError::Internal {
-            message: e.to_string(),
-        })?;
+    let mut url = url::Url::parse(&provider_config.auth_url).map_err(|e| ApiError::Internal {
+        message: e.to_string(),
+    })?;
 
     {
         let mut pairs = url.query_pairs_mut();
@@ -1065,13 +1064,14 @@ pub async fn oauth_callback(
     })?;
 
     let state_path = format!("sys/oauth/states/{}", state_param);
-    let state_entry = state
-        .storage
-        .get_by_path(&state_path)
-        .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to verify state: {}", e),
-        })?;
+    let state_entry =
+        state
+            .storage
+            .get_by_path(&state_path)
+            .await
+            .map_err(|e| ApiError::Internal {
+                message: format!("Failed to verify state: {}", e),
+            })?;
 
     let state_entry = state_entry.ok_or(ApiError::Validation {
         message: "Invalid or expired state parameter".to_string(),
@@ -1090,13 +1090,12 @@ pub async fn oauth_callback(
     }
 
     // Verify provider matches (decrypt state data)
-    let decrypted_bytes =
-        state
-            .crypto
-            .decrypt_simple(&state_entry.encrypted_data)
-            .map_err(|_| ApiError::Authentication {
-                message: "Invalid state data".to_string(),
-            })?;
+    let decrypted_bytes = state
+        .crypto
+        .decrypt_simple(&state_entry.encrypted_data)
+        .map_err(|_| ApiError::Authentication {
+            message: "Invalid state data".to_string(),
+        })?;
 
     let state_data: serde_json::Value =
         serde_json::from_slice(&decrypted_bytes).map_err(|_| ApiError::Authentication {
@@ -1160,10 +1159,9 @@ pub async fn oauth_callback(
         });
     }
 
-    let token_data: serde_json::Value =
-        token_res.json().await.map_err(|e| ApiError::Internal {
-            message: format!("Failed to parse token response: {}", e),
-        })?;
+    let token_data: serde_json::Value = token_res.json().await.map_err(|e| ApiError::Internal {
+        message: format!("Failed to parse token response: {}", e),
+    })?;
 
     let access_token = token_data["access_token"]
         .as_str()

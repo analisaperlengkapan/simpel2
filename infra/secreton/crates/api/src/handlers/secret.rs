@@ -88,15 +88,15 @@ pub async fn get_audit_logs(
     if let Some(action) = query.action {
         core_query = core_query.action(action);
     }
-    if let Some(start_time) = query.start_time {
-        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time) {
-            core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
-        }
+    if let Some(start_time) = query.start_time
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time)
+    {
+        core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
     }
-    if let Some(end_time) = query.end_time {
-        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time) {
-            core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
-        }
+    if let Some(end_time) = query.end_time
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time)
+    {
+        core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
     }
     if let Some(status) = query.status {
         let status = match status.to_lowercase().as_str() {
@@ -147,15 +147,15 @@ pub async fn export_audit_logs(
     if let Some(action) = query.action {
         core_query = core_query.action(action);
     }
-    if let Some(start_time) = query.start_time {
-        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time) {
-            core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
-        }
+    if let Some(start_time) = query.start_time
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time)
+    {
+        core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
     }
-    if let Some(end_time) = query.end_time {
-        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time) {
-            core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
-        }
+    if let Some(end_time) = query.end_time
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time)
+    {
+        core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
     }
     if let Some(status) = query.status {
         let status = match status.to_lowercase().as_str() {
@@ -707,7 +707,7 @@ pub async fn get_secret(
         .engine
         .get_secret(&path, &user.id.to_string())
         .await
-        .map_err(|e| ApiError::NotFound {
+        .map_err(|_e| ApiError::NotFound {
             resource: format!("Secret at path '{}'", path),
         })?;
 
@@ -920,7 +920,7 @@ pub async fn get_key(
         .engine
         .get_key(&key_id, &user.id.to_string())
         .await
-        .map_err(|e| ApiError::NotFound {
+        .map_err(|_e| ApiError::NotFound {
             resource: format!("Key '{}'", key_id),
         })?;
 
@@ -943,7 +943,7 @@ pub async fn get_key(
 
 pub async fn list_keys(
     State(state): State<AppState>,
-    Query(query): Query<ListQuery>,
+    Query(_query): Query<ListQuery>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
     // List keys using engine service
@@ -1466,8 +1466,8 @@ pub async fn get_backup(
                 })
             }
         }
-        Err(e) => Err(ApiError::Internal {
-            message: format!("Failed to get backup: {}", e),
+        Err(_e) => Err(ApiError::Internal {
+            message: format!("Failed to get backup: {}", _e),
         }),
     }
 }
@@ -1488,7 +1488,7 @@ pub async fn restore_backup(
 }
 
 pub async fn delete_backup(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(backup_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // Backup deletion requires persistent storage implementation

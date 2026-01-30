@@ -4,11 +4,11 @@ use crate::services::authorization::{
     PolicyConfig, PolicyType,
 };
 use axum::{
+    Router,
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
     routing::{delete, get, post, put},
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

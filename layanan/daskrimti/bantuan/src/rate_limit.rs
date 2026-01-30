@@ -16,7 +16,7 @@ pub async fn check_rate_limit(
     let now = now_duration.as_secs();
 
     // Probabilistic cleanup (approx 1 in 100 requests) to prevent memory leaks
-    if now_duration.subsec_nanos() % 100 == 0 {
+    if now_duration.subsec_nanos().is_multiple_of(100) {
         let map_clone = rate_limit_map.clone();
         tokio::spawn(async move {
             map_clone.retain(|_, (_, ts)| now - *ts <= 60);

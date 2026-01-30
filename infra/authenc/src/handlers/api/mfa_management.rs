@@ -1371,7 +1371,7 @@ mod tests {
 pub async fn get_mfa_adoption_report(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<Arc<crate::app::AppState>>,
-    Query(query): Query<serde_json::Value>,
+    Query(_query): Query<serde_json::Value>,
     Json(auth): Json<AdminAuthRequest>,
 ) -> Result<Json<MfaAdoptionReport>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
@@ -1525,7 +1525,7 @@ pub async fn get_mfa_adoption_report(
 pub async fn get_mfa_usage_report(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<Arc<crate::app::AppState>>,
-    Query(query): Query<serde_json::Value>,
+    Query(_query): Query<serde_json::Value>,
     Json(auth): Json<AdminAuthRequest>,
 ) -> Result<Json<MfaUsageReport>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
@@ -1691,7 +1691,7 @@ pub async fn get_mfa_usage_report(
 pub async fn get_compliance_report(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<Arc<crate::app::AppState>>,
-    Query(query): Query<serde_json::Value>,
+    Query(_query): Query<serde_json::Value>,
     Json(auth): Json<AdminAuthRequest>,
 ) -> Result<Json<ComplianceReport>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;

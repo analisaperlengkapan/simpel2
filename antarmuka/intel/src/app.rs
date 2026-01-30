@@ -4,10 +4,8 @@ use leptos_router::{
     StaticSegment,
     components::{Route, Router, Routes},
 };
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
 use serde::{Deserialize, Serialize};
-use shared_microfrontend::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
 
 // Intelligence Operation Models
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -535,7 +533,7 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=|| "Page not found".into_view()>
-                <Route path=StaticSegment("") view=LoginRedirectPage />
+                <Route path=StaticSegment("") view=|| view! { <LoginRedirectPage /> } />
                 <Route path=StaticSegment("dashboard") view=DashboardPage />
             </Routes>
         </Router>

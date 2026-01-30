@@ -1,7 +1,7 @@
+use crate::api::{CreatePengalihanRequest, create_pengalihan, fetch_assets};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use crate::api::{create_pengalihan, CreatePengalihanRequest, fetch_assets};
 
 #[component]
 pub fn PengalihanForm() -> impl IntoView {
@@ -32,8 +32,16 @@ pub fn PengalihanForm() -> impl IntoView {
             pihak_lama: pihak_lama.get(),
             pihak_baru: pihak_baru.get(),
             tanggal_pengalihan: tanggal_pengalihan.get(),
-            dasar_pengalihan: if dasar_pengalihan.get().is_empty() { None } else { Some(dasar_pengalihan.get()) },
-            keterangan: if keterangan.get().is_empty() { None } else { Some(keterangan.get()) },
+            dasar_pengalihan: if dasar_pengalihan.get().is_empty() {
+                None
+            } else {
+                Some(dasar_pengalihan.get())
+            },
+            keterangan: if keterangan.get().is_empty() {
+                None
+            } else {
+                Some(keterangan.get())
+            },
         };
 
         let navigate = navigate.clone();
@@ -41,8 +49,11 @@ pub fn PengalihanForm() -> impl IntoView {
             match create_pengalihan(req).await {
                 Ok(_) => {
                     set_loading.set(false);
-                    navigate("/dashboard/pengelolaan/pengalihan/daftar", Default::default());
-                },
+                    navigate(
+                        "/dashboard/pengelolaan/pengalihan/daftar",
+                        Default::default(),
+                    );
+                }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan pengalihan: {}", e)));
                     set_loading.set(false);

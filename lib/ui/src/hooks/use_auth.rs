@@ -120,14 +120,19 @@ impl AuthContext {
         #[cfg(target_arch = "wasm32")]
         {
             spawn_local(async move {
-                let authenc_url = std::env::var("AUTHENC_URL")
-                    .unwrap_or_else(|_| {
-                        if let Some(window) = window() {
-                            format!("{}/api/auth", window.location().origin().unwrap_or_else(|_| "http://localhost:8080".to_string()))
-                        } else {
-                            "http://localhost:8080".to_string()
-                        }
-                    });
+                let authenc_url = std::env::var("AUTHENC_URL").unwrap_or_else(|_| {
+                    if let Some(window) = window() {
+                        format!(
+                            "{}/api/auth",
+                            window
+                                .location()
+                                .origin()
+                                .unwrap_or_else(|_| "http://localhost:8080".to_string())
+                        )
+                    } else {
+                        "http://localhost:8080".to_string()
+                    }
+                });
 
                 let portal_url = get_portal_url();
                 let redirect_uri = format!("{}/logged-out", portal_url);
@@ -180,7 +185,7 @@ impl AuthContext {
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::hooks::use_auth::use_auth;
+/// use lib_ui::hooks::use_auth::use_auth;
 /// use leptos::prelude::*;
 ///
 /// #[component]
@@ -253,14 +258,64 @@ pub fn get_portal_url() -> String {
     // For development, default to current origin + /portal
     std::env::var("PORTAL_URL").unwrap_or_else(|_| {
         if let Some(window) = window() {
-            format!("{}/portal", window.location().origin().unwrap_or_else(|_| "http://localhost:8080".to_string()))
+            format!(
+                "{}/portal",
+                window
+                    .location()
+                    .origin()
+                    .unwrap_or_else(|_| "http://localhost:8080".to_string())
+            )
         } else {
             "http://localhost:8080".to_string()
         }
     })
 }
 
-/// Get current microfrontend app name from environment
+/// Get current microfrontend app name
 pub fn get_app_name() -> String {
-    std::env::var("APP_NAME").unwrap_or_else(|_| "Microfrontend".to_string())
+    // Try environment variable (SSR or build-time injection)
+    if let Ok(name) = std::env::var("APP_NAME") {
+        return name;
+    }
+
+    // Try global config object on window (CSR injection)
+    #[cfg(target_arch = "wasm32")]
+    if let Some(window) = window() {
+        if let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG")) {
+            if !value.is_undefined() && !value.is_null() {
+                if let Ok(name) = js_sys::Reflect::get(&value, &JsValue::from_str("appName")) {
+                    if let Some(s) = name.as_string() {
+                        return s;
+                    }
+                }
+            }
+        }
+    }
+
+    "Microfrontend".to_string()
+}
+
+/// Get current microfrontend app description
+pub fn get_app_description() -> String {
+    // Try environment variable
+    if let Ok(desc) = std::env::var("APP_DESCRIPTION") {
+        return desc;
+    }
+
+    // Try global config object on window
+    #[cfg(target_arch = "wasm32")]
+    if let Some(window) = window() {
+        if let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG")) {
+            if !value.is_undefined() && !value.is_null() {
+                if let Ok(desc) = js_sys::Reflect::get(&value, &JsValue::from_str("appDescription"))
+                {
+                    if let Some(s) = desc.as_string() {
+                        return s;
+                    }
+                }
+            }
+        }
+    }
+
+    "Sistem Informasi Manajemen Perkara Elektronik".to_string()
 }

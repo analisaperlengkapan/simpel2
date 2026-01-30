@@ -1,8 +1,4 @@
-use crate::{
-    models::*,
-    repository::PerlengkapanRepository,
-    errors::AppResult,
-};
+use crate::{errors::AppResult, models::*, repository::PerlengkapanRepository};
 use async_trait::async_trait;
 use mockall::mock;
 use uuid::Uuid;
@@ -46,9 +42,9 @@ mock! {
 mod unit_tests {
     use super::*;
     use crate::services::PerlengkapanService;
-    use std::sync::Arc;
-    use mockall::predicate::*;
     use chrono::Utc;
+    use mockall::predicate::*;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_get_dashboard_stats() {
@@ -101,7 +97,7 @@ mod unit_tests {
                         tgl_perolehan: Some("2023-01-01".to_string()),
                         updated_at: Utc::now(),
                     }],
-                    1
+                    1,
                 ))
             });
 
@@ -381,7 +377,10 @@ mod unit_tests {
             });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
-        let result = service.create_penghapusan(req, Some(user_id)).await.unwrap();
+        let result = service
+            .create_penghapusan(req, Some(user_id))
+            .await
+            .unwrap();
 
         assert_eq!(result.alasan, "Rusak berat");
         assert_eq!(result.status, "usulan");
@@ -467,7 +466,10 @@ mod unit_tests {
             });
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
-        let result = service.create_pemeliharaan(req, Some(user_id)).await.unwrap();
+        let result = service
+            .create_pemeliharaan(req, Some(user_id))
+            .await
+            .unwrap();
 
         assert_eq!(result.jenis_pemeliharaan, "Rutin");
         assert_eq!(result.status, "terjadwal");

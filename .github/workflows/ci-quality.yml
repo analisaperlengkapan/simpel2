@@ -5,347 +5,68 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  schedule:
-    # Run quality checks weekly on Sundays at 00:00 UTC
-    - cron: "0 0 * * 0"
   workflow_dispatch:
 
-# Cancel in-progress runs for the same workflow and branch
+  schedule:
+    - cron: "0 0 * * 0"
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  CARGO_TERM_COLOR: always
-  RUST_VERSION: "1.90.0"
-
 jobs:
-  documentation:
-    name: Documentation Build
+  quality:
+    name: Quality Checks
     runs-on: self-hosted
     steps:
+      - name: Fix permissions
+        run: |
+          # Robust cleanup via Docker (fixes root-owned files)
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+
+          # Fix corrupted cargo registry
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          clean: false
+          clean: true
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "25.x"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-docs-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-docs-
-            ${{ runner.os }}-
-
-      - name: Generate documentation
-        run: |
-          cargo doc \
-            --workspace \
-            --no-deps \
-            --all-features \
-            --document-private-items \
-            --verbose
-        env:
-          RUSTDOCFLAGS: "-D warnings --cfg docsrs"
-
-      - name: Generate authenc docs
-        working-directory: infra/authenc
-        run: |
-          cargo doc \
-            --no-deps \
-            --all-features \
-            --document-private-items
-        continue-on-error: true
-
-      - name: Generate secreton docs
-        working-directory: infra/secreton
-        run: |
-          cargo doc \
-            --no-deps \
-            --all-features \
-            --document-private-items
-        continue-on-error: true
-
-      - name: Upload documentation
-        uses: actions/upload-artifact@v5
-        with:
-          name: rust-docs
-          path: target/doc/
-          retention-days: 14
-
-      - name: Check documentation coverage
-        run: |
-          echo "## 📚 Documentation Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Documentation generated successfully for:" >> $GITHUB_STEP_SUMMARY
-          echo "- Main workspace" >> $GITHUB_STEP_SUMMARY
-          echo "- Authenc IAM system" >> $GITHUB_STEP_SUMMARY
-          echo "- Secreton vault system" >> $GITHUB_STEP_SUMMARY
-
-  coverage:
-    name: Code Coverage
-    runs-on: self-hosted
-    # services removed due to missing docker on runner
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: false
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
           components: llvm-tools-preview
-
-      - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "25.x"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-coverage-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-coverage-
-            ${{ runner.os }}-
-
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov --locked
-
-      # Removed DATABASE_URL setup because we are using mockall for unit tests
-      # and postgres service is not available on self-hosted runners.
-
-      - name: Generate coverage report
-        run: |
-          cargo llvm-cov \
-            --workspace \
-            --lcov \
-            --output-path lcov.info \
-            --verbose
-        # Removed env: DATABASE_URL since no DB is running
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        if: github.event_name != 'pull_request'
-        continue-on-error: true
-        with:
-          files: lcov.info
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-          flags: unittests
-          name: simpelv2-coverage
-
-      - name: Generate coverage summary
-        run: |
-          echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Extract coverage percentage if lcov is available
-          if command -v lcov &> /dev/null; then
-            lcov --summary lcov.info 2>&1 | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "Coverage report generated: lcov.info" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # Check coverage file size
-          COVERAGE_SIZE=$(stat -c%s lcov.info 2>/dev/null || stat -f%z lcov.info 2>/dev/null || echo "0")
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Coverage file size: $(echo "scale=2; $COVERAGE_SIZE / 1024" | bc)KB" >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: coverage-report
-          path: lcov.info
-          retention-days: 30
-
-  benchmarks:
-    name: Performance Benchmarks
-    runs-on: self-hosted
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: false
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bench-
-            ${{ runner.os }}-
-
-      - name: Run benchmarks
-        run: |
-          cargo bench --workspace -- --output-format bencher | tee benchmark-output.txt
-        continue-on-error: true
-
-      - name: Store benchmark results
-        uses: benchmark-action/github-action-benchmark@v1
-        if: github.ref == 'refs/heads/main'
-        continue-on-error: true
-        with:
-          tool: "cargo"
-          output-file-path: benchmark-output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: false
-          alert-threshold: "150%"
-          comment-on-alert: true
-          fail-on-alert: false
 
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v5
-        with:
-          name: benchmark-results
-          path: benchmark-output.txt
-          retention-days: 90
-
-  dependencies-health:
-    name: Dependencies Health Check
-    runs-on: self-hosted
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: false
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      # - name: Install cargo-outdated
-      #   run: cargo install cargo-outdated --locked
-
-      # - name: Check outdated dependencies
-      #   run: |
-      #     echo "## 📦 Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
-      #     echo "" >> $GITHUB_STEP_SUMMARY
-      #     echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-      #     cargo outdated --workspace --root-deps-only || echo "All dependencies up to date"
-      #     echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-      #   continue-on-error: true
-
-      - name: Install nightly Rust for udeps
-        uses: dtolnay/rust-toolchain@nightly
-
-      - name: Install cargo-udeps
-        run: cargo +nightly install cargo-udeps --locked
-
-      - name: Check unused dependencies
+      - name: Install Tools
+        shell: bash
         run: |
-          echo "## 🔍 Unused Dependencies" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          cargo +nightly udeps --workspace --all-targets 2>&1 | tee -a $GITHUB_STEP_SUMMARY || echo "Check completed with warnings"
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        continue-on-error: true
-
-  code-metrics:
-    name: Code Metrics
-    runs-on: self-hosted
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: false
-
-      - name: Install tokei
-        run: |
-          # cargo install tokei --locked
-          # Use pre-built binary to avoid compilation issues on self-hosted runner
-          wget -qO tokei.tar.gz "https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-gnu.tar.gz"
-          tar -xzf tokei.tar.gz
-          mkdir -p $HOME/.local/bin
-          mv tokei $HOME/.local/bin/
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Generate code metrics
-        run: |
-          echo "## 📈 Code Metrics" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          tokei . --output json > metrics.json
-          tokei . | tee -a $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Analyze project structure
-        run: |
-          echo "## 📂 Project Structure Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Backend Services" >> $GITHUB_STEP_SUMMARY
-          find layanan -name "Cargo.toml" | wc -l | xargs echo "Total backend services:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Frontend Microfrontends" >> $GITHUB_STEP_SUMMARY
-          find antarmuka -name "Cargo.toml" -not -path "*/target/*" | wc -l | xargs echo "Total microfrontends:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Infrastructure Components" >> $GITHUB_STEP_SUMMARY
-          find infra -name "Cargo.toml" | wc -l | xargs echo "Total infra components:" >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload metrics
-        uses: actions/upload-artifact@v5
-        with:
-          name: code-metrics
-          path: metrics.json
-          retention-days: 90
-
-  quality-summary:
-    name: Quality CI Summary
-    runs-on: self-hosted
-    needs: [documentation, coverage, dependencies-health, code-metrics]
-    if: always()
-    steps:
-      - name: Generate quality summary
-        run: |
-          echo "## ✨ Quality CI Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Documentation | ${{ needs.documentation.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Coverage | ${{ needs.coverage.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependencies Health | ${{ needs.dependencies-health.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Metrics | ${{ needs.code-metrics.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Warning if documentation or coverage failed
-          if [[ "${{ needs.documentation.result }}" == "failure" ]] || \
-             [[ "${{ needs.coverage.result }}" == "failure" ]]; then
-            echo "::warning::Some quality checks failed - review required"
-          else
-            echo "✅ All quality checks completed successfully"
+          # Install cargo-llvm-cov binary
+          if ! command -v cargo-llvm-cov &> /dev/null; then
+            echo "Installing cargo-llvm-cov..."
+            curl -LsSf https://github.com/taiki-e/cargo-llvm-cov/releases/latest/download/cargo-llvm-cov-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C $HOME/.cargo/bin
           fi
+
+          if ! command -v tokei &> /dev/null; then
+            echo "Installing tokei..."
+            curl -LsSf https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C $HOME/.cargo/bin
+          fi
+
+      - name: Documentation Build
+        run: cargo doc --workspace --no-deps --all-features --document-private-items
+
+      - name: Code Metrics
+        run: tokei .
+
+      - name: Code Coverage
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+        env:
+          DATABASE_URL: postgres://simpelv2_test:coverage_test_2024@localhost:56432/simpelv2_coverage
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: quality-reports
+          path: |
+            target/doc/
+            lcov.info

@@ -114,7 +114,13 @@ impl AuthService {
         // For development, use current origin/api/auth
         std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| {
             if let Some(window) = web_sys::window() {
-                format!("{}/api/auth", window.location().origin().unwrap_or_else(|_| "http://localhost:3000".to_string()))
+                format!(
+                    "{}/api/auth",
+                    window
+                        .location()
+                        .origin()
+                        .unwrap_or_else(|_| "http://localhost:3000".to_string())
+                )
             } else {
                 "http://localhost:3000".to_string()
             }
@@ -484,7 +490,7 @@ impl AuthService {
     pub fn load_session() -> Option<UserSession> {
         #[cfg(target_arch = "wasm32")]
         {
-            use shared_microfrontend::hooks::load_from_storage;
+            use lib_ui::hooks::load_from_storage;
             load_from_storage("user_session")
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -497,7 +503,7 @@ impl AuthService {
     pub fn save_session(session: &UserSession) {
         #[cfg(target_arch = "wasm32")]
         {
-            use shared_microfrontend::hooks::save_to_storage;
+            use lib_ui::hooks::save_to_storage;
             save_to_storage("user_session", session);
         }
         #[cfg(not(target_arch = "wasm32"))]

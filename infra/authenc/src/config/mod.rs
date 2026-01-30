@@ -581,6 +581,9 @@ pub struct BasicSecurityConfig {
     /// Secret key for JWT signing and validation
     pub jwt_secret: String,
 
+    /// Path to JWT signing key in Secreton
+    pub jwt_secret_path: Option<String>,
+
     /// JWT token expiration time in seconds
     #[serde(default = "default_jwt_expiry")]
     pub jwt_expiry: u64,
@@ -618,6 +621,7 @@ impl Default for BasicSecurityConfig {
     fn default() -> Self {
         Self {
             jwt_secret: "default_jwt_secret_change_in_production".to_string(),
+            jwt_secret_path: None,
             jwt_expiry: default_jwt_expiry(),
             password_min_length: default_password_min_length(),
             rate_limit_requests: default_rate_limit_requests(),
@@ -910,6 +914,50 @@ impl AppConfig {
             }
         }
 
+        // Redis configuration
+        if let Ok(redis_url) = env::var("REDIS_URL") {
+            // Prioritize full URL if provided directly
+            if self.redis.is_none() {
+                self.redis = Some(RedisConfig::default());
+            }
+            if let Some(redis_config) = &mut self.redis {
+                redis_config.url = redis_url;
+                redis_config.enabled = true;
+            }
+        } else {
+            // Fallback to individual env vars for safer URL construction
+            let redis_host = env::var("REDIS_HOST").ok();
+            let redis_port = env::var("REDIS_PORT").ok();
+            let redis_password = env::var("REDIS_PASSWORD").ok();
+
+            if redis_host.is_some() || redis_port.is_some() || redis_password.is_some() {
+                let host = redis_host.unwrap_or_else(|| "localhost".to_string());
+                let port = redis_port.unwrap_or_else(|| "6379".to_string());
+
+                let url = if let Some(password) = redis_password {
+                    if !password.is_empty() {
+                        let encoded_password =
+                            url::form_urlencoded::byte_serialize(password.as_bytes())
+                                .collect::<String>();
+                        format!("redis://:{}@{}:{}/0", encoded_password, host, port)
+                    } else {
+                        format!("redis://{}:{}/0", host, port)
+                    }
+                } else {
+                    format!("redis://{}:{}/0", host, port)
+                };
+
+                if self.redis.is_none() {
+                    self.redis = Some(RedisConfig::default());
+                }
+
+                if let Some(redis_config) = &mut self.redis {
+                    redis_config.url = url;
+                    redis_config.enabled = true;
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -1024,6 +1072,7 @@ impl Default for AppConfig {
             security: BasicSecurityConfig {
                 jwt_secret: env::var("JWT_SECRET")
                     .unwrap_or_else(|_| "default_jwt_secret_change_in_production".to_string()),
+                jwt_secret_path: None,
                 jwt_expiry: default_jwt_expiry(),
                 password_min_length: default_password_min_length(),
                 rate_limit_requests: default_rate_limit_requests(),

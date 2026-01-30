@@ -29,17 +29,8 @@ impl CaptchaOperations {
 
     /// Store a new CAPTCHA challenge
     pub async fn store_challenge(&self, challenge: &Challenge) -> Result<()> {
-        let created_at_secs = challenge
-            .created_at
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| AuthencError::internal("Invalid created_at timestamp"))?
-            .as_secs() as i64;
-
-        let expires_at_secs = challenge
-            .expires_at
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| AuthencError::internal("Invalid expires_at timestamp"))?
-            .as_secs() as i64;
+        let created_at: chrono::DateTime<chrono::Utc> = challenge.created_at.into();
+        let expires_at: chrono::DateTime<chrono::Utc> = challenge.expires_at.into();
 
         let challenge_type_str = match challenge.challenge_type {
             ChallengeType::Visual => "Visual",
@@ -58,7 +49,7 @@ impl CaptchaOperations {
             INSERT INTO captcha_challenges (
                 id, challenge_type, difficulty_level, encrypted_data,
                 expected_answer_hash, created_at, expires_at, session_id, ip_address
-            ) VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7), $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
         self.db
@@ -71,8 +62,8 @@ impl CaptchaOperations {
                     &(challenge.difficulty_level as i16),
                     &challenge.encrypted_data,
                     &challenge.expected_answer_hash,
-                    &created_at_secs,
-                    &expires_at_secs,
+                    &created_at,
+                    &expires_at,
                     &challenge.session_id,
                     &ip_addr,
                 ],
@@ -222,6 +213,14 @@ impl CaptchaOperations {
                 success, confidence_score, risk_assessment, behavioral_metrics_id
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
+
+        tracing::info!(
+            "Recording validation attempt: challenge_id={}, ip={}, success={}, risk={}",
+            challenge_id,
+            ip_address,
+            success,
+            risk_assessment_str
+        );
 
         self.db
             .execute(
@@ -400,6 +399,13 @@ impl CaptchaOperations {
                 memory_usage_mb, cpu_usage_percent
             ) VALUES ($1, to_timestamp($2), $3, $4, $5, $6, $7, $8, $9, $10)
         "#;
+
+        tracing::info!(
+            "Storing performance metrics: id={}, latency={}, success_rate={}",
+            metrics.metric_id,
+            metrics.challenge_generation_latency_ms,
+            metrics.success_rate
+        );
 
         self.db
             .execute(
@@ -652,6 +658,7 @@ fn row_to_challenge(row: Row) -> Result<Challenge> {
         ip_address: ip_address.to_string(),
         encrypted_challenge_data: None, // Legacy records don't have encrypted metadata
         is_encrypted: false,            // Legacy records use unencrypted storage
+        plaintext_data: None,
     })
 }
 

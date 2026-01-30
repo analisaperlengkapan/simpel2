@@ -209,18 +209,16 @@ pub fn generate_jwt(user_id: &str) -> Result<String, String> {
 /// assert_eq!(claims.sub, "user123");
 /// ```
 pub fn verify_jwt(token: &str) -> Result<Claims, String> {
-    verify_jwt_internal(token, false)
+    verify_jwt_internal(token)
 }
 
-/// Internal JWT verification function with optional blacklist checking
-/// This is the core verification logic that can optionally skip blacklist checks
-/// for performance when called from cached validation paths.
+/// Internal JWT verification function
+/// This is the core verification logic.
 /// # Arguments
 /// * `token` - The JWT token string to verify and decode
-/// * `skip_blacklist_check` - If true, skips blacklist validation (used for cached results)
 /// # Returns
 /// A `Result` containing the decoded `Claims` on success, or an error string on failure
-fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims, String> {
+fn verify_jwt_internal(token: &str) -> Result<Claims, String> {
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
         return Err("Invalid JWT format".to_string());

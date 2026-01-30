@@ -7,6 +7,7 @@ pub mod accessibility;
 pub mod behavioral;
 pub mod behavioral_collector;
 pub mod behavioral_tracker;
+pub mod challenge_parser;
 pub mod component;
 pub mod fingerprint_collector;
 pub mod types;

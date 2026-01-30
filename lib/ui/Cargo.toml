@@ -1,5 +1,5 @@
 [package]
-name = "shared-microfrontend"
+name = "lib-ui"
 version.workspace = true
 edition.workspace = true
 rust-version = "1.90"

@@ -86,7 +86,9 @@ where
             }
             Err(e) => {
                 tracing::error!("Authenc validation failed: {}", e);
-                Err(AppError::Internal("Authentication service unavailable".to_string()))
+                Err(AppError::Internal(
+                    "Authentication service unavailable".to_string(),
+                ))
             }
         }
     }

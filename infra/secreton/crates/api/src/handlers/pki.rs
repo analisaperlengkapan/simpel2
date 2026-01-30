@@ -11,16 +11,13 @@
 use axum::{
     Router,
     extract::{Path, State},
-    http::StatusCode,
     response::Json,
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{ApiResponse, ApiResult, handlers::AppState};
-use secreton_core::services::secrets::pki::{
-    CertificateTemplate, OcspResponse, OcspStatus, RenewalConfig,
-};
+use secreton_core::services::secrets::pki::{CertificateTemplate, OcspResponse, RenewalConfig};
 
 /// Create PKI routes
 pub fn create_routes() -> Router<AppState> {
@@ -210,8 +207,9 @@ async fn generate_intermediate_ca(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum_test::TestServer;
-    use secreton_core::services::secrets::pki::{IssueCertificateRequest, PkiEngine, PkiRole};
+    use secreton_core::services::secrets::pki::{
+        IssueCertificateRequest, OcspStatus, PkiEngine, PkiRole,
+    };
     use std::sync::Arc;
 
     async fn setup_test_pki() -> Arc<PkiEngine> {

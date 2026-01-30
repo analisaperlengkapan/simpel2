@@ -784,7 +784,9 @@ mod comprehensive_integration_tests {
                         return true;
                     }
                     Err(_) => {
-                        println!("Fast fail timed out! This should NOT happen if circuit breaker is open.");
+                        println!(
+                            "Fast fail timed out! This should NOT happen if circuit breaker is open."
+                        );
                         return false;
                     }
                     _ => {

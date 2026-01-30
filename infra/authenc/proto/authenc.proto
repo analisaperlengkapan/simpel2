@@ -11,40 +11,44 @@ service AuthencService {
   rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
   rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse);
-  
+
   // User Management
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
-  
+
   // Multi-Factor Authentication
   rpc EnableMFA(EnableMFARequest) returns (EnableMFAResponse);
   rpc VerifyMFA(VerifyMFARequest) returns (VerifyMFAResponse);
   rpc DisableMFA(DisableMFARequest) returns (DisableMFAResponse);
-  
+
   // Authorization & RBAC
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
-  
+
   // OAuth2 / OIDC
   rpc GetOAuthToken(OAuthTokenRequest) returns (OAuthTokenResponse);
   rpc IntrospectToken(IntrospectTokenRequest) returns (IntrospectTokenResponse);
   rpc GetUserInfo(UserInfoRequest) returns (UserInfoResponse);
-  
+
   // Federation
   rpc InitiateFederatedAuth(FederatedAuthRequest) returns (FederatedAuthResponse);
   rpc CompleteFederatedAuth(CompleteFederatedAuthRequest) returns (CompleteFederatedAuthResponse);
-  
+
   // Audit & Compliance
   rpc GetAuditLogs(AuditLogsRequest) returns (AuditLogsResponse);
   rpc GetComplianceReport(ComplianceReportRequest) returns (ComplianceReportResponse);
-  
+
   // Health & Metrics
   rpc HealthCheck(common.v1.HealthCheckRequest) returns (common.v1.HealthCheckResponse);
+
+  // CAPTCHA Service
+  rpc GenerateCaptchaChallenge(CaptchaChallengeRequest) returns (CaptchaChallengeResponse);
+  rpc VerifyCaptchaChallenge(CaptchaVerificationRequest) returns (CaptchaVerificationResponse);
 }
 
 // Authentication Messages
@@ -54,6 +58,7 @@ message AuthenticateRequest {
   optional string mfa_code = 3;
   optional string device_id = 4;
   map<string, string> metadata = 5;
+  optional string captcha_token = 6;
 }
 
 message AuthenticateResponse {
@@ -374,4 +379,46 @@ enum MFAMethod {
   EMAIL = 3;
   WEBAUTHN = 4;
   HARDWARE_KEY = 5;
+}
+
+// CAPTCHA Messages
+message CaptchaChallengeRequest {
+  string session_id = 1;
+  ChallengeType challenge_type = 2;
+  uint32 difficulty = 3;
+  map<string, string> metadata = 4;
+}
+
+message CaptchaChallengeResponse {
+  string challenge_id = 1;
+  ChallengeType challenge_type = 2;
+  string challenge_data = 3;
+  uint32 difficulty = 4;
+  int64 expires_at = 5;
+  map<string, string> metadata = 6;
+}
+
+message CaptchaVerificationRequest {
+  string challenge_id = 1;
+  string answer = 2;
+  bytes behavioral_data = 3;
+  string session_id = 4;
+}
+
+message CaptchaVerificationResponse {
+  bool success = 1;
+  string message = 2;
+  string verification_token = 3;
+  uint32 next_difficulty = 4;
+  bool retry_allowed = 5;
+  optional uint32 lockout_duration = 6;
+}
+
+enum ChallengeType {
+  CHALLENGE_TYPE_UNSPECIFIED = 0;
+  VISUAL = 1;
+  AUDIO = 2;
+  BEHAVIORAL = 3;
+  LOGICAL = 4;
+  HYBRID = 5;
 }

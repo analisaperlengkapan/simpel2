@@ -327,38 +327,6 @@ async fn update_identity_provider(
         }
     };
 
-    // Build dynamic UPDATE query
-    let mut query = "UPDATE identity_broker_configs SET updated_at = NOW()".to_string();
-    let mut param_index = 2;
-    let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![&id];
-
-    if let Some(ref display_name) = request.display_name {
-        query.push_str(&format!(", display_name = ${}", param_index));
-        param_index += 1;
-    }
-    if let Some(enabled) = request.enabled {
-        query.push_str(&format!(", enabled = ${}", param_index));
-        param_index += 1;
-    }
-    if let Some(trust_email) = request.trust_email {
-        query.push_str(&format!(", trust_email = ${}", param_index));
-        param_index += 1;
-    }
-    if let Some(store_token) = request.store_token {
-        query.push_str(&format!(", store_token = ${}", param_index));
-        param_index += 1;
-    }
-    if let Some(link_only) = request.link_only {
-        query.push_str(&format!(", link_only = ${}", param_index));
-        param_index += 1;
-    }
-    if let Some(ref config) = request.config {
-        query.push_str(&format!(", config = ${}", param_index));
-        param_index += 1;
-    }
-
-    query.push_str(" WHERE id = $1");
-
     // Simple update - in production use query builder
     match client
         .execute(

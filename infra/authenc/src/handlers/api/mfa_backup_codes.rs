@@ -89,10 +89,16 @@ pub async fn verify_backup_code(
     Json(request): Json<VerifyBackupCodeRequest>,
 ) -> Result<Json<BackupCodeVerificationResponse>> {
     // Verify the backup code
-    match mfa_service.verify_recovery_code(user_id, &request.code).await {
+    match mfa_service
+        .verify_recovery_code(user_id, &request.code)
+        .await
+    {
         Ok(()) => {
             // Get remaining codes count
-            let remaining = mfa_service.get_recovery_codes_count(user_id).await.unwrap_or(0);
+            let remaining = mfa_service
+                .get_recovery_codes_count(user_id)
+                .await
+                .unwrap_or(0);
 
             Ok(Json(BackupCodeVerificationResponse {
                 valid: true,
@@ -100,24 +106,25 @@ pub async fn verify_backup_code(
                 message: if remaining == 0 {
                     "Backup code verified successfully. This was your last backup code. Please generate new ones.".to_string()
                 } else {
-                    format!("Backup code verified successfully. You have {} backup codes remaining.", remaining)
+                    format!(
+                        "Backup code verified successfully. You have {} backup codes remaining.",
+                        remaining
+                    )
                 },
             }))
         }
-        Err(AuthencError::InvalidBackupCode) => {
-            Ok(Json(BackupCodeVerificationResponse {
-                valid: false,
-                remaining_codes: 0,
-                message: "Invalid backup code. Please check the code and try again.".to_string(),
-            }))
-        }
-        Err(AuthencError::RecoveryCodeAlreadyUsed) => {
-            Ok(Json(BackupCodeVerificationResponse {
-                valid: false,
-                remaining_codes: 0,
-                message: "This backup code has already been used. Each backup code can only be used once.".to_string(),
-            }))
-        }
+        Err(AuthencError::InvalidBackupCode) => Ok(Json(BackupCodeVerificationResponse {
+            valid: false,
+            remaining_codes: 0,
+            message: "Invalid backup code. Please check the code and try again.".to_string(),
+        })),
+        Err(AuthencError::RecoveryCodeAlreadyUsed) => Ok(Json(BackupCodeVerificationResponse {
+            valid: false,
+            remaining_codes: 0,
+            message:
+                "This backup code has already been used. Each backup code can only be used once."
+                    .to_string(),
+        })),
         Err(e) => Err(e),
     }
 }
@@ -128,8 +135,14 @@ pub async fn get_backup_code_status(
     State(mfa_service): State<Arc<MfaService>>,
     Path(user_id): Path<Uuid>,
 ) -> Result<Json<BackupCodeStatusResponse>> {
-    let remaining_codes = mfa_service.get_recovery_codes_count(user_id).await.unwrap_or(0);
-    let has_codes = mfa_service.has_recovery_codes(user_id).await.unwrap_or(false);
+    let remaining_codes = mfa_service
+        .get_recovery_codes_count(user_id)
+        .await
+        .unwrap_or(0);
+    let has_codes = mfa_service
+        .has_recovery_codes(user_id)
+        .await
+        .unwrap_or(false);
 
     Ok(Json(BackupCodeStatusResponse {
         available: has_codes,
@@ -166,8 +179,8 @@ pub async fn disable_backup_codes(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::mfa_service::MfaService;
     use crate::secreton_client::secreton_client::SecretonClient;
+    use crate::services::mfa_service::MfaService;
     use std::sync::Arc;
 
     // Note: These tests require integration test infrastructure

@@ -12,7 +12,6 @@ spec:
   addresses:
     - 10.1.7.121/32  # Single IP untuk development
   autoAssign: true
-  avoidBuggyIPs: false
 
 ---
 # L2Advertisement untuk IP pool development

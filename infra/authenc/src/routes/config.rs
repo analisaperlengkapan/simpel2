@@ -13,14 +13,14 @@ use crate::error::{AuthencError, Result};
 use crate::extractors::AuthenticatedUser;
 use crate::services::config_manager::ConfigManager;
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post, put},
-    Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -72,7 +72,11 @@ async fn get_all_config(
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
     // Check admin role
-    if !user.roles.iter().any(|r| r == "admin" || r == "config-admin") {
+    if !user
+        .roles
+        .iter()
+        .any(|r| r == "admin" || r == "config-admin")
+    {
         return Err(AuthencError::forbidden("Insufficient permissions"));
     }
 
@@ -91,7 +95,11 @@ async fn get_category_config(
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
     // Check admin role
-    if !user.roles.iter().any(|r| r == "admin" || r == "config-admin") {
+    if !user
+        .roles
+        .iter()
+        .any(|r| r == "admin" || r == "config-admin")
+    {
         return Err(AuthencError::forbidden("Insufficient permissions"));
     }
 
@@ -111,7 +119,11 @@ async fn get_config(
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
     // Check admin role
-    if !user.roles.iter().any(|r| r == "admin" || r == "config-admin") {
+    if !user
+        .roles
+        .iter()
+        .any(|r| r == "admin" || r == "config-admin")
+    {
         return Err(AuthencError::forbidden("Insufficient permissions"));
     }
 
@@ -132,7 +144,11 @@ async fn update_config(
     Json(req): Json<ConfigRequest>,
 ) -> Result<impl IntoResponse> {
     // Check admin role
-    if !user.roles.iter().any(|r| r == "admin" || r == "config-admin") {
+    if !user
+        .roles
+        .iter()
+        .any(|r| r == "admin" || r == "config-admin")
+    {
         return Err(AuthencError::forbidden("Insufficient permissions"));
     }
 
@@ -146,7 +162,12 @@ async fn update_config(
 
     state
         .config_manager
-        .set(&key, req.value.clone(), Some(&user.id), req.reason.as_deref())
+        .set(
+            &key,
+            req.value.clone(),
+            Some(&user.id),
+            req.reason.as_deref(),
+        )
         .await?;
 
     info!(
@@ -172,7 +193,11 @@ async fn delete_config(
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
     // Check admin role
-    if !user.roles.iter().any(|r| r == "admin" || r == "config-admin") {
+    if !user
+        .roles
+        .iter()
+        .any(|r| r == "admin" || r == "config-admin")
+    {
         return Err(AuthencError::forbidden("Insufficient permissions"));
     }
 
@@ -206,7 +231,11 @@ async fn reload_config(
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
     // Check admin role
-    if !user.roles.iter().any(|r| r == "admin" || r == "config-admin") {
+    if !user
+        .roles
+        .iter()
+        .any(|r| r == "admin" || r == "config-admin")
+    {
         return Err(AuthencError::forbidden("Insufficient permissions"));
     }
 
@@ -230,7 +259,11 @@ async fn get_config_history(
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
     // Check admin role
-    if !user.roles.iter().any(|r| r == "admin" || r == "config-admin") {
+    if !user
+        .roles
+        .iter()
+        .any(|r| r == "admin" || r == "config-admin")
+    {
         return Err(AuthencError::forbidden("Insufficient permissions"));
     }
 

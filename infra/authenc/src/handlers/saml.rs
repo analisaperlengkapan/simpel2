@@ -326,7 +326,7 @@ pub async fn saml_acs(
 
     // Load IDP from database for signature verification
     if let Some(ref idp_id) = idp_entity_id {
-        if let Some(db_idp) = load_idp_from_database(&db, idp_id).await? {
+        if let Some(_db_idp) = load_idp_from_database(&db, idp_id).await? {
             tracing::info!(
                 "Loaded IDP config from database for verification: {}",
                 idp_id
@@ -512,7 +512,7 @@ pub async fn saml_slo(
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> std::result::Result<Redirect, AuthencError> {
     // Check if this is a logout request or response
-    if let Some(logout_request) = params.get("SAMLRequest") {
+    if let Some(_logout_request) = params.get("SAMLRequest") {
         // Handle SLO request from IDP
         tracing::info!("Processing SAML SLO request");
 
@@ -528,7 +528,7 @@ pub async fn saml_slo(
         return Ok(Redirect::to(post_logout_url));
     }
 
-    if let Some(logout_response) = params.get("SAMLResponse") {
+    if let Some(_logout_response) = params.get("SAMLResponse") {
         // Handle SLO response from IDP
         tracing::info!("Processing SAML SLO response");
 

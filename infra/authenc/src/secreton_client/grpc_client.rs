@@ -16,12 +16,16 @@ use tracing::warn;
 // Generated proto code - must be at module root for proper namespace resolution
 pub mod common {
     pub mod v1 {
+        #![allow(missing_docs)]
+        #![allow(unused)]
         tonic::include_proto!("common.v1");
     }
 }
 
 pub mod secreton {
     pub mod v1 {
+        #![allow(missing_docs)]
+        #![allow(unused)]
         tonic::include_proto!("secreton.v1");
     }
 }

@@ -40,7 +40,7 @@ pub struct RaftClusterConfig {
 
 impl Default for RaftClusterConfig {
     fn default() -> Self {
-        let node_id = 1;
+        let _node_id = 1;
         Self {
             node_id: 1,
             bind_address: String::new(),

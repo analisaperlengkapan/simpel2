@@ -2,8 +2,8 @@
 //!
 //! Halaman-halaman untuk modul pendidikan dan pelatihan
 
-use leptos::prelude::*;
 use leptos::callback::Callback;
+use leptos::prelude::*;
 
 // Simple stat card component
 #[component]

@@ -3,18 +3,13 @@
 //! REST API endpoints for cryptographic operations including HMAC, random number generation,
 //! and re-encryption services.
 
-use axum::{
-    Router,
-    extract::{Path, State},
-    response::Json,
-    routing::post,
-};
+use axum::{Router, extract::State, response::Json, routing::post};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
-use secreton_crypto::transit::algorithms::{HashAlgorithm, generate_random};
+use secreton_crypto::transit::algorithms::generate_random;
 
 use super::AppState;
 

@@ -10,11 +10,11 @@ use axum::{
     routing::get,
 };
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
-use secreton_core::services::key_hierarchy::{KeyHierarchyService, KeyMetadata};
+use secreton_core::services::key_hierarchy::KeyMetadata;
 
 /// Create key hierarchy routes
 pub fn create_routes() -> Router<AppState> {
@@ -98,11 +98,11 @@ impl From<KeyMetadata> for KeyMetadataResponse {
 /// - Requires appropriate permissions
 /// - Audit logged
 async fn get_key_lineage(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(key_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<KeyLineageResponse>>> {
     // Parse key ID
-    let key_uuid = Uuid::parse_str(&key_id).map_err(|_| ApiError::BadRequest {
+    let _key_uuid = Uuid::parse_str(&key_id).map_err(|_| ApiError::BadRequest {
         message: "Invalid key ID format".to_string(),
     })?;
 

@@ -116,29 +116,29 @@ jobs:
             cross: true
 
     steps:
+      - name: Fix permissions
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
+          clean: true
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
           targets: ${{ matrix.target }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache-key: release-${{ matrix.target }}
 
       - name: Install cross-compilation tools
         if: matrix.cross
         run: |
-          cargo install cross --locked
-
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          if ! command -v cross &> /dev/null; then
+            cargo install cross --locked
+          fi
 
       - name: Build workspace (native)
         if: ${{ !matrix.cross }}
@@ -184,30 +184,31 @@ jobs:
     runs-on: self-hosted
     needs: create-release
     steps:
+      - name: Fix permissions
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
+          clean: true
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
           targets: wasm32-unknown-unknown
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache-key: frontend-release
 
       - name: Install Trunk
         run: |
-          wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xzf-
-          sudo mv trunk /usr/local/bin/
+          if ! command -v trunk &> /dev/null; then
+            mkdir -p $HOME/.local/bin
+            wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xzf- -C $HOME/.local/bin/
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+          fi
           trunk --version
-
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-frontend-release-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build all microfrontends
         run: |

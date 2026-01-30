@@ -1,0 +1,139 @@
+name: CI - Rust Core
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "layanan/**"
+      - "infra/**"
+      - "lib/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/rust-ci.yml"
+      - ".github/actions/setup-rust/**"
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+    paths:
+      - "layanan/**"
+      - "infra/**"
+      - "lib/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  check-and-lint:
+    name: Check & Lint
+    runs-on: self-hosted
+    steps:
+      - name: Fix permissions
+        run: |
+          # Robust cleanup via Docker (fixes root-owned files)
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+
+          # Fix corrupted cargo registry
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          clean: true
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          components: clippy, rustfmt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check formatting
+        run: git ls-files -z -- "*.rs" | xargs -0 cargo fmt --check --
+
+      - name: Workspace check
+        run: cargo check --workspace --all-targets --verbose
+
+      - name: Workspace clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: Test Suite
+    runs-on: self-hosted
+    needs: [check-and-lint]
+
+    steps:
+      - name: Fix permissions
+        run: |
+          # Attempt 1: Standard cleanup
+          chmod -R u+w ${{ github.workspace }} || true
+          rm -rf ${{ github.workspace }}/protoc ${{ github.workspace }}/.build_config || true
+
+          # Attempt 2: Docker cleanup for root-owned files
+          if [ -d "${{ github.workspace }}/protoc" ] || [ -f "${{ github.workspace }}/.build_config" ]; then
+            echo "Attempting docker cleanup..."
+            docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine rm -rf protoc .build_config || true
+          fi
+
+          # Fix corrupted cargo registry
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          clean: true
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Run workspace tests
+        run: cargo test --workspace --all-targets --verbose
+
+  build:
+    name: Build Release Binaries
+    runs-on: self-hosted
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Fix permissions
+        run: |
+          # Attempt 1: Standard cleanup
+          chmod -R u+w ${{ github.workspace }} || true
+          rm -rf ${{ github.workspace }}/protoc ${{ github.workspace }}/.build_config || true
+
+          # Attempt 2: Docker cleanup for root-owned files
+          if [ -d "${{ github.workspace }}/protoc" ] || [ -f "${{ github.workspace }}/.build_config" ]; then
+            echo "Attempting docker cleanup..."
+            docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine rm -rf protoc .build_config || true
+          fi
+
+          # Fix corrupted cargo registry
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          clean: true
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build workspace in release mode
+        run: cargo build --workspace --release --verbose
+
+      - name: List built binaries
+        run: |
+          echo "=== Workspace Binaries ==="
+          find target/release -maxdepth 1 -type f -executable

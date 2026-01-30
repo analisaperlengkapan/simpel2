@@ -393,7 +393,10 @@ impl MfaService {
         tracing::info!("Sending Email code {} to email {}", code, email);
 
         #[cfg(not(debug_assertions))]
-        tracing::info!("Sending Email code to email {} (code hidden in release)", email);
+        tracing::info!(
+            "Sending Email code to email {} (code hidden in release)",
+            email
+        );
 
         Ok(code)
     }

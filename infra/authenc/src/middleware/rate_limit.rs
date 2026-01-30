@@ -109,7 +109,7 @@ impl RateLimiterState {
     /// * `ip` - The client IP address
     ///
     /// # Returns
-    /// `Ok(())` if the request is allowed, `Err(AuthencError::RateLimitExceeded)` if rate limited
+    /// `Ok(())` if the request is allowed, `Err(AuthencError::rate_limit_exceeded())` if rate limited
     pub fn check_rate_limit(&self, path: &str, ip: &str) -> Result<(), AuthencError> {
         if !self.config.enabled {
             return Ok(());
@@ -154,7 +154,7 @@ impl RateLimiterState {
                 limit = self.config.requests_per_minute,
                 "Rate limit exceeded"
             );
-            return Err(AuthencError::RateLimitExceeded);
+            return Err(AuthencError::rate_limit_exceeded());
         }
 
         debug!(%ip, %path, count, "Request within rate limit");
@@ -212,7 +212,7 @@ pub async fn rate_limit_middleware(
             let response = next.run(request).await;
             Ok(response)
         }
-        Err(AuthencError::RateLimitExceeded) => {
+        Err(AuthencError::RateLimitExceeded { .. }) => {
             // Apply progressive delay if enabled
             if state.config.progressive_delays {
                 let delay = state.calculate_progressive_delay(&ip, path);
@@ -296,7 +296,7 @@ where
         Box::pin(async move {
             match state.check_rate_limit(&path, &ip) {
                 Ok(_) => future.await,
-                Err(AuthencError::RateLimitExceeded) => {
+                Err(AuthencError::RateLimitExceeded { .. }) => {
                     let retry_after = 60; // 1 minute
                     Ok((
                         StatusCode::TOO_MANY_REQUESTS,

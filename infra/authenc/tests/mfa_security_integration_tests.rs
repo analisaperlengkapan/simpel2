@@ -151,7 +151,7 @@ mod mfa_rate_limiting_tests {
         // Test that the 4th attempt is blocked
         let blocked_result = rate_limiter.check_rate_limit(user_id, "verify_mfa").await;
         match blocked_result {
-            Err(AuthencError::RateLimitExceeded) => {
+            Err(AuthencError::RateLimitExceeded { .. }) => {
                 println!("✅ Rate limiting correctly triggered after 3 attempts");
             }
             Ok(()) => {
@@ -261,7 +261,7 @@ mod mfa_rate_limiting_tests {
                     }
                 } else {
                     match result {
-                        Err(AuthencError::RateLimitExceeded) => {
+                        Err(AuthencError::RateLimitExceeded { .. }) => {
                             println!(
                                 "✅ IP rate limiting triggered at attempt {}",
                                 total_attempts
@@ -686,7 +686,7 @@ mod mfa_integration_security_tests {
 
                     println!("⚠️  Suspicious attempt {}: Recorded", i);
                 }
-                Err(AuthencError::RateLimitExceeded) => {
+                Err(AuthencError::RateLimitExceeded { .. }) => {
                     println!("🔒 Rate limiting triggered at attempt {}", i);
 
                     // Record security event for rate limiting

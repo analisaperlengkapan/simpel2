@@ -186,7 +186,7 @@ pub mod protocol_mappers {
         }
 
         if let Some(ref config) = request.config {
-            let config_json = serde_json::to_value(config).map_err(|e| {
+            let _config_json = serde_json::to_value(config).map_err(|e| {
                 AuthencError::internal(&format!("Failed to serialize config: {}", e))
             })?;
             updates.push(format!("config = ${}", param_index));
@@ -206,7 +206,7 @@ pub mod protocol_mappers {
 
         updates.push(format!("updated_at = ${}", param_index));
 
-        let query = format!(
+        let _query = format!(
             "UPDATE protocol_mappers SET {} WHERE id = ${} RETURNING *",
             updates.join(", "),
             param_index + 1
@@ -214,7 +214,7 @@ pub mod protocol_mappers {
 
         // For now, use a simpler approach with explicit fields
         let query = if request.config.is_some() {
-            let config_json =
+            let _config_json =
                 serde_json::to_value(request.config.as_ref().unwrap()).map_err(|e| {
                     AuthencError::internal(&format!("Failed to serialize config: {}", e))
                 })?;

@@ -187,10 +187,7 @@ struct DependencyGraph {
 impl DependencyGraph {
     /// Add a dependency relationship
     fn add_dependency(&mut self, parent: String, child: String) {
-        self.dependencies
-            .entry(parent)
-            .or_insert_with(HashSet::new)
-            .insert(child);
+        self.dependencies.entry(parent).or_default().insert(child);
     }
 
     /// Get all dependencies for a path (recursive)

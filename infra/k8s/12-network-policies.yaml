@@ -1,7 +1,7 @@
-# SIMPelv2 Network Policies - FIXED untuk Istio
-# Updated untuk menggunakan Istio Gateway instead of Ingress NGINX
+# SIMPelv2 Network Policies - FIXED (Single Namespace)
+# Uses podSelector instead of namespaceSelector for intra-namespace traffic
 
-# Default deny all ingress traffic (security baseline)
+# Default deny all ingress traffic
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -13,145 +13,62 @@ spec:
     - Ingress
 
 ---
+# Allow Ingress from same namespace (tightened via podSelector)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-ingress
-  namespace: simpelv2
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny-ingress
-  namespace: simpelv2-infra
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-
----
-# Allow Istio Ingress Gateway to access frontend services
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-istio-ingressgateway
+  name: allow-intra-namespace
   namespace: simpelv2
 spec:
   podSelector: {}
   policyTypes:
     - Ingress
   ingress:
+    # Allow Backend to access Infra components
     - from:
-        - namespaceSelector:
-            matchLabels:
-              name: istio-system  # ✅ FIXED: was ingress-nginx
         - podSelector:
             matchLabels:
-              istio: ingressgateway
+              component: backend
       ports:
         - protocol: TCP
-          port: 8080  # Frontend services port
+          port: 5432 # Postgres
+        - protocol: TCP
+          port: 6379 # Redis
+        - protocol: TCP
+          port: 9088 # Authenc gRPC
+        - protocol: TCP
+          port: 9000 # Secreton gRPC (Fixing 9200->9000 based on deployment)
 
----
-# Allow frontend to call backend services
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-backend-from-frontend
-  namespace: simpelv2
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-  ingress:
+    # Allow Frontend to access Backend
     - from:
-        - namespaceSelector:
-            matchLabels:
-              name: simpelv2-frontend
-      ports:
-        - protocol: TCP
-          port: 8080  # REST API port
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: istio-system  # Istio sidecar injection
-      ports:
-        - protocol: TCP
-          port: 9080  # gRPC port
-
----
-# Allow backend to call infrastructure (Authenc, Secreton, DB, Redis)
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-infra-from-backend
-  namespace: simpelv2-infra
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-  ingress:
-    # Backend services can access infrastructure via gRPC
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: simpelv2-backend
-      ports:
-        - protocol: TCP
-          port: 5432  # PostgreSQL
-        - protocol: TCP
-          port: 6379  # Redis
-        - protocol: TCP
-          port: 9090  # Authenc gRPC
-        - protocol: TCP
-          port: 9200  # Secreton gRPC
-    
-    # Istio sidecar communication
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: istio-system
-      ports:
-        - protocol: TCP
-          port: 8088  # Authenc HTTP (for health checks only)
-        - protocol: TCP
-          port: 8200  # Secreton HTTP (for health checks only)
-
----
-# Allow Prometheus to scrape metrics from all namespaces
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-prometheus-scraping
-  namespace: simpelv2
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: portal  # Adjust per service
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: simpelv2-monitoring
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: prometheus
+              app.kubernetes.io/component: frontend
       ports:
         - protocol: TCP
-          port: 8080  # Metrics endpoint
+          port: 3010 # Portal Backend
+        - protocol: TCP
+          port: 3020 # Perlengkapan Backend
+
+    # Allow Istio Ingress Gateway
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 8080 # Service ports
+        - protocol: TCP
+          port: 3010
+        - protocol: TCP
+          port: 3020
 
 ---
+# Allow Prometheus scraping
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-prometheus-scraping
+  name: allow-prometheus
   namespace: simpelv2
 spec:
   podSelector: {}
@@ -161,62 +78,18 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              name: simpelv2-monitoring
-      ports:
-        - protocol: TCP
-          port: 8080  # HTTP metrics
-        - protocol: TCP
-          port: 9080  # gRPC metrics
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-prometheus-scraping
-  namespace: simpelv2-infra
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
+              kubernetes.io/metadata.name: monitoring # Assuming monitoring NS is named 'monitoring' or 'simpelv2-monitoring' if it exists externally, else 'knative-monitoring' etc.
+              # If it's in istio-system or similar
         - namespaceSelector:
-            matchLabels:
-              name: simpelv2-monitoring
+             matchLabels:
+               kubernetes.io/metadata.name: istio-system # Prometheus in Istio?
       ports:
         - protocol: TCP
-          port: 8088  # Authenc metrics
+          port: 8080
         - protocol: TCP
-          port: 8200  # Secreton metrics
+          port: 9090
+        - protocol: TCP
+          port: 8088 # Authenc metrics
 
----
-# Allow Istio Ingress Gateway to access monitoring (Grafana, Prometheus)
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-monitoring-access
-  namespace: simpelv2-monitoring
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: istio-system
-      ports:
-        - protocol: TCP
-          port: 3000  # Grafana
-        - protocol: TCP
-          port: 9090  # Prometheus
-        - protocol: TCP
-          port: 9093  # Alertmanager
-
----
-# IMPORTANT NOTES:
-# 1. Network policies ALLOW traffic by default jika Istio mTLS enabled
-# 2. Istio handles service-to-service authentication via mTLS
-# 3. Network policies provide additional layer of defense
-# 4. Frontend NEVER directly accesses Authenc/Secreton (enforced here)
-# 5. All inter-service communication goes through Istio sidecar proxies
+# Note: Keeping it simple by removing the complex broken policies.
+# The previous policies were referencing non-existent namespaces.

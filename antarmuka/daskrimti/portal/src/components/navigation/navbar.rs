@@ -4,10 +4,8 @@
 
 use crate::features::auth::{AuthService, UserSession};
 use leptos::prelude::*;
-use shared_microfrontend::components::{
-    BrandedLogo, BrandedLogoSize, GlobalSearchBar, NotificationBell,
-};
-use shared_microfrontend::prelude::*;
+use lib_ui::components::{BrandedLogo, BrandedLogoSize, GlobalSearchBar, NotificationBell};
+use lib_ui::prelude::*;
 
 /// Main navigation bar
 #[component]

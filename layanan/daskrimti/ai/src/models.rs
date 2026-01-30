@@ -28,6 +28,12 @@ pub struct JobQueue {
     pub queue: VecDeque<Job>,
 }
 
+impl Default for JobQueue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JobQueue {
     pub fn new() -> Self {
         Self {
@@ -58,6 +64,12 @@ pub struct ModelMetadata {
 
 pub struct ModelRegistry {
     pub models: HashMap<String, ModelMetadata>,
+}
+
+impl Default for ModelRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ModelRegistry {

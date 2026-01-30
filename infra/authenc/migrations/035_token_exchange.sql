@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS token_exchange_audit (
     -- Subject information
     subject_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     subject_username VARCHAR(255),
-    original_client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+    original_client_id UUID REFERENCES oauth2_clients(id) ON DELETE SET NULL,
 
     -- Actor information (for delegation scenarios)
     actor_id UUID,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS token_exchange_audit (
     delegation_enabled BOOLEAN DEFAULT false,
 
     -- Target information
-    target_client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    target_client_id UUID REFERENCES oauth2_clients(id) ON DELETE CASCADE,
     audience VARCHAR(500),                     -- Target audience
     resource VARCHAR(500),                     -- Target resource
 
@@ -52,16 +52,16 @@ CREATE TABLE IF NOT EXISTS token_exchange_audit (
 );
 
 -- Indexes for efficient querying
-CREATE INDEX idx_token_exchange_subject_user ON token_exchange_audit(subject_user_id, created_at DESC);
-CREATE INDEX idx_token_exchange_actor ON token_exchange_audit(actor_id, created_at DESC) WHERE actor_id IS NOT NULL;
-CREATE INDEX idx_token_exchange_client ON token_exchange_audit(target_client_id, created_at DESC);
-CREATE INDEX idx_token_exchange_success ON token_exchange_audit(success, created_at DESC);
-CREATE INDEX idx_token_exchange_created_at ON token_exchange_audit(created_at DESC);
-CREATE INDEX idx_token_exchange_audience ON token_exchange_audit(audience) WHERE audience IS NOT NULL;
-CREATE INDEX idx_token_exchange_metadata ON token_exchange_audit USING gin(metadata) WHERE metadata IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_token_exchange_subject_user ON token_exchange_audit(subject_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_exchange_actor ON token_exchange_audit(actor_id, created_at DESC) WHERE actor_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_token_exchange_client ON token_exchange_audit(target_client_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_exchange_success ON token_exchange_audit(success, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_exchange_created_at ON token_exchange_audit(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_exchange_audience ON token_exchange_audit(audience) WHERE audience IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_token_exchange_metadata ON token_exchange_audit USING gin(metadata) WHERE metadata IS NOT NULL;
 
 -- Add token exchange capability flag to clients table
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS token_exchange_enabled BOOLEAN DEFAULT false;
+ALTER TABLE oauth2_clients ADD COLUMN IF NOT EXISTS token_exchange_enabled BOOLEAN DEFAULT false;
 
 -- Add actor/delegation claims support to oauth2_access_tokens
 ALTER TABLE oauth2_access_tokens ADD COLUMN IF NOT EXISTS actor_id UUID;

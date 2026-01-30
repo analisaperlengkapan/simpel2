@@ -319,7 +319,7 @@ impl AdaptiveRateLimiter {
                 threat_level = threat_level.name(),
                 "Rate limit exceeded"
             );
-            return Err(AuthencError::RateLimitExceeded);
+            return Err(AuthencError::rate_limit_exceeded());
         }
 
         debug!(
@@ -350,8 +350,8 @@ pub async fn adaptive_rate_limit_middleware(
             let response = next.run(request).await;
             Ok(response)
         }
-        Err(AuthencError::RateLimitExceeded) => {
-            let threat_level = state.get_threat_level();
+        Err(AuthencError::RateLimitExceeded { .. }) => {
+            let _threat_level = state.get_threat_level();
             Err(StatusCode::TOO_MANY_REQUESTS)
         }
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -434,7 +434,7 @@ where
         Box::pin(async move {
             match state.check_rate_limit(&path, &ip) {
                 Ok(_) => future.await,
-                Err(AuthencError::RateLimitExceeded) => {
+                Err(AuthencError::RateLimitExceeded { .. }) => {
                     let threat_level = state.get_threat_level();
                     let limit = threat_level.rate_limit();
 

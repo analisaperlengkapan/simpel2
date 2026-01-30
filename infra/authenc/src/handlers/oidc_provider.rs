@@ -41,7 +41,7 @@ pub async fn oidc_login_post(
     // Render login form with username/password fields
     let username = form.scope.clone().unwrap_or_default(); // overload for username (for demo, should use real struct)
     let password = form.state.clone().unwrap_or_default(); // overload for password (for demo)
-                                                           // Actually, username/password should be in a separate struct, but for demo, use scope/state
+    // Actually, username/password should be in a separate struct, but for demo, use scope/state
     let user = if let Some(user) = user_store.get_by_username(&username) {
         user
     } else {
@@ -190,7 +190,7 @@ pub async fn oidc_authorize(
     let user_id = match user_id_cookie {
         Some(uid) => uid,
         None => {
-            return HttpResponse::InternalServerError().body("Missing user_id cookie after check")
+            return HttpResponse::InternalServerError().body("Missing user_id cookie after check");
         }
     };
     // Consent screen logic (stub): show consent if prompt=consent

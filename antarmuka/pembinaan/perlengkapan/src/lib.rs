@@ -34,35 +34,33 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::*;
-use shared_microfrontend::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
-use shared_microfrontend::prelude::*;
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
+use lib_ui::prelude::*;
 use wasm_bindgen::prelude::*;
 
-mod components;
 mod api;
+mod components;
 #[cfg(test)]
 mod tests;
 
-use components::aset_list::AsetList;
-use components::pengadaan_list::PengadaanList;
-use components::analisis_list::AnalisisList;
-use components::pengadaan_form::PengadaanForm;
-use components::analisis_form::AnalisisForm;
-use components::pemakaian_list::PemakaianList;
-use components::pemakaian_form::PemakaianForm;
-use components::hibah_list::HibahList;
-use components::hibah_form::HibahForm;
-use components::mutasi_list::MutasiList;
-use components::mutasi_form::MutasiForm;
-use components::penghapusan_list::PenghapusanList;
-use components::penghapusan_form::PenghapusanForm;
-use components::pengalihan_list::PengalihanList;
-use components::pengalihan_form::PengalihanForm;
-use components::pemeliharaan_list::PemeliharaanList;
-use components::pemeliharaan_form::PemeliharaanForm;
 use api::fetch_dashboard_stats;
+use components::analisis_form::AnalisisForm;
+use components::analisis_list::AnalisisList;
+use components::aset_list::AsetList;
+use components::hibah_form::HibahForm;
+use components::hibah_list::HibahList;
+use components::mutasi_form::MutasiForm;
+use components::mutasi_list::MutasiList;
+use components::pemakaian_form::PemakaianForm;
+use components::pemakaian_list::PemakaianList;
+use components::pemeliharaan_form::PemeliharaanForm;
+use components::pemeliharaan_list::PemeliharaanList;
+use components::pengadaan_form::PengadaanForm;
+use components::pengadaan_list::PengadaanList;
+use components::pengalihan_form::PengalihanForm;
+use components::pengalihan_list::PengalihanList;
+use components::penghapusan_form::PenghapusanForm;
+use components::penghapusan_list::PenghapusanList;
 
 // ============================================================================
 // Constants & Configuration
@@ -92,7 +90,15 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=|| view! { <NotFound /> }>
-                <Route path=path!("/") view=LoginRedirectPage />
+                <Route
+                    path=path!("/")
+                    view=move || view! {
+                        <LoginRedirectPage
+                            app_name="SIMPEL Perlengkapan"
+                            app_description="Sistem Informasi Manajemen Perlengkapan"
+                        />
+                    }
+                />
                 <Route path=path!("/dashboard/*") view=DashboardRoutes />
             </Routes>
         </Router>

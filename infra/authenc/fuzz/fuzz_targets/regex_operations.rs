@@ -14,7 +14,7 @@ fuzz_target!(|data: &[u8]| {
 
     if let (Ok(pattern), Ok(input)) = (
         std::str::from_utf8(pattern_bytes),
-        std::str::from_utf8(input_bytes)
+        std::str::from_utf8(input_bytes),
     ) {
         // Test regex compilation and matching
         if let Ok(regex) = regex::Regex::new(pattern) {

@@ -1,6 +1,6 @@
 -- Custom Themes Table
 -- Stores custom theme configurations for realms
-CREATE TABLE custom_themes (
+CREATE TABLE IF NOT EXISTS custom_themes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE custom_themes (
 
 -- Theme Resources Table
 -- Stores theme-related assets (images, fonts, CSS files, etc.)
-CREATE TABLE theme_resources (
+CREATE TABLE IF NOT EXISTS theme_resources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     theme_id UUID NOT NULL REFERENCES custom_themes(id) ON DELETE CASCADE,
     
@@ -65,7 +65,7 @@ CREATE TABLE theme_resources (
 
 -- Theme Templates Table  
 -- Stores FreeMarker template overrides
-CREATE TABLE theme_templates (
+CREATE TABLE IF NOT EXISTS theme_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     theme_id UUID NOT NULL REFERENCES custom_themes(id) ON DELETE CASCADE,
     
@@ -92,7 +92,7 @@ CREATE TABLE theme_templates (
 
 -- Theme Inheritance Table
 -- Tracks theme inheritance relationships
-CREATE TABLE theme_inheritance (
+CREATE TABLE IF NOT EXISTS theme_inheritance (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     theme_id UUID NOT NULL REFERENCES custom_themes(id) ON DELETE CASCADE,
     parent_theme_id UUID REFERENCES custom_themes(id) ON DELETE SET NULL,
@@ -110,7 +110,7 @@ CREATE TABLE theme_inheritance (
 
 -- Realm Theme Settings Table
 -- Maps realms to their active themes
-CREATE TABLE realm_theme_settings (
+CREATE TABLE IF NOT EXISTS realm_theme_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     
@@ -130,20 +130,20 @@ CREATE TABLE realm_theme_settings (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_custom_themes_realm_id ON custom_themes(realm_id);
-CREATE INDEX idx_custom_themes_type ON custom_themes(theme_type);
-CREATE INDEX idx_custom_themes_active ON custom_themes(realm_id, theme_type) WHERE is_active = TRUE;
-CREATE INDEX idx_custom_themes_default ON custom_themes(theme_type) WHERE is_default = TRUE;
+CREATE INDEX IF NOT EXISTS idx_custom_themes_realm_id ON custom_themes(realm_id);
+CREATE INDEX IF NOT EXISTS idx_custom_themes_type ON custom_themes(theme_type);
+CREATE INDEX IF NOT EXISTS idx_custom_themes_active ON custom_themes(realm_id, theme_type) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_custom_themes_default ON custom_themes(theme_type) WHERE is_default = TRUE;
 
-CREATE INDEX idx_theme_resources_theme_id ON theme_resources(theme_id);
-CREATE INDEX idx_theme_resources_type ON theme_resources(resource_type);
-CREATE INDEX idx_theme_resources_name ON theme_resources(theme_id, resource_name);
+CREATE INDEX IF NOT EXISTS idx_theme_resources_theme_id ON theme_resources(theme_id);
+CREATE INDEX IF NOT EXISTS idx_theme_resources_type ON theme_resources(resource_type);
+CREATE INDEX IF NOT EXISTS idx_theme_resources_name ON theme_resources(theme_id, resource_name);
 
-CREATE INDEX idx_theme_templates_theme_id ON theme_templates(theme_id);
-CREATE INDEX idx_theme_templates_type ON theme_templates(template_type);
-CREATE INDEX idx_theme_templates_name ON theme_templates(theme_id, template_name);
+CREATE INDEX IF NOT EXISTS idx_theme_templates_theme_id ON theme_templates(theme_id);
+CREATE INDEX IF NOT EXISTS idx_theme_templates_type ON theme_templates(template_type);
+CREATE INDEX IF NOT EXISTS idx_theme_templates_name ON theme_templates(theme_id, template_name);
 
-CREATE INDEX idx_theme_inheritance_theme_id ON theme_inheritance(theme_id);
-CREATE INDEX idx_theme_inheritance_parent_id ON theme_inheritance(parent_theme_id);
+CREATE INDEX IF NOT EXISTS idx_theme_inheritance_theme_id ON theme_inheritance(theme_id);
+CREATE INDEX IF NOT EXISTS idx_theme_inheritance_parent_id ON theme_inheritance(parent_theme_id);
 
-CREATE INDEX idx_realm_theme_settings_realm_id ON realm_theme_settings(realm_id);
+CREATE INDEX IF NOT EXISTS idx_realm_theme_settings_realm_id ON realm_theme_settings(realm_id);

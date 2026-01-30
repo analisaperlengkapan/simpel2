@@ -7,7 +7,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sha2::Digest;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -580,7 +579,7 @@ pub async fn get_linked_social_accounts(
         .map_err(|_| AuthencError::unauthorized("Invalid user ID in token"))?;
 
     // Get user to check for social account links
-    let user = user_store
+    let _user = user_store
         .get_user(user_id)
         .await?
         .ok_or_else(|| AuthencError::resource_not_found("User not found"))?;
@@ -601,7 +600,7 @@ pub async fn get_linked_social_accounts(
 
 /// Unlink a social account
 pub async fn unlink_social_account(
-    State((user_store, _, _, _, audit_log_store, social_account_store)): State<(
+    State((_user_store, _, _, _, audit_log_store, social_account_store)): State<(
         Arc<UserStore>,
         Arc<SessionStore>,
         Arc<OidcClientStore>,

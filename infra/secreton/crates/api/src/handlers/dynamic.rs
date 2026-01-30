@@ -316,7 +316,7 @@ pub async fn list_database_roles(
 
 /// Get database role details
 pub async fn get_database_role(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(role_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
     Err(ApiError::NotFound {
@@ -489,7 +489,7 @@ pub async fn configure_database_connection(
 
 /// Get database connection details
 pub async fn get_database_connection(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
     Err(ApiError::NotFound {

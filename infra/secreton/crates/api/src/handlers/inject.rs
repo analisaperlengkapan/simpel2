@@ -6,7 +6,6 @@
 use axum::{
     Json,
     extract::{Extension, Path, State},
-    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -60,17 +59,13 @@ pub struct SecretPath {
 /// Environment variable format
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum EnvFormat {
     /// Flat format: SECRET_KEY=value
+    #[default]
     Flat,
     /// Nested format: SECRET_PATH_KEY=value
     Nested,
-}
-
-impl Default for EnvFormat {
-    fn default() -> Self {
-        Self::Flat
-    }
 }
 
 /// Response containing environment variables
@@ -127,7 +122,7 @@ pub async fn inject_env(
 
     // Calculate expiration
     let ttl = request.ttl.unwrap_or(3600);
-    if ttl < 1 || ttl > 86400 {
+    if !(1..=86400).contains(&ttl) {
         return Err(ApiError::BadRequest {
             message: "TTL must be between 1 and 86400 seconds".to_string(),
         });
@@ -340,21 +335,23 @@ async fn fetch_secret(
 ) -> Result<HashMap<String, String>, ApiError> {
     info!("Fetching secret from path: {}", path);
 
-    let secret_data = state.engine.get_secret(path, user_id).await.map_err(|e| {
-        match e {
+    let secret_data = state
+        .engine
+        .get_secret(path, user_id)
+        .await
+        .map_err(|e| match e {
             crate::services::secret_engine::SecretServiceError::SecretNotFound { .. } => {
                 ApiError::NotFound {
                     resource: path.to_string(),
                 }
             }
-            crate::services::secret_engine::SecretServiceError::PermissionDenied(msg) => {
+            crate::services::secret_engine::SecretServiceError::PermissionDenied(_msg) => {
                 ApiError::Forbidden
             }
             _ => ApiError::Internal {
                 message: e.to_string(),
             },
-        }
-    })?;
+        })?;
 
     Ok(secret_data.data)
 }
@@ -379,7 +376,11 @@ async fn store_session(
         "system".to_string(),
     );
 
-    state.storage.store(&entry).await.map_err(ApiError::Storage)?;
+    state
+        .storage
+        .store(&entry)
+        .await
+        .map_err(ApiError::Storage)?;
     Ok(())
 }
 
@@ -399,11 +400,10 @@ async fn get_session_internal(
             resource: format!("Session {}", session_id),
         })?;
 
-    let session: InjectionSession = serde_json::from_slice(&entry.encrypted_data).map_err(|e| {
-        ApiError::Internal {
+    let session: InjectionSession =
+        serde_json::from_slice(&entry.encrypted_data).map_err(|e| ApiError::Internal {
             message: format!("Failed to deserialize session: {}", e),
-        }
-    })?;
+        })?;
 
     Ok(session)
 }
@@ -444,7 +444,11 @@ async fn list_active_sessions(
         ..Default::default()
     };
 
-    let entries = state.storage.list(&params).await.map_err(ApiError::Storage)?;
+    let entries = state
+        .storage
+        .list(&params)
+        .await
+        .map_err(ApiError::Storage)?;
     let mut sessions = Vec::new();
     let now = chrono::Utc::now();
 

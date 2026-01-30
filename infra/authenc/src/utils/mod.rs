@@ -22,7 +22,10 @@ pub mod i18n;
 /// Supports both encoding and decoding of JWT tokens with various algorithms.
 pub mod jwt;
 
-/// Plugin system utilities for extensibility
+/// JWT key management with Secreton integration
+/// Manages JWT signing keys retrieved from Secreton with caching and rotation.
+/// Provides secure key storage and automatic initialization.
+pub mod jwt_key_manager;
 /// Framework for loading and managing authentication plugins.
 /// Enables third-party extensions and custom authentication methods.
 pub mod plugin;

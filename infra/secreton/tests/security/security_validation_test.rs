@@ -293,7 +293,7 @@ mod security_validation_tests {
         let avg_incorrect: f64 = incorrect_times.iter().map(|d| d.as_nanos() as f64).sum::<f64>() / incorrect_times.len() as f64;
 
         // Timing should be relatively constant (within reasonable variance)
-        let timing_ratio = if avg_correct > avg_incorrect { avg_correct / avg_incorrect  else { avg_incorrect / avg_correct ;
+        let timing_ratio = if avg_correct > avg_incorrect { avg_correct / avg_incorrect } else { avg_incorrect / avg_correct };
 
         // Allow for some variance but not excessive timing differences
         assert!(timing_ratio < 2.0,

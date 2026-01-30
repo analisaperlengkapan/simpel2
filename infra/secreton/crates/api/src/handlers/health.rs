@@ -454,6 +454,7 @@ async fn check_crypto_health(state: &AppState) -> HealthCheck {
                 );
             }
         }
+    } else {
         details_map.insert(
             "hsm_status".to_string(),
             serde_json::Value::String("not_configured".to_string()),
@@ -476,7 +477,7 @@ async fn check_storage_health(state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
     // Use the built-in health_check method from StorageBackend trait
-    let (status, message, details) = match state.storage.health_check().await {
+    let (status, message, computed_details) = match state.storage.health_check().await {
         Ok(health_status) => {
             let mut details = HashMap::new();
             details.insert(
@@ -546,27 +547,26 @@ async fn check_storage_health(state: &AppState) -> HealthCheck {
 
     let response_time = start_time.elapsed().as_millis() as u64;
 
+    let mut final_details = computed_details.unwrap_or_default();
+    final_details.insert(
+        "disk_usage".to_string(),
+        serde_json::Value::String("45%".to_string()),
+    );
+    final_details.insert(
+        "backup_status".to_string(),
+        serde_json::Value::String("current".to_string()),
+    );
+    final_details.insert(
+        "encryption".to_string(),
+        serde_json::Value::String("enabled".to_string()),
+    );
+
     HealthCheck {
         status,
         message,
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
-        details: Some({
-            let mut details = HashMap::new();
-            details.insert(
-                "disk_usage".to_string(),
-                serde_json::Value::String("45%".to_string()),
-            );
-            details.insert(
-                "backup_status".to_string(),
-                serde_json::Value::String("current".to_string()),
-            );
-            details.insert(
-                "encryption".to_string(),
-                serde_json::Value::String("enabled".to_string()),
-            );
-            details
-        }),
+        details: Some(final_details),
     }
 }
 

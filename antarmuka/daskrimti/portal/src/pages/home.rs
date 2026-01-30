@@ -2,7 +2,7 @@
 
 use crate::components::layout::AuthLayout;
 use leptos::prelude::*;
-use shared_microfrontend::{
+use lib_ui::{
     components::Button,
     core::types::{ButtonSize, ButtonVariant},
 };

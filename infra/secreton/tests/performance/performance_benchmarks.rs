@@ -369,7 +369,7 @@ mod performance_tests {
                                 Ok(_) => operations_completed += 1,
                                 Err(_) => break,
                             }
-                        ,
+                        }
                         Err(_) => break,
                     }
 

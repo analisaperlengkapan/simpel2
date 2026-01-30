@@ -1,7 +1,7 @@
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use authenc::middleware::csrf_protection_axum::CsrfConfig;
+use libfuzzer_sys::fuzz_target;
 use serde_json;
 
 fuzz_target!(|data: &[u8]| {

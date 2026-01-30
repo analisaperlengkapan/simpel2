@@ -15,10 +15,8 @@ use leptos_router::{
 };
 
 // Import shared components
-use shared_microfrontend::components::auth::{
-    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
-};
-use shared_microfrontend::prelude::*;
+use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
+use lib_ui::prelude::*;
 
 // Import local types and api
 use crate::api::fetch_cases;
@@ -35,7 +33,7 @@ pub fn App() -> impl IntoView {
         <Meta name="description" content="Sistem Informasi Bidang Perdata dan Tata Usaha Negara Kejaksaan RI"/>
         <Router>
             <Routes fallback=|| "Page not found".into_view()>
-                <Route path=StaticSegment("") view=LoginRedirectPage />
+                <Route path=StaticSegment("") view=|| view! { <LoginRedirectPage /> } />
                 <Route path=StaticSegment("dashboard") view=DashboardPage />
             </Routes>
         </Router>
@@ -46,7 +44,7 @@ pub fn App() -> impl IntoView {
 #[component]
 fn DashboardPage() -> impl IntoView {
     // Fetch cases from API using local resource (CSR)
-    let cases_resource = LocalResource::new(|| fetch_cases());
+    let cases_resource = LocalResource::new(fetch_cases);
 
     let content = move || {
         view! {

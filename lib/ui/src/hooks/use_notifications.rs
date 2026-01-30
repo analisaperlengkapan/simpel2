@@ -208,7 +208,7 @@ impl NotificationContext {
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::hooks::use_notifications::use_notifications;
+/// use lib_ui::hooks::use_notifications::use_notifications;
 /// use leptos::prelude::*;
 ///
 /// #[component]

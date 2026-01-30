@@ -3,9 +3,10 @@
 
 CREATE TABLE IF NOT EXISTS mfa_admin_actions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    admin_user_id UUID NOT NULL,
+    admin_user_id UUID,
     target_user_id UUID NOT NULL,
     action VARCHAR(50) NOT NULL,
+    actor_type VARCHAR(50) NOT NULL DEFAULT 'user' CHECK (actor_type IN ('user', 'system', 'automated')),
     reason TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 
@@ -13,7 +14,11 @@ CREATE TABLE IF NOT EXISTS mfa_admin_actions (
     CONSTRAINT fk_mfa_admin_actions_admin_user
         FOREIGN KEY (admin_user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_mfa_admin_actions_target_user
-        FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE CASCADE
+        FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Ensure admin_user_id is present for user actions
+    CONSTRAINT check_admin_user_accountability
+        CHECK ((actor_type = 'user' AND admin_user_id IS NOT NULL) OR (actor_type != 'user'))
 );
 
 -- Indexes for performance

@@ -1159,7 +1159,7 @@ impl User {
     /// Remove role from user
     pub fn remove_role(&mut self, role_id: Uuid) {
         if let Some(pos) = self.roles.iter().position(|r| r.id == role_id) {
-            let removed_role = self.roles.remove(pos);
+            let _removed_role = self.roles.remove(pos);
 
             // Remove permissions that were only granted by this role
             self.permissions.retain(|p| {

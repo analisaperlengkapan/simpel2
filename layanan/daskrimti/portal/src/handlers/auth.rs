@@ -125,14 +125,12 @@ pub async fn login(
 ) -> impl IntoResponse {
     info!("Login attempt for user: {}", request.username);
 
-    // TODO: Validate CAPTCHA token via secreton encryption
-    // For now, just proceed with authentication
-
     match state
         .authenc
         .authenticate(
             &request.username,
             &request.password,
+            request.captcha_token.as_deref().unwrap_or(""),
             request.mfa_code.as_deref(),
         )
         .await
@@ -200,19 +198,19 @@ pub async fn logout(
     let mut success = true;
 
     // Revoke access token if provided
-    if let Some(access_token) = &request.access_token {
-        if let Err(err) = state.authenc.revoke_token(access_token, false).await {
-            error!("Failed to revoke access token: {}", err);
-            success = false;
-        }
+    if let Some(access_token) = &request.access_token
+        && let Err(err) = state.authenc.revoke_token(access_token, false).await
+    {
+        error!("Failed to revoke access token: {}", err);
+        success = false;
     }
 
     // Revoke refresh token if provided
-    if let Some(refresh_token) = &request.refresh_token {
-        if let Err(err) = state.authenc.revoke_token(refresh_token, true).await {
-            error!("Failed to revoke refresh token: {}", err);
-            success = false;
-        }
+    if let Some(refresh_token) = &request.refresh_token
+        && let Err(err) = state.authenc.revoke_token(refresh_token, true).await
+    {
+        error!("Failed to revoke refresh token: {}", err);
+        success = false;
     }
 
     if success {

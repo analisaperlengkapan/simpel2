@@ -1,7 +1,7 @@
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use authenc::services::saml_signature::SamlMessage;
+use libfuzzer_sys::fuzz_target;
 use serde_json;
 use uuid::Uuid;
 
@@ -55,10 +55,10 @@ fuzz_target!(|data: &[u8]| {
         let xml_data = &data[10..];
         if let Ok(xml_str) = std::str::from_utf8(xml_data) {
             // Basic XML validation - check for XML declaration or root element
-            let is_xml_like = xml_str.contains("<?xml") ||
-                             xml_str.contains("<") && xml_str.contains(">") ||
-                             xml_str.contains("<saml") ||
-                             xml_str.contains("<Assertion");
+            let is_xml_like = xml_str.contains("<?xml")
+                || xml_str.contains("<") && xml_str.contains(">")
+                || xml_str.contains("<saml")
+                || xml_str.contains("<Assertion");
             let _ = is_xml_like;
         }
     }

@@ -83,15 +83,11 @@ pub struct LdapConfig {
 /// LDAP schema type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum LdapSchema {
+    #[default]
     OpenLdap,
     ActiveDirectory,
-}
-
-impl Default for LdapSchema {
-    fn default() -> Self {
-        Self::OpenLdap
-    }
 }
 
 /// LDAP role configuration

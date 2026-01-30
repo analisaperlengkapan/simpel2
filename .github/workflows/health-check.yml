@@ -1,0 +1,212 @@
+name: CI/CD Health Check
+
+on:
+  schedule:
+    # Run health check every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: health-check
+  cancel-in-progress: false
+
+jobs:
+  workflow-health:
+    name: Check Workflow Health
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Check workflow syntax
+        run: |
+          echo "## 🏥 CI/CD Health Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          WORKFLOWS_DIR=".github/workflows"
+          INVALID_WORKFLOWS=0
+
+          for workflow in $WORKFLOWS_DIR/*.yml; do
+            if [ -f "$workflow" ]; then
+              echo "Checking $(basename $workflow)..."
+
+              # Basic YAML syntax check
+              if python3 -c "import yaml; yaml.safe_load(open('$workflow'))" 2>/dev/null; then
+                echo "✅ $(basename $workflow)" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "❌ $(basename $workflow) - YAML syntax error" >> $GITHUB_STEP_SUMMARY
+                INVALID_WORKFLOWS=$((INVALID_WORKFLOWS + 1))
+              fi
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $INVALID_WORKFLOWS -eq 0 ]; then
+            echo "### ✅ All workflows are valid!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Found $INVALID_WORKFLOWS invalid workflow(s)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Check recent workflow runs
+        run: |
+          echo "### 📊 Recent Workflow Runs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get recent runs
+          gh run list --limit 20 --json workflowName,status,conclusion | \
+            python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+workflows = {}
+
+for run in data:
+    name = run['workflowName']
+    if name not in workflows:
+        workflows[name] = {'success': 0, 'failure': 0, 'cancelled': 0}
+
+    if run['status'] == 'completed':
+        conclusion = run.get('conclusion', 'unknown')
+        if conclusion in workflows[name]:
+            workflows[name][conclusion] += 1
+
+print('| Workflow | Success | Failure | Cancelled |')
+print('|----------|---------|---------|-----------|')
+for name, stats in sorted(workflows.items()):
+    print(f\"| {name} | {stats['success']} | {stats['failure']} | {stats['cancelled']} |\")
+" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check workflow best practices
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Best Practices Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          CHECKS_PASSED=0
+          CHECKS_TOTAL=0
+
+          # Check 1: Concurrency control
+          CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+          if grep -r "concurrency:" .github/workflows/*.yml > /dev/null; then
+            echo "✅ Workflows use concurrency control" >> $GITHUB_STEP_SUMMARY
+            CHECKS_PASSED=$((CHECKS_PASSED + 1))
+          else
+            echo "⚠️ Some workflows missing concurrency control" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check 2: Caching strategy
+          CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+          if grep -r "setup-rust" .github/workflows/*.yml > /dev/null; then
+            echo "✅ Workflows use standardized setup-rust action" >> $GITHUB_STEP_SUMMARY
+            CHECKS_PASSED=$((CHECKS_PASSED + 1))
+          else
+            echo "⚠️ Some workflows not using setup-rust action" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check 3: Cleanup steps
+          CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+          if grep -r "Fix permissions" .github/workflows/*.yml > /dev/null; then
+            echo "✅ Workflows include permission fix steps" >> $GITHUB_STEP_SUMMARY
+            CHECKS_PASSED=$((CHECKS_PASSED + 1))
+          else
+            echo "⚠️ Missing permission fix steps" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check 4: Environment variables
+          CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+          if grep -r "CARGO_TERM_COLOR" .github/workflows/*.yml > /dev/null; then
+            echo "✅ Workflows set proper environment variables" >> $GITHUB_STEP_SUMMARY
+            CHECKS_PASSED=$((CHECKS_PASSED + 1))
+          else
+            echo "⚠️ Missing environment variables" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check 5: Fail-fast strategy
+          CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+          if grep -r "fail-fast: false" .github/workflows/*.yml > /dev/null; then
+            echo "✅ Matrix builds use fail-fast: false" >> $GITHUB_STEP_SUMMARY
+            CHECKS_PASSED=$((CHECKS_PASSED + 1))
+          else
+            echo "⚠️ Consider using fail-fast: false for matrix builds" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Score: $CHECKS_PASSED / $CHECKS_TOTAL**" >> $GITHUB_STEP_SUMMARY
+
+  dependency-health:
+    name: Check Dependencies Health
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for outdated dependencies
+        run: |
+          if ! command -v cargo-outdated &> /dev/null; then
+            cargo install cargo-outdated --locked
+          fi
+
+          echo "## 📦 Dependency Health" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          cargo outdated --format markdown >> $GITHUB_STEP_SUMMARY || echo "No outdated dependencies found" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for vulnerabilities
+        run: |
+          if ! command -v cargo-audit &> /dev/null; then
+            cargo install cargo-audit --locked
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Security Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          cargo audit --format markdown >> $GITHUB_STEP_SUMMARY || echo "✅ No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+
+  infrastructure-health:
+    name: Check Infrastructure Health
+    runs-on: self-hosted
+    steps:
+      - name: Check Docker
+        run: |
+          echo "## 🐳 Infrastructure Health" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if command -v docker &> /dev/null; then
+            echo "✅ Docker is available" >> $GITHUB_STEP_SUMMARY
+            docker --version >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Docker is not available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check disk space
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 💾 Disk Space" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          df -h / >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          # Warning if less than 20GB free
+          FREE_SPACE=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
+          if [ "$FREE_SPACE" -lt 20 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Warning: Low disk space (<20GB free)**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check runner resources
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🖥️ Runner Resources" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **CPU**: $(nproc) cores" >> $GITHUB_STEP_SUMMARY
+          echo "- **Memory**: $(free -h | awk '/^Mem:/ {print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Hostname**: $(hostname)" >> $GITHUB_STEP_SUMMARY

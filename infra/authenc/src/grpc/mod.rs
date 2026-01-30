@@ -44,16 +44,36 @@ pub mod health;
 /// Batch operations for optimized bulk processing
 pub mod batch_operations;
 
-// Re-export generated proto types
-pub use authenc_service::proto;
-pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup};
+/// Captcha service implementation
+pub mod captcha_service;
 
-// Include common proto types
-pub mod common {
-    pub mod v1 {
-        tonic::include_proto!("common.v1");
+// Centralized Proto Registry
+#[allow(missing_docs)]
+#[allow(unused)]
+pub mod proto {
+    #[allow(missing_docs)]
+    #[allow(unused)]
+    pub mod common {
+        pub mod v1 {
+            #![allow(missing_docs)]
+            #![allow(unused)]
+            tonic::include_proto!("common.v1");
+        }
+    }
+    #[allow(missing_docs)]
+    #[allow(unused)]
+    pub mod authenc {
+        pub mod v1 {
+            #![allow(missing_docs)]
+            #![allow(unused)]
+            tonic::include_proto!("authenc.v1");
+        }
     }
 }
+
+// Re-export generated proto types
+pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup};
+pub use proto::authenc::v1 as authenc_proto;
 
 /// Create and configure the gRPC server
 /// This function sets up the gRPC server with all services, interceptors,
@@ -89,10 +109,9 @@ pub fn create_grpc_server(
         >,
     >,
 > {
-    use interceptors::{LoggingInterceptor, MetricsInterceptor};
-
     // Create service instances
-    let authenc_service = authenc_service::AuthencGrpcService::new(state);
+    let authenc_service = authenc_service::AuthencGrpcService::new(state.clone());
+    // let captcha_grpc_service = CaptchaGrpcService::new(state.clone()); // Part of AuthencService
 
     // Create interceptor stack
     let logging_interceptor = LoggingInterceptor::new();
@@ -116,13 +135,12 @@ pub fn create_grpc_server(
     }
 
     // Build router with interceptors and services
-    // Note: Health check service will be added in task 9.1
     server
         .layer(InterceptorLayer::new(metrics_interceptor))
         .layer(InterceptorLayer::new(logging_interceptor))
-        .add_service(proto::authenc_service_server::AuthencServiceServer::new(
-            authenc_service,
-        ))
+        .add_service(
+            proto::authenc::v1::authenc_service_server::AuthencServiceServer::new(authenc_service),
+        )
 }
 
 /// gRPC server configuration

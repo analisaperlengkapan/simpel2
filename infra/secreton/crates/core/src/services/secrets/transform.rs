@@ -723,7 +723,7 @@ impl TransformEngine {
         for mapping in mappings.values() {
             stats_map
                 .entry(mapping.transformation_name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(mapping);
         }
 

@@ -25,23 +25,25 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Fix permissions
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          clean: true
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
-
-      - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "25.x"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache-key: autofix
 
       - name: Verify workspace structure
         run: |
@@ -50,19 +52,6 @@ jobs:
           echo ""
           echo "✅ authenc exists: $([ -d infra/authenc ] && echo 'yes' || echo 'no')"
           echo "✅ secreton exists: $([ -d infra/secreton ] && echo 'yes' || echo 'no')"
-
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-autofix-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-autofix-
-            ${{ runner.os }}-
 
       - name: Fix root workspace
         run: |

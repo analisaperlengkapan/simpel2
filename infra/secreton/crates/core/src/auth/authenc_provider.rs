@@ -258,7 +258,7 @@ pub trait AuthProvider: Send + Sync {
     /// Check if user has permission to access a resource
     async fn check_resource_permissions(
         &self,
-        user: &User,
+        user: &AuthencUserInfo,
         resource_id: &str,
     ) -> Result<bool, CoreError>;
 
@@ -535,7 +535,7 @@ impl AuthProvider for AuthencAuthProvider {
 
     async fn check_resource_permissions(
         &self,
-        user: &User,
+        user: &AuthencUserInfo,
         resource_id: &str,
     ) -> Result<bool, CoreError> {
         let cache_key = format!("{}::{}", user.id, resource_id);

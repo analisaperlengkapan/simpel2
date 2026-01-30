@@ -275,7 +275,7 @@ impl TokenVerifier for OidcVerifier {
 
 /// Helper to format EC public key as PEM
 /// This is a simplified version - in production, use a proper cryptography library
-fn format_ec_public_key_pem(x: &str, y: &str) -> Result<String, AuthError> {
+fn format_ec_public_key_pem(_x: &str, _y: &str) -> Result<String, AuthError> {
     // For ES256 (P-256), we need to construct the PEM
     // This is a placeholder - proper implementation would use a crypto library
     // to properly encode the EC point

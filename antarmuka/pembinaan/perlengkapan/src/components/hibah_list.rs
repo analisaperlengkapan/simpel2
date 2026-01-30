@@ -1,5 +1,5 @@
+use crate::api::{Hibah, fetch_hibah};
 use leptos::prelude::*;
-use crate::api::{fetch_hibah, Hibah};
 
 #[component]
 pub fn HibahList() -> impl IntoView {

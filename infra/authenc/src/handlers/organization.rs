@@ -2,10 +2,10 @@ use crate::database::Database;
 use crate::error::{AuthencError, Result};
 use crate::services::organization::{OrganizationService, OrganizationUpdate};
 use axum::{
+    Router,
     extract::{Path, Query, State},
     response::Json,
     routing::{delete, get, post, put},
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

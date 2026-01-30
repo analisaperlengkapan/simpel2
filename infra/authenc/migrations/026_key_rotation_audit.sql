@@ -3,7 +3,7 @@
 -- Version: 026
 -- Date: 2024-10-30
 
--- Key rotation audit log table
+-- Date: 2024-10-30
 CREATE TABLE IF NOT EXISTS key_rotation_audit (
     id UUID PRIMARY KEY,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -30,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_key_rotation_audit_key_id_timestamp
 -- Add comments for documentation
 COMMENT ON TABLE key_rotation_audit IS 'Audit log for automatic key rotation events';
 COMMENT ON COLUMN key_rotation_audit.id IS 'Unique identifier for the rotation event';
-COMMENT ON COLUMN key_rotation_mestamp IS 'When the rotation occurred';
+COMMENT ON COLUMN key_rotation_audit.timestamp IS 'When the rotation occurred';
 COMMENT ON COLUMN key_rotation_audit.key_id IS 'Identifier of the key that was rotated';
 COMMENT ON COLUMN key_rotation_audit.key_type IS 'Type of key (jwt_signing, session_encryption, mfa_encryption, etc.)';
 COMMENT ON COLUMN key_rotation_audit.old_version IS 'Previous version number of the key';
@@ -40,6 +40,6 @@ COMMENT ON COLUMN key_rotation_audit.error_message IS 'Error message if rotation
 COMMENT ON COLUMN key_rotation_audit.initiated_by IS 'User or system that initiated the rotation';
 
 -- Grant permissions (adjust as needed for your security model)
--- GRANT SELECT, INSERT ON key_rotation_audit TO authenc_app;
+-- GRANT SELECT, INSERT ON key_rotation_audit TO authenc;
 -- GRANT SELECT ON key_rotation_audit TO authenc_readonly;
 

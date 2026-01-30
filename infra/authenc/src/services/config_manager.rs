@@ -9,7 +9,7 @@
 
 use crate::database::Database;
 use crate::error::{AuthencError, Result};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -71,7 +71,10 @@ impl ConfigManager {
             ORDER BY key
         "#;
 
-        let rows = self.database.query::<(String, Value)>(query, &[&category]).await?;
+        let rows = self
+            .database
+            .query::<(String, Value)>(query, &[&category])
+            .await?;
 
         let mut result = HashMap::new();
         for (key, value) in rows {
@@ -140,7 +143,12 @@ impl ConfigManager {
     }
 
     /// Delete configuration value
-    pub async fn delete(&self, key: &str, user_id: Option<&str>, reason: Option<&str>) -> Result<()> {
+    pub async fn delete(
+        &self,
+        key: &str,
+        user_id: Option<&str>,
+        reason: Option<&str>,
+    ) -> Result<()> {
         // Get old value for audit trail
         let old_value = self.load_from_database(key).await.ok();
 
@@ -174,14 +182,10 @@ impl ConfigManager {
 
         // Verify database connection
         let query = "SELECT COUNT(*) FROM authenc.configuration";
-        let _count: i64 = self
-            .database
-            .query_one(query, &[])
-            .await
-            .map_err(|e| {
-                error!("Failed to reload configuration: {}", e);
-                AuthencError::database("Failed to reload configuration")
-            })?;
+        let _count: i64 = self.database.query_one(query, &[]).await.map_err(|e| {
+            error!("Failed to reload configuration: {}", e);
+            AuthencError::database("Failed to reload configuration")
+        })?;
 
         info!("Configuration reloaded successfully");
 
@@ -207,22 +211,28 @@ impl ConfigManager {
 
         let rows = self
             .database
-            .query::<(String, Option<Value>, Value, Option<String>, String, Option<String>)>(
-                query,
-                &[&key, &limit],
-            )
+            .query::<(
+                String,
+                Option<Value>,
+                Value,
+                Option<String>,
+                String,
+                Option<String>,
+            )>(query, &[&key, &limit])
             .await?;
 
         let changes = rows
             .into_iter()
-            .map(|(key, old_value, new_value, reason, created_at, changed_by)| ConfigChange {
-                key,
-                old_value,
-                new_value,
-                reason,
-                created_at,
-                changed_by,
-            })
+            .map(
+                |(key, old_value, new_value, reason, created_at, changed_by)| ConfigChange {
+                    key,
+                    old_value,
+                    new_value,
+                    reason,
+                    created_at,
+                    changed_by,
+                },
+            )
             .collect();
 
         Ok(changes)
@@ -260,11 +270,9 @@ impl ConfigManager {
     async fn load_from_database(&self, key: &str) -> Result<Value> {
         let query = "SELECT value FROM authenc.configuration WHERE key = $1";
 
-        let value: Value = self
-            .database
-            .query_one(query, &[&key])
-            .await
-            .map_err(|_| AuthencError::validation(&format!("Configuration key not found: {}", key)))?;
+        let value: Value = self.database.query_one(query, &[&key]).await.map_err(|_| {
+            AuthencError::validation(&format!("Configuration key not found: {}", key))
+        })?;
 
         Ok(value)
     }

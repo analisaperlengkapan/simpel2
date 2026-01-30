@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Document {
@@ -98,4 +98,4 @@ pub struct VirusScanLog {
     pub scanned_at: DateTime<Utc>,
     pub result: String,
     pub details: Option<String>,
-} 
+}

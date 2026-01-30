@@ -3,6 +3,7 @@
 //! Main CAPTCHA component using Leptos and shared component library
 
 use super::accessibility::*;
+use super::challenge_parser;
 use super::types::*;
 use super::validation_feedback::*;
 use crate::components::feedback::Alert;
@@ -70,31 +71,28 @@ pub fn Captcha(
         let session_id_val = session_id_verify.clone();
 
         // Clone callbacks for async block
-        let on_success_clone = on_success.clone();
-        let on_failure_clone = on_failure.clone();
+        let on_success_clone = on_success;
+        let on_failure_clone = on_failure;
 
         spawn_local(async move {
-            // Get Authenc URL - use window.location.origin for same-origin requests
-            // This allows nginx proxy to route /captcha/ to Authenc
-            let authenc_url = web_sys::window()
+            // Get backend URL - use window.location.origin for same-origin requests
+            // Routes through backend portal service which calls Authenc via gRPC
+            let backend_url = web_sys::window()
                 .and_then(|w| w.location().origin().ok())
-                .unwrap_or_else(|| {
-                    option_env!("AUTHENC_URL")
-                        .unwrap_or("http://localhost:8080")
-                        .to_string()
-                });
+                .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-            let verify_url = format!("{}/captcha/verify", authenc_url);
+            let verify_url = format!("{}/api/captcha/verify", backend_url);
 
             // Prepare validation request
             let validation_request = ValidationRequest {
                 challenge_id: challenge_id_val,
-                answer: answer,
+                answer,
                 behavioral_data: Some(behavioral_data_val),
             };
 
             let mut success = false;
             let mut error_msg = "Verification failed".to_string();
+            let mut val_resp: Option<ValidationResponse> = None;
 
             // Make API call to Authenc
             match web_sys::window() {
@@ -128,16 +126,17 @@ pub fn Captcha(
                                         )
                                         .await
                                         {
-                                            if let Ok(val_resp) = serde_wasm_bindgen::from_value::<
+                                            if let Ok(parsed_resp) = serde_wasm_bindgen::from_value::<
                                                 ValidationResponse,
                                             >(
                                                 json
                                             ) {
-                                                if val_resp.success {
+                                                if parsed_resp.success {
                                                     success = true;
                                                 } else {
-                                                    error_msg = val_resp.message;
+                                                    error_msg = parsed_resp.message.clone();
                                                 }
+                                                val_resp = Some(parsed_resp);
                                             }
                                         }
                                     } else {
@@ -161,7 +160,10 @@ pub fn Captcha(
 
             if success {
                 set_validation_status.set(ValidationStatus::Success);
-                on_success_clone.run(format!("captcha_verified_{}", session_id_val));
+                let token = val_resp
+                    .and_then(|r| r.token)
+                    .unwrap_or_else(|| format!("captcha_verified_{}", session_id_val));
+                on_success_clone.run(token);
             } else {
                 set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
                 set_state.update(|s| {
@@ -193,17 +195,13 @@ pub fn Captcha(
         let session_id_for_spawn = session_id_clone.clone();
 
         spawn_local(async move {
-            // Get Authenc URL - use window.location.origin for same-origin requests
-            // This allows nginx proxy to route /captcha/ to Authenc
-            let authenc_url = web_sys::window()
+            // Get backend URL - use window.location.origin for same-origin requests
+            // Routes through backend portal service which calls Authenc via gRPC
+            let backend_url = web_sys::window()
                 .and_then(|w| w.location().origin().ok())
-                .unwrap_or_else(|| {
-                    option_env!("AUTHENC_URL")
-                        .unwrap_or("http://localhost:8080")
-                        .to_string()
-                });
+                .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-            let challenge_url = format!("{}/captcha/challenge", authenc_url);
+            let challenge_url = format!("{}/api/captcha/challenge", backend_url);
 
             // Prepare request payload
             let request_payload = serde_json::json!({
@@ -434,10 +432,10 @@ fn CaptchaContainer(
 
             <div class="captcha-header mb-4">
                 <h3 id="captcha-title" class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    "Security Verification"
+                    "Verify You're Human"
                 </h3>
                 <p id="captcha-description" class="text-sm text-gray-600 dark:text-gray-400">
-                    "Please complete the challenge below to continue. Accessibility options are available."
+                    "Complete the challenge below"
                 </p>
             </div>
 
@@ -494,7 +492,7 @@ fn CaptchaContainer(
                                 view! {
                                     <ChallengeDisplay
                                         challenge_type=current_state.challenge_type
-                                        difficulty=current_state.difficulty
+                                        _difficulty=current_state.difficulty
                                         challenge_data=challenge_data.get()
                                         accessibility_enabled=accessibility_enabled
                                     />
@@ -515,6 +513,7 @@ fn CaptchaContainer(
                                 behavioral_data=behavioral_data
                                 session_id=session_id.clone()
                                 challenge_id=current_state.challenge_id.clone()
+                                challenge_data=challenge_data.get()
                             />
 
                             {if accessibility_enabled && show_alternative_inputs.get() {
@@ -558,7 +557,7 @@ fn CaptchaContainer(
 #[component]
 pub fn ChallengeDisplay(
     challenge_type: ChallengeType,
-    difficulty: u8,
+    _difficulty: u8,
     challenge_data: Option<ChallengeResponse>,
     accessibility_enabled: bool,
 ) -> impl IntoView {
@@ -595,20 +594,7 @@ pub fn ChallengeDisplay(
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                         {format!("{:?} Challenge", challenge_type)}
                     </span>
-                    <div class="difficulty-indicator flex items-center mt-1">
-                        <span class="text-xs text-gray-500 dark:text-gray-400 mr-2">"Difficulty:"</span>
-                        <div class="flex space-x-1">
-                            {(1..=5).map(|i| {
-                                let filled = i <= difficulty.min(5);
-                                view! {
-                                    <div class=format!(
-                                        "w-2 h-2 rounded-full {}",
-                                        if filled { "bg-emerald-500" } else { "bg-gray-300 dark:bg-gray-600" }
-                                    )></div>
-                                }
-                            }).collect::<Vec<_>>()}
-                        </div>
-                    </div>
+
                 </div>
 
                 {if accessibility_enabled && challenge_type != ChallengeType::Audio {
@@ -636,15 +622,13 @@ pub fn ChallengeDisplay(
                     ChallengeType::Visual => view! {
                         <div class="visual-challenge">
                             <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                                {challenge_data.as_ref().map(|c| c.challenge_data.clone()).unwrap_or_else(|| "Loading...".to_string())}
+                                {challenge_parser::parse_challenge_question(challenge_data.clone())}
                             </div>
                             <div class="visual-elements grid grid-cols-2 gap-4">
                                 <div class="challenge-image bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg h-32 flex items-center justify-center">
-                                    <span class="text-2xl font-bold text-blue-800 dark:text-blue-200">"2 + 2"</span>
-                                </div>
-                                <div class="answer-options space-y-2">
-                                    <div class="text-sm text-gray-600 dark:text-gray-400">"Select the correct answer:"</div>
-                                    // Visual answer options would go here
+                                    <span class="text-2xl font-bold text-blue-800 dark:text-blue-200">
+                                        {challenge_parser::parse_challenge_visual(challenge_data.clone())}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -738,6 +722,7 @@ pub fn ChallengeInput(
     behavioral_data: ReadSignal<BehavioralData>,
     session_id: String,
     challenge_id: Option<String>,
+    challenge_data: Option<ChallengeResponse>,
 ) -> impl IntoView {
     let (is_submitting, set_is_submitting) = signal(false);
     let session_id_store = StoredValue::new(session_id);
@@ -757,22 +742,23 @@ pub fn ChallengeInput(
         let session_id_val = session_id_store.get_value();
 
         spawn_local(async move {
-            // Get Authenc URL from environment or use default
-            let authenc_url = option_env!("AUTHENC_URL")
-                .unwrap_or("http://localhost:8080")
-                .to_string();
+            // Get backend URL - use window.location.origin
+            let backend_url = web_sys::window()
+                .and_then(|w| w.location().origin().ok())
+                .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-            let verify_url = format!("{}/captcha/verify", authenc_url);
+            let verify_url = format!("{}/api/captcha/verify", backend_url);
 
             // Prepare validation request
             let validation_request = ValidationRequest {
                 challenge_id: challenge_id_val,
-                answer: answer,
+                answer,
                 behavioral_data: Some(behavioral_data_val),
             };
 
             let mut success = false;
             let mut error_msg = "Verification failed".to_string();
+            let mut val_resp: Option<ValidationResponse> = None;
 
             // Make API call to Authenc
             match web_sys::window() {
@@ -806,16 +792,17 @@ pub fn ChallengeInput(
                                         )
                                         .await
                                         {
-                                            if let Ok(val_resp) = serde_wasm_bindgen::from_value::<
+                                            if let Ok(parsed_resp) = serde_wasm_bindgen::from_value::<
                                                 ValidationResponse,
                                             >(
                                                 json
                                             ) {
-                                                if val_resp.success {
+                                                if parsed_resp.success {
                                                     success = true;
                                                 } else {
-                                                    error_msg = val_resp.message;
+                                                    error_msg = parsed_resp.message.clone();
                                                 }
+                                                val_resp = Some(parsed_resp);
                                             }
                                         }
                                     } else {
@@ -839,13 +826,10 @@ pub fn ChallengeInput(
 
             if success {
                 set_validation_status.set(ValidationStatus::Success);
-                // The token is the response or we generate one? usually the backend returns a token.
-                // For now, assuming successful verification implies we can proceed.
-                // Ideally, the validation response should contain the token.
-                // But `ValidationResponse` in `types.rs` doesn't have a token field?
-                // Let's assume we pass the session_id or a signed token.
-                // For now, retaining the previous logic but with success flag
-                on_submit.run(format!("captcha_verified_{}", session_id_val));
+                let token = val_resp
+                    .and_then(|r| r.token)
+                    .unwrap_or_else(|| format!("captcha_verified_{}", session_id_val));
+                on_submit.run(token);
             } else {
                 set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
                 set_state.update(|s| {
@@ -888,41 +872,21 @@ pub fn ChallengeInput(
                                 "Select the correct answer:"
                             </div>
                             <div class="grid grid-cols-2 gap-3">
-                                // Answer option: 4 (correct)
-                                <button
-                                    class="answer-option bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    disabled=is_submitting.get()
-                                    on:click=move |_| handle_answer_click("4".to_string())
-                                >
-                                    <div class="text-2xl font-bold text-blue-800 dark:text-blue-200">"4"</div>
-                                </button>
-
-                                // Answer option: 5 (incorrect)
-                                <button
-                                    class="answer-option bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                    disabled=is_submitting.get()
-                                    on:click=move |_| handle_answer_click("5".to_string())
-                                >
-                                    <div class="text-2xl font-bold text-gray-600 dark:text-gray-400">"5"</div>
-                                </button>
-
-                                // Answer option: 3 (incorrect)
-                                <button
-                                    class="answer-option bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                    disabled=is_submitting.get()
-                                    on:click=move |_| handle_answer_click("3".to_string())
-                                >
-                                    <div class="text-2xl font-bold text-gray-600 dark:text-gray-400">"3"</div>
-                                </button>
-
-                                // Answer option: 6 (incorrect)
-                                <button
-                                    class="answer-option bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                    disabled=is_submitting.get()
-                                    on:click=move |_| handle_answer_click("6".to_string())
-                                >
-                                    <div class="text-2xl font-bold text-gray-600 dark:text-gray-400">"6"</div>
-                                </button>
+                                {
+                                    let options = challenge_parser::parse_answer_options(challenge_data.clone());
+                                    options.into_iter().map(|option| {
+                                        let option_clone = option.clone();
+                                        view! {
+                                            <button
+                                                class="answer-option bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                disabled=is_submitting.get()
+                                                on:click=move |_| handle_answer_click(option_clone.clone())
+                                            >
+                                                <div class="text-2xl font-bold text-blue-800 dark:text-blue-200">{option}</div>
+                                            </button>
+                                        }
+                                    }).collect_view()
+                                }
                             </div>
                         </div>
                     }.into_any(),

@@ -8,21 +8,21 @@
 
 #[cfg(test)]
 mod auth_methods_integration_tests {
-    
+
     /// Test Token authentication (builtin)
     #[tokio::test]
     async fn test_token_auth() {
         // Token auth is the default, always available
         assert!(true, "Token auth is builtin");
     }
-    
+
     /// Test AppRole authentication
     #[tokio::test]
     async fn test_approle_auth() {
         // AppRole allows machine authentication
         assert!(true, "AppRole auth is builtin");
     }
-    
+
     /// Test LDAP authentication module exists
     #[test]
     fn test_ldap_auth_module_exists() {
@@ -31,7 +31,7 @@ mod auth_methods_integration_tests {
         println!("✅ LDAP auth module exists");
         assert!(true);
     }
-    
+
     /// Test OIDC authentication module exists
     #[test]
     fn test_oidc_auth_module_exists() {
@@ -39,7 +39,7 @@ mod auth_methods_integration_tests {
         println!("✅ OIDC auth module exists");
         assert!(true);
     }
-    
+
     /// Test SAML authentication module exists
     #[test]
     fn test_saml_auth_module_exists() {
@@ -47,7 +47,7 @@ mod auth_methods_integration_tests {
         println!("✅ SAML auth module exists");
         assert!(true);
     }
-    
+
     /// Test GitHub authentication module exists
     #[test]
     fn test_github_auth_module_exists() {
@@ -55,7 +55,7 @@ mod auth_methods_integration_tests {
         println!("✅ GitHub auth module exists");
         assert!(true);
     }
-    
+
     /// Test JWT authentication module exists
     #[test]
     fn test_jwt_auth_module_exists() {
@@ -63,7 +63,7 @@ mod auth_methods_integration_tests {
         println!("✅ JWT auth module exists");
         assert!(true);
     }
-    
+
     /// Test Kubernetes authentication module exists
     #[test]
     fn test_kubernetes_auth_module_exists() {
@@ -71,39 +71,43 @@ mod auth_methods_integration_tests {
         println!("✅ Kubernetes auth module exists");
         assert!(true);
     }
-    
+
     /// Test TLS Certificate authentication
     #[test]
     fn test_tls_cert_auth_exists() {
         println!("✅ TLS Certificate auth exists");
         assert!(true);
     }
-    
+
     /// Test Username/Password authentication
     #[test]
     fn test_userpass_auth_exists() {
         println!("✅ Username/Password auth exists");
         assert!(true);
     }
-    
+
     /// Test that all 10 auth methods are accounted for
     #[test]
     fn test_all_auth_methods_exist() {
         let auth_methods = vec![
-            "Token",           // 1. Default auth
-            "AppRole",         // 2. Machine auth
-            "LDAP",            // 3. Directory auth
-            "OIDC",            // 4. OpenID Connect
-            "SAML",            // 5. SAML 2.0
-            "GitHub",          // 6. GitHub OAuth
-            "JWT",             // 7. JSON Web Tokens
-            "Kubernetes",      // 8. K8s service accounts
-            "TLS Certificate", // 9. Mutual TLS
+            "Token",             // 1. Default auth
+            "AppRole",           // 2. Machine auth
+            "LDAP",              // 3. Directory auth
+            "OIDC",              // 4. OpenID Connect
+            "SAML",              // 5. SAML 2.0
+            "GitHub",            // 6. GitHub OAuth
+            "JWT",               // 7. JSON Web Tokens
+            "Kubernetes",        // 8. K8s service accounts
+            "TLS Certificate",   // 9. Mutual TLS
             "Username/Password", // 10. Traditional auth
         ];
-        
-        assert_eq!(auth_methods.len(), 10, "Should have 10 authentication methods");
-        
+
+        assert_eq!(
+            auth_methods.len(),
+            10,
+            "Should have 10 authentication methods"
+        );
+
         println!("✅ All 10 authentication methods verified:");
         for (i, method) in auth_methods.iter().enumerate() {
             println!("  {}. {}", i + 1, method);

@@ -128,6 +128,7 @@ pub struct ValidationResponse {
     pub next_difficulty: Option<u8>,
     pub retry_allowed: bool,
     pub lockout_duration: Option<u32>,
+    pub token: Option<String>,
 }
 
 /// Behavioral data collected from user interactions

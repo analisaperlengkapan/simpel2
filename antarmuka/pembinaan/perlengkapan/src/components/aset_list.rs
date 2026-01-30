@@ -1,5 +1,5 @@
+use crate::api::{Asset, fetch_assets};
 use leptos::prelude::*;
-use crate::api::{fetch_assets, Asset};
 
 #[component]
 pub fn AsetList() -> impl IntoView {

@@ -1,5 +1,5 @@
 //! BADIKLAT Types
-//! 
+//!
 //! Data structures for education and training module
 
 use serde::{Deserialize, Serialize};

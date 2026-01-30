@@ -73,7 +73,7 @@ pub struct SystemStatus {
 
 /// Get current MFA performance metrics
 pub async fn get_mfa_metrics(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Query(query): Query<MetricsQuery>,
 ) -> Result<Json<MetricsResponse>> {
     debug!(
@@ -153,7 +153,7 @@ pub async fn get_mfa_metrics(
 
 /// Get MFA performance dashboard data
 pub async fn get_mfa_dashboard(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
 ) -> Result<Json<MfaDashboardData>> {
     debug!("Fetching MFA performance dashboard data");
 
@@ -168,7 +168,7 @@ pub async fn get_mfa_dashboard(
 
 /// Get MFA performance alerts
 pub async fn get_mfa_alerts(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<PerformanceAlert>>> {
     debug!("Fetching MFA performance alerts");
 
@@ -185,7 +185,7 @@ pub async fn get_mfa_alerts(
 
 /// Trigger manual performance snapshot
 pub async fn trigger_performance_snapshot(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>> {
     debug!("Triggering manual performance snapshot");
 
@@ -204,7 +204,7 @@ pub async fn trigger_performance_snapshot(
 
 /// Get performance statistics by operation type
 pub async fn get_operation_stats(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
 ) -> Result<Json<HashMap<String, OperationStats>>> {
     debug!("Fetching operation-specific performance statistics");
 
@@ -321,7 +321,7 @@ fn calculate_health_score(metrics: &MfaMetrics, success_rate: f64, avg_response_
 
 /// Health check endpoint for MFA performance monitoring
 pub async fn mfa_performance_health(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>> {
     let monitor = Arc::new(MfaPerformanceMonitor::new(None));
     let metrics = monitor.get_metrics().await;

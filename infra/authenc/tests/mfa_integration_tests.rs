@@ -339,7 +339,7 @@ mod integration_tests {
                 Ok(Err(AuthencError::InvalidOtpCode)) => {
                     println!("✅ Invalid OTP correctly rejected (attempt {})", i + 1);
                 }
-                Ok(Err(AuthencError::RateLimitExceeded)) => {
+                Ok(Err(AuthencError::RateLimitExceeded { .. })) => {
                     println!("✅ Rate limiting triggered after {} attempts", i + 1);
                     break;
                 }

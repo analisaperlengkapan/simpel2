@@ -62,7 +62,7 @@ impl ApiConfig {
     /// Create ApiConfig from BootstrapConfig and ApplicationConfig
     pub fn from_bootstrap_and_application(
         bootstrap: &secreton_core::config::BootstrapConfig,
-        app: &secreton_core::config::ApplicationConfig,
+        _app: &secreton_core::config::ApplicationConfig,
     ) -> Result<Self, String> {
         let mut config = Self::default();
 
@@ -894,6 +894,7 @@ pub struct RaftConfig {
     pub data_dir: PathBuf,
 }
 
+#[cfg(feature = "raft-consensus")]
 impl From<RaftConfig> for secreton_storage::raft::RaftClusterConfig {
     fn from(api_config: RaftConfig) -> Self {
         let mut peers = std::collections::HashMap::new();

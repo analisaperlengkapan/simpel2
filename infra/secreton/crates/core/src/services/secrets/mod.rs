@@ -28,6 +28,12 @@ pub struct EngineRegistry {
     engines: std::collections::HashMap<String, Arc<memory::MemorySecretEngine>>,
 }
 
+impl Default for EngineRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EngineRegistry {
     pub fn new() -> Self {
         Self {

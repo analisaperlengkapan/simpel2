@@ -10,7 +10,12 @@ keywords = ["leptos", "wasm", "kejaksaan", "financial", "budgeting"]
 categories = ["wasm", "web-programming"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "keuangan-microfrontend"
+path = "src/main.rs"
+
 
 # Modern Dependencies - Optimized for Performance & Security
 [dependencies]
@@ -20,7 +25,7 @@ leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
 
 # Shared Components Library - Government compliant UI
-shared-microfrontend = { workspace = true }
+lib-ui = { workspace = true }
 
 # Web Assembly bindings - Performance optimized
 wasm-bindgen = { workspace = true }

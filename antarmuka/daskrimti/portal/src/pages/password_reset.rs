@@ -4,7 +4,7 @@
 
 use crate::components::layout::AuthLayout;
 use leptos::prelude::*;
-use shared_microfrontend::components::captcha::Captcha;
+use lib_ui::components::captcha::Captcha;
 use wasm_bindgen_futures::spawn_local;
 
 /// Password reset flow state

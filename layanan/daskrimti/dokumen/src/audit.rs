@@ -1,9 +1,9 @@
 use crate::error::AppError;
 use crate::models::AuditLog;
+use chrono::Utc;
+use serde_json::Value;
 use sqlx::PgPool;
 use uuid::Uuid;
-use serde_json::Value;
-use chrono::Utc;
 
 pub async fn insert_audit_log(
     pool: &PgPool,
@@ -35,7 +35,7 @@ pub async fn query_audit_logs(
     pool: &PgPool,
     document_id: Option<Uuid>,
     user_id: Option<Uuid>,
-    limit: i64
+    limit: i64,
 ) -> Result<Vec<AuditLog>, AppError> {
     let logs = if let Some(doc_id) = document_id {
         sqlx::query_as!(AuditLog,
@@ -52,7 +52,8 @@ pub async fn query_audit_logs(
         .fetch_all(pool)
         .await?
     } else {
-        sqlx::query_as!(AuditLog,
+        sqlx::query_as!(
+            AuditLog,
             r#"SELECT * FROM dokumen.audit_logs ORDER BY timestamp DESC LIMIT $1"#,
             limit
         )
@@ -60,4 +61,4 @@ pub async fn query_audit_logs(
         .await?
     };
     Ok(logs)
-} 
+}

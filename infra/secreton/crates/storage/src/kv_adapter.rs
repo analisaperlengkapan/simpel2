@@ -33,6 +33,7 @@ impl<B: KvBackend> KvBackendAdapter<B> {
         format!("entry/id/{}", id)
     }
 
+    #[allow(dead_code)]
     fn key_for_path(path: &str) -> String {
         format!("entry/path/{}", path)
     }
@@ -83,10 +84,10 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         // Look up ID from path index
         let index_data = self.backend.get(&Self::index_key_for_path(path)).await?;
 
-        if let Some(id_bytes) = index_data {
-            if let Ok(id) = Uuid::from_slice(&id_bytes) {
-                return self.get_by_id(id).await;
-            }
+        if let Some(id_bytes) = index_data
+            && let Ok(id) = Uuid::from_slice(&id_bytes)
+        {
+            return self.get_by_id(id).await;
         }
 
         Ok(None)
@@ -145,30 +146,29 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         for key in keys {
             // Key format: index/path/<actual_path>
             // We need to get the ID stored at this key
-            if let Some(id_bytes) = self.backend.get(&key).await? {
-                if let Ok(id) = Uuid::from_slice(&id_bytes) {
-                    if let Some(entry) = self.get_by_id(id).await? {
-                        // Apply filters in memory
-                        if let Some(level) = params.security_level {
-                            if entry.security_level < level {
-                                continue;
-                            }
-                        }
+            if let Some(id_bytes) = self.backend.get(&key).await?
+                && let Ok(id) = Uuid::from_slice(&id_bytes)
+                && let Some(entry) = self.get_by_id(id).await?
+            {
+                // Apply filters in memory
+                if let Some(level) = params.security_level
+                    && entry.security_level < level
+                {
+                    continue;
+                }
 
-                        if let Some(owner) = params.owner_id {
-                            if entry.owner_id != owner.to_string() {
-                                continue;
-                            }
-                        }
+                if let Some(owner) = params.owner_id
+                    && entry.owner_id != owner.to_string()
+                {
+                    continue;
+                }
 
-                        entries.push(entry);
+                entries.push(entry);
 
-                        if let Some(limit) = params.limit {
-                            if entries.len() >= limit as usize {
-                                break;
-                            }
-                        }
-                    }
+                if let Some(limit) = params.limit
+                    && entries.len() >= limit as usize
+                {
+                    break;
                 }
             }
         }
@@ -178,8 +178,7 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
 
     async fn count(&self, params: &QueryParams) -> StorageResult<u64> {
         // Optimization: If no filters that require entry inspection, just count keys
-        let has_complex_filters = params.security_level.is_some()
-            || params.owner_id.is_some(); // KvAdapter list only supports these
+        let has_complex_filters = params.security_level.is_some() || params.owner_id.is_some(); // KvAdapter list only supports these
 
         if !has_complex_filters {
             let prefix = if let Some(p) = &params.path_prefix {
@@ -241,10 +240,8 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         let mut count = 0;
 
         for entry in all_entries {
-            if entry.is_expired() {
-                if self.delete_by_id(entry.id).await? {
-                    count += 1;
-                }
+            if entry.is_expired() && self.delete_by_id(entry.id).await? {
+                count += 1;
             }
         }
 

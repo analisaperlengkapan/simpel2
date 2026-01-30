@@ -1,12 +1,12 @@
 use axum_test::TestServer;
 use secreton_api::{
+    ApiResponse,
     config::{ApiConfig, OAuth2Config, OAuth2Provider},
     handlers::auth::create_routes,
     services::ServiceContainer,
-    ApiResponse,
 };
-use secreton_storage::{MemoryBackend, SecretEntry, SecurityLevel, StorageBackend};
 use secreton_crypto::CryptoEngine;
+use secreton_storage::{MemoryBackend, SecretEntry, SecurityLevel, StorageBackend};
 use std::sync::Arc;
 
 fn create_dummy_pool() -> deadpool_postgres::Pool {
@@ -15,10 +15,17 @@ fn create_dummy_pool() -> deadpool_postgres::Pool {
     cfg.manager = Some(deadpool_postgres::ManagerConfig {
         recycling_method: deadpool_postgres::RecyclingMethod::Verified,
     });
-    cfg.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap()
+    cfg.create_pool(
+        Some(deadpool_postgres::Runtime::Tokio1),
+        tokio_postgres::NoTls,
+    )
+    .unwrap()
 }
 
-async fn create_test_server(config: ApiConfig, storage: Arc<dyn StorageBackend + Send + Sync>) -> (TestServer, Arc<CryptoEngine>) {
+async fn create_test_server(
+    config: ApiConfig,
+    storage: Arc<dyn StorageBackend + Send + Sync>,
+) -> (TestServer, Arc<CryptoEngine>) {
     let pool = create_dummy_pool();
     let mut services = ServiceContainer::new_mock(storage, pool);
     services.config = config;
@@ -28,8 +35,7 @@ async fn create_test_server(config: ApiConfig, storage: Arc<dyn StorageBackend +
 
     let services = Arc::new(services);
 
-    let app = create_routes()
-        .with_state(services);
+    let app = create_routes().with_state(services);
 
     let server = TestServer::new(app).expect("Failed to create test server");
     (server, crypto)
@@ -94,7 +100,11 @@ async fn test_bug_1_oauth_state_expiration() {
 
     // Now we expect "Invalid or expired state parameter"
     // The error message might be prefixed with "Authentication failed: " depending on how ApiError handles it.
-    assert!(error_msg.contains("Invalid or expired state parameter"), "Should return expiration error. Got: {}", error_msg);
+    assert!(
+        error_msg.contains("Invalid or expired state parameter"),
+        "Should return expiration error. Got: {}",
+        error_msg
+    );
 }
 
 #[tokio::test]
@@ -125,7 +135,11 @@ async fn test_bug_2_oauth_state_encryption() {
 
     // 2. Check storage content
     let storage_path = format!("sys/oauth/states/{}", state_token);
-    let entry = storage.get_by_path(&storage_path).await.unwrap().expect("State should be stored");
+    let entry = storage
+        .get_by_path(&storage_path)
+        .await
+        .unwrap()
+        .expect("State should be stored");
 
     // Bug 2 Check: Data should be encrypted (length check)
     // encrypt_simple adds 32 bytes key + 12 bytes nonce + 16 bytes auth tag to the ciphertext
@@ -139,10 +153,17 @@ async fn test_bug_2_oauth_state_encryption() {
     let plaintext_len = serde_json::to_vec(&original_data).unwrap().len();
 
     // Verify length matches expected encrypted format
-    assert_eq!(data.len(), plaintext_len + 60, "Encrypted data length incorrect. Expected plaintext + 60 bytes overhead");
+    assert_eq!(
+        data.len(),
+        plaintext_len + 60,
+        "Encrypted data length incorrect. Expected plaintext + 60 bytes overhead"
+    );
 
     // Verify we can decrypt it
-    let decrypted = crypto.decrypt_simple(&data).expect("Should be able to decrypt");
-    let json: serde_json::Value = serde_json::from_slice(&decrypted).expect("Decrypted data should be JSON");
+    let decrypted = crypto
+        .decrypt_simple(&data)
+        .expect("Should be able to decrypt");
+    let json: serde_json::Value =
+        serde_json::from_slice(&decrypted).expect("Decrypted data should be JSON");
     assert_eq!(json["provider"], "github");
 }

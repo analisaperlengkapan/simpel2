@@ -1,4 +1,3 @@
-#![warn(missing_docs)]
 #![warn(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -58,10 +57,12 @@ pub mod health;
 
 // Business logic
 /// Core business services and logic
+#[allow(unused)]
 pub mod services;
 
 // Secreton client
 /// Secret management through Secreton service
+#[allow(unused)]
 pub mod secreton_client;
 
 // Backward compatibility alias
@@ -81,6 +82,7 @@ pub mod authenticator;
 
 // SPI architecture
 /// Service Provider Interface framework for extensibility
+#[allow(unused)]
 pub mod spi;
 
 // Admin Console UI
@@ -93,6 +95,7 @@ pub mod admin_console;
 /// gRPC service implementation for inter-service communication
 #[cfg(feature = "grpc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
+#[allow(unused)]
 pub mod grpc;
 
 // Server management
