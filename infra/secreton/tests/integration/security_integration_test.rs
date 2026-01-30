@@ -153,7 +153,6 @@ mod security_integration_tests {
                 "average_flight_time": 100,
                 "variance": 0.15
             },
-            },
             "mouse_dynamics": {
                 "average_velocity": 2.5,
                 "acceleration_patterns": [1.2, 1.8, 2.1],

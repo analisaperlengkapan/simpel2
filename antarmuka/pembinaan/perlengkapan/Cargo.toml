@@ -10,7 +10,7 @@ keywords = ["leptos", "wasm", "kejaksaan", "equipment", "supply-chain"]
 categories = ["wasm", "web-programming"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 name = "perlengkapan_microfrontend"
 
 # Modern Dependencies - Optimized for Performance & Security

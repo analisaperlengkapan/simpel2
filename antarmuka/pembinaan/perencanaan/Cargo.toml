@@ -10,7 +10,7 @@ keywords = ["leptos", "wasm", "kejaksaan", "planning", "procurement"]
 categories = ["wasm", "web-programming"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 leptos = { workspace = true, features = ["csr", "hydrate"] }

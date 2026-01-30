@@ -10,7 +10,7 @@ keywords = ["leptos", "wasm", "kejaksaan", "intelligence", "surveillance"]
 categories = ["wasm", "web-programming"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 # Modern Dependencies - Optimized for Performance & Security
 [dependencies]

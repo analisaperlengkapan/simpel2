@@ -10,7 +10,7 @@ keywords = ["leptos", "wasm", "kejaksaan", "asset-recovery", "forfeiture"]
 categories = ["wasm", "web-programming"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 name = "pemulihan_aset_microfrontend"
 
 # Modern Dependencies - Optimized for Performance & Security

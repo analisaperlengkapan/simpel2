@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [portal, badiklat, datun, intel, pemulihan_aset, pengawasan, pidmil, pidsus, pidum, "pembinaan/keuangan", "pembinaan/perencanaan", "pembinaan/perlengkapan"]
+        module: ["daskrimti/portal", badiklat, datun, intel, pemulihan_aset, pengawasan, pidmil, pidsus, pidum, "pembinaan/keuangan", "pembinaan/perencanaan", "pembinaan/perlengkapan"]
 
     steps:
 

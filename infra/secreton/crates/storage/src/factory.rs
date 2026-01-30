@@ -4,7 +4,7 @@
 //! Follows HashiCorp Engine patterns for backend selection and configuration.
 
 use crate::{
-    FileConfig, MemoryBackend, StorageBackend, StorageResult, backends::FileBackend,
+    FileConfig, MemoryBackend, StorageBackend, StorageError, StorageResult, backends::FileBackend,
 };
 
 #[cfg(feature = "postgres")]
