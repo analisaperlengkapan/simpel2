@@ -365,6 +365,7 @@ spec:
       labels:
         app.kubernetes.io/name: secreton
         app.kubernetes.io/component: secreton
+        component: backend
     spec:
       containers:
         - name: secreton
@@ -375,18 +376,17 @@ spec:
             - containerPort: 9000
               name: grpc
           env:
-            - name: SECRETON_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SECRETON_DB_USER
-            - name: SECRETON_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SECRETON_DB_PASSWORD
+            # Raft Storage Configuration (primary storage backend)
+            - name: SECRETON_STORAGE_BACKEND
+              value: "raft"
+            - name: SECRETON_DATA_DIR
+              value: "/opt/simpelv2/data"
+            - name: SECRETON_NODE_ID
+              value: "1"
+            # PostgreSQL connection (for auxiliary services: webhooks, transforms, leases, policies)
             - name: DATABASE_URL
               value: "postgresql://secreton:secreton-dev-password-2024@postgres-service.simpelv2.svc.cluster.local:5432/simpelv2_secreton"
+            # Admin credentials
             - name: SECRETON_ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:

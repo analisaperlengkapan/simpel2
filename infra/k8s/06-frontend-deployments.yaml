@@ -54,6 +54,11 @@ spec:
               value: "http://layanan-daskrimti-portal.simpelv2.svc.cluster.local:3010"
             - name: PORTAL_BASE_URL
               value: "http://10.1.7.121" # Development URL
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
           resources:
             requests:
               memory: "128Mi" # Minimal untuk dev
@@ -77,6 +82,11 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 2
+      volumes:
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
 
 ---
 # Daskrimti Portal Microfrontend
