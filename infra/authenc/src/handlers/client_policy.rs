@@ -93,7 +93,7 @@ pub async fn get_client_policy(
 
 /// List client policies for a realm
 ///
-/// GET /api/v1/admin/client-policies?realm_id=<uuid>
+/// GET /api/v1/admin/client-policies?realm_id=`uuid`
 pub async fn list_client_policies(
     State(state): State<Arc<PolicyHandlerState>>,
     Query(query): Query<ListPoliciesQuery>,
@@ -232,7 +232,7 @@ pub async fn get_client_profile(
 
 /// List client profiles for a realm
 ///
-/// GET /api/v1/admin/client-profiles?realm_id=<uuid>
+/// GET /api/v1/admin/client-profiles?realm_id=`uuid`
 pub async fn list_client_profiles(
     State(state): State<Arc<PolicyHandlerState>>,
     Query(query): Query<ListProfilesQuery>,

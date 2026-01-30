@@ -80,7 +80,8 @@
 //! #   created_at: chrono::Utc::now(),
 //! #   updated_at: chrono::Utc::now(),
 //! #   expires_at: None,
-//! ;
+//! };
+//! };
 //! storage.store(&entry).await?;
 //!
 //! // Retrieve by path
@@ -182,7 +183,7 @@
 //! # See Also
 //!
 //! - [`StorageBackend`] - Core trait all backends implement
-//! - [`StorageFactory`](factory::StorageFactory) - Factory for creating backends from config
+//! - [`StorageFactory`] - Factory for creating backends from config
 //! - [`EncryptedStorage`] - Encryption wrapper
 //! - [`CachedStorage`] - Caching wrapper
 

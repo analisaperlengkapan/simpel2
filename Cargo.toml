@@ -222,7 +222,7 @@ garde = { version = "0.22", features = [
     "derive",
     "serde",
 ] } # Modern validator replacement (no idna dependency)
-validator = { version = "0.18", features = ["derive"] } # Legacy validator (kept for datun compatibility)
+validator = { version = "0.19", features = ["derive"] } # Legacy validator (kept for datun compatibility)
 nutype = { version = "0.6.2", features = [
     "serde",
     "validate",

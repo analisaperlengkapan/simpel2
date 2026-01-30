@@ -141,7 +141,7 @@ pub struct WebAuthnCredentialProvider {
     rp_id: String,
     /// Relying party name
     rp_name: String,
-    /// Relying party origin (e.g., "https://simpel.kejaksaan.go.id")
+    /// Relying party origin (e.g., "<https://simpel.kejaksaan.go.id>")
     rp_origin: Url,
     /// WebAuthn instance for verification
     webauthn: Webauthn,

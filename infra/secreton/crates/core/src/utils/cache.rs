@@ -3,6 +3,7 @@
 //! This module re-exports cache types from the common library and provides
 //! a secret-specific cache manager.
 
+use crate::CoreError;
 use crate::storage::CacheBackend;
 use lib_common::cache::{CacheStats, RedisCache};
 
@@ -70,7 +71,7 @@ impl SecretCacheManager {
         permission_capacity: usize,
         key_capacity: usize,
         redis_url: &str,
-    ) -> Result<Self> {
+    ) -> Result<Self, CoreError> {
         let redis_cache = RedisCache::new(redis_url, "secreton")
             .map_err(|e| CoreError::internal(&e.to_string()))?;
 
