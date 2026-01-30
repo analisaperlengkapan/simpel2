@@ -1,0 +1,175 @@
+---
+# Authenc Configuration ConfigMap
+# Updated timeout settings for CAPTCHA 504 fix
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authenc-config
+  namespace: simpelv2
+  labels:
+    app.kubernetes.io/name: authenc
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: simpelv2
+data:
+  authenc.toml: |
+    # ============================================================================
+    # Authenc IAM Service - Configuration
+    # ============================================================================
+    # Main configuration file for Authenc IAM service.
+    # Secrets are loaded via environment variables or Secreton service.
+    #
+    # Configuration hierarchy:
+    # 1. This file (authenc.toml) - Base configuration
+    # 2. Environment variables - Override secrets and runtime values
+    # 3. Secreton service - Load secrets at runtime
+    # 4. Database (authenc.configuration) - Dynamic configuration
+    # ============================================================================
+
+    # ============================================================================
+    # SERVER CONFIGURATION
+    # ============================================================================
+    [server]
+    host = "0.0.0.0"
+    port = 8088
+    grpc_port = 9088
+    grpc_enabled = true
+    keep_alive = 75
+    client_timeout = 120  # Increased from 30 to 120 for CAPTCHA 504 fix
+    client_disconnect_timeout = 5
+    max_connections = 200
+    public_prefix = "/api/v1"
+    admin_prefix = "/admin"
+    internal_prefix = "/internal"
+    tls_enabled = false
+    cors_allowed_origins = ["*"]
+
+    # ============================================================================
+    # DATABASE CONFIGURATION
+    # ============================================================================
+    [database]
+    host = "${DB_HOST:-postgres}"
+    port = 5432
+    username = "${DB_USER:-postgres}"
+    password = "${DB_PASSWORD}"
+    database = "${DB_NAME:-authenc}"
+    max_connections = 50
+    min_connections = 10
+    connection_timeout = 30
+    idle_timeout = 600
+    max_lifetime = 1800
+    connection_timeout_seconds = 30
+
+    # ============================================================================
+    # REDIS CONFIGURATION
+    # ============================================================================
+    [redis]
+    enabled = true
+    url = "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0"
+    pool_size = 10
+    connection_timeout = 5
+    default_ttl = 3600
+    mfa_cache_ttl = 300
+    otp_verification_ttl = 90
+
+    # ============================================================================
+    # SECURITY CONFIGURATION
+    # ============================================================================
+    [security]
+    jwt_secret = "${JWT_SECRET}"
+    jwt_expiry = 3600
+    password_min_length = 12
+    rate_limit_requests = 100
+    rate_limit_window = 60
+    brute_force_max_attempts = 5
+    brute_force_window_seconds = 300
+    rate_limit_requests_per_minute = 100
+    password_salt_rounds = 12
+
+    # ============================================================================
+    # SECRETON INTEGRATION
+    # ============================================================================
+    [secreton]
+    enabled = true
+    url = "${SECRETON_API_URL:-http://secreton:8200}"
+    token = "${SECRETON_TOKEN}"
+    mount_path = "authenc"
+    key_rotation_interval = 86400
+
+    secrets_to_load = [
+        "jwt_secret",
+        "ed25519_private_key",
+        "ecdsa_p256_private_key",
+        "ecdsa_p384_private_key",
+        "ecdsa_p521_private_key",
+        "smtp_password",
+        "encryption_key"
+    ]
+
+    # ============================================================================
+    # OBSERVABILITY CONFIGURATION
+    # ============================================================================
+    [observability]
+    log_level = "info"
+    enable_metrics = true
+    metrics_endpoint = "/metrics"
+    enable_tracing = true
+    structured_logging = true
+    metrics_port = 9090
+
+    # ============================================================================
+    # FEATURE FLAGS
+    # ============================================================================
+    [features]
+    enable_registration = true
+    enable_password_reset = true
+    enable_email_verification = true
+    enable_multi_factor_auth = true
+    enable_api_docs = false
+    enable_metrics = true
+    enable_health_checks = true
+    enable_rate_limiting = true
+    enable_caching = true
+    enable_compression = true
+    enable_cors = true
+    enable_input_validation = true
+
+    # ============================================================================
+    # SSO COOKIE CONFIGURATION
+    # ============================================================================
+    [sso_cookie]
+    name = "AUTHENC_SSO"
+    path = "/"
+    max_age = 3600
+    secure = true
+    http_only = true
+    same_site = "Lax"
+
+    # ============================================================================
+    # CONFIGURATION LOADER
+    # ============================================================================
+    [config_loader]
+    enabled = true
+    load_from_database = true
+    cache_ttl = 300
+    reload_interval = 0
+    allow_hot_reload = true
+
+    # ============================================================================
+    # EVENTS CONFIGURATION
+    # ============================================================================
+    [events]
+    enabled = true
+    user_event_retention_days = 90
+    admin_event_retention_days = 365
+    max_cleanup_batch_size = 10000
+    cleanup_interval_hours = 24
+    archive_before_delete = false
+
+    # ============================================================================
+    # CLUSTERING (Disabled by default)
+    # ============================================================================
+    [clustering]
+    enabled = false
+    cluster_name = "authenc-cluster"
+    session_replication_enabled = true
+    cache_replication_enabled = true
