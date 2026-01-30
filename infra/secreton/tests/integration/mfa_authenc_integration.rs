@@ -143,7 +143,7 @@ println!("⚠️  TOTP verification failed: {:?}", e);
             Ok(Err(e)) => {
                 println!("❌ MFA setup failed: {:?}", e);
                 match e {
-                    SecretonError::AuthencCommunicationError { ..  => {
+                    SecretonError::AuthencCommunicationError { .. } => {
                         println!("ℹ️  This is expected if authenc is not running for integration tests");
                     }
                     _ => panic!("Unexpected error during MFA setup: {:?}", e),
@@ -183,8 +183,8 @@ println!("⚠️  TOTP verification failed: {:?}", e);
             match verification_result {
                 Ok(Ok(())) => {
                     if should_succeed {
-                        println!("✅ MFA verification successful: {}", description)
-else {
+                        println!("✅ MFA verification successful: {}", description);
+                    } else {
                         panic!("MFA verification should have failed for: {}", description);
                     }
                 }
@@ -331,7 +331,7 @@ else {
             Ok(Err(e)) => {
                 println!("❌ Admin MFA disable failed: {:?}", e);
                 match e {
-                    SecretonError::AuthencCommunicationError { ..  => {
+                    SecretonError::AuthencCommunicationError { .. } => {
                         println!("ℹ️  This is expected if authenc is not running for integration tests");
                     }
                     SecretonError::InsufficientPermissions => {
@@ -471,7 +471,7 @@ else {
         use hmac::{Hmac, Mac};
         use sha1::Sha1;
 
-        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false , secret)
+        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret)
             .expect("Failed to decode secret");
 
         let current_time = chrono::Utc::now().timestamp() as u64;
@@ -532,7 +532,7 @@ mod end_to_end_tests {
                 println!("❌ MFA setup timed out");
                 return;
             }
-        ;
+        };
 
         // Step 2: TOTP Verification
         println!("📋 Step 2: TOTP Verification");
@@ -614,7 +614,7 @@ mod end_to_end_tests {
         use hmac::{Hmac, Mac};
         use sha1::Sha1;
 
-        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false , secret)
+        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret)
             .expect("Failed to decode secret");
 
         let current_time = chrono::Utc::now().timestamp() as u64;

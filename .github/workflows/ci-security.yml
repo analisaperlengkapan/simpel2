@@ -42,11 +42,7 @@ jobs:
           if ! command -v cargo-audit &> /dev/null; then cargo install cargo-audit --locked; fi
           if ! command -v cargo-deny &> /dev/null; then
              echo "Installing cargo-deny..."
-             mkdir -p /tmp/cargo-deny-extract
-             curl -LsSf https://github.com/EmbarkStudios/cargo-deny/releases/latest/download/cargo-deny-x86_64-unknown-linux-musl.tar.gz \
-               | tar xzf - -C /tmp/cargo-deny-extract
-             mv /tmp/cargo-deny-extract/cargo-deny-*-musl/cargo-deny $HOME/.cargo/bin/
-             rm -rf /tmp/cargo-deny-extract
+             cargo install cargo-deny --locked
           fi
 
       - name: Audit Workspace

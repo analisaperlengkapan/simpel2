@@ -56,10 +56,16 @@ mod multi_component_integration_tests {
         let secret_payload = json!({
             "data": {
                 "api_key": "sk-123456789abcdef",
-                "database_password": "super_secret_db_pass",
-                "ssl_certificate": "-----BEGIN CERTIFICATE-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END CERTIFICATE-----"
-            ,
             "metadata": {
+                "description": "Production credentials requiring encryption",
+                "tags": ["production", "sensitive", "encrypted"],
+                "owner": "platform-team",
+                "classification": "secret"
+            }
+                "classification": "secret"
+            }
+                "classification": "secret"
+            }
                 "description": "Production credentials requiring encryption",
                 "tags": ["production", "sensitive", "encrypted"],
                 "owner": "platform-team",
@@ -82,16 +88,19 @@ mod multi_component_integration_tests {
 
         let response = server.post("/encrypt").json(&encrypt_payload).await;
         response.assert_status_ok();
-        let body: ApiResponse<EncryptResponse> = response.json();
-        let encrypted_data = body.data.unwrap();
-
-        // 4. Store encrypted data as new secret
-        let encrypted_secret_payload = json!({
-            "data": {
-                "encrypted_field": encrypted_data.ciphertext,
-                "encryption_key_id": key_id,
                 "algorithm": "AES-GCM"
-            ,
+            },
+            "metadata": {
+                "description": "Secret containing encrypted data",
+                "tags": ["encrypted", "derived"],
+                "classification": "secret"
+            }
+                "tags": ["encrypted", "derived"],
+                "classification": "secret"
+            }
+                "tags": ["encrypted", "derived"],
+                "classification": "secret"
+            }
             "metadata": {
                 "description": "Secret containing encrypted data",
                 "tags": ["encrypted", "derived"],
@@ -160,17 +169,14 @@ mod multi_component_integration_tests {
 
         // 1. Create user authentication (simulated)
         // In real scenario, this would involve actual auth service
-        let auth_headers = json!({
-            "Authorization": "Bearer test_token_12345"
-        });
-
-        // 2. Create secret through API
-        let secret_payload = json!({
-            "data": {
-                "service_config": "database_connection_string",
-                "credentials": "encrypted_credentials"
-            ,
             "metadata": {
+                "description": "Service configuration requiring encryption",
+                "owner": "microservice-team"
+            }
+                "owner": "microservice-team"
+            }
+                "owner": "microservice-team"
+            }
                 "description": "Service configuration requiring encryption",
                 "owner": "microservice-team"
             }
@@ -306,7 +312,7 @@ mod multi_component_integration_tests {
                 {
                     "path": "restricted/*",
                     "capabilities": ["read", "list"]
-                ,
+                },
                 {
                     "path": "public/*",
                     "capabilities": ["read", "list", "create", "update", "delete"]
@@ -327,7 +333,7 @@ mod multi_component_integration_tests {
         // 2. Test policy enforcement on secret operations
         // Create secret in restricted path (should work for create if allowed)
         let restricted_payload = json!({
-            "data": {"restricted": "data",
+            "data": {"restricted": "data"},
             "metadata": {"description": "Restricted secret"}
         });
 
@@ -339,7 +345,7 @@ mod multi_component_integration_tests {
 
         // Try to update restricted secret (may be denied based on policy)
         let update_payload = json!({
-            "data": {"restricted": "updated_data",
+            "data": {"restricted": "updated_data"},
             "metadata": {"description": "Updated restricted secret"}
         });
 
@@ -631,16 +637,19 @@ mod multi_component_integration_tests {
         // 2. Test with complex configuration
         let complex_secret_payload = json!({
             "data": {
-                "database_url": "postgresql://user:pass@host:5432/db",
-                "redis_url": "redis://host:6379/0",
-                "api_keys": ["key1", "key2", "key3"]
-            ,
             "metadata": {
                 "description": "Complex service configuration",
                 "tags": ["config", "complex", "multi-service"],
                 "owner": "platform-team",
                 "classification": "confidential"
-            ,
+            },
+            "ttl": 7200
+                "classification": "confidential"
+            },
+            "ttl": 7200
+                "classification": "confidential"
+            },
+            "ttl": 7200
             "ttl": 7200
         });
 
@@ -671,17 +680,17 @@ mod multi_component_integration_tests {
 
     #[tokio::test]
     async fn test_api_storage_crypto_audit_integration() -> Result<()> {
-        let server = create_test_server().await;
-
-        // Comprehensive test of all four major components working together
-
-        // 1. API Layer: Create secret through REST API
-        let secret_payload = json!({
-            "data": {
-                "integration_test": "api_storage_crypto_audit_test",
-                "component_test": "all_four_components"
-            ,
             "metadata": {
+                "description": "Test of complete system integration",
+                "tags": ["integration", "comprehensive"],
+                "owner": "system-test"
+            }
+                "tags": ["integration", "comprehensive"],
+                "owner": "system-test"
+            }
+                "tags": ["integration", "comprehensive"],
+                "owner": "system-test"
+            }
                 "description": "Test of complete system integration",
                 "tags": ["integration", "comprehensive"],
                 "owner": "system-test"
@@ -779,18 +788,18 @@ mod multi_component_integration_tests {
         // Simulate real-world microservice deployment scenario
 
         // 1. Deploy new microservice with secrets
-        let service_secrets = json!({
-            "data": {
-                "DATABASE_URL": "postgresql://user:pass@prod-db:5432/mydb",
-                "REDIS_URL": "redis://prod-redis:6379/0",
-                "JWT_SECRET": "super_secret_jwt_signing_key_12345",
-                "API_KEY": "service_api_key_abcdef123456",
-                "ENCRYPTION_KEY": "service_encryption_key_xyz789"
-            ,
             "metadata": {
                 "description": "Microservice deployment secrets",
                 "tags": ["microservice", "production", "deployment"],
                 "owner": "platform-team",
+                "classification": "secret"
+            }
+                "owner": "platform-team",
+                "classification": "secret"
+            }
+                "owner": "platform-team",
+                "classification": "secret"
+            }
                 "classification": "secret"
             }
         });

@@ -8,10 +8,10 @@
 //! - Lease integration (TTL expiration and renewal)
 //! - SQL injection prevention
 
-use secreton_core::services::secrets::database::
+use secreton_core::services::secrets::database::{
     DatabaseConnection, DatabaseCredentials, DatabaseRole, DatabaseSecretsEngine, DatabaseType,
     DatabaseError,
-;
+};
 use secreton_core::services::lease::LeaseManager;
 use tokio_postgres::{NoTls, Error as PgError};
 use std::time::Duration;

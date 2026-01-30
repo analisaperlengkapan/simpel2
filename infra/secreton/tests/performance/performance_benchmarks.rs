@@ -1,6 +1,6 @@
-use Secreton_core::security::
-    AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig
-;
+use Secreton_core::security::{
+    AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig,
+};
 use std::sync::{Arc, time::Instant};
 use tokio::time::{timeout, Duration};
 
