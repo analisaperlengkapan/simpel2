@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+#![recursion_limit = "256"]
 //! # SIMPelv2 Perencanaan Microfrontend
 //!
 //! Sistem Informasi Manajemen Perencanaan BMN (Barang Milik Negara)

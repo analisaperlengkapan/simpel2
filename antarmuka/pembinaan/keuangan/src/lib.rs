@@ -5,7 +5,6 @@
 //! Sistem Informasi Manajemen Keuangan untuk Kejaksaan RI
 //! menggunakan Leptos CSR SPA WASM
 
-use leptos::mount::mount_to_body;
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
@@ -13,7 +12,6 @@ use leptos_router::hooks::use_navigate;
 use leptos_router::*;
 use lib_ui::components::auth::{LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile};
 use lib_ui::prelude::*;
-use wasm_bindgen::prelude::*;
 use web_sys::window;
 
 // Additional imports for async operations
@@ -363,9 +361,3 @@ fn get_token_from_url() -> Option<String> {
     None
 }
 
-/// Main function to mount the app
-#[wasm_bindgen(start)]
-pub fn main() {
-    console_error_panic_hook::set_once();
-    mount_to_body(App);
-}

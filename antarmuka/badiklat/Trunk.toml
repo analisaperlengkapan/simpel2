@@ -3,32 +3,5 @@ target = "index.html"
 dist = "dist"
 release = true
 
-# WASM optimization for code splitting
 [[build.wasm_opt]]
-args = [
-  "-Oz",               # Maximum size optimization
-  "--enable-all",
-  "--strip-debug",
-  "--strip-producers",
-  "--vacuum",
-]
-
-[build.wasm-bindgen]
-target = "web"
-typescript = false
-debug = false
-demangle = false
-keep-debug = false
-reference-types = true
-weak-refs = true
-
-[build.rust]
-optimization-level = "z"
-debug = false
-lto = true
-codegen-units = 1
-
-[serve]
-port = 8081
-open = false
-no_autoreload = true
+args = ["-Oz", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-extension", "--enable-reference-types"]
