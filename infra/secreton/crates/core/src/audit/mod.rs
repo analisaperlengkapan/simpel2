@@ -319,37 +319,45 @@ impl AuditBackend for MemoryBackend {
             .iter()
             .filter(|entry| {
                 if let Some(action) = &query.action
-                    && entry.action != *action {
-                        return false;
-                    }
+                    && entry.action != *action
+                {
+                    return false;
+                }
                 if let Some(actor) = &query.actor
-                    && entry.actor.as_ref() != Some(actor) {
-                        return false;
-                    }
+                    && entry.actor.as_ref() != Some(actor)
+                {
+                    return false;
+                }
                 if let Some(resource_type) = &query.resource_type
-                    && entry.resource_type != *resource_type {
-                        return false;
-                    }
+                    && entry.resource_type != *resource_type
+                {
+                    return false;
+                }
                 if let Some(resource_id) = &query.resource_id
-                    && entry.resource_id != *resource_id {
-                        return false;
-                    }
+                    && entry.resource_id != *resource_id
+                {
+                    return false;
+                }
                 if let Some(status) = &query.status
-                    && entry.status != *status {
-                        return false;
-                    }
+                    && entry.status != *status
+                {
+                    return false;
+                }
                 if let Some(start_time) = &query.start_time
-                    && entry.timestamp < *start_time {
-                        return false;
-                    }
+                    && entry.timestamp < *start_time
+                {
+                    return false;
+                }
                 if let Some(end_time) = &query.end_time
-                    && entry.timestamp > *end_time {
-                        return false;
-                    }
+                    && entry.timestamp > *end_time
+                {
+                    return false;
+                }
                 if let Some(namespace) = &query.namespace
-                    && entry.namespace.as_ref() != Some(namespace) {
-                        return false;
-                    }
+                    && entry.namespace.as_ref() != Some(namespace)
+                {
+                    return false;
+                }
                 true
             })
             .skip(query.offset.unwrap_or(0))

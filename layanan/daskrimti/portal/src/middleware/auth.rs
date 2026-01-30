@@ -203,18 +203,19 @@ pub async fn optional_auth_middleware(
         // Try to validate token
         if let Ok(validation) = state.authenc.validate_token(&token).await
             && validation.valid
-                && let Some(user_id) = validation.user_id {
-                    let auth_context = AuthContext {
-                        user_id: user_id.clone(),
-                        username: user_id.clone(),
-                        roles: validation.scopes,
-                        token: token.clone(),
-                    };
+            && let Some(user_id) = validation.user_id
+        {
+            let auth_context = AuthContext {
+                user_id: user_id.clone(),
+                username: user_id.clone(),
+                roles: validation.scopes,
+                token: token.clone(),
+            };
 
-                    request.extensions_mut().insert(auth_context);
-                    request.extensions_mut().insert(user_id);
-                    request.extensions_mut().insert(token);
-                }
+            request.extensions_mut().insert(auth_context);
+            request.extensions_mut().insert(user_id);
+            request.extensions_mut().insert(token);
+        }
     }
 
     // Continue regardless of auth status

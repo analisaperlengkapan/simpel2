@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 //! # SIMPelv2 Badiklat - Training & Education System
 //!
 //! Modern Leptos 0.7.8 microfrontend for Kejaksaan RI training management.

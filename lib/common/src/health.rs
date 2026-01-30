@@ -18,7 +18,6 @@ pub enum HealthStatus {
     Unknown,
 }
 
-
 impl HealthStatus {
     /// Convert to i32 for protobuf compatibility
     pub fn as_i32(&self) -> i32 {

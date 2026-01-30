@@ -73,13 +73,14 @@ pub fn LoginPage(
                         query_map.with(|params| params.get("redirect").map(|s| s.to_string()));
 
                     if let Some(target) = redirect_target
-                        && target == "perlengkapan" {
-                            // Hard redirect to Perlengkapan root
-                            if let Some(window) = web_sys::window() {
-                                let _ = window.location().set_href("/");
-                            }
-                            return;
+                        && target == "perlengkapan"
+                    {
+                        // Hard redirect to Perlengkapan root
+                        if let Some(window) = web_sys::window() {
+                            let _ = window.location().set_href("/");
                         }
+                        return;
+                    }
 
                     nav("/dashboard", Default::default());
                 }

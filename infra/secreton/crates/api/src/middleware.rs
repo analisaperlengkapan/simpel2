@@ -146,10 +146,11 @@ pub fn validate_client_certificate(
     // Check cache first
     let cache_key = generate_cache_key(cert_der, allowed_subjects);
     if let Some(cache) = get_cert_cache()
-        && let Some(validation) = cache.get(&cache_key) {
-            debug!("Certificate cache hit for key: {}", cache_key);
-            return validation;
-        }
+        && let Some(validation) = cache.get(&cache_key)
+    {
+        debug!("Certificate cache hit for key: {}", cache_key);
+        return validation;
+    }
 
     // Parse certificate
     match x509_parser::parse_x509_certificate(cert_der) {
@@ -590,17 +591,18 @@ pub async fn rate_limit(
     // Check rate limit
     if let Ok(mut limiter_guard) = RATE_LIMITER.lock()
         && let Some(ref mut limiter) = *limiter_guard
-            && !limiter.check_rate_limit(client_ip) {
-                warn!("Rate limit exceeded for client: {}", client_ip);
-                return Err((
-                    StatusCode::TOO_MANY_REQUESTS,
-                    Json(serde_json::json!({
-                        "error": "Rate limit exceeded",
-                        "status": 429,
-                        "retry_after": 60
-                    })),
-                ));
-            }
+        && !limiter.check_rate_limit(client_ip)
+    {
+        warn!("Rate limit exceeded for client: {}", client_ip);
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({
+                "error": "Rate limit exceeded",
+                "status": 429,
+                "retry_after": 60
+            })),
+        ));
+    }
     // Guard is dropped here
 
     Ok(next.run(request).await)
@@ -630,17 +632,18 @@ pub async fn request_size_limit(
     // Check content-length header
     if let Some(content_length) = request.headers().get("content-length")
         && let Ok(length_str) = content_length.to_str()
-            && let Ok(length) = length_str.parse::<usize>()
-                && length > MAX_REQUEST_SIZE {
-                    return Err((
-                        StatusCode::PAYLOAD_TOO_LARGE,
-                        Json(serde_json::json!({
-                            "error": "Request too large",
-                            "max_size": MAX_REQUEST_SIZE,
-                            "actual_size": length
-                        })),
-                    ));
-                }
+        && let Ok(length) = length_str.parse::<usize>()
+        && length > MAX_REQUEST_SIZE
+    {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            Json(serde_json::json!({
+                "error": "Request too large",
+                "max_size": MAX_REQUEST_SIZE,
+                "actual_size": length
+            })),
+        ));
+    }
 
     Ok(next.run(request).await)
 }

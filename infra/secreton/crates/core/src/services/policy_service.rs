@@ -176,9 +176,10 @@ impl PolicyService {
                 })?;
 
             if let Some(ns) = &namespace
-                && &policy.namespace != ns {
-                    continue;
-                }
+                && &policy.namespace != ns
+            {
+                continue;
+            }
 
             policies.push(policy);
         }

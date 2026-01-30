@@ -199,17 +199,19 @@ pub async fn logout(
 
     // Revoke access token if provided
     if let Some(access_token) = &request.access_token
-        && let Err(err) = state.authenc.revoke_token(access_token, false).await {
-            error!("Failed to revoke access token: {}", err);
-            success = false;
-        }
+        && let Err(err) = state.authenc.revoke_token(access_token, false).await
+    {
+        error!("Failed to revoke access token: {}", err);
+        success = false;
+    }
 
     // Revoke refresh token if provided
     if let Some(refresh_token) = &request.refresh_token
-        && let Err(err) = state.authenc.revoke_token(refresh_token, true).await {
-            error!("Failed to revoke refresh token: {}", err);
-            success = false;
-        }
+        && let Err(err) = state.authenc.revoke_token(refresh_token, true).await
+    {
+        error!("Failed to revoke refresh token: {}", err);
+        success = false;
+    }
 
     if success {
         info!("Logout successful");

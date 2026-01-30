@@ -75,18 +75,20 @@ fn extract_client_id(
 ) -> String {
     // Try to get from X-Forwarded-For header first
     if let Some(forwarded) = headers.get("X-Forwarded-For")
-        && let Ok(value) = forwarded.to_str() {
-            // Take the first IP in the chain
-            if let Some(ip) = value.split(',').next() {
-                return ip.trim().to_string();
-            }
+        && let Ok(value) = forwarded.to_str()
+    {
+        // Take the first IP in the chain
+        if let Some(ip) = value.split(',').next() {
+            return ip.trim().to_string();
         }
+    }
 
     // Try X-Real-IP header
     if let Some(real_ip) = headers.get("X-Real-IP")
-        && let Ok(value) = real_ip.to_str() {
-            return value.to_string();
-        }
+        && let Ok(value) = real_ip.to_str()
+    {
+        return value.to_string();
+    }
 
     // Fall back to connection IP
     if let Some(ConnectInfo(addr)) = connect_info {

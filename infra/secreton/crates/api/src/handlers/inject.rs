@@ -68,7 +68,6 @@ pub enum EnvFormat {
     Nested,
 }
 
-
 /// Response containing environment variables
 #[derive(Debug, Serialize)]
 pub struct InjectEnvResponse {

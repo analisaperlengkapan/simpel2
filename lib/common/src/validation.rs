@@ -98,18 +98,20 @@ pub fn validate_length(
     let len = value.len();
 
     if let Some(min) = min_len
-        && len < min {
-            return Err(CommonError::Validation {
-                message: format!("{} must be at least {} characters", field_name, min),
-            });
-        }
+        && len < min
+    {
+        return Err(CommonError::Validation {
+            message: format!("{} must be at least {} characters", field_name, min),
+        });
+    }
 
     if let Some(max) = max_len
-        && len > max {
-            return Err(CommonError::Validation {
-                message: format!("{} must be at most {} characters", field_name, max),
-            });
-        }
+        && len > max
+    {
+        return Err(CommonError::Validation {
+            message: format!("{} must be at most {} characters", field_name, max),
+        });
+    }
 
     Ok(())
 }
@@ -122,18 +124,20 @@ pub fn validate_range<T: PartialOrd + std::fmt::Display>(
     field_name: &str,
 ) -> Result<()> {
     if let Some(min_val) = min
-        && value < min_val {
-            return Err(CommonError::Validation {
-                message: format!("{} must be at least {}", field_name, min_val),
-            });
-        }
+        && value < min_val
+    {
+        return Err(CommonError::Validation {
+            message: format!("{} must be at least {}", field_name, min_val),
+        });
+    }
 
     if let Some(max_val) = max
-        && value > max_val {
-            return Err(CommonError::Validation {
-                message: format!("{} must be at most {}", field_name, max_val),
-            });
-        }
+        && value > max_val
+    {
+        return Err(CommonError::Validation {
+            message: format!("{} must be at most {}", field_name, max_val),
+        });
+    }
 
     Ok(())
 }

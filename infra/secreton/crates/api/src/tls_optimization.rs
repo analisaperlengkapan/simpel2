@@ -39,9 +39,10 @@ impl SessionCache {
 
         // Remove oldest entry if still at capacity (simplified: just random for now due to HashMap)
         if sessions.len() >= self.max_entries
-            && let Some(oldest_key) = sessions.keys().next().cloned() {
-                sessions.remove(&oldest_key);
-            }
+            && let Some(oldest_key) = sessions.keys().next().cloned()
+        {
+            sessions.remove(&oldest_key);
+        }
 
         sessions.insert(key, (session, Instant::now()));
     }
@@ -61,9 +62,10 @@ impl SessionCache {
     pub fn remove_session(&self, key: &[u8]) -> Option<Vec<u8>> {
         let mut sessions = self.sessions.lock().unwrap();
         if let Some((session, timestamp)) = sessions.remove(key)
-            && timestamp.elapsed() < self.ttl {
-                return Some(session);
-            }
+            && timestamp.elapsed() < self.ttl
+        {
+            return Some(session);
+        }
         None
     }
 }

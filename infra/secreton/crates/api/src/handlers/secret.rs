@@ -89,13 +89,15 @@ pub async fn get_audit_logs(
         core_query = core_query.action(action);
     }
     if let Some(start_time) = query.start_time
-        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time) {
-            core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
-        }
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time)
+    {
+        core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
+    }
     if let Some(end_time) = query.end_time
-        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time) {
-            core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
-        }
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time)
+    {
+        core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
+    }
     if let Some(status) = query.status {
         let status = match status.to_lowercase().as_str() {
             "success" => Some(secreton_core::audit::AuditStatus::Success),
@@ -146,13 +148,15 @@ pub async fn export_audit_logs(
         core_query = core_query.action(action);
     }
     if let Some(start_time) = query.start_time
-        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time) {
-            core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
-        }
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time)
+    {
+        core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
+    }
     if let Some(end_time) = query.end_time
-        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time) {
-            core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
-        }
+        && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time)
+    {
+        core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
+    }
     if let Some(status) = query.status {
         let status = match status.to_lowercase().as_str() {
             "success" => Some(secreton_core::audit::AuditStatus::Success),

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 //! # SIMPelv2 Datun - Perdata dan Tata Usaha Negara
 //!
 //! Modern Leptos 0.7.8 microfrontend for Kejaksaan RI Civil & Administrative Law management.

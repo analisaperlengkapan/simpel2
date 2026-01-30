@@ -193,9 +193,10 @@ impl KVEngine {
         let store = self.store.read().await;
 
         if let Some(versions) = store.get(path)
-            && let Some(latest) = versions.last() {
-                return Ok(Some(latest.metadata.clone()));
-            }
+            && let Some(latest) = versions.last()
+        {
+            return Ok(Some(latest.metadata.clone()));
+        }
 
         Ok(None)
     }

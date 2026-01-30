@@ -292,34 +292,35 @@ impl ClassificationService for InMemoryClassificationService {
 
         // Check if downgrading classification
         if let Some(existing) = classifications.get(path)
-            && level < existing.level {
-                warn!(
-                    path = %path,
-                    old_level = %existing.level,
-                    new_level = %level,
-                    "Attempted to downgrade classification"
-                );
+            && level < existing.level
+        {
+            warn!(
+                path = %path,
+                old_level = %existing.level,
+                new_level = %level,
+                "Attempted to downgrade classification"
+            );
 
-                // Record violation
-                let violation = PolicyViolation {
-                    id: uuid::Uuid::new_v4().to_string(),
-                    path: path.to_string(),
-                    violation_type: ViolationType::InvalidDowngrade,
-                    user_id: user_id.to_string(),
-                    timestamp: Utc::now(),
-                    details: format!(
-                        "Attempted to downgrade from {} to {}",
-                        existing.level, level
-                    ),
-                };
+            // Record violation
+            let violation = PolicyViolation {
+                id: uuid::Uuid::new_v4().to_string(),
+                path: path.to_string(),
+                violation_type: ViolationType::InvalidDowngrade,
+                user_id: user_id.to_string(),
+                timestamp: Utc::now(),
+                details: format!(
+                    "Attempted to downgrade from {} to {}",
+                    existing.level, level
+                ),
+            };
 
-                let mut violations = self.violations.write().await;
-                violations.push(violation);
+            let mut violations = self.violations.write().await;
+            violations.push(violation);
 
-                return Err(CoreError::invalid_operation(
-                    "Cannot downgrade classification level",
-                ));
-            }
+            return Err(CoreError::invalid_operation(
+                "Cannot downgrade classification level",
+            ));
+        }
 
         let metadata = ClassificationMetadata::new(level, user_id.to_string());
         classifications.insert(path.to_string(), metadata);

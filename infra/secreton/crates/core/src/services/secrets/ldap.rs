@@ -90,7 +90,6 @@ pub enum LdapSchema {
     ActiveDirectory,
 }
 
-
 /// LDAP role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LdapRole {

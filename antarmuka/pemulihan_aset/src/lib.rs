@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 // SIMPEL Pemulihan Aset - Microfrontend
 // Sistem Informasi Pemulihan Aset Negara untuk Kejaksaan RI
 

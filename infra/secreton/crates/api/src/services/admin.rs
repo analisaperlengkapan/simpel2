@@ -481,13 +481,15 @@ impl AdminService {
             .filter(|event| {
                 // Filter by time range
                 if let Some(start) = start_time
-                    && event.timestamp < start {
-                        return false;
-                    }
+                    && event.timestamp < start
+                {
+                    return false;
+                }
                 if let Some(end) = end_time
-                    && event.timestamp > end {
-                        return false;
-                    }
+                    && event.timestamp > end
+                {
+                    return false;
+                }
                 // Filter by action
                 if let Some(action_filter) = action {
                     let event_action = format!("{:?}", event.event_type);

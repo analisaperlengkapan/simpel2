@@ -31,8 +31,9 @@ runs:
       run: |
         # Install clang in addition to gcc to avoid --target flag incompatibility
         # Recent cc crate versions use Clang-style --target flag which GCC doesn't support
+        # Also install TPM libraries for secreton-core
         sudo -n apt-get update >/dev/null 2>&1 || true
-        sudo -n apt-get install -y unzip build-essential pkg-config libssl-dev clang gcc perl libzstd-dev zlib1g-dev >/dev/null 2>&1 || true
+        sudo -n apt-get install -y unzip build-essential pkg-config libssl-dev clang gcc perl libzstd-dev zlib1g-dev libtss2-dev >/dev/null 2>&1 || true
 
         # Use clang as the default C compiler to avoid --target flag issues
         echo "CC=clang" >> $GITHUB_ENV

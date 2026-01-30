@@ -137,9 +137,10 @@ impl StorageBackend for MemoryBackend {
                 .filter(|entry| {
                     // Check prefix if it exists
                     if let Some(p) = prefix
-                        && !entry.path.starts_with(p) {
-                            return false;
-                        }
+                        && !entry.path.starts_with(p)
+                    {
+                        return false;
+                    }
                     // Check expiration
                     !entry.is_expired()
                 })

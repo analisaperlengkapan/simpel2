@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 // SIMPEL Pidmil - Microfrontend
 // Sistem Informasi Penyidikan Militer Kejaksaan RI
 

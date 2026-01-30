@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 //! # SIMPEL Keuangan - Microfrontend
 //!
 //! Sistem Informasi Manajemen Keuangan untuk Kejaksaan RI

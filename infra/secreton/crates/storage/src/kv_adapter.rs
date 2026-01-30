@@ -85,9 +85,10 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         let index_data = self.backend.get(&Self::index_key_for_path(path)).await?;
 
         if let Some(id_bytes) = index_data
-            && let Ok(id) = Uuid::from_slice(&id_bytes) {
-                return self.get_by_id(id).await;
-            }
+            && let Ok(id) = Uuid::from_slice(&id_bytes)
+        {
+            return self.get_by_id(id).await;
+        }
 
         Ok(None)
     }
@@ -147,25 +148,29 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
             // We need to get the ID stored at this key
             if let Some(id_bytes) = self.backend.get(&key).await?
                 && let Ok(id) = Uuid::from_slice(&id_bytes)
-                    && let Some(entry) = self.get_by_id(id).await? {
-                        // Apply filters in memory
-                        if let Some(level) = params.security_level
-                            && entry.security_level < level {
-                                continue;
-                            }
+                && let Some(entry) = self.get_by_id(id).await?
+            {
+                // Apply filters in memory
+                if let Some(level) = params.security_level
+                    && entry.security_level < level
+                {
+                    continue;
+                }
 
-                        if let Some(owner) = params.owner_id
-                            && entry.owner_id != owner.to_string() {
-                                continue;
-                            }
+                if let Some(owner) = params.owner_id
+                    && entry.owner_id != owner.to_string()
+                {
+                    continue;
+                }
 
-                        entries.push(entry);
+                entries.push(entry);
 
-                        if let Some(limit) = params.limit
-                            && entries.len() >= limit as usize {
-                                break;
-                            }
-                    }
+                if let Some(limit) = params.limit
+                    && entries.len() >= limit as usize
+                {
+                    break;
+                }
+            }
         }
 
         Ok(entries)
@@ -235,10 +240,9 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         let mut count = 0;
 
         for entry in all_entries {
-            if entry.is_expired()
-                && self.delete_by_id(entry.id).await? {
-                    count += 1;
-                }
+            if entry.is_expired() && self.delete_by_id(entry.id).await? {
+                count += 1;
+            }
         }
 
         Ok(count)

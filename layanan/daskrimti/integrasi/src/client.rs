@@ -220,8 +220,8 @@ impl MonsaktiClient {
 
             // Fallback: parse sebagai MonsaktiResponse standar (JSON Object)
             // Jika gagal parse sebagai MonsaktiResponse, bungkus JSON raw ke dalam data
-            let result: MonsaktiResponse = serde_json::from_value(json_response.clone())
-                .unwrap_or(MonsaktiResponse {
+            let result: MonsaktiResponse =
+                serde_json::from_value(json_response.clone()).unwrap_or(MonsaktiResponse {
                     new_token: None,
                     data: Some(json_response),
                     error: None,

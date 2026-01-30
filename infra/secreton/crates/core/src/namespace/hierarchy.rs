@@ -275,11 +275,12 @@ impl NamespaceHierarchy {
 
         while let Some(namespace) = self.all_namespaces.get(&current_id) {
             if let Some(parent_id) = &namespace.parent
-                && let Some(parent) = self.all_namespaces.get(parent_id) {
-                    ancestors.push(parent.clone());
-                    current_id = parent_id.clone();
-                    continue;
-                }
+                && let Some(parent) = self.all_namespaces.get(parent_id)
+            {
+                ancestors.push(parent.clone());
+                current_id = parent_id.clone();
+                continue;
+            }
             break;
         }
 
@@ -292,11 +293,12 @@ impl NamespaceHierarchy {
 
         for namespace in self.all_namespaces.values() {
             if let Some(parent_id) = &namespace.parent
-                && parent_id == namespace_id {
-                    descendants.push(namespace.clone());
-                    // Recursively get descendants of this namespace
-                    descendants.extend(self.get_descendants(&namespace.id));
-                }
+                && parent_id == namespace_id
+            {
+                descendants.push(namespace.clone());
+                // Recursively get descendants of this namespace
+                descendants.extend(self.get_descendants(&namespace.id));
+            }
         }
 
         descendants
@@ -429,24 +431,28 @@ impl Namespace {
     /// Check if quota is exceeded
     pub fn is_quota_exceeded(&self) -> bool {
         if let Some(max_secrets) = self.quotas.max_secrets
-            && self.quotas.current_usage.secrets_count >= max_secrets {
-                return true;
-            }
+            && self.quotas.current_usage.secrets_count >= max_secrets
+        {
+            return true;
+        }
 
         if let Some(max_storage) = self.quotas.max_storage_bytes
-            && self.quotas.current_usage.storage_bytes >= max_storage {
-                return true;
-            }
+            && self.quotas.current_usage.storage_bytes >= max_storage
+        {
+            return true;
+        }
 
         if let Some(max_leases) = self.quotas.max_leases
-            && self.quotas.current_usage.leases_count >= max_leases {
-                return true;
-            }
+            && self.quotas.current_usage.leases_count >= max_leases
+        {
+            return true;
+        }
 
         if let Some(max_policies) = self.quotas.max_policies
-            && self.quotas.current_usage.policies_count >= max_policies {
-                return true;
-            }
+            && self.quotas.current_usage.policies_count >= max_policies
+        {
+            return true;
+        }
 
         false
     }
@@ -456,18 +462,20 @@ impl Namespace {
         let mut percentages = Vec::new();
 
         if let Some(max_secrets) = self.quotas.max_secrets
-            && max_secrets > 0 {
-                percentages.push(
-                    (self.quotas.current_usage.secrets_count as f64 / max_secrets as f64) * 100.0,
-                );
-            }
+            && max_secrets > 0
+        {
+            percentages.push(
+                (self.quotas.current_usage.secrets_count as f64 / max_secrets as f64) * 100.0,
+            );
+        }
 
         if let Some(max_storage) = self.quotas.max_storage_bytes
-            && max_storage > 0 {
-                percentages.push(
-                    (self.quotas.current_usage.storage_bytes as f64 / max_storage as f64) * 100.0,
-                );
-            }
+            && max_storage > 0
+        {
+            percentages.push(
+                (self.quotas.current_usage.storage_bytes as f64 / max_storage as f64) * 100.0,
+            );
+        }
 
         if percentages.is_empty() {
             0.0
