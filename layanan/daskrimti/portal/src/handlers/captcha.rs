@@ -55,9 +55,11 @@ pub async fn generate_challenge(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CaptchaRequest>,
 ) -> impl IntoResponse {
+    let start_time = std::time::Instant::now();
+
     info!(
-        "CAPTCHA challenge request: session_id={}",
-        request.session_id
+        "CAPTCHA challenge request: session_id={}, type={}, difficulty={}",
+        request.session_id, request.challenge_type, request.difficulty
     );
 
     // Call Authenc via gRPC to generate CAPTCHA
@@ -71,11 +73,28 @@ pub async fn generate_challenge(
         .await
     {
         Ok(challenge) => {
-            info!("CAPTCHA challenge generated: {}", challenge.challenge_id);
+            let elapsed = start_time.elapsed();
+            info!(
+                "CAPTCHA challenge generated: challenge_id={}, elapsed={:?}",
+                challenge.challenge_id, elapsed
+            );
+
+            // Warn if generation took too long
+            if elapsed.as_secs() > 10 {
+                tracing::warn!(
+                    "Slow CAPTCHA generation detected: challenge_id={}, elapsed={:?}",
+                    challenge.challenge_id, elapsed
+                );
+            }
+
             (StatusCode::OK, Json(challenge)).into_response()
         }
         Err(err) => {
-            error!("Failed to generate CAPTCHA: {}", err);
+            let elapsed = start_time.elapsed();
+            error!(
+                "Failed to generate CAPTCHA: error={}, session_id={}, elapsed={:?}",
+                err, request.session_id, elapsed
+            );
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
@@ -92,9 +111,11 @@ pub async fn verify_captcha(
     State(state): State<Arc<AppState>>,
     Json(request): Json<VerifyRequest>,
 ) -> impl IntoResponse {
+    let start_time = std::time::Instant::now();
+
     info!(
-        "CAPTCHA verify request: challenge_id={}",
-        request.challenge_id
+        "CAPTCHA verify request: challenge_id={}, session_id={}",
+        request.challenge_id, request.session_id
     );
 
     // Call Authenc via gRPC to verify CAPTCHA
@@ -109,7 +130,21 @@ pub async fn verify_captcha(
         .await
     {
         Ok(token_opt) => {
-            info!("CAPTCHA verification result: {:?}", token_opt.is_some());
+            let elapsed = start_time.elapsed();
+            let success = token_opt.is_some();
+
+            info!(
+                "CAPTCHA verification result: challenge_id={}, success={}, elapsed={:?}",
+                request.challenge_id, success, elapsed
+            );
+
+            // Warn if verification took too long
+            if elapsed.as_secs() > 5 {
+                tracing::warn!(
+                    "Slow CAPTCHA verification detected: challenge_id={}, elapsed={:?}",
+                    request.challenge_id, elapsed
+                );
+            }
 
             let response = if let Some(token) = token_opt {
                 VerifyResponse {
@@ -128,7 +163,11 @@ pub async fn verify_captcha(
             (StatusCode::OK, Json(response)).into_response()
         }
         Err(err) => {
-            error!("Failed to verify CAPTCHA: {}", err);
+            let elapsed = start_time.elapsed();
+            error!(
+                "Failed to verify CAPTCHA: error={}, challenge_id={}, elapsed={:?}",
+                err, request.challenge_id, elapsed
+            );
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {

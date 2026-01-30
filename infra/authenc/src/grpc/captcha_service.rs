@@ -57,6 +57,8 @@ impl CaptchaGrpcService {
         &self,
         request: Request<CaptchaChallengeRequest>,
     ) -> Result<Response<CaptchaChallengeResponse>, Status> {
+        let start_time = std::time::Instant::now();
+
         // Extract IP from metadata or use a default
         let ip_address = request
             .remote_addr()
@@ -65,15 +67,34 @@ impl CaptchaGrpcService {
 
         let req = request.into_inner();
 
+        tracing::info!(
+            "gRPC CAPTCHA generate request: session_id={}, type={}, ip={}",
+            req.session_id,
+            req.challenge_type,
+            ip_address
+        );
+
         let challenge_type = Self::convert_challenge_type(req.challenge_type);
-        // Generate dynamic difficulty based on risk
+
+        // Track risk engine calculation time
+        let risk_start = std::time::Instant::now();
         let difficulty = self
             .state
             .risk_engine
             .calculate_difficulty(&ip_address, Some(req.difficulty as u8))
             .await;
+        let risk_elapsed = risk_start.elapsed();
 
-        // Generate challenge
+        if risk_elapsed.as_millis() > 1000 {
+            tracing::warn!(
+                "Slow risk engine calculation: session_id={}, elapsed={:?}",
+                req.session_id,
+                risk_elapsed
+            );
+        }
+
+        // Track challenge generation time
+        let gen_start = std::time::Instant::now();
         let challenge = self
             .state
             .captcha_service
@@ -81,14 +102,31 @@ impl CaptchaGrpcService {
                 challenge_type,
                 Some(difficulty),
                 Some(req.session_id.clone()),
-                ip_address,
+                ip_address.clone(),
             )
             .await
-            .map_err(|e| Status::internal(format!("Failed to generate challenge: {}", e)))?;
+            .map_err(|e| {
+                tracing::error!(
+                    "Failed to generate challenge: session_id={}, error={}",
+                    req.session_id,
+                    e
+                );
+                Status::internal(format!("Failed to generate challenge: {}", e))
+            })?;
+        let gen_elapsed = gen_start.elapsed();
+
+        if gen_elapsed.as_millis() > 5000 {
+            tracing::warn!(
+                "Slow CAPTCHA generation: session_id={}, challenge_id={}, elapsed={:?}",
+                req.session_id,
+                challenge.id,
+                gen_elapsed
+            );
+        }
 
         // Convert to proto response
         let response = CaptchaChallengeResponse {
-            challenge_id: challenge.id,
+            challenge_id: challenge.id.clone(),
             challenge_type: Self::convert_challenge_type_to_proto(&challenge.challenge_type),
             // Use plaintext data if available (Bug 17 fix), otherwise fallback to encrypted_data field
             challenge_data: challenge.plaintext_data.unwrap_or(challenge.encrypted_data),
@@ -101,6 +139,15 @@ impl CaptchaGrpcService {
             metadata: req.metadata,
         };
 
+        let total_elapsed = start_time.elapsed();
+        tracing::info!(
+            "gRPC CAPTCHA generated: challenge_id={}, total_elapsed={:?} (risk={:?}, gen={:?})",
+            challenge.id,
+            total_elapsed,
+            risk_elapsed,
+            gen_elapsed
+        );
+
         Ok(Response::new(response))
     }
 
@@ -109,6 +156,8 @@ impl CaptchaGrpcService {
         &self,
         request: Request<CaptchaVerificationRequest>,
     ) -> Result<Response<CaptchaVerificationResponse>, Status> {
+        let start_time = std::time::Instant::now();
+
         // Get IP from metadata (must be done before consuming request)
         let ip_address = request
             .remote_addr()
@@ -116,6 +165,13 @@ impl CaptchaGrpcService {
             .unwrap_or_else(|| "0.0.0.0".to_string());
 
         let req = request.into_inner();
+
+        tracing::info!(
+            "gRPC CAPTCHA verify request: challenge_id={}, session_id={}, ip={}",
+            req.challenge_id,
+            req.session_id,
+            ip_address
+        );
 
         // Get CAPTCHA service from app state
         let captcha_service = &self.state.captcha_service;
@@ -128,19 +184,36 @@ impl CaptchaGrpcService {
             None
         };
 
-        // Validate challenge
+        // Track validation time
+        let validation_start = std::time::Instant::now();
         let validation_result = captcha_service
-            .validate_challenge(req.challenge_id.clone(), req.answer, behavioral_data)
+            .validate_challenge(req.challenge_id.clone(), req.answer.clone(), behavioral_data)
             .await
-            .map_err(|e| match e {
-                crate::services::captcha::CaptchaError::ChallengeNotFound { .. } => {
-                    Status::not_found("Challenge not found")
+            .map_err(|e| {
+                tracing::error!(
+                    "CAPTCHA validation error: challenge_id={}, error={}",
+                    req.challenge_id,
+                    e
+                );
+                match e {
+                    crate::services::captcha::CaptchaError::ChallengeNotFound { .. } => {
+                        Status::not_found("Challenge not found")
+                    }
+                    crate::services::captcha::CaptchaError::ChallengeExpired { .. } => {
+                        Status::failed_precondition("Challenge expired")
+                    }
+                    _ => Status::internal(format!("Validation failed: {}", e)),
                 }
-                crate::services::captcha::CaptchaError::ChallengeExpired { .. } => {
-                    Status::failed_precondition("Challenge expired")
-                }
-                _ => Status::internal(format!("Validation failed: {}", e)),
             })?;
+        let validation_elapsed = validation_start.elapsed();
+
+        if validation_elapsed.as_millis() > 2000 {
+            tracing::warn!(
+                "Slow CAPTCHA validation: challenge_id={}, elapsed={:?}",
+                req.challenge_id,
+                validation_elapsed
+            );
+        }
 
         // Update risk score based on validation result
         if validation_result.success {
@@ -169,12 +242,21 @@ impl CaptchaGrpcService {
         // Convert to proto response
         let response = CaptchaVerificationResponse {
             success: validation_result.success,
-            message: validation_result.message,
-            verification_token,
+            message: validation_result.message.clone(),
+            verification_token: verification_token.clone(),
             next_difficulty: validation_result.next_difficulty as u32,
             retry_allowed: validation_result.retry_allowed,
             lockout_duration,
         };
+
+        let total_elapsed = start_time.elapsed();
+        tracing::info!(
+            "gRPC CAPTCHA verified: challenge_id={}, success={}, total_elapsed={:?} (validation={:?})",
+            req.challenge_id,
+            validation_result.success,
+            total_elapsed,
+            validation_elapsed
+        );
 
         Ok(Response::new(response))
     }
