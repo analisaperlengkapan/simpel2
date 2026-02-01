@@ -105,7 +105,7 @@ fn default_keep_alive() -> u64 {
     75
 }
 fn default_client_timeout() -> u64 {
-    120  // Increased from 30 to 120 for complex operations like CAPTCHA generation
+    30
 }
 fn default_client_disconnect_timeout() -> u64 {
     5

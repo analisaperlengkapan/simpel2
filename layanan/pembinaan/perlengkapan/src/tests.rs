@@ -14,6 +14,29 @@ mock! {
         async fn get_all_pengadaan(&self, page: i32, per_page: i32) -> AppResult<(Vec<Pengadaan>, i64)>;
         async fn get_pengadaan_by_id(&self, id: Uuid) -> AppResult<Pengadaan>;
         async fn create_pengadaan(&self, request: CreatePengadaanRequest, user_id: Option<Uuid>) -> AppResult<Pengadaan>;
+
+        // Sub-documents
+        async fn create_pengadaan_hps(&self, request: CreatePengadaanHpsRequest) -> AppResult<PengadaanHps>;
+        async fn get_pengadaan_hps(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanHps>>;
+
+        async fn create_pengadaan_skppbj(&self, request: CreatePengadaanSkppbjRequest) -> AppResult<PengadaanSkppbj>;
+        async fn get_pengadaan_skppbj(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSkppbj>>;
+
+        async fn create_pengadaan_spk(&self, request: CreatePengadaanSpkRequest) -> AppResult<PengadaanSpk>;
+        async fn get_pengadaan_spk(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSpk>>;
+
+        async fn create_pengadaan_ringkasan(&self, request: CreatePengadaanRingkasanRequest) -> AppResult<PengadaanRingkasan>;
+        async fn get_pengadaan_ringkasan(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanRingkasan>>;
+
+        async fn create_pengadaan_kontrak(&self, request: CreatePengadaanKontrakRequest) -> AppResult<PengadaanKontrak>;
+        async fn get_pengadaan_kontrak(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanKontrak>>;
+
+        async fn create_pengadaan_bast(&self, request: CreatePengadaanBastRequest) -> AppResult<PengadaanBast>;
+        async fn get_pengadaan_bast(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanBast>>;
+
+        async fn create_pengadaan_nodis(&self, request: CreatePengadaanNodisRequest) -> AppResult<PengadaanNodis>;
+        async fn get_pengadaan_nodis(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanNodis>>;
+
         async fn get_all_analisis(&self, page: i32, per_page: i32) -> AppResult<(Vec<AnalisisKebutuhan>, i64)>;
         async fn create_analisis(&self, request: CreateAnalisisRequest, user_id: Option<Uuid>) -> AppResult<AnalisisKebutuhan>;
         async fn get_analisis_by_id(&self, id: Uuid) -> AppResult<AnalisisKebutuhan>;
@@ -180,6 +203,46 @@ mod unit_tests {
 
         assert_eq!(result.judul, "New Pengadaan");
         assert_eq!(result.created_by, Some(user_id));
+    }
+
+    #[tokio::test]
+    async fn test_create_pengadaan_hps() {
+        let mut mock_repo = MockRepository::new();
+        let pengadaan_id = Uuid::new_v4();
+        let req = CreatePengadaanHpsRequest {
+            pengadaan_id,
+            no_hps: "HPS-001".to_string(),
+            tgl_hps: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            nip_penandatangan: "123".to_string(),
+            nama_penandatangan: "Pejabat".to_string(),
+            pangkat_penandatangan: "IV/a".to_string(),
+            barang: serde_json::json!([{ "item": "Laptop", "price": 1000 }]),
+        };
+
+        mock_repo
+            .expect_create_pengadaan_hps()
+            .with(always())
+            .times(1)
+            .returning(move |req| {
+                Ok(PengadaanHps {
+                    id: Uuid::new_v4(),
+                    pengadaan_id: req.pengadaan_id,
+                    no_hps: req.no_hps,
+                    tgl_hps: req.tgl_hps,
+                    nip_penandatangan: req.nip_penandatangan,
+                    nama_penandatangan: req.nama_penandatangan,
+                    pangkat_penandatangan: req.pangkat_penandatangan,
+                    barang: req.barang,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                })
+            });
+
+        let service = PerlengkapanService::new(Arc::new(mock_repo));
+        let result = service.create_pengadaan_hps(req).await.unwrap();
+
+        assert_eq!(result.no_hps, "HPS-001");
+        assert_eq!(result.pengadaan_id, pengadaan_id);
     }
 
     #[tokio::test]

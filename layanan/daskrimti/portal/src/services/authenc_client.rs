@@ -196,7 +196,6 @@ pub struct AuthencClient {
     client: AuthencServiceClient<Channel>,
     circuit_breaker: CircuitBreaker,
     max_retries: u32,
-    request_timeout: Duration,
 }
 
 impl AuthencClient {
@@ -211,7 +210,6 @@ impl AuthencClient {
             client,
             circuit_breaker: CircuitBreaker::new(),
             max_retries: 3,
-            request_timeout: Duration::from_secs(90),  // 90 seconds timeout for gRPC requests
         })
     }
 
@@ -610,7 +608,6 @@ impl AuthencClient {
         let challenge_type_str = challenge_type.to_string();
         let session_id_str = session_id.to_string();
         let client = self.client.clone();
-        let request_timeout = self.request_timeout;
 
         self.execute_with_resilience(|| {
             let challenge_type = challenge_type_str.clone();
@@ -618,51 +615,39 @@ impl AuthencClient {
             let mut client = client.clone();
 
             async move {
-                // Wrap the gRPC call with explicit timeout
-                let result = tokio::time::timeout(request_timeout, async {
-                    // Convert string to proto ChallengeType enum
-                    let proto_challenge_type = match challenge_type.to_lowercase().as_str() {
-                        "audio" => 2,      // ChallengeType::Audio
-                        "behavioral" => 3, // ChallengeType::Behavioral
-                        "logical" => 4,    // ChallengeType::Logical
-                        "hybrid" => 5,     // ChallengeType::Hybrid
-                        _ => 1,            // ChallengeType::Visual (default)
-                    };
+                // Convert string to proto ChallengeType enum
+                let proto_challenge_type = match challenge_type.to_lowercase().as_str() {
+                    "audio" => 2,      // ChallengeType::Audio
+                    "behavioral" => 3, // ChallengeType::Behavioral
+                    "logical" => 4,    // ChallengeType::Logical
+                    "hybrid" => 5,     // ChallengeType::Hybrid
+                    _ => 1,            // ChallengeType::Visual (default)
+                };
 
-                    use crate::proto::authenc::v1::CaptchaChallengeRequest;
+                use crate::proto::authenc::v1::CaptchaChallengeRequest;
 
-                    let request = CaptchaChallengeRequest {
-                        session_id,
-                        challenge_type: proto_challenge_type,
-                        difficulty: difficulty as u32,
-                        metadata: std::collections::HashMap::new(),
-                    };
+                let request = CaptchaChallengeRequest {
+                    session_id,
+                    challenge_type: proto_challenge_type,
+                    difficulty: difficulty as u32,
+                    metadata: std::collections::HashMap::new(),
+                };
 
-                    let response = client
-                        .generate_captcha_challenge(Request::new(request))
-                        .await
-                        .map_err(AuthencError::from)?;
+                let response = client
+                    .generate_captcha_challenge(Request::new(request))
+                    .await
+                    .map_err(AuthencError::from)?;
 
-                    let resp = response.into_inner();
+                let resp = response.into_inner();
 
-                    // Convert proto response to handler response
-                    Ok::<_, AuthencError>(crate::handlers::captcha::CaptchaResponse {
-                        challenge_id: resp.challenge_id,
-                        challenge_type,
-                        challenge_data: resp.challenge_data,
-                        difficulty: resp.difficulty as u8,
-                        expires_at: resp.expires_at,
-                    })
+                // Convert proto response to handler response
+                Ok(crate::handlers::captcha::CaptchaResponse {
+                    challenge_id: resp.challenge_id,
+                    challenge_type,
+                    challenge_data: resp.challenge_data,
+                    difficulty: resp.difficulty as u8,
+                    expires_at: resp.expires_at,
                 })
-                .await;
-
-                // Handle timeout error
-                match result {
-                    Ok(response) => response,
-                    Err(_) => Err(AuthencError::Unavailable(
-                        format!("CAPTCHA generation timed out after {:?}", request_timeout)
-                    )),
-                }
             }
         })
         .await
@@ -683,7 +668,6 @@ impl AuthencClient {
             .and_then(|v| serde_json::to_vec(&v).ok())
             .unwrap_or_default();
         let client = self.client.clone();
-        let request_timeout = self.request_timeout;
 
         self.execute_with_resilience(|| {
             let challenge_id = challenge_id_str.clone();
@@ -693,38 +677,26 @@ impl AuthencClient {
             let mut client = client.clone();
 
             async move {
-                // Wrap the gRPC call with explicit timeout
-                let result = tokio::time::timeout(request_timeout, async {
-                    use crate::proto::authenc::v1::CaptchaVerificationRequest;
+                use crate::proto::authenc::v1::CaptchaVerificationRequest;
 
-                    let request = CaptchaVerificationRequest {
-                        challenge_id,
-                        answer,
-                        behavioral_data: behavior,
-                        session_id,
-                    };
+                let request = CaptchaVerificationRequest {
+                    challenge_id,
+                    answer,
+                    behavioral_data: behavior,
+                    session_id,
+                };
 
-                    let response = client
-                        .verify_captcha_challenge(Request::new(request))
-                        .await
-                        .map_err(AuthencError::from)?;
+                let response = client
+                    .verify_captcha_challenge(Request::new(request))
+                    .await
+                    .map_err(AuthencError::from)?;
 
-                    let resp = response.into_inner();
+                let resp = response.into_inner();
 
-                    if resp.success {
-                        Ok::<_, AuthencError>(Some(resp.verification_token))
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .await;
-
-                // Handle timeout error
-                match result {
-                    Ok(response) => response,
-                    Err(_) => Err(AuthencError::Unavailable(
-                        format!("CAPTCHA verification timed out after {:?}", request_timeout)
-                    )),
+                if resp.success {
+                    Ok(Some(resp.verification_token))
+                } else {
+                    Ok(None)
                 }
             }
         })

@@ -80,6 +80,113 @@ impl Database {
             )
             .await?;
 
+        // Create pengadaan sub-tables
+        client.execute(r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_hps (
+                id UUID PRIMARY KEY,
+                pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
+                no_hps VARCHAR NOT NULL,
+                tgl_hps DATE NOT NULL,
+                nip_penandatangan VARCHAR NOT NULL,
+                nama_penandatangan VARCHAR NOT NULL,
+                pangkat_penandatangan VARCHAR NOT NULL,
+                barang JSONB NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        "#, &[]).await?;
+
+        client.execute(r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_skppbj (
+                id UUID PRIMARY KEY,
+                pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
+                nama_penandatangan VARCHAR NOT NULL,
+                nip_penandatangan VARCHAR NOT NULL,
+                pangkat_penandatangan VARCHAR NOT NULL,
+                jabatan_penandatangan VARCHAR NOT NULL,
+                alamat TEXT NOT NULL,
+                tgl_skppbj DATE NOT NULL,
+                penyedia JSONB NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        "#, &[]).await?;
+
+        client.execute(r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_spk (
+                id UUID PRIMARY KEY,
+                pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
+                no_spk VARCHAR NOT NULL,
+                no_permintaan VARCHAR NOT NULL,
+                tgl_permintaan DATE NOT NULL,
+                no_ba VARCHAR NOT NULL,
+                tgl_ba DATE NOT NULL,
+                tgl_mulai DATE NOT NULL,
+                tgl_spk DATE NOT NULL,
+                tgl_selesai DATE NOT NULL,
+                nama_penyedia VARCHAR NOT NULL,
+                keterangan TEXT,
+                instruksi TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        "#, &[]).await?;
+
+        client.execute(r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_ringkasan (
+                id UUID PRIMARY KEY,
+                pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
+                no_dipa VARCHAR NOT NULL,
+                tgl_dipa DATE NOT NULL,
+                cara_pembayaran VARCHAR NOT NULL,
+                alamat_penyedia TEXT NOT NULL,
+                nama_bank VARCHAR NOT NULL,
+                kantor_bank VARCHAR NOT NULL,
+                no_rek VARCHAR NOT NULL,
+                npwp VARCHAR NOT NULL,
+                sanksi TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        "#, &[]).await?;
+
+        client.execute(r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_kontrak (
+                id UUID PRIMARY KEY,
+                pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
+                no_kontrak VARCHAR NOT NULL,
+                tgl_kontrak DATE NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        "#, &[]).await?;
+
+        client.execute(r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_bast (
+                id UUID PRIMARY KEY,
+                pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
+                no_bast VARCHAR NOT NULL,
+                tgl_bast DATE NOT NULL,
+                nama_pejabat VARCHAR NOT NULL,
+                nip_pejabat VARCHAR NOT NULL,
+                pangkat_pejabat VARCHAR NOT NULL,
+                jabatan_pejabat VARCHAR NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        "#, &[]).await?;
+
+        client.execute(r#"
+            CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_nodis (
+                id UUID PRIMARY KEY,
+                pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
+                no_nodis VARCHAR NOT NULL,
+                tgl_nodis DATE NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        "#, &[]).await?;
+
         // Create analisis table
         client
             .execute(
@@ -462,6 +569,310 @@ impl PerlengkapanRepository for Database {
 
         Ok(Pengadaan::from_row(&row))
     }
+
+    async fn create_pengadaan_hps(&self, request: CreatePengadaanHpsRequest) -> AppResult<PengadaanHps> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let id = Uuid::new_v4();
+        let row = client.query_one(
+            r#"INSERT INTO perlengkapan.pengadaan_hps (id, pengadaan_id, no_hps, tgl_hps, nip_penandatangan, nama_penandatangan, pangkat_penandatangan, barang)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               RETURNING id, pengadaan_id, no_hps, tgl_hps, nip_penandatangan, nama_penandatangan, pangkat_penandatangan, barang, created_at, updated_at"#,
+            &[&id, &request.pengadaan_id, &request.no_hps, &request.tgl_hps, &request.nip_penandatangan, &request.nama_penandatangan, &request.pangkat_penandatangan, &request.barang]
+        ).await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(PengadaanHps {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_hps: row.get("no_hps"),
+            tgl_hps: row.get("tgl_hps"),
+            nip_penandatangan: row.get("nip_penandatangan"),
+            nama_penandatangan: row.get("nama_penandatangan"),
+            pangkat_penandatangan: row.get("pangkat_penandatangan"),
+            barang: row.get("barang"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    async fn get_pengadaan_hps(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanHps>> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_hps WHERE pengadaan_id = $1", &[&pengadaan_id])
+            .await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(rows.iter().map(|row| PengadaanHps {
+             id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_hps: row.get("no_hps"),
+            tgl_hps: row.get("tgl_hps"),
+            nip_penandatangan: row.get("nip_penandatangan"),
+            nama_penandatangan: row.get("nama_penandatangan"),
+            pangkat_penandatangan: row.get("pangkat_penandatangan"),
+            barang: row.get("barang"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }).collect())
+    }
+
+    async fn create_pengadaan_skppbj(&self, request: CreatePengadaanSkppbjRequest) -> AppResult<PengadaanSkppbj> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let id = Uuid::new_v4();
+        let row = client.query_one(
+            r#"INSERT INTO perlengkapan.pengadaan_skppbj (id, pengadaan_id, nama_penandatangan, nip_penandatangan, pangkat_penandatangan, jabatan_penandatangan, alamat, tgl_skppbj, penyedia)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               RETURNING id, pengadaan_id, nama_penandatangan, nip_penandatangan, pangkat_penandatangan, jabatan_penandatangan, alamat, tgl_skppbj, penyedia, created_at, updated_at"#,
+            &[&id, &request.pengadaan_id, &request.nama_penandatangan, &request.nip_penandatangan, &request.pangkat_penandatangan, &request.jabatan_penandatangan, &request.alamat, &request.tgl_skppbj, &request.penyedia]
+        ).await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(PengadaanSkppbj {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            nama_penandatangan: row.get("nama_penandatangan"),
+            nip_penandatangan: row.get("nip_penandatangan"),
+            pangkat_penandatangan: row.get("pangkat_penandatangan"),
+            jabatan_penandatangan: row.get("jabatan_penandatangan"),
+            alamat: row.get("alamat"),
+            tgl_skppbj: row.get("tgl_skppbj"),
+            penyedia: row.get("penyedia"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    async fn get_pengadaan_skppbj(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSkppbj>> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_skppbj WHERE pengadaan_id = $1", &[&pengadaan_id])
+            .await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(rows.iter().map(|row| PengadaanSkppbj {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            nama_penandatangan: row.get("nama_penandatangan"),
+            nip_penandatangan: row.get("nip_penandatangan"),
+            pangkat_penandatangan: row.get("pangkat_penandatangan"),
+            jabatan_penandatangan: row.get("jabatan_penandatangan"),
+            alamat: row.get("alamat"),
+            tgl_skppbj: row.get("tgl_skppbj"),
+            penyedia: row.get("penyedia"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }).collect())
+    }
+
+    async fn create_pengadaan_spk(&self, request: CreatePengadaanSpkRequest) -> AppResult<PengadaanSpk> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let id = Uuid::new_v4();
+        let row = client.query_one(
+            r#"INSERT INTO perlengkapan.pengadaan_spk (id, pengadaan_id, no_spk, no_permintaan, tgl_permintaan, no_ba, tgl_ba, tgl_mulai, tgl_spk, tgl_selesai, nama_penyedia, keterangan, instruksi)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+               RETURNING id, pengadaan_id, no_spk, no_permintaan, tgl_permintaan, no_ba, tgl_ba, tgl_mulai, tgl_spk, tgl_selesai, nama_penyedia, keterangan, instruksi, created_at, updated_at"#,
+            &[&id, &request.pengadaan_id, &request.no_spk, &request.no_permintaan, &request.tgl_permintaan, &request.no_ba, &request.tgl_ba, &request.tgl_mulai, &request.tgl_spk, &request.tgl_selesai, &request.nama_penyedia, &request.keterangan, &request.instruksi]
+        ).await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(PengadaanSpk {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_spk: row.get("no_spk"),
+            no_permintaan: row.get("no_permintaan"),
+            tgl_permintaan: row.get("tgl_permintaan"),
+            no_ba: row.get("no_ba"),
+            tgl_ba: row.get("tgl_ba"),
+            tgl_mulai: row.get("tgl_mulai"),
+            tgl_spk: row.get("tgl_spk"),
+            tgl_selesai: row.get("tgl_selesai"),
+            nama_penyedia: row.get("nama_penyedia"),
+            keterangan: row.get("keterangan"),
+            instruksi: row.get("instruksi"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    async fn get_pengadaan_spk(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSpk>> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_spk WHERE pengadaan_id = $1", &[&pengadaan_id])
+            .await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(rows.iter().map(|row| PengadaanSpk {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_spk: row.get("no_spk"),
+            no_permintaan: row.get("no_permintaan"),
+            tgl_permintaan: row.get("tgl_permintaan"),
+            no_ba: row.get("no_ba"),
+            tgl_ba: row.get("tgl_ba"),
+            tgl_mulai: row.get("tgl_mulai"),
+            tgl_spk: row.get("tgl_spk"),
+            tgl_selesai: row.get("tgl_selesai"),
+            nama_penyedia: row.get("nama_penyedia"),
+            keterangan: row.get("keterangan"),
+            instruksi: row.get("instruksi"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }).collect())
+    }
+
+    async fn create_pengadaan_ringkasan(&self, request: CreatePengadaanRingkasanRequest) -> AppResult<PengadaanRingkasan> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let id = Uuid::new_v4();
+        let row = client.query_one(
+            r#"INSERT INTO perlengkapan.pengadaan_ringkasan (id, pengadaan_id, no_dipa, tgl_dipa, cara_pembayaran, alamat_penyedia, nama_bank, kantor_bank, no_rek, npwp, sanksi)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+               RETURNING id, pengadaan_id, no_dipa, tgl_dipa, cara_pembayaran, alamat_penyedia, nama_bank, kantor_bank, no_rek, npwp, sanksi, created_at, updated_at"#,
+            &[&id, &request.pengadaan_id, &request.no_dipa, &request.tgl_dipa, &request.cara_pembayaran, &request.alamat_penyedia, &request.nama_bank, &request.kantor_bank, &request.no_rek, &request.npwp, &request.sanksi]
+        ).await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(PengadaanRingkasan {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_dipa: row.get("no_dipa"),
+            tgl_dipa: row.get("tgl_dipa"),
+            cara_pembayaran: row.get("cara_pembayaran"),
+            alamat_penyedia: row.get("alamat_penyedia"),
+            nama_bank: row.get("nama_bank"),
+            kantor_bank: row.get("kantor_bank"),
+            no_rek: row.get("no_rek"),
+            npwp: row.get("npwp"),
+            sanksi: row.get("sanksi"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    async fn get_pengadaan_ringkasan(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanRingkasan>> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_ringkasan WHERE pengadaan_id = $1", &[&pengadaan_id])
+            .await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(rows.iter().map(|row| PengadaanRingkasan {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_dipa: row.get("no_dipa"),
+            tgl_dipa: row.get("tgl_dipa"),
+            cara_pembayaran: row.get("cara_pembayaran"),
+            alamat_penyedia: row.get("alamat_penyedia"),
+            nama_bank: row.get("nama_bank"),
+            kantor_bank: row.get("kantor_bank"),
+            no_rek: row.get("no_rek"),
+            npwp: row.get("npwp"),
+            sanksi: row.get("sanksi"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }).collect())
+    }
+
+    async fn create_pengadaan_kontrak(&self, request: CreatePengadaanKontrakRequest) -> AppResult<PengadaanKontrak> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let id = Uuid::new_v4();
+        let row = client.query_one(
+            r#"INSERT INTO perlengkapan.pengadaan_kontrak (id, pengadaan_id, no_kontrak, tgl_kontrak)
+               VALUES ($1, $2, $3, $4)
+               RETURNING id, pengadaan_id, no_kontrak, tgl_kontrak, created_at, updated_at"#,
+            &[&id, &request.pengadaan_id, &request.no_kontrak, &request.tgl_kontrak]
+        ).await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(PengadaanKontrak {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_kontrak: row.get("no_kontrak"),
+            tgl_kontrak: row.get("tgl_kontrak"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    async fn get_pengadaan_kontrak(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanKontrak>> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_kontrak WHERE pengadaan_id = $1", &[&pengadaan_id])
+            .await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(rows.iter().map(|row| PengadaanKontrak {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_kontrak: row.get("no_kontrak"),
+            tgl_kontrak: row.get("tgl_kontrak"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }).collect())
+    }
+
+    async fn create_pengadaan_bast(&self, request: CreatePengadaanBastRequest) -> AppResult<PengadaanBast> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let id = Uuid::new_v4();
+        let row = client.query_one(
+            r#"INSERT INTO perlengkapan.pengadaan_bast (id, pengadaan_id, no_bast, tgl_bast, nama_pejabat, nip_pejabat, pangkat_pejabat, jabatan_pejabat)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               RETURNING id, pengadaan_id, no_bast, tgl_bast, nama_pejabat, nip_pejabat, pangkat_pejabat, jabatan_pejabat, created_at, updated_at"#,
+            &[&id, &request.pengadaan_id, &request.no_bast, &request.tgl_bast, &request.nama_pejabat, &request.nip_pejabat, &request.pangkat_pejabat, &request.jabatan_pejabat]
+        ).await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(PengadaanBast {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_bast: row.get("no_bast"),
+            tgl_bast: row.get("tgl_bast"),
+            nama_pejabat: row.get("nama_pejabat"),
+            nip_pejabat: row.get("nip_pejabat"),
+            pangkat_pejabat: row.get("pangkat_pejabat"),
+            jabatan_pejabat: row.get("jabatan_pejabat"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    async fn get_pengadaan_bast(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanBast>> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_bast WHERE pengadaan_id = $1", &[&pengadaan_id])
+            .await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(rows.iter().map(|row| PengadaanBast {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_bast: row.get("no_bast"),
+            tgl_bast: row.get("tgl_bast"),
+            nama_pejabat: row.get("nama_pejabat"),
+            nip_pejabat: row.get("nip_pejabat"),
+            pangkat_pejabat: row.get("pangkat_pejabat"),
+            jabatan_pejabat: row.get("jabatan_pejabat"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }).collect())
+    }
+
+    async fn create_pengadaan_nodis(&self, request: CreatePengadaanNodisRequest) -> AppResult<PengadaanNodis> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let id = Uuid::new_v4();
+        let row = client.query_one(
+            r#"INSERT INTO perlengkapan.pengadaan_nodis (id, pengadaan_id, no_nodis, tgl_nodis)
+               VALUES ($1, $2, $3, $4)
+               RETURNING id, pengadaan_id, no_nodis, tgl_nodis, created_at, updated_at"#,
+            &[&id, &request.pengadaan_id, &request.no_nodis, &request.tgl_nodis]
+        ).await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(PengadaanNodis {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_nodis: row.get("no_nodis"),
+            tgl_nodis: row.get("tgl_nodis"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    async fn get_pengadaan_nodis(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanNodis>> {
+        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_nodis WHERE pengadaan_id = $1", &[&pengadaan_id])
+            .await.map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(rows.iter().map(|row| PengadaanNodis {
+            id: row.get("id"),
+            pengadaan_id: row.get("pengadaan_id"),
+            no_nodis: row.get("no_nodis"),
+            tgl_nodis: row.get("tgl_nodis"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }).collect())
+    }
+
 
     async fn get_all_analisis(
         &self,

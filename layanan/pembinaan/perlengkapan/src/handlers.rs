@@ -151,6 +151,155 @@ pub async fn create_pengadaan(
     ))
 }
 
+// Pengadaan Sub-Document Handlers
+
+pub async fn create_pengadaan_hps(
+    State(service): State<PerlengkapanService>,
+    _claims: Claims,
+    Json(request): Json<CreatePengadaanHpsRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<PengadaanHps>>), AppError> {
+    let hps = service.create_pengadaan_hps(request).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(hps, "HPS created successfully".to_string())),
+    ))
+}
+
+pub async fn get_pengadaan_hps(
+    State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengadaanHps>>>, AppError> {
+    let hps_list = service.get_pengadaan_hps(pengadaan_id).await?;
+    Ok(Json(ApiResponse::success(hps_list, "HPS list retrieved successfully".to_string())))
+}
+
+pub async fn create_pengadaan_skppbj(
+    State(service): State<PerlengkapanService>,
+    _claims: Claims,
+    Json(request): Json<CreatePengadaanSkppbjRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<PengadaanSkppbj>>), AppError> {
+    let item = service.create_pengadaan_skppbj(request).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(item, "SKPPBJ created successfully".to_string())),
+    ))
+}
+
+pub async fn get_pengadaan_skppbj(
+    State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengadaanSkppbj>>>, AppError> {
+    let items = service.get_pengadaan_skppbj(pengadaan_id).await?;
+    Ok(Json(ApiResponse::success(items, "SKPPBJ list retrieved successfully".to_string())))
+}
+
+pub async fn create_pengadaan_spk(
+    State(service): State<PerlengkapanService>,
+    _claims: Claims,
+    Json(request): Json<CreatePengadaanSpkRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<PengadaanSpk>>), AppError> {
+    let item = service.create_pengadaan_spk(request).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(item, "SPK created successfully".to_string())),
+    ))
+}
+
+pub async fn get_pengadaan_spk(
+    State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengadaanSpk>>>, AppError> {
+    let items = service.get_pengadaan_spk(pengadaan_id).await?;
+    Ok(Json(ApiResponse::success(items, "SPK list retrieved successfully".to_string())))
+}
+
+pub async fn create_pengadaan_ringkasan(
+    State(service): State<PerlengkapanService>,
+    _claims: Claims,
+    Json(request): Json<CreatePengadaanRingkasanRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<PengadaanRingkasan>>), AppError> {
+    let item = service.create_pengadaan_ringkasan(request).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(item, "Ringkasan created successfully".to_string())),
+    ))
+}
+
+pub async fn get_pengadaan_ringkasan(
+    State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengadaanRingkasan>>>, AppError> {
+    let items = service.get_pengadaan_ringkasan(pengadaan_id).await?;
+    Ok(Json(ApiResponse::success(items, "Ringkasan list retrieved successfully".to_string())))
+}
+
+pub async fn create_pengadaan_kontrak(
+    State(service): State<PerlengkapanService>,
+    _claims: Claims,
+    Json(request): Json<CreatePengadaanKontrakRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<PengadaanKontrak>>), AppError> {
+    let item = service.create_pengadaan_kontrak(request).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(item, "Kontrak created successfully".to_string())),
+    ))
+}
+
+pub async fn get_pengadaan_kontrak(
+    State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengadaanKontrak>>>, AppError> {
+    let items = service.get_pengadaan_kontrak(pengadaan_id).await?;
+    Ok(Json(ApiResponse::success(items, "Kontrak list retrieved successfully".to_string())))
+}
+
+pub async fn create_pengadaan_bast(
+    State(service): State<PerlengkapanService>,
+    _claims: Claims,
+    Json(request): Json<CreatePengadaanBastRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<PengadaanBast>>), AppError> {
+    let item = service.create_pengadaan_bast(request).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(item, "BAST created successfully".to_string())),
+    ))
+}
+
+pub async fn get_pengadaan_bast(
+    State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengadaanBast>>>, AppError> {
+    let items = service.get_pengadaan_bast(pengadaan_id).await?;
+    Ok(Json(ApiResponse::success(items, "BAST list retrieved successfully".to_string())))
+}
+
+pub async fn create_pengadaan_nodis(
+    State(service): State<PerlengkapanService>,
+    _claims: Claims,
+    Json(request): Json<CreatePengadaanNodisRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<PengadaanNodis>>), AppError> {
+    let item = service.create_pengadaan_nodis(request).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse::success(item, "Nodis created successfully".to_string())),
+    ))
+}
+
+pub async fn get_pengadaan_nodis(
+    State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengadaanNodis>>>, AppError> {
+    let items = service.get_pengadaan_nodis(pengadaan_id).await?;
+    Ok(Json(ApiResponse::success(items, "Nodis list retrieved successfully".to_string())))
+}
+
 // Pengalihan handlers
 pub async fn get_all_pengalihan(
     State(service): State<PerlengkapanService>,

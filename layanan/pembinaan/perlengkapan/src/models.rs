@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio_postgres::Row;
 use uuid::Uuid;
 use validator::Validate;
@@ -114,6 +115,193 @@ pub struct CreatePengadaanRequest {
     pub anggaran: Option<f64>,
     pub target_selesai: Option<NaiveDate>,
     pub pic_user_id: Option<Uuid>,
+}
+
+// ============ Pengadaan Sub-Documents ============
+
+// HPS
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PengadaanHps {
+    pub id: Uuid,
+    pub pengadaan_id: Uuid,
+    pub no_hps: String,
+    pub tgl_hps: NaiveDate,
+    pub nip_penandatangan: String,
+    pub nama_penandatangan: String,
+    pub pangkat_penandatangan: String,
+    pub barang: Value, // JSONB
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengadaanHpsRequest {
+    pub pengadaan_id: Uuid,
+    #[validate(length(min = 1, max = 100))]
+    pub no_hps: String,
+    pub tgl_hps: NaiveDate,
+    pub nip_penandatangan: String,
+    pub nama_penandatangan: String,
+    pub pangkat_penandatangan: String,
+    pub barang: Value,
+}
+
+// SKPPBJ
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PengadaanSkppbj {
+    pub id: Uuid,
+    pub pengadaan_id: Uuid,
+    pub nama_penandatangan: String,
+    pub nip_penandatangan: String,
+    pub pangkat_penandatangan: String,
+    pub jabatan_penandatangan: String,
+    pub alamat: String,
+    pub tgl_skppbj: NaiveDate,
+    pub penyedia: Value, // JSONB
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengadaanSkppbjRequest {
+    pub pengadaan_id: Uuid,
+    pub nama_penandatangan: String,
+    pub nip_penandatangan: String,
+    pub pangkat_penandatangan: String,
+    pub jabatan_penandatangan: String,
+    pub alamat: String,
+    pub tgl_skppbj: NaiveDate,
+    pub penyedia: Value,
+}
+
+// SPK
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PengadaanSpk {
+    pub id: Uuid,
+    pub pengadaan_id: Uuid,
+    pub no_spk: String,
+    pub no_permintaan: String,
+    pub tgl_permintaan: NaiveDate,
+    pub no_ba: String,
+    pub tgl_ba: NaiveDate,
+    pub tgl_mulai: NaiveDate,
+    pub tgl_spk: NaiveDate,
+    pub tgl_selesai: NaiveDate,
+    pub nama_penyedia: String,
+    pub keterangan: Option<String>,
+    pub instruksi: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengadaanSpkRequest {
+    pub pengadaan_id: Uuid,
+    pub no_spk: String,
+    pub no_permintaan: String,
+    pub tgl_permintaan: NaiveDate,
+    pub no_ba: String,
+    pub tgl_ba: NaiveDate,
+    pub tgl_mulai: NaiveDate,
+    pub tgl_spk: NaiveDate,
+    pub tgl_selesai: NaiveDate,
+    pub nama_penyedia: String,
+    pub keterangan: Option<String>,
+    pub instruksi: Option<String>,
+}
+
+// Ringkasan
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PengadaanRingkasan {
+    pub id: Uuid,
+    pub pengadaan_id: Uuid,
+    pub no_dipa: String,
+    pub tgl_dipa: NaiveDate,
+    pub cara_pembayaran: String,
+    pub alamat_penyedia: String,
+    pub nama_bank: String,
+    pub kantor_bank: String,
+    pub no_rek: String,
+    pub npwp: String,
+    pub sanksi: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengadaanRingkasanRequest {
+    pub pengadaan_id: Uuid,
+    pub no_dipa: String,
+    pub tgl_dipa: NaiveDate,
+    pub cara_pembayaran: String,
+    pub alamat_penyedia: String,
+    pub nama_bank: String,
+    pub kantor_bank: String,
+    pub no_rek: String,
+    pub npwp: String,
+    pub sanksi: Option<String>,
+}
+
+// Kontrak
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PengadaanKontrak {
+    pub id: Uuid,
+    pub pengadaan_id: Uuid,
+    pub no_kontrak: String,
+    pub tgl_kontrak: NaiveDate,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengadaanKontrakRequest {
+    pub pengadaan_id: Uuid,
+    pub no_kontrak: String,
+    pub tgl_kontrak: NaiveDate,
+}
+
+// BAST
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PengadaanBast {
+    pub id: Uuid,
+    pub pengadaan_id: Uuid,
+    pub no_bast: String,
+    pub tgl_bast: NaiveDate,
+    pub nama_pejabat: String,
+    pub nip_pejabat: String,
+    pub pangkat_pejabat: String,
+    pub jabatan_pejabat: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengadaanBastRequest {
+    pub pengadaan_id: Uuid,
+    pub no_bast: String,
+    pub tgl_bast: NaiveDate,
+    pub nama_pejabat: String,
+    pub nip_pejabat: String,
+    pub pangkat_pejabat: String,
+    pub jabatan_pejabat: String,
+}
+
+// Nodis
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PengadaanNodis {
+    pub id: Uuid,
+    pub pengadaan_id: Uuid,
+    pub no_nodis: String,
+    pub tgl_nodis: NaiveDate,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreatePengadaanNodisRequest {
+    pub pengadaan_id: Uuid,
+    pub no_nodis: String,
+    pub tgl_nodis: NaiveDate,
 }
 
 // ============ Analisis Kebutuhan Models (Local) ============

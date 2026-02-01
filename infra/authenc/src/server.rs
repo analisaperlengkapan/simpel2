@@ -171,11 +171,11 @@ async fn run_grpc_server(
     let grpc_config = GrpcConfig {
         addr: addr.to_string(),
         max_concurrent_streams: 100,
-        connection_timeout: state.config.server.client_timeout,
-        request_timeout: state.config.server.client_timeout,
-        enable_tls: state.config.server.tls_enabled,
-        tls_cert_path: state.config.server.tls_cert_path.clone(),
-        tls_key_path: state.config.server.tls_key_path.clone(),
+        connection_timeout: 30,
+        request_timeout: 30,
+        enable_tls: false,
+        tls_cert_path: None,
+        tls_key_path: None,
     };
 
     let router = create_grpc_server(state, grpc_config);
