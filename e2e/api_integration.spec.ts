@@ -1,11 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Perlengkapan API Integration', () => {
-  const baseURL = 'http://localhost:3000'; // Backend port
+  // Use baseURL from configuration (configured in playwright.config.ts)
+  // or default to relative path which Playwright resolves against baseURL
 
   test('should create and retrieve Pengadaan and HPS', async ({ request }) => {
     // 1. Create Pengadaan
-    const pengadaanRes = await request.post(`${baseURL}/pengadaan`, {
+    // Assuming /api/pembinaan/perlengkapan is the prefix based on routes.rs and service mounting
+    const pengadaanRes = await request.post('/api/pembinaan/perlengkapan/pengadaan', {
       data: {
         judul: 'Pengadaan E2E Test',
         jenis: 'TIK',
@@ -21,7 +23,7 @@ test.describe('Perlengkapan API Integration', () => {
     const pengadaanId = pengadaan.data.id;
 
     // 2. Create HPS for the Pengadaan
-    const hpsRes = await request.post(`${baseURL}/pengadaan/${pengadaanId}/hps`, {
+    const hpsRes = await request.post(`/api/pembinaan/perlengkapan/pengadaan/${pengadaanId}/hps`, {
       data: {
         pengadaan_id: pengadaanId,
         no_hps: 'HPS-E2E-001',
@@ -38,7 +40,7 @@ test.describe('Perlengkapan API Integration', () => {
     expect(hps.data.no_hps).toBe('HPS-E2E-001');
 
     // 3. Retrieve HPS list
-    const hpsListRes = await request.get(`${baseURL}/pengadaan/${pengadaanId}/hps`);
+    const hpsListRes = await request.get(`/api/pembinaan/perlengkapan/pengadaan/${pengadaanId}/hps`);
     expect(hpsListRes.status()).toBe(200);
     const hpsList = await hpsListRes.json();
     expect(hpsList.data.length).toBeGreaterThan(0);

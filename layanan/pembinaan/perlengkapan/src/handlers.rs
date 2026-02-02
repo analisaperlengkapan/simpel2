@@ -155,9 +155,14 @@ pub async fn create_pengadaan(
 
 pub async fn create_pengadaan_hps(
     State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
     _claims: Claims,
-    Json(request): Json<CreatePengadaanHpsRequest>,
+    Json(mut request): Json<CreatePengadaanHpsRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengadaanHps>>), AppError> {
+    if request.pengadaan_id != pengadaan_id {
+        return Err(bad_request("Path ID and Body ID mismatch"));
+    }
+    request.pengadaan_id = pengadaan_id;
     let hps = service.create_pengadaan_hps(request).await?;
     Ok((
         StatusCode::CREATED,
@@ -176,9 +181,14 @@ pub async fn get_pengadaan_hps(
 
 pub async fn create_pengadaan_skppbj(
     State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
     _claims: Claims,
-    Json(request): Json<CreatePengadaanSkppbjRequest>,
+    Json(mut request): Json<CreatePengadaanSkppbjRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengadaanSkppbj>>), AppError> {
+    if request.pengadaan_id != pengadaan_id {
+        return Err(bad_request("Path ID and Body ID mismatch"));
+    }
+    request.pengadaan_id = pengadaan_id;
     let item = service.create_pengadaan_skppbj(request).await?;
     Ok((
         StatusCode::CREATED,
@@ -197,9 +207,14 @@ pub async fn get_pengadaan_skppbj(
 
 pub async fn create_pengadaan_spk(
     State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
     _claims: Claims,
-    Json(request): Json<CreatePengadaanSpkRequest>,
+    Json(mut request): Json<CreatePengadaanSpkRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengadaanSpk>>), AppError> {
+    if request.pengadaan_id != pengadaan_id {
+        return Err(bad_request("Path ID and Body ID mismatch"));
+    }
+    request.pengadaan_id = pengadaan_id;
     let item = service.create_pengadaan_spk(request).await?;
     Ok((
         StatusCode::CREATED,
@@ -218,9 +233,14 @@ pub async fn get_pengadaan_spk(
 
 pub async fn create_pengadaan_ringkasan(
     State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
     _claims: Claims,
-    Json(request): Json<CreatePengadaanRingkasanRequest>,
+    Json(mut request): Json<CreatePengadaanRingkasanRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengadaanRingkasan>>), AppError> {
+    if request.pengadaan_id != pengadaan_id {
+        return Err(bad_request("Path ID and Body ID mismatch"));
+    }
+    request.pengadaan_id = pengadaan_id;
     let item = service.create_pengadaan_ringkasan(request).await?;
     Ok((
         StatusCode::CREATED,
@@ -239,9 +259,14 @@ pub async fn get_pengadaan_ringkasan(
 
 pub async fn create_pengadaan_kontrak(
     State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
     _claims: Claims,
-    Json(request): Json<CreatePengadaanKontrakRequest>,
+    Json(mut request): Json<CreatePengadaanKontrakRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengadaanKontrak>>), AppError> {
+    if request.pengadaan_id != pengadaan_id {
+        return Err(bad_request("Path ID and Body ID mismatch"));
+    }
+    request.pengadaan_id = pengadaan_id;
     let item = service.create_pengadaan_kontrak(request).await?;
     Ok((
         StatusCode::CREATED,
@@ -260,9 +285,14 @@ pub async fn get_pengadaan_kontrak(
 
 pub async fn create_pengadaan_bast(
     State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
     _claims: Claims,
-    Json(request): Json<CreatePengadaanBastRequest>,
+    Json(mut request): Json<CreatePengadaanBastRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengadaanBast>>), AppError> {
+    if request.pengadaan_id != pengadaan_id {
+        return Err(bad_request("Path ID and Body ID mismatch"));
+    }
+    request.pengadaan_id = pengadaan_id;
     let item = service.create_pengadaan_bast(request).await?;
     Ok((
         StatusCode::CREATED,
@@ -281,9 +311,14 @@ pub async fn get_pengadaan_bast(
 
 pub async fn create_pengadaan_nodis(
     State(service): State<PerlengkapanService>,
+    Path(pengadaan_id): Path<Uuid>,
     _claims: Claims,
-    Json(request): Json<CreatePengadaanNodisRequest>,
+    Json(mut request): Json<CreatePengadaanNodisRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengadaanNodis>>), AppError> {
+    if request.pengadaan_id != pengadaan_id {
+        return Err(bad_request("Path ID and Body ID mismatch"));
+    }
+    request.pengadaan_id = pengadaan_id;
     let item = service.create_pengadaan_nodis(request).await?;
     Ok((
         StatusCode::CREATED,

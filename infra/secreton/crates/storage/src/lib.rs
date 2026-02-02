@@ -81,7 +81,6 @@
 //! #   updated_at: chrono::Utc::now(),
 //! #   expires_at: None,
 //! };
-//! };
 //! storage.store(&entry).await?;
 //!
 //! // Retrieve by path
@@ -123,7 +122,7 @@
 //! #   created_at: chrono::Utc::now(),
 //! #   updated_at: chrono::Utc::now(),
 //! #   expires_at: None,
-//! ;
+//! };
 //! storage.store(&entry).await?;
 //! // Data is stored with encryption key tracking
 //! # Ok(())
