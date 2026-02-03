@@ -5,6 +5,9 @@ edition.workspace = true
 authors = ["SIMPelv2 Team"]
 description = "intel service for SIMPelv2"
 
+[features]
+integration-tests = []
+
 [dependencies]
 axum = { workspace = true }
 tokio = { workspace = true }
