@@ -282,8 +282,10 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             where_clause
         );
 
-        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let count_row = client
             .query_one(&count_query, &params_refs)
@@ -307,8 +309,10 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             param_idx + 1
         );
 
-        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client
             .query(&data_query, &params_refs)
@@ -389,8 +393,10 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             param_idx + 1
         );
 
-        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let row = client
             .query_opt(&query, &params_refs)
@@ -407,7 +413,9 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         // Check if pengajuan exists and is in draft status
         let pengajuan = self.get_pengajuan_by_id(id).await?;
         if pengajuan.status != KebutuhanBmnStatus::Draft {
-            return Err(AppError::BadRequest("Only draft pengajuan can be deleted".to_string()));
+            return Err(AppError::BadRequest(
+                "Only draft pengajuan can be deleted".to_string(),
+            ));
         }
 
         client
@@ -602,8 +610,10 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             where_clause
         );
 
-        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let count_row = client
             .query_one(&count_query, &params_refs)
@@ -627,8 +637,10 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             param_idx + 1
         );
 
-        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client
             .query(&data_query, &params_refs)
