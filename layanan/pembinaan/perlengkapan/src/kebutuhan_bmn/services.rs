@@ -7,8 +7,8 @@
 //! This service integrates with SIMAN (Sistem Informasi Manajemen Aset Negara)
 //! to fetch existing BMN inventory for feasibility analysis.
 
-use std::sync::Arc;
 use chrono::Datelike;
+use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 use validator::Validate;
@@ -444,7 +444,9 @@ impl KebutuhanBmnService {
         // Validate all items have valid prioritas
         for item in &request.items {
             if item.prioritas < 0 {
-                return Err(AppError::BadRequest("Prioritas tidak boleh negatif".to_string()));
+                return Err(AppError::BadRequest(
+                    "Prioritas tidak boleh negatif".to_string(),
+                ));
             }
         }
 
