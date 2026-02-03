@@ -29,6 +29,8 @@ spec:
         - name: perlengkapan-backend
           image: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 3020
               name: http

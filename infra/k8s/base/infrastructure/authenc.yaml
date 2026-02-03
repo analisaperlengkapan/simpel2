@@ -28,6 +28,8 @@ spec:
         - name: authenc
           image: localhost:32000/authenc:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 8088
               name: http

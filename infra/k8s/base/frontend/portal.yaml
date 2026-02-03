@@ -33,6 +33,8 @@ spec:
         - name: portal
           image: localhost:32000/simpelv2/daskrimti-portal:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 8080
               name: http
