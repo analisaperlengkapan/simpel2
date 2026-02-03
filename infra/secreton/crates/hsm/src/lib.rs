@@ -62,7 +62,7 @@
 //!     slot_id: 0,
 //!     pin: "1234".to_string(), // From environment/Engine
 //!     label: "secreton-master-key".to_string(),
-//! ;
+//! };
 //!
 //! let hsm = HsmBackend::new(config)?;
 //! hsm.connect().await?;

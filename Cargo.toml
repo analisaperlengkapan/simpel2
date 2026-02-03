@@ -117,6 +117,7 @@ tracing-subscriber = { version = "0.3", features = [
 uuid = { version = "1.19.0", features = ["v4", "serde", "js"] }
 time = { version = "0.3.44", features = ["serde", "macros"] }
 chrono = { version = "0.4.42", features = ["serde"] }
+tokio-cron-scheduler = "0.13.0"
 anyhow = "1.0.100"
 thiserror = "2.0.17"
 dotenvy = "0.15.7" # Maintained fork of dotenv
@@ -222,7 +223,7 @@ garde = { version = "0.22", features = [
     "derive",
     "serde",
 ] } # Modern validator replacement (no idna dependency)
-validator = { version = "0.18", features = ["derive"] } # Legacy validator (kept for datun compatibility)
+validator = { version = "0.19", features = ["derive"] } # Legacy validator (kept for datun compatibility)
 nutype = { version = "0.6.2", features = [
     "serde",
     "validate",

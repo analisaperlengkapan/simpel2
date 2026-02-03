@@ -1,0 +1,40 @@
+# MetalLB IP Address Pool for SIMPelv2
+# This configures the IP range for LoadBalancer services
+# Updated: 2026-02-03 - Environment-specific pools (staging/production)
+#
+# Network Info:
+#   - Node IPs: 172.15.10.252 (simple02), 172.15.10.254 (simpel.kejaksaan.go.id)
+#   - Pod Network: 10.1.x.x (Calico CNI)
+#   - Service Network: 10.152.183.x (kube-proxy)
+
+---
+# Production address pool for production LoadBalancer services
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: prod-addresspool
+  namespace: metallb-system
+  annotations:
+    description: "Production IP pool for SIMPelv2 LoadBalancer services"
+spec:
+  addresses:
+    # Production range: 172.15.10.200-172.15.10.230 (31 IPs)
+    - 172.15.10.200-172.15.10.230
+  autoAssign: true
+
+---
+# Staging address pool for staging/testing LoadBalancer services
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: staging-addresspool
+  namespace: metallb-system
+  annotations:
+    description: "Staging IP pool for SIMPelv2 testing and staging"
+spec:
+  addresses:
+    # Staging range: 172.15.10.231-172.15.10.250 (20 IPs)
+    - 172.15.10.231-172.15.10.250
+    # Additional staging IPs on dev subnet
+    - 10.1.7.121/32
+  autoAssign: true

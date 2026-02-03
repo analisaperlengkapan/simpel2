@@ -1,0 +1,17 @@
+# SIMPelv2 Backend Services ConfigMap
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/component: backend-config
+data:
+  # gRPC TLS Configuration
+  GRPC_TLS_ENABLED: "false"
+  GRPC_MTLS_ENABLED: "false"
+
+  # Service discovery
+  SERVICE_MESH: "istio"
+  MTLS_MODE: "PERMISSIVE"

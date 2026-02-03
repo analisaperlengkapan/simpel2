@@ -97,7 +97,7 @@ impl UserStoreTrait for UserStore {
     }
 }
 
-/// Implementation of UserStoreTrait for Arc<UserStore> to enable direct trait method calls on Arc-wrapped instances
+/// Implementation of UserStoreTrait for `Arc<UserStore>` to enable direct trait method calls on Arc-wrapped instances
 #[async_trait]
 impl UserStoreTrait for Arc<UserStore> {
     async fn get_user(&self, user_id: Uuid) -> Result<Option<User>, AuthencError> {

@@ -348,7 +348,7 @@ impl MfaAdminService {
         Ok(())
     }
 
-    /// Convert std::time::Instant to chrono::DateTime<Utc>
+    /// Convert `std::time::Instant` to `chrono::DateTime<Utc>`
     fn instant_to_datetime(&self, instant: std::time::Instant) -> DateTime<Utc> {
         let now = std::time::Instant::now();
         let system_now = std::time::SystemTime::now();

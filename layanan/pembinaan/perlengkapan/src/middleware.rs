@@ -17,6 +17,11 @@ pub struct Claims {
     pub username: String,
     pub role: String,
     pub permissions: Vec<String>,
+    // Extended fields for Pakaian Dinas & Kebutuhan BMN modules
+    pub nip: Option<String>,
+    pub name: Option<String>,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
 }
 
 impl<S> FromRequestParts<S> for Claims
@@ -80,8 +85,21 @@ where
                 Ok(Claims {
                     user_id,
                     username: "unknown".to_string(), // Missing from ValidateTokenResponse currently
-                    role,
-                    permissions: resp.scopes,
+                    role: role.clone(),
+                    permissions: resp.scopes.clone(),
+                    // Extended fields - try to extract from scopes or use defaults
+                    nip: resp.scopes.iter()
+                        .find(|s| s.starts_with("nip:"))
+                        .map(|s| s.trim_start_matches("nip:").to_string()),
+                    name: resp.scopes.iter()
+                        .find(|s| s.starts_with("name:"))
+                        .map(|s| s.trim_start_matches("name:").to_string()),
+                    nama: resp.scopes.iter()
+                        .find(|s| s.starts_with("nama:"))
+                        .map(|s| s.trim_start_matches("nama:").to_string()),
+                    jabatan: resp.scopes.iter()
+                        .find(|s| s.starts_with("jabatan:"))
+                        .map(|s| s.trim_start_matches("jabatan:").to_string()),
                 })
             }
             Err(e) => {

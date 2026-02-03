@@ -1,0 +1,28 @@
+# Istio Gateway for SIMPelv2
+
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: simpelv2-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+      tls:
+        httpsRedirect: false  # Set to true in production overlay
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*"
+      tls:
+        mode: SIMPLE
+        credentialName: simpelv2-tls-secret

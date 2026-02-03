@@ -40,7 +40,7 @@ flowchart TB
         LN["... Other Services"]
     end
 
-    subgraph Infra["🔐 Infrastructure (Separate Workspaces)"]
+    subgraph Infra["🔐 Infrastructure"]
         AUTH["Authenc<br/>(Identity Provider)"]
         SEC["Secreton<br/>(Secrets Vault)"]
     end
@@ -99,45 +99,43 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    subgraph Root["📦 Root Workspace"]
+    subgraph Root["📦 Root Workspace (Single Cargo.lock)"]
         direction TB
         CT["Cargo.toml<br/>(Single Source of Truth)"]
 
         subgraph Lib["lib/ - Shared Libraries"]
-            LU["lib-ui<br/>(alias: shared-microfrontend)"]
-            LM["lib-middleware"]
-            LC["lib-crypto"]
-            LT["lib-types"]
-            LS2["lib-storage"]
-            LUT["lib-utils"]
+            LU["lib-ui"]
+            LC["lib-common"]
         end
 
         subgraph Antarmuka["antarmuka/ - Microfrontends"]
-            AP["portal/"]
-            AI["intel/"]
-            APS["pidsus/"]
-            AN["... others"]
+            AP["daskrimti/portal/"]
+            APK["pembinaan/keuangan/"]
+            APP["pembinaan/perlengkapan/"]
+            APR["pembinaan/perencanaan/"]
+            AN["... badiklat, intel, etc."]
         end
 
         subgraph Layanan["layanan/ - Backend Services"]
             SP["daskrimti/portal/"]
-            SI["daskrimti/intel/"]
-            SPS["daskrimti/pidsus/"]
-            SN["... others"]
+            SI["daskrimti/integrasi/"]
+            SN["daskrimti/notifikasi/"]
+            LPN["... other layanan"]
         end
-    end
 
-    subgraph InfraSep["🔒 Separate Workspaces"]
-        AUTH2["infra/authenc/<br/>(own Cargo.lock)"]
-        SEC2["infra/secreton/<br/>(own Cargo.lock)"]
+        subgraph Infra["infra/ - Infrastructure Services"]
+            AUTH["authenc<br/>(Identity Provider)"]
+            SEC["secreton<br/>(Secrets Vault)"]
+        end
     end
 
     CT --> Lib
     CT --> Antarmuka
     CT --> Layanan
+    CT --> Infra
 
     style Root fill:#e3f2fd
-    style InfraSep fill:#ffebee
+    style Infra fill:#fce4ec
 ```
 
 ### Directory Layout
@@ -146,25 +144,42 @@ flowchart LR
 /var/www/simpelv2/
 ├── Cargo.toml          # ROOT WORKSPACE MANIFEST (Single source of truth)
 ├── lib/                # SHARED LIBRARIES
-│   ├── ui/             # UI components (lib-ui, alias: shared-microfrontend)
-│   ├── middleware/     # Axum middlewares (lib-middleware)
-│   ├── crypto/         # Cryptography (lib-crypto)
-│   ├── types/          # Domain types (lib-types)
-│   ├── storage/        # Database & Raft (lib-storage)
-│   └── utils/          # Common utilities (lib-utils)
+│   ├── ui/             # UI components (lib-ui) - Leptos components
+│   └── common/         # Common utilities (lib-common) - shared types, config
 ├── antarmuka/          # FRONTEND MICROFRONTENDS (Leptos WASM)
-│   ├── daskrimti/portal/  # Main portal
-│   ├── intel/          # Intel module
-│   ├── pidsus/         # Pidsus module
-│   └── .../            # Other microfrontends
+│   ├── daskrimti/      # Daskrimti domain
+│   │   └── portal/     # Main portal microfrontend
+│   ├── pembinaan/      # Pembinaan domain
+│   │   ├── keuangan/   # Keuangan microfrontend
+│   │   ├── perencanaan/  # Perencanaan microfrontend
+│   │   └── perlengkapan/ # Perlengkapan microfrontend
+│   ├── badiklat/       # Badiklat microfrontend
+│   ├── datun/          # Datun microfrontend
+│   ├── intel/          # Intel microfrontend
+│   ├── pemulihan_aset/ # Pemulihan Aset microfrontend
+│   ├── pengawasan/     # Pengawasan microfrontend
+│   ├── pidmil/         # Pidmil microfrontend
+│   ├── pidsus/         # Pidsus microfrontend
+│   └── pidum/          # Pidum microfrontend
 ├── layanan/            # BACKEND MICROSERVICES (Axum + Tonic)
-│   └── daskrimti/      # Main domain services
-│       ├── portal/     # Portal backend
-│       ├── intel/      # Intel backend
-│       └── .../        # Other services
-└── infra/              # INFRASTRUCTURE (SEPARATE WORKSPACES!)
-    ├── authenc/        # Identity Provider - own Cargo.lock
-    └── secreton/       # Secret Management - own Cargo.lock
+│   ├── daskrimti/      # Daskrimti domain services
+│   │   ├── portal/     # Portal backend API
+│   │   ├── integrasi/  # MonSAKTI/MySIMKARI/SIMAN integration
+│   │   ├── notifikasi/ # Notification service
+│   │   ├── ai/         # AI service
+│   │   ├── bantuan/    # Bantuan service
+│   │   └── dokumen/    # Document service
+│   ├── pembinaan/      # Pembinaan domain services
+│   │   ├── keuangan/   # Keuangan backend
+│   │   ├── perencanaan/  # Perencanaan backend
+│   │   └── perlengkapan/ # Perlengkapan backend
+│   └── [domain]/       # Other domain services (badiklat, intel, etc.)
+└── infra/              # INFRASTRUCTURE (Part of main workspace!)
+    ├── authenc/        # Identity Provider (OAuth2/OIDC, MFA, RBAC)
+    ├── secreton/       # Secrets Vault (Transit, PKI, HSM)
+    ├── k8s/            # Kubernetes manifests (Kustomize)
+    ├── monitoring/     # Prometheus, Grafana configs
+    └── nginx/          # Nginx configs
 ```
 
 ### Naming Conventions
@@ -172,9 +187,9 @@ flowchart LR
 | Type | Directory Location | Package Name Schema | Example |
 |------|-------------------|---------------------|---------|
 | **Microfrontend** | `antarmuka/[domain]/[name]/` | `[name]-microfrontend` | `portal-microfrontend` |
-| **Microservice** | `layanan/[domain]/[name]/` | `layanan-[name]` | `layanan-portal` |
-| **Shared Lib** | `lib/[name]/` | `lib-[name]` | `lib-ui` |
-| **Infra** | `infra/[name]/` | `[name]` | `authenc` |
+| **Microservice** | `layanan/[domain]/[name]/` | `layanan-[domain]-[name]` | `layanan-daskrimti-portal` |
+| **Shared Lib** | `lib/[name]/` | `lib-[name]` | `lib-ui`, `lib-common` |
+| **Infra Service** | `infra/[name]/` | `[name]` | `authenc`, `secreton` |
 
 ---
 
@@ -185,8 +200,9 @@ flowchart LR
 - **Root Cargo.toml is King**: ALL external dependencies MUST be defined in `[workspace.dependencies]`
 - **Inheritance**: Member crates MUST use `dependency_name = { workspace = true }`
 - **NEVER specify versions** in member `Cargo.toml` files
-- **Alias Note**: `shared-microfrontend = { package = "lib-ui", path = "lib/ui" }` — use `shared-microfrontend` in code
-- **Infra Independence**: `infra/authenc` and `infra/secreton` are SEPARATE workspaces
+- **lib-ui**: Use `lib-ui` directly (no alias), contains Leptos UI components
+- **lib-common**: Use `lib-common` for shared types, database config, utilities
+- **Unified Workspace**: `infra/authenc` and `infra/secreton` are PART of the main workspace
 
 ### 2. 🧹 Code Quality Commands
 
@@ -194,7 +210,9 @@ flowchart LR
 # Verification & Building
 cargo check --workspace          # Quick compilation check
 cargo build --workspace          # Full workspace build
-cargo build --bin layanan-NAME   # Build specific service
+cargo build --bin authenc        # Build Authenc specifically
+cargo build --bin secreton       # Build Secreton specifically
+cargo build --bin layanan-daskrimti-integrasi  # Build specific service
 
 # Code Quality
 cargo fmt --all                  # Format all code
@@ -210,10 +228,6 @@ cargo deny check                 # Check licenses and advisories
 # Frontend (Leptos WASM)
 cd antarmuka/daskrimti/portal && trunk serve --open    # Dev server
 cd antarmuka/daskrimti/portal && trunk build --release # Production build
-
-# Separate infrastructure (MUST build separately)
-cd infra/authenc && cargo build
-cd infra/secreton && cargo build
 ```
 
 ---
@@ -364,7 +378,7 @@ async fn protected_handler(
 
 ```rust
 use leptos::prelude::*;
-use shared_microfrontend::prelude::*;  // This is lib-ui
+use lib_ui::prelude::*;  // Shared UI components
 
 // ✅ Signal creation (NOT create_signal!)
 #[component]
@@ -493,7 +507,6 @@ sequenceDiagram
 ## ⚠️ Common Pitfalls
 
 ❌ **DON'T:**
-- Reference `infra/authenc` or `infra/secreton` from main workspace members
 - Call Authenc/Secreton directly from microfrontend (use layanan as proxy)
 - Use `create_signal` in Leptos 0.8.x (use `signal()`)
 - Store JWT tokens in cookies (use `localStorage`)
@@ -503,13 +516,13 @@ sequenceDiagram
 - Use environment variables for secrets (use Secreton via gRPC)
 
 ✅ **DO:**
-- Import from `shared-microfrontend` (alias for `lib-ui`) for UI components
+- Import from `lib_ui` for shared UI components
 - Use REST API from microfrontend → layanan
 - Use gRPC from layanan → authenc/secreton
 - Use `trunk build --release` for production WASM
 - Run `cargo fmt --all && cargo clippy --workspace` before commits
 - Use `ProtectedRoute` for all authenticated pages
-- Build authenc/secreton separately: `cd infra/authenc && cargo build`
+- Build with `cargo build --workspace` (authenc/secreton included)
 - Add new dependencies to root `Cargo.toml` workspace.dependencies first
 
 ---
@@ -525,3 +538,28 @@ sequenceDiagram
 | lib-ui components | `lib/ui/README.md`, `lib/ui/COMPONENT_REFERENCE.md` |
 | Contributing guide | `CONTRIBUTING.md` |
 | CI/CD workflows | `.github/workflows/` |
+
+---
+
+## 📖 Related AGENTS.md Files
+
+> **Cross-Reference**: Each major component has its own AGENTS.md with specialized instructions. Always check the relevant AGENTS.md before working on that component.
+
+| Component | AGENTS.md Location | Purpose |
+|-----------|-------------------|---------|
+| **Kubernetes Infrastructure** | [`infra/k8s/AGENTS.md`](infra/k8s/AGENTS.md) | Kustomize-based K8s deployment, overlays, MetalLB, Istio configuration |
+| **Authenc (Identity Provider)** | [`infra/authenc/AGENTS.md`](infra/authenc/AGENTS.md) | OAuth2/OIDC, MFA, RBAC/ABAC, SSO/Federation, Admin Console |
+| **Secreton (Secrets Vault)** | [`infra/secreton/AGENTS.md`](infra/secreton/AGENTS.md) | Secret storage, Transit engine, PKI, HSM integration, Raft HA |
+| **Layanan Integrasi** | [`layanan/daskrimti/integrasi/AGENTS.md`](layanan/daskrimti/integrasi/AGENTS.md) | MonSAKTI, MySIMKARI, SIMAN API integration |
+
+### Quick Navigation by Task
+
+| If you need to... | Check this AGENTS.md |
+|------------------|---------------------|
+| Deploy to Kubernetes | `infra/k8s/AGENTS.md` |
+| Configure MetalLB/Istio | `infra/k8s/AGENTS.md` |
+| Work on authentication/authorization | `infra/authenc/AGENTS.md` |
+| Manage secrets/encryption | `infra/secreton/AGENTS.md` |
+| Integrate with government APIs | `layanan/daskrimti/integrasi/AGENTS.md` |
+| Work on backend services | This file (root `AGENTS.md`) |
+| Work on frontend microfrontends | This file (root `AGENTS.md`) |

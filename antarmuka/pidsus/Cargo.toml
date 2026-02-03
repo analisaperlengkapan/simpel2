@@ -19,7 +19,7 @@ log = "0.4"
 gloo-net = { workspace = true, features = ["http"] }
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 name = "pidsus_microfrontend"
 
 [package.metadata.wasm-pack.profile.release]

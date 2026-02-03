@@ -152,12 +152,12 @@ mod security_integration_tests {
                 "average_dwell_time": 150,
                 "average_flight_time": 100,
                 "variance": 0.15
-            ,
+            },
             "mouse_dynamics": {
                 "average_velocity": 2.5,
                 "acceleration_patterns": [1.2, 1.8, 2.1],
                 "click_pressure": 0.8
-            ,
+            },
             "device_context": {
                 "screen_resolution": "1920x1080",
                 "timezone": "UTC",
@@ -203,7 +203,7 @@ mod security_integration_tests {
             Ok(segment) => {
                 assert!(!segment.is_empty(), "Network segment should not be empty");
                 println!("User assigned to network segment: {}", segment);
-            ,
+            },
             Err(_) => {
                 // Network segmentation may not be fully implemented
                 println!("Network segmentation not available in test environment");

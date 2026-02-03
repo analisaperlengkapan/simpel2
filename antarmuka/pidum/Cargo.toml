@@ -10,7 +10,7 @@ keywords = ["leptos", "wasm", "kejaksaan", "general-crimes", "prosecution"]
 categories = ["wasm", "web-programming"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 name = "pidum_microfrontend"
 
 # Modern Dependencies - Optimized for Performance & Security

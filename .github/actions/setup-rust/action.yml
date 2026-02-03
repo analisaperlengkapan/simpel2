@@ -70,23 +70,23 @@ runs:
         python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1],'r').extractall('protoc')" "$PROTOC_ZIP"
 
         # Install to local bin
-        mkdir -p $HOME/.local/bin
-        cp -f protoc/bin/protoc $HOME/.local/bin/
+        mkdir -p ${{ runner.temp }}/.local/bin
+        cp -f protoc/bin/protoc ${{ runner.temp }}/.local/bin/
 
         # Install include files (Critical for Google standard types like Timestamp)
-        mkdir -p $HOME/.local/include
-        cp -r protoc/include/* $HOME/.local/include/ || true
+        mkdir -p ${{ runner.temp }}/.local/include
+        cp -r protoc/include/* ${{ runner.temp }}/.local/include/ || true
 
         # Cleanup
         rm -rf protoc "$PROTOC_ZIP"
 
         # Set permissions and PATH
-        chmod +x $HOME/.local/bin/protoc
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        echo "PROTOC_INCLUDE=$HOME/.local/include" >> $GITHUB_ENV
+        chmod +x ${{ runner.temp }}/.local/bin/protoc
+        echo "${{ runner.temp }}/.local/bin" >> $GITHUB_PATH
+        echo "PROTOC_INCLUDE=${{ runner.temp }}/.local/include" >> $GITHUB_ENV
 
         # Verify installation
-        $HOME/.local/bin/protoc --version
+        ${{ runner.temp }}/.local/bin/protoc --version
 
     - name: Setup Rust cache
       uses: Swatinem/rust-cache@v2

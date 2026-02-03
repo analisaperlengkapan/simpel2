@@ -132,7 +132,7 @@ impl GrpcSecretonClient {
     /// Create a new gRPC Secreton client
     ///
     /// # Arguments
-    /// * `endpoint` - Secreton gRPC endpoint (e.g., "https://secreton.local:50051")
+    /// * `endpoint` - Secreton gRPC endpoint (e.g., "<https://secreton.local:50051>")
     /// * `token` - Authentication token
     pub async fn new(endpoint: String, token: String) -> Result<Self, SecretonError> {
         let channel = Channel::from_shared(endpoint.clone())

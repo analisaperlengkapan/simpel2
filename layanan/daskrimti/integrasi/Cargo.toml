@@ -9,13 +9,17 @@ repository = "https://github.com/kejaksaan/simpelv2"
 keywords = ["simpelv2", "integrasi", "api", "monsakti", "mysimkari"]
 categories = ["api-bindings", "web-programming::http-client"]
 
+[features]
+default = []
+grpc = ["dep:tonic", "dep:prost", "dep:tonic-prost"]
+
 [dependencies]
 reqwest = { version = "0.12", features = [
   "json",
   "native-tls",
   "cookies",
 ], default-features = false }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "signal"] }
 tokio-postgres = { version = "0.7", features = [
   "with-chrono-0_4",
   "with-serde_json-1",
@@ -33,12 +37,31 @@ csv = "1.3"
 uuid = { version = "1.11", features = ["v4", "serde"] }
 clap = { version = "4.5", features = ["derive"] }
 sha2 = "0.10"
+tokio-cron-scheduler = { workspace = true }
 futures = { workspace = true }
 bytes = "1.10"
 lib-common = { path = "../../../lib/common", features = ["telemetry", "db"] }
 
+# gRPC dependencies (optional, for server mode)
+tonic = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
+tonic-prost = { workspace = true, optional = true }
+
 [dev-dependencies]
 wiremock = "0.6"
+
+[build-dependencies]
+tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }
+
+[[bin]]
+name = "scheduler"
+path = "src/bin/scheduler.rs"
+
+[[bin]]
+name = "layanan-integrasi-grpc"
+path = "src/bin/grpc_server.rs"
+required-features = ["grpc"]
 
 [[example]]
 name = "fetch_to_database"

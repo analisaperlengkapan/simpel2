@@ -31,10 +31,6 @@ use pqcrypto_mlkem::mlkem768;
 use rand::RngCore;
 #[cfg(feature = "quantum")]
 use sha2::Sha256;
-#[cfg(feature = "quantum")]
-use subtle::ConstantTimeEq;
-#[cfg(feature = "quantum")]
-use zeroize::Zeroize;
 
 /// Result type for PQC operations
 pub type Result<T> = std::result::Result<T, PqcError>;

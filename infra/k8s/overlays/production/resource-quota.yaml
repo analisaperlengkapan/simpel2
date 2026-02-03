@@ -1,0 +1,44 @@
+# ResourceQuota for Production
+# Prevent resource exhaustion
+
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: production-quota
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    persistentvolumeclaims: "20"
+    pods: "100"
+    services: "30"
+    secrets: "50"
+    configmaps: "50"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: production-limits
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "256Mi"
+      max:
+        cpu: "4"
+        memory: "8Gi"
+      # Lower minimum to allow Istio init containers (10m CPU, 40Mi memory)
+      min:
+        cpu: "10m"
+        memory: "32Mi"
+    - type: PersistentVolumeClaim
+      max:
+        storage: 200Gi
+      min:
+        storage: 1Gi

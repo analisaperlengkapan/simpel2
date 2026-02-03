@@ -53,6 +53,27 @@ pub struct Config {
     /// Concurrency limit for SIMAN batch operations
     #[serde(default = "default_concurrency_limit")]
     pub siman_concurrency_limit: usize,
+
+    // === SCHEDULER Configuration ===
+    /// Enable/disable scheduler
+    #[serde(default = "default_scheduler_enabled")]
+    pub scheduler_enabled: bool,
+
+    /// MonSAKTI cron schedule (default: "0 2 * * *" - daily at 02:00)
+    #[serde(default = "default_monsakti_schedule")]
+    pub monsakti_schedule: String,
+
+    /// MySIMKARI cron schedule (default: "0 2 * * *" - daily at 02:00)
+    #[serde(default = "default_mysimkari_schedule")]
+    pub mysimkari_schedule: String,
+
+    /// SIMAN cron schedule (default: "0 3 * * 0" - Sunday at 03:00)
+    #[serde(default = "default_siman_schedule")]
+    pub siman_schedule: String,
+
+    /// Scheduler timezone (default: "Asia/Jakarta")
+    #[serde(default = "default_scheduler_timezone")]
+    pub scheduler_timezone: String,
 }
 
 // Allow accessing BaseServiceConfig fields directly
@@ -86,6 +107,26 @@ fn default_siman_base_url() -> String {
 
 fn default_concurrency_limit() -> usize {
     5
+}
+
+fn default_scheduler_enabled() -> bool {
+    true
+}
+
+fn default_monsakti_schedule() -> String {
+    "0 2 * * *".to_string() // Daily at 02:00
+}
+
+fn default_mysimkari_schedule() -> String {
+    "0 2 * * *".to_string() // Daily at 02:00
+}
+
+fn default_siman_schedule() -> String {
+    "0 3 * * 0".to_string() // Sunday at 03:00
+}
+
+fn default_scheduler_timezone() -> String {
+    "Asia/Jakarta".to_string()
 }
 
 impl Config {
@@ -145,6 +186,24 @@ impl Config {
             .and_then(|s| s.parse().ok())
             .unwrap_or_else(default_concurrency_limit);
 
+        // Scheduler configuration
+        let scheduler_enabled = std::env::var("SCHEDULER_ENABLED")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or_else(default_scheduler_enabled);
+
+        let monsakti_schedule = std::env::var("MONSAKTI_SCHEDULE")
+            .unwrap_or_else(|_| default_monsakti_schedule());
+
+        let mysimkari_schedule = std::env::var("MYSIMKARI_SCHEDULE")
+            .unwrap_or_else(|_| default_mysimkari_schedule());
+
+        let siman_schedule =
+            std::env::var("SIMAN_SCHEDULE").unwrap_or_else(|_| default_siman_schedule());
+
+        let scheduler_timezone = std::env::var("SCHEDULER_TIMEZONE")
+            .unwrap_or_else(|_| default_scheduler_timezone());
+
         Ok(Self {
             base,
             base_url,
@@ -158,6 +217,11 @@ impl Config {
             siman_ba_key,
             siman_base_url,
             siman_concurrency_limit,
+            scheduler_enabled,
+            monsakti_schedule,
+            mysimkari_schedule,
+            siman_schedule,
+            scheduler_timezone,
         })
     }
 }

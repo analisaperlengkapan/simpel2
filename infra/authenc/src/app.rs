@@ -359,10 +359,14 @@ impl AppState {
         // Start the retention cleanup task if enabled
         event_retention_service.clone().start_cleanup_task();
 
+        tracing::info!("🔧 Starting SPI manager initialization...");
+
         // Initialize SPI manager with default providers
         let mut spi_manager = crate::spi::SpiManager::new();
+        tracing::info!("🔧 SPI manager created");
 
         // Register SPIs
+        tracing::info!("🔧 Registering SPIs...");
         spi_manager.register_spi(Box::new(crate::spi::admin_console::AdminConsoleSpi));
         spi_manager.register_spi(Box::new(crate::spi::credential::CredentialSpi));
         spi_manager.register_spi(Box::new(crate::spi::theme::ThemeSpi));
@@ -383,8 +387,10 @@ impl AppState {
         ));
         spi_manager.register_spi(Box::new(crate::spi::migration::MigrationSpi));
         spi_manager.register_spi(Box::new(crate::spi::hostname::HostnameSpi));
+        tracing::info!("🔧 All SPIs registered");
 
         // Register default providers
+        tracing::info!("🔧 Registering default providers...");
         spi_manager.registry_mut().register_factory(
             "admin-console",
             crate::spi::admin_console::DefaultAdminConsoleProviderFactory::new(),
@@ -471,8 +477,10 @@ impl AppState {
             crate::spi::hostname::DefaultHostnameProviderFactory::new(),
         );
         let spi_manager = Arc::new(spi_manager);
+        tracing::info!("🔧 All provider factories registered");
 
         // Initialize cluster manager if clustering is enabled
+        tracing::info!("🔧 Initializing cluster manager...");
         let cluster_manager = if config.clustering.enabled {
             let node_id = config
                 .clustering
@@ -488,8 +496,10 @@ impl AppState {
         } else {
             None
         };
+        tracing::info!("🔧 Cluster manager initialized");
 
         // Initialize observability service
+        tracing::info!("🔧 Initializing observability service...");
         let mut observability_service =
             crate::services::observability::ObservabilityService::default();
 
@@ -504,19 +514,24 @@ impl AppState {
         ));
 
         let observability_service = Arc::new(observability_service);
+        tracing::info!("🔧 Observability service initialized");
 
         // Initialize Secreton client for MFA secret management
+        tracing::info!("🔧 Initializing Secreton client...");
         let secreton_endpoint = std::env::var("SECRETON_ENDPOINT")
             .unwrap_or_else(|_| "http://localhost:8200".to_string());
         let secreton_token =
             std::env::var("SECRETON_TOKEN").unwrap_or_else(|_| "dev-token".to_string());
+        tracing::info!("🔧 Secreton endpoint: {}", secreton_endpoint);
 
         let secreton_client = Arc::new(crate::vault::secreton_client::SecretonClient::new(
             secreton_endpoint,
             secreton_token,
         ));
+        tracing::info!("🔧 Secreton client created");
 
         // Initialize JWT Key Manager
+        tracing::info!("🔧 Initializing JWT Key Manager...");
         let jwt_key_manager = Arc::new(crate::utils::jwt_key_manager::JwtKeyManager::new(
             secreton_client.clone(),
             config
@@ -526,16 +541,21 @@ impl AppState {
                 .unwrap_or_else(|| "auth/jwt-signing-key".to_string()),
             None,
         ));
+        tracing::info!("🔧 JWT Key Manager created");
 
         // Ensure key exists
+        tracing::info!("🔧 Initializing JWT key in Secreton...");
         if let Err(e) = jwt_key_manager.initialize_key_if_missing().await {
             tracing::warn!("Failed to initialize JWT key in Secreton: {}", e);
         }
+        tracing::info!("🔧 JWT key initialization complete");
 
         // Get database pool for direct access
         let db_pool = database.get_pool();
+        tracing::info!("🔧 Database pool retrieved");
 
         // Initialize Redis cache if configured
+        tracing::info!("🔧 Initializing Redis cache...");
         let (redis_cache, mfa_cache) = if let Some(redis_config) = &config.redis {
             if redis_config.enabled {
                 match crate::services::cache::RedisCache::new(redis_config).await {

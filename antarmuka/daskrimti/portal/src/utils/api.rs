@@ -15,71 +15,109 @@ pub struct SystemMetrics {
     pub vault: VaultMetrics,
 }
 
+/// Memory usage statistics
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MemoryMetrics {
+    /// Total memory in bytes
     pub total: u64,
+    /// Used memory in bytes
     pub used: u64,
+    /// Free memory in bytes
     pub free: u64,
+    /// Cached memory in bytes
     pub cached: u64,
 }
 
+/// CPU usage statistics
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CpuMetrics {
+    /// Number of CPU cores
     pub cores: u32,
+    /// CPU usage percentage (0-100)
     pub usage_percent: f64,
+    /// Load average (1, 5, 15 minutes)
     pub load_average: [f64; 3],
 }
 
+/// Disk usage statistics
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DiskMetrics {
+    /// Total disk space in bytes
     pub total: u64,
+    /// Used disk space in bytes
     pub used: u64,
+    /// Free disk space in bytes
     pub free: u64,
+    /// Disk usage percentage (0-100)
     pub usage_percent: f64,
 }
 
+/// Network usage statistics
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NetworkMetrics {
+    /// Bytes sent
     pub bytes_sent: u64,
+    /// Bytes received
     pub bytes_received: u64,
+    /// Packets sent
     pub packets_sent: u64,
+    /// Packets received
     pub packets_received: u64,
 }
 
+/// Vault/Secreton specific metrics
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct VaultMetrics {
+    /// Total number of stored secrets
     pub total_secrets: u64,
+    /// Total number of cryptographic keys
     pub total_keys: u64,
+    /// Total number of active policies
     pub total_policies: u64,
+    /// Number of currently active sessions
     pub active_sessions: u64,
+    /// Operations per second (throughput)
     pub operations_per_second: f64,
 }
 
 /// Secret list item
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SecretListItem {
+    /// Path to the secret
     pub path: String,
+    /// Metadata associated with the secret
     pub metadata: SecretMetadata,
+    /// Version number of the secret
     pub version: u32,
+    /// Creation timestamp (ISO 8601 string)
     pub created_at: String, // ISO string
+    /// Last update timestamp (ISO 8601 string)
     pub updated_at: String, // ISO string
 }
 
 /// Secret metadata
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SecretMetadata {
+    /// Description of the secret
     pub description: Option<String>,
+    /// Tags for categorization
     pub tags: Vec<String>,
+    /// Owner of the secret
     pub owner: Option<String>,
+    /// Security classification level
     pub classification: Option<String>,
 }
 
 /// Secret response
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SecretResponse {
+    /// Path to the secret
     pub path: String,
+    /// Key-value data of the secret
     pub data: HashMap<String, String>,
+    /// Metadata associated with the secret
     pub metadata: SecretMetadata,
+    /// Version number of the secret
     pub version: u32,
 }
 

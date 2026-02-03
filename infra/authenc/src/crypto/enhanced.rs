@@ -14,7 +14,7 @@ use crate::crypto::{
 };
 
 #[cfg(feature = "quantum")]
-use crate::crypto::pqc::{PqcError, hybrid, mldsa, mlkem};
+use crate::crypto::pqc::{hybrid, mldsa};
 use crate::error::{AuthencError, Result};
 use crate::models::user::UserClaims;
 use crate::utils::crypto_monitor::CryptoMonitor;
@@ -747,15 +747,19 @@ impl EnhancedCryptoEngine {
     ) -> Result<bool> {
         #[cfg(feature = "quantum")]
         {
-            if let Some(ref pq_sig_b64) = signature.pq_signature {
+            if let Some(ref _pq_sig_b64) = signature.pq_signature {
                 // Verify both signatures
                 let classical_valid = self
                     .verify_classical_audit_signature(data, signature)
                     .await?;
 
-                // For now, we can't verify ML-DSA without the public key
+                // Fail closed if we cannot verify the PQ signature component
                 // In a real implementation, the public key would be stored/retrieved
-                let pq_valid = true; // Placeholder - would verify ML-DSA signature
+                // For now, fail to prevent security bypass
+                let pq_valid = false; // Fail closed until ML-DSA key management is implemented
+                warn!(
+                    "ML-DSA signature verification required but not implemented - failing closed"
+                );
 
                 Ok(classical_valid && pq_valid)
             } else {
@@ -771,19 +775,20 @@ impl EnhancedCryptoEngine {
 
     async fn verify_pq_audit_signature(
         &self,
-        data: &[u8],
-        signature: &AuditSignature,
+        _data: &[u8],
+        _signature: &AuditSignature,
     ) -> Result<bool> {
         #[cfg(feature = "quantum")]
         {
-            // For now, we can't verify ML-DSA without the public key
-            // In a real implementation, the public key would be stored/retrieved
-            Ok(true) // Placeholder - would verify ML-DSA signature
+            // Fail closed if we cannot verify the PQ signature
+            warn!("ML-DSA signature verification required but not implemented - failing closed");
+            Ok(false) // Fail closed until ML-DSA key management is implemented
         }
         #[cfg(not(feature = "quantum"))]
         {
             // Fallback to classical verification
-            self.verify_classical_audit_signature(data, signature).await
+            self.verify_classical_audit_signature(_data, _signature)
+                .await
         }
     }
 

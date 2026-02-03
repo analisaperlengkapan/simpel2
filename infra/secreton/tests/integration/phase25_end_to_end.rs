@@ -29,7 +29,7 @@ async fn test_complete_key_lifecycle_with_audit() {
             key_type: KeyType::AES256,
             purpose: KeyPurpose::Encryption,
             owner: "user@example.com".to_string(),
-        ,
+        },
         metadata: HashMap::from([
             ("environment".to_string(), "production".to_string()),
             ("compliance".to_string(), "pci-dss".to_string()),
@@ -46,7 +46,7 @@ async fn test_complete_key_lifecycle_with_audit() {
     // Rotate the key
     let rotate_req = KeyOperationRequest {
         token: token.clone(),
-        operation: KeyOperation::Rotate { key_id: key_id.clone() ,
+        operation: KeyOperation::Rotate { key_id: key_id.clone() },
         metadata: HashMap::new(),
     };
 
@@ -66,7 +66,7 @@ async fn test_complete_key_lifecycle_with_audit() {
                 "admin4@example.com".to_string(),
                 "admin5@example.com".to_string(),
             ],
-        ,
+        },
         metadata: HashMap::new(),
     };
 

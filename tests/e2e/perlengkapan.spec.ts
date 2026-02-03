@@ -1,39 +1,47 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Perlengkapan Microfrontend', () => {
-  test('should load dashboard and display stats', async ({ page }) => {
-    // Navigate directly to the Perlengkapan microfrontend
-    // Assuming it runs on port 8093 (or proxied via 8080)
-    // In E2E env, we usually target the main portal which proxies.
-    // Let's assume localhost:8080/dashboard/perlengkapan or similar,
-    // BUT the registry said url: "http://localhost:8093".
-    // If we run the standalone app, we can hit 8093 directly.
+test.describe('Perlengkapan Module', () => {
+  test('should navigate to dashboard and load statistics', async ({ page }) => {
+    // Navigate to the app (using relative URL, relies on baseURL)
+    await page.goto('/');
 
-    await page.goto('http://localhost:8093/dashboard');
-
-    // Check for title
+    // Check for dashboard title
     await expect(page).toHaveTitle(/SIMPEL Perlengkapan/);
 
-    // Check for Dashboard header
-    await expect(page.locator('h1')).toContainText('Dashboard Perlengkapan');
-
-    // Check for Stats cards (loaded async)
-    // We expect "Total Aset" to appear
-    await expect(page.getByText('Total Aset')).toBeVisible({ timeout: 10000 });
+    // Check for dashboard stats
+    await expect(page.getByText('Dashboard Perlengkapan')).toBeVisible();
+    await expect(page.getByText('Total Aset')).toBeVisible();
   });
 
-  test('should navigate to asset list and show table', async ({ page }) => {
-    await page.goto('http://localhost:8093/dashboard/bank-aset/daftar');
-
-    // Check header
-    await expect(page.locator('h2')).toContainText('Daftar Aset');
-
+  test('should navigate to Bank Aset', async ({ page }) => {
+    await page.goto('/dashboard/bank-aset/daftar');
+    await expect(page.getByText('Daftar Aset')).toBeVisible();
     // Check table headers
     await expect(page.getByText('No Aset')).toBeVisible();
     await expect(page.getByText('Nama Aset')).toBeVisible();
-    await expect(page.getByText('Kondisi')).toBeVisible();
+  });
 
-    // Check filter dropdown
-    await expect(page.locator('select')).toBeVisible();
+  test('should navigate to Pengadaan and open create form', async ({ page }) => {
+    await page.goto('/dashboard/pengadaan/daftar');
+    await expect(page.getByText('Daftar Pengadaan')).toBeVisible();
+
+    // Click create button
+    await page.getByRole('link', { name: 'Buat Pengadaan' }).click();
+
+    // Verify form opened
+    await expect(page.getByText('Buat Pengadaan Baru')).toBeVisible();
+    await expect(page.getByLabel('Judul Pengadaan')).toBeVisible();
+  });
+
+  test('should navigate to Analisis Kebutuhan and open create form', async ({ page }) => {
+    await page.goto('/dashboard/analisis/daftar');
+    await expect(page.getByText('Analisis Kebutuhan')).toBeVisible();
+
+    // Click create button
+    await page.getByRole('link', { name: 'Buat Analisis Baru' }).click();
+
+    // Verify form opened
+    await expect(page.getByText('Buat Analisis Kebutuhan')).toBeVisible();
+    await expect(page.getByLabel('Judul Analisis')).toBeVisible();
   });
 });

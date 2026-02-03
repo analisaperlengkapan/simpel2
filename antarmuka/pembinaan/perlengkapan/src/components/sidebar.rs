@@ -12,6 +12,7 @@ pub fn Sidebar(
     let analisis_rw = RwSignal::new(false);
     let pengadaan_rw = RwSignal::new(false);
     let pengelolaan_bmn_rw = RwSignal::new(false);
+    let pakaian_dinas_rw = RwSignal::new(false);
     let pengguna_rw = RwSignal::new(false);
     let bantuan_rw = RwSignal::new(false);
 
@@ -93,6 +94,18 @@ pub fn Sidebar(
                         MenuItem::new("/dashboard/bmn/pengamanan", "Pengamanan"),
                         MenuItem::new("/dashboard/bmn/distribusi", "Distribusi"),
                         MenuItem::new("/dashboard/bmn/pengembalian", "Pengembalian")
+                    ]
+                />
+
+                <SidebarSection
+                    title="Pakaian Dinas".to_string()
+                    icon="👔".to_string()
+                    is_expanded=pakaian_dinas_rw
+                    items=vec![
+                        MenuItem::new("/dashboard/pakaian-dinas/jenis", "Jenis Pakaian"),
+                        MenuItem::new("/dashboard/pakaian-dinas/pengajuan", "Pengajuan"),
+                        MenuItem::new("/dashboard/pakaian-dinas/ukuran-saya", "Ukuran Saya"),
+                        MenuItem::new("/dashboard/pakaian-dinas/laporan", "Laporan"),
                     ]
                 />
 

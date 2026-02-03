@@ -1,0 +1,483 @@
+syntax = "proto3";
+
+package integrasi.v1;
+
+option java_multiple_files = true;
+option java_package = "id.go.kejaksaan.simpelv2.integrasi.v1";
+
+// ===========================================================================
+// SIMPelv2 Integrasi Service
+// ===========================================================================
+// Provides gRPC API for external data integration:
+// - MonSAKTI (Kementerian Keuangan - 8 modules)
+// - MySIMKARI (Kejaksaan RI - HR/Employee data)
+// - SIMAN v2.0 (Kementerian Keuangan - Asset management)
+// ===========================================================================
+
+// Main integration service for data access
+service IntegrasiService {
+  // =========================================================================
+  // Health & Status
+  // =========================================================================
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc GetSyncStatus(GetSyncStatusRequest) returns (GetSyncStatusResponse);
+
+  // =========================================================================
+  // MonSAKTI Data Access
+  // =========================================================================
+  // Reference data (admin references, banks, etc.)
+  rpc GetMonsaktiReferences(GetMonsaktiReferencesRequest) returns (GetMonsaktiReferencesResponse);
+
+  // Get persediaan (inventory) data
+  rpc GetMonsaktiPersediaan(GetMonsaktiPersediaanRequest) returns (GetMonsaktiPersediaanResponse);
+
+  // Get aset tetap (fixed assets) data
+  rpc GetMonsaktiAsetTetap(GetMonsaktiAsetTetapRequest) returns (GetMonsaktiAsetTetapResponse);
+
+  // Get transaksi (transactions) data
+  rpc GetMonsaktiTransaksi(GetMonsaktiTransaksiRequest) returns (GetMonsaktiTransaksiResponse);
+
+  // Get kontrak pengadaan (procurement contracts)
+  rpc GetMonsaktiKontrakPengadaan(GetMonsaktiKontrakPengadaanRequest) returns (GetMonsaktiKontrakPengadaanResponse);
+
+  // Get data supplier
+  rpc GetMonsaktiSupplier(GetMonsaktiSupplierRequest) returns (GetMonsaktiSupplierResponse);
+
+  // Get realisasi belanja (expenditure realization)
+  rpc GetMonsaktiRealisasiBelanja(GetMonsaktiRealisasiBelanjaRequest) returns (GetMonsaktiRealisasiBelanjaResponse);
+
+  // Get saldo anggaran (budget balance)
+  rpc GetMonsaktiSaldoAnggaran(GetMonsaktiSaldoAnggaranRequest) returns (GetMonsaktiSaldoAnggaranResponse);
+
+  // =========================================================================
+  // MySIMKARI Data Access
+  // =========================================================================
+  // Get satker (work units) from MySIMKARI
+  rpc GetMysimkariSatker(GetMysimkariSatkerRequest) returns (GetMysimkariSatkerResponse);
+
+  // Get pegawai (employees) from MySIMKARI
+  rpc GetMysimkariPegawai(GetMysimkariPegawaiRequest) returns (GetMysimkariPegawaiResponse);
+
+  // =========================================================================
+  // SIMAN v2.0 Data Access (Asset Management)
+  // =========================================================================
+  // Get tanah (land) assets
+  rpc GetSimanTanah(GetSimanAssetRequest) returns (GetSimanAssetResponse);
+
+  // Get gedung bangunan (buildings) assets
+  rpc GetSimanGedungBangunan(GetSimanAssetRequest) returns (GetSimanAssetResponse);
+
+  // Get alat besar (heavy equipment) assets
+  rpc GetSimanAlatBesar(GetSimanAssetRequest) returns (GetSimanAssetResponse);
+
+  // Get angkutan bermotor (vehicles) assets
+  rpc GetSimanAngkutanBermotor(GetSimanAssetRequest) returns (GetSimanAssetResponse);
+
+  // Get all SIMAN assets with category filter
+  rpc GetSimanAssets(GetSimanAssetsRequest) returns (GetSimanAssetsResponse);
+
+  // =========================================================================
+  // Sync Trigger (Admin Operations)
+  // =========================================================================
+  // Trigger immediate sync for specific source
+  rpc TriggerSync(TriggerSyncRequest) returns (TriggerSyncResponse);
+
+  // Get last sync timestamp for all sources
+  rpc GetLastSyncTimestamps(GetLastSyncTimestampsRequest) returns (GetLastSyncTimestampsResponse);
+}
+
+// ===========================================================================
+// Common Messages
+// ===========================================================================
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string version = 2;
+  string database_status = 3;
+  map<string, string> service_status = 4;
+}
+
+message Pagination {
+  int32 page = 1;
+  int32 per_page = 2;
+  string sort_by = 3;
+  bool ascending = 4;
+}
+
+message PaginationInfo {
+  int32 current_page = 1;
+  int32 per_page = 2;
+  int64 total_items = 3;
+  int32 total_pages = 4;
+}
+
+// ===========================================================================
+// Sync Status Messages
+// ===========================================================================
+
+enum DataSource {
+  DATA_SOURCE_UNSPECIFIED = 0;
+  DATA_SOURCE_MONSAKTI = 1;
+  DATA_SOURCE_MYSIMKARI = 2;
+  DATA_SOURCE_SIMAN = 3;
+}
+
+message GetSyncStatusRequest {
+  DataSource source = 1;
+}
+
+message GetSyncStatusResponse {
+  DataSource source = 1;
+  string last_sync_at = 2;  // ISO 8601 timestamp
+  string next_sync_at = 3;  // ISO 8601 timestamp (estimated)
+  SyncState state = 4;
+  int64 records_synced = 5;
+  string error_message = 6;
+}
+
+enum SyncState {
+  SYNC_STATE_UNSPECIFIED = 0;
+  SYNC_STATE_IDLE = 1;
+  SYNC_STATE_RUNNING = 2;
+  SYNC_STATE_COMPLETED = 3;
+  SYNC_STATE_FAILED = 4;
+}
+
+// ===========================================================================
+// MonSAKTI Messages
+// ===========================================================================
+
+message GetMonsaktiReferencesRequest {
+  string kode_kl = 1;  // Kode Kementerian/Lembaga (default: 006)
+  repeated string reference_types = 2;  // adm_ref_admin, adm_ref_bank, etc.
+}
+
+message GetMonsaktiReferencesResponse {
+  repeated MonsaktiReference references = 1;
+  int64 total_count = 2;
+}
+
+message MonsaktiReference {
+  string reference_type = 1;
+  string code = 2;
+  string name = 3;
+  string description = 4;
+  map<string, string> extra_fields = 5;
+}
+
+message GetMonsaktiPersediaanRequest {
+  string kode_kl = 1;
+  string kode_satker = 2;
+  Pagination pagination = 3;
+}
+
+message GetMonsaktiPersediaanResponse {
+  repeated MonsaktiPersediaan items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message MonsaktiPersediaan {
+  string id = 1;
+  string kode_satker = 2;
+  string kode_barang = 3;
+  string nama_barang = 4;
+  string satuan = 5;
+  double jumlah = 6;
+  double harga_satuan = 7;
+  double total_nilai = 8;
+  string tahun_anggaran = 9;
+  map<string, string> extra_fields = 10;
+}
+
+message GetMonsaktiAsetTetapRequest {
+  string kode_kl = 1;
+  string kode_satker = 2;
+  Pagination pagination = 3;
+}
+
+message GetMonsaktiAsetTetapResponse {
+  repeated MonsaktiAsetTetap items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message MonsaktiAsetTetap {
+  string id = 1;
+  string kode_satker = 2;
+  string nup = 3;
+  string kode_barang = 4;
+  string nama_barang = 5;
+  string merk_type = 6;
+  double nilai_perolehan = 7;
+  double nilai_penyusutan = 8;
+  double nilai_buku = 9;
+  string kondisi = 10;
+  string tahun_perolehan = 11;
+  map<string, string> extra_fields = 12;
+}
+
+message GetMonsaktiTransaksiRequest {
+  string kode_kl = 1;
+  string kode_satker = 2;
+  string start_date = 3;  // ISO 8601
+  string end_date = 4;    // ISO 8601
+  Pagination pagination = 5;
+}
+
+message GetMonsaktiTransaksiResponse {
+  repeated MonsaktiTransaksi items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message MonsaktiTransaksi {
+  string id = 1;
+  string kode_satker = 2;
+  string no_dokumen = 3;
+  string tanggal_dokumen = 4;
+  string jenis_transaksi = 5;
+  double nilai = 6;
+  string keterangan = 7;
+  map<string, string> extra_fields = 8;
+}
+
+message GetMonsaktiKontrakPengadaanRequest {
+  string kode_kl = 1;
+  string kode_satker = 2;
+  Pagination pagination = 3;
+}
+
+message GetMonsaktiKontrakPengadaanResponse {
+  repeated MonsaktiKontrakPengadaan items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message MonsaktiKontrakPengadaan {
+  string id = 1;
+  string kode_satker = 2;
+  string no_kontrak = 3;
+  string tanggal_kontrak = 4;
+  string nama_penyedia = 5;
+  string jenis_pengadaan = 6;
+  double nilai_kontrak = 7;
+  string status = 8;
+  map<string, string> extra_fields = 9;
+}
+
+message GetMonsaktiSupplierRequest {
+  string kode_kl = 1;
+  string kode_satker = 2;
+  string nama_filter = 3;
+  Pagination pagination = 4;
+}
+
+message GetMonsaktiSupplierResponse {
+  repeated MonsaktiSupplier items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message MonsaktiSupplier {
+  string id = 1;
+  string npwp = 2;
+  string nama = 3;
+  string alamat = 4;
+  string telepon = 5;
+  string email = 6;
+  string status = 7;
+  map<string, string> extra_fields = 8;
+}
+
+message GetMonsaktiRealisasiBelanjaRequest {
+  string kode_kl = 1;
+  string kode_satker = 2;
+  string tahun_anggaran = 3;
+  Pagination pagination = 4;
+}
+
+message GetMonsaktiRealisasiBelanjaResponse {
+  repeated MonsaktiRealisasiBelanja items = 1;
+  PaginationInfo pagination = 2;
+  double total_pagu = 3;
+  double total_realisasi = 4;
+  double persentase_realisasi = 5;
+}
+
+message MonsaktiRealisasiBelanja {
+  string id = 1;
+  string kode_satker = 2;
+  string kode_akun = 3;
+  string nama_akun = 4;
+  double pagu = 5;
+  double realisasi = 6;
+  double sisa = 7;
+  double persentase = 8;
+  map<string, string> extra_fields = 9;
+}
+
+message GetMonsaktiSaldoAnggaranRequest {
+  string kode_kl = 1;
+  string kode_satker = 2;
+  string tahun_anggaran = 3;
+}
+
+message GetMonsaktiSaldoAnggaranResponse {
+  repeated MonsaktiSaldoAnggaran items = 1;
+  SaldoAnggaranSummary summary = 2;
+}
+
+message MonsaktiSaldoAnggaran {
+  string kode_akun = 1;
+  string nama_akun = 2;
+  double pagu_awal = 3;
+  double revisi = 4;
+  double pagu_akhir = 5;
+  double realisasi = 6;
+  double sisa = 7;
+  map<string, string> extra_fields = 8;
+}
+
+message SaldoAnggaranSummary {
+  double total_pagu = 1;
+  double total_realisasi = 2;
+  double total_sisa = 3;
+  double persentase_realisasi = 4;
+}
+
+// ===========================================================================
+// MySIMKARI Messages
+// ===========================================================================
+
+message GetMysimkariSatkerRequest {
+  string kode_satker = 1;  // optional filter
+  Pagination pagination = 2;
+}
+
+message GetMysimkariSatkerResponse {
+  repeated MysimkariSatker items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message MysimkariSatker {
+  string kode_satker = 1;
+  string nama_satker = 2;
+  string alamat = 3;
+  string telepon = 4;
+  string email = 5;
+  string kode_wilayah = 6;
+  string nama_wilayah = 7;
+  int32 jumlah_pegawai = 8;
+  map<string, string> extra_fields = 9;
+}
+
+message GetMysimkariPegawaiRequest {
+  string kode_satker = 1;  // required
+  string nama_filter = 2;  // optional search
+  string nip_filter = 3;   // optional search
+  Pagination pagination = 4;
+}
+
+message GetMysimkariPegawaiResponse {
+  repeated MysimkariPegawai items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message MysimkariPegawai {
+  string nip = 1;
+  string nama = 2;
+  string jabatan = 3;
+  string pangkat = 4;
+  string golongan = 5;
+  string unit_kerja = 6;
+  string kode_satker = 7;
+  string email = 8;
+  string telepon = 9;
+  string status = 10;
+  map<string, string> extra_fields = 11;
+}
+
+// ===========================================================================
+// SIMAN Messages
+// ===========================================================================
+
+enum SimanAssetCategory {
+  SIMAN_ASSET_CATEGORY_UNSPECIFIED = 0;
+  SIMAN_ASSET_CATEGORY_TANAH = 1;
+  SIMAN_ASSET_CATEGORY_GEDUNG_BANGUNAN = 2;
+  SIMAN_ASSET_CATEGORY_ALAT_BESAR = 3;
+  SIMAN_ASSET_CATEGORY_ANGKUTAN_BERMOTOR = 4;
+  SIMAN_ASSET_CATEGORY_ALAT_PERSENJATAAN = 5;
+  SIMAN_ASSET_CATEGORY_TAK_BERWUJUD = 6;
+  SIMAN_ASSET_CATEGORY_TETAP_LAINNYA = 7;
+  SIMAN_ASSET_CATEGORY_BANGUNAN_AIR = 8;
+  SIMAN_ASSET_CATEGORY_INSTALASI_JARINGAN = 9;
+  SIMAN_ASSET_CATEGORY_JALAN_JEMBATAN = 10;
+  SIMAN_ASSET_CATEGORY_KDP = 11;
+  SIMAN_ASSET_CATEGORY_KHUSUS_TIK = 12;
+  SIMAN_ASSET_CATEGORY_NON_TIK = 13;
+  SIMAN_ASSET_CATEGORY_RUMAH = 14;
+  SIMAN_ASSET_CATEGORY_TETAP_RENOVASI = 15;
+}
+
+message GetSimanAssetRequest {
+  string kode_satker = 1;  // optional filter
+  Pagination pagination = 2;
+}
+
+message GetSimanAssetResponse {
+  repeated SimanAsset items = 1;
+  PaginationInfo pagination = 2;
+}
+
+message GetSimanAssetsRequest {
+  SimanAssetCategory category = 1;
+  string kode_satker = 2;
+  Pagination pagination = 3;
+}
+
+message GetSimanAssetsResponse {
+  SimanAssetCategory category = 1;
+  repeated SimanAsset items = 2;
+  PaginationInfo pagination = 3;
+}
+
+message SimanAsset {
+  string id = 1;
+  string nup = 2;
+  string kode_barang = 3;
+  string nama_barang = 4;
+  string kode_satker = 5;
+  string nama_satker = 6;
+  SimanAssetCategory category = 7;
+  double nilai_perolehan = 8;
+  double nilai_buku = 9;
+  string kondisi = 10;
+  string tahun_perolehan = 11;
+  string lokasi = 12;
+  string status_penggunaan = 13;
+  map<string, string> extra_fields = 14;
+}
+
+// ===========================================================================
+// Sync Trigger Messages
+// ===========================================================================
+
+message TriggerSyncRequest {
+  DataSource source = 1;
+  string kode_kl = 2;          // optional, default: 006
+  string kode_satker = 3;      // optional, specific satker only
+  bool force_full_sync = 4;    // force full sync instead of incremental
+}
+
+message TriggerSyncResponse {
+  bool accepted = 1;
+  string job_id = 2;           // tracking ID for the sync job
+  string message = 3;
+  string estimated_completion = 4;  // ISO 8601 timestamp
+}
+
+message GetLastSyncTimestampsRequest {}
+
+message GetLastSyncTimestampsResponse {
+  map<string, string> timestamps = 1;  // source -> ISO 8601 timestamp
+  map<string, int64> record_counts = 2;  // source -> record count
+}

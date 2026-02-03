@@ -902,7 +902,7 @@ impl CertificateValidator {
     }
 }
 
-/// Parse ASN.1 time string to DateTime<Utc>
+/// Parse ASN.1 time string to `DateTime<Utc>`
 fn parse_asn1_time(time_str: &str) -> Result<DateTime<Utc>> {
     // ASN.1 time format: "MMM DD HH:MM:SS YYYY GMT"
     // Example: "Oct  2 12:00:00 2025 GMT"

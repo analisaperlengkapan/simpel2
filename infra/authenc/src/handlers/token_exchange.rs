@@ -171,7 +171,7 @@ pub async fn token_exchange_endpoint(
 /// Extract client credentials from Authorization header
 /// Supports:
 /// - HTTP Basic Auth: Authorization: Basic base64(client_id:client_secret)
-/// - Bearer token: Authorization: Bearer <token> (for service accounts)
+/// - Bearer token: Authorization: Bearer `token` (for service accounts)
 async fn extract_client_credentials(
     headers: &HeaderMap,
     database: &crate::database::Database,

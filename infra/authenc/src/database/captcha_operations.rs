@@ -13,6 +13,7 @@ use crate::services::captcha::{
 use serde_json;
 use std::net::IpAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
+use time::OffsetDateTime;
 use tokio_postgres::Row;
 use uuid::Uuid;
 
@@ -40,10 +41,18 @@ impl CaptchaOperations {
             ChallengeType::Hybrid => "Hybrid",
         };
 
+        // Parse UUID from string ID
+        let challenge_uuid = Uuid::parse_str(&challenge.id)
+            .map_err(|_| AuthencError::validation("Invalid challenge ID format"))?;
+
+        // Parse IP address
         let ip_addr: IpAddr = challenge
             .ip_address
             .parse()
             .map_err(|_| AuthencError::validation("Invalid IP address format"))?;
+
+        // Difficulty as i16 for PostgreSQL
+        let difficulty: i16 = challenge.difficulty_level as i16;
 
         let query = r#"
             INSERT INTO captcha_challenges (
@@ -52,14 +61,21 @@ impl CaptchaOperations {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
+        tracing::info!(
+            "Storing challenge: id={}, type={}, difficulty={}, ip={}",
+            challenge_uuid,
+            challenge_type_str,
+            difficulty,
+            ip_addr
+        );
+
         self.db
             .execute(
                 query,
                 &[
-                    &Uuid::parse_str(&challenge.id)
-                        .map_err(|_| AuthencError::validation("Invalid challenge ID"))?,
+                    &challenge_uuid,
                     &challenge_type_str,
-                    &(challenge.difficulty_level as i16),
+                    &difficulty,
                     &challenge.encrypted_data,
                     &challenge.expected_answer_hash,
                     &created_at,
@@ -152,11 +168,14 @@ impl CaptchaOperations {
             BehaviorClassification::Unknown => "Unknown",
         };
 
+        // Convert f64 to String for NUMERIC column
+        let risk_score_str = metrics.risk_score.to_string();
+
         let query = r#"
             INSERT INTO captcha_behavioral_metrics (
                 id, challenge_id, session_id, mouse_movements, keystroke_dynamics,
                 timing_patterns, browser_fingerprint, risk_score, classification
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::numeric, $9)
         "#;
 
         self.db
@@ -170,7 +189,7 @@ impl CaptchaOperations {
                     &keystroke_dynamics_json,
                     &timing_patterns_json,
                     &browser_fingerprint_json,
-                    &(metrics.risk_score as f64),
+                    &risk_score_str,
                     &classification_str,
                 ],
             )
@@ -207,11 +226,14 @@ impl CaptchaOperations {
             RiskLevel::Critical => "Critical",
         };
 
+        // Convert f64 to Option<String> for NUMERIC column
+        let confidence_score_str = confidence_score.map(|v| v.to_string());
+
         let query = r#"
             INSERT INTO captcha_validation_attempts (
                 id, challenge_id, ip_address, user_agent, answer_provided,
                 success, confidence_score, risk_assessment, behavioral_metrics_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7::numeric, $8, $9)
         "#;
 
         tracing::info!(
@@ -232,7 +254,7 @@ impl CaptchaOperations {
                     &user_agent,
                     &answer_provided,
                     &success,
-                    &confidence_score,
+                    &confidence_score_str,
                     &risk_assessment_str,
                     &behavioral_metrics_id,
                 ],
@@ -281,6 +303,8 @@ impl CaptchaOperations {
             })
             .transpose()?;
 
+        let difficulty_level: i16 = difficulty as i16;
+
         let query = r#"
             INSERT INTO captcha_difficulty_adjustments (
                 id, ip_pattern, session_pattern, difficulty_level, reason, created_by, expires_at
@@ -294,7 +318,7 @@ impl CaptchaOperations {
                     &adjustment_id,
                     &ip_pattern,
                     &session_pattern,
-                    &(difficulty as i16),
+                    &difficulty_level,
                     &reason,
                     &created_by,
                     &expires_at_secs.map(|s| chrono::DateTime::from_timestamp(s, 0)),
@@ -386,42 +410,57 @@ impl CaptchaOperations {
 
     /// Store performance metrics
     pub async fn store_performance_metrics(&self, metrics: &PerformanceMetrics) -> Result<()> {
-        let timestamp_secs = metrics
-            .timestamp
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| AuthencError::internal("Invalid timestamp"))?
-            .as_secs() as i64;
+        // Convert SystemTime to OffsetDateTime for tokio-postgres
+        let timestamp = OffsetDateTime::from(metrics.timestamp);
 
+        // Parse UUID
+        let metric_uuid = Uuid::parse_str(&metrics.metric_id)
+            .map_err(|_| AuthencError::validation("Invalid metric ID"))?;
+
+        // Convert f64 to String for NUMERIC columns (tokio-postgres doesn't support f64→NUMERIC directly)
+        let success_rate_str = metrics.success_rate.to_string();
+        let failure_rate_str = metrics.failure_rate.to_string();
+        let avg_difficulty_str = metrics.average_difficulty.to_string();
+        let memory_usage_str = metrics.memory_usage_mb.to_string();
+        let cpu_usage_str = metrics.cpu_usage_percent.to_string();
+
+        // Use explicit casts from text to numeric for f64 values
         let query = r#"
             INSERT INTO captcha_performance_metrics (
                 id, timestamp, challenge_generation_latency_ms, validation_latency_ms,
                 success_rate, failure_rate, average_difficulty, concurrent_challenges,
                 memory_usage_mb, cpu_usage_percent
-            ) VALUES ($1, to_timestamp($2), $3, $4, $5, $6, $7, $8, $9, $10)
+            ) VALUES ($1, $2, $3, $4, $5::numeric, $6::numeric, $7::numeric, $8, $9::numeric, $10::numeric)
         "#;
 
         tracing::info!(
-            "Storing performance metrics: id={}, latency={}, success_rate={}",
+            "Storing performance metrics: id={}, timestamp={}, latency={}, success_rate={}",
             metrics.metric_id,
+            timestamp,
             metrics.challenge_generation_latency_ms,
             metrics.success_rate
         );
 
+        // Store values with proper types
+        let gen_latency: i64 = metrics.challenge_generation_latency_ms as i64;
+        let val_latency: i64 = metrics.validation_latency_ms as i64;
+        let concurrent: i64 = metrics.concurrent_challenges as i64;
+
+        // Use &str references for String values
         self.db
             .execute(
                 query,
                 &[
-                    &Uuid::parse_str(&metrics.metric_id)
-                        .map_err(|_| AuthencError::validation("Invalid metric ID"))?,
-                    &timestamp_secs,
-                    &(metrics.challenge_generation_latency_ms as i64),
-                    &(metrics.validation_latency_ms as i64),
-                    &metrics.success_rate,
-                    &metrics.failure_rate,
-                    &metrics.average_difficulty,
-                    &(metrics.concurrent_challenges as i64),
-                    &metrics.memory_usage_mb,
-                    &metrics.cpu_usage_percent,
+                    &metric_uuid,
+                    &timestamp,
+                    &gen_latency,
+                    &val_latency,
+                    &success_rate_str.as_str(),
+                    &failure_rate_str.as_str(),
+                    &avg_difficulty_str.as_str(),
+                    &concurrent,
+                    &memory_usage_str.as_str(),
+                    &cpu_usage_str.as_str(),
                 ],
             )
             .await?;
@@ -431,41 +470,47 @@ impl CaptchaOperations {
 
     /// Store bot detection metrics
     pub async fn store_bot_detection_metrics(&self, metrics: &BotDetectionMetrics) -> Result<()> {
-        let timestamp_secs = metrics
-            .timestamp
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| AuthencError::internal("Invalid timestamp"))?
-            .as_secs() as i64;
+        // Convert SystemTime to OffsetDateTime for tokio-postgres
+        let timestamp = OffsetDateTime::from(metrics.timestamp);
 
         let risk_distribution_json =
             serde_json::to_value(&metrics.risk_distribution).map_err(|e| {
                 AuthencError::internal(&format!("Failed to serialize risk distribution: {}", e))
             })?;
 
+        // Parse UUID
+        let metric_uuid = Uuid::parse_str(&metrics.metric_id)
+            .map_err(|_| AuthencError::validation("Invalid metric ID"))?;
+
+        // Convert f64 to String for NUMERIC columns
+        let accuracy_rate_str = metrics.accuracy_rate.to_string();
+        let precision_str = metrics.precision.to_string();
+        let recall_str = metrics.recall.to_string();
+        let f1_score_str = metrics.f1_score.to_string();
+
         let query = r#"
             INSERT INTO captcha_bot_detection_metrics (
                 id, timestamp, total_detections, true_positives, false_positives,
                 true_negatives, false_negatives, accuracy_rate, precision_rate,
                 recall_rate, f1_score, risk_distribution
-            ) VALUES ($1, to_timestamp($2), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::numeric, $9::numeric, $10::numeric, $11::numeric, $12)
         "#;
 
         self.db
             .execute(
                 query,
                 &[
-                    &Uuid::parse_str(&metrics.metric_id)
-                        .map_err(|_| AuthencError::validation("Invalid metric ID"))?,
-                    &timestamp_secs,
+                    &metric_uuid,
+                    &timestamp,
                     &(metrics.total_detections as i64),
                     &(metrics.true_positives as i64),
                     &(metrics.false_positives as i64),
                     &(metrics.true_negatives as i64),
                     &(metrics.false_negatives as i64),
-                    &metrics.accuracy_rate,
-                    &metrics.precision,
-                    &metrics.recall,
-                    &metrics.f1_score,
+                    &accuracy_rate_str,
+                    &precision_str,
+                    &recall_str,
+                    &f1_score_str,
                     &risk_distribution_json,
                 ],
             )
@@ -479,11 +524,8 @@ impl CaptchaOperations {
         &self,
         metrics: &UserExperienceMetrics,
     ) -> Result<()> {
-        let timestamp_secs = metrics
-            .timestamp
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| AuthencError::internal("Invalid timestamp"))?
-            .as_secs() as i64;
+        // Convert SystemTime to OffsetDateTime for tokio-postgres
+        let timestamp = OffsetDateTime::from(metrics.timestamp);
 
         let challenge_type_preferences_json =
             serde_json::to_value(&metrics.challenge_type_preferences).map_err(|e| {
@@ -501,26 +543,35 @@ impl CaptchaOperations {
             ))
         })?;
 
+        // Parse UUID
+        let metric_uuid = Uuid::parse_str(&metrics.metric_id)
+            .map_err(|_| AuthencError::validation("Invalid metric ID"))?;
+
+        // Convert f64 to String for NUMERIC columns
+        let abandonment_rate_str = metrics.abandonment_rate.to_string();
+        let retry_rate_str = metrics.retry_rate.to_string();
+        let accessibility_rate_str = metrics.accessibility_usage_rate.to_string();
+        let satisfaction_score_str = metrics.user_satisfaction_score.to_string();
+
         let query = r#"
             INSERT INTO captcha_user_experience_metrics (
                 id, timestamp, average_completion_time_ms, abandonment_rate, retry_rate,
                 accessibility_usage_rate, user_satisfaction_score, challenge_type_preferences,
                 difficulty_distribution
-            ) VALUES ($1, to_timestamp($2), $3, $4, $5, $6, $7, $8, $9)
+            ) VALUES ($1, $2, $3, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8, $9)
         "#;
 
         self.db
             .execute(
                 query,
                 &[
-                    &Uuid::parse_str(&metrics.metric_id)
-                        .map_err(|_| AuthencError::validation("Invalid metric ID"))?,
-                    &timestamp_secs,
+                    &metric_uuid,
+                    &timestamp,
                     &(metrics.average_completion_time_ms as i64),
-                    &metrics.abandonment_rate,
-                    &metrics.retry_rate,
-                    &metrics.accessibility_usage_rate,
-                    &metrics.user_satisfaction_score,
+                    &abandonment_rate_str,
+                    &retry_rate_str,
+                    &accessibility_rate_str,
+                    &satisfaction_score_str,
                     &challenge_type_preferences_json,
                     &difficulty_distribution_json,
                 ],
@@ -532,11 +583,8 @@ impl CaptchaOperations {
 
     /// Store security event metrics
     pub async fn store_security_event_metrics(&self, metrics: &SecurityEventMetrics) -> Result<()> {
-        let timestamp_secs = metrics
-            .timestamp
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| AuthencError::internal("Invalid timestamp"))?
-            .as_secs() as i64;
+        // Convert SystemTime to OffsetDateTime for tokio-postgres
+        let timestamp = OffsetDateTime::from(metrics.timestamp);
 
         let threat_level_distribution_json =
             serde_json::to_value(&metrics.threat_level_distribution).map_err(|e| {
@@ -554,21 +602,24 @@ impl CaptchaOperations {
             ))
         })?;
 
+        // Parse UUID
+        let metric_uuid = Uuid::parse_str(&metrics.metric_id)
+            .map_err(|_| AuthencError::validation("Invalid metric ID"))?;
+
         let query = r#"
             INSERT INTO captcha_security_event_metrics (
                 id, timestamp, attack_attempts, blocked_ips, rate_limit_triggers,
                 lockout_events, suspicious_behavior_count, threat_level_distribution,
                 geographic_distribution
-            ) VALUES ($1, to_timestamp($2), $3, $4, $5, $6, $7, $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
         self.db
             .execute(
                 query,
                 &[
-                    &Uuid::parse_str(&metrics.metric_id)
-                        .map_err(|_| AuthencError::validation("Invalid metric ID"))?,
-                    &timestamp_secs,
+                    &metric_uuid,
+                    &timestamp,
                     &(metrics.attack_attempts as i64),
                     &(metrics.blocked_ips as i64),
                     &(metrics.rate_limit_triggers as i64),
