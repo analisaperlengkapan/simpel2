@@ -31,7 +31,7 @@
 //! - `0 0 12 * * MON-FRI` - Weekdays at 12:00
 
 use anyhow::Result;
-use layanan_integrasi::{scheduler::IntegrationScheduler, Config};
+use layanan_integrasi::{Config, scheduler::IntegrationScheduler};
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -40,8 +40,7 @@ async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .with(tracing_subscriber::fmt::layer().with_target(false))
         .init();
@@ -63,7 +62,10 @@ async fn main() -> Result<()> {
     info!("  • MonSAKTI Schedule: {}", config.monsakti_schedule);
     info!("  • MySIMKARI Schedule: {}", config.mysimkari_schedule);
     info!("  • SIMAN Schedule: {}", config.siman_schedule);
-    info!("  • Storage Type: {}", std::env::var("STORAGE_TYPE").unwrap_or_else(|_| "json".to_string()));
+    info!(
+        "  • Storage Type: {}",
+        std::env::var("STORAGE_TYPE").unwrap_or_else(|_| "json".to_string())
+    );
     info!("  • Output Directory: {}", config.output_dir);
 
     // Create and start scheduler
