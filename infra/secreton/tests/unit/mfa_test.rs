@@ -1,9 +1,12 @@
 // Unit tests for MFA (Multi-Factor Authentication) system
-use std::{collections::HashMap, sync::{Arc, time::Duration}};
-use tokio::time::{timeout, sleep};
+use std::{
+    collections::HashMap,
+    sync::{Arc, time::Duration},
+};
+use tokio::time::{sleep, timeout};
 
 // Import test utilities from parent crate
-use crate::common::{create_test_storage, test_data, test_assertions};
+use crate::common::{create_test_storage, test_assertions, test_data};
 
 /// Unit tests for MFA (Multi-Factor Authentication) system
 #[cfg(test)]
@@ -47,12 +50,23 @@ mod mfa_unit_tests {
 
         // Test TOTP setup
         let setup_result = manager.setup_totp("user1", "Secreton Test Engine").await;
-        assert!(setup_result.is_ok(), "TOTP setup should succeed: {:?}", setup_result);
+        assert!(
+            setup_result.is_ok(),
+            "TOTP setup should succeed: {:?}",
+            setup_result
+        );
 
         let setup_info = setup_result?;
-        assert!(!setup_info.qr_code_url.is_empty(), "QR code URL should be generated");
+        assert!(
+            !setup_info.qr_code_url.is_empty(),
+            "QR code URL should be generated"
+        );
         assert!(!setup_info.secret.is_empty(), "Secret should be generated");
-        assert_eq!(setup_info.recovery_codes.len(), 10, "Should generate 10 recovery codes");
+        assert_eq!(
+            setup_info.recovery_codes.len(),
+            10,
+            "Should generate 10 recovery codes"
+        );
 
         Ok(())
     }
@@ -67,7 +81,7 @@ mod mfa_unit_tests {
         // Test verification with mock code (test environment)
         let result = manager.verify_totp("user1", "123456").await;
         match result {
-            Ok(true) => (), // Expected for test mock
+            Ok(true) => (),  // Expected for test mock
             Ok(false) => (), // Also acceptable in test environment
             Err(e) => panic!("Verification should not error: {:?}", e),
         }
@@ -83,18 +97,27 @@ mod mfa_unit_tests {
         let setup_result = manager.setup_totp("user1", "Secreton Test Engine").await?;
 
         // Verify recovery codes properties
-        assert_eq!(setup_result.recovery_codes.len(), 10, "Should generate exactly 10 recovery codes");
+        assert_eq!(
+            setup_result.recovery_codes.len(),
+            10,
+            "Should generate exactly 10 recovery codes"
+        );
 
         for code in &setup_result.recovery_codes {
             assert_eq!(code.len(), 16, "Each recovery code should be 16 characters");
-            assert!(code.chars().all(|c| "0123456789ABCDEF".contains(c)),
-                   "Recovery codes should only contain hex characters");
+            assert!(
+                code.chars().all(|c| "0123456789ABCDEF".contains(c)),
+                "Recovery codes should only contain hex characters"
+            );
         }
 
         // Verify all codes are unique
         let mut unique_codes = std::collections::HashSet::new();
         for code in &setup_result.recovery_codes {
-            assert!(unique_codes.insert(code.clone()), "All recovery codes should be unique");
+            assert!(
+                unique_codes.insert(code.clone()),
+                "All recovery codes should be unique"
+            );
         }
 
         Ok(())
@@ -111,7 +134,7 @@ mod mfa_unit_tests {
         // Use the recovery code
         let result = manager.verify_recovery_code("user1", &first_code).await;
         match result {
-            Ok(true) => (), // Expected - code should work once
+            Ok(true) => (),  // Expected - code should work once
             Ok(false) => (), // Acceptable in test mock environment
             Err(e) => panic!("Recovery code verification should not error: {:?}", e),
         }
@@ -137,7 +160,7 @@ mod mfa_unit_tests {
                     Err(MfaError::RateLimitExceeded(_)) => {
                         // Rate limiting may kick in earlier in some implementations
                         break;
-                    },
+                    }
                     Err(e) => panic!("Unexpected error: {:?}", e),
                 }
             } else {
@@ -169,7 +192,7 @@ mod mfa_unit_tests {
                 if !status.is_empty() {
                     println!("MFA is enabled with methods: {:?}", status);
                 }
-            },
+            }
             Err(_) => {
                 // Status check may not be implemented yet
                 println!("MFA status check not available");
@@ -178,13 +201,17 @@ mod mfa_unit_tests {
 
         // Disable MFA
         let disable_result = manager.disable_mfa("user1").await;
-        assert!(disable_result.is_ok(), "Disabling MFA should succeed: {:?}", disable_result);
+        assert!(
+            disable_result.is_ok(),
+            "Disabling MFA should succeed: {:?}",
+            disable_result
+        );
 
         // Verify TOTP no longer works after disabling
         let result = manager.verify_totp("user1", "123456").await;
         match result {
             Ok(false) => (), // Expected when MFA is disabled
-            Err(_) => (), // Also acceptable - may return error for disabled MFA
+            Err(_) => (),    // Also acceptable - may return error for disabled MFA
             Ok(true) => panic!("TOTP should not work after MFA is disabled"),
         }
 
@@ -203,7 +230,9 @@ mod mfa_unit_tests {
             let user_id = format!("concurrent_user_{}", i);
 
             let task = tokio::spawn(async move {
-                let result = manager_clone.setup_totp(&user_id, "Secreton Test Engine").await;
+                let result = manager_clone
+                    .setup_totp(&user_id, "Secreton Test Engine")
+                    .await;
                 (user_id, result)
             });
 
@@ -211,15 +240,17 @@ mod mfa_unit_tests {
         }
 
         // Wait for all tasks to complete with timeout
-        let results = timeout(
-            Duration::from_secs(10),
-            futures::future::join_all(tasks)
-        ).await?;
+        let results = timeout(Duration::from_secs(10), futures::future::join_all(tasks)).await?;
 
         // Verify all setups succeeded
         for task_result in results {
             let (user_id, setup_result) = task_result?;
-            assert!(setup_result.is_ok(), "Setup for {} should succeed: {:?}", user_id, setup_result);
+            assert!(
+                setup_result.is_ok(),
+                "Setup for {} should succeed: {:?}",
+                user_id,
+                setup_result
+            );
         }
 
         Ok(())
