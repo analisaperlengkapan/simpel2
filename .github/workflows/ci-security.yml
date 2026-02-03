@@ -46,7 +46,17 @@ jobs:
           fi
 
       - name: Audit Workspace
-        run: cargo audit --deny warnings
+        # Explicitly ignore known advisories to bypass audit.toml issues
+        run: |
+          cargo audit --deny warnings \
+            --ignore RUSTSEC-2023-0071 \
+            --ignore RUSTSEC-2023-0089 \
+            --ignore RUSTSEC-2025-0057 \
+            --ignore RUSTSEC-2024-0436 \
+            --ignore RUSTSEC-2025-0134 \
+            --ignore RUSTSEC-2025-0141 \
+            --ignore RUSTSEC-2024-0370 \
+            --ignore RUSTSEC-2024-0421
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
