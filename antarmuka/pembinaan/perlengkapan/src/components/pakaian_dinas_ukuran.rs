@@ -21,12 +21,12 @@ pub fn UkuranPegawai(
     let (ukuran_baju, set_ukuran_baju) = signal(String::new());
     let (ukuran_celana, set_ukuran_celana) = signal(String::new());
     let (ukuran_sepatu, set_ukuran_sepatu) = signal(String::new());
-    let (is_loading, set_is_loading) = signal(false);
+    let (is_loading, _set_is_loading) = signal(false);
     let (is_saving, set_is_saving) = signal(false);
     let (success_message, set_success_message) = signal(Option::<String>::None);
     let (error_message, set_error_message) = signal(Option::<String>::None);
 
-    let pegawai_id_clone = pegawai_id.clone();
+    let _pegawai_id_clone = pegawai_id.clone();
 
     // Fetch master ukuran data
     let master_ukuran = LocalResource::new(|| async move {
@@ -174,7 +174,7 @@ pub fn UkuranPegawai(
                                                     each=move || baju_sizes.clone()
                                                     key=|u| u.id.clone()
                                                     children=move |u: Ukuran| {
-                                                        view! { <option value=u.size.clone()>{u.size}</option> }
+                                                        view! { <option value=u.size.clone()>{u.size.clone()}</option> }
                                                     }
                                                 />
                                             </select>
@@ -200,7 +200,7 @@ pub fn UkuranPegawai(
                                                     each=move || celana_sizes.clone()
                                                     key=|u| u.id.clone()
                                                     children=move |u: Ukuran| {
-                                                        view! { <option value=u.size.clone()>{u.size}</option> }
+                                                        view! { <option value=u.size.clone()>{u.size.clone()}</option> }
                                                     }
                                                 />
                                             </select>
@@ -226,7 +226,7 @@ pub fn UkuranPegawai(
                                                     each=move || sepatu_sizes.clone()
                                                     key=|u| u.id.clone()
                                                     children=move |u: Ukuran| {
-                                                        view! { <option value=u.size.clone()>{u.size}</option> }
+                                                        view! { <option value=u.size.clone()>{u.size.clone()}</option> }
                                                     }
                                                 />
                                             </select>

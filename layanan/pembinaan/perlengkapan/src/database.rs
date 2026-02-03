@@ -497,7 +497,7 @@ impl PerlengkapanRepository for Database {
         }
         .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let assets: Vec<Asset> = rows.iter().map(Asset::from_row).collect();
+        let assets: Vec<Asset> = rows.iter().map(map_row_to_asset).collect();
 
         Ok((assets, total))
     }
@@ -516,7 +516,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| Asset::from_row(&r))
+        row.map(|r| map_row_to_asset(&r))
             .ok_or_else(|| not_found("Aset", &id.to_string()))
     }
 
@@ -547,7 +547,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let pengadaan: Vec<Pengadaan> = rows.iter().map(Pengadaan::from_row).collect();
+        let pengadaan: Vec<Pengadaan> = rows.iter().map(map_row_to_pengadaan).collect();
 
         Ok((pengadaan, total))
     }
@@ -563,7 +563,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| Pengadaan::from_row(&r))
+        row.map(|r| map_row_to_pengadaan(&r))
             .ok_or_else(|| not_found("Pengadaan", &id.to_string()))
     }
 
@@ -602,7 +602,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(Pengadaan::from_row(&row))
+        Ok(map_row_to_pengadaan(&row))
     }
 
     async fn create_pengadaan_hps(
@@ -1082,7 +1082,7 @@ impl PerlengkapanRepository for Database {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         let analisis: Vec<AnalisisKebutuhan> =
-            rows.iter().map(AnalisisKebutuhan::from_row).collect();
+            rows.iter().map(map_row_to_analisis).collect();
 
         Ok((analisis, total))
     }
@@ -1098,7 +1098,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| AnalisisKebutuhan::from_row(&r))
+        row.map(|r| map_row_to_analisis(&r))
             .ok_or_else(|| not_found("Analisis Kebutuhan", &id.to_string()))
     }
 
@@ -1137,7 +1137,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(AnalisisKebutuhan::from_row(&row))
+        Ok(map_row_to_analisis(&row))
     }
 
     async fn get_all_pemakaian(
@@ -1166,7 +1166,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let pemakaian: Vec<Pemakaian> = rows.iter().map(Pemakaian::from_row).collect();
+        let pemakaian: Vec<Pemakaian> = rows.iter().map(map_row_to_pemakaian).collect();
 
         Ok((pemakaian, total))
     }
@@ -1182,7 +1182,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| Pemakaian::from_row(&r))
+        row.map(|r| map_row_to_pemakaian(&r))
             .ok_or_else(|| not_found("Pemakaian", &id.to_string()))
     }
 
@@ -1220,7 +1220,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(Pemakaian::from_row(&row))
+        Ok(map_row_to_pemakaian(&row))
     }
 
     async fn get_all_hibah(&self, page: i32, per_page: i32) -> AppResult<(Vec<Hibah>, i64)> {
@@ -1245,7 +1245,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let hibah: Vec<Hibah> = rows.iter().map(Hibah::from_row).collect();
+        let hibah: Vec<Hibah> = rows.iter().map(map_row_to_hibah).collect();
 
         Ok((hibah, total))
     }
@@ -1261,7 +1261,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| Hibah::from_row(&r))
+        row.map(|r| map_row_to_hibah(&r))
             .ok_or_else(|| not_found("Hibah", &id.to_string()))
     }
 
@@ -1299,7 +1299,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(Hibah::from_row(&row))
+        Ok(map_row_to_hibah(&row))
     }
 
     async fn get_all_mutasi(&self, page: i32, per_page: i32) -> AppResult<(Vec<Mutasi>, i64)> {
@@ -1324,7 +1324,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let mutasi: Vec<Mutasi> = rows.iter().map(Mutasi::from_row).collect();
+        let mutasi: Vec<Mutasi> = rows.iter().map(map_row_to_mutasi).collect();
 
         Ok((mutasi, total))
     }
@@ -1340,7 +1340,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| Mutasi::from_row(&r))
+        row.map(|r| map_row_to_mutasi(&r))
             .ok_or_else(|| not_found("Mutasi", &id.to_string()))
     }
 
@@ -1379,7 +1379,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(Mutasi::from_row(&row))
+        Ok(map_row_to_mutasi(&row))
     }
 
     async fn get_all_penghapusan(
@@ -1411,7 +1411,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let penghapusan: Vec<Penghapusan> = rows.iter().map(Penghapusan::from_row).collect();
+        let penghapusan: Vec<Penghapusan> = rows.iter().map(map_row_to_penghapusan).collect();
 
         Ok((penghapusan, total))
     }
@@ -1427,7 +1427,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| Penghapusan::from_row(&r))
+        row.map(|r| map_row_to_penghapusan(&r))
             .ok_or_else(|| not_found("Penghapusan", &id.to_string()))
     }
 
@@ -1465,7 +1465,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(Penghapusan::from_row(&row))
+        Ok(map_row_to_penghapusan(&row))
     }
 
     async fn get_all_pengalihan(
@@ -1494,7 +1494,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let pengalihan: Vec<Pengalihan> = rows.iter().map(Pengalihan::from_row).collect();
+        let pengalihan: Vec<Pengalihan> = rows.iter().map(map_row_to_pengalihan).collect();
 
         Ok((pengalihan, total))
     }
@@ -1510,7 +1510,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| Pengalihan::from_row(&r))
+        row.map(|r| map_row_to_pengalihan(&r))
             .ok_or_else(|| not_found("Pengalihan", &id.to_string()))
     }
 
@@ -1549,7 +1549,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(Pengalihan::from_row(&row))
+        Ok(map_row_to_pengalihan(&row))
     }
 
     async fn get_all_pemeliharaan(
@@ -1581,7 +1581,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let pemeliharaan: Vec<Pemeliharaan> = rows.iter().map(Pemeliharaan::from_row).collect();
+        let pemeliharaan: Vec<Pemeliharaan> = rows.iter().map(map_row_to_pemeliharaan).collect();
 
         Ok((pemeliharaan, total))
     }
@@ -1597,7 +1597,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        row.map(|r| Pemeliharaan::from_row(&r))
+        row.map(|r| map_row_to_pemeliharaan(&r))
             .ok_or_else(|| not_found("Pemeliharaan", &id.to_string()))
     }
 
@@ -1637,6 +1637,6 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(Pemeliharaan::from_row(&row))
+        Ok(map_row_to_pemeliharaan(&row))
     }
 }

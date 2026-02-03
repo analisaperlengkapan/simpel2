@@ -2,6 +2,8 @@ use crate::api::{CreatePemeliharaanRequest, create_pemeliharaan, fetch_assets};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
+use uuid::Uuid;
+use chrono::NaiveDate;
 
 #[component]
 pub fn PemeliharaanForm() -> impl IntoView {
@@ -28,16 +30,43 @@ pub fn PemeliharaanForm() -> impl IntoView {
         set_loading.set(true);
         set_error.set(None);
 
+        let asset_uuid = match Uuid::parse_str(&asset_id.get()) {
+            Ok(u) => u,
+            Err(_) => {
+                set_error.set(Some("Aset tidak valid".to_string()));
+                set_loading.set(false);
+                return;
+            }
+        };
+
+        let tgl_mulai = match NaiveDate::parse_from_str(&tanggal_mulai.get(), "%Y-%m-%d") {
+            Ok(d) => d,
+            Err(_) => {
+                set_error.set(Some("Tanggal mulai tidak valid".to_string()));
+                set_loading.set(false);
+                return;
+            }
+        };
+
+        let tgl_selesai = if tanggal_selesai.get().is_empty() {
+            None
+        } else {
+            match NaiveDate::parse_from_str(&tanggal_selesai.get(), "%Y-%m-%d") {
+                Ok(d) => Some(d),
+                Err(_) => {
+                    set_error.set(Some("Tanggal selesai tidak valid".to_string()));
+                    set_loading.set(false);
+                    return;
+                }
+            }
+        };
+
         let req = CreatePemeliharaanRequest {
-            asset_id: asset_id.get(),
+            asset_id: asset_uuid,
             jenis_pemeliharaan: jenis.get(),
             biaya: biaya.get().parse::<f64>().ok(),
-            tanggal_mulai: tanggal_mulai.get(),
-            tanggal_selesai: if tanggal_selesai.get().is_empty() {
-                None
-            } else {
-                Some(tanggal_selesai.get())
-            },
+            tanggal_mulai: tgl_mulai,
+            tanggal_selesai: tgl_selesai,
             pelaksana: pelaksana.get(),
             keterangan: if keterangan.get().is_empty() {
                 None
@@ -93,7 +122,7 @@ pub fn PemeliharaanForm() -> impl IntoView {
                                     Ok(resp) => {
                                         resp.data.into_iter().map(|asset| {
                                             view! {
-                                                <option value={asset.id.clone()}>
+                                                <option value={asset.id.to_string()}>
                                                     {format!("{} - {}", asset.no_aset, asset.nama_aset.unwrap_or_default())}
                                                 </option>
                                             }

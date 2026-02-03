@@ -16,10 +16,6 @@ pub struct SimanSearchConfig {
 }
 
 /// SIMAN Asset Search Component
-///
-/// Allows users to search for existing assets from SIMAN inventory.
-/// Can be used standalone or embedded in other components like
-/// feasibility analysis forms.
 #[component]
 pub fn SimanAssetSearch(
     #[prop(optional)] default_kategori: Option<String>,
@@ -33,7 +29,6 @@ pub fn SimanAssetSearch(
     let (error, set_error) = signal::<Option<String>>(None);
     let (selected_asset, set_selected_asset) = signal::<Option<SimanAsset>>(None);
 
-    // Debounced search
     let do_search = move || {
         let term = search_term.get();
         if term.len() < 2 {
@@ -45,9 +40,9 @@ pub fn SimanAssetSearch(
         set_error.set(None);
 
         let kat = kategori.get();
-        let kat_ref = kat.as_deref();
 
         spawn_local(async move {
+            let kat_ref = kat.as_deref();
             match search_siman_assets(&term, kat_ref, Some(20)).await {
                 Ok(response) => {
                     set_results.set(response.data);
@@ -60,7 +55,6 @@ pub fn SimanAssetSearch(
         });
     };
 
-    // Handle asset selection
     let handle_select = move |asset: SimanAsset| {
         set_selected_asset.set(Some(asset.clone()));
         if let Some(callback) = &on_select {
@@ -68,7 +62,6 @@ pub fn SimanAssetSearch(
         }
     };
 
-    // Asset categories
     let kategori_options = vec![
         ("", "Semua Kategori"),
         ("Khusus TIK", "Peralatan TIK"),
@@ -86,7 +79,6 @@ pub fn SimanAssetSearch(
                 "Cari Aset Eksisting (SIMAN)"
             </h3>
 
-            // Search controls
             <div class="flex flex-col md:flex-row gap-4 mb-6">
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -148,7 +140,6 @@ pub fn SimanAssetSearch(
                 </div>
             </div>
 
-            // Error message
             <Show when=move || error.get().is_some()>
                 <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
                     <i class="fas fa-exclamation-circle mr-2"></i>
@@ -156,14 +147,12 @@ pub fn SimanAssetSearch(
                 </div>
             </Show>
 
-            // Loading state
             <Show when=move || loading.get()>
                 <div class="flex justify-center py-8">
                     <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
                 </div>
             </Show>
 
-            // Results table
             <Show when=move || !loading.get() && !results.get().is_empty()>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
@@ -238,7 +227,6 @@ pub fn SimanAssetSearch(
                 </div>
             </Show>
 
-            // No results
             <Show when=move || {
                 let is_not_loading = !loading.get();
                 let is_empty = results.get().is_empty();
@@ -252,7 +240,6 @@ pub fn SimanAssetSearch(
                 </div>
             </Show>
 
-            // Selected asset preview
             <Show when=move || selected_asset.get().is_some()>
                 {move || selected_asset.get().map(|asset| view! {
                     <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -286,8 +273,6 @@ pub fn SimanAssetSearch(
 }
 
 /// SIMAN Asset Summary Card
-///
-/// Shows a summary of existing assets for a satker from SIMAN.
 #[component]
 pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
     let satker_id_clone = satker_id.clone();
@@ -295,7 +280,6 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
     let (summary, set_summary) = signal::<Option<crate::api::SatkerAssetSummary>>(None);
     let (error, set_error) = signal::<Option<String>>(None);
 
-    // Load summary on mount
     Effect::new(move || {
         let id = satker_id_clone.clone();
         spawn_local(async move {
@@ -332,29 +316,33 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
             </Show>
 
             <Show when=move || !loading.get() && summary.get().is_some()>
-                {move || summary.get().map(|s| view! {
+                {move || {
+                    let s = summary.get().unwrap();
+                    let by_category = store_value(s.by_category.clone());
+                    let total_assets = s.total_assets;
+                    let total_value = s.total_value;
+
+                    view! {
                     <div class="space-y-4">
-                        // Total stats
                         <div class="grid grid-cols-2 gap-4">
                             <div class="bg-white rounded-lg p-4 text-center shadow-sm">
-                                <p class="text-3xl font-bold text-blue-600">{s.total_assets}</p>
+                                <p class="text-3xl font-bold text-blue-600">{total_assets}</p>
                                 <p class="text-sm text-gray-500">"Total Aset"</p>
                             </div>
                             <div class="bg-white rounded-lg p-4 text-center shadow-sm">
                                 <p class="text-lg font-bold text-green-600">
-                                    {format!("Rp {:.0}", s.total_value)}
+                                    {format!("Rp {:.0}", total_value)}
                                 </p>
                                 <p class="text-sm text-gray-500">"Total Nilai"</p>
                             </div>
                         </div>
 
-                        // By category
-                        <Show when=move || !s.by_category.is_empty()>
+                        <Show when=move || !by_category.with_value(|v| v.is_empty())>
                             <div>
                                 <h5 class="font-semibold text-gray-700 mb-2">"Per Kategori"</h5>
                                 <div class="space-y-2">
                                     <For
-                                        each=move || s.by_category.clone()
+                                        each=move || by_category.get_value()
                                         key=|c| c.category.clone()
                                         children=|cat| {
                                             view! {
@@ -369,7 +357,7 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
                             </div>
                         </Show>
                     </div>
-                })}
+                }}}
             </Show>
         </div>
     }

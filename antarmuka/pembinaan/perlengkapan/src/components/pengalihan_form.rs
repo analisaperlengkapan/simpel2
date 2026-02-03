@@ -2,6 +2,8 @@ use crate::api::{CreatePengalihanRequest, create_pengalihan, fetch_assets};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
+use uuid::Uuid;
+use chrono::NaiveDate;
 
 #[component]
 pub fn PengalihanForm() -> impl IntoView {
@@ -27,11 +29,29 @@ pub fn PengalihanForm() -> impl IntoView {
         set_loading.set(true);
         set_error.set(None);
 
+        let asset_uuid = match Uuid::parse_str(&asset_id.get()) {
+            Ok(u) => u,
+            Err(_) => {
+                set_error.set(Some("Aset tidak valid".to_string()));
+                set_loading.set(false);
+                return;
+            }
+        };
+
+        let tgl_pengalihan = match NaiveDate::parse_from_str(&tanggal_pengalihan.get(), "%Y-%m-%d") {
+            Ok(d) => d,
+            Err(_) => {
+                set_error.set(Some("Tanggal pengalihan tidak valid".to_string()));
+                set_loading.set(false);
+                return;
+            }
+        };
+
         let req = CreatePengalihanRequest {
-            asset_id: asset_id.get(),
+            asset_id: asset_uuid,
             pihak_lama: pihak_lama.get(),
             pihak_baru: pihak_baru.get(),
-            tanggal_pengalihan: tanggal_pengalihan.get(),
+            tanggal_pengalihan: tgl_pengalihan,
             dasar_pengalihan: if dasar_pengalihan.get().is_empty() {
                 None
             } else {
@@ -91,7 +111,7 @@ pub fn PengalihanForm() -> impl IntoView {
                                     Ok(resp) => {
                                         resp.data.into_iter().map(|asset| {
                                             view! {
-                                                <option value={asset.id.clone()}>
+                                                <option value={asset.id.to_string()}>
                                                     {format!("{} - {}", asset.no_aset, asset.nama_aset.unwrap_or_default())}
                                                 </option>
                                             }

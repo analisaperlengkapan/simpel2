@@ -51,6 +51,7 @@ dotenvy = { workspace = true }
 reqwest = { workspace = true }
 bigdecimal = { workspace = true }
 lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }
+lib-perlengkapan = { path = "../../../lib/perlengkapan" }
 layanan-integrasi = { path = "../../daskrimti/integrasi" }
 
 # gRPC

@@ -2,6 +2,7 @@ use crate::api::{CreatePengadaanRequest, create_pengadaan};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
+use chrono::NaiveDate;
 
 #[component]
 pub fn PengadaanForm() -> impl IntoView {
@@ -20,16 +21,25 @@ pub fn PengadaanForm() -> impl IntoView {
         set_error.set(None);
         set_success.set(false);
 
+        let tgl_target = if target.get().is_empty() {
+            None
+        } else {
+            match NaiveDate::parse_from_str(&target.get(), "%Y-%m-%d") {
+                Ok(d) => Some(d),
+                Err(_) => {
+                    set_error.set(Some("Target selesai tidak valid".to_string()));
+                    set_loading.set(false);
+                    return;
+                }
+            }
+        };
+
         let req = CreatePengadaanRequest {
             judul: judul.get(),
             deskripsi: None,
             jenis: jenis.get(),
             anggaran: anggaran.get().parse::<f64>().ok(),
-            target_selesai: if target.get().is_empty() {
-                None
-            } else {
-                Some(target.get())
-            },
+            target_selesai: tgl_target,
             pic_user_id: None,
         };
 

@@ -11,6 +11,7 @@ members = [
     # Shared Libraries
     "lib/ui",
     "lib/common",
+    "lib/perlengkapan",
 
 
     # Frontend Microfrontends (Leptos)
