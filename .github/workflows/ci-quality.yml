@@ -59,7 +59,9 @@ jobs:
         continue-on-error: true
 
       - name: Authenc Documentation
-        run: cargo doc -p authenc --no-deps --no-default-features --document-private-items
+        # Explicitly enable features EXCEPT tpm (requires tss2-sys) and grpc (requires protoc)
+        # using 'test' feature to pull in reqwest without using dep: syntax
+        run: cargo doc -p authenc --no-deps --no-default-features --features "axum,auth,oidc,db,metrics,flate2,totp-rs,rdkafka,test" --document-private-items
 
       - name: Code Metrics
         run: tokei .
