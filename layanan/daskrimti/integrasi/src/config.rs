@@ -192,17 +192,17 @@ impl Config {
             .and_then(|s| s.parse().ok())
             .unwrap_or_else(default_scheduler_enabled);
 
-        let monsakti_schedule = std::env::var("MONSAKTI_SCHEDULE")
-            .unwrap_or_else(|_| default_monsakti_schedule());
+        let monsakti_schedule =
+            std::env::var("MONSAKTI_SCHEDULE").unwrap_or_else(|_| default_monsakti_schedule());
 
-        let mysimkari_schedule = std::env::var("MYSIMKARI_SCHEDULE")
-            .unwrap_or_else(|_| default_mysimkari_schedule());
+        let mysimkari_schedule =
+            std::env::var("MYSIMKARI_SCHEDULE").unwrap_or_else(|_| default_mysimkari_schedule());
 
         let siman_schedule =
             std::env::var("SIMAN_SCHEDULE").unwrap_or_else(|_| default_siman_schedule());
 
-        let scheduler_timezone = std::env::var("SCHEDULER_TIMEZONE")
-            .unwrap_or_else(|_| default_scheduler_timezone());
+        let scheduler_timezone =
+            std::env::var("SCHEDULER_TIMEZONE").unwrap_or_else(|_| default_scheduler_timezone());
 
         Ok(Self {
             base,
