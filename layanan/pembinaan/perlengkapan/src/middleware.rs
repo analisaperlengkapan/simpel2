@@ -88,16 +88,24 @@ where
                     role: role.clone(),
                     permissions: resp.scopes.clone(),
                     // Extended fields - try to extract from scopes or use defaults
-                    nip: resp.scopes.iter()
+                    nip: resp
+                        .scopes
+                        .iter()
                         .find(|s| s.starts_with("nip:"))
                         .map(|s| s.trim_start_matches("nip:").to_string()),
-                    name: resp.scopes.iter()
+                    name: resp
+                        .scopes
+                        .iter()
                         .find(|s| s.starts_with("name:"))
                         .map(|s| s.trim_start_matches("name:").to_string()),
-                    nama: resp.scopes.iter()
+                    nama: resp
+                        .scopes
+                        .iter()
                         .find(|s| s.starts_with("nama:"))
                         .map(|s| s.trim_start_matches("nama:").to_string()),
-                    jabatan: resp.scopes.iter()
+                    jabatan: resp
+                        .scopes
+                        .iter()
                         .find(|s| s.starts_with("jabatan:"))
                         .map(|s| s.trim_start_matches("jabatan:").to_string()),
                 })
