@@ -1081,8 +1081,7 @@ impl PerlengkapanRepository for Database {
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        let analisis: Vec<AnalisisKebutuhan> =
-            rows.iter().map(map_row_to_analisis).collect();
+        let analisis: Vec<AnalisisKebutuhan> = rows.iter().map(map_row_to_analisis).collect();
 
         Ok((analisis, total))
     }

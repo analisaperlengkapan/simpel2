@@ -1,9 +1,9 @@
 use crate::api::{CreatePengalihanRequest, create_pengalihan, fetch_assets};
+use chrono::NaiveDate;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
 use uuid::Uuid;
-use chrono::NaiveDate;
 
 #[component]
 pub fn PengalihanForm() -> impl IntoView {
@@ -38,7 +38,8 @@ pub fn PengalihanForm() -> impl IntoView {
             }
         };
 
-        let tgl_pengalihan = match NaiveDate::parse_from_str(&tanggal_pengalihan.get(), "%Y-%m-%d") {
+        let tgl_pengalihan = match NaiveDate::parse_from_str(&tanggal_pengalihan.get(), "%Y-%m-%d")
+        {
             Ok(d) => d,
             Err(_) => {
                 set_error.set(Some("Tanggal pengalihan tidak valid".to_string()));

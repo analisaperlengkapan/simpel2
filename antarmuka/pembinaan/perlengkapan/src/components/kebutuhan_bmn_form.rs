@@ -20,15 +20,11 @@ pub enum FormMode {
 #[component]
 pub fn KebutuhanBmnForm() -> impl IntoView {
     let params = use_params_map();
-    let id = Memo::new(move |_| {
-        params.read().get("id").cloned()
-    });
+    let id = Memo::new(move |_| params.read().get("id").cloned());
 
-    let mode = Memo::new(move |_| {
-        match id.get() {
-            Some(id_val) if !id_val.is_empty() && id_val != "baru" => FormMode::Edit(id_val),
-            _ => FormMode::Create,
-        }
+    let mode = Memo::new(move |_| match id.get() {
+        Some(id_val) if !id_val.is_empty() && id_val != "baru" => FormMode::Edit(id_val),
+        _ => FormMode::Create,
     });
 
     // Form state

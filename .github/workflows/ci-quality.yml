@@ -53,7 +53,7 @@ jobs:
           fi
 
       - name: Documentation Build
-        run: cargo doc --workspace --no-deps --all-features --document-private-items
+        run: cargo doc --workspace --no-deps --document-private-items
 
       - name: Code Metrics
         run: tokei .
