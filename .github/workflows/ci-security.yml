@@ -41,29 +41,16 @@ jobs:
       - name: Install Tools
         shell: bash
         run: |
-          if ! command -v cargo-audit &> /dev/null; then cargo install cargo-audit --locked; fi
+          # Download pre-built cargo-deny to avoid compilation issues
           if ! command -v cargo-deny &> /dev/null; then
-             echo "Installing cargo-deny..."
-             cargo install cargo-deny --locked
+             echo "Installing cargo-deny binary..."
+             curl -L "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.0/cargo-deny-0.19.0-x86_64-unknown-linux-musl.tar.gz" | tar xz -C $HOME/.cargo/bin --strip-components=1 cargo-deny-0.19.0-x86_64-unknown-linux-musl/cargo-deny
           fi
-
-      - name: Audit Workspace
-        # Explicitly ignore known advisories to bypass audit.toml issues
-        run: |
-          cargo audit --deny warnings \
-            --ignore RUSTSEC-2023-0071 \
-            --ignore RUSTSEC-2023-0089 \
-            --ignore RUSTSEC-2025-0057 \
-            --ignore RUSTSEC-2024-0436 \
-            --ignore RUSTSEC-2025-0134 \
-            --ignore RUSTSEC-2025-0141 \
-            --ignore RUSTSEC-2024-0370 \
-            --ignore RUSTSEC-2024-0421
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deny Checks
         run: |
+          # Run cargo-deny for advisories, licenses, and bans
+          # It uses deny.toml for configuration (including ignores)
           cargo deny check advisories
           cargo deny check licenses
           cargo deny check bans
