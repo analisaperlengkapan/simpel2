@@ -1,17 +1,7 @@
 [build]
 target = "index.html"
 dist = "dist"
-release = false
-debug = true
+release = true
 
-[tools]
-wasm-opt = true
-
-[serve]
-port = 8085
-addresses = ["0.0.0.0"]
-open = false
-
-[watch]
-watch = ["src", "styles"]
-ignore = ["target", "dist", "Cargo.lock", ".git"]
+[build.wasm_opt]
+args = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]

@@ -21,3 +21,6 @@ garde = { workspace = true, features = ["derive"] }
 deadpool-postgres = { workspace = true }
 tokio-postgres = { workspace = true, features = ["with-uuid-1", "with-chrono-0_4"] }
 dotenvy = { workspace = true }
+
+[features]
+integration-tests = []

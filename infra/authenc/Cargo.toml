@@ -27,6 +27,7 @@ name = "generate-signing-keys"
 path = "src/bin/generate-signing-keys.rs"
 
 [features]
+integration-tests = []
 # Framework features
 default = [
     "axum",

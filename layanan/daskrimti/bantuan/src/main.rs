@@ -26,7 +26,7 @@ use dashmap::DashMap;
 use prometheus::{Encoder, Registry, TextEncoder};
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tower_http::{
-    compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
+    compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -182,8 +182,6 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         tower::ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CompressionLayer::new())
-            // Use with_status_code if possible, or just ignore deprecated warning if API surface matches
-            .layer(TimeoutLayer::new(Duration::from_secs(30)))
             .layer(cors)
             .layer(axum::middleware::from_fn_with_state(
                 state.clone(),

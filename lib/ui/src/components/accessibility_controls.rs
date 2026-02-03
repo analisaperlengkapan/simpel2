@@ -28,7 +28,7 @@ impl FontSize {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_string(s: &str) -> Self {
         match s {
             "small" => Self::Small,
             "large" => Self::Large,
@@ -44,6 +44,14 @@ impl FontSize {
             Self::Large => 1.125,
             Self::ExtraLarge => 1.25,
         }
+    }
+}
+
+impl std::str::FromStr for TextSize {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from_string(s))
     }
 }
 

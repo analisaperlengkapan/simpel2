@@ -167,12 +167,7 @@ pub fn validate_satker_code(code: &str) -> ValidationResult {
 }
 
 /// Validate MFA code (6 digits)
-/// Rules:
-/// - Exactly 6 digits
-/// - Numbers only
 ///
-///   Sinkron dengan: Backend MFA verification
-/// Validate MFA code (6 digits)
 /// Rules:
 /// - Exactly 6 digits
 /// - Numbers only

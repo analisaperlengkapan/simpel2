@@ -16,6 +16,7 @@ use tracing::{error, info, warn};
 /// Scheduler for automated data fetching
 pub struct IntegrationScheduler {
     config: Config,
+    #[allow(dead_code)]
     client: MonsaktiClient,
     scheduler: JobScheduler,
 }
@@ -264,7 +265,7 @@ async fn save_data(table_name: &str, data: &[serde_json::Value], config: &Config
                 warn!("  ⚠ Database storage requested but no DB config available");
             }
         }
-        "json" | _ => {
+        _ => {
             let output_dir = &config.output_dir;
             let filename = format!("{}/{}.json", output_dir, table_name);
 

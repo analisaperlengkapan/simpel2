@@ -69,6 +69,7 @@ use leptos::prelude::*;
 ///
 /// ```rust
 /// use lib_ui::utils::code_splitting::preload_route;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn NavLink() -> impl IntoView {
@@ -84,7 +85,6 @@ use leptos::prelude::*;
 ///     }
 /// }
 /// ```
-
 /// Default loading skeleton for lazy-loaded routes
 ///
 /// Provides a consistent loading experience across the application

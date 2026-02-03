@@ -2,4 +2,6 @@
 target = "index.html"
 dist = "dist"
 release = true
-wasm_opt = false
+
+[build.wasm_opt]
+args = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
