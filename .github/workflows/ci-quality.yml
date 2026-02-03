@@ -53,7 +53,8 @@ jobs:
           fi
 
       - name: Documentation Build
-        run: cargo doc --workspace --no-deps --all-features --document-private-items
+        # Removed --all-features to prevent building tss-esapi (TPM) which requires system libs missing on runners
+        run: cargo doc --workspace --no-deps --document-private-items
 
       - name: Code Metrics
         run: tokei .
