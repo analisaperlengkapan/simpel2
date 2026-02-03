@@ -200,21 +200,28 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                 </div>
 
                                 // Description
-                                <Show when=move || pengajuan.deskripsi.is_some()>
-                                    <div class="bg-gray-50 rounded-lg p-4">
-                                        <div class="text-gray-600 text-sm font-medium mb-2">"Deskripsi"</div>
-                                        <p class="text-gray-800">{pengajuan.deskripsi.clone().unwrap_or_default()}</p>
-                                    </div>
-                                </Show>
+                                {
+                                    let deskripsi = pengajuan.deskripsi.clone();
+                                    let deskripsi_text = pengajuan.deskripsi.clone().unwrap_or_default();
+                                    view! {
+                                        <Show when=move || deskripsi.is_some()>
+                                            <div class="bg-gray-50 rounded-lg p-4">
+                                                <div class="text-gray-600 text-sm font-medium mb-2">"Deskripsi"</div>
+                                                <p class="text-gray-800">{deskripsi_text}</p>
+                                            </div>
+                                        </Show>
+                                    }
+                                }
 
                                 // Workflow transitions
-                                <Show when=move || !allowed_transitions.is_empty()>
-                                    <div class="bg-gray-50 rounded-lg p-4">
-                                        <div class="text-gray-600 text-sm font-medium mb-3">"Aksi Workflow"</div>
-                                        <div class="flex flex-wrap gap-3">
-                                            {
-                                                let transitions = allowed_transitions.clone();
-                                                view! {
+                                {
+                                    let allowed_transitions_check = allowed_transitions.clone();
+                                    let transitions = allowed_transitions.clone();
+                                    view! {
+                                        <Show when=move || !allowed_transitions_check.is_empty()>
+                                            <div class="bg-gray-50 rounded-lg p-4">
+                                                <div class="text-gray-600 text-sm font-medium mb-3">"Aksi Workflow"</div>
+                                                <div class="flex flex-wrap gap-3">
                                                     <For
                                                         each=move || transitions.clone()
                                                         key=|t| t.status_kode

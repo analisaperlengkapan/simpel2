@@ -465,12 +465,12 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                             "Gap dihitung berdasarkan jumlah yang diminta dikurangi jumlah aset sejenis yang sudah ada."
                                                         </div>
                                                     </div>
-                                                }
+                                                }.into_any()
                                             }).unwrap_or_else(|| view! {
                                                 <div class="text-center py-8 text-gray-500">
                                                     <p>"Data analisis belum tersedia"</p>
                                                 </div>
-                                            })
+                                            }.into_any())
                                         }}
                                     </div>
                                 </Show>

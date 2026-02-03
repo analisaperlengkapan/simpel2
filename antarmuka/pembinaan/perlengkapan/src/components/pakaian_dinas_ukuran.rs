@@ -174,7 +174,9 @@ pub fn UkuranPegawai(
                                                     each=move || baju_sizes.clone()
                                                     key=|u| u.id.clone()
                                                     children=move |u: Ukuran| {
-                                                        view! { <option value=u.size.clone()>{u.size}</option> }
+                                                        let size_val = u.size.clone();
+                                                        let size_txt = u.size.clone();
+                                                        view! { <option value=size_val>{size_txt}</option> }
                                                     }
                                                 />
                                             </select>
@@ -200,7 +202,9 @@ pub fn UkuranPegawai(
                                                     each=move || celana_sizes.clone()
                                                     key=|u| u.id.clone()
                                                     children=move |u: Ukuran| {
-                                                        view! { <option value=u.size.clone()>{u.size}</option> }
+                                                        let size_val = u.size.clone();
+                                                        let size_txt = u.size.clone();
+                                                        view! { <option value=size_val>{size_txt}</option> }
                                                     }
                                                 />
                                             </select>
@@ -226,7 +230,9 @@ pub fn UkuranPegawai(
                                                     each=move || sepatu_sizes.clone()
                                                     key=|u| u.id.clone()
                                                     children=move |u: Ukuran| {
-                                                        view! { <option value=u.size.clone()>{u.size}</option> }
+                                                        let size_val = u.size.clone();
+                                                        let size_txt = u.size.clone();
+                                                        view! { <option value=size_val>{size_txt}</option> }
                                                     }
                                                 />
                                             </select>

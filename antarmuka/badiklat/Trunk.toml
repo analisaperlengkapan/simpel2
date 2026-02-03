@@ -2,6 +2,4 @@
 target = "index.html"
 dist = "dist"
 release = true
-
-[build.wasm_opt]
 wasm_opt = false

@@ -546,8 +546,8 @@ split-debuginfo = "unpacked" # Faster debug builds on Linux/macOS
 [profile.release]
 # Maximum optimization for production
 opt-level = 3           # Maximum optimization level
-lto = "fat"             # Full LTO for maximum optimization
-codegen-units = 1       # Single codegen unit for best optimization
+lto = "thin"            # Thin LTO to reduce memory usage on CI
+codegen-units = 16      # Allow parallelism to reduce peak memory per unit
 panic = "abort"         # Smaller binary, faster panics
 strip = true            # Strip symbols for smaller binary
 overflow-checks = false # Disable overflow checks for performance
@@ -559,10 +559,10 @@ incremental = false     # Disable incremental for clean release builds
 inherits = "release"
 opt-level = 3        # High optimization (not maximum size)
 debug = false        # Reduce WASM debug size
-lto = "fat"          # Full LTO for maximum optimization
+lto = "thin"         # Thin LTO to reduce memory usage
 panic = "abort"
 strip = true
-codegen-units = 1
+codegen-units = 16
 
 # Fast development builds for WASM
 [profile.dev-wasm]

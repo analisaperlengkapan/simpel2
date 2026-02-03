@@ -51,6 +51,8 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
             }>
                 {move || {
                     stats_resource.get().flatten().map(|stats| {
+                        let by_tahun = stats.by_tahun.clone();
+                        let by_status = stats.by_status.clone();
                         view! {
                             <div class="space-y-6">
                                 // Main stats cards
@@ -152,24 +154,27 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                             <i class="fas fa-calendar-alt mr-2 text-blue-600"></i>
                                             "Pengajuan per Tahun"
                                         </h3>
-                                        <Show
-                                            when=move || !stats.by_tahun.is_empty()
-                                            fallback=|| view! {
-                                                <div class="text-center py-8 text-gray-500">
-                                                    <p>"Belum ada data"</p>
-                                                </div>
-                                            }
-                                        >
-                                            <div class="space-y-3">
-                                                {
-                                                    let by_tahun = stats.by_tahun.clone();
-                                                    view! {
-                                                        <For
-                                                            each=move || by_tahun.clone()
-                                                            key=|s| s.tahun
-                                                            children=move |item| {
-                                                                let max_val = by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
-                                                                let width_pct = (item.total as f64 / max_val as f64 * 100.0) as i32;
+                                        {
+                                            let by_tahun_check = by_tahun.clone();
+                                            view! {
+                                                <Show
+                                                    when=move || !by_tahun_check.is_empty()
+                                                    fallback=|| view! {
+                                                        <div class="text-center py-8 text-gray-500">
+                                                            <p>"Belum ada data"</p>
+                                                        </div>
+                                                    }
+                                                >
+                                                    <div class="space-y-3">
+                                                        {
+                                                            let by_tahun = by_tahun.clone();
+                                                            view! {
+                                                                <For
+                                                                    each=move || by_tahun.clone()
+                                                                    key=|s| s.tahun
+                                                                    children=move |item| {
+                                                                        let max_val = by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
+                                                                        let width_pct = (item.total as f64 / max_val as f64 * 100.0) as i32;
                                                                 view! {
                                                                     <div class="flex items-center gap-3">
                                                                         <span class="w-16 text-sm font-medium text-gray-600">{item.tahun}</span>
@@ -196,20 +201,23 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                             <i class="fas fa-chart-pie mr-2 text-purple-600"></i>
                                             "Pengajuan per Status"
                                         </h3>
-                                        <Show
-                                            when=move || !stats.by_status.is_empty()
-                                            fallback=|| view! {
-                                                <div class="text-center py-8 text-gray-500">
-                                                    <p>"Belum ada data"</p>
-                                                </div>
-                                            }
-                                        >
-                                            <div class="space-y-3">
-                                                {
-                                                    let by_status = stats.by_status.clone();
-                                                    view! {
-                                                        <For
-                                                            each=move || by_status.clone()
+                                        {
+                                            let by_status_check = by_status.clone();
+                                            view! {
+                                                <Show
+                                                    when=move || !by_status_check.is_empty()
+                                                    fallback=|| view! {
+                                                        <div class="text-center py-8 text-gray-500">
+                                                            <p>"Belum ada data"</p>
+                                                        </div>
+                                                    }
+                                                >
+                                                    <div class="space-y-3">
+                                                        {
+                                                            let by_status = by_status.clone();
+                                                            view! {
+                                                                <For
+                                                                    each=move || by_status.clone()
                                                             key=|s| s.status_kode
                                                             children=move |item| {
                                                                 let status = KebutuhanBmnStatus::from_code(item.status_kode);

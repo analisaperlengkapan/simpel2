@@ -45,9 +45,9 @@ pub fn SimanAssetSearch(
         set_error.set(None);
 
         let kat = kategori.get();
-        let kat_ref = kat.as_deref();
 
         spawn_local(async move {
+            let kat_ref = kat.as_deref();
             match search_siman_assets(&term, kat_ref, Some(20)).await {
                 Ok(response) => {
                     set_results.set(response.data);
@@ -332,31 +332,33 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
             </Show>
 
             <Show when=move || !loading.get() && summary.get().is_some()>
-                {move || summary.get().map(|s| view! {
-                    <div class="space-y-4">
-                        // Total stats
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-white rounded-lg p-4 text-center shadow-sm">
-                                <p class="text-3xl font-bold text-blue-600">{s.total_assets}</p>
-                                <p class="text-sm text-gray-500">"Total Aset"</p>
+                {move || summary.get().map(|s| {
+                    let by_category = s.by_category.clone();
+                    view! {
+                        <div class="space-y-4">
+                            // Total stats
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-white rounded-lg p-4 text-center shadow-sm">
+                                    <p class="text-3xl font-bold text-blue-600">{s.total_assets}</p>
+                                    <p class="text-sm text-gray-500">"Total Aset"</p>
+                                </div>
+                                <div class="bg-white rounded-lg p-4 text-center shadow-sm">
+                                    <p class="text-lg font-bold text-green-600">
+                                        {format!("Rp {:.0}", s.total_value)}
+                                    </p>
+                                    <p class="text-sm text-gray-500">"Total Nilai"</p>
+                                </div>
                             </div>
-                            <div class="bg-white rounded-lg p-4 text-center shadow-sm">
-                                <p class="text-lg font-bold text-green-600">
-                                    {format!("Rp {:.0}", s.total_value)}
-                                </p>
-                                <p class="text-sm text-gray-500">"Total Nilai"</p>
-                            </div>
-                        </div>
 
-                        // By category
-                        <Show when=move || !s.by_category.is_empty()>
-                            <div>
-                                <h5 class="font-semibold text-gray-700 mb-2">"Per Kategori"</h5>
-                                <div class="space-y-2">
-                                    <For
-                                        each=move || s.by_category.clone()
-                                        key=|c| c.category.clone()
-                                        children=|cat| {
+                            // By category
+                            <Show when=move || !by_category.is_empty()>
+                                <div>
+                                    <h5 class="font-semibold text-gray-700 mb-2">"Per Kategori"</h5>
+                                    <div class="space-y-2">
+                                        <For
+                                            each=move || by_category.clone()
+                                            key=|c| c.category.clone()
+                                            children=|cat| {
                                             view! {
                                                 <div class="flex justify-between items-center text-sm bg-white rounded px-3 py-2">
                                                     <span class="text-gray-600">{cat.category}</span>
