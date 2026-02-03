@@ -24,6 +24,23 @@
 
 ## 🏛️ System Architecture
 
+### 🖥️ CI/CD Environment (Self-Hosted)
+
+> **WARNING**: The GitHub Actions runners (`desktop2`, `lacer2`) are **Self-Hosted** and have specific limitations.
+
+- **NO Docker in Workflows**: The runners do NOT have Docker installed.
+  - ❌ `services: postgres` blocks in GitHub Actions will FAIL.
+  - ✅ Use mocks (`mockall`) for unit tests.
+  - ✅ Use pure binary dependencies where possible.
+- **Protobuf Compiler (`protoc`)**:
+  - System `protoc` is missing or old.
+  - Workflows use `arduino/setup-protoc` but MUST install to `${{ runner.temp }}/.local/bin` to avoid race conditions.
+  - **Local Dev**: You might need to set `PROTOC=/path/to/binary` if it's not in PATH.
+- **File Permissions**:
+  - Always use `uses: actions/checkout ... with: clean: false` to avoid `EACCES` errors when cleaning up files owned by root/previous runs.
+- **Tools**:
+  - `cc` (C Compiler) is missing. Tools like `cargo-outdated` that compile C deps will fail. Use pre-built binaries.
+
 ```mermaid
 flowchart TB
     subgraph Browser["🌐 Browser (WASM)"]
@@ -525,6 +542,15 @@ sequenceDiagram
 - Build with `cargo build --workspace` (authenc/secreton included)
 - Add new dependencies to root `Cargo.toml` workspace.dependencies first
 
+## ⚠️ Technical Quirks & "Gotchas"
+
+- **Nginx Config**:
+  - `add_header` in a `location` block **CLEARS** headers defined in `server` blocks. You must re-declare them (e.g., security headers).
+  - Place `add_header` *before* `return` statements.
+- **Secreton Injection**:
+  - Initialization requires Shamir Secret Sharing (unseal via API).
+  - Env injection via `/v1/sys/inject/env` is available.
+
 ---
 
 ## 📚 Key Documentation References
@@ -551,6 +577,8 @@ sequenceDiagram
 | **Authenc (Identity Provider)** | [`infra/authenc/AGENTS.md`](infra/authenc/AGENTS.md) | OAuth2/OIDC, MFA, RBAC/ABAC, SSO/Federation, Admin Console |
 | **Secreton (Secrets Vault)** | [`infra/secreton/AGENTS.md`](infra/secreton/AGENTS.md) | Secret storage, Transit engine, PKI, HSM integration, Raft HA |
 | **Layanan Integrasi** | [`layanan/daskrimti/integrasi/AGENTS.md`](layanan/daskrimti/integrasi/AGENTS.md) | MonSAKTI, MySIMKARI, SIMAN API integration |
+| **Frontend Patterns** | [`antarmuka/AGENTS.md`](antarmuka/AGENTS.md) | Leptos patterns, Playwright testing, Microfrontend routing |
+| **Backend Patterns** | [`layanan/AGENTS.md`](layanan/AGENTS.md) | Axum patterns, DB migrations, Unit testing standards |
 
 ### Quick Navigation by Task
 
@@ -561,5 +589,5 @@ sequenceDiagram
 | Work on authentication/authorization | `infra/authenc/AGENTS.md` |
 | Manage secrets/encryption | `infra/secreton/AGENTS.md` |
 | Integrate with government APIs | `layanan/daskrimti/integrasi/AGENTS.md` |
-| Work on backend services | This file (root `AGENTS.md`) |
-| Work on frontend microfrontends | This file (root `AGENTS.md`) |
+| Work on backend services | [`layanan/AGENTS.md`](layanan/AGENTS.md) |
+| Work on frontend microfrontends | [`antarmuka/AGENTS.md`](antarmuka/AGENTS.md) |
