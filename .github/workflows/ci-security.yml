@@ -23,9 +23,6 @@ jobs:
           # Robust cleanup via Docker (fixes root-owned files)
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
 
-          # Fix corrupted cargo registry
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -35,6 +32,11 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean Corrupted Cache
+        run: |
+          # Fix corrupted cargo registry - removed AFTER setup-rust restores it
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Install Tools
         shell: bash
@@ -103,6 +105,10 @@ jobs:
   secrets-gitleaks:
     name: Secrets Scanning
     runs-on: self-hosted
+    # Grant permissions for gitleaks to comment on PRs
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Fix permissions
         run: |
@@ -115,9 +121,6 @@ jobs:
             echo "Attempting docker cleanup..."
             docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine rm -rf protoc .build_config || true
           fi
-
-          # Fix corrupted cargo registry
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
