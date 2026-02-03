@@ -54,6 +54,39 @@ impl PolicyService {
         Self { pool }
     }
 
+    pub async fn get_rules_for_policies(&self, names: &[String]) -> Vec<PolicyRule> {
+        if names.is_empty() {
+            return Vec::new();
+        }
+
+        let client = match self.pool.get().await {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("Database connection error: {}", e);
+                return Vec::new();
+            }
+        };
+
+        let query = "SELECT rules FROM policies WHERE name = ANY($1) AND is_active = true";
+        let rows = match client.query(query, &[&names]).await {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::error!("Database query error: {}", e);
+                return Vec::new();
+            }
+        };
+
+        let mut all_rules = Vec::new();
+        for row in rows {
+            let rules_json: serde_json::Value = row.get(0);
+            if let Ok(rules) = serde_json::from_value::<Vec<PolicyRule>>(rules_json) {
+                all_rules.extend(rules);
+            }
+        }
+
+        all_rules
+    }
+
     pub async fn list_policy_names(
         &self,
         namespace: Option<String>,

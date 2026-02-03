@@ -134,6 +134,7 @@ struct StoredUser {
     pub last_login: Option<chrono::DateTime<chrono::Utc>>,
     pub mfa_enabled: bool,
     pub roles: HashSet<String>,
+    pub policies: HashSet<String>,
     pub namespace: String,
     pub is_locked: bool,
     pub failed_attempts: u32,
@@ -156,6 +157,7 @@ impl From<&User> for StoredUser {
             last_login: user.last_login,
             mfa_enabled: user.mfa_enabled,
             roles: user.roles.clone(),
+            policies: user.policies.clone(),
             namespace: user.namespace.clone(),
             is_locked: user.is_locked,
             failed_attempts: user.failed_attempts,
@@ -180,6 +182,7 @@ impl From<StoredUser> for User {
             last_login: stored.last_login,
             mfa_enabled: stored.mfa_enabled,
             roles: stored.roles,
+            policies: stored.policies,
             namespace: stored.namespace,
             is_locked: stored.is_locked,
             failed_attempts: stored.failed_attempts,
@@ -234,6 +237,7 @@ struct Claims {
     iat: usize,
     jti: String,
     roles: Vec<String>,
+    policies: Vec<String>,
     token_type: String, // "access" or "refresh"
     // Extended claims for stateless validation
     username: String,
@@ -383,6 +387,7 @@ impl AuthService {
             last_login: Some(chrono::Utc::now()), // Active now
             mfa_enabled: claims.mfa_enabled,
             roles: claims.roles.into_iter().collect(),
+            policies: claims.policies.into_iter().collect(),
             namespace: claims.namespace,
             is_locked: false,
             failed_attempts: 0,
@@ -443,6 +448,7 @@ impl AuthService {
         password: &str,
         full_name: Option<&str>,
         roles: Vec<String>,
+        policies: Vec<String>,
         metadata: Option<HashMap<String, String>>,
         is_active: bool,
     ) -> Result<User, AuthError> {
@@ -467,6 +473,7 @@ impl AuthService {
             last_login: None,
             mfa_enabled: false,
             roles: roles.into_iter().collect(),
+            policies: policies.into_iter().collect(),
             namespace: "default".to_string(),
             is_locked: false,
             failed_attempts: 0,
@@ -485,12 +492,16 @@ impl AuthService {
         email: Option<String>,
         full_name: Option<String>,
         is_active: Option<bool>,
+        policies: Option<Vec<String>>,
         metadata: Option<HashMap<String, String>>,
     ) -> Result<User, AuthError> {
         let mut user = self.get_user(user_id).await?;
 
         if let Some(email) = email {
             user.email = email;
+        }
+        if let Some(p) = policies {
+            user.policies = p.into_iter().collect();
         }
         if let Some(full_name) = full_name {
             user.full_name = Some(full_name);
@@ -633,7 +644,7 @@ impl AuthService {
 
     /// Get user effective policies (permissions)
     pub async fn get_user_policies(&self, user: &User) -> Result<Vec<String>, AuthError> {
-        let mut all_permissions = Vec::new();
+        let mut all_permissions: Vec<String> = user.policies.iter().cloned().collect();
 
         for role_name in &user.roles {
             match self.get_role(role_name).await {
@@ -850,6 +861,8 @@ impl AuthService {
 
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
+        let mut policies: Vec<String> = user.policies.iter().cloned().collect();
+        policies.sort();
 
         let claims = Claims {
             sub: user.id.to_string(),
@@ -859,6 +872,7 @@ impl AuthService {
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
             roles,
+            policies,
             token_type: "access".to_string(),
             username: user.username.clone(),
             email: user.email.clone(),
@@ -889,6 +903,8 @@ impl AuthService {
 
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
+        let mut policies: Vec<String> = user.policies.iter().cloned().collect();
+        policies.sort();
 
         let claims = Claims {
             sub: user.id.to_string(),
@@ -898,6 +914,7 @@ impl AuthService {
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
             roles,
+            policies,
             token_type: "refresh".to_string(),
             username: user.username.clone(),
             email: user.email.clone(),

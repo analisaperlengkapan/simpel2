@@ -4,7 +4,8 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use secreton_storage::{QueryParams, SecretEntry, SecurityLevel, StorageBackend};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyDefinition {
@@ -22,11 +23,48 @@ pub struct PolicyDefinition {
 
 pub struct PolicyService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
+    cache: RwLock<HashMap<String, PolicyDefinition>>,
 }
 
 impl PolicyService {
     pub fn new(storage: Arc<dyn StorageBackend + Send + Sync>) -> Self {
-        Self { storage }
+        Self {
+            storage,
+            cache: RwLock::new(HashMap::new()),
+        }
+    }
+
+    /// Aggregate rules from a list of policy names
+    pub async fn get_rules_for_policies(&self, names: &[String]) -> Vec<PolicyRule> {
+        let mut rules = Vec::new();
+
+        for name in names {
+            // Check cache first
+            let cached_policy = if let Ok(cache) = self.cache.read() {
+                cache.get(name).cloned()
+            } else {
+                None
+            };
+
+            if let Some(policy) = cached_policy {
+                if policy.is_active {
+                    rules.extend(policy.rules);
+                }
+                continue;
+            }
+
+            // Fallback to storage
+            if let Ok(policy) = self.get_policy(name).await {
+                if policy.is_active {
+                    // Update cache
+                    if let Ok(mut cache) = self.cache.write() {
+                        cache.insert(name.clone(), policy.clone());
+                    }
+                    rules.extend(policy.rules);
+                }
+            }
+        }
+        rules
     }
 
     pub async fn create_policy(
@@ -137,6 +175,10 @@ impl PolicyService {
                 })?;
 
         if deleted {
+            // Remove from cache
+            if let Ok(mut cache) = self.cache.write() {
+                cache.remove(name);
+            }
             Ok(())
         } else {
             Err(CoreError::NotFound {
@@ -226,6 +268,12 @@ impl PolicyService {
                 message: e.to_string(),
                 source: None,
             })?;
+
+        // Update cache
+        if let Ok(mut cache) = self.cache.write() {
+            cache.insert(policy.name.clone(), policy.clone());
+        }
+
         Ok(())
     }
 }

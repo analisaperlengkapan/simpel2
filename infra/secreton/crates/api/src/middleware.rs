@@ -1064,18 +1064,15 @@ pub async fn policy_check_middleware(
         // Build policy evaluation context
         let policy_context = build_policy_context(ctx, &request);
 
-        // Get policy service from state
-        let policy_set = match state.services.policy.read() {
-            Ok(guard) => guard,
-            Err(e) => {
-                tracing::error!("Failed to acquire policy read lock: {}", e);
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Policy service unavailable",
-                )
-                    .into_response());
-            }
-        };
+        // Get rules from policy service based on user's policy names
+        let rules = state
+            .services
+            .policy_service
+            .get_rules_for_policies(&ctx.policy_names)
+            .await;
+
+        // Create temporary policy set for evaluation
+        let policy_set = secreton_core::services::policy::PolicySet::new(rules);
 
         // Evaluate policy
         let start_time = Instant::now();
