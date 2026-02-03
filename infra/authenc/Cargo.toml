@@ -299,7 +299,7 @@ harness = false
 opt-level = 1                # Light optimization for better dev experience
 debug = true                 # Keep debug info for development
 incremental = true           # Enable incremental compilation
-codegen-units = 256          # Parallel compilation for faster builds
+codegen-units = 16           # Reduced from 256 to 16 to avoid file descriptor exhaustion on self-hosted runners
 lto = false                  # Disable LTO in dev for faster incremental builds
 split-debuginfo = "unpacked" # Faster debug builds on Linux/macOS
 
