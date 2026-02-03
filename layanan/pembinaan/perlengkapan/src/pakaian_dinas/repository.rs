@@ -151,7 +151,9 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
 
         if result == 0 {
-            return Err(AppError::NotFound("Jenis pakaian dinas tidak ditemukan".to_string()));
+            return Err(AppError::NotFound(
+                "Jenis pakaian dinas tidak ditemukan".to_string(),
+            ));
         }
 
         Ok(())
@@ -331,7 +333,9 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
 
         if result == 0 {
-            return Err(AppError::NotFound("Spesifikasi tidak ditemukan".to_string()));
+            return Err(AppError::NotFound(
+                "Spesifikasi tidak ditemukan".to_string(),
+            ));
         }
 
         self.get_spesifikasi_by_id(id).await
@@ -353,7 +357,9 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
 
         if result == 0 {
-            return Err(AppError::NotFound("Spesifikasi tidak ditemukan".to_string()));
+            return Err(AppError::NotFound(
+                "Spesifikasi tidak ditemukan".to_string(),
+            ));
         }
 
         Ok(())
@@ -511,7 +517,9 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
 
         if result == 0 {
-            return Err(AppError::NotFound("SubSpesifikasi tidak ditemukan".to_string()));
+            return Err(AppError::NotFound(
+                "SubSpesifikasi tidak ditemukan".to_string(),
+            ));
         }
 
         Ok(())
