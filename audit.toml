@@ -1,11 +1,29 @@
 [advisories]
 ignore = [
-    "RUSTSEC-2023-0071", # rsa (Marvin Attack) - No fixed version available
-    "RUSTSEC-2023-0089", # atomic-polyfill (unmaintained)
-    "RUSTSEC-2025-0057", # fxhash (unmaintained)
-    "RUSTSEC-2024-0436", # paste (unmaintained)
-    "RUSTSEC-2024-0370", # proc-macro-error (unmaintained)
-    "RUSTSEC-2025-0134", # rustls-pemfile (unmaintained)
-    "RUSTSEC-2025-0141", # bincode (unmaintained)
-    "RUSTSEC-2024-0421", # idna (low severity, waiting for upstream)
+    # RUSTSEC-2023-0071: RSA timing sidechannel vulnerability (Marvin Attack)
+    # Justification: We prefer Ed25519 for new keys. RSA support in ssh-key crate is maintained for legacy SSH compatibility.
+    # The vulnerability requires specific timing conditions difficult to exploit in our context.
+    "RUSTSEC-2023-0071",
+
+    # RUSTSEC-2025-0141: Bincode is unmaintained
+    # Justification: Heavily used in ecosystem (wasmtime, gloo-worker). No direct replacement available yet.
+    # We are monitoring for a fork or replacement.
+    "RUSTSEC-2025-0141",
+
+    # RUSTSEC-2025-0057: fxhash is unmaintained
+    # Justification: Used transitively by wasmtime. Performance critical hashing.
+    # Risk is minimal as it's a hashing algorithm implementation.
+    "RUSTSEC-2025-0057",
+
+    # RUSTSEC-2024-0436: paste is unmaintained
+    # Justification: Macro utility used widely (Leptos). Functionality is stable and doesn't involve runtime logic.
+    "RUSTSEC-2024-0436",
+
+    # RUSTSEC-2025-0134: rustls-pemfile is unmaintained
+    # Justification: Used by tonic/axum stack. Likely to be replaced or updated in upstream crates soon.
+    "RUSTSEC-2025-0134",
+
+    # RUSTSEC-2023-0089: atomic-polyfill is unmaintained
+    # Justification: Transitive dependency via heapless/postcard. Low risk for our target architectures.
+    "RUSTSEC-2023-0089"
 ]
