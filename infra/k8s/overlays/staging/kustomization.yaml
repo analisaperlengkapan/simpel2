@@ -1,0 +1,153 @@
+# Staging Environment Overlay
+# Namespace: simpelv2-staging
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace suffix for staging
+namespace: simpelv2-staging
+namePrefix: ""
+nameSuffix: ""
+
+# Base configuration
+resources:
+  - ../../base
+  - namespace.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - mtls.yaml
+  - allow-ingress-gateway-networkpolicy.yaml
+
+# Labels for staging environment (using new syntax)
+labels:
+  - pairs:
+      app.kubernetes.io/environment: staging
+    includeSelectors: false
+
+# Annotations for staging
+commonAnnotations:
+  simpelv2.kejaksaan.go.id/environment: staging
+
+# Patches for staging-specific values
+patches:
+  # Reduce replicas for staging
+  - target:
+      kind: Deployment
+      name: ".*"
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # PostgreSQL: single replica for staging, schedule to simple02 node
+  - target:
+      kind: StatefulSet
+      name: postgres
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: simple02
+
+  # Secreton: single replica for staging, schedule to simple02 node
+  - target:
+      kind: StatefulSet
+      name: secreton
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: simple02
+
+  # Schedule all deployments to simple02 for staging
+  # Also set imagePullPolicy to Never since images are imported locally
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: simple02
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+
+  # Reduce resources for staging
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "50m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "250m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+
+# ConfigMap patches for staging
+configMapGenerator:
+  - name: simpelv2-config
+    behavior: merge
+    literals:
+      - RUST_LOG=debug
+      - APP_ENVIRONMENT=staging
+      - POSTGRES_HOST=postgres.simpelv2-staging.svc.cluster.local
+      - REDIS_URL=redis://redis-service.simpelv2-staging.svc.cluster.local:6379
+      - PORTAL_BASE_URL=http://10.1.7.121
+      - JWT_ISSUER=http://10.1.7.121/auth
+
+  - name: backend-config
+    behavior: merge
+    literals:
+      - AUTHENC_GRPC_URL=http://authenc.simpelv2-staging.svc.cluster.local:9088
+      - SECRETON_GRPC_URL=http://secreton.simpelv2-staging.svc.cluster.local:9000
+      - MTLS_MODE=PERMISSIVE
+
+# Secret patches for staging
+secretGenerator:
+  - name: postgres-credentials
+    behavior: merge
+    literals:
+      - url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/simpelv2
+      - password=simpelv2_staging_password
+      - username=simpelv2
+
+# Image tags for staging (use dev/latest tags available in registry)
+images:
+  - name: localhost:32000/simpelv2/layanan-daskrimti-portal
+    newTag: stag
+  - name: localhost:32000/simpelv2/layanan-daskrimti-integrasi
+    newTag: staging
+  - name: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan
+    newTag: stag
+  - name: localhost:32000/simpelv2/daskrimti-portal
+    newTag: stag
+  - name: localhost:32000/simpelv2/pembinaan-perlengkapan
+    newTag: stag
+  - name: localhost:32000/authenc
+    newTag: stag
+  - name: localhost:32000/simpelv2/secreton
+    newTag: stag
+  - name: localhost:32000/simpelv2/portal
+    newTag: stag
+  # Standard images - use imagePullPolicy: IfNotPresent in base
+  - name: postgres
+    newName: postgres
+    newTag: 16-alpine
+  - name: redis
+    newName: redis
+    newTag: 7-alpine
+
+generatorOptions:
+  disableNameSuffixHash: true

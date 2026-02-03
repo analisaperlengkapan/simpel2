@@ -54,7 +54,8 @@ ENV PORTAL_URL=$PORTAL_URL
 ENV AUTHENC_URL=$AUTHENC_URL
 
 # Build with trunk (release mode)
-RUN trunk build --release --public-url "/portal/"
+# Use root path "/" for staging deployment (no /portal/ prefix)
+RUN trunk build --release
 
 # Stage 2: Nginx untuk serving hasil build - LISTEN ON PORT 8080
 FROM nginx:alpine

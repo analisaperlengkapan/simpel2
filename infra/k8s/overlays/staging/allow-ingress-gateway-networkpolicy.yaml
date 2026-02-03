@@ -1,0 +1,39 @@
+# NetworkPolicy to allow traffic from Istio Ingress Gateway
+# Required for proper routing from external traffic to staging services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-gateway
+  namespace: simpelv2-staging
+  labels:
+    app.kubernetes.io/environment: staging
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/part-of: simpelv2
+  annotations:
+    simpelv2.kejaksaan.go.id/environment: staging
+    simpelv2.kejaksaan.go.id/managed: "true"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+          podSelector:
+            matchLabels:
+              app: istio-ingressgateway
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 3010
+          protocol: TCP
+        - port: 3020
+          protocol: TCP
+        - port: 8088
+          protocol: TCP
+        - port: 8200
+          protocol: TCP
+        - port: 50051
+          protocol: TCP
