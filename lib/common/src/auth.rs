@@ -4,8 +4,16 @@ use serde::{Deserialize, Serialize};
 /// User role enum shared across services
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub enum UserRole {
-    /// System administrator
+    /// System administrator (global)
     Admin,
+    /// Central administrator (Kejaksaan Agung)
+    AdminPusat,
+    /// Eselon I administrator (Jampidsus, Jamintel, etc.)
+    AdminEselonI,
+    /// Regional administrator (Kejaksaan Tinggi)
+    AdminWilayah,
+    /// District administrator (Kejaksaan Negeri)
+    AdminSatker,
     /// Regular user
     #[default]
     User,
@@ -19,7 +27,11 @@ impl UserRole {
     /// Get role display name in Indonesian
     pub fn display_name(&self) -> &'static str {
         match self {
-            Self::Admin => "Administrator",
+            Self::Admin => "Administrator Global",
+            Self::AdminPusat => "Administrator Pusat",
+            Self::AdminEselonI => "Administrator Eselon I",
+            Self::AdminWilayah => "Administrator Wilayah",
+            Self::AdminSatker => "Administrator Satker",
             Self::User => "Pengguna",
             Self::Supervisor => "Supervisor",
             Self::Guest => "Tamu",
@@ -28,12 +40,27 @@ impl UserRole {
 
     /// Check if role has admin privileges
     pub fn is_admin(&self) -> bool {
-        matches!(self, Self::Admin)
+        matches!(
+            self,
+            Self::Admin
+                | Self::AdminPusat
+                | Self::AdminEselonI
+                | Self::AdminWilayah
+                | Self::AdminSatker
+        )
     }
 
     /// Check if role can manage users
     pub fn can_manage_users(&self) -> bool {
-        matches!(self, Self::Admin | Self::Supervisor)
+        matches!(
+            self,
+            Self::Admin
+                | Self::AdminPusat
+                | Self::AdminEselonI
+                | Self::AdminWilayah
+                | Self::AdminSatker
+                | Self::Supervisor
+        )
     }
 }
 

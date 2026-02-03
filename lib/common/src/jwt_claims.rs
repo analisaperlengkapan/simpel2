@@ -73,6 +73,14 @@ impl Claims {
     pub fn get_primary_role(&self) -> crate::auth::UserRole {
         if self.has_role("admin") {
             crate::auth::UserRole::Admin
+        } else if self.has_role("admin_pusat") {
+            crate::auth::UserRole::AdminPusat
+        } else if self.has_role("admin_eselon1") {
+            crate::auth::UserRole::AdminEselonI
+        } else if self.has_role("admin_wilayah") {
+            crate::auth::UserRole::AdminWilayah
+        } else if self.has_role("admin_satker") {
+            crate::auth::UserRole::AdminSatker
         } else if self.has_role("supervisor") {
             crate::auth::UserRole::Supervisor
         } else if self.has_role("guest") {
