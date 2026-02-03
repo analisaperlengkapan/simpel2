@@ -1,0 +1,31 @@
+# Istio DestinationRules for SIMPelv2
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: authenc-mtls
+spec:
+  host: authenc
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: secreton-mtls
+spec:
+  host: secreton
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: postgres-mtls
+spec:
+  host: postgres-primary
+  trafficPolicy:
+    tls:
+      mode: DISABLE  # PostgreSQL uses native TLS

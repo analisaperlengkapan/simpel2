@@ -81,7 +81,9 @@ impl Database {
             .await?;
 
         // Create pengadaan sub-tables
-        client.execute(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_hps (
                 id UUID PRIMARY KEY,
                 pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
@@ -94,9 +96,14 @@ impl Database {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
-        "#, &[]).await?;
+        "#,
+                &[],
+            )
+            .await?;
 
-        client.execute(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_skppbj (
                 id UUID PRIMARY KEY,
                 pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
@@ -110,9 +117,14 @@ impl Database {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
-        "#, &[]).await?;
+        "#,
+                &[],
+            )
+            .await?;
 
-        client.execute(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_spk (
                 id UUID PRIMARY KEY,
                 pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
@@ -130,9 +142,14 @@ impl Database {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
-        "#, &[]).await?;
+        "#,
+                &[],
+            )
+            .await?;
 
-        client.execute(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_ringkasan (
                 id UUID PRIMARY KEY,
                 pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
@@ -148,9 +165,14 @@ impl Database {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
-        "#, &[]).await?;
+        "#,
+                &[],
+            )
+            .await?;
 
-        client.execute(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_kontrak (
                 id UUID PRIMARY KEY,
                 pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
@@ -159,9 +181,14 @@ impl Database {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
-        "#, &[]).await?;
+        "#,
+                &[],
+            )
+            .await?;
 
-        client.execute(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_bast (
                 id UUID PRIMARY KEY,
                 pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
@@ -174,9 +201,14 @@ impl Database {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
-        "#, &[]).await?;
+        "#,
+                &[],
+            )
+            .await?;
 
-        client.execute(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan_nodis (
                 id UUID PRIMARY KEY,
                 pengadaan_id UUID NOT NULL REFERENCES perlengkapan.pengadaan(id),
@@ -185,7 +217,10 @@ impl Database {
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
-        "#, &[]).await?;
+        "#,
+                &[],
+            )
+            .await?;
 
         // Create analisis table
         client
@@ -570,8 +605,15 @@ impl PerlengkapanRepository for Database {
         Ok(Pengadaan::from_row(&row))
     }
 
-    async fn create_pengadaan_hps(&self, request: CreatePengadaanHpsRequest) -> AppResult<PengadaanHps> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    async fn create_pengadaan_hps(
+        &self,
+        request: CreatePengadaanHpsRequest,
+    ) -> AppResult<PengadaanHps> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         let id = Uuid::new_v4();
         let row = client.query_one(
             r#"INSERT INTO perlengkapan.pengadaan_hps (id, pengadaan_id, no_hps, tgl_hps, nip_penandatangan, nama_penandatangan, pangkat_penandatangan, barang)
@@ -595,26 +637,45 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pengadaan_hps(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanHps>> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
-        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_hps WHERE pengadaan_id = $1", &[&pengadaan_id])
-            .await.map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.pengadaan_hps WHERE pengadaan_id = $1",
+                &[&pengadaan_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(rows.iter().map(|row| PengadaanHps {
-             id: row.get("id"),
-            pengadaan_id: row.get("pengadaan_id"),
-            no_hps: row.get("no_hps"),
-            tgl_hps: row.get("tgl_hps"),
-            nip_penandatangan: row.get("nip_penandatangan"),
-            nama_penandatangan: row.get("nama_penandatangan"),
-            pangkat_penandatangan: row.get("pangkat_penandatangan"),
-            barang: row.get("barang"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|row| PengadaanHps {
+                id: row.get("id"),
+                pengadaan_id: row.get("pengadaan_id"),
+                no_hps: row.get("no_hps"),
+                tgl_hps: row.get("tgl_hps"),
+                nip_penandatangan: row.get("nip_penandatangan"),
+                nama_penandatangan: row.get("nama_penandatangan"),
+                pangkat_penandatangan: row.get("pangkat_penandatangan"),
+                barang: row.get("barang"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect())
     }
 
-    async fn create_pengadaan_skppbj(&self, request: CreatePengadaanSkppbjRequest) -> AppResult<PengadaanSkppbj> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    async fn create_pengadaan_skppbj(
+        &self,
+        request: CreatePengadaanSkppbjRequest,
+    ) -> AppResult<PengadaanSkppbj> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         let id = Uuid::new_v4();
         let row = client.query_one(
             r#"INSERT INTO perlengkapan.pengadaan_skppbj (id, pengadaan_id, nama_penandatangan, nip_penandatangan, pangkat_penandatangan, jabatan_penandatangan, alamat, tgl_skppbj, penyedia)
@@ -639,27 +700,46 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pengadaan_skppbj(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSkppbj>> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
-        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_skppbj WHERE pengadaan_id = $1", &[&pengadaan_id])
-            .await.map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.pengadaan_skppbj WHERE pengadaan_id = $1",
+                &[&pengadaan_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(rows.iter().map(|row| PengadaanSkppbj {
-            id: row.get("id"),
-            pengadaan_id: row.get("pengadaan_id"),
-            nama_penandatangan: row.get("nama_penandatangan"),
-            nip_penandatangan: row.get("nip_penandatangan"),
-            pangkat_penandatangan: row.get("pangkat_penandatangan"),
-            jabatan_penandatangan: row.get("jabatan_penandatangan"),
-            alamat: row.get("alamat"),
-            tgl_skppbj: row.get("tgl_skppbj"),
-            penyedia: row.get("penyedia"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|row| PengadaanSkppbj {
+                id: row.get("id"),
+                pengadaan_id: row.get("pengadaan_id"),
+                nama_penandatangan: row.get("nama_penandatangan"),
+                nip_penandatangan: row.get("nip_penandatangan"),
+                pangkat_penandatangan: row.get("pangkat_penandatangan"),
+                jabatan_penandatangan: row.get("jabatan_penandatangan"),
+                alamat: row.get("alamat"),
+                tgl_skppbj: row.get("tgl_skppbj"),
+                penyedia: row.get("penyedia"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect())
     }
 
-    async fn create_pengadaan_spk(&self, request: CreatePengadaanSpkRequest) -> AppResult<PengadaanSpk> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    async fn create_pengadaan_spk(
+        &self,
+        request: CreatePengadaanSpkRequest,
+    ) -> AppResult<PengadaanSpk> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         let id = Uuid::new_v4();
         let row = client.query_one(
             r#"INSERT INTO perlengkapan.pengadaan_spk (id, pengadaan_id, no_spk, no_permintaan, tgl_permintaan, no_ba, tgl_ba, tgl_mulai, tgl_spk, tgl_selesai, nama_penyedia, keterangan, instruksi)
@@ -688,31 +768,50 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pengadaan_spk(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSpk>> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
-        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_spk WHERE pengadaan_id = $1", &[&pengadaan_id])
-            .await.map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.pengadaan_spk WHERE pengadaan_id = $1",
+                &[&pengadaan_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(rows.iter().map(|row| PengadaanSpk {
-            id: row.get("id"),
-            pengadaan_id: row.get("pengadaan_id"),
-            no_spk: row.get("no_spk"),
-            no_permintaan: row.get("no_permintaan"),
-            tgl_permintaan: row.get("tgl_permintaan"),
-            no_ba: row.get("no_ba"),
-            tgl_ba: row.get("tgl_ba"),
-            tgl_mulai: row.get("tgl_mulai"),
-            tgl_spk: row.get("tgl_spk"),
-            tgl_selesai: row.get("tgl_selesai"),
-            nama_penyedia: row.get("nama_penyedia"),
-            keterangan: row.get("keterangan"),
-            instruksi: row.get("instruksi"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|row| PengadaanSpk {
+                id: row.get("id"),
+                pengadaan_id: row.get("pengadaan_id"),
+                no_spk: row.get("no_spk"),
+                no_permintaan: row.get("no_permintaan"),
+                tgl_permintaan: row.get("tgl_permintaan"),
+                no_ba: row.get("no_ba"),
+                tgl_ba: row.get("tgl_ba"),
+                tgl_mulai: row.get("tgl_mulai"),
+                tgl_spk: row.get("tgl_spk"),
+                tgl_selesai: row.get("tgl_selesai"),
+                nama_penyedia: row.get("nama_penyedia"),
+                keterangan: row.get("keterangan"),
+                instruksi: row.get("instruksi"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect())
     }
 
-    async fn create_pengadaan_ringkasan(&self, request: CreatePengadaanRingkasanRequest) -> AppResult<PengadaanRingkasan> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    async fn create_pengadaan_ringkasan(
+        &self,
+        request: CreatePengadaanRingkasanRequest,
+    ) -> AppResult<PengadaanRingkasan> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         let id = Uuid::new_v4();
         let row = client.query_one(
             r#"INSERT INTO perlengkapan.pengadaan_ringkasan (id, pengadaan_id, no_dipa, tgl_dipa, cara_pembayaran, alamat_penyedia, nama_bank, kantor_bank, no_rek, npwp, sanksi)
@@ -738,30 +837,52 @@ impl PerlengkapanRepository for Database {
         })
     }
 
-    async fn get_pengadaan_ringkasan(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanRingkasan>> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
-        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_ringkasan WHERE pengadaan_id = $1", &[&pengadaan_id])
-            .await.map_err(|e| AppError::Database(e.to_string()))?;
+    async fn get_pengadaan_ringkasan(
+        &self,
+        pengadaan_id: Uuid,
+    ) -> AppResult<Vec<PengadaanRingkasan>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.pengadaan_ringkasan WHERE pengadaan_id = $1",
+                &[&pengadaan_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(rows.iter().map(|row| PengadaanRingkasan {
-            id: row.get("id"),
-            pengadaan_id: row.get("pengadaan_id"),
-            no_dipa: row.get("no_dipa"),
-            tgl_dipa: row.get("tgl_dipa"),
-            cara_pembayaran: row.get("cara_pembayaran"),
-            alamat_penyedia: row.get("alamat_penyedia"),
-            nama_bank: row.get("nama_bank"),
-            kantor_bank: row.get("kantor_bank"),
-            no_rek: row.get("no_rek"),
-            npwp: row.get("npwp"),
-            sanksi: row.get("sanksi"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|row| PengadaanRingkasan {
+                id: row.get("id"),
+                pengadaan_id: row.get("pengadaan_id"),
+                no_dipa: row.get("no_dipa"),
+                tgl_dipa: row.get("tgl_dipa"),
+                cara_pembayaran: row.get("cara_pembayaran"),
+                alamat_penyedia: row.get("alamat_penyedia"),
+                nama_bank: row.get("nama_bank"),
+                kantor_bank: row.get("kantor_bank"),
+                no_rek: row.get("no_rek"),
+                npwp: row.get("npwp"),
+                sanksi: row.get("sanksi"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect())
     }
 
-    async fn create_pengadaan_kontrak(&self, request: CreatePengadaanKontrakRequest) -> AppResult<PengadaanKontrak> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    async fn create_pengadaan_kontrak(
+        &self,
+        request: CreatePengadaanKontrakRequest,
+    ) -> AppResult<PengadaanKontrak> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         let id = Uuid::new_v4();
         let row = client.query_one(
             r#"INSERT INTO perlengkapan.pengadaan_kontrak (id, pengadaan_id, no_kontrak, tgl_kontrak)
@@ -781,22 +902,41 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pengadaan_kontrak(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanKontrak>> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
-        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_kontrak WHERE pengadaan_id = $1", &[&pengadaan_id])
-            .await.map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.pengadaan_kontrak WHERE pengadaan_id = $1",
+                &[&pengadaan_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(rows.iter().map(|row| PengadaanKontrak {
-            id: row.get("id"),
-            pengadaan_id: row.get("pengadaan_id"),
-            no_kontrak: row.get("no_kontrak"),
-            tgl_kontrak: row.get("tgl_kontrak"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|row| PengadaanKontrak {
+                id: row.get("id"),
+                pengadaan_id: row.get("pengadaan_id"),
+                no_kontrak: row.get("no_kontrak"),
+                tgl_kontrak: row.get("tgl_kontrak"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect())
     }
 
-    async fn create_pengadaan_bast(&self, request: CreatePengadaanBastRequest) -> AppResult<PengadaanBast> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    async fn create_pengadaan_bast(
+        &self,
+        request: CreatePengadaanBastRequest,
+    ) -> AppResult<PengadaanBast> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         let id = Uuid::new_v4();
         let row = client.query_one(
             r#"INSERT INTO perlengkapan.pengadaan_bast (id, pengadaan_id, no_bast, tgl_bast, nama_pejabat, nip_pejabat, pangkat_pejabat, jabatan_pejabat)
@@ -820,33 +960,60 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pengadaan_bast(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanBast>> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
-        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_bast WHERE pengadaan_id = $1", &[&pengadaan_id])
-            .await.map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.pengadaan_bast WHERE pengadaan_id = $1",
+                &[&pengadaan_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(rows.iter().map(|row| PengadaanBast {
-            id: row.get("id"),
-            pengadaan_id: row.get("pengadaan_id"),
-            no_bast: row.get("no_bast"),
-            tgl_bast: row.get("tgl_bast"),
-            nama_pejabat: row.get("nama_pejabat"),
-            nip_pejabat: row.get("nip_pejabat"),
-            pangkat_pejabat: row.get("pangkat_pejabat"),
-            jabatan_pejabat: row.get("jabatan_pejabat"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|row| PengadaanBast {
+                id: row.get("id"),
+                pengadaan_id: row.get("pengadaan_id"),
+                no_bast: row.get("no_bast"),
+                tgl_bast: row.get("tgl_bast"),
+                nama_pejabat: row.get("nama_pejabat"),
+                nip_pejabat: row.get("nip_pejabat"),
+                pangkat_pejabat: row.get("pangkat_pejabat"),
+                jabatan_pejabat: row.get("jabatan_pejabat"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect())
     }
 
-    async fn create_pengadaan_nodis(&self, request: CreatePengadaanNodisRequest) -> AppResult<PengadaanNodis> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    async fn create_pengadaan_nodis(
+        &self,
+        request: CreatePengadaanNodisRequest,
+    ) -> AppResult<PengadaanNodis> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         let id = Uuid::new_v4();
-        let row = client.query_one(
-            r#"INSERT INTO perlengkapan.pengadaan_nodis (id, pengadaan_id, no_nodis, tgl_nodis)
+        let row = client
+            .query_one(
+                r#"INSERT INTO perlengkapan.pengadaan_nodis (id, pengadaan_id, no_nodis, tgl_nodis)
                VALUES ($1, $2, $3, $4)
                RETURNING id, pengadaan_id, no_nodis, tgl_nodis, created_at, updated_at"#,
-            &[&id, &request.pengadaan_id, &request.no_nodis, &request.tgl_nodis]
-        ).await.map_err(|e| AppError::Database(e.to_string()))?;
+                &[
+                    &id,
+                    &request.pengadaan_id,
+                    &request.no_nodis,
+                    &request.tgl_nodis,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(PengadaanNodis {
             id: row.get("id"),
@@ -859,20 +1026,31 @@ impl PerlengkapanRepository for Database {
     }
 
     async fn get_pengadaan_nodis(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanNodis>> {
-        let client = self.pool.get().await.map_err(|e| AppError::Internal(e.to_string()))?;
-        let rows = client.query("SELECT * FROM perlengkapan.pengadaan_nodis WHERE pengadaan_id = $1", &[&pengadaan_id])
-            .await.map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.pengadaan_nodis WHERE pengadaan_id = $1",
+                &[&pengadaan_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(rows.iter().map(|row| PengadaanNodis {
-            id: row.get("id"),
-            pengadaan_id: row.get("pengadaan_id"),
-            no_nodis: row.get("no_nodis"),
-            tgl_nodis: row.get("tgl_nodis"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|row| PengadaanNodis {
+                id: row.get("id"),
+                pengadaan_id: row.get("pengadaan_id"),
+                no_nodis: row.get("no_nodis"),
+                tgl_nodis: row.get("tgl_nodis"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect())
     }
-
 
     async fn get_all_analisis(
         &self,

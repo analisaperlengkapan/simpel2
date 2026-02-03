@@ -166,7 +166,10 @@ pub async fn create_pengadaan_hps(
     let hps = service.create_pengadaan_hps(request).await?;
     Ok((
         StatusCode::CREATED,
-        Json(ApiResponse::success(hps, "HPS created successfully".to_string())),
+        Json(ApiResponse::success(
+            hps,
+            "HPS created successfully".to_string(),
+        )),
     ))
 }
 
@@ -176,7 +179,10 @@ pub async fn get_pengadaan_hps(
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengadaanHps>>>, AppError> {
     let hps_list = service.get_pengadaan_hps(pengadaan_id).await?;
-    Ok(Json(ApiResponse::success(hps_list, "HPS list retrieved successfully".to_string())))
+    Ok(Json(ApiResponse::success(
+        hps_list,
+        "HPS list retrieved successfully".to_string(),
+    )))
 }
 
 pub async fn create_pengadaan_skppbj(
@@ -192,7 +198,10 @@ pub async fn create_pengadaan_skppbj(
     let item = service.create_pengadaan_skppbj(request).await?;
     Ok((
         StatusCode::CREATED,
-        Json(ApiResponse::success(item, "SKPPBJ created successfully".to_string())),
+        Json(ApiResponse::success(
+            item,
+            "SKPPBJ created successfully".to_string(),
+        )),
     ))
 }
 
@@ -202,7 +211,10 @@ pub async fn get_pengadaan_skppbj(
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengadaanSkppbj>>>, AppError> {
     let items = service.get_pengadaan_skppbj(pengadaan_id).await?;
-    Ok(Json(ApiResponse::success(items, "SKPPBJ list retrieved successfully".to_string())))
+    Ok(Json(ApiResponse::success(
+        items,
+        "SKPPBJ list retrieved successfully".to_string(),
+    )))
 }
 
 pub async fn create_pengadaan_spk(
@@ -218,7 +230,10 @@ pub async fn create_pengadaan_spk(
     let item = service.create_pengadaan_spk(request).await?;
     Ok((
         StatusCode::CREATED,
-        Json(ApiResponse::success(item, "SPK created successfully".to_string())),
+        Json(ApiResponse::success(
+            item,
+            "SPK created successfully".to_string(),
+        )),
     ))
 }
 
@@ -228,7 +243,10 @@ pub async fn get_pengadaan_spk(
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengadaanSpk>>>, AppError> {
     let items = service.get_pengadaan_spk(pengadaan_id).await?;
-    Ok(Json(ApiResponse::success(items, "SPK list retrieved successfully".to_string())))
+    Ok(Json(ApiResponse::success(
+        items,
+        "SPK list retrieved successfully".to_string(),
+    )))
 }
 
 pub async fn create_pengadaan_ringkasan(
@@ -244,7 +262,10 @@ pub async fn create_pengadaan_ringkasan(
     let item = service.create_pengadaan_ringkasan(request).await?;
     Ok((
         StatusCode::CREATED,
-        Json(ApiResponse::success(item, "Ringkasan created successfully".to_string())),
+        Json(ApiResponse::success(
+            item,
+            "Ringkasan created successfully".to_string(),
+        )),
     ))
 }
 
@@ -254,7 +275,10 @@ pub async fn get_pengadaan_ringkasan(
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengadaanRingkasan>>>, AppError> {
     let items = service.get_pengadaan_ringkasan(pengadaan_id).await?;
-    Ok(Json(ApiResponse::success(items, "Ringkasan list retrieved successfully".to_string())))
+    Ok(Json(ApiResponse::success(
+        items,
+        "Ringkasan list retrieved successfully".to_string(),
+    )))
 }
 
 pub async fn create_pengadaan_kontrak(
@@ -270,7 +294,10 @@ pub async fn create_pengadaan_kontrak(
     let item = service.create_pengadaan_kontrak(request).await?;
     Ok((
         StatusCode::CREATED,
-        Json(ApiResponse::success(item, "Kontrak created successfully".to_string())),
+        Json(ApiResponse::success(
+            item,
+            "Kontrak created successfully".to_string(),
+        )),
     ))
 }
 
@@ -280,7 +307,10 @@ pub async fn get_pengadaan_kontrak(
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengadaanKontrak>>>, AppError> {
     let items = service.get_pengadaan_kontrak(pengadaan_id).await?;
-    Ok(Json(ApiResponse::success(items, "Kontrak list retrieved successfully".to_string())))
+    Ok(Json(ApiResponse::success(
+        items,
+        "Kontrak list retrieved successfully".to_string(),
+    )))
 }
 
 pub async fn create_pengadaan_bast(
@@ -296,7 +326,10 @@ pub async fn create_pengadaan_bast(
     let item = service.create_pengadaan_bast(request).await?;
     Ok((
         StatusCode::CREATED,
-        Json(ApiResponse::success(item, "BAST created successfully".to_string())),
+        Json(ApiResponse::success(
+            item,
+            "BAST created successfully".to_string(),
+        )),
     ))
 }
 
@@ -306,7 +339,10 @@ pub async fn get_pengadaan_bast(
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengadaanBast>>>, AppError> {
     let items = service.get_pengadaan_bast(pengadaan_id).await?;
-    Ok(Json(ApiResponse::success(items, "BAST list retrieved successfully".to_string())))
+    Ok(Json(ApiResponse::success(
+        items,
+        "BAST list retrieved successfully".to_string(),
+    )))
 }
 
 pub async fn create_pengadaan_nodis(
@@ -322,7 +358,10 @@ pub async fn create_pengadaan_nodis(
     let item = service.create_pengadaan_nodis(request).await?;
     Ok((
         StatusCode::CREATED,
-        Json(ApiResponse::success(item, "Nodis created successfully".to_string())),
+        Json(ApiResponse::success(
+            item,
+            "Nodis created successfully".to_string(),
+        )),
     ))
 }
 
@@ -332,7 +371,10 @@ pub async fn get_pengadaan_nodis(
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengadaanNodis>>>, AppError> {
     let items = service.get_pengadaan_nodis(pengadaan_id).await?;
-    Ok(Json(ApiResponse::success(items, "Nodis list retrieved successfully".to_string())))
+    Ok(Json(ApiResponse::success(
+        items,
+        "Nodis list retrieved successfully".to_string(),
+    )))
 }
 
 // Pengalihan handlers

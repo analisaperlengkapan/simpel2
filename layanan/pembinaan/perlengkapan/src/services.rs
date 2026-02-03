@@ -63,7 +63,10 @@ impl PerlengkapanService {
 
     // ============ Pengadaan Sub-Documents Services ============
 
-    pub async fn create_pengadaan_hps(&self, request: CreatePengadaanHpsRequest) -> AppResult<PengadaanHps> {
+    pub async fn create_pengadaan_hps(
+        &self,
+        request: CreatePengadaanHpsRequest,
+    ) -> AppResult<PengadaanHps> {
         request.validate()?;
         self.repo.create_pengadaan_hps(request).await
     }
@@ -72,16 +75,25 @@ impl PerlengkapanService {
         self.repo.get_pengadaan_hps(pengadaan_id).await
     }
 
-    pub async fn create_pengadaan_skppbj(&self, request: CreatePengadaanSkppbjRequest) -> AppResult<PengadaanSkppbj> {
+    pub async fn create_pengadaan_skppbj(
+        &self,
+        request: CreatePengadaanSkppbjRequest,
+    ) -> AppResult<PengadaanSkppbj> {
         request.validate()?;
         self.repo.create_pengadaan_skppbj(request).await
     }
 
-    pub async fn get_pengadaan_skppbj(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSkppbj>> {
+    pub async fn get_pengadaan_skppbj(
+        &self,
+        pengadaan_id: Uuid,
+    ) -> AppResult<Vec<PengadaanSkppbj>> {
         self.repo.get_pengadaan_skppbj(pengadaan_id).await
     }
 
-    pub async fn create_pengadaan_spk(&self, request: CreatePengadaanSpkRequest) -> AppResult<PengadaanSpk> {
+    pub async fn create_pengadaan_spk(
+        &self,
+        request: CreatePengadaanSpkRequest,
+    ) -> AppResult<PengadaanSpk> {
         request.validate()?;
         self.repo.create_pengadaan_spk(request).await
     }
@@ -90,25 +102,40 @@ impl PerlengkapanService {
         self.repo.get_pengadaan_spk(pengadaan_id).await
     }
 
-    pub async fn create_pengadaan_ringkasan(&self, request: CreatePengadaanRingkasanRequest) -> AppResult<PengadaanRingkasan> {
+    pub async fn create_pengadaan_ringkasan(
+        &self,
+        request: CreatePengadaanRingkasanRequest,
+    ) -> AppResult<PengadaanRingkasan> {
         request.validate()?;
         self.repo.create_pengadaan_ringkasan(request).await
     }
 
-    pub async fn get_pengadaan_ringkasan(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanRingkasan>> {
+    pub async fn get_pengadaan_ringkasan(
+        &self,
+        pengadaan_id: Uuid,
+    ) -> AppResult<Vec<PengadaanRingkasan>> {
         self.repo.get_pengadaan_ringkasan(pengadaan_id).await
     }
 
-    pub async fn create_pengadaan_kontrak(&self, request: CreatePengadaanKontrakRequest) -> AppResult<PengadaanKontrak> {
+    pub async fn create_pengadaan_kontrak(
+        &self,
+        request: CreatePengadaanKontrakRequest,
+    ) -> AppResult<PengadaanKontrak> {
         request.validate()?;
         self.repo.create_pengadaan_kontrak(request).await
     }
 
-    pub async fn get_pengadaan_kontrak(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanKontrak>> {
+    pub async fn get_pengadaan_kontrak(
+        &self,
+        pengadaan_id: Uuid,
+    ) -> AppResult<Vec<PengadaanKontrak>> {
         self.repo.get_pengadaan_kontrak(pengadaan_id).await
     }
 
-    pub async fn create_pengadaan_bast(&self, request: CreatePengadaanBastRequest) -> AppResult<PengadaanBast> {
+    pub async fn create_pengadaan_bast(
+        &self,
+        request: CreatePengadaanBastRequest,
+    ) -> AppResult<PengadaanBast> {
         request.validate()?;
         self.repo.create_pengadaan_bast(request).await
     }
@@ -117,7 +144,10 @@ impl PerlengkapanService {
         self.repo.get_pengadaan_bast(pengadaan_id).await
     }
 
-    pub async fn create_pengadaan_nodis(&self, request: CreatePengadaanNodisRequest) -> AppResult<PengadaanNodis> {
+    pub async fn create_pengadaan_nodis(
+        &self,
+        request: CreatePengadaanNodisRequest,
+    ) -> AppResult<PengadaanNodis> {
         request.validate()?;
         self.repo.create_pengadaan_nodis(request).await
     }
@@ -125,7 +155,6 @@ impl PerlengkapanService {
     pub async fn get_pengadaan_nodis(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanNodis>> {
         self.repo.get_pengadaan_nodis(pengadaan_id).await
     }
-
 
     // ============ Analisis Kebutuhan Services ============
 

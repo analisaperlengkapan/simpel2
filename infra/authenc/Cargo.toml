@@ -79,7 +79,7 @@ admin_console = []
 
 # Quantum-resistant cryptography features
 quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
-tpm = []
+tpm = ["dep:tss-esapi"]
 
 [dependencies]
 # Core async runtime
@@ -137,7 +137,8 @@ bcrypt = "0.17.1"
 # Database
 tokio-postgres = { workspace = true, optional = true }
 deadpool-postgres = { workspace = true, optional = true }
-postgres-types = { workspace = true, features = ["derive"] }
+# Inherit all workspace features for postgres-types including derive and type serializers
+postgres-types = { workspace = true }
 refinery = { workspace = true, features = ["tokio-postgres"] }
 redis = { workspace = true }
 lru = "0.16.3"
@@ -196,6 +197,7 @@ hex = "0.4"
 
 # Time & Concurrency
 chrono = { version = "0.4", features = ["serde"] }
+time = "0.3"  # For tokio-postgres timestamp serialization
 dashmap = { version = "6.1.0", features = ["raw-api"] }
 num_cpus = "1.16"
 serde_qs = "0.15.0"

@@ -1,0 +1,204 @@
+# layanan-daskrimti-integrasi Backend Service
+# External API Integration: MonSAKTI, MySIMKARI, SIMAN
+# This is a batch job - runs as CronJob for scheduled sync
+
+---
+# CronJob for scheduled data sync (every 6 hours)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: layanan-daskrimti-integrasi
+  labels:
+    app.kubernetes.io/name: layanan-daskrimti-integrasi
+    app.kubernetes.io/component: backend
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: layanan-daskrimti-integrasi
+            app.kubernetes.io/component: backend
+          annotations:
+            sidecar.istio.io/inject: "false"  # Batch jobs don't need mesh
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+          containers:
+            - name: integrasi-batch
+              image: localhost:32000/simpelv2/layanan-daskrimti-integrasi:staging
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                seccompProfile:
+                  type: RuntimeDefault
+              args:
+                - "--source"
+                - "all"
+                - "--mode"
+                - "complete"
+                - "--kode-kl"
+                - "006"
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: url
+                - name: RUST_LOG
+                  valueFrom:
+                    configMapKeyRef:
+                      name: simpelv2-config
+                      key: RUST_LOG
+                # MonSAKTI Integration
+                - name: MONSAKTI_API_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backend-config
+                      key: MONSAKTI_API_URL
+                      optional: true
+                - name: MONSAKTI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: integration-secrets
+                      key: monsakti-api-key
+                      optional: true
+                # MySIMKARI Integration
+                - name: MYSIMKARI_API_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backend-config
+                      key: MYSIMKARI_API_URL
+                      optional: true
+                - name: MYSIMKARI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: integration-secrets
+                      key: mysimkari-api-key
+                      optional: true
+                # SIMAN Integration
+                - name: SIMAN_API_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backend-config
+                      key: SIMAN_API_URL
+                      optional: true
+                - name: SIMAN_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: integration-secrets
+                      key: siman-api-key
+                      optional: true
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "1000m"
+                  memory: "1Gi"
+
+---
+# gRPC Server Deployment for real-time data access
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: layanan-daskrimti-integrasi-grpc
+  labels:
+    app.kubernetes.io/name: layanan-daskrimti-integrasi-grpc
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: layanan-daskrimti-integrasi-grpc
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: layanan-daskrimti-integrasi-grpc
+        app.kubernetes.io/component: backend
+      annotations:
+        sidecar.istio.io/inject: "true"
+        sidecar.istio.io/proxyCPU: "50m"
+        sidecar.istio.io/proxyCPULimit: "500m"
+        sidecar.istio.io/proxyMemory: "64Mi"
+        sidecar.istio.io/proxyMemoryLimit: "512Mi"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: integrasi-grpc
+          image: localhost:32000/simpelv2/layanan-daskrimti-integrasi-grpc:staging
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - name: grpc
+              containerPort: 50051
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: url
+            - name: GRPC_HOST
+              value: "0.0.0.0"
+            - name: GRPC_PORT
+              value: "50051"
+            - name: RUST_LOG
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: RUST_LOG
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+# Service for gRPC server (ClusterIP for internal access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: layanan-daskrimti-integrasi-grpc
+  labels:
+    app.kubernetes.io/name: layanan-daskrimti-integrasi-grpc
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: layanan-daskrimti-integrasi-grpc
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+      protocol: TCP

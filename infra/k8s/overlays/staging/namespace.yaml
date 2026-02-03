@@ -1,0 +1,12 @@
+# Staging Namespace
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simpelv2-staging
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/environment: staging
+    istio-injection: enabled
+  annotations:
+    description: "SIMPelv2 Staging Environment"

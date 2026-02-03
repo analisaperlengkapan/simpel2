@@ -49,6 +49,12 @@ use components::analisis_list::AnalisisList;
 use components::aset_list::AsetList;
 use components::hibah_form::HibahForm;
 use components::hibah_list::HibahList;
+// Kebutuhan BMN components
+use components::kebutuhan_bmn_dashboard::KebutuhanBmnDashboard;
+use components::kebutuhan_bmn_detail::KebutuhanBmnDetail;
+use components::kebutuhan_bmn_form::KebutuhanBmnForm;
+use components::kebutuhan_bmn_list::KebutuhanBmnList;
+use components::kebutuhan_bmn_satker::KebutuhanBmnSatkerDetail;
 use components::mutasi_form::MutasiForm;
 use components::mutasi_list::MutasiList;
 use components::pemakaian_form::PemakaianForm;
@@ -61,6 +67,11 @@ use components::pengalihan_form::PengalihanForm;
 use components::pengalihan_list::PengalihanList;
 use components::penghapusan_form::PenghapusanForm;
 use components::penghapusan_list::PenghapusanList;
+// Pakaian Dinas components
+use components::pakaian_dinas_jenis_list::PakaianDinasJenisList;
+use components::pakaian_dinas_laporan::PakaianDinasLaporan;
+use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
+use components::pakaian_dinas_ukuran::{UkuranPegawai, UkuranPegawaiSatker};
 
 // ============================================================================
 // Constants & Configuration
@@ -135,6 +146,9 @@ pub fn DashboardRoutes() -> impl IntoView {
                         // Analisis Kebutuhan routes
                         <Route path=path!("/analisis/*") view=AnalisisRoutes />
 
+                        // Kebutuhan BMN routes (new!)
+                        <Route path=path!("/kebutuhan-bmn/*") view=KebutuhanBmnRoutes />
+
                         // Pengadaan routes
                         <Route path=path!("/pengadaan/*") view=PengadaanRoutes />
 
@@ -143,6 +157,9 @@ pub fn DashboardRoutes() -> impl IntoView {
 
             // Pemeliharaan Routes (alias to Pengelolaan/Pemeliharaan for shortcut if needed, or stick to Pengelolaan)
             <Route path=path!("/pemeliharaan/*") view=PemeliharaanRoutes />
+
+                        // Pakaian Dinas routes
+                        <Route path=path!("/pakaian-dinas/*") view=PakaianDinasRoutes />
 
                         // Pengguna routes
                         <Route path=path!("/pengguna/*") view=PenggunaRoutes />
@@ -188,8 +205,29 @@ fn AnalisisRoutes() -> impl IntoView {
             <Route path=path!("/daftar") view=AnalisisList />
             <Route path=path!("/baru") view=AnalisisForm />
             <Route path=path!("/pakaian/*") view=|| view! { <div>"Kebutuhan Pakaian"</div> } />
-            <Route path=path!("/bmn/*") view=|| view! { <div>"Kebutuhan BMN"</div> } />
+            <Route path=path!("/bmn/*") view=KebutuhanBmnRoutes />
             <Route path=path!("/standardisasi/*") view=|| view! { <div>"Standardisasi BMN"</div> } />
+        </Routes>
+    }
+}
+
+// Kebutuhan BMN Routes
+#[component]
+fn KebutuhanBmnRoutes() -> impl IntoView {
+    view! {
+        <Routes fallback=|| view! { <NotFound /> }>
+            // Dashboard
+            <Route path=path!("/") view=KebutuhanBmnDashboard />
+            <Route path=path!("/dashboard") view=KebutuhanBmnDashboard />
+
+            // Pengajuan CRUD
+            <Route path=path!("/daftar") view=KebutuhanBmnList />
+            <Route path=path!("/baru") view=KebutuhanBmnForm />
+            <Route path=path!("/:id") view=KebutuhanBmnDetail />
+            <Route path=path!("/:id/edit") view=KebutuhanBmnForm />
+
+            // Satker detail
+            <Route path=path!("/satker/:satker_id") view=KebutuhanBmnSatkerDetail />
         </Routes>
     }
 }
@@ -266,6 +304,49 @@ fn BantuanRoutes() -> impl IntoView {
             <Route path=path!("/helpdesk") view=|| view! { <div>"Helpdesk"</div> } />
             <Route path=path!("/panduan") view=|| view! { <div>"Panduan Penggunaan"</div> } />
             <Route path=path!("/faq") view=|| view! { <div>"FAQ"</div> } />
+        </Routes>
+    }
+}
+
+// Pakaian Dinas Routes
+#[component]
+fn PakaianDinasRoutes() -> impl IntoView {
+    view! {
+        <Routes fallback=|| view! { <NotFound /> }>
+            // Master Jenis Pakaian
+            <Route path=path!("/jenis") view=PakaianDinasJenisList />
+            <Route path=path!("/jenis/:id/spesifikasi") view=|| view! { <div>"Spesifikasi Pakaian"</div> } />
+
+            // Pengajuan
+            <Route path=path!("/pengajuan") view=PakaianDinasPengajuanList />
+            <Route path=path!("/pengajuan/:id/satker") view=|| view! { <div>"Pengajuan per Satker"</div> } />
+
+            // Ukuran pegawai (personal)
+            <Route path=path!("/ukuran-saya") view=|| {
+                // In real app, get pegawai_id from JWT claims via context
+                view! {
+                    <UkuranPegawai
+                        pegawai_id="current-user-id".to_string()
+                        pegawai_nama="Nama Pegawai".to_string()
+                        pegawai_nip="199001012020011001".to_string()
+                    />
+                }
+            } />
+
+            // Ukuran pegawai per satker (admin view)
+            <Route path=path!("/satker/:satker_id/ukuran") view=|| {
+                view! {
+                    <UkuranPegawaiSatker
+                        satker_id="satker-placeholder".to_string()
+                        satker_nama="Satker Placeholder".to_string()
+                    />
+                }
+            } />
+
+            // Laporan
+            <Route path=path!("/laporan") view=PakaianDinasLaporan />
+            <Route path=path!("/laporan/rekap") view=PakaianDinasLaporan />
+            <Route path=path!("/laporan/pegawai") view=PakaianDinasLaporan />
         </Routes>
     }
 }

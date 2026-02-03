@@ -757,7 +757,9 @@ impl EnhancedCryptoEngine {
                 // In a real implementation, the public key would be stored/retrieved
                 // For now, fail to prevent security bypass
                 let pq_valid = false; // Fail closed until ML-DSA key management is implemented
-                warn!("ML-DSA signature verification required but not implemented - failing closed");
+                warn!(
+                    "ML-DSA signature verification required but not implemented - failing closed"
+                );
 
                 Ok(classical_valid && pq_valid)
             } else {
@@ -785,7 +787,8 @@ impl EnhancedCryptoEngine {
         #[cfg(not(feature = "quantum"))]
         {
             // Fallback to classical verification
-            self.verify_classical_audit_signature(_data, _signature).await
+            self.verify_classical_audit_signature(_data, _signature)
+                .await
         }
     }
 

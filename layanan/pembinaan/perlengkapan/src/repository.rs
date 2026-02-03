@@ -29,25 +29,49 @@ pub trait PerlengkapanRepository: Send + Sync {
     ) -> AppResult<Pengadaan>;
 
     // Pengadaan Sub-Documents
-    async fn create_pengadaan_hps(&self, request: CreatePengadaanHpsRequest) -> AppResult<PengadaanHps>;
+    async fn create_pengadaan_hps(
+        &self,
+        request: CreatePengadaanHpsRequest,
+    ) -> AppResult<PengadaanHps>;
     async fn get_pengadaan_hps(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanHps>>;
 
-    async fn create_pengadaan_skppbj(&self, request: CreatePengadaanSkppbjRequest) -> AppResult<PengadaanSkppbj>;
+    async fn create_pengadaan_skppbj(
+        &self,
+        request: CreatePengadaanSkppbjRequest,
+    ) -> AppResult<PengadaanSkppbj>;
     async fn get_pengadaan_skppbj(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSkppbj>>;
 
-    async fn create_pengadaan_spk(&self, request: CreatePengadaanSpkRequest) -> AppResult<PengadaanSpk>;
+    async fn create_pengadaan_spk(
+        &self,
+        request: CreatePengadaanSpkRequest,
+    ) -> AppResult<PengadaanSpk>;
     async fn get_pengadaan_spk(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSpk>>;
 
-    async fn create_pengadaan_ringkasan(&self, request: CreatePengadaanRingkasanRequest) -> AppResult<PengadaanRingkasan>;
-    async fn get_pengadaan_ringkasan(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanRingkasan>>;
+    async fn create_pengadaan_ringkasan(
+        &self,
+        request: CreatePengadaanRingkasanRequest,
+    ) -> AppResult<PengadaanRingkasan>;
+    async fn get_pengadaan_ringkasan(
+        &self,
+        pengadaan_id: Uuid,
+    ) -> AppResult<Vec<PengadaanRingkasan>>;
 
-    async fn create_pengadaan_kontrak(&self, request: CreatePengadaanKontrakRequest) -> AppResult<PengadaanKontrak>;
+    async fn create_pengadaan_kontrak(
+        &self,
+        request: CreatePengadaanKontrakRequest,
+    ) -> AppResult<PengadaanKontrak>;
     async fn get_pengadaan_kontrak(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanKontrak>>;
 
-    async fn create_pengadaan_bast(&self, request: CreatePengadaanBastRequest) -> AppResult<PengadaanBast>;
+    async fn create_pengadaan_bast(
+        &self,
+        request: CreatePengadaanBastRequest,
+    ) -> AppResult<PengadaanBast>;
     async fn get_pengadaan_bast(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanBast>>;
 
-    async fn create_pengadaan_nodis(&self, request: CreatePengadaanNodisRequest) -> AppResult<PengadaanNodis>;
+    async fn create_pengadaan_nodis(
+        &self,
+        request: CreatePengadaanNodisRequest,
+    ) -> AppResult<PengadaanNodis>;
     async fn get_pengadaan_nodis(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanNodis>>;
 
     // Analisis (Local)

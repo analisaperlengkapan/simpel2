@@ -1,0 +1,68 @@
+# Istio VirtualService for SIMPelv2
+# IMPORTANT: Routes are ordered from most specific to least specific
+# IMPORTANT: VirtualService must be in istio-system or use namespace-qualified gateway reference
+
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: simpelv2-routes
+  namespace: istio-system
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - simpelv2-gateway
+  http:
+    # ============================================
+    # Backend API routes (most specific - /api/*)
+    # ============================================
+    - match:
+        - uri:
+            prefix: /api/portal
+      route:
+        - destination:
+            host: layanan-daskrimti-portal
+            port:
+              number: 3010
+    - match:
+        - uri:
+            prefix: /api/perlengkapan
+      route:
+        - destination:
+            host: layanan-pembinaan-perlengkapan
+            port:
+              number: 3020
+
+    # ============================================
+    # Microfrontend routes (specific paths)
+    # ============================================
+    # Pembinaan Perlengkapan (most specific path)
+    - match:
+        - uri:
+            prefix: /pembinaan/perlengkapan
+      route:
+        - destination:
+            host: pembinaan-perlengkapan
+            port:
+              number: 8080
+    # Daskrimti Portal
+    - match:
+        - uri:
+            prefix: /daskrimti
+      route:
+        - destination:
+            host: daskrimti-portal
+            port:
+              number: 8080
+
+    # ============================================
+    # Default catch-all route (MUST BE LAST)
+    # ============================================
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: portal
+            port:
+              number: 8080

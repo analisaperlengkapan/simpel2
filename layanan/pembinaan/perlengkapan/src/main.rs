@@ -15,8 +15,10 @@ mod database;
 mod errors;
 mod grpc_clients;
 mod handlers;
+mod kebutuhan_bmn;
 mod middleware;
 mod models;
+mod pakaian_dinas;
 mod repository;
 mod routes;
 mod services;
@@ -26,12 +28,16 @@ mod tests;
 
 use database::Database;
 use grpc_clients::{AuthencClient, SecretonClient};
+use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
+use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
 use services::PerlengkapanService;
 
 #[derive(Clone)]
 pub struct AppState {
     pub service: PerlengkapanService,
     pub authenc: AuthencClient,
+    pub pakaian_dinas_service: PakaianDinasService,
+    pub kebutuhan_bmn_service: KebutuhanBmnService,
 }
 
 impl FromRef<AppState> for PerlengkapanService {
@@ -43,6 +49,18 @@ impl FromRef<AppState> for PerlengkapanService {
 impl FromRef<AppState> for AuthencClient {
     fn from_ref(state: &AppState) -> Self {
         state.authenc.clone()
+    }
+}
+
+impl FromRef<AppState> for PakaianDinasService {
+    fn from_ref(state: &AppState) -> Self {
+        state.pakaian_dinas_service.clone()
+    }
+}
+
+impl FromRef<AppState> for KebutuhanBmnService {
+    fn from_ref(state: &AppState) -> Self {
+        state.kebutuhan_bmn_service.clone()
     }
 }
 
@@ -137,13 +155,23 @@ async fn main() -> anyhow::Result<()> {
     info!("Running database migrations...");
     db.migrate().await?;
 
-    // Create service with repository wrapper
-    let service = PerlengkapanService::new(Arc::new(db));
+    // Create main service with repository wrapper
+    let service = PerlengkapanService::new(Arc::new(db.clone()));
+
+    // Create Pakaian Dinas service
+    let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
+    let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
+
+    // Create Kebutuhan BMN service
+    let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
+    let kebutuhan_bmn_service = KebutuhanBmnService::new(kebutuhan_bmn_repo, authenc_client.clone());
 
     // Create AppState
     let state = AppState {
         service,
         authenc: authenc_client,
+        pakaian_dinas_service,
+        kebutuhan_bmn_service,
     };
 
     // Build router

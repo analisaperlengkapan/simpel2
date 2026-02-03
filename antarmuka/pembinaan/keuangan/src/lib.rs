@@ -360,4 +360,3 @@ fn get_token_from_url() -> Option<String> {
     }
     None
 }
-

@@ -1,5 +1,5 @@
-use perencanaan_microfrontend::App;
 use leptos::mount::mount_to_body;
+use perencanaan_microfrontend::App;
 
 fn main() {
     console_error_panic_hook::set_once();

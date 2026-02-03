@@ -1,0 +1,9 @@
+# Istio PeerAuthentication
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls
+spec:
+  mtls:
+    mode: PERMISSIVE  # Will be patched to STRICT in production

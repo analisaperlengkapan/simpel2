@@ -17,6 +17,13 @@ pub mod siman;
 // Batch processing (unified)
 pub mod batch;
 
+// Scheduler for automated data fetching
+pub mod scheduler;
+
+// gRPC module (feature-gated)
+#[cfg(feature = "grpc")]
+pub mod grpc;
+
 // Re-exports for convenience
 pub use audit::{
     ApiCallLog, BatchProcessingLog, DataSyncLog, TokenResetLog, get_api_stats_by_module,

@@ -54,18 +54,19 @@ lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"
 layanan-integrasi = { path = "../../daskrimti/integrasi" }
 
 # gRPC
-tonic = "0.12"
-prost = "0.13"
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
 http = { workspace = true }
 http-body = { workspace = true }
 http-body-util = { workspace = true }
 
-async-trait = "0.1"
+async-trait = { workspace = true }
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-prost-build = { workspace = true }
 
 [dev-dependencies]
-mockall = "0.13"
+mockall = { workspace = true }
 mime = "0.3"
-axum-test = "18.1"
+axum-test = { workspace = true }

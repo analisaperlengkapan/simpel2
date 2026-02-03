@@ -3,6 +3,10 @@ use async_trait::async_trait;
 use mockall::mock;
 use uuid::Uuid;
 
+// Include pakaian dinas tests
+#[cfg(test)]
+mod pakaian_dinas_test;
+
 // Define the mock repository at file scope so it's visible to submodules
 mock! {
     pub Repository {}

@@ -1,0 +1,11 @@
+# Staging mTLS Configuration
+# Use STRICT mTLS to match production environment
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: staging-mtls
+  namespace: simpelv2-staging
+spec:
+  mtls:
+    mode: STRICT
