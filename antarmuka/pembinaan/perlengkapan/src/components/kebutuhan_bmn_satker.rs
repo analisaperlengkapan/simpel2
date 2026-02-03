@@ -487,8 +487,11 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                             }
                                         >
                                             <div class="space-y-3">
+                                        {
+                                            let aktivitas_list = aktivitas.get();
+                                            view! {
                                                 <For
-                                                    each=move || aktivitas.get()
+                                                    each=move || aktivitas_list.clone()
                                                     key=|a| a.id.clone()
                                                     children=move |akt| {
                                                         let to_status = KebutuhanBmnStatus::from_code(akt.to_status_kode);
@@ -510,11 +513,13 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                     <div class="text-xs text-gray-400 mt-2">
                                                                         {format!("{} - {}", akt.nama.clone().unwrap_or("System".into()), akt.created_at)}
                                                                     </div>
-                                                                </div>
-                                                            </div>
+                                                                        </div>
+                                                                    </div>
                                                         }
                                                     }
                                                 />
+                                                    }
+                                        }
                                             </div>
                                         </Show>
                                     </div>

@@ -161,26 +161,31 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                             }
                                         >
                                             <div class="space-y-3">
-                                                <For
-                                                    each=move || stats.by_tahun.clone()
-                                                    key=|s| s.tahun
-                                                    children=move |item| {
-                                                        let max_val = stats.by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
-                                                        let width_pct = (item.total as f64 / max_val as f64 * 100.0) as i32;
-                                                        view! {
-                                                            <div class="flex items-center gap-3">
-                                                                <span class="w-16 text-sm font-medium text-gray-600">{item.tahun}</span>
-                                                                <div class="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
-                                                                    <div
-                                                                        class="bg-blue-500 h-full rounded-full transition-all duration-500"
-                                                                        style=format!("width: {}%", width_pct)
-                                                                    ></div>
-                                                                </div>
-                                                                <span class="w-12 text-right text-sm font-semibold text-gray-800">{item.total}</span>
-                                                            </div>
-                                                        }
+                                                {
+                                                    let by_tahun = stats.by_tahun.clone();
+                                                    view! {
+                                                        <For
+                                                            each=move || by_tahun.clone()
+                                                            key=|s| s.tahun
+                                                            children=move |item| {
+                                                                let max_val = by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
+                                                                let width_pct = (item.total as f64 / max_val as f64 * 100.0) as i32;
+                                                                view! {
+                                                                    <div class="flex items-center gap-3">
+                                                                        <span class="w-16 text-sm font-medium text-gray-600">{item.tahun}</span>
+                                                                        <div class="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
+                                                                            <div
+                                                                                class="bg-blue-500 h-full rounded-full transition-all duration-500"
+                                                                                style=format!("width: {}%", width_pct)
+                                                                            ></div>
+                                                                        </div>
+                                                                        <span class="w-12 text-right text-sm font-semibold text-gray-800">{item.total}</span>
+                                                                    </div>
+                                                                }
+                                                            }
+                                                        />
                                                     }
-                                                />
+                                                }
                                             </div>
                                         </Show>
                                     </div>
@@ -200,22 +205,27 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                             }
                                         >
                                             <div class="space-y-3">
-                                                <For
-                                                    each=move || stats.by_status.clone()
-                                                    key=|s| s.status_kode
-                                                    children=move |item| {
-                                                        let status = KebutuhanBmnStatus::from_code(item.status_kode);
-                                                        let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
-                                                        view! {
-                                                            <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-                                                                <span class=format!("px-2 py-1 rounded-full text-xs font-medium {}", badge_class)>
-                                                                    {item.status_nama.clone()}
-                                                                </span>
-                                                                <span class="text-lg font-bold text-gray-800">{item.total}</span>
-                                                            </div>
-                                                        }
+                                                {
+                                                    let by_status = stats.by_status.clone();
+                                                    view! {
+                                                        <For
+                                                            each=move || by_status.clone()
+                                                            key=|s| s.status_kode
+                                                            children=move |item| {
+                                                                let status = KebutuhanBmnStatus::from_code(item.status_kode);
+                                                                let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
+                                                                view! {
+                                                                    <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                                                                        <span class=format!("px-2 py-1 rounded-full text-xs font-medium {}", badge_class)>
+                                                                            {item.status_nama.clone()}
+                                                                        </span>
+                                                                        <span class="text-lg font-bold text-gray-800">{item.total}</span>
+                                                                    </div>
+                                                                }
+                                                            }
+                                                        />
                                                     }
-                                                />
+                                                }
                                             </div>
                                         </Show>
                                     </div>

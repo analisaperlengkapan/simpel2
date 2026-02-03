@@ -212,27 +212,32 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                     <div class="bg-gray-50 rounded-lg p-4">
                                         <div class="text-gray-600 text-sm font-medium mb-3">"Aksi Workflow"</div>
                                         <div class="flex flex-wrap gap-3">
-                                            <For
-                                                each=move || allowed_transitions.clone()
-                                                key=|t| t.status_kode
-                                                children=move |transition| {
-                                                    let status_kode = transition.status_kode;
-                                                    let btn_class = match status_kode {
-                                                        2006 => "bg-green-600 hover:bg-green-700 text-white",
-                                                        2007 | 2009 => "bg-red-600 hover:bg-red-700 text-white",
-                                                        _ => "bg-blue-600 hover:bg-blue-700 text-white",
-                                                    };
-                                                    view! {
-                                                        <button
-                                                            class=format!("px-4 py-2 rounded-lg transition-colors disabled:opacity-50 {}", btn_class)
-                                                            disabled=move || transitioning.get()
-                                                            on:click=move |_| handle_transition(status_kode)
-                                                        >
-                                                            {transition.status_nama.clone()}
-                                                        </button>
-                                                    }
+                                            {
+                                                let transitions = allowed_transitions.clone();
+                                                view! {
+                                                    <For
+                                                        each=move || transitions.clone()
+                                                        key=|t| t.status_kode
+                                                        children=move |transition| {
+                                                            let status_kode = transition.status_kode;
+                                                            let btn_class = match status_kode {
+                                                                2006 => "bg-green-600 hover:bg-green-700 text-white",
+                                                                2007 | 2009 => "bg-red-600 hover:bg-red-700 text-white",
+                                                                _ => "bg-blue-600 hover:bg-blue-700 text-white",
+                                                            };
+                                                            view! {
+                                                                <button
+                                                                    class=format!("px-4 py-2 rounded-lg transition-colors disabled:opacity-50 {}", btn_class)
+                                                                    disabled=move || transitioning.get()
+                                                                    on:click=move |_| handle_transition(status_kode)
+                                                                >
+                                                                    {transition.status_nama.clone()}
+                                                                </button>
+                                                            }
+                                                        }
+                                                    />
                                                 }
-                                            />
+                                            }
                                         </div>
                                         // Comment input for transitions
                                         <div class="mt-3">
