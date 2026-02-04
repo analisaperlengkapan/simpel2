@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Satker Hierarchy for Organization-Aware Authorization
 -- Description: Create satkers table and related structures for hierarchical organization management
 

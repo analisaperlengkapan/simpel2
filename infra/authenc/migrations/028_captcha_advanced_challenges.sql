@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Advanced CAPTCHA Challenge Types and Personalization
 -- Description: Adds tables for challenge type preferences, user history, and effectiveness analytics
 -- Version: 028
@@ -272,4 +273,3 @@ COMMENT ON FUNCTION update_captcha_user_history IS 'Updates user history and adj
 COMMENT ON FUNCTION update_captcha_type_effectiveness IS 'Updates global effectiveness metrics for challenge types';
 COMMENT ON FUNCTION get_recommended_challenge_type IS 'Returns recommended challenge type based on user history and risk score';
 COMMENT ON FUNCTION get_recommended_difficulty IS 'Returns recommended difficulty level for user';
-

@@ -1,3 +1,4 @@
+SET search_path = secreton, public;
 -- Create wrapping_tokens table for response wrapping
 -- Supports one-time token mechanism for secure secret distribution
 

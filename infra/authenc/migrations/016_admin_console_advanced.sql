@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Admin Console Audit Log Table
 -- Comprehensive audit logging for all admin operations
 CREATE TABLE IF NOT EXISTS admin_audit_log (

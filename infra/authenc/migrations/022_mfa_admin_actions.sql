@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Add MFA admin actions table for audit logging
 -- This table tracks administrative actions related to MFA management
 

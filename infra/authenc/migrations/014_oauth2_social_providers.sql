@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- OAuth2 Provider Configurations Table
 -- Stores OAuth2/OIDC provider settings for social login
 CREATE TABLE IF NOT EXISTS oauth2_provider_configs (

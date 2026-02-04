@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Token Exchange Audit and Metadata (RFC 8693)
 -- Description: Add support for tracking OAuth 2.0 Token Exchange operations
 -- Version: 035

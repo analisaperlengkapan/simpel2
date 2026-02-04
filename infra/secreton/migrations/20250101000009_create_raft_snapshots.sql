@@ -1,3 +1,4 @@
+SET search_path = secreton, public;
 -- Create raft_snapshots table for storing Raft cluster snapshots
 -- This table stores encrypted, compressed snapshots with integrity verification
 

@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Federated Identity Links Table
 -- Links local user accounts to federated identity providers
 CREATE TABLE IF NOT EXISTS federated_identity_links (

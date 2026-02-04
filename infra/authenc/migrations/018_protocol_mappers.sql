@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Protocol Mappers Table
 -- Maps user/client attributes to protocol-specific claims/attributes
 CREATE TABLE IF NOT EXISTS protocol_mappers (

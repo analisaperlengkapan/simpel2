@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Add client_scope_id column to protocol_mappers table
 -- This allows protocol mappers to be associated with client scopes for better scope management
 

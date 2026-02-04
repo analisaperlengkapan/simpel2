@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Custom Authenticator Support for Authenc
 -- Provides extensible authentication flow execution with custom authenticators
 

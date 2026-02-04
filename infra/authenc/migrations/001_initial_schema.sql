@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS authenc;
+SET search_path = authenc, public;
 -- Authenc Database Schema
 -- This file contains all database tables and indexes for Authenc
 -- Version: 1.0.0

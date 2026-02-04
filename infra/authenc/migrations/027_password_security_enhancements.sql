@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Password Security Enhancements
 -- Description: Add password history tracking and expiration policy support
 -- Version: 027
@@ -172,4 +173,3 @@ COMMENT ON COLUMN users.password_history_count IS 'Number of password changes fo
 COMMENT ON FUNCTION add_password_to_history() IS 'Trigger function to automatically track password changes';
 COMMENT ON FUNCTION check_password_expiration(UUID, INTEGER) IS 'Check if a user password has expired or will expire soon';
 COMMENT ON FUNCTION get_password_history(UUID, INTEGER) IS 'Retrieve password history for a user';
-

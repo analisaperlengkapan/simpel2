@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- User Sessions Table
 -- Stores active user authentication sessions with tokens and metadata
 -- Create user_sessions table if it doesn't exist

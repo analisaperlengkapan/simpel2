@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Tamper-proof Audit Logging Migration
 -- Adds HMAC-SHA256 signature support for audit trail integrity
 
@@ -105,4 +106,3 @@ CREATE TABLE IF NOT EXISTS audit_integrity_failures (
 CREATE INDEX IF NOT EXISTS idx_audit_integrity_failures_check_id ON audit_integrity_failures(check_id);
 CREATE INDEX IF NOT EXISTS idx_audit_integrity_failures_event_id ON audit_integrity_failures(event_id);
 CREATE INDEX IF NOT EXISTS idx_audit_integrity_failures_detected_at ON audit_integrity_failures(detected_at DESC);
-

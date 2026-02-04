@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Groups Table
 -- Provides hierarchical group management for organizing users
 CREATE TABLE IF NOT EXISTS groups (

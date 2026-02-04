@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Custom Themes Table
 -- Stores custom theme configurations for realms
 CREATE TABLE IF NOT EXISTS custom_themes (

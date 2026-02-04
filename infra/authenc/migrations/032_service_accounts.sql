@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Service Accounts for Machine-to-Machine Authentication
 -- Description: Create service_accounts table and related structures for non-human entity authentication
 

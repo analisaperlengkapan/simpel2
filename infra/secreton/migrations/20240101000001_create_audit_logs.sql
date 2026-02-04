@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS secreton;
+SET search_path = secreton, public;
 -- Create audit_logs table
 CREATE TABLE IF NOT EXISTS audit_logs (
     id TEXT PRIMARY KEY NOT NULL,

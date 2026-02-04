@@ -1,3 +1,4 @@
+SET search_path = secreton, public;
 -- Create policies table for policy management
 CREATE TABLE IF NOT EXISTS policies (
     id BIGSERIAL PRIMARY KEY,
@@ -108,4 +109,3 @@ CREATE TRIGGER policy_stats_updated_at_trigger
     BEFORE UPDATE ON policy_stats
     FOR EACH ROW
     EXECUTE FUNCTION update_policies_updated_at();
-

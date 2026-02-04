@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Key Rotation Audit System
 -- Description: Creates tables for tracking automatic key rotation events
 -- Version: 026
@@ -42,4 +43,3 @@ COMMENT ON COLUMN key_rotation_audit.initiated_by IS 'User or system that initia
 -- Grant permissions (adjust as needed for your security model)
 -- GRANT SELECT, INSERT ON key_rotation_audit TO authenc;
 -- GRANT SELECT ON key_rotation_audit TO authenc_readonly;
-

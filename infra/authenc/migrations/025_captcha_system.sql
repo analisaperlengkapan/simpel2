@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration for CAPTCHA System
 -- This migration adds tables and functions needed for AI-resistant CAPTCHA functionality
 

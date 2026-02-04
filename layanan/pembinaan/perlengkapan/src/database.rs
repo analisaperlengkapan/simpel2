@@ -23,7 +23,13 @@ pub struct Database {
 impl Database {
     pub async fn new(database_url: &str) -> Result<Self> {
         let mut config = Config::new();
-        config.url = Some(database_url.to_string());
+        // Append search_path options to ensure connection uses perlengkapan schema
+        let url = if database_url.contains("?") {
+            format!("{}&options=-c%20search_path=perlengkapan,integrasi,public", database_url)
+        } else {
+            format!("{}?options=-c%20search_path=perlengkapan,integrasi,public", database_url)
+        };
+        config.url = Some(url);
 
         let pool = config.create_pool(Some(Runtime::Tokio1), NoTls)?;
 

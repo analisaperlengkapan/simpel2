@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration for MFA Administrative Management Features
 -- This migration adds tables and functions needed for comprehensive MFA administration
 

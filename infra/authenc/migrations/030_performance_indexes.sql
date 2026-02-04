@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Performance Optimization Indexes Migration
 -- Adds indexes for frequently queried columns to improve query performance
 -- Uses CREATE INDEX CONCURRENTLY IF NOT EXISTS to avoid table locking (where supported)

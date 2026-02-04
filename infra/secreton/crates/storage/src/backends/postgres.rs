@@ -26,7 +26,13 @@ impl PostgresBackend {
     /// Create a new PostgreSQL backend
     pub async fn new(database_url: &str) -> StorageResult<Self> {
         let mut cfg = Config::new();
-        cfg.url = Some(database_url.to_string());
+        // Append search_path options
+        let url = if database_url.contains("?") {
+            format!("{}&options=-c%20search_path=secreton,public", database_url)
+        } else {
+            format!("{}?options=-c%20search_path=secreton,public", database_url)
+        };
+        cfg.url = Some(url);
 
         let tls_mode =
             std::env::var("SECRETON_STORAGE_TLS_MODE").unwrap_or_else(|_| "disable".to_string());
@@ -538,6 +544,8 @@ impl StorageBackend for PostgresBackend {
             })?;
 
         let create_table_query = r#"
+            CREATE SCHEMA IF NOT EXISTS secreton;
+            SET search_path = secreton, public;
             CREATE TABLE IF NOT EXISTS vault_entries (
                 id UUID PRIMARY KEY,
                 path VARCHAR NOT NULL UNIQUE,

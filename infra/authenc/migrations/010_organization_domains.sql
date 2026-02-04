@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Organization domain verification for B2B SSO
 CREATE TABLE IF NOT EXISTS organization_domains (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

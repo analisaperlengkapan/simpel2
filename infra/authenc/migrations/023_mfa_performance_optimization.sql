@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: MFA Performance Optimization
 -- Description: Adds optimized indexes and database improvements for MFA operations
 

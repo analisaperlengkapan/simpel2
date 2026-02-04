@@ -219,6 +219,7 @@ impl Database {
             dbname: Some(config.database.clone()),
             pool: Some(pool_config),
             manager: Some(manager_config),
+            options: Some("-c search_path=authenc,public".to_string()),
             ..Default::default()
         };
 

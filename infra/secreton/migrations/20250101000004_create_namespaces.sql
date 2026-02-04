@@ -1,3 +1,4 @@
+SET search_path = secreton, public;
 -- Create namespaces table for hierarchical multi-tenancy
 -- Supports SIMKARI organizational structure: Pusat -> Wilayah -> Satker
 

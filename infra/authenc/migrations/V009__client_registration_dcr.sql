@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration V009: Dynamic Client Registration (RFC 7591/7592)
 --
 -- This migration adds support for OAuth 2.0 Dynamic Client Registration

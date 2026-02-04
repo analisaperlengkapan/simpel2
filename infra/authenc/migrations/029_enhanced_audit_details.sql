@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Enhanced Audit Log Details Migration
 -- Adds comprehensive audit context fields to event_log table
 
@@ -207,4 +208,3 @@ FROM admin_audit_log
 ORDER BY created_at DESC;
 
 COMMENT ON VIEW comprehensive_audit_trail IS 'Unified view of all audit events with enhanced context from both user and admin logs';
-

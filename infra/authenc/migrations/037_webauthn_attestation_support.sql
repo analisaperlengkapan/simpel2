@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: WebAuthn Attestation Support
 -- Description: Add comprehensive attestation fields to webauthn_credentials table
 -- Author: SIMPelv2 Security Team

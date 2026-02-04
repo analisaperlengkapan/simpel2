@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Event Listeners Configuration Table
 -- Defines event listeners and their configurations
 CREATE TABLE IF NOT EXISTS event_listeners (

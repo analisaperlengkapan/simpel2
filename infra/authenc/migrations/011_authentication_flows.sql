@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Authentication flows and executions persistence
 
 -- Authentication flows table

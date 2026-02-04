@@ -1,3 +1,4 @@
+SET search_path = secreton, public;
 -- Create vault_state table for storing encrypted master key and seal configuration
 -- This table stores the vault's seal state and encrypted master key
 

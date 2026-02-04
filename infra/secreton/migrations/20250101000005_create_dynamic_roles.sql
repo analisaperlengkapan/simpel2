@@ -1,3 +1,4 @@
+SET search_path = secreton, public;
 -- Create dynamic_roles table for database secrets engine
 CREATE TABLE IF NOT EXISTS dynamic_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,4 +69,3 @@ CREATE INDEX idx_dynamic_credentials_namespace ON dynamic_credentials(namespace)
 COMMENT ON TABLE dynamic_roles IS 'Database roles for dynamic credential generation';
 COMMENT ON TABLE database_connections IS 'Database connection configurations';
 COMMENT ON TABLE dynamic_credentials IS 'Active dynamic database credentials';
-

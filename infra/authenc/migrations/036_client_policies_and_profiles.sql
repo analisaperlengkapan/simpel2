@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Client Policies & Profiles Implementation
 -- Migration: 036_client_policies_and_profiles.sql
 --

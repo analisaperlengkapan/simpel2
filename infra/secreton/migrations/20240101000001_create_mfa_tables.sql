@@ -1,3 +1,4 @@
+SET search_path = secreton, public;
 -- Create MFA settings table
 CREATE TABLE IF NOT EXISTS user_mfa_settings (
     user_id TEXT PRIMARY KEY,

@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- SAML message storage for request/response tracking and replay prevention
 CREATE TABLE IF NOT EXISTS saml_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Create SAML assertion cache table for replay attack prevention
 -- Description: Stores used SAML assertion IDs to prevent replay attacks
 -- Date: October 2, 2025

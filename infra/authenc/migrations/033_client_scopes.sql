@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Client Scopes System
 -- Implements OAuth2/OIDC client scopes with reusable scope definitions,
 -- default/optional scope assignments, and consent management

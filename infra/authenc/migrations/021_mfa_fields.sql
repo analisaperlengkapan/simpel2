@@ -1,3 +1,4 @@
+SET search_path = authenc, public;
 -- Migration: Add MFA fields to users table
 -- Description: Adds MFA-related fields to support multi-factor authentication
 

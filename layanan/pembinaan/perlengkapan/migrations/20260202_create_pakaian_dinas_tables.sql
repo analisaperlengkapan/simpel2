@@ -3,6 +3,10 @@
 -- Description: Official uniform management for Kejaksaan RI employees
 -- Migrated from simpel_laravel
 
+-- Ensure schema exists and set search path
+CREATE SCHEMA IF NOT EXISTS perlengkapan;
+SET search_path = perlengkapan;
+
 -- ============ Master Tables ============
 
 -- Jenis Pakaian Dinas (Uniform Types)
@@ -275,9 +279,3 @@ BEGIN
         ', tbl, tbl, tbl, tbl);
     END LOOP;
 END $$;
-
--- ============ Grants ============
-
--- Grant permissions for application user
--- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO simpel_app;
--- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO simpel_app;

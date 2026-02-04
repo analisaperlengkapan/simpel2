@@ -1,3 +1,4 @@
+SET search_path = secreton, public;
 -- Create leases table for secret lifecycle management
 -- Supports TTL, renewal, revocation, and hierarchical lease relationships
 
@@ -196,4 +197,3 @@ COMMENT ON COLUMN leases.max_renewals IS 'Maximum number of renewals allowed (NU
 COMMENT ON COLUMN leases.parent_id IS 'Parent lease ID for hierarchical relationships';
 COMMENT ON COLUMN leases.revoke_callback IS 'Optional callback function to execute on revocation';
 COMMENT ON COLUMN leases.metadata IS 'Additional metadata as JSON object';
-
