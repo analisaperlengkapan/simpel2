@@ -26,13 +26,9 @@ impl PostgresBackend {
     /// Create a new PostgreSQL backend
     pub async fn new(database_url: &str) -> StorageResult<Self> {
         let mut cfg = Config::new();
-        // Append search_path options
-        let url = if database_url.contains("?") {
-            format!("{}&options=-c%20search_path=secreton,public", database_url)
-        } else {
-            format!("{}?options=-c%20search_path=secreton,public", database_url)
-        };
-        cfg.url = Some(url);
+        cfg.url = Some(database_url.to_string());
+        // Set search path without modifying URL directly to avoid overriding existing options
+        cfg.options = Some("-c search_path=secreton,public".to_string());
 
         let tls_mode =
             std::env::var("SECRETON_STORAGE_TLS_MODE").unwrap_or_else(|_| "disable".to_string());
