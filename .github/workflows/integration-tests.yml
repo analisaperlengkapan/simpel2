@@ -111,7 +111,11 @@ jobs:
           SERVICE_SUFFIX=$(echo "${{ matrix.service }}" | sed 's/\//_/g')
           export DATABASE_URL="${DATABASE_URL/_integration/_integration_$SERVICE_SUFFIX}"
 
-          cargo test --test '*' --features integration-tests -- --test-threads=1 --nocapture
+          # Extract package name from Cargo.toml to avoid workspace-wide execution
+          PACKAGE_NAME=$(grep -m1 '^name =' Cargo.toml | cut -d '"' -f 2)
+          echo "Running tests for package: $PACKAGE_NAME"
+
+          cargo test -p "$PACKAGE_NAME" --test '*' --features integration-tests -- --test-threads=1 --nocapture
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           REDIS_URL: ${{ env.REDIS_URL }}

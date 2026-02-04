@@ -448,7 +448,7 @@ async fn check_mfa_setup_risk() -> Result<f64, Box<dyn std::error::Error>> {
 
 /// Generate MFA setup data from authenc API
 async fn generate_mfa_setup(
-    captcha_token: Option<&str>,
+    _captcha_token: Option<&str>,
 ) -> Result<MfaSetupData, Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {
@@ -462,7 +462,7 @@ async fn generate_mfa_setup(
             get_auth_token().ok_or("No authentication token found. Please log in again.")?;
 
         // Prepare request body with optional CAPTCHA token
-        let body = if let Some(captcha) = captcha_token {
+        let body = if let Some(captcha) = _captcha_token {
             serde_json::json!({
                 "captcha_token": captcha
             })

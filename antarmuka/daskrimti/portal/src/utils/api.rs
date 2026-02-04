@@ -7,11 +7,17 @@ use std::collections::HashMap;
 /// System statistics
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemMetrics {
+    /// System uptime in seconds
     pub uptime: u64,
+    /// Memory usage statistics
     pub memory_usage: MemoryMetrics,
+    /// CPU usage statistics
     pub cpu_usage: CpuMetrics,
+    /// Disk usage statistics
     pub disk_usage: DiskMetrics,
+    /// Network usage statistics
     pub network: NetworkMetrics,
+    /// Vault-specific metrics
     pub vault: VaultMetrics,
 }
 
