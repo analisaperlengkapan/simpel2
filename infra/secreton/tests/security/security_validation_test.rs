@@ -25,7 +25,7 @@ mod security_validation_tests {
 
         // Minimum key length validation
         assert!(encryption_key.len() >= 32,
-               "Encryption key should be at least 256 bits (32 bytes), got { bytes",
+               "Encryption key should be at least 256 bits (32 bytes), got {} bytes",
                encryption_key.len());
 
         // Key uniqueness test
@@ -147,24 +147,22 @@ mod security_validation_tests {
             let guest_access = orchestrator.check_access_permission(guest_user, resource).await?;
 
             // Verify access control hierarchy
-            if admin_access.granted {
-                println!("Admin has access to {}", resource);
-            }
-
             // Verify access control hierarchy
             if admin_access.granted {
                 println!("Admin has access to {}", resource);
             }
 
             if regular_access.granted {
-                // Regular user access should be more restricted than admin
+                // Regular user access should be more restricted than admin (subset)
+                // If regular has access, admin MUST also have access
+                assert!(admin_access.granted, "Admin should also have access if regular user does");
+            }
+
             if guest_access.granted {
-                // Guest should have most restricted access
+                // Guest should have most restricted access (subset)
+                // If guest has access, regular and admin MUST also have access
                 assert!(regular_access.granted, "Regular user should also have access if guest does");
                 assert!(admin_access.granted, "Admin should also have access if guest does");
-            }
-                assert!(regular_access.granted,
-                       "Guest should not have more access than regular user");
             }
         }
 
