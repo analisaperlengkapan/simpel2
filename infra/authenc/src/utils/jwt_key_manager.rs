@@ -5,7 +5,7 @@
 
 use crate::secreton_client::{SecretonError, secreton_client::SecretonClient};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
@@ -277,6 +277,7 @@ pub enum JwtKeyError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn test_jwt_key_expiration() {

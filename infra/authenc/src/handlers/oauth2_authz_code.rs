@@ -56,21 +56,6 @@ fn validate_code_challenge_method(method: &str) -> bool {
     method == "S256" || method == "plain"
 }
 
-/// Verify PKCE code verifier against code challenge
-fn verify_code_challenge(code_verifier: &str, code_challenge: &str, method: &str) -> bool {
-    match method {
-        "S256" => {
-            let mut hasher = Sha256::new();
-            hasher.update(code_verifier.as_bytes());
-            let hash = hasher.finalize();
-            let computed_challenge = Base64UrlUnpadded::encode_string(&hash);
-            computed_challenge == code_challenge
-        }
-        "plain" => code_verifier == code_challenge,
-        _ => false,
-    }
-}
-
 /// OAuth2 Authorization Endpoint
 /// Handles authorization requests and initiates the authorization code flow.
 /// Validates client, redirect URI, and generates authorization code with PKCE support.
@@ -292,28 +277,5 @@ mod tests {
         assert!(validate_code_challenge_method("plain"));
         assert!(!validate_code_challenge_method("invalid"));
         assert!(!validate_code_challenge_method(""));
-    }
-
-    #[test]
-    fn test_verify_code_challenge_s256() {
-        // Test vector from RFC 7636
-        let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
-        let challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
-
-        assert!(verify_code_challenge(verifier, challenge, "S256"));
-
-        // Invalid verifier
-        assert!(!verify_code_challenge("invalid", challenge, "S256"));
-    }
-
-    #[test]
-    fn test_verify_code_challenge_plain() {
-        let verifier = "test_verifier_123";
-        let challenge = "test_verifier_123";
-
-        assert!(verify_code_challenge(verifier, challenge, "plain"));
-
-        // Invalid verifier
-        assert!(!verify_code_challenge("wrong", challenge, "plain"));
     }
 }

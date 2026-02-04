@@ -22,72 +22,33 @@ env:
   REDIS_URL: redis://localhost:6379
 
 jobs:
-  setup-infrastructure:
-    name: Setup Test Infrastructure
-    runs-on: ubuntu-latest
-    outputs:
-      postgres-ready: ${{ steps.check.outputs.postgres }}
-      redis-ready: ${{ steps.check.outputs.redis }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: true
-
-      - name: Start PostgreSQL for tests
-        run: |
-          docker run -d --name postgres-integration \
-            -e POSTGRES_DB=simpelv2_integration \
-            -e POSTGRES_USER=simpelv2_test \
-            -e POSTGRES_PASSWORD=integration_test_2024 \
-            -p 5432:5432 \
-            postgres:16-alpine || docker start postgres-integration || true
-
-      - name: Start Redis for tests
-        run: |
-          docker run -d --name redis-integration \
-            -p 6379:6379 \
-            redis:7-alpine || docker start redis-integration || true
-
-      - name: Wait for services
-        run: |
-          echo "Waiting for PostgreSQL..."
-          for i in {1..30}; do
-            if docker exec postgres-integration pg_isready -U simpelv2_test > /dev/null 2>&1; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-
-          echo "Waiting for Redis..."
-          for i in {1..30}; do
-            if docker exec redis-integration redis-cli ping | grep -q PONG; then
-              echo "Redis is ready!"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-
-      - name: Check services health
-        id: check
-        run: |
-          POSTGRES_OK=$(docker exec postgres-integration pg_isready -U simpelv2_test > /dev/null 2>&1 && echo "true" || echo "false")
-          REDIS_OK=$(docker exec redis-integration redis-cli ping | grep -q PONG && echo "true" || echo "false")
-
-          echo "postgres=$POSTGRES_OK" >> $GITHUB_OUTPUT
-          echo "redis=$REDIS_OK" >> $GITHUB_OUTPUT
-
-          echo "PostgreSQL: $POSTGRES_OK"
-          echo "Redis: $REDIS_OK"
-
   backend-integration-tests:
     name: Backend Integration Tests
     runs-on: ubuntu-latest
-    needs: setup-infrastructure
-    if: needs.setup-infrastructure.outputs.postgres-ready == 'true'
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: simpelv2_integration
+          POSTGRES_USER: simpelv2_test
+          POSTGRES_PASSWORD: integration_test_2024
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     strategy:
       fail-fast: false
@@ -107,7 +68,7 @@ jobs:
     steps:
       - name: Fix permissions
         run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+          sudo chown -R $(id -u):$(id -g) . || true
           rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
@@ -166,13 +127,36 @@ jobs:
   frontend-backend-integration:
     name: Frontend-Backend E2E Tests
     runs-on: ubuntu-latest
-    needs: [setup-infrastructure, backend-integration-tests]
-    if: needs.setup-infrastructure.outputs.postgres-ready == 'true'
+    needs: [backend-integration-tests]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: simpelv2_integration
+          POSTGRES_USER: simpelv2_test
+          POSTGRES_PASSWORD: integration_test_2024
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Fix permissions
         run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+          sudo chown -R $(id -u):$(id -g) . || true
           rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
@@ -213,13 +197,35 @@ jobs:
   grpc-integration-tests:
     name: gRPC Service Integration Tests
     runs-on: ubuntu-latest
-    needs: setup-infrastructure
-    if: needs.setup-infrastructure.outputs.postgres-ready == 'true'
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: simpelv2_integration
+          POSTGRES_USER: simpelv2_test
+          POSTGRES_PASSWORD: integration_test_2024
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Fix permissions
         run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+          sudo chown -R $(id -u):$(id -g) . || true
           rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
@@ -255,23 +261,39 @@ jobs:
           echo "Testing gRPC communication between services..."
           echo "✅ gRPC integration tests passed!"
 
-      - name: Cleanup services
-        if: always()
-        run: |
-          if [ -f infra/authenc/authenc.pid ]; then
-            kill $(cat infra/authenc/authenc.pid) || true
-            rm infra/authenc/authenc.pid
-          fi
-
   module-integration:
     name: Cross-Module Integration Tests
     runs-on: ubuntu-latest
     needs: [backend-integration-tests, grpc-integration-tests]
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: simpelv2_integration
+          POSTGRES_USER: simpelv2_test
+          POSTGRES_PASSWORD: integration_test_2024
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Fix permissions
         run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
+          sudo chown -R $(id -u):$(id -g) . || true
           rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
@@ -295,23 +317,6 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           REDIS_URL: ${{ env.REDIS_URL }}
           RUST_LOG: info
-
-  cleanup:
-    name: Cleanup Test Infrastructure
-    runs-on: ubuntu-latest
-    needs: [frontend-backend-integration, grpc-integration-tests, module-integration]
-    if: always()
-
-    steps:
-      - name: Stop and remove test containers
-        run: |
-          docker stop postgres-integration redis-integration || true
-          docker rm postgres-integration redis-integration || true
-
-      - name: Cleanup test data
-        run: |
-          rm -rf test-results/ || true
-          rm -rf coverage/ || true
 
   summary:
     name: Integration Test Summary

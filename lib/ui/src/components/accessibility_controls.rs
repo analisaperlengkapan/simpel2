@@ -3,6 +3,7 @@
 use crate::hooks::use_storage;
 use crate::utils::accessibility::*;
 use leptos::prelude::*;
+use std::str::FromStr;
 use wasm_bindgen::JsCast;
 
 // ============================================================================
@@ -47,7 +48,7 @@ impl FontSize {
     }
 }
 
-impl std::str::FromStr for TextSize {
+impl std::str::FromStr for FontSize {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

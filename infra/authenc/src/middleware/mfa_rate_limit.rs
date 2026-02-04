@@ -93,10 +93,12 @@ impl RateLimitCounter {
         self.failed_attempts.fetch_add(1, Ordering::Relaxed) + 1
     }
 
+    #[allow(dead_code)]
     fn get_count(&self) -> u32 {
         self.count.load(Ordering::Relaxed)
     }
 
+    #[allow(dead_code)]
     fn get_failed_count(&self) -> u32 {
         self.failed_attempts.load(Ordering::Relaxed)
     }

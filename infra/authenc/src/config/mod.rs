@@ -1194,7 +1194,7 @@ mod tests {
                 ("JWT_SECRET", Some("test_secret")),
             ],
             || {
-                let config = AppConfig::from_env().unwrap();
+                let config = AppConfig::load().unwrap();
                 assert_eq!(config.server.host, "127.0.0.1");
                 assert_eq!(config.server.port, 4000);
                 assert_eq!(config.security.jwt_secret, "test_secret");

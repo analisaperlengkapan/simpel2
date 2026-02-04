@@ -80,7 +80,7 @@ admin_console = []
 
 # Quantum-resistant cryptography features
 quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
-# tpm = ["dep:tss-esapi"] # Disabled for CI compatibility (missing libtss2-dev)
+tpm = [] # Feature flag for TPM support (tss-esapi dependency currently disabled for CI)
 
 [dependencies]
 # Core async runtime
