@@ -115,6 +115,10 @@ pub struct TestPolicyRequest {
 
     /// Optional context for evaluation
     pub context: Option<Value>,
+
+    /// Namespace (defaults to "default")
+    #[serde(default = "default_namespace")]
+    pub namespace: String,
 }
 
 /// Test policy response
@@ -139,6 +143,14 @@ pub struct ListPoliciesQuery {
 
     #[serde(flatten)]
     pub pagination: PaginationQuery,
+}
+
+/// Namespace query parameters for item operations
+#[derive(Debug, Deserialize)]
+pub struct NamespaceQuery {
+    /// Namespace
+    #[serde(default = "default_namespace")]
+    pub namespace: String,
 }
 
 fn default_namespace() -> String {
@@ -295,8 +307,9 @@ pub async fn create_policy(
 pub async fn get_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Query(query): Query<NamespaceQuery>,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
-    info!("Getting policy: name={}", name);
+    info!("Getting policy: name={}, namespace={}", name, query.namespace);
 
     // Check admin permission
     if !is_admin(&state)? {
@@ -307,7 +320,7 @@ pub async fn get_policy(
 
     let p = state
         .policy_service
-        .get_policy(name)
+        .get_policy(name, query.namespace)
         .await
         .map_err(ApiError::Core)?;
 
@@ -341,9 +354,10 @@ pub async fn get_policy(
 pub async fn update_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Query(query): Query<NamespaceQuery>,
     Json(req): Json<UpdatePolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
-    info!("Updating policy: name={}", name);
+    info!("Updating policy: name={}, namespace={}", name, query.namespace);
 
     // Check admin permission
     if !is_admin(&state)? {
@@ -356,7 +370,7 @@ pub async fn update_policy(
 
     let p = state
         .policy_service
-        .update_policy(name, req.description, req.rules, req.is_active, user)
+        .update_policy(name, query.namespace, req.description, req.rules, req.is_active, user)
         .await
         .map_err(ApiError::Core)?;
 
@@ -390,8 +404,9 @@ pub async fn update_policy(
 pub async fn delete_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Query(query): Query<NamespaceQuery>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    info!("Deleting policy: name={}", name);
+    info!("Deleting policy: name={}, namespace={}", name, query.namespace);
 
     // Check admin permission
     if !is_admin(&state)? {
@@ -402,7 +417,7 @@ pub async fn delete_policy(
 
     state
         .policy_service
-        .delete_policy(name)
+        .delete_policy(name, query.namespace)
         .await
         .map_err(ApiError::Core)?;
 
@@ -417,8 +432,8 @@ pub async fn test_policy(
     Json(req): Json<TestPolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<TestPolicyResponse>>> {
     info!(
-        "Testing policy: name={}, user={}, path={}, action={}",
-        name, req.user, req.path, req.action
+        "Testing policy: name={}, namespace={}, user={}, path={}, action={}",
+        name, req.namespace, req.user, req.path, req.action
     );
 
     // Check admin permission
@@ -430,7 +445,7 @@ pub async fn test_policy(
 
     let res = state
         .policy_service
-        .test_policy(name, req.user, req.path, req.action, req.context)
+        .test_policy(name, req.namespace, req.user, req.path, req.action, req.context)
         .await
         .map_err(ApiError::Core)?;
 

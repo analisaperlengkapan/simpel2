@@ -462,21 +462,17 @@ impl PolicyService {
         })
     }
 
-    pub async fn get_policy(&self, name: String) -> Result<PolicyServiceResponse, CoreError> {
+    pub async fn get_policy(&self, name: String, namespace: String) -> Result<PolicyServiceResponse, CoreError> {
         let client = self.pool.get().await.map_err(|e| CoreError::Internal {
             message: format!("Database error: {}", e),
             source: None,
         })?;
 
-        // NOTE: Querying by name only assumes global uniqueness or returns the first match.
-        // If the schema allows same name in different namespaces, this is ambiguous.
-        // However, without changing the API signature to accept namespace, this is the best we can do.
-        // Ideally, we should enforce global uniqueness on `name` or require `namespace` in the API path/query.
         let row = client
             .query_opt(
                 "SELECT id, name, namespace, description, rules, version, is_active, created_at, updated_at, created_by, updated_by
-                 FROM policies WHERE name = $1",
-                &[&name],
+                 FROM policies WHERE name = $1 AND namespace = $2",
+                &[&name, &namespace],
             )
             .await
             .map_err(|e| CoreError::Internal {
@@ -513,6 +509,7 @@ impl PolicyService {
     pub async fn update_policy(
         &self,
         name: String,
+        namespace: String,
         description: Option<String>,
         rules: Option<Vec<PolicyRule>>,
         is_active: Option<bool>,
@@ -529,7 +526,7 @@ impl PolicyService {
         })?;
 
         let existing = client
-            .query_opt("SELECT id, version, namespace FROM policies WHERE name = $1", &[&name])
+            .query_opt("SELECT id, version FROM policies WHERE name = $1 AND namespace = $2", &[&name, &namespace])
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database error: {}", e),
@@ -539,8 +536,6 @@ impl PolicyService {
         let existing = existing.ok_or_else(|| CoreError::NotFound {
             resource: "policy".to_string(),
         })?;
-
-        let namespace: String = existing.get(2);
 
         // Invalidate cache
         if let Ok(mut cache) = self.cache.write() {
@@ -583,7 +578,7 @@ impl PolicyService {
 
         if updates.is_empty() {
             // Return current state if no updates
-            return self.get_policy(name).await;
+            return self.get_policy(name, namespace).await;
         }
 
         updates.push(format!("version = ${}", param_idx));
@@ -595,13 +590,15 @@ impl PolicyService {
         param_idx += 1;
 
         let update_query = format!(
-            "UPDATE policies SET {} WHERE name = ${}
+            "UPDATE policies SET {} WHERE name = ${} AND namespace = ${}
              RETURNING id, name, namespace, description, rules, version, is_active, created_at, updated_at, created_by, updated_by",
             updates.join(", "),
-            param_idx
+            param_idx,
+            param_idx + 1
         );
 
         params.push(Box::new(name.clone()));
+        params.push(Box::new(namespace.clone()));
 
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
             params.iter().map(|p| p.as_ref() as _).collect();
@@ -648,15 +645,14 @@ impl PolicyService {
         })
     }
 
-    pub async fn delete_policy(&self, name: String) -> Result<(), CoreError> {
+    pub async fn delete_policy(&self, name: String, namespace: String) -> Result<(), CoreError> {
         let client = self.pool.get().await.map_err(|e| CoreError::Internal {
             message: format!("Database error: {}", e),
             source: None,
         })?;
 
-        // NOTE: Same ambiguity as get_policy regarding namespace
         let row = client
-            .query_opt("SELECT id, namespace FROM policies WHERE name = $1", &[&name])
+            .query_opt("SELECT id FROM policies WHERE name = $1 AND namespace = $2", &[&name, &namespace])
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database error: {}", e),
@@ -668,7 +664,6 @@ impl PolicyService {
         })?;
 
         let policy_id: i64 = row.get(0);
-        let namespace: String = row.get(1);
 
         // Invalidate cache
         if let Ok(mut cache) = self.cache.write() {
@@ -715,6 +710,7 @@ impl PolicyService {
     pub async fn test_policy(
         &self,
         name: String,
+        namespace: String,
         user: String,
         path: String,
         action: String,
@@ -727,8 +723,8 @@ impl PolicyService {
 
         let row = client
             .query_opt(
-                "SELECT rules FROM policies WHERE name = $1 AND is_active = true",
-                &[&name],
+                "SELECT rules FROM policies WHERE name = $1 AND namespace = $2 AND is_active = true",
+                &[&name, &namespace],
             )
             .await
             .map_err(|e| CoreError::Internal {
@@ -962,7 +958,7 @@ impl PolicyService {
         "#;
 
         let row = client
-            .query_one(query, &[&depends_on_id, &policy_id])
+            .query_one(query, &[&policy_id, &depends_on_id])
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database query error: {}", e),

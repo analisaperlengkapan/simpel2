@@ -8,9 +8,10 @@ release = true
 args = [
     "-Oz",                    # Maximum size optimization
     "--enable-bulk-memory",   # Enable bulk memory operations
+    "--enable-nontrapping-float-to-int",
+    "--enable-sign-ext",
+    "--enable-mutable-globals",
     "--strip-debug",          # Remove debug information
-    "--dce",                  # Dead code elimination
-    "--vacuum",               # Final vacuum pass
 ]
 
 # Advanced wasm-bindgen configuration

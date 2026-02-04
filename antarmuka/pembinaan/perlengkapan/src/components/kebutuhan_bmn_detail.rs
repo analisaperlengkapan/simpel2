@@ -140,7 +140,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                         let status = KebutuhanBmnStatus::from_code(pengajuan.status_kode);
                         let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
                         let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
-                        let allowed_transitions = d.allowed_transitions.clone();
+                        let allowed_transitions = StoredValue::new(d.allowed_transitions.clone());
 
                         view! {
                             <div class="space-y-6">
@@ -200,20 +200,25 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                 </div>
 
                                 // Description
-                                <Show when=move || pengajuan.deskripsi.is_some()>
-                                    <div class="bg-gray-50 rounded-lg p-4">
-                                        <div class="text-gray-600 text-sm font-medium mb-2">"Deskripsi"</div>
-                                        <p class="text-gray-800">{pengajuan.deskripsi.clone().unwrap_or_default()}</p>
-                                    </div>
-                                </Show>
+                                {
+                                    let has_deskripsi = pengajuan.deskripsi.is_some();
+                                    view! {
+                                        <Show when=move || has_deskripsi>
+                                            <div class="bg-gray-50 rounded-lg p-4">
+                                                <div class="text-gray-600 text-sm font-medium mb-2">"Deskripsi"</div>
+                                                <p class="text-gray-800">{pengajuan.deskripsi.clone().unwrap_or_default()}</p>
+                                            </div>
+                                        </Show>
+                                    }
+                                }
 
                                 // Workflow transitions
-                                <Show when=move || !allowed_transitions.is_empty()>
+                                <Show when=move || !allowed_transitions.with_value(|t| t.is_empty())>
                                     <div class="bg-gray-50 rounded-lg p-4">
                                         <div class="text-gray-600 text-sm font-medium mb-3">"Aksi Workflow"</div>
                                         <div class="flex flex-wrap gap-3">
                                             <For
-                                                each=move || allowed_transitions.clone()
+                                                each=move || allowed_transitions.get_value()
                                                 key=|t| t.status_kode
                                                 children=move |transition| {
                                                     let status_kode = transition.status_kode;
