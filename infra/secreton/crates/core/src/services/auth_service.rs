@@ -642,9 +642,11 @@ impl AuthService {
         }
     }
 
-    /// Get user effective policies (permissions)
-    pub async fn get_user_policies(&self, user: &User) -> Result<Vec<String>, AuthError> {
-        let mut all_permissions: Vec<String> = user.policies.iter().cloned().collect();
+    /// Get user effective permissions (aggregated from roles)
+    /// NOTE: This does NOT include policy names from `user.policies`.
+    /// `user.policies` should be used to load PolicyDefinition objects.
+    pub async fn get_user_permissions(&self, user: &User) -> Result<Vec<String>, AuthError> {
+        let mut all_permissions = Vec::new();
 
         for role_name in &user.roles {
             match self.get_role(role_name).await {
@@ -653,7 +655,6 @@ impl AuthService {
                 }
                 Err(_) => {
                     // Ignore missing roles to allow partial success
-                    // This can happen if a role was deleted but the user still has it assigned
                     continue;
                 }
             }
@@ -663,6 +664,24 @@ impl AuthService {
         all_permissions.dedup();
 
         Ok(all_permissions)
+    }
+
+    /// Get user effective policy names (explicit + role-derived)
+    pub fn get_user_policy_names(&self, user: &User) -> Vec<String> {
+        let mut policy_names: Vec<String> = user.policies.iter().cloned().collect();
+
+        // Add role-based policies (convention: role name = policy name suffix or mapping)
+        // For simple implementations, we might assume roles map 1:1 to policies if configured,
+        // but here we just return the explicit ones plus any we might derive.
+        // The API middleware currently derives "{role}-policy". We can replicate that or leave it to the caller.
+        // For Core consistency, let's include role-based defaults if that's the model.
+        for role in &user.roles {
+            policy_names.push(format!("{}-policy", role.to_lowercase()));
+        }
+
+        policy_names.sort();
+        policy_names.dedup();
+        policy_names
     }
 
     /// Create role

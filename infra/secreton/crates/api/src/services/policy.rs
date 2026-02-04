@@ -87,7 +87,15 @@ impl PolicyService {
 
         // 1. Check cache first
         {
-            let cache = self.cache.read().unwrap();
+            let cache_result = self.cache.read();
+            let cache = match cache_result {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    tracing::warn!("Policy cache lock poisoned");
+                    poisoned.into_inner()
+                }
+            };
+
             for name in names {
                 let key = Self::cache_key(namespace, name);
                 if let Some(entry) = cache.get(&key) {

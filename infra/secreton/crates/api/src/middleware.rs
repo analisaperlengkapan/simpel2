@@ -1208,7 +1208,7 @@ fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::
             .and_then(|c| c.metadata.get("mfa_passed"))
             .map(|v| v == "true")
             .unwrap_or(false),
-        // Removed timestamp to allow policy result caching
+        "timestamp": chrono::Utc::now().to_rfc3339(),
     })
 }
 

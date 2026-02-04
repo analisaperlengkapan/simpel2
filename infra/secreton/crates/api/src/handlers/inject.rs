@@ -153,7 +153,7 @@ pub async fn inject_env(
             .and_then(|c| c.metadata.get("mfa_passed"))
             .map(|v| v == "true")
             .unwrap_or(false),
-        // Removed timestamp to allow policy result caching
+        "timestamp": chrono::Utc::now().to_rfc3339(),
     });
 
     // Load policies once

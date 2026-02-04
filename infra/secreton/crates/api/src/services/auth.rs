@@ -156,6 +156,10 @@ struct Claims {
     is_active: bool,
     mfa_enabled: bool,
     namespace: String,
+    // Metadata fields needed for context reconstruction
+    satker_code: Option<String>,
+    wilayah_code: Option<String>,
+    admin_level: Option<String>,
 }
 
 /// Authentication service
@@ -407,6 +411,18 @@ impl AuthService {
         // Reconstruct user from claims
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| AuthError::InvalidToken)?;
 
+        // Reconstruct metadata
+        let mut metadata = HashMap::new();
+        if let Some(s) = claims.satker_code {
+            metadata.insert("satker_code".to_string(), s);
+        }
+        if let Some(w) = claims.wilayah_code {
+            metadata.insert("wilayah_code".to_string(), w);
+        }
+        if let Some(a) = claims.admin_level {
+            metadata.insert("admin_level".to_string(), a);
+        }
+
         Ok(User {
             id: user_id,
             username: claims.username,
@@ -425,7 +441,7 @@ impl AuthService {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
-            metadata: HashMap::new(), // Metadata not currently in JWT
+            metadata,
         })
     }
 
@@ -981,6 +997,9 @@ impl AuthService {
             is_active: user.is_active,
             mfa_enabled: user.mfa_enabled,
             namespace: user.namespace.clone(),
+            satker_code: user.metadata.get("satker_code").cloned(),
+            wilayah_code: user.metadata.get("wilayah_code").cloned(),
+            admin_level: user.metadata.get("admin_level").cloned(),
         };
 
         let algorithm = Algorithm::from_str(&config.jwt.algorithm)
@@ -1030,6 +1049,9 @@ impl AuthService {
             is_active: user.is_active,
             mfa_enabled: user.mfa_enabled,
             namespace: user.namespace.clone(),
+            satker_code: user.metadata.get("satker_code").cloned(),
+            wilayah_code: user.metadata.get("wilayah_code").cloned(),
+            admin_level: user.metadata.get("admin_level").cloned(),
         };
 
         let algorithm = Algorithm::from_str(&config.jwt.algorithm)

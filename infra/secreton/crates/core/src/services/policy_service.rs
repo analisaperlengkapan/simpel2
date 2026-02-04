@@ -59,10 +59,17 @@ impl PolicyService {
             let key = Self::cache_key(namespace, name);
 
             // Check cache first
-            let cached_policy = if let Ok(cache) = self.cache.read() {
-                cache.get(&key).cloned()
-            } else {
-                None
+            let cached_policy = match self.cache.read() {
+                Ok(cache) => cache.get(&key).cloned(),
+                Err(poisoned) => {
+                    // Handle poisoned lock by clearing it (if possible) or just ignoring cache
+                    // RwLockReadGuard from poisoned lock can be accessed via into_inner(),
+                    // but that might return a guard to potentially inconsistent data.
+                    // For a cache, it might be safer to ignore it or clear it.
+                    // Here we try to recover data but log warning.
+                    tracing::warn!("Policy cache lock poisoned, attempting recovery");
+                    poisoned.into_inner().get(&key).cloned()
+                }
             };
 
             if let Some(entry) = cached_policy {
