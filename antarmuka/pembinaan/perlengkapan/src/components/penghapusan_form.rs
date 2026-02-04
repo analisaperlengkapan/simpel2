@@ -21,9 +21,21 @@ pub fn PenghapusanForm() -> impl IntoView {
         set_error.set(None);
         set_success.set(false);
 
+        let Ok(parsed_asset_id) = uuid::Uuid::parse_str(&asset_id.get()) else {
+            set_error.set(Some("Asset ID tidak valid (bukan UUID)".to_string()));
+            set_loading.set(false);
+            return;
+        };
+
+        let Ok(parsed_tanggal) = chrono::NaiveDate::parse_from_str(&tanggal.get(), "%Y-%m-%d") else {
+            set_error.set(Some("Format tanggal tidak valid".to_string()));
+            set_loading.set(false);
+            return;
+        };
+
         let req = CreatePenghapusanRequest {
-            asset_id: asset_id.get(),
-            tanggal_penghapusan: tanggal.get(),
+            asset_id: parsed_asset_id,
+            tanggal_penghapusan: parsed_tanggal,
             alasan: alasan.get(),
             metode_penghapusan: metode.get(),
             nilai_residu: residu.get().parse::<f64>().ok(),

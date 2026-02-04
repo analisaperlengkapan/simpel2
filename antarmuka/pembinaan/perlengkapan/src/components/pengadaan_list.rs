@@ -81,7 +81,7 @@ pub fn PengadaanList() -> impl IntoView {
                                                                 {item.status}
                                                             </span>
                                                         </td>
-                                                        <td class="p-3">{item.target_selesai.unwrap_or("-".to_string())}</td>
+                                                        <td class="p-3">{item.target_selesai.map(|d| d.to_string()).unwrap_or("-".to_string())}</td>
                                                         <td class="p-3">
                                                             <div class="flex gap-2">
                                                                 <button class="text-blue-600 hover:text-blue-800" title="Detail">

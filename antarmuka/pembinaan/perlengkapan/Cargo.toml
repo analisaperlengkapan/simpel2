@@ -46,6 +46,7 @@ log = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }
 urlencoding = { workspace = true }
+chrono.workspace = true
 
 [features]
 default = ["csr"]

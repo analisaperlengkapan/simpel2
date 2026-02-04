@@ -20,10 +20,12 @@ pub enum FormMode {
 #[component]
 pub fn KebutuhanBmnForm() -> impl IntoView {
     let params = use_params_map();
-    let id = Memo::new(move |_| params.read().get("id").cloned());
+    let id = Memo::new(move |_| params.read().get("id"));
 
     let mode = Memo::new(move |_| match id.get() {
-        Some(id_val) if !id_val.is_empty() && id_val != "baru" => FormMode::Edit(id_val),
+        Some(ref id_val) if !id_val.is_empty() && id_val != "baru" => {
+            FormMode::Edit(id_val.clone())
+        }
         _ => FormMode::Create,
     });
 
@@ -161,7 +163,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
     };
 
     let current_year = 2025;
-    let years: Vec<i32> = (2020..=current_year + 2).rev().collect();
+    let years = StoredValue::new((2020..=current_year + 2).rev().collect::<Vec<i32>>());
 
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
@@ -258,7 +260,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                                 }
                             >
                                 <For
-                                    each=move || years.clone()
+                                    each=move || years.get_value()
                                     key=|y| *y
                                     children=move |y| {
                                         view! {

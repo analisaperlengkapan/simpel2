@@ -66,7 +66,7 @@ pub fn MutasiList() -> impl IntoView {
                                                         <td class="p-3 font-medium">{item.asal_satker}</td>
                                                         <td class="p-3">{item.tujuan_satker}</td>
                                                         <td class="p-3">{item.penanggung_jawab}</td>
-                                                        <td class="p-3">{item.tanggal_mutasi}</td>
+                                                        <td class="p-3">{item.tanggal_mutasi.to_string()}</td>
                                                         <td class="p-3">
                                                             <span class="px-2 py-1 rounded-full text-xs bg-yellow-50 text-yellow-700">
                                                                 {item.status}

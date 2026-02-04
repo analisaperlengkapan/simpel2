@@ -64,7 +64,7 @@ pub fn HibahList() -> impl IntoView {
                                                     <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
                                                         <td class="p-3 font-medium">{item.pemberi}</td>
                                                         <td class="p-3">{item.penerima}</td>
-                                                        <td class="p-3">{item.tanggal_hibah}</td>
+                                                        <td class="p-3">{item.tanggal_hibah.to_string()}</td>
                                                         <td class="p-3">{item.keterangan.unwrap_or("-".to_string())}</td>
                                                         <td class="p-3">
                                                             <div class="flex gap-2">

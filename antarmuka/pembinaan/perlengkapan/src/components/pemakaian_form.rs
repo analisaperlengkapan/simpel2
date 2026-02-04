@@ -20,10 +20,22 @@ pub fn PemakaianForm() -> impl IntoView {
         set_error.set(None);
         set_success.set(false);
 
+        let Ok(parsed_asset_id) = uuid::Uuid::parse_str(&asset_id.get()) else {
+            set_error.set(Some("Asset ID tidak valid (bukan UUID)".to_string()));
+            set_loading.set(false);
+            return;
+        };
+
+        let Ok(parsed_tanggal) = chrono::NaiveDate::parse_from_str(&tanggal_mulai.get(), "%Y-%m-%d") else {
+            set_error.set(Some("Format tanggal tidak valid".to_string()));
+            set_loading.set(false);
+            return;
+        };
+
         let req = CreatePemakaianRequest {
-            asset_id: asset_id.get(),
+            asset_id: parsed_asset_id,
             piminjam_nama: peminjam.get(),
-            tanggal_mulai: tanggal_mulai.get(),
+            tanggal_mulai: parsed_tanggal,
             tanggal_selesai: None,
             keperluan: if keperluan.get().is_empty() {
                 None

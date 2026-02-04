@@ -63,7 +63,7 @@ pub fn PemakaianList() -> impl IntoView {
                                                 view! {
                                                     <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
                                                         <td class="p-3 font-medium">{item.piminjam_nama}</td>
-                                                        <td class="p-3">{item.tanggal_mulai}</td>
+                                                        <td class="p-3">{item.tanggal_mulai.to_string()}</td>
                                                         <td class="p-3">
                                                             <span class="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-600">
                                                                 {item.status}

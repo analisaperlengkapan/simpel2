@@ -47,12 +47,15 @@ mod mfa_unit_tests {
 
         // Test TOTP setup
         let setup_result = manager.setup_totp("user1", "Secreton Test Engine").await;
-        assert!(setup_result.is_ok(), "TOTP setup should succeed: {:?}", setup_result);
+        assert!(setup_result.is_ok(), "TOTP setup should succeed: {:?}", setup_result
+        );
 
         let setup_info = setup_result?;
-        assert!(!setup_info.qr_code_url.is_empty(), "QR code URL should be generated");
+        assert!(!setup_info.qr_code_url.is_empty(), "QR code URL should be generated"
+        );
         assert!(!setup_info.secret.is_empty(), "Secret should be generated");
-        assert_eq!(setup_info.recovery_codes.len(), 10, "Should generate 10 recovery codes");
+        assert_eq!(setup_info.recovery_codes.len(), 10, "Should generate 10 recovery codes"
+        );
 
         Ok(())
     }
@@ -83,18 +86,21 @@ mod mfa_unit_tests {
         let setup_result = manager.setup_totp("user1", "Secreton Test Engine").await?;
 
         // Verify recovery codes properties
-        assert_eq!(setup_result.recovery_codes.len(), 10, "Should generate exactly 10 recovery codes");
+        assert_eq!(setup_result.recovery_codes.len(), 10, "Should generate exactly 10 recovery codes"
+        );
 
         for code in &setup_result.recovery_codes {
             assert_eq!(code.len(), 16, "Each recovery code should be 16 characters");
             assert!(code.chars().all(|c| "0123456789ABCDEF".contains(c)),
-                   "Recovery codes should only contain hex characters");
+                   "Recovery codes should only contain hex characters"
+            );
         }
 
         // Verify all codes are unique
         let mut unique_codes = std::collections::HashSet::new();
         for code in &setup_result.recovery_codes {
-            assert!(unique_codes.insert(code.clone()), "All recovery codes should be unique");
+            assert!(unique_codes.insert(code.clone()), "All recovery codes should be unique"
+            );
         }
 
         Ok(())
@@ -178,7 +184,8 @@ mod mfa_unit_tests {
 
         // Disable MFA
         let disable_result = manager.disable_mfa("user1").await;
-        assert!(disable_result.is_ok(), "Disabling MFA should succeed: {:?}", disable_result);
+        assert!(disable_result.is_ok(), "Disabling MFA should succeed: {:?}", disable_result
+        );
 
         // Verify TOTP no longer works after disabling
         let result = manager.verify_totp("user1", "123456").await;
@@ -219,7 +226,8 @@ mod mfa_unit_tests {
         // Verify all setups succeeded
         for task_result in results {
             let (user_id, setup_result) = task_result?;
-            assert!(setup_result.is_ok(), "Setup for {} should succeed: {:?}", user_id, setup_result);
+            assert!(setup_result.is_ok(), "Setup for {} should succeed: {:?}", user_id, setup_result
+        );
         }
 
         Ok(())

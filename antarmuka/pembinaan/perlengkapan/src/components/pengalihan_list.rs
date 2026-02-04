@@ -63,7 +63,7 @@ pub fn PengalihanList() -> impl IntoView {
                                                         <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
                                                             <td class="p-3 font-medium">{item.pihak_lama}</td>
                                                             <td class="p-3">{item.pihak_baru}</td>
-                                                            <td class="p-3">{item.tanggal_pengalihan}</td>
+                                                            <td class="p-3">{item.tanggal_pengalihan.to_string()}</td>
                                                             <td class="p-3">
                                                                 <span class="px-2 py-1 rounded-full text-xs bg-yellow-50 text-yellow-700">
                                                                     {item.status}

@@ -315,14 +315,12 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
                 </div>
             </Show>
 
-            <Show when=move || !loading.get() && summary.get().is_some()>
-                {move || {
-                    let s = summary.get().unwrap();
-                    let by_category = store_value(s.by_category.clone());
-                    let total_assets = s.total_assets;
-                    let total_value = s.total_value;
+            {move || summary.get().map(|s| {
+                let by_category = store_value(s.by_category.clone());
+                let total_assets = s.total_assets;
+                let total_value = s.total_value;
 
-                    view! {
+                view! {
                     <div class="space-y-4">
                         <div class="grid grid-cols-2 gap-4">
                             <div class="bg-white rounded-lg p-4 text-center shadow-sm">
@@ -357,8 +355,8 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
                             </div>
                         </Show>
                     </div>
-                }}}
-            </Show>
+                }
+            })}
         </div>
     }
 }

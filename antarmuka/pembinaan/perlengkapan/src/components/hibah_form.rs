@@ -21,11 +21,23 @@ pub fn HibahForm() -> impl IntoView {
         set_error.set(None);
         set_success.set(false);
 
+        let Ok(parsed_asset_id) = uuid::Uuid::parse_str(&asset_id.get()) else {
+            set_error.set(Some("Asset ID tidak valid (bukan UUID)".to_string()));
+            set_loading.set(false);
+            return;
+        };
+
+        let Ok(parsed_tanggal) = chrono::NaiveDate::parse_from_str(&tanggal.get(), "%Y-%m-%d") else {
+            set_error.set(Some("Format tanggal tidak valid".to_string()));
+            set_loading.set(false);
+            return;
+        };
+
         let req = CreateHibahRequest {
-            asset_id: asset_id.get(),
+            asset_id: parsed_asset_id,
             pemberi: pemberi.get(),
             penerima: penerima.get(),
-            tanggal_hibah: tanggal.get(),
+            tanggal_hibah: parsed_tanggal,
             keterangan: if keterangan.get().is_empty() {
                 None
             } else {

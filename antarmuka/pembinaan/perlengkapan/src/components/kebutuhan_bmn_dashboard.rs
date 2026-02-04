@@ -51,6 +51,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
             }>
                 {move || {
                     stats_resource.get().flatten().map(|stats| {
+                        let stats = store_value(stats);
                         view! {
                             <div class="space-y-6">
                                 // Main stats cards
@@ -60,7 +61,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <p class="text-sm font-medium text-gray-500">"Total Pengajuan"</p>
-                                                <p class="text-3xl font-bold text-gray-800 mt-1">{stats.total_pengajuan}</p>
+                                                <p class="text-3xl font-bold text-gray-800 mt-1">{stats.with_value(|s| s.total_pengajuan)}</p>
                                             </div>
                                             <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                                                 <i class="fas fa-file-alt text-blue-600 text-xl"></i>
@@ -73,7 +74,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <p class="text-sm font-medium text-gray-500">"Draft"</p>
-                                                <p class="text-3xl font-bold text-gray-800 mt-1">{stats.pengajuan_draft}</p>
+                                                <p class="text-3xl font-bold text-gray-800 mt-1">{stats.with_value(|s| s.pengajuan_draft)}</p>
                                             </div>
                                             <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
                                                 <i class="fas fa-edit text-gray-600 text-xl"></i>
@@ -86,7 +87,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <p class="text-sm font-medium text-gray-500">"Dalam Proses"</p>
-                                                <p class="text-3xl font-bold text-yellow-600 mt-1">{stats.pengajuan_in_progress}</p>
+                                                <p class="text-3xl font-bold text-yellow-600 mt-1">{stats.with_value(|s| s.pengajuan_in_progress)}</p>
                                             </div>
                                             <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
                                                 <i class="fas fa-spinner text-yellow-600 text-xl"></i>
@@ -99,7 +100,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <p class="text-sm font-medium text-gray-500">"Selesai"</p>
-                                                <p class="text-3xl font-bold text-green-600 mt-1">{stats.pengajuan_completed}</p>
+                                                <p class="text-3xl font-bold text-green-600 mt-1">{stats.with_value(|s| s.pengajuan_completed)}</p>
                                             </div>
                                             <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
                                                 <i class="fas fa-check-circle text-green-600 text-xl"></i>
@@ -115,7 +116,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <p class="text-sm font-medium text-blue-100">"Total Satker Terlibat"</p>
-                                                <p class="text-4xl font-bold mt-2">{stats.total_satker_terlibat}</p>
+                                                <p class="text-4xl font-bold mt-2">{stats.with_value(|s| s.total_satker_terlibat)}</p>
                                             </div>
                                             <i class="fas fa-building text-4xl text-blue-200"></i>
                                         </div>
@@ -126,7 +127,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <p class="text-sm font-medium text-purple-100">"Total Barang Diminta"</p>
-                                                <p class="text-4xl font-bold mt-2">{stats.total_barang_diminta}</p>
+                                                <p class="text-4xl font-bold mt-2">{stats.with_value(|s| s.total_barang_diminta)}</p>
                                             </div>
                                             <i class="fas fa-boxes text-4xl text-purple-200"></i>
                                         </div>
@@ -137,7 +138,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <p class="text-sm font-medium text-green-100">"Total Barang Disetujui"</p>
-                                                <p class="text-4xl font-bold mt-2">{stats.total_barang_disetujui}</p>
+                                                <p class="text-4xl font-bold mt-2">{stats.with_value(|s| s.total_barang_disetujui)}</p>
                                             </div>
                                             <i class="fas fa-check-double text-4xl text-green-200"></i>
                                         </div>
@@ -153,7 +154,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                             "Pengajuan per Tahun"
                                         </h3>
                                         <Show
-                                            when=move || !stats.by_tahun.is_empty()
+                                            when=move || stats.with_value(|s| !s.by_tahun.is_empty())
                                             fallback=|| view! {
                                                 <div class="text-center py-8 text-gray-500">
                                                     <p>"Belum ada data"</p>
@@ -162,10 +163,10 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         >
                                             <div class="space-y-3">
                                                 <For
-                                                    each=move || stats.by_tahun.clone()
+                                                    each=move || stats.with_value(|s| s.by_tahun.clone())
                                                     key=|s| s.tahun
                                                     children=move |item| {
-                                                        let max_val = stats.by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
+                                                        let max_val = stats.with_value(|s| s.by_tahun.iter().map(|s| s.total).max().unwrap_or(1));
                                                         let width_pct = (item.total as f64 / max_val as f64 * 100.0) as i32;
                                                         view! {
                                                             <div class="flex items-center gap-3">
@@ -192,7 +193,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                             "Pengajuan per Status"
                                         </h3>
                                         <Show
-                                            when=move || !stats.by_status.is_empty()
+                                            when=move || stats.with_value(|s| !s.by_status.is_empty())
                                             fallback=|| view! {
                                                 <div class="text-center py-8 text-gray-500">
                                                     <p>"Belum ada data"</p>
@@ -201,7 +202,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         >
                                             <div class="space-y-3">
                                                 <For
-                                                    each=move || stats.by_status.clone()
+                                                    each=move || stats.with_value(|s| s.by_status.clone())
                                                     key=|s| s.status_kode
                                                     children=move |item| {
                                                         let status = KebutuhanBmnStatus::from_code(item.status_kode);

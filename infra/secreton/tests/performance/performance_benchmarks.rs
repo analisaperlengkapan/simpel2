@@ -137,11 +137,13 @@ mod performance_tests {
         let enrollment_duration = start_time.elapsed();
         let enrollment_ops_per_sec = enrollment_iterations as f64 / enrollment_duration.as_secs_f64();
 
-        println!("MFA enrollment: {:.2} ops/sec", enrollment_ops_per_sec);
+        println!("MFA enrollment: {:.2} ops/sec", enrollment_ops_per_sec
+        );
 
         // Should handle at least 10 enrollments per second
         assert!(enrollment_ops_per_sec >= 5.0,
-               "MFA enrollment too slow: {:.2} ops/sec", enrollment_ops_per_sec);
+               "MFA enrollment too slow: {:.2} ops/sec", enrollment_ops_per_sec
+        );
 
         // Benchmark behavioral biometrics verification
         let user_id = "biometric_perf_user";
@@ -165,11 +167,13 @@ mod performance_tests {
         let biometric_duration = start_time.elapsed();
         let biometric_ops_per_sec = biometric_iterations as f64 / biometric_duration.as_secs_f64();
 
-        println!("Behavioral biometrics: {:.2} verifications/sec", biometric_ops_per_sec);
+        println!("Behavioral biometrics: {:.2} verifications/sec", biometric_ops_per_sec
+        );
 
         // Should handle at least 20 biometric verifications per second
         assert!(biometric_ops_per_sec >= 10.0,
-               "Biometric verification too slow: {:.2} ops/sec", biometric_ops_per_sec);
+               "Biometric verification too slow: {:.2} ops/sec", biometric_ops_per_sec
+        );
 
         Ok(())
     }
@@ -198,11 +202,13 @@ mod performance_tests {
         let duration = start_time.elapsed();
         let assessments_per_sec = total_assessments as f64 / duration.as_secs_f64();
 
-        println!("Threat indicator assessments: {:.2} assessments/sec", assessments_per_sec);
+        println!("Threat indicator assessments: {:.2} assessments/sec", assessments_per_sec
+        );
 
         // Should handle at least 50 threat assessments per second
         assert!(assessments_per_sec >= 25.0,
-               "Threat assessment too slow: {:.2} assessments/sec", assessments_per_sec);
+               "Threat assessment too slow: {:.2} assessments/sec", assessments_per_sec
+        );
 
         // Benchmark behavioral anomaly detection
         let anomaly_test_cases = vec![
@@ -238,11 +244,13 @@ mod performance_tests {
         let anomaly_duration = start_time.elapsed();
         let anomaly_detections_per_sec = anomaly_iterations as f64 / anomaly_duration.as_secs_f64();
 
-        println!("Behavioral anomaly detection: {:.2} detections/sec", anomaly_detections_per_sec);
+        println!("Behavioral anomaly detection: {:.2} detections/sec", anomaly_detections_per_sec
+        );
 
         // Should handle at least 30 anomaly detections per second
         assert!(anomaly_detections_per_sec >= 15.0,
-               "Anomaly detection too slow: {:.2} detections/sec", anomaly_detections_per_sec);
+               "Anomaly detection too slow: {:.2} detections/sec", anomaly_detections_per_sec
+        );
 
         Ok(())
     }
@@ -270,11 +278,13 @@ mod performance_tests {
         let key_gen_duration = start_time.elapsed();
         let key_gen_per_sec = key_gen_iterations as f64 / key_gen_duration.as_secs_f64();
 
-        println!("HSM key generation: {:.2} keys/sec", key_gen_per_sec);
+        println!("HSM key generation: {:.2} keys/sec", key_gen_per_sec
+        );
 
         // HSM key generation is expected to be slower
         assert!(key_gen_per_sec >= 0.5,
-               "HSM key generation too slow: {:.2} keys/sec", key_gen_per_sec);
+               "HSM key generation too slow: {:.2} keys/sec", key_gen_per_sec
+        );
 
         // Benchmark HSM encryption/decryption
         if let Some(key_id) = generated_keys.first() {
@@ -290,11 +300,13 @@ mod performance_tests {
             let hsm_duration = start_time.elapsed();
             let hsm_ops_per_sec = (hsm_iterations * 2) as f64 / hsm_duration.as_secs_f64(); // 2 ops per iteration
 
-            println!("HSM encrypt/decrypt: {:.2} ops/sec", hsm_ops_per_sec);
+            println!("HSM encrypt/decrypt: {:.2} ops/sec", hsm_ops_per_sec
+        );
 
             // HSM operations are slower but should meet minimum thresholds
             assert!(hsm_ops_per_sec >= 2.0,
-                   "HSM operations too slow: {:.2} ops/sec", hsm_ops_per_sec);
+                   "HSM operations too slow: {:.2} ops/sec", hsm_ops_per_sec
+        );
         }
 
         Ok(())
@@ -315,11 +327,13 @@ mod performance_tests {
         let health_duration = start_time.elapsed();
         let health_checks_per_sec = health_iterations as f64 / health_duration.as_secs_f64();
 
-        println!("Health status checks: {:.2} checks/sec", health_checks_per_sec);
+        println!("Health status checks: {:.2} checks/sec", health_checks_per_sec
+        );
 
         // Health checks should be very fast
         assert!(health_checks_per_sec >= 100.0,
-               "Health monitoring too slow: {:.2} checks/sec", health_checks_per_sec);
+               "Health monitoring too slow: {:.2} checks/sec", health_checks_per_sec
+        );
 
         // Benchmark performance metrics collection
         let metrics_iterations = 100;
@@ -332,11 +346,13 @@ mod performance_tests {
         let metrics_duration = start_time.elapsed();
         let metrics_per_sec = metrics_iterations as f64 / metrics_duration.as_secs_f64();
 
-        println!("Performance metrics collection: {:.2} collections/sec", metrics_per_sec);
+        println!("Performance metrics collection: {:.2} collections/sec", metrics_per_sec
+        );
 
         // Metrics collection should be reasonably fast
         assert!(metrics_per_sec >= 50.0,
-               "Metrics collection too slow: {:.2} collections/sec", metrics_per_sec);
+               "Metrics collection too slow: {:.2} collections/sec", metrics_per_sec
+        );
 
         Ok(())
     }
@@ -398,19 +414,22 @@ mod performance_tests {
         let avg_ops_per_sec = total_operations as f64 / total_duration.as_secs_f64();
 
         println!("Stress test completed: {} total operations in {:.2}s ({:.2} ops/sec)",
-                total_operations, total_duration.as_secs_f64(), avg_ops_per_sec);
+                total_operations, total_duration.as_secs_f64(), avg_ops_per_sec
+        );
 
         // System should maintain reasonable performance under sustained load
         assert!(total_operations > 0, "System should complete at least some operations under load");
         assert!(avg_ops_per_sec >= 10.0,
                "System should maintain at least 10 ops/sec under sustained load, got {:.2}",
-               avg_ops_per_sec);
+               avg_ops_per_sec
+        );
 
         // Check system health after stress test
         let post_stress_health = orchestrator.get_health_status().await?;
         assert!(post_stress_health.overall_health >= 70.0,
                "System health should remain reasonable after stress test: {}%",
-               post_stress_health.overall_health);
+               post_stress_health.overall_health
+        );
 
         Ok(())
     }

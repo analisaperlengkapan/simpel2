@@ -136,20 +136,20 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
             <Show when=move || !loading.get() && detail.get().is_some()>
                 {move || {
                     detail.get().map(|d| {
-                        let pengajuan = d.pengajuan.clone();
-                        let status = KebutuhanBmnStatus::from_code(pengajuan.status_kode);
+                        let pengajuan = StoredValue::new(d.pengajuan.clone());
+                        let status = KebutuhanBmnStatus::from_code(d.pengajuan.status_kode);
                         let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
                         let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
-                        let allowed_transitions = d.allowed_transitions.clone();
+                        let allowed_transitions = StoredValue::new(d.allowed_transitions.clone());
 
                         view! {
                             <div class="space-y-6">
                                 // Title & Status
                                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                                     <div>
-                                        <h2 class="text-2xl font-bold text-gray-800">{pengajuan.nama.clone()}</h2>
+                                        <h2 class="text-2xl font-bold text-gray-800">{pengajuan.with_value(|p| p.nama.clone())}</h2>
                                         <p class="text-gray-500 mt-1">
-                                            "Tahun Anggaran: " <span class="font-medium">{pengajuan.tahun}</span>
+                                            "Tahun Anggaran: " <span class="font-medium">{pengajuan.with_value(|p| p.tahun)}</span>
                                         </p>
                                     </div>
                                     <div class="flex items-center gap-3">
@@ -159,7 +159,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                         // Action buttons
                                         <div class="flex gap-2">
                                             <a
-                                                href=format!("/dashboard/kebutuhan-bmn/{}/edit", pengajuan.id)
+                                                href=format!("/dashboard/kebutuhan-bmn/{}/edit", pengajuan.with_value(|p| p.id.clone()))
                                                 class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center"
                                             >
                                                 <i class="fas fa-edit mr-2"></i>
@@ -180,7 +180,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                     <div class="bg-blue-50 rounded-lg p-4">
                                         <div class="text-blue-600 text-sm font-medium">"Periode"</div>
                                         <div class="text-gray-800 mt-1 font-medium">
-                                            {pengajuan.tgl_mulai.clone()} " s.d. " {pengajuan.tgl_selesai.clone()}
+                                            {pengajuan.with_value(|p| p.tgl_mulai.clone())} " s.d. " {pengajuan.with_value(|p| p.tgl_selesai.clone())}
                                         </div>
                                     </div>
                                     <div class="bg-purple-50 rounded-lg p-4">
@@ -190,30 +190,30 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                     <div class="bg-green-50 rounded-lg p-4">
                                         <div class="text-green-600 text-sm font-medium">"Persetujuan DASKRIMTI"</div>
                                         <div class="text-gray-800 mt-1 font-medium">
-                                            {if pengajuan.is_appv_daskrimti { "Ya" } else { "Belum" }}
+                                            {if pengajuan.with_value(|p| p.is_appv_daskrimti) { "Ya" } else { "Belum" }}
                                         </div>
                                     </div>
                                     <div class="bg-amber-50 rounded-lg p-4">
                                         <div class="text-amber-600 text-sm font-medium">"Versi"</div>
-                                        <div class="text-2xl font-bold text-gray-800 mt-1">{pengajuan.version}</div>
+                                        <div class="text-2xl font-bold text-gray-800 mt-1">{pengajuan.with_value(|p| p.version)}</div>
                                     </div>
                                 </div>
 
                                 // Description
-                                <Show when=move || pengajuan.deskripsi.is_some()>
+                                <Show when=move || pengajuan.with_value(|p| p.deskripsi.is_some())>
                                     <div class="bg-gray-50 rounded-lg p-4">
                                         <div class="text-gray-600 text-sm font-medium mb-2">"Deskripsi"</div>
-                                        <p class="text-gray-800">{pengajuan.deskripsi.clone().unwrap_or_default()}</p>
+                                        <p class="text-gray-800">{pengajuan.with_value(|p| p.deskripsi.clone().unwrap_or_default())}</p>
                                     </div>
                                 </Show>
 
                                 // Workflow transitions
-                                <Show when=move || !allowed_transitions.is_empty()>
+                                <Show when=move || allowed_transitions.with_value(|t| !t.is_empty())>
                                     <div class="bg-gray-50 rounded-lg p-4">
                                         <div class="text-gray-600 text-sm font-medium mb-3">"Aksi Workflow"</div>
                                         <div class="flex flex-wrap gap-3">
                                             <For
-                                                each=move || allowed_transitions.clone()
+                                                each=move || allowed_transitions.get_value()
                                                 key=|t| t.status_kode
                                                 children=move |transition| {
                                                     let status_kode = transition.status_kode;

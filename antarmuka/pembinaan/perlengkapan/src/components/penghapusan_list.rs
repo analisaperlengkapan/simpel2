@@ -63,7 +63,7 @@ pub fn PenghapusanList() -> impl IntoView {
                                             children=move |item: Penghapusan| {
                                                 view! {
                                                     <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
-                                                        <td class="p-3 font-medium">{item.tanggal_penghapusan}</td>
+                                                        <td class="p-3 font-medium">{item.tanggal_penghapusan.to_string()}</td>
                                                         <td class="p-3">{item.metode_penghapusan}</td>
                                                         <td class="p-3">{item.alasan}</td>
                                                         <td class="p-3">

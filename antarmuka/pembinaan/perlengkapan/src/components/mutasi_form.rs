@@ -22,12 +22,24 @@ pub fn MutasiForm() -> impl IntoView {
         set_error.set(None);
         set_success.set(false);
 
+        let Ok(parsed_asset_id) = uuid::Uuid::parse_str(&asset_id.get()) else {
+            set_error.set(Some("Asset ID tidak valid (bukan UUID)".to_string()));
+            set_loading.set(false);
+            return;
+        };
+
+        let Ok(parsed_tanggal) = chrono::NaiveDate::parse_from_str(&tanggal.get(), "%Y-%m-%d") else {
+            set_error.set(Some("Format tanggal tidak valid".to_string()));
+            set_loading.set(false);
+            return;
+        };
+
         let req = CreateMutasiRequest {
-            asset_id: asset_id.get(),
+            asset_id: parsed_asset_id,
             asal_satker: asal.get(),
             tujuan_satker: tujuan.get(),
             penanggung_jawab: pj.get(),
-            tanggal_mutasi: tanggal.get(),
+            tanggal_mutasi: parsed_tanggal,
             keterangan: if keterangan.get().is_empty() {
                 None
             } else {
