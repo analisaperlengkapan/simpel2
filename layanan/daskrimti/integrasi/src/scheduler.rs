@@ -16,6 +16,7 @@ use tracing::{error, info, warn};
 /// Scheduler for automated data fetching
 pub struct IntegrationScheduler {
     config: Config,
+    #[allow(dead_code)]
     client: MonsaktiClient,
     scheduler: JobScheduler,
 }

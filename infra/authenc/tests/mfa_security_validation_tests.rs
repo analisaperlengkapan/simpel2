@@ -483,6 +483,7 @@ mod security_boundary_tests {
         sessions: HashMap<String, SessionInfo>,
     }
 
+    #[allow(dead_code)]
     struct SessionInfo {
         user_id: String,
         is_temp: bool,
