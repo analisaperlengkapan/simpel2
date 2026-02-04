@@ -542,6 +542,14 @@ sequenceDiagram
 - Build with `cargo build --workspace` (authenc/secreton included)
 - Add new dependencies to root `Cargo.toml` workspace.dependencies first
 
+## 📚 Documentation Strategy
+
+We use `AGENTS.md` files as the standard for AI agent instructions.
+
+- **NO `skill.md`**: Do not create or use `skill.md` files. They create fragmentation. All instructions should be in the relevant `AGENTS.md`.
+- **Scope**: Instructions in `AGENTS.md` apply to the directory and its subdirectories.
+- **Precedence**: Deeper `AGENTS.md` files override shallower ones.
+
 ## ⚠️ Technical Quirks & "Gotchas"
 
 - **Nginx Config**:

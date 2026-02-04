@@ -12,6 +12,7 @@
   - **Dependencies**: You CANNOT use crates that depend on C libraries (unless WASM-compatible) or direct OS system calls (filesystem, threads).
   - **Time**: Use `chrono` with `wasm-bindgen` feature (usually standard `chrono` is fine for formatting, but avoid `Local::now()` relying on system time zones if possible, stick to `Utc`).
   - **Config**: Check `Trunk.toml` for `wasm-opt` settings. If you see `i32.trunc_sat_f64_u` errors, enable `nontrapping-float-to-int`.
+  - **Trunk.toml Syntax**: When configuring `wasm_opt`, use double brackets `[[build.wasm_opt]]` to avoid syntax errors, as it is a list of tables.
 
 ## 🦀 Leptos 0.8 Patterns (Strict Compliance)
 
@@ -41,7 +42,50 @@ let on_submit = move |_| {
 };
 ```
 
-### 2. 📋 Lists vs Single Views
+### 2. 🔄 Closures in `view!` (The `FnOnce` Trap)
+
+When using `<For>`, `<Show>`, or other components that take a closure, if you use a non-`Copy` variable (like `String`, `Vec`) inside the closure, you **MUST** clone it *before* the closure definition or *inside* the `view!` block but outside the closure.
+
+❌ **WRONG (Closure becomes FnOnce, but Fn required):**
+```rust
+let items = vec!["a".to_string(), "b".to_string()];
+view! {
+    <For
+        each=move || items.clone() // ❌ items moved into closure here
+        key=|i| i.clone()
+        children=move |i| {
+            // If we used `items` here again, it would be double-moved?
+            // Actually, the issue is often subtle with nested closures.
+            view! { ... }
+        }
+    />
+}
+```
+
+✅ **CORRECT (Clone pattern):**
+```rust
+let items = vec!["a".to_string(), "b".to_string()];
+// 1. Clone for the outer condition/loop
+let items_for_show = items.clone();
+let items_for_loop = items.clone();
+
+view! {
+    <Show when=move || !items_for_show.is_empty()>
+        {
+            // 2. Clone again for the inner loop if needed
+            let items_inner = items_for_loop.clone();
+            view! {
+                <For
+                    each=move || items_inner.clone()
+                    // ...
+                />
+            }
+        }
+    </Show>
+}
+```
+
+### 3. 📋 Lists vs Single Views
 
 When returning views from control flow (match/if), types must match.
 

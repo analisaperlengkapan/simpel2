@@ -47,16 +47,19 @@ impl OidcCodeStore {
         use crate::database::operations::oauth2;
         use crate::models::OAuth2AuthorizationCode;
 
-        // Parse client_id and user_id as UUIDs
-        let client_uuid = Uuid::parse_str(&client_id)
-            .map_err(|_| AuthencError::validation("Invalid client_id format"))?;
+        // Lookup client UUID from string client_id
+        let client = oauth2::get_client_by_client_id(&self.db, &client_id)
+            .await?
+            .ok_or_else(|| AuthencError::validation("Invalid client_id"))?;
+
+        // Parse user_id as UUID
         let user_uuid = Uuid::parse_str(&user_id)
             .map_err(|_| AuthencError::validation("Invalid user_id format"))?;
 
         let auth_code = OAuth2AuthorizationCode {
             id: Uuid::new_v4(),
             code: code.clone(),
-            client_id: client_uuid,
+            client_id: client.id,
             user_id: user_uuid,
             redirect_uri,
             scopes,
@@ -79,14 +82,15 @@ impl OidcCodeStore {
     ) -> Result<Option<crate::models::OAuth2AuthorizationCode>> {
         use crate::database::operations::oauth2;
 
-        // Parse client_id as UUID
-        let client_uuid = Uuid::parse_str(client_id)
-            .map_err(|_| AuthencError::validation("Invalid client_id format"))?;
+        // Lookup client UUID from string client_id
+        let client = oauth2::get_client_by_client_id(&self.db, client_id)
+            .await?
+            .ok_or_else(|| AuthencError::validation("Invalid client_id"))?;
 
         match oauth2::get_authorization_code(&self.db, code).await? {
             Some(auth_code) => {
                 // Verify client matches
-                if auth_code.client_id != client_uuid {
+                if auth_code.client_id != client.id {
                     return Ok(None);
                 }
 

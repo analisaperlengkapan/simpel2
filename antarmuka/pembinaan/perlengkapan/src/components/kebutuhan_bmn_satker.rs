@@ -276,62 +276,73 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                             </button>
                                         </div>
 
-                                        <Show
-                                            when=move || !barang_list.is_empty()
-                                            fallback=|| view! {
-                                                <div class="text-center py-8 text-gray-500">
-                                                    <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
-                                                    <p>"Belum ada barang yang ditambahkan"</p>
-                                                </div>
-                                            }
-                                        >
-                                            <div class="overflow-x-auto">
-                                                <table class="w-full text-left border-collapse">
-                                                    <thead>
-                                                        <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-                                                            <th class="p-3 font-semibold border-b">"Nama Barang"</th>
-                                                            <th class="p-3 font-semibold border-b">"Kode"</th>
-                                                            <th class="p-3 font-semibold border-b text-center">"Jumlah"</th>
-                                                            <th class="p-3 font-semibold border-b text-center">"Disetujui"</th>
-                                                            <th class="p-3 font-semibold border-b text-center">"Prioritas"</th>
-                                                            <th class="p-3 font-semibold border-b">"Alasan"</th>
-                                                            <th class="p-3 font-semibold border-b text-center">"Aksi"</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="text-gray-700 text-sm">
-                                                        <For
-                                                            each=move || barang_list.clone()
-                                                            key=|b| b.id.clone()
-                                                            children=move |barang: PengajuanKebutuhanBmnBarang| {
-                                                                let barang_id = barang.id.clone();
-                                                                view! {
-                                                                    <tr class="hover:bg-gray-50 border-b last:border-0">
-                                                                        <td class="p-3 font-medium">{barang.nama.clone()}</td>
-                                                                        <td class="p-3 font-mono text-xs">{barang.kode_barang.clone().unwrap_or("-".into())}</td>
-                                                                        <td class="p-3 text-center">{format!("{} {}", barang.jumlah, barang.satuan)}</td>
-                                                                        <td class="p-3 text-center text-green-600 font-medium">{barang.jml_setuju}</td>
-                                                                        <td class="p-3 text-center">
-                                                                            <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-                                                                                {barang.prioritas}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td class="p-3 text-gray-600 max-w-xs truncate">{barang.alasan.clone().unwrap_or("-".into())}</td>
-                                                                        <td class="p-3 text-center">
-                                                                            <button
-                                                                                class="text-red-600 hover:text-red-800"
-                                                                                on:click=move |_| handle_delete_barang(barang_id.clone())
-                                                                            >
-                                                                                <i class="fas fa-trash"></i>
-                                                                            </button>
-                                                                        </td>
-                                                                    </tr>
+                                        {
+                                            let barang_list_check = barang_list.clone();
+                                            let barang_list_loop = barang_list.clone();
+                                            view! {
+                                                <Show
+                                                    when=move || !barang_list_check.is_empty()
+                                                    fallback=|| view! {
+                                                        <div class="text-center py-8 text-gray-500">
+                                                            <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
+                                                            <p>"Belum ada barang yang ditambahkan"</p>
+                                                        </div>
+                                                    }
+                                                >
+                                                    <div class="overflow-x-auto">
+                                                        <table class="w-full text-left border-collapse">
+                                                            <thead>
+                                                                <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
+                                                                    <th class="p-3 font-semibold border-b">"Nama Barang"</th>
+                                                                    <th class="p-3 font-semibold border-b">"Kode"</th>
+                                                                    <th class="p-3 font-semibold border-b text-center">"Jumlah"</th>
+                                                                    <th class="p-3 font-semibold border-b text-center">"Disetujui"</th>
+                                                                    <th class="p-3 font-semibold border-b text-center">"Prioritas"</th>
+                                                                    <th class="p-3 font-semibold border-b">"Alasan"</th>
+                                                                    <th class="p-3 font-semibold border-b text-center">"Aksi"</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="text-gray-700 text-sm">
+                                                                {
+                                                                    let barang_loop_inner = barang_list_loop.clone();
+                                                                    view! {
+                                                                        <For
+                                                                            each=move || barang_loop_inner.clone()
+                                                                            key=|b| b.id.clone()
+                                                                            children=move |barang: PengajuanKebutuhanBmnBarang| {
+                                                                                let barang_id = barang.id.clone();
+                                                                                view! {
+                                                                                    <tr class="hover:bg-gray-50 border-b last:border-0">
+                                                                                        <td class="p-3 font-medium">{barang.nama.clone()}</td>
+                                                                                        <td class="p-3 font-mono text-xs">{barang.kode_barang.clone().unwrap_or("-".into())}</td>
+                                                                                        <td class="p-3 text-center">{format!("{} {}", barang.jumlah, barang.satuan)}</td>
+                                                                                        <td class="p-3 text-center text-green-600 font-medium">{barang.jml_setuju}</td>
+                                                                                        <td class="p-3 text-center">
+                                                                                            <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
+                                                                                                {barang.prioritas}
+                                                                                            </span>
+                                                                                        </td>
+                                                                                        <td class="p-3 text-gray-600 max-w-xs truncate">{barang.alasan.clone().unwrap_or("-".into())}</td>
+                                                                                        <td class="p-3 text-center">
+                                                                                            <button
+                                                                                                class="text-red-600 hover:text-red-800"
+                                                                                                on:click=move |_| handle_delete_barang(barang_id.clone())
+                                                                                            >
+                                                                                                <i class="fas fa-trash"></i>
+                                                                                            </button>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                }
+                                                                            }
+                                                                        />
+                                                                    }
                                                                 }
-                                                            }
-                                                        />
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </Show>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </Show>
+                                            }
+                                        }
                                     </div>
                                 </Show>
 
@@ -391,17 +402,24 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                     "text-red-600"
                                                                                 };
                                                                                 let existing_count = item.existing_assets.len();
+                                                                                let existing_assets_check = item.existing_assets.clone();
+                                                                                let existing_assets_loop = item.existing_assets.clone();
 
                                                                                 view! {
                                                                                     <tr class="hover:bg-gray-50 border-b last:border-0">
                                                                                         <td class="p-3">
                                                                                             <div class="font-medium">{item.barang.nama.clone()}</div>
-                                                                                            <Show when=move || existing_count > 0>
-                                                                                                <div class="text-xs text-gray-400 mt-1">
-                                                                                                    <i class="fas fa-database mr-1"></i>
-                                                                                                    {format!("{} aset ditemukan di SIMAN", existing_count)}
-                                                                                                </div>
-                                                                                            </Show>
+                                                                                            {
+                                                                                                let existing_len = item.existing_assets.len();
+                                                                                                view! {
+                                                                                                    <Show when=move || (existing_len > 0)>
+                                                                                                        <div class="text-xs text-gray-400 mt-1">
+                                                                                                            <i class="fas fa-database mr-1"></i>
+                                                                                                            {format!("{} aset ditemukan di SIMAN", existing_len)}
+                                                                                                        </div>
+                                                                                                    </Show>
+                                                                                                }
+                                                                                            }
                                                                                         </td>
                                                                                         <td class="p-3 text-center font-medium">{item.barang.jumlah}</td>
                                                                                         <td class="p-3 text-center">
@@ -413,7 +431,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                         <td class="p-3 text-sm">{item.recommendation.clone()}</td>
                                                                                     </tr>
                                                                                     // Show existing assets if any
-                                                                                    <Show when=move || !item.existing_assets.is_empty()>
+                                                                                    <Show when=move || !existing_assets_check.is_empty()>
                                                                                         <tr class="bg-blue-50">
                                                                                             <td colspan="5" class="p-2">
                                                                                                 <details class="cursor-pointer">
@@ -422,11 +440,14 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                                         "Lihat aset existing dari SIMAN"
                                                                                                     </summary>
                                                                                                     <div class="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                                                                                                        <For
-                                                                                                            each=move || item.existing_assets.clone()
-                                                                                                            key=|ea| ea.no_aset.clone()
-                                                                                                            children=move |ea| {
-                                                                                                                let kondisi_class = match ea.kondisi.as_str() {
+                                                                                                        {
+                                                                                                            let existing_assets_inner = existing_assets_loop.clone();
+                                                                                                            view! {
+                                                                                                                <For
+                                                                                                                    each=move || existing_assets_inner.clone()
+                                                                                                                    key=|ea| ea.no_aset.clone()
+                                                                                                                    children=move |ea| {
+                                                                                                                        let kondisi_class = match ea.kondisi.as_str() {
                                                                                                                     "Baik" => "bg-green-100 text-green-800",
                                                                                                                     "Rusak Ringan" => "bg-yellow-100 text-yellow-800",
                                                                                                                     _ => "bg-red-100 text-red-800"
@@ -445,6 +466,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                                                 }
                                                                                                             }
                                                                                                         />
+                                                                                                        }
+                                                                                                        }
                                                                                                     </div>
                                                                                                 </details>
                                                                                             </td>
@@ -492,6 +515,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                     key=|a| a.id.clone()
                                                     children=move |akt| {
                                                         let to_status = KebutuhanBmnStatus::from_code(akt.to_status_kode);
+                                                        let komentar_check = akt.komentar.clone();
+                                                        let komentar_text = akt.komentar.clone();
                                                         view! {
                                                             <div class="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
                                                                 <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -502,16 +527,16 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                     <div class="text-sm text-gray-500 mt-1">
                                                                         "Ke status: " {to_status.map(|s| s.label()).unwrap_or("Unknown")}
                                                                     </div>
-                                                                    <Show when=move || akt.komentar.is_some()>
+                                                                    <Show when=move || komentar_check.is_some()>
                                                                         <div class="text-sm text-gray-600 mt-2 italic">
-                                                                            "\""{ akt.komentar.clone().unwrap_or_default() }"\""
+                                                                            "\""{ komentar_text.clone().unwrap_or_default() }"\""
                                                                         </div>
                                                                     </Show>
                                                                     <div class="text-xs text-gray-400 mt-2">
                                                                         {format!("{} - {}", akt.nama.clone().unwrap_or("System".into()), akt.created_at)}
                                                                     </div>
-                                                                        </div>
-                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                         }
                                                     }
                                                 />

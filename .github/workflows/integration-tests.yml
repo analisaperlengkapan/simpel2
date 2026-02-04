@@ -63,7 +63,9 @@ jobs:
           - layanan/pidsus
           - layanan/pidum
           - layanan/pidmil
-          - layanan/pembinaan
+          - layanan/pembinaan/perlengkapan
+          - layanan/pembinaan/keuangan
+          - layanan/pembinaan/perencanaan
 
     steps:
       - name: Fix permissions

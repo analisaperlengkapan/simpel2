@@ -207,7 +207,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                         <Show when=move || deskripsi.is_some()>
                                             <div class="bg-gray-50 rounded-lg p-4">
                                                 <div class="text-gray-600 text-sm font-medium mb-2">"Deskripsi"</div>
-                                                <p class="text-gray-800">{deskripsi_text}</p>
+                                                <p class="text-gray-800">{deskripsi_text.clone()}</p>
                                             </div>
                                         </Show>
                                     }
@@ -222,42 +222,47 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                             <div class="bg-gray-50 rounded-lg p-4">
                                                 <div class="text-gray-600 text-sm font-medium mb-3">"Aksi Workflow"</div>
                                                 <div class="flex flex-wrap gap-3">
-                                                    <For
-                                                        each=move || transitions.clone()
-                                                        key=|t| t.status_kode
-                                                        children=move |transition| {
-                                                            let status_kode = transition.status_kode;
-                                                            let btn_class = match status_kode {
-                                                                2006 => "bg-green-600 hover:bg-green-700 text-white",
-                                                                2007 | 2009 => "bg-red-600 hover:bg-red-700 text-white",
-                                                                _ => "bg-blue-600 hover:bg-blue-700 text-white",
-                                                            };
-                                                            view! {
-                                                                <button
-                                                                    class=format!("px-4 py-2 rounded-lg transition-colors disabled:opacity-50 {}", btn_class)
-                                                                    disabled=move || transitioning.get()
-                                                                    on:click=move |_| handle_transition(status_kode)
-                                                                >
-                                                                    {transition.status_nama.clone()}
-                                                                </button>
-                                                            }
+                                                    {
+                                                        let transitions_loop = transitions.clone();
+                                                        view! {
+                                                            <For
+                                                                each=move || transitions_loop.clone()
+                                                                key=|t| t.status_kode
+                                                                children=move |transition| {
+                                                                    let status_kode = transition.status_kode;
+                                                                    let btn_class = match status_kode {
+                                                                        2006 => "bg-green-600 hover:bg-green-700 text-white",
+                                                                        2007 | 2009 => "bg-red-600 hover:bg-red-700 text-white",
+                                                                        _ => "bg-blue-600 hover:bg-blue-700 text-white",
+                                                                    };
+                                                                    view! {
+                                                                        <button
+                                                                            class=format!("px-4 py-2 rounded-lg transition-colors disabled:opacity-50 {}", btn_class)
+                                                                            disabled=move || transitioning.get()
+                                                                            on:click=move |_| handle_transition(status_kode)
+                                                                        >
+                                                                            {transition.status_nama.clone()}
+                                                                        </button>
+                                                                    }
+                                                                }
+                                                            />
                                                         }
+                                                    }
+                                                </div>
+                                                // Comment input for transitions
+                                                <div class="mt-3">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Komentar (opsional)"
+                                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                                        on:input=move |ev| set_transition_comment.set(event_target_value(&ev))
+                                                        prop:value=move || transition_comment.get()
                                                     />
-                                                }
-                                            }
-                                        </div>
-                                        // Comment input for transitions
-                                        <div class="mt-3">
-                                            <input
-                                                type="text"
-                                                placeholder="Komentar (opsional)"
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                on:input=move |ev| set_transition_comment.set(event_target_value(&ev))
-                                                prop:value=move || transition_comment.get()
-                                            />
-                                        </div>
-                                    </div>
-                                </Show>
+                                                </div>
+                                            </div>
+                                        </Show>
+                                    }
+                                }
 
                                 // Satker list
                                 <div>

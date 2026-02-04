@@ -351,26 +351,38 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
                             </div>
 
                             // By category
-                            <Show when=move || !by_category.is_empty()>
-                                <div>
-                                    <h5 class="font-semibold text-gray-700 mb-2">"Per Kategori"</h5>
-                                    <div class="space-y-2">
-                                        <For
-                                            each=move || by_category.clone()
-                                            key=|c| c.category.clone()
-                                            children=|cat| {
-                                            view! {
-                                                <div class="flex justify-between items-center text-sm bg-white rounded px-3 py-2">
-                                                    <span class="text-gray-600">{cat.category}</span>
-                                                    <span class="font-semibold text-gray-800">{cat.count}</span>
-                                                </div>
-                                            }
-                                        }
-                                    />
-                                </div>
-                            </div>
-                        </Show>
-                    </div>
+                            {
+                                let by_category_check = by_category.clone();
+                                let by_category_list = by_category.clone();
+                                view! {
+                                    <Show when=move || !by_category_check.is_empty()>
+                                        <div>
+                                            <h5 class="font-semibold text-gray-700 mb-2">"Per Kategori"</h5>
+                                            <div class="space-y-2">
+                                                {
+                                                    let by_category_for_loop = by_category_list.clone();
+                                                    view! {
+                                                        <For
+                                                            each=move || by_category_for_loop.clone()
+                                                            key=|c| c.category.clone()
+                                                            children=|cat| {
+                                                                view! {
+                                                                    <div class="flex justify-between items-center text-sm bg-white rounded px-3 py-2">
+                                                                        <span class="text-gray-600">{cat.category}</span>
+                                                                        <span class="font-semibold text-gray-800">{cat.count}</span>
+                                                                    </div>
+                                                                }
+                                                            }
+                                                        />
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
+                                    </Show>
+                                }
+                            }
+                        </div>
+                    }.into_any()
                 })}
             </Show>
         </div>

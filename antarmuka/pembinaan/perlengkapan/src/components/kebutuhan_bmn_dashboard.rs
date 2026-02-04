@@ -168,12 +168,13 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                                     <div class="space-y-3">
                                                         {
                                                             let by_tahun = by_tahun.clone();
+                                                            let by_tahun_clone = by_tahun.clone();
                                                             view! {
                                                                 <For
                                                                     each=move || by_tahun.clone()
                                                                     key=|s| s.tahun
                                                                     children=move |item| {
-                                                                        let max_val = by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
+                                                                        let max_val = by_tahun_clone.iter().map(|s| s.total).max().unwrap_or(1);
                                                                         let width_pct = (item.total as f64 / max_val as f64 * 100.0) as i32;
                                                                         view! {
                                                                             <div class="flex items-center gap-3">

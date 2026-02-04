@@ -48,24 +48,16 @@ pub async fn rbac_middleware(
     req: Request,
     next: Next,
 ) -> Result<Response, AppError> {
-    // Ambil role user dari header (atau session/auth)
-    let role = req
-        .headers()
-        .get("x-user-role")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("user");
+    // TODO: Extract role from JWT or authenticated session
+    // For now, default to "user" but DO NOT trust x-user-role header directly in production
+    // This placeholder mocks role extraction until auth middleware injects user identity
+    let role = "user";
 
-    // Ambil required resource dan action dari header atau extension
-    let required_resource = req
-        .headers()
-        .get("x-required-resource")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("default");
-    let required_action = req
-        .headers()
-        .get("x-required-action")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("read");
+    // TODO: Derive required resource/action from the route path or extensions
+    // For now, we allow access to proceed if no specific rule is violated
+    // In a real implementation, these would be matched against the request path/method
+    let required_resource = "default";
+    let required_action = "read";
 
     let allowed = has_permission(&pool, role, required_resource, required_action).await?;
     if !allowed {
