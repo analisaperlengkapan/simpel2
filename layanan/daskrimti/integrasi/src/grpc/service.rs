@@ -623,16 +623,26 @@ impl IntegrasiService for IntegrasiServiceImpl {
         );
 
         // Count total
-        let count_query = if req.kode_satker.is_empty() {
-            "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai".to_string()
-        } else {
-            format!(
-                "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai WHERE kode_satker = '{}'",
-                req.kode_satker
-            )
-        };
+        let (count_query, count_params): (String, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
+            if req.kode_satker.is_empty() {
+                (
+                    "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai".to_string(),
+                    vec![],
+                )
+            } else {
+                (
+                    "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai WHERE kode_satker = $1"
+                        .to_string(),
+                    vec![&req.kode_satker],
+                )
+            };
 
-        let total_items: i64 = match self.state.db_client.query_one(&count_query, &[]).await {
+        let total_items: i64 = match self
+            .state
+            .db_client
+            .query_one(&count_query, &count_params)
+            .await
+        {
             Ok(row) => row.try_get(0).unwrap_or(0),
             Err(e) => {
                 error!("Failed to count mysimkari_pegawai: {}", e);
@@ -641,53 +651,54 @@ impl IntegrasiService for IntegrasiServiceImpl {
         };
 
         // Query data
-        let query = if req.kode_satker.is_empty() {
-            format!(
-                r#"
-                SELECT nip, nama, jabatan, pangkat, golongan, unit_kerja,
+        let per_page_i64 = per_page as i64;
+        let (query, query_params): (String, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
+            if req.kode_satker.is_empty() {
+                (
+                    "SELECT nip, nama, jabatan, pangkat, golongan, unit_kerja,
                        kode_satker, email, telepon, status
                 FROM integrasi.mysimkari_pegawai
                 ORDER BY nama
-                LIMIT {} OFFSET {}
-            "#,
-                per_page, offset
-            )
-        } else {
-            format!(
-                r#"
-                SELECT nip, nama, jabatan, pangkat, golongan, unit_kerja,
+                LIMIT $1 OFFSET $2"
+                        .to_string(),
+                    vec![&per_page_i64, &offset],
+                )
+            } else {
+                (
+                    "SELECT nip, nama, jabatan, pangkat, golongan, unit_kerja,
                        kode_satker, email, telepon, status
                 FROM integrasi.mysimkari_pegawai
-                WHERE kode_satker = '{}'
+                WHERE kode_satker = $1
                 ORDER BY nama
-                LIMIT {} OFFSET {}
-            "#,
-                req.kode_satker, per_page, offset
-            )
-        };
+                LIMIT $2 OFFSET $3"
+                        .to_string(),
+                    vec![&req.kode_satker, &per_page_i64, &offset],
+                )
+            };
 
-        let items: Vec<MysimkariPegawai> = match self.state.db_client.query(&query, &[]).await {
-            Ok(rows) => rows
-                .iter()
-                .map(|row| MysimkariPegawai {
-                    nip: row.try_get("nip").unwrap_or_default(),
-                    nama: row.try_get("nama").unwrap_or_default(),
-                    jabatan: row.try_get("jabatan").unwrap_or_default(),
-                    pangkat: row.try_get("pangkat").unwrap_or_default(),
-                    golongan: row.try_get("golongan").unwrap_or_default(),
-                    unit_kerja: row.try_get("unit_kerja").unwrap_or_default(),
-                    kode_satker: row.try_get("kode_satker").unwrap_or_default(),
-                    email: row.try_get("email").unwrap_or_default(),
-                    telepon: row.try_get("telepon").unwrap_or_default(),
-                    status: row.try_get("status").unwrap_or_default(),
-                    extra_fields: HashMap::new(),
-                })
-                .collect(),
-            Err(e) => {
-                error!("Failed to query mysimkari_pegawai: {}", e);
-                Vec::new()
-            }
-        };
+        let items: Vec<MysimkariPegawai> =
+            match self.state.db_client.query(&query, &query_params).await {
+                Ok(rows) => rows
+                    .iter()
+                    .map(|row| MysimkariPegawai {
+                        nip: row.try_get("nip").unwrap_or_default(),
+                        nama: row.try_get("nama").unwrap_or_default(),
+                        jabatan: row.try_get("jabatan").unwrap_or_default(),
+                        pangkat: row.try_get("pangkat").unwrap_or_default(),
+                        golongan: row.try_get("golongan").unwrap_or_default(),
+                        unit_kerja: row.try_get("unit_kerja").unwrap_or_default(),
+                        kode_satker: row.try_get("kode_satker").unwrap_or_default(),
+                        email: row.try_get("email").unwrap_or_default(),
+                        telepon: row.try_get("telepon").unwrap_or_default(),
+                        status: row.try_get("status").unwrap_or_default(),
+                        extra_fields: HashMap::new(),
+                    })
+                    .collect(),
+                Err(e) => {
+                    error!("Failed to query mysimkari_pegawai: {}", e);
+                    Vec::new()
+                }
+            };
 
         Ok(Response::new(GetMysimkariPegawaiResponse {
             items,
