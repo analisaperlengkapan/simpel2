@@ -71,8 +71,12 @@ impl OidcCodeStore {
         Ok(())
     }
 
-    /// Take and consume authorization code, returning user ID if valid
-    pub async fn take(&self, code: &str, client_id: &str) -> Result<Option<String>> {
+    /// Take and consume authorization code, returning the full code record if valid
+    pub async fn take(
+        &self,
+        code: &str,
+        client_id: &str,
+    ) -> Result<Option<crate::models::OAuth2AuthorizationCode>> {
         use crate::database::operations::oauth2;
 
         // Parse client_id as UUID
@@ -89,8 +93,7 @@ impl OidcCodeStore {
                 // Mark code as used
                 oauth2::mark_code_used(&self.db, code).await?;
 
-                // Return user_id as string
-                Ok(Some(auth_code.user_id.to_string()))
+                Ok(Some(auth_code))
             }
             None => Ok(None),
         }

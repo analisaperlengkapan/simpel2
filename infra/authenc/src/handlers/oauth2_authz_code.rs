@@ -14,7 +14,9 @@ use axum::{
 };
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::sync::Arc;
+use uuid::Uuid;
 
 /// Authorization request parameters
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,6 +57,21 @@ fn validate_code_challenge_method(method: &str) -> bool {
     method == "S256" || method == "plain"
 }
 
+/// Verify PKCE code challenge
+fn verify_code_challenge(verifier: &str, challenge: &str, method: &str) -> bool {
+    match method {
+        "S256" => {
+            let mut hasher = Sha256::new();
+            hasher.update(verifier.as_bytes());
+            let hash = hasher.finalize();
+            let encoded = Base64UrlUnpadded::encode_string(&hash);
+            encoded == challenge
+        }
+        "plain" => verifier == challenge,
+        _ => false,
+    }
+}
+
 /// OAuth2 Authorization Endpoint
 /// Handles authorization requests and initiates the authorization code flow.
 /// Validates client, redirect URI, and generates authorization code with PKCE support.
@@ -80,7 +97,11 @@ pub async fn authorize(
     }
 
     // TODO: In production, validate client exists and is enabled
-    let registered_uris = vec![params.redirect_uri.clone()];
+    // For demo/test purposes, we allow standard localhost callbacks
+    let registered_uris = vec![
+        "http://localhost:8080/callback".to_string(),
+        "http://localhost:3000/callback".to_string(),
+    ];
 
     if !validate_redirect_uri(&params.redirect_uri, &registered_uris) {
         return Err(AuthencError::validation(
@@ -108,7 +129,7 @@ pub async fn authorize(
     }
 
     // TODO: In production, check user authentication
-    let user_id = "demo_user_id";
+    let user_id = Uuid::new_v4().to_string();
 
     // Generate authorization code
     let auth_code = generate_authorization_code();
@@ -172,22 +193,39 @@ pub async fn token(
         .as_ref()
         .ok_or_else(|| AuthencError::validation("client_id is required"))?;
 
-    let _redirect_uri = params
+    let redirect_uri = params
         .redirect_uri
         .as_ref()
         .ok_or_else(|| AuthencError::validation("redirect_uri is required"))?;
 
     // Retrieve and consume authorization code
-    let user_id = state
+    let auth_code = state
         .code_store
         .take(code, client_id)
         .await?
         .ok_or_else(|| AuthencError::validation("Invalid or expired authorization code"))?;
 
-    // Validate PKCE if code_verifier is provided
-    if let Some(ref _code_verifier) = params.code_verifier {
-        // TODO: In production, retrieve code_challenge and method from stored code
-        // and verify: verify_code_challenge(_code_verifier, challenge, method)
+    let user_id = auth_code.user_id.to_string();
+
+    // Validate redirect_uri matches
+    if auth_code.redirect_uri != *redirect_uri {
+        return Err(AuthencError::validation("redirect_uri mismatch"));
+    }
+
+    // Validate PKCE
+    if let Some(challenge) = auth_code.code_challenge {
+        let verifier = params
+            .code_verifier
+            .as_ref()
+            .ok_or_else(|| AuthencError::validation("code_verifier is required"))?;
+        let method = auth_code
+            .code_challenge_method
+            .as_deref()
+            .unwrap_or("plain");
+
+        if !verify_code_challenge(verifier, &challenge, method) {
+            return Err(AuthencError::validation("Invalid PKCE code_verifier"));
+        }
     }
 
     // Generate tokens using Ed25519
