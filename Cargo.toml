@@ -539,15 +539,15 @@ nursery = { level = "warn", priority = -1 }
 opt-level = 1                # Light optimization for better dev experience
 debug = true                 # Keep debug info for development
 incremental = true           # Enable incremental compilation
-codegen-units = 256          # Parallel compilation for faster builds
+codegen-units = 16           # Reduced parallel compilation to save memory
 lto = false                  # Disable LTO in dev for faster incremental builds
 split-debuginfo = "unpacked" # Faster debug builds on Linux/macOS
 
 [profile.release]
 # Maximum optimization for production
 opt-level = 3           # Maximum optimization level
-lto = "fat"             # Full LTO for maximum optimization
-codegen-units = 1       # Single codegen unit for best optimization
+lto = "thin"            # Thin LTO for balance between optimization and build resources
+codegen-units = 16      # Multiple codegen units to reduce memory usage
 panic = "abort"         # Smaller binary, faster panics
 strip = true            # Strip symbols for smaller binary
 overflow-checks = false # Disable overflow checks for performance
@@ -559,10 +559,10 @@ incremental = false     # Disable incremental for clean release builds
 inherits = "release"
 opt-level = 3        # High optimization (not maximum size)
 debug = false        # Reduce WASM debug size
-lto = "fat"          # Full LTO for maximum optimization
+lto = "thin"         # Thin LTO for balance
 panic = "abort"
 strip = true
-codegen-units = 1
+codegen-units = 16
 
 # Fast development builds for WASM
 [profile.dev-wasm]

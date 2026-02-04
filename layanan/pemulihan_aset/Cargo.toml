@@ -21,3 +21,6 @@ tokio-postgres = { workspace = true, features = ["with-uuid-1", "with-chrono-0_4
 postgres-types = { workspace = true, features = ["derive"] }
 chrono = { workspace = true, features = ["serde"] }
 garde = { workspace = true, features = ["derive"] }
+
+[features]
+integration-tests = []

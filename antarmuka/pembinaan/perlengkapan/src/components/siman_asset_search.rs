@@ -45,9 +45,9 @@ pub fn SimanAssetSearch(
         set_error.set(None);
 
         let kat = kategori.get();
-        let kat_ref = kat.as_deref();
 
         spawn_local(async move {
+            let kat_ref = kat.as_deref();
             match search_siman_assets(&term, kat_ref, Some(20)).await {
                 Ok(response) => {
                     set_results.set(response.data);
@@ -332,7 +332,10 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
             </Show>
 
             <Show when=move || !loading.get() && summary.get().is_some()>
-                {move || summary.get().map(|s| view! {
+                {move || summary.get().map(|s| {
+                    let s_stored = StoredValue::new(s);
+                    let s = s_stored.get_value();
+                    view! {
                     <div class="space-y-4">
                         // Total stats
                         <div class="grid grid-cols-2 gap-4">
@@ -349,12 +352,12 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
                         </div>
 
                         // By category
-                        <Show when=move || !s.by_category.is_empty()>
+                        <Show when=move || s_stored.with_value(|v| !v.by_category.is_empty())>
                             <div>
                                 <h5 class="font-semibold text-gray-700 mb-2">"Per Kategori"</h5>
                                 <div class="space-y-2">
                                     <For
-                                        each=move || s.by_category.clone()
+                                        each=move || s_stored.with_value(|v| v.by_category.clone())
                                         key=|c| c.category.clone()
                                         children=|cat| {
                                             view! {
@@ -369,7 +372,7 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
                             </div>
                         </Show>
                     </div>
-                })}
+                }})}
             </Show>
         </div>
     }

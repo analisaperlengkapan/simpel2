@@ -135,7 +135,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
     };
 
     // Handle transition
-    let handle_transition = move |target_status: i32| {
+    let _handle_transition = move |target_status: i32| {
         let sid = satker_id.get();
         spawn_local(async move {
             let request = WorkflowTransitionRequest {
@@ -188,7 +188,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                 {move || {
                     satker_data.get().map(|data| {
                         let satker = data.satker.clone();
-                        let barang_list = data.barang_list.clone();
+                        let barang_list = StoredValue::new(data.barang_list.clone());
                         let status = KebutuhanBmnStatus::from_code(satker.status_kode);
                         let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
                         let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
@@ -277,7 +277,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         </div>
 
                                         <Show
-                                            when=move || !barang_list.is_empty()
+                                            when=move || barang_list.with_value(|l| !l.is_empty())
                                             fallback=|| view! {
                                                 <div class="text-center py-8 text-gray-500">
                                                     <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
@@ -300,7 +300,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                     </thead>
                                                     <tbody class="text-gray-700 text-sm">
                                                         <For
-                                                            each=move || barang_list.clone()
+                                                            each=move || barang_list.with_value(|l| l.clone())
                                                             key=|b| b.id.clone()
                                                             children=move |barang: PengajuanKebutuhanBmnBarang| {
                                                                 let barang_id = barang.id.clone();
@@ -383,6 +383,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                             each=move || a.barang_list.clone()
                                                                             key=|b| b.barang.id.clone()
                                                                             children=move |item| {
+                                                    let item_stored = StoredValue::new(item.clone());
+                                                    let item = item_stored.get_value();
                                                                                 let gap_class = if item.gap <= 0 {
                                                                                     "text-green-600"
                                                                                 } else if item.gap < item.barang.jumlah / 2 {
@@ -396,7 +398,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                     <tr class="hover:bg-gray-50 border-b last:border-0">
                                                                                         <td class="p-3">
                                                                                             <div class="font-medium">{item.barang.nama.clone()}</div>
-                                                                                            <Show when=move || existing_count > 0>
+                                                                                    <Show when=move || (existing_count > 0)>
                                                                                                 <div class="text-xs text-gray-400 mt-1">
                                                                                                     <i class="fas fa-database mr-1"></i>
                                                                                                     {format!("{} aset ditemukan di SIMAN", existing_count)}
@@ -413,7 +415,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                         <td class="p-3 text-sm">{item.recommendation.clone()}</td>
                                                                                     </tr>
                                                                                     // Show existing assets if any
-                                                                                    <Show when=move || !item.existing_assets.is_empty()>
+                                                        <Show when=move || item_stored.with_value(|i| !i.existing_assets.is_empty())>
                                                                                         <tr class="bg-blue-50">
                                                                                             <td colspan="5" class="p-2">
                                                                                                 <details class="cursor-pointer">
@@ -422,10 +424,12 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                                         "Lihat aset existing dari SIMAN"
                                                                                                     </summary>
                                                                                                     <div class="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                                                                                                        <For
-                                                                                                            each=move || item.existing_assets.clone()
-                                                                                                            key=|ea| ea.no_aset.clone()
-                                                                                                            children=move |ea| {
+                                                                                {
+                                                                                    view! {
+                                                                                        <For
+                                                                                        each=move || item_stored.with_value(|i| i.existing_assets.clone())
+                                                                                            key=|ea| ea.no_aset.clone()
+                                                                                            children=move |ea| {
                                                                                                                 let kondisi_class = match ea.kondisi.as_str() {
                                                                                                                     "Baik" => "bg-green-100 text-green-800",
                                                                                                                     "Rusak Ringan" => "bg-yellow-100 text-yellow-800",
@@ -445,6 +449,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                                                 }
                                                                                                             }
                                                                                                         />
+                                                                                    }
+                                                                                }
                                                                                                     </div>
                                                                                                 </details>
                                                                                             </td>
@@ -465,12 +471,12 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                             "Gap dihitung berdasarkan jumlah yang diminta dikurangi jumlah aset sejenis yang sudah ada."
                                                         </div>
                                                     </div>
-                                                }
+                        }.into_any()
                                             }).unwrap_or_else(|| view! {
                                                 <div class="text-center py-8 text-gray-500">
                                                     <p>"Data analisis belum tersedia"</p>
                                                 </div>
-                                            })
+                    }.into_any())
                                         }}
                                     </div>
                                 </Show>
@@ -491,6 +497,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                     each=move || aktivitas.get()
                                                     key=|a| a.id.clone()
                                                     children=move |akt| {
+                                                        let akt_stored = StoredValue::new(akt.clone());
                                                         let to_status = KebutuhanBmnStatus::from_code(akt.to_status_kode);
                                                         view! {
                                                             <div class="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
@@ -502,9 +509,9 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                     <div class="text-sm text-gray-500 mt-1">
                                                                         "Ke status: " {to_status.map(|s| s.label()).unwrap_or("Unknown")}
                                                                     </div>
-                                                                    <Show when=move || akt.komentar.is_some()>
+                                                                    <Show when=move || akt_stored.with_value(|a| a.komentar.is_some())>
                                                                         <div class="text-sm text-gray-600 mt-2 italic">
-                                                                            "\""{ akt.komentar.clone().unwrap_or_default() }"\""
+                                                                            "\""{ akt_stored.with_value(|a| a.komentar.clone()).unwrap_or_default() }"\""
                                                                         </div>
                                                                     </Show>
                                                                     <div class="text-xs text-gray-400 mt-2">

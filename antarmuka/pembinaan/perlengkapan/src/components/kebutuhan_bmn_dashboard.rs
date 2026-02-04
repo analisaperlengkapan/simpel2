@@ -51,6 +51,8 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
             }>
                 {move || {
                     stats_resource.get().flatten().map(|stats| {
+                        let stats_stored = StoredValue::new(stats.clone());
+                        let stats = stats_stored.get_value();
                         view! {
                             <div class="space-y-6">
                                 // Main stats cards
@@ -153,7 +155,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                             "Pengajuan per Tahun"
                                         </h3>
                                         <Show
-                                            when=move || !stats.by_tahun.is_empty()
+                                            when=move || stats_stored.with_value(|s| !s.by_tahun.is_empty())
                                             fallback=|| view! {
                                                 <div class="text-center py-8 text-gray-500">
                                                     <p>"Belum ada data"</p>
@@ -162,10 +164,10 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         >
                                             <div class="space-y-3">
                                                 <For
-                                                    each=move || stats.by_tahun.clone()
+                                                    each=move || stats_stored.with_value(|s| s.by_tahun.clone())
                                                     key=|s| s.tahun
                                                     children=move |item| {
-                                                        let max_val = stats.by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
+                                                        let max_val = stats_stored.with_value(|s| s.by_tahun.iter().map(|s| s.total).max().unwrap_or(1));
                                                         let width_pct = (item.total as f64 / max_val as f64 * 100.0) as i32;
                                                         view! {
                                                             <div class="flex items-center gap-3">
@@ -192,7 +194,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                             "Pengajuan per Status"
                                         </h3>
                                         <Show
-                                            when=move || !stats.by_status.is_empty()
+                                            when=move || stats_stored.with_value(|s| !s.by_status.is_empty())
                                             fallback=|| view! {
                                                 <div class="text-center py-8 text-gray-500">
                                                     <p>"Belum ada data"</p>
@@ -201,7 +203,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         >
                                             <div class="space-y-3">
                                                 <For
-                                                    each=move || stats.by_status.clone()
+                                                    each=move || stats_stored.with_value(|s| s.by_status.clone())
                                                     key=|s| s.status_kode
                                                     children=move |item| {
                                                         let status = KebutuhanBmnStatus::from_code(item.status_kode);

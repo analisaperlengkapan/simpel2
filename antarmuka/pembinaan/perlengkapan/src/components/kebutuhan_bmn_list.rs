@@ -227,9 +227,9 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                 <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
                                     <div class="text-sm text-gray-500">
                                         "Menampilkan "
-                                        <span class="font-medium">{response.data.len()}</span>
+                                        <span class="font-medium">{data_len}</span>
                                         " dari "
-                                        <span class="font-medium">{response.total}</span>
+                                        <span class="font-medium">{total}</span>
                                         " pengajuan"
                                     </div>
                                     <div class="flex gap-2">
@@ -242,11 +242,11 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                             "Sebelumnya"
                                         </button>
                                         <span class="px-4 py-2 text-gray-600">
-                                            "Halaman " {move || page.get()} " / " {response.total_pages}
+                                            "Halaman " {move || page.get()} " / " {total_pages}
                                         </span>
                                         <button
                                             class="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            prop:disabled=move || page.get() >= response.total_pages
+                                            prop:disabled=move || page.get() >= total_pages
                                             on:click=move |_| set_page.update(|p| *p += 1)
                                         >
                                             "Selanjutnya"
