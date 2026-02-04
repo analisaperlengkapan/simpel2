@@ -11,6 +11,7 @@ args = [
     "--enable-nontrapping-float-to-int",
     "--enable-sign-ext",
     "--enable-mutable-globals",
+    "--enable-reference-types",
     "--strip-debug",
 ]
 
