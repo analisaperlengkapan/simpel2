@@ -5,7 +5,7 @@
 
 -- Ensure schema exists and set search path
 CREATE SCHEMA IF NOT EXISTS perlengkapan;
-SET search_path = perlengkapan;
+SET search_path = perlengkapan, public;
 
 -- ============ Master Tables ============
 

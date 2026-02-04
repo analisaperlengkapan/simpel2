@@ -54,14 +54,14 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_admin_events_realm_resource_time
 -- Using DO block to check for table existence (cannot use CONCURRENTLY inside DO block)
 DO $$
 BEGIN
-    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_roles') THEN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'authenc' AND tablename = 'user_roles') THEN
         CREATE INDEX IF NOT EXISTS idx_user_roles_user_role ON user_roles(user_id, role_id);
     END IF;
 END $$;
 
 DO $$
 BEGIN
-    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_roles') THEN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'authenc' AND tablename = 'user_roles') THEN
          CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role_id);
     END IF;
 END $$;
@@ -70,14 +70,14 @@ END $$;
 -- These indexes improve authorization check performance
 DO $$
 BEGIN
-    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'permissions') THEN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'authenc' AND tablename = 'permissions') THEN
         CREATE INDEX IF NOT EXISTS idx_permissions_user_resource ON permissions(user_id, resource);
     END IF;
 END $$;
 
 DO $$
 BEGIN
-    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'permissions') THEN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'authenc' AND tablename = 'permissions') THEN
         CREATE INDEX IF NOT EXISTS idx_permissions_resource ON permissions(resource);
     END IF;
 END $$;

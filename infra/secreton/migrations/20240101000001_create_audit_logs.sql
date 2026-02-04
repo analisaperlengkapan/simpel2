@@ -3,7 +3,7 @@ SET search_path = secreton, public;
 -- Create audit_logs table
 CREATE TABLE IF NOT EXISTS audit_logs (
     id TEXT PRIMARY KEY NOT NULL,
-    timestamp DATETIME NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
     action TEXT NOT NULL,
     actor_id TEXT,
     resource_type TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     ip TEXT,
     user_agent TEXT,
     metadata TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for common queries
