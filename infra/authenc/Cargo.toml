@@ -79,7 +79,7 @@ admin_console = []
 
 # Quantum-resistant cryptography features
 quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
-tpm = ["dep:tss-esapi"]
+tpm = [] # Disabled dependency on tss-esapi for CI compatibility
 
 [dependencies]
 # Core async runtime

@@ -675,33 +675,29 @@ impl IntegrasiService for IntegrasiServiceImpl {
                 )
             };
 
-        let items: Vec<MysimkariPegawai> = match self
-            .state
-            .db_client
-            .query(&query, &query_params)
-            .await
-        {
-            Ok(rows) => rows
-                .iter()
-                .map(|row| MysimkariPegawai {
-                    nip: row.try_get("nip").unwrap_or_default(),
-                    nama: row.try_get("nama").unwrap_or_default(),
-                    jabatan: row.try_get("jabatan").unwrap_or_default(),
-                    pangkat: row.try_get("pangkat").unwrap_or_default(),
-                    golongan: row.try_get("golongan").unwrap_or_default(),
-                    unit_kerja: row.try_get("unit_kerja").unwrap_or_default(),
-                    kode_satker: row.try_get("kode_satker").unwrap_or_default(),
-                    email: row.try_get("email").unwrap_or_default(),
-                    telepon: row.try_get("telepon").unwrap_or_default(),
-                    status: row.try_get("status").unwrap_or_default(),
-                    extra_fields: HashMap::new(),
-                })
-                .collect(),
-            Err(e) => {
-                error!("Failed to query mysimkari_pegawai: {}", e);
-                Vec::new()
-            }
-        };
+        let items: Vec<MysimkariPegawai> =
+            match self.state.db_client.query(&query, &query_params).await {
+                Ok(rows) => rows
+                    .iter()
+                    .map(|row| MysimkariPegawai {
+                        nip: row.try_get("nip").unwrap_or_default(),
+                        nama: row.try_get("nama").unwrap_or_default(),
+                        jabatan: row.try_get("jabatan").unwrap_or_default(),
+                        pangkat: row.try_get("pangkat").unwrap_or_default(),
+                        golongan: row.try_get("golongan").unwrap_or_default(),
+                        unit_kerja: row.try_get("unit_kerja").unwrap_or_default(),
+                        kode_satker: row.try_get("kode_satker").unwrap_or_default(),
+                        email: row.try_get("email").unwrap_or_default(),
+                        telepon: row.try_get("telepon").unwrap_or_default(),
+                        status: row.try_get("status").unwrap_or_default(),
+                        extra_fields: HashMap::new(),
+                    })
+                    .collect(),
+                Err(e) => {
+                    error!("Failed to query mysimkari_pegawai: {}", e);
+                    Vec::new()
+                }
+            };
 
         Ok(Response::new(GetMysimkariPegawaiResponse {
             items,
