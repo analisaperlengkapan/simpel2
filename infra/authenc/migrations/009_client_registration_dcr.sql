@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS initial_access_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_initial_access_tokens_hash
 ON initial_access_tokens(token_hash)
-WHERE revoked = false AND (expires_at IS NULL OR expires_at > NOW());
+WHERE revoked = false;
 
 CREATE INDEX IF NOT EXISTS idx_initial_access_tokens_realm
 ON initial_access_tokens(realm_id)

@@ -397,9 +397,15 @@ mod security_validation_tests {
 
             // Basic randomness tests
 
-            // 1. No identical consecutive bytes (very low probability for good RNG)
-            let consecutive_identical = random_data.windows(2).any(|pair| pair[0] == pair[1]);
-            assert!(!consecutive_identical, "High-quality RNG should rarely produce consecutive identical bytes");
+            // 1. Consecutive identical bytes check (statistical)
+            // Ideally, for random bytes, P(byte[i] == byte[i+1]) = 1/256.
+            // We check that we don't have an excessive number of consecutive identical bytes,
+            // which might indicate a stuck RNG.
+            let consecutive_matches = random_data.windows(2).filter(|pair| pair[0] == pair[1]).count();
+            let max_expected_matches = (sample_size as f64 * 0.10).ceil() as usize; // Allow up to 10% collisions (very loose upper bound)
+            assert!(consecutive_matches <= max_expected_matches,
+                   "Too many consecutive identical bytes: {} (threshold: {})",
+                   consecutive_matches, max_expected_matches);
 
             // 2. Byte frequency distribution (chi-square test approximation)
             let mut byte_counts = [0u32; 256];
@@ -418,7 +424,8 @@ mod security_validation_tests {
             // Chi-square test (approximate, should not be extremely high)
             assert!(chi_square < 400.0, "Random data fails basic chi-square distribution test");
 
-            // 3. Runs test (alternating bit patterns)
+            // 3. Runs test (sequence of non-identical bytes)
+            // For random bytes, probability of change is 255/256.
             let mut runs = 1;
             for i in 1..random_data.len() {
                 if random_data[i] != random_data[i-1] {
@@ -426,12 +433,14 @@ mod security_validation_tests {
                 }
             }
 
-            let expected_runs = (sample_size as f64 / 2.0) as usize;
-            let runs_ratio = runs as f64 / expected_runs as f64;
+            // Expected runs for byte stream is approx N * (255/256)
+            let expected_runs = sample_size as f64 * (255.0 / 256.0);
+            let runs_ratio = runs as f64 / expected_runs;
 
-            // Should have reasonable number of runs (not too clustered)
-            assert!(runs_ratio > 0.5 && runs_ratio < 2.0,
-                   "Random data runs test failed: ratio {:.2}", runs_ratio);
+            // Should be close to 1.0 (e.g., 0.8 to 1.2)
+            assert!(runs_ratio > 0.8 && runs_ratio < 1.2,
+                   "Random data runs test failed: ratio {:.2} (runs: {}, expected: {:.1})",
+                   runs_ratio, runs, expected_runs);
         }
 
         Ok(())

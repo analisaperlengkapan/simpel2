@@ -62,7 +62,9 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
     let class = class.unwrap_or_default();
     let (font_size, set_font_size) = use_storage::<String>("font-size", "medium".to_string());
 
-    let current_size = move || FontSize::from_str(&font_size.get());
+    let current_size = move || {
+        FontSize::from_str(&font_size.get()).unwrap_or(FontSize::Medium)
+    };
 
     // Apply font size to document root
     Effect::new(move |_| {

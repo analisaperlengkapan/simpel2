@@ -14,7 +14,6 @@ use axum::{
 };
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
 /// Authorization request parameters
