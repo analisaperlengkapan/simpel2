@@ -7,6 +7,9 @@ debug = true
 [tools]
 wasm-opt = true
 
+[[build.wasm_opt]]
+args = ["-Oz", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-extension", "--enable-reference-types"]
+
 [serve]
 port = 8085
 addresses = ["0.0.0.0"]

@@ -32,6 +32,7 @@ jobs:
     runs-on: self-hosted
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         module: ["daskrimti/portal", badiklat, datun, intel, pemulihan_aset, pengawasan, pidmil, pidsus, pidum, "pembinaan/keuangan", "pembinaan/perencanaan", "pembinaan/perlengkapan"]
 

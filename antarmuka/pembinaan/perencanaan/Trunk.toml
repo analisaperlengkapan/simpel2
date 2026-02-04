@@ -1,18 +1,16 @@
 [build]
 target = "index.html"
 dist = "dist"
+release = true
 
-[[build.wasm-bindgen]]
-target = "web"
-
-[build.rust]
-optimization-level = "s"
-lto = true
+[[build.wasm_opt]]
+args = ["-Oz", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-extension", "--enable-reference-types"]
 
 [serve]
-port = 8085
+port = 8094
+addresses = ["0.0.0.0"]
 open = false
 
 [watch]
 watch = ["src", "styles"]
-ignore = ["target", "dist"]
+ignore = ["target", "dist", "Cargo.lock", ".git"]

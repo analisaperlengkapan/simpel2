@@ -1,36 +1,16 @@
 [build]
 target = "index.html"
 dist = "dist"
-release = false
+release = true
 
-# Disable wasm-opt for now to avoid validation errors
-# Will re-enable after basic functionality is confirmed
-# [[build.wasm_opt]]
-# args = [
-#     "-Oz",
-#     "--enable-bulk-memory",
-#     "--strip-debug",
-#     "--dce",
-#     "--vacuum",
-# ]
-
-# Simplified wasm-bindgen configuration for development
-[[build.wasm-bindgen]]
-target = "web"
-typescript = false
-debug = false
-
-[build.rust]
-optimization-level = "s"   # Smaller optimization for development
-debug = false
-lto = false
+[[build.wasm_opt]]
+args = ["-Oz", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-extension", "--enable-reference-types"]
 
 [serve]
 port = 8093
 addresses = ["0.0.0.0"]
 open = false
-no_autoreload = true
 
-[build.public-assets]
-sources = ["styles/*.css", "../../shared/styles/*.css"]
-output-dir = "assets"
+[watch]
+watch = ["src", "styles"]
+ignore = ["target", "dist", "Cargo.lock", ".git"]

@@ -3,44 +3,14 @@ target = "index.html"
 dist = "dist"
 release = true
 
-# WASM optimization - aggressive size reduction for code splitting
 [[build.wasm_opt]]
-args = [
-  "-Oz",               # Maximum size optimization
-  "--enable-all",      # Enable all features
-  "--strip-debug",     # Remove debug information
-  "--strip-producers", # Remove producer metadata
-  "--strip-dwarf",     # Remove DWARF debug info
-  "--vacuum",          # Remove unused code
-]
+args = ["-Oz", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-extension", "--enable-reference-types"]
 
-# Advanced wasm-bindgen configuration
-[build.wasm-bindgen]
-target = "web"
-typescript = false                 # Disable TS generation for smaller bundles
-debug = false                      # No debug in production
-demangle = false                   # No name demangling for size
-keep-debug = false                 # Remove debug info
-no-modules-global = "wasm_bindgen"
-reference-types = true             # Enable reference types for smaller code
-weak-refs = true                   # Enable weak references
-
-# Tree shaking and optimization
-[build.rust]
-optimization-level = "z" # Maximum size optimization for code splitting
-debug = false
-lto = true
-codegen-units = 1        # Single codegen unit for better optimization
-
-# Server configuration - NO AUTO RELOAD
 [serve]
 port = 8080
+addresses = ["0.0.0.0"]
 open = false
 
-[build.public-assets]
-sources = ["styles/*.css", "../shared/styles/*.css"]
-output-dir = "assets"
-
-[build.public-files]
-copy-to = "assets/"
-sources = ["assets/*"]
+[watch]
+watch = ["src", "styles"]
+ignore = ["target", "dist", "Cargo.lock", ".git"]

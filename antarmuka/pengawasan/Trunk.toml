@@ -2,18 +2,9 @@
 target = "index.html"
 dist = "dist"
 release = true
-wasm-opt = false  # Disable wasm-opt to avoid optimization errors
 
-# Advanced wasm-bindgen configuration
-[build.wasm-bindgen]
-target = "web"
-typescript = false         # Disable TS generation for smaller bundles
-debug = false             # No debug in production
-
-[build.rust]
-optimization-level = "z"   # Maximum size optimization
-debug = false
-lto = true
+[[build.wasm_opt]]
+args = ["-Oz", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-extension", "--enable-reference-types"]
 
 [serve]
 port = 8087
@@ -22,9 +13,4 @@ open = false
 
 [watch]
 watch = ["src", "styles"]
-
-[tools]
-wasm-opt = false
 ignore = ["target", "dist", "Cargo.lock", ".git"]
-debounce = 100
-

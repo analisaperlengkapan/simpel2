@@ -700,7 +700,7 @@ pub fn reconstruct_secret(shares: &[Share], threshold: usize) -> Result<Vec<u8>>
 
     let mut result = vec![0u8; secret_len];
 
-    for byte_idx in 0..secret_len {
+    for (byte_idx, result_byte) in result.iter_mut().enumerate() {
         let points: Vec<(Scalar, Scalar)> = shares
             .iter()
             .take(threshold)
@@ -710,7 +710,7 @@ pub fn reconstruct_secret(shares: &[Share], threshold: usize) -> Result<Vec<u8>>
 
         let secret_scalar = lagrange_interpolate(&points)?;
         let bytes = secret_scalar.to_bytes();
-        result[byte_idx] = bytes[0];
+        *result_byte = bytes[0];
     }
 
     Ok(result)
