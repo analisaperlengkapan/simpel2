@@ -24,7 +24,7 @@ use crate::{config::AppConfig, error::AppError, handlers::routes, rate_limit::Ra
 use axum::{Router, http::Method};
 use dashmap::DashMap;
 use prometheus::{Encoder, Registry, TextEncoder};
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
 use tower_http::{
     compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer,
 };
@@ -117,17 +117,17 @@ fn setup_sentry(config: &AppConfig) -> Option<sentry::ClientInitGuard> {
 }
 
 /// Setup database connection pool
-async fn setup_database(_config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
+async fn setup_database(config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
     tracing::info!("Connecting to database...");
 
-    let pool_config = deadpool_postgres::Config::new();
-    let pool = match pool_config.create_pool(
-        Some(deadpool_postgres::Runtime::Tokio1),
-        tokio_postgres::NoTls,
-    ) {
-        Ok(pool) => pool,
-        Err(e) => return Err(AppError::PoolConfig(e.to_string())),
-    };
+    let pg_config = tokio_postgres::Config::from_str(&config.database_url)
+        .map_err(|e| AppError::PoolConfig(e.to_string()))?;
+
+    let manager = deadpool_postgres::Manager::new(pg_config, tokio_postgres::NoTls);
+    let pool = deadpool_postgres::Pool::builder(manager)
+        .runtime(deadpool_postgres::Runtime::Tokio1)
+        .build()
+        .map_err(|e| AppError::PoolConfig(e.to_string()))?;
 
     // Test the connection
     let client = pool.get().await?;
