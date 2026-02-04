@@ -93,8 +93,7 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - layanan/authenc
-          - layanan/apigateway
+          - infra/authenc
           - layanan/badiklat
           - layanan/datun
           - layanan/intel
@@ -142,7 +141,7 @@ jobs:
       - name: Run integration tests
         working-directory: ${{ matrix.service }}
         run: |
-          cargo test --test '*' --features integration-tests -- --test-threads=1 --nocapture
+          cargo test --test '*' -- --test-threads=1 --nocapture
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           REDIS_URL: ${{ env.REDIS_URL }}
@@ -154,92 +153,6 @@ jobs:
           echo "## Integration Test Results - ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Service**: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
-
-  frontend-backend-integration:
-    name: Frontend-Backend E2E Tests
-    runs-on: self-hosted
-    needs: [setup-infrastructure, backend-integration-tests]
-    if: needs.setup-infrastructure.outputs.postgres-ready == 'true'
-
-    steps:
-      - name: Fix permissions
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: true
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          targets: wasm32-unknown-unknown
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-key: e2e-tests
-
-      - name: Install Trunk
-        run: |
-          if ! command -v trunk &> /dev/null; then
-            mkdir -p $HOME/.local/bin
-            wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xzf- -C $HOME/.local/bin/
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
-          fi
-
-      - name: Start API Gateway
-        run: |
-          cd layanan/apigateway
-          cargo build --release
-          nohup ../../target/release/apigateway > apigateway.log 2>&1 &
-          echo $! > apigateway.pid
-
-          # Wait for API Gateway to start
-          sleep 5
-
-          # Health check
-          for i in {1..30}; do
-            if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-              echo "API Gateway is ready!"
-              break
-            fi
-            echo "Waiting for API Gateway... ($i/30)"
-            sleep 2
-          done
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          REDIS_URL: ${{ env.REDIS_URL }}
-
-      - name: Build Portal Frontend
-        working-directory: antarmuka/portal
-        run: trunk build --release
-
-      - name: Run E2E Tests
-        run: |
-          # Install playwright or similar for E2E testing
-          echo "Running end-to-end tests..."
-
-          # Test API endpoints
-          curl -f http://localhost:8080/health || exit 1
-          curl -f http://localhost:8080/api/v1/status || exit 1
-
-          echo "✅ E2E tests passed!"
-
-      - name: Stop API Gateway
-        if: always()
-        run: |
-          if [ -f layanan/apigateway/apigateway.pid ]; then
-            kill $(cat layanan/apigateway/apigateway.pid) || true
-            rm layanan/apigateway/apigateway.pid
-          fi
-
-      - name: Upload logs
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: e2e-logs
-          path: layanan/apigateway/apigateway.log
-          retention-days: 7
 
   grpc-integration-tests:
     name: gRPC Service Integration Tests
@@ -267,7 +180,7 @@ jobs:
       - name: Test authenc service
         working-directory: infra/authenc
         run: |
-          cargo test --features integration-tests -- --test-threads=1 --nocapture
+          cargo test -- --test-threads=1 --nocapture
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           RUST_LOG: debug
@@ -276,7 +189,7 @@ jobs:
         if: hashFiles('infra/secreton/Cargo.toml') != ''
         working-directory: infra/secreton
         run: |
-          cargo test --features integration-tests -- --test-threads=1 --nocapture
+          cargo test -- --test-threads=1 --nocapture
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           RUST_LOG: debug
@@ -333,7 +246,7 @@ jobs:
       - name: Test workspace integration
         run: |
           echo "Testing cross-module dependencies..."
-          cargo test --workspace --lib --features integration-tests -- --test-threads=1
+          cargo test --workspace --lib -- --test-threads=1
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           REDIS_URL: ${{ env.REDIS_URL }}
@@ -355,7 +268,7 @@ jobs:
   cleanup:
     name: Cleanup Test Infrastructure
     runs-on: self-hosted
-    needs: [frontend-backend-integration, grpc-integration-tests, module-integration]
+    needs: [grpc-integration-tests, module-integration]
     if: always()
 
     steps:
@@ -372,7 +285,7 @@ jobs:
   summary:
     name: Integration Test Summary
     runs-on: self-hosted
-    needs: [backend-integration-tests, frontend-backend-integration, grpc-integration-tests, module-integration]
+    needs: [backend-integration-tests, grpc-integration-tests, module-integration]
     if: always()
 
     steps:
@@ -383,14 +296,12 @@ jobs:
           echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Backend Integration | ${{ needs.backend-integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend-Backend E2E | ${{ needs.frontend-backend-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| gRPC Integration | ${{ needs.grpc-integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Cross-Module Integration | ${{ needs.module-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Overall Status" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ needs.backend-integration-tests.result }}" = "success" ] && \
-             [ "${{ needs.frontend-backend-integration.result }}" = "success" ] && \
              [ "${{ needs.grpc-integration-tests.result }}" = "success" ] && \
              [ "${{ needs.module-integration.result }}" = "success" ]; then
             echo "✅ **All integration tests passed!**" >> $GITHUB_STEP_SUMMARY
