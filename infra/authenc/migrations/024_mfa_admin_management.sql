@@ -52,7 +52,9 @@ RETURNS void
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    REFRESH MATERIALIZED VIEW CONCURRENTLY mfa_statistics;
+    -- Note: REFRESH MATERIALIZED VIEW CONCURRENTLY cannot be used inside a transaction block
+    -- Since functions are executed within a transaction context, we must use the non-concurrent version
+    REFRESH MATERIALIZED VIEW mfa_statistics;
 END;
 $$;
 

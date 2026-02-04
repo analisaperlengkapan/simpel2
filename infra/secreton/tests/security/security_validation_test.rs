@@ -154,7 +154,12 @@ mod security_validation_tests {
 
             if regular_access.granted {
                 // Regular user access should be more restricted than admin
-                assert!(!regular_access.granted, "Regular user should not have more access than admin");
+                // Check that if regular user has access, admin MUST also have access (hierarchy)
+                assert!(
+                    admin_access.granted,
+                    "Regular user has access but admin does not - hierarchy violation for {}",
+                    resource
+                );
             }
 
             if guest_access.granted {
