@@ -1,4 +1,10 @@
 SET search_path = secreton, public;
+
+-- Note: Tables in this migration reference 'users(id)' via foreign key.
+-- Since the 'users' table does not exist in the 'secreton' schema, this FK relies on
+-- the 'public.users' table (legacy Laravel) being available in the search_path.
+-- This dependency is intentional for backward compatibility during migration.
+
 -- Create MFA settings table
 CREATE TABLE IF NOT EXISTS user_mfa_settings (
     user_id TEXT PRIMARY KEY,

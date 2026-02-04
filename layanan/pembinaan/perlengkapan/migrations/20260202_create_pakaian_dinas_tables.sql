@@ -279,3 +279,9 @@ BEGIN
         ', tbl, tbl, tbl, tbl);
     END LOOP;
 END $$;
+
+-- ============ Grants ============
+
+-- Grant permissions for application user on perlengkapan schema
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA perlengkapan TO simpel_app;
+-- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA perlengkapan TO simpel_app;
