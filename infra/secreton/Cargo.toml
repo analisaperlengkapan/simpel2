@@ -130,3 +130,6 @@ overflow-checks = true
 
 # Note: Switched from raft to openraft to avoid protobuf 2.x vulnerability
 # openraft is a modern, actively maintained Raft implementation without legacy dependencies
+
+[features]
+integration-tests = []

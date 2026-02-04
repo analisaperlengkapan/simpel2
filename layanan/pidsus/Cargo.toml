@@ -24,3 +24,6 @@ garde = { version = "0.22", features = ["derive", "email"] }
 dotenvy = "0.15"
 thiserror = "2.0.17"
 lib-common = { workspace = true, features = ["db", "telemetry"] }
+
+[features]
+integration-tests = []

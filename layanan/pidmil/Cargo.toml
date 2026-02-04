@@ -22,3 +22,6 @@ chrono = { workspace = true, features = ["serde"] }
 garde = { version = "0.22", features = ["derive", "email"] }
 thiserror = { workspace = true }
 dotenvy = "0.15"
+
+[features]
+integration-tests = []

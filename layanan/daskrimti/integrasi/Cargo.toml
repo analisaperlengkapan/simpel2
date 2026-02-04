@@ -10,6 +10,7 @@ keywords = ["simpelv2", "integrasi", "api", "monsakti", "mysimkari"]
 categories = ["api-bindings", "web-programming::http-client"]
 
 [features]
+integration-tests = []
 default = []
 grpc = ["dep:tonic", "dep:prost", "dep:tonic-prost"]
 

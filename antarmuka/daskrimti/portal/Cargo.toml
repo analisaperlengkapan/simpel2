@@ -61,6 +61,7 @@ wasm-bindgen-test = "0.3"
 leptos_dom = { version = "0.8" }
 
 [features]
+integration-tests = []
 default = ["csr"]
 csr = ["leptos/csr"]
 hydrate = ["leptos/hydrate"]
