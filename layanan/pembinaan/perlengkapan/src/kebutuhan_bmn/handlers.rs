@@ -303,7 +303,7 @@ pub async fn add_satker_to_pengajuan(
         .add_satker_to_pengajuan(
             pengajuan_id,
             &request.satker_id,
-            request.satker_name.as_deref(),
+            request.satker_name,
             user_id,
         )
         .await?;

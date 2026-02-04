@@ -189,7 +189,7 @@ jobs:
       - name: Run integration tests
         working-directory: ${{ matrix.service }}
         run: |
-          cargo test --test '*' --features integration-tests -- --test-threads=1 --nocapture
+          cargo test --features integration-tests -- --test-threads=1 --nocapture
         env:
           DATABASE_URL: postgres://simpelv2_test:integration_test_2024@localhost:${{ steps.start-db.outputs.port }}/simpelv2_integration
           REDIS_URL: redis://localhost:${{ steps.start-redis.outputs.port }}

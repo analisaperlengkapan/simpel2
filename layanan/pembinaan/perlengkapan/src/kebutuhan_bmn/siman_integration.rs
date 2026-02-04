@@ -377,20 +377,6 @@ impl SimanIntegration {
             return SimanAssetCategory::AngkutanBermotor;
         }
 
-        // Buildings
-        if name_lower.contains("gedung")
-            || name_lower.contains("bangunan")
-            || name_lower.contains("kantor")
-            || name_lower.contains("ruko")
-        {
-            return SimanAssetCategory::GedungBangunan;
-        }
-
-        // Land
-        if name_lower.contains("tanah") || name_lower.contains("lahan") {
-            return SimanAssetCategory::Tanah;
-        }
-
         // Furniture / Non-TIK equipment
         if name_lower.contains("meja")
             || name_lower.contains("kursi")
@@ -403,6 +389,20 @@ impl SimanIntegration {
             || name_lower.contains("dispenser")
         {
             return SimanAssetCategory::NonTIK;
+        }
+
+        // Buildings
+        if name_lower.contains("gedung")
+            || name_lower.contains("bangunan")
+            || name_lower.contains("kantor")
+            || name_lower.contains("ruko")
+        {
+            return SimanAssetCategory::GedungBangunan;
+        }
+
+        // Land
+        if name_lower.contains("tanah") || name_lower.contains("lahan") {
+            return SimanAssetCategory::Tanah;
         }
 
         // Default to Non-TIK for general equipment
@@ -418,11 +418,12 @@ impl SimanIntegration {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_infer_category_tik() {
-        let integration = SimanIntegration {
-            client: Arc::new(RwLock::new(unsafe { std::mem::zeroed() })),
-        };
+    #[tokio::test]
+    async fn test_infer_category_tik() {
+        let client = layanan_integrasi::MonsaktiClient::new(layanan_integrasi::Config::default())
+            .await
+            .unwrap();
+        let integration = SimanIntegration::new(client);
 
         assert_eq!(
             integration.infer_category("Laptop Dell Latitude"),
@@ -438,11 +439,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_infer_category_vehicle() {
-        let integration = SimanIntegration {
-            client: Arc::new(RwLock::new(unsafe { std::mem::zeroed() })),
-        };
+    #[tokio::test]
+    async fn test_infer_category_vehicle() {
+        let client = layanan_integrasi::MonsaktiClient::new(layanan_integrasi::Config::default())
+            .await
+            .unwrap();
+        let integration = SimanIntegration::new(client);
 
         assert_eq!(
             integration.infer_category("Mobil Toyota Avanza"),
@@ -454,11 +456,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_infer_category_non_tik() {
-        let integration = SimanIntegration {
-            client: Arc::new(RwLock::new(unsafe { std::mem::zeroed() })),
-        };
+    #[tokio::test]
+    async fn test_infer_category_non_tik() {
+        let client = layanan_integrasi::MonsaktiClient::new(layanan_integrasi::Config::default())
+            .await
+            .unwrap();
+        let integration = SimanIntegration::new(client);
 
         assert_eq!(
             integration.infer_category("Meja Kerja"),

@@ -14,6 +14,10 @@ mod tests {
             username: "testuser".to_string(),
             role: "admin".to_string(),
             permissions: vec![],
+            nama: Some("Test User".to_string()),
+            jabatan: Some("Admin".to_string()),
+            name: Some("Test User".to_string()),
+            nip: Some("123456789".to_string()),
         }
     }
 

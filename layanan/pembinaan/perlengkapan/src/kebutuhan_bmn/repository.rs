@@ -66,7 +66,7 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         &self,
         pengajuan_id: Uuid,
         satker_id: &str,
-        satker_name: Option<&str>,
+        satker_name: Option<String>,
         user_id: Option<Uuid>,
     ) -> AppResult<PengajuanKebutuhanBmnSatker>;
     async fn update_satker_status(
@@ -111,7 +111,7 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         from_status: Option<i32>,
         to_status: i32,
         aksi: &str,
-        komentar: Option<&str>,
+        komentar: Option<String>,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
     ) -> AppResult<PengajuanKebutuhanBmnAktivitas>;
@@ -522,7 +522,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         &self,
         pengajuan_id: Uuid,
         satker_id: &str,
-        satker_name: Option<&str>,
+        satker_name: Option<String>,
         user_id: Option<Uuid>,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
         let client = self.get_client().await?;
@@ -802,7 +802,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         from_status: Option<i32>,
         to_status: i32,
         aksi: &str,
-        komentar: Option<&str>,
+        komentar: Option<String>,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
     ) -> AppResult<PengajuanKebutuhanBmnAktivitas> {
