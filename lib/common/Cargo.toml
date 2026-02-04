@@ -56,6 +56,7 @@ tonic = { workspace = true, optional = true }
 
 [features]
 default = []
+integration-tests = []
 # Backend features - requires tokio runtime (not for WASM)
 backend = ["dep:tokio", "dep:ipnetwork"]
 redis-cache = ["backend", "dep:redis"]

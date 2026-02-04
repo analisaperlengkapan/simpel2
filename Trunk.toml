@@ -1,0 +1,6 @@
+[build]
+target = "index.html"
+
+[[build.wasm_opt]]
+enable_bulk_memory = true
+enable_nontrapping_float_to_int = true
