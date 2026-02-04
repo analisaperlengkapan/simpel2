@@ -108,7 +108,6 @@ jobs:
       - name: Fix permissions
         run: |
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -141,7 +140,9 @@ jobs:
       - name: Run integration tests
         working-directory: ${{ matrix.service }}
         run: |
-          cargo test --test '*' --features integration-tests -- --test-threads=1 --nocapture
+          # Run tests with integration-tests feature enabled
+          # This runs both unit tests and any integration tests (if they exist)
+          cargo test --features integration-tests -- --test-threads=1 --nocapture
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           REDIS_URL: ${{ env.REDIS_URL }}
@@ -164,7 +165,6 @@ jobs:
       - name: Fix permissions
         run: |
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -250,7 +250,6 @@ jobs:
       - name: Fix permissions
         run: |
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -316,7 +315,6 @@ jobs:
       - name: Fix permissions
         run: |
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
         uses: actions/checkout@v6

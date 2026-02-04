@@ -1580,6 +1580,7 @@ pub struct OcspClient {
     cache_duration: Duration,
 
     /// HTTP timeout for OCSP requests (default: 10 seconds)
+    #[allow(dead_code)]
     timeout: Duration,
 }
 

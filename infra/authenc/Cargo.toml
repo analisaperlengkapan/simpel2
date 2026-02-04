@@ -80,7 +80,7 @@ integration-tests = []
 
 # Quantum-resistant cryptography features
 quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
-# tpm = ["dep:tss-esapi"]
+tpm = [] # Feature flag for TPM support (disabled by default in CI)
 
 [dependencies]
 # Core async runtime

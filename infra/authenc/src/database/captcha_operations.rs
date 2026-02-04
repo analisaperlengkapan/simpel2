@@ -732,7 +732,7 @@ mod tests {
     #[tokio::test]
     async fn test_challenge_storage_and_retrieval() {
         let db = Database::mock().await;
-        let ops = CaptchaOperations::new(db);
+        let _ops = CaptchaOperations::new(db);
 
         let challenge = Challenge::new(
             ChallengeType::Visual,

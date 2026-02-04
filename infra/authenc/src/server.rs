@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn test_dual_server_creation() {
         let config = AppConfig::default();
-        let state = AppState::new(config);
+        let _state = AppState::new(config);
         // This will fail because we can't actually create AppState without a database
         // but it tests the DualServer::new function signature
         // let server = DualServer::new(state);
