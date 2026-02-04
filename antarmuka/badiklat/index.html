@@ -24,7 +24,7 @@
 
     <!-- Trunk WASM configuration -->
     <link data-trunk rel="rust" data-bin="badiklat-microfrontend" data-wasm-opt="z"
-        data-wasm-opt-params="--enable-bulk-memory" />
+        data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-extension" />
 
     <!-- Custom styles akan di-inject oleh Leptos -->
     <style>

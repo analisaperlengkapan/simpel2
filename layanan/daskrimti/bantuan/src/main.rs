@@ -160,6 +160,7 @@ fn setup_metrics() -> Result<Registry, AppError> {
 
 /// Create application router dengan semua middleware dan routes
 #[allow(deprecated)]
+#[allow(deprecated)]
 async fn create_app_router(state: AppState) -> Result<Router, AppError> {
     // CORS configuration
     let cors = CorsLayer::new()

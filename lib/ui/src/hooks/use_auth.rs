@@ -148,7 +148,7 @@ impl AuthContext {
                     use wasm_bindgen::JsValue;
                     use web_sys::{Request, RequestCredentials, RequestInit, RequestMode};
 
-                    let mut opts = RequestInit::new();
+                    let opts = RequestInit::new();
                     opts.set_method("GET");
                     opts.set_mode(RequestMode::Cors);
                     opts.set_credentials(RequestCredentials::Include);

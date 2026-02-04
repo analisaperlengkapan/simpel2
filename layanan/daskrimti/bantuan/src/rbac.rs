@@ -4,7 +4,6 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use deadpool_postgres::Pool;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(dead_code)]

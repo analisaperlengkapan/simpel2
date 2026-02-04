@@ -424,9 +424,9 @@ fn log_event(_event: &UserEvent) {
     {
         web_sys::console::log_1(&JsValue::from_str(&format!(
             "[Analytics] {} - {} (User: {:?})",
-            _event.event_type.as_str(),
-            _event.page,
-            _event.user_id
+            __event.event_type.as_str(),
+            __event.page,
+            __event.user_id
         )));
     }
 }
