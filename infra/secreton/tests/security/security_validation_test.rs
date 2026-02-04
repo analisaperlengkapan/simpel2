@@ -252,14 +252,18 @@ mod security_validation_tests {
         assert_eq!(verified_data, sensitive_data, "Integrity verification should succeed for unmodified data");
 
         // Test tampering detection
-        let mut tampered_data = protected_data.clone();
+        let tampered_data = protected_data.clone();
         if tampered_data.len() > 10 {
-            // Modify a byte in the middle
-            let tamper_pos = tampered_data.len() / 2;
-            let bytes = unsafe { tampered_data.as_bytes_mut() };
+            // Modify a byte in the middle safely
+            let mut bytes = tampered_data.into_bytes();
+            let tamper_pos = bytes.len() / 2;
             bytes[tamper_pos] = bytes[tamper_pos].wrapping_add(1);
 
-            let tamper_result = orchestrator.decrypt_and_verify_integrity(&tampered_data).await;
+            // Reconstruct string, handling potential UTF-8 invalidation if necessary
+            // For testing, we can just use from_utf8_lossy or try valid reconstruction
+            let tampered_string = String::from_utf8_lossy(&bytes).to_string();
+
+            let tamper_result = orchestrator.decrypt_and_verify_integrity(&tampered_string).await;
             assert!(tamper_result.is_err(), "Tampered data should fail integrity verification");
         }
 
