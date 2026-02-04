@@ -5,6 +5,9 @@
 use deadpool_postgres::Pool;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::sync::RwLock;
+use std::time::{Duration, Instant};
 
 use secreton_core::{
     error::CoreError,
@@ -45,13 +48,29 @@ pub struct TestPolicyResult {
     pub evaluation_time_ms: f64,
 }
 
+#[derive(Clone)]
+struct CachedPolicy {
+    rules: Vec<PolicyRule>,
+    fetched_at: Instant,
+}
+
 pub struct PolicyService {
     pool: Pool,
+    cache: RwLock<HashMap<String, CachedPolicy>>,
 }
+
+const CACHE_TTL: Duration = Duration::from_secs(60);
 
 impl PolicyService {
     pub fn new(pool: Pool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            cache: RwLock::new(HashMap::new()),
+        }
+    }
+
+    fn cache_key(namespace: &str, name: &str) -> String {
+        format!("{}:{}", namespace, name)
     }
 
     pub async fn get_rules_for_policies(
@@ -63,25 +82,65 @@ impl PolicyService {
             return Ok(Vec::new());
         }
 
+        let mut all_rules = Vec::new();
+        let mut missing_names = Vec::new();
+
+        // 1. Check cache first
+        {
+            let cache = self.cache.read().unwrap();
+            for name in names {
+                let key = Self::cache_key(namespace, name);
+                if let Some(entry) = cache.get(&key) {
+                    if entry.fetched_at.elapsed() < CACHE_TTL {
+                        all_rules.extend(entry.rules.clone());
+                        continue;
+                    }
+                }
+                missing_names.push(name.clone());
+            }
+        }
+
+        if missing_names.is_empty() {
+            return Ok(all_rules);
+        }
+
+        // 2. Fetch missing from DB
         let client = self.pool.get().await.map_err(|e| CoreError::Internal {
             message: format!("Database connection error: {}", e),
             source: None,
         })?;
 
-        let query = "SELECT rules FROM policies WHERE name = ANY($1) AND namespace = $2 AND is_active = true";
+        let query = "SELECT name, rules FROM policies WHERE name = ANY($1) AND namespace = $2 AND is_active = true";
         let rows = client
-            .query(query, &[&names, &namespace])
+            .query(query, &[&missing_names, &namespace])
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database query error: {}", e),
                 source: None,
             })?;
 
-        let mut all_rules = Vec::new();
+        let mut cache_update = HashMap::new();
+
         for row in rows {
-            let rules_json: serde_json::Value = row.get(0);
+            let name: String = row.get(0);
+            let rules_json: serde_json::Value = row.get(1);
             if let Ok(rules) = serde_json::from_value::<Vec<PolicyRule>>(rules_json) {
-                all_rules.extend(rules);
+                all_rules.extend(rules.clone());
+
+                let key = Self::cache_key(namespace, &name);
+                cache_update.insert(key, CachedPolicy {
+                    rules,
+                    fetched_at: Instant::now(),
+                });
+            }
+        }
+
+        // 3. Update cache
+        if !cache_update.is_empty() {
+            if let Ok(mut cache) = self.cache.write() {
+                for (k, v) in cache_update {
+                    cache.insert(k, v);
+                }
             }
         }
 
@@ -448,7 +507,7 @@ impl PolicyService {
         })?;
 
         let existing = client
-            .query_opt("SELECT id, version FROM policies WHERE name = $1", &[&name])
+            .query_opt("SELECT id, version, namespace FROM policies WHERE name = $1", &[&name])
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database error: {}", e),
@@ -458,6 +517,13 @@ impl PolicyService {
         let existing = existing.ok_or_else(|| CoreError::NotFound {
             resource: "policy".to_string(),
         })?;
+
+        let namespace: String = existing.get(2);
+
+        // Invalidate cache
+        if let Ok(mut cache) = self.cache.write() {
+            cache.remove(&Self::cache_key(&namespace, &name));
+        }
 
         let policy_id: i64 = existing.get(0);
         let current_version: i32 = existing.get(1);

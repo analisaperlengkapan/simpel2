@@ -52,7 +52,7 @@ impl PolicyService {
         &self,
         names: &[String],
         namespace: &str,
-    ) -> Vec<PolicyRule> {
+    ) -> Result<Vec<PolicyRule>, CoreError> {
         let mut rules = Vec::new();
 
         for name in names {
@@ -75,28 +75,38 @@ impl PolicyService {
             }
 
             // Fallback to storage (not in cache or expired)
-            if let Ok(policy) = self.get_policy(name).await {
-                // Validate namespace matches
-                if policy.namespace != namespace {
+            match self.get_policy(name).await {
+                Ok(policy) => {
+                    // Validate namespace matches
+                    if policy.namespace != namespace {
+                        continue;
+                    }
+
+                    if policy.is_active {
+                        // Update cache
+                        if let Ok(mut cache) = self.cache.write() {
+                            cache.insert(
+                                key,
+                                CachedPolicy {
+                                    definition: policy.clone(),
+                                    fetched_at: Instant::now(),
+                                },
+                            );
+                        }
+                        rules.extend(policy.rules);
+                    }
+                }
+                Err(CoreError::NotFound { .. }) => {
+                    // Ignore missing policies, but log if needed
                     continue;
                 }
-
-                if policy.is_active {
-                    // Update cache
-                    if let Ok(mut cache) = self.cache.write() {
-                        cache.insert(
-                            key,
-                            CachedPolicy {
-                                definition: policy.clone(),
-                                fetched_at: Instant::now(),
-                            },
-                        );
-                    }
-                    rules.extend(policy.rules);
+                Err(e) => {
+                    // Propagate other errors (e.g. storage failure)
+                    return Err(e);
                 }
             }
         }
-        rules
+        Ok(rules)
     }
 
     pub async fn create_policy(

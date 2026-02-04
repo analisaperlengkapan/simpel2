@@ -153,7 +153,7 @@ pub async fn inject_env(
             .and_then(|c| c.metadata.get("mfa_passed"))
             .map(|v| v == "true")
             .unwrap_or(false),
-        // Removed timestamp to allow policy result caching (Bug 6)
+        // Removed timestamp to allow policy result caching
     });
 
     // Load policies once
