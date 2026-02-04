@@ -25,9 +25,15 @@ impl Database {
         let mut config = Config::new();
         // Append search_path options to ensure connection uses perlengkapan schema
         let url = if database_url.contains("?") {
-            format!("{}&options=-c%20search_path=perlengkapan,integrasi,public", database_url)
+            format!(
+                "{}&options=-c%20search_path=perlengkapan,integrasi,public",
+                database_url
+            )
         } else {
-            format!("{}?options=-c%20search_path=perlengkapan,integrasi,public", database_url)
+            format!(
+                "{}?options=-c%20search_path=perlengkapan,integrasi,public",
+                database_url
+            )
         };
         config.url = Some(url);
 
