@@ -151,15 +151,18 @@ mod security_validation_tests {
                 println!("Admin has access to {}", resource);
             }
 
-            if regular_access.granted {
-                // Regular user access should be more restricted than admin
-                assert!(!regular_access.granted, "Regular user should not have more access than admin");
-                assert!(!regular_access.granted,
-                       "Regular user should not have more access than admin");
+            // Verify access control hierarchy
+            if admin_access.granted {
+                println!("Admin has access to {}", resource);
             }
 
+            if regular_access.granted {
+                // Regular user access should be more restricted than admin
             if guest_access.granted {
                 // Guest should have most restricted access
+                assert!(regular_access.granted, "Regular user should also have access if guest does");
+                assert!(admin_access.granted, "Admin should also have access if guest does");
+            }
                 assert!(regular_access.granted,
                        "Guest should not have more access than regular user");
             }
