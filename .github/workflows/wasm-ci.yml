@@ -25,6 +25,7 @@ env:
   CARGO_TERM_COLOR: always
   TRUNK_VERSION: "0.21.4"
   RUST_VERSION: "1.90.0"
+  CARGO_BUILD_JOBS: 2
 
 jobs:
   check-and-build:

@@ -20,6 +20,7 @@ env:
   RUSTFLAGS: "-D warnings"
   DATABASE_URL: postgres://simpelv2_test:integration_test_2024@localhost:5432/simpelv2_integration
   REDIS_URL: redis://localhost:6379
+  CARGO_BUILD_JOBS: 2
 
 jobs:
   setup-infrastructure:
@@ -91,6 +92,7 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         service:
           - layanan/authenc
