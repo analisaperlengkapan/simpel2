@@ -626,13 +626,22 @@ impl IntegrasiService for IntegrasiServiceImpl {
         let count_query = if req.kode_satker.is_empty() {
             "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai".to_string()
         } else {
-            format!(
-                "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai WHERE kode_satker = '{}'",
-                req.kode_satker
-            )
+            "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai WHERE kode_satker = $1".to_string()
         };
 
-        let total_items: i64 = match self.state.db_client.query_one(&count_query, &[]).await {
+        let count_params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+            if req.kode_satker.is_empty() {
+                vec![]
+            } else {
+                vec![&req.kode_satker]
+            };
+
+        let total_items: i64 = match self
+            .state
+            .db_client
+            .query_one(&count_query, &count_params)
+            .await
+        {
             Ok(row) => row.try_get(0).unwrap_or(0),
             Err(e) => {
                 error!("Failed to count mysimkari_pegawai: {}", e);
@@ -641,32 +650,40 @@ impl IntegrasiService for IntegrasiServiceImpl {
         };
 
         // Query data
-        let query = if req.kode_satker.is_empty() {
-            format!(
+        let (query, query_params) = if req.kode_satker.is_empty() {
+            (
                 r#"
                 SELECT nip, nama, jabatan, pangkat, golongan, unit_kerja,
                        kode_satker, email, telepon, status
                 FROM integrasi.mysimkari_pegawai
                 ORDER BY nama
-                LIMIT {} OFFSET {}
+                LIMIT $1 OFFSET $2
             "#,
-                per_page, offset
+                vec![
+                    &(per_page as i64) as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &offset,
+                ],
             )
         } else {
-            format!(
+            (
                 r#"
                 SELECT nip, nama, jabatan, pangkat, golongan, unit_kerja,
                        kode_satker, email, telepon, status
                 FROM integrasi.mysimkari_pegawai
-                WHERE kode_satker = '{}'
+                WHERE kode_satker = $1
                 ORDER BY nama
-                LIMIT {} OFFSET {}
+                LIMIT $2 OFFSET $3
             "#,
-                req.kode_satker, per_page, offset
+                vec![
+                    &req.kode_satker,
+                    &(per_page as i64),
+                    &offset,
+                ],
             )
         };
 
-        let items: Vec<MysimkariPegawai> = match self.state.db_client.query(&query, &[]).await {
+        let items: Vec<MysimkariPegawai> = match self.state.db_client.query(query, &query_params).await
+        {
             Ok(rows) => rows
                 .iter()
                 .map(|row| MysimkariPegawai {

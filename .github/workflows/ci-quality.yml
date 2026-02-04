@@ -57,8 +57,7 @@ jobs:
       - name: Documentation Build
         # Exclude tpm feature which requires system libraries (tss2-sys) not available in CI
         run: cargo doc --workspace --no-deps --all-features --exclude authenc --document-private-items
-        # Run authenc documentation separately without tpm feature
-        continue-on-error: true
+        # Removed continue-on-error: true to ensure legitimate failures in non-authenc crates fail the CI
 
       - name: Authenc Documentation
         # Explicitly enable features EXCEPT tpm (requires tss2-sys) and grpc (requires protoc)
