@@ -124,14 +124,22 @@ impl PolicyService {
         for row in rows {
             let name: String = row.get(0);
             let rules_json: serde_json::Value = row.get(1);
-            if let Ok(rules) = serde_json::from_value::<Vec<PolicyRule>>(rules_json) {
-                all_rules.extend(rules.clone());
+            match serde_json::from_value::<Vec<PolicyRule>>(rules_json) {
+                Ok(rules) => {
+                    all_rules.extend(rules.clone());
 
-                let key = Self::cache_key(namespace, &name);
-                cache_update.insert(key, CachedPolicy {
-                    rules,
-                    fetched_at: Instant::now(),
-                });
+                    let key = Self::cache_key(namespace, &name);
+                    cache_update.insert(key, CachedPolicy {
+                        rules,
+                        fetched_at: Instant::now(),
+                    });
+                }
+                Err(e) => {
+                    // Propagate deserialization error so bad policy data is detected
+                    return Err(CoreError::Validation {
+                        message: format!("Failed to deserialize rules for policy '{}': {}", name, e),
+                    });
+                }
             }
         }
 
@@ -357,6 +365,8 @@ impl PolicyService {
         })?;
 
         // Check if policy already exists
+        // NOTE: While schema might enforce global uniqueness on name, we check with namespace
+        // to be consistent with the multi-tenant model.
         let existing = client
             .query_opt(
                 "SELECT id FROM policies WHERE name = $1 AND namespace = $2",
@@ -450,6 +460,10 @@ impl PolicyService {
             source: None,
         })?;
 
+        // NOTE: Querying by name only assumes global uniqueness or returns the first match.
+        // If the schema allows same name in different namespaces, this is ambiguous.
+        // However, without changing the API signature to accept namespace, this is the best we can do.
+        // Ideally, we should enforce global uniqueness on `name` or require `namespace` in the API path/query.
         let row = client
             .query_opt(
                 "SELECT id, name, namespace, description, rules, version, is_active, created_at, updated_at, created_by, updated_by
@@ -632,8 +646,9 @@ impl PolicyService {
             source: None,
         })?;
 
+        // NOTE: Same ambiguity as get_policy regarding namespace
         let row = client
-            .query_opt("SELECT id FROM policies WHERE name = $1", &[&name])
+            .query_opt("SELECT id, namespace FROM policies WHERE name = $1", &[&name])
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database error: {}", e),
@@ -645,6 +660,12 @@ impl PolicyService {
         })?;
 
         let policy_id: i64 = row.get(0);
+        let namespace: String = row.get(1);
+
+        // Invalidate cache
+        if let Ok(mut cache) = self.cache.write() {
+            cache.remove(&Self::cache_key(&namespace, &name));
+        }
 
         // Dependencies check
         let deps = client

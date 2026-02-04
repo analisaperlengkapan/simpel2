@@ -532,23 +532,32 @@ pub async fn auth_middleware(
     });
 
     // Policy names
-    // Check metadata for 'policy_names' or 'policies'
-    let policy_names: Vec<String> = if let Some(p) = user
-        .metadata
-        .get("policy_names")
-        .or_else(|| user.metadata.get("policies"))
-    {
-        p.split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect()
-    } else {
-        // Default to role-based
-        user.roles
+    // Prioritize explicit policy bindings from user.policies, then check metadata
+    let mut policy_names: Vec<String> = user.policies.iter().cloned().collect();
+
+    // If no explicit policies, check metadata for 'policy_names' or 'policies'
+    if policy_names.is_empty() {
+        if let Some(p) = user
+            .metadata
+            .get("policy_names")
+            .or_else(|| user.metadata.get("policies"))
+        {
+            policy_names = p
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
+    }
+
+    // If still no policies, fallback to role-based policies
+    if policy_names.is_empty() {
+        policy_names = user
+            .roles
             .iter()
             .map(|r| format!("{}-policy", r.to_lowercase()))
-            .collect()
-    };
+            .collect();
+    }
 
     // Create request context
     let context = RequestContext {
