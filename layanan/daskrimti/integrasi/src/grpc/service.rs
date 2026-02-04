@@ -248,8 +248,26 @@ impl IntegrasiService for IntegrasiServiceImpl {
         );
 
         // Count total
-        let count_query = "SELECT COUNT(*) FROM integrasi.per_persediaan";
-        let total_items: i64 = match self.state.db_client.query_one(count_query, &[]).await {
+        let (count_query, count_params): (String, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
+            if req.kode_satker.is_empty() {
+                (
+                    "SELECT COUNT(*) FROM integrasi.per_persediaan".to_string(),
+                    vec![],
+                )
+            } else {
+                (
+                    "SELECT COUNT(*) FROM integrasi.per_persediaan WHERE kode_satker = $1"
+                        .to_string(),
+                    vec![&req.kode_satker],
+                )
+            };
+
+        let total_items: i64 = match self
+            .state
+            .db_client
+            .query_one(&count_query, &count_params)
+            .await
+        {
             Ok(row) => row.try_get(0).unwrap_or(0),
             Err(e) => {
                 error!("Failed to count persediaan: {}", e);
@@ -258,19 +276,36 @@ impl IntegrasiService for IntegrasiServiceImpl {
         };
 
         // Query data
-        let query = r#"
-            SELECT id, kode_satker, kode_barang, nama_barang, satuan,
-                   jumlah, harga_satuan, total_nilai, tahun_anggaran
-            FROM integrasi.per_persediaan
-            ORDER BY id
-            LIMIT $1 OFFSET $2
-        "#;
+        let per_page_i64 = per_page as i64;
+        let (query, params): (String, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
+            if req.kode_satker.is_empty() {
+                (
+                    r#"
+                SELECT id, kode_satker, kode_barang, nama_barang, satuan,
+                       jumlah, harga_satuan, total_nilai, tahun_anggaran
+                FROM integrasi.per_persediaan
+                ORDER BY id
+                LIMIT $1 OFFSET $2
+            "#
+                    .to_string(),
+                    vec![&per_page_i64, &offset],
+                )
+            } else {
+                (
+                    r#"
+                SELECT id, kode_satker, kode_barang, nama_barang, satuan,
+                       jumlah, harga_satuan, total_nilai, tahun_anggaran
+                FROM integrasi.per_persediaan
+                WHERE kode_satker = $1
+                ORDER BY id
+                LIMIT $2 OFFSET $3
+            "#
+                    .to_string(),
+                    vec![&req.kode_satker, &per_page_i64, &offset],
+                )
+            };
 
-        let items: Vec<MonsaktiPersediaan> = match self
-            .state
-            .db_client
-            .query(query, &[&(per_page as i64), &offset])
-            .await
+        let items: Vec<MonsaktiPersediaan> = match self.state.db_client.query(&query, &params).await
         {
             Ok(rows) => rows
                 .iter()
@@ -318,8 +353,26 @@ impl IntegrasiService for IntegrasiServiceImpl {
         );
 
         // Count total
-        let count_query = "SELECT COUNT(*) FROM integrasi.ast_aset_tetap";
-        let total_items: i64 = match self.state.db_client.query_one(count_query, &[]).await {
+        let (count_query, count_params): (String, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
+            if req.kode_satker.is_empty() {
+                (
+                    "SELECT COUNT(*) FROM integrasi.ast_aset_tetap".to_string(),
+                    vec![],
+                )
+            } else {
+                (
+                    "SELECT COUNT(*) FROM integrasi.ast_aset_tetap WHERE data->>'kdsatker' = $1"
+                        .to_string(),
+                    vec![&req.kode_satker],
+                )
+            };
+
+        let total_items: i64 = match self
+            .state
+            .db_client
+            .query_one(&count_query, &count_params)
+            .await
+        {
             Ok(row) => row.try_get(0).unwrap_or(0),
             Err(e) => {
                 error!("Failed to count aset_tetap: {}", e);
@@ -328,18 +381,34 @@ impl IntegrasiService for IntegrasiServiceImpl {
         };
 
         // Query data (using generic structure since actual columns may vary)
-        let query = r#"
-            SELECT id, data
-            FROM integrasi.ast_aset_tetap
-            ORDER BY id
-            LIMIT $1 OFFSET $2
-        "#;
+        let per_page_i64 = per_page as i64;
+        let (query, params): (String, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
+            if req.kode_satker.is_empty() {
+                (
+                    r#"
+                SELECT id, data
+                FROM integrasi.ast_aset_tetap
+                ORDER BY id
+                LIMIT $1 OFFSET $2
+            "#
+                    .to_string(),
+                    vec![&per_page_i64, &offset],
+                )
+            } else {
+                (
+                    r#"
+                SELECT id, data
+                FROM integrasi.ast_aset_tetap
+                WHERE data->>'kdsatker' = $1
+                ORDER BY id
+                LIMIT $2 OFFSET $3
+            "#
+                    .to_string(),
+                    vec![&req.kode_satker, &per_page_i64, &offset],
+                )
+            };
 
-        let items: Vec<MonsaktiAsetTetap> = match self
-            .state
-            .db_client
-            .query(query, &[&(per_page as i64), &offset])
-            .await
+        let items: Vec<MonsaktiAsetTetap> = match self.state.db_client.query(&query, &params).await
         {
             Ok(rows) => rows
                 .iter()
@@ -396,8 +465,26 @@ impl IntegrasiService for IntegrasiServiceImpl {
         );
 
         // Count total
-        let count_query = "SELECT COUNT(*) FROM integrasi.ang_transaksi";
-        let total_items: i64 = match self.state.db_client.query_one(count_query, &[]).await {
+        let (count_query, count_params): (String, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
+            if req.kode_satker.is_empty() {
+                (
+                    "SELECT COUNT(*) FROM integrasi.ang_transaksi".to_string(),
+                    vec![],
+                )
+            } else {
+                (
+                    "SELECT COUNT(*) FROM integrasi.ang_transaksi WHERE data->>'kdsatker' = $1"
+                        .to_string(),
+                    vec![&req.kode_satker],
+                )
+            };
+
+        let total_items: i64 = match self
+            .state
+            .db_client
+            .query_one(&count_query, &count_params)
+            .await
+        {
             Ok(row) => row.try_get(0).unwrap_or(0),
             Err(e) => {
                 error!("Failed to count transaksi: {}", e);
@@ -406,18 +493,34 @@ impl IntegrasiService for IntegrasiServiceImpl {
         };
 
         // Query data
-        let query = r#"
-            SELECT id, data
-            FROM integrasi.ang_transaksi
-            ORDER BY id
-            LIMIT $1 OFFSET $2
-        "#;
+        let per_page_i64 = per_page as i64;
+        let (query, params): (String, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
+            if req.kode_satker.is_empty() {
+                (
+                    r#"
+                SELECT id, data
+                FROM integrasi.ang_transaksi
+                ORDER BY id
+                LIMIT $1 OFFSET $2
+            "#
+                    .to_string(),
+                    vec![&per_page_i64, &offset],
+                )
+            } else {
+                (
+                    r#"
+                SELECT id, data
+                FROM integrasi.ang_transaksi
+                WHERE data->>'kdsatker' = $1
+                ORDER BY id
+                LIMIT $2 OFFSET $3
+            "#
+                    .to_string(),
+                    vec![&req.kode_satker, &per_page_i64, &offset],
+                )
+            };
 
-        let items: Vec<MonsaktiTransaksi> = match self
-            .state
-            .db_client
-            .query(query, &[&(per_page as i64), &offset])
-            .await
+        let items: Vec<MonsaktiTransaksi> = match self.state.db_client.query(&query, &params).await
         {
             Ok(rows) => rows
                 .iter()
