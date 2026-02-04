@@ -75,6 +75,7 @@ dev = [
 rbac = []
 flate2 = [] # Now part of main dependencies
 test = ["dep:reqwest"]
+integration-tests = []
 admin_console = []
 
 # Quantum-resistant cryptography features

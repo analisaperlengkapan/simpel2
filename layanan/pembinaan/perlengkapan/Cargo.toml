@@ -9,6 +9,9 @@ description = "Layanan Perlengkapan untuk manajemen BMN Kejaksaan RI"
 name = "layanan-perlengkapan"
 path = "src/main.rs"
 
+[features]
+integration-tests = []
+
 [dependencies]
 # Web framework
 axum = { workspace = true }
