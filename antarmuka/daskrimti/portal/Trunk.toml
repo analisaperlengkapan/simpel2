@@ -2,17 +2,7 @@
 target = "index.html"
 dist = "dist"
 release = true
-
-# WASM optimization - aggressive size reduction for code splitting
-[[build.wasm_opt]]
-args = [
-  "-Oz",               # Maximum size optimization
-  "--enable-all",      # Enable all features
-  "--strip-debug",     # Remove debug information
-  "--strip-producers", # Remove producer metadata
-  "--strip-dwarf",     # Remove DWARF debug info
-  "--vacuum",          # Remove unused code
-]
+wasm_opt = false
 
 # Advanced wasm-bindgen configuration
 [build.wasm-bindgen]

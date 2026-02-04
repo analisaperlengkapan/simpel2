@@ -2,6 +2,4 @@
 target = "index.html"
 dist = "dist"
 release = true
-
-[[build.wasm_opt]]
-args = ["-Oz", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-extension", "--enable-reference-types"]
+wasm_opt = false

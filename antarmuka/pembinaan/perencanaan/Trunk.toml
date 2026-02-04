@@ -1,6 +1,7 @@
 [build]
 target = "index.html"
 dist = "dist"
+wasm_opt = false
 
 [[build.wasm-bindgen]]
 target = "web"

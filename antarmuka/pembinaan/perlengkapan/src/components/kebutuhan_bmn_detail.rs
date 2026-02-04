@@ -141,6 +141,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                         let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
                         let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
                         let allowed_transitions = d.allowed_transitions.clone();
+                        let allowed_transitions_for_view = allowed_transitions.clone();
 
                         view! {
                             <div class="space-y-6">
@@ -208,12 +209,12 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                 </Show>
 
                                 // Workflow transitions
-                                <Show when=move || !allowed_transitions.is_empty()>
+                                <Show when=move || !allowed_transitions_for_view.is_empty()>
                                     <div class="bg-gray-50 rounded-lg p-4">
                                         <div class="text-gray-600 text-sm font-medium mb-3">"Aksi Workflow"</div>
                                         <div class="flex flex-wrap gap-3">
                                             <For
-                                                each=move || allowed_transitions.clone()
+                                                each=move || allowed_transitions_for_view.clone()
                                                 key=|t| t.status_kode
                                                 children=move |transition| {
                                                     let status_kode = transition.status_kode;

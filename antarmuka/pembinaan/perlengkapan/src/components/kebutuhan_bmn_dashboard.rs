@@ -51,6 +51,10 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
             }>
                 {move || {
                     stats_resource.get().flatten().map(|stats| {
+                        let by_tahun = stats.by_tahun.clone();
+                        let by_status = stats.by_status.clone();
+                        let max_val_year = stats.by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
+
                         view! {
                             <div class="space-y-6">
                                 // Main stats cards
@@ -162,11 +166,10 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         >
                                             <div class="space-y-3">
                                                 <For
-                                                    each=move || stats.by_tahun.clone()
+                                                    each=move || by_tahun.clone()
                                                     key=|s| s.tahun
                                                     children=move |item| {
-                                                        let max_val = stats.by_tahun.iter().map(|s| s.total).max().unwrap_or(1);
-                                                        let width_pct = (item.total as f64 / max_val as f64 * 100.0) as i32;
+                                                        let width_pct = (item.total as f64 / max_val_year as f64 * 100.0) as i32;
                                                         view! {
                                                             <div class="flex items-center gap-3">
                                                                 <span class="w-16 text-sm font-medium text-gray-600">{item.tahun}</span>
@@ -201,7 +204,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                         >
                                             <div class="space-y-3">
                                                 <For
-                                                    each=move || stats.by_status.clone()
+                                                    each=move || by_status.clone()
                                                     key=|s| s.status_kode
                                                     children=move |item| {
                                                         let status = KebutuhanBmnStatus::from_code(item.status_kode);

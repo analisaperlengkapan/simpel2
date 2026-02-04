@@ -2,27 +2,7 @@
 target = "index.html"
 dist = "dist"
 release = true
-
-# Advanced WASM optimization
-[[build.wasm_opt]]
-args = [
-    "-Oz",                    # Maximum size optimization
-    "--enable-bulk-memory",   # Enable bulk memory operations
-    "--strip-debug",          # Remove debug information
-    "--dce",                  # Dead code elimination
-    "--vacuum",               # Final vacuum pass
-]
-
-# Advanced wasm-bindgen configuration
-[[build.wasm-bindgen]]
-target = "web"
-typescript = false         # Disable TS generation for smaller bundles
-debug = false             # No debug in production
-
-[build.rust]
-optimization-level = "z"   # Maximum size optimization
-debug = false
-lto = true
+wasm_opt = false
 
 [serve]
 port = 8083
