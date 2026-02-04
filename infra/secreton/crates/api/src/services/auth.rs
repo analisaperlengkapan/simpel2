@@ -41,6 +41,8 @@ struct StoredUser {
     pub last_login: Option<chrono::DateTime<chrono::Utc>>,
     pub mfa_enabled: bool,
     pub roles: HashSet<String>,
+    #[serde(default)]
+    pub policies: HashSet<String>,
     pub namespace: String,
     pub is_locked: bool,
     pub failed_attempts: u32,
@@ -63,6 +65,7 @@ impl From<&User> for StoredUser {
             last_login: user.last_login,
             mfa_enabled: user.mfa_enabled,
             roles: user.roles.clone(),
+            policies: user.policies.clone(),
             namespace: user.namespace.clone(),
             is_locked: user.is_locked,
             failed_attempts: user.failed_attempts,
@@ -87,7 +90,7 @@ impl From<StoredUser> for User {
             last_login: stored.last_login,
             mfa_enabled: stored.mfa_enabled,
             roles: stored.roles,
-            policies: std::collections::HashSet::new(), // StoredUser in API crate doesn't have policies yet
+            policies: stored.policies,
             namespace: stored.namespace,
             is_locked: stored.is_locked,
             failed_attempts: stored.failed_attempts,
@@ -142,6 +145,8 @@ struct Claims {
     iat: usize,
     jti: String,
     roles: Vec<String>,
+    #[serde(default)]
+    policies: Vec<String>,
     token_type: String, // "access" or "refresh"
     // Extended claims for stateless validation
     username: String,
@@ -415,7 +420,7 @@ impl AuthService {
             last_login: Some(chrono::Utc::now()), // Active now
             mfa_enabled: claims.mfa_enabled,
             roles: claims.roles.into_iter().collect(),
-            policies: std::collections::HashSet::new(), // Not present in legacy JWTs
+            policies: claims.policies.into_iter().collect(),
             namespace: claims.namespace,
             is_locked: false,
             failed_attempts: 0,
@@ -956,6 +961,9 @@ impl AuthService {
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
 
+        let mut policies: Vec<String> = user.policies.iter().cloned().collect();
+        policies.sort();
+
         let claims = Claims {
             sub: user.id.to_string(),
             iss: config.jwt.issuer.clone(),
@@ -964,6 +972,7 @@ impl AuthService {
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
             roles,
+            policies,
             token_type: "access".to_string(),
             username: user.username.clone(),
             email: user.email.clone(),
@@ -1001,6 +1010,9 @@ impl AuthService {
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
 
+        let mut policies: Vec<String> = user.policies.iter().cloned().collect();
+        policies.sort();
+
         let claims = Claims {
             sub: user.id.to_string(),
             iss: config.jwt.issuer.clone(),
@@ -1009,6 +1021,7 @@ impl AuthService {
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
             roles,
+            policies,
             token_type: "refresh".to_string(),
             username: user.username.clone(),
             email: user.email.clone(),

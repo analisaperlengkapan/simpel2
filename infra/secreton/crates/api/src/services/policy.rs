@@ -54,27 +54,28 @@ impl PolicyService {
         Self { pool }
     }
 
-    pub async fn get_rules_for_policies(&self, names: &[String]) -> Vec<PolicyRule> {
+    pub async fn get_rules_for_policies(
+        &self,
+        names: &[String],
+        namespace: &str,
+    ) -> Result<Vec<PolicyRule>, CoreError> {
         if names.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
-        let client = match self.pool.get().await {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::error!("Database connection error: {}", e);
-                return Vec::new();
-            }
-        };
+        let client = self.pool.get().await.map_err(|e| CoreError::Internal {
+            message: format!("Database connection error: {}", e),
+            source: None,
+        })?;
 
-        let query = "SELECT rules FROM policies WHERE name = ANY($1) AND is_active = true";
-        let rows = match client.query(query, &[&names]).await {
-            Ok(r) => r,
-            Err(e) => {
-                tracing::error!("Database query error: {}", e);
-                return Vec::new();
-            }
-        };
+        let query = "SELECT rules FROM policies WHERE name = ANY($1) AND namespace = $2 AND is_active = true";
+        let rows = client
+            .query(query, &[&names, &namespace])
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: format!("Database query error: {}", e),
+                source: None,
+            })?;
 
         let mut all_rules = Vec::new();
         for row in rows {
@@ -84,7 +85,7 @@ impl PolicyService {
             }
         }
 
-        all_rules
+        Ok(all_rules)
     }
 
     pub async fn list_policy_names(

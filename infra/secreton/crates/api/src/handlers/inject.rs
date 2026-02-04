@@ -153,11 +153,18 @@ pub async fn inject_env(
             .and_then(|c| c.metadata.get("mfa_passed"))
             .map(|v| v == "true")
             .unwrap_or(false),
-        "timestamp": chrono::Utc::now().to_rfc3339(),
+        // Removed timestamp to allow policy result caching (Bug 6)
     });
 
     // Load policies once
-    let rules = state.policy_service.get_rules_for_policies(&ctx.policy_names).await;
+    let namespace = ctx.derive_namespace();
+    let rules = state
+        .policy_service
+        .get_rules_for_policies(&ctx.policy_names, &namespace)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
     let policy_set = secreton_core::services::policy::PolicySet::new(rules);
 
     for secret_config in &request.secrets {
@@ -252,7 +259,14 @@ pub async fn cleanup_session(
     let is_owner = session.created_by == user_id && user_id != "anonymous";
 
     if !is_owner {
-        let rules = state.policy_service.get_rules_for_policies(&ctx.policy_names).await;
+        let namespace = ctx.derive_namespace();
+        let rules = state
+            .policy_service
+            .get_rules_for_policies(&ctx.policy_names, &namespace)
+            .await
+            .map_err(|e| ApiError::Internal {
+                message: e.to_string(),
+            })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
         if !policy_set.evaluate(user_id, "sys/inject/sessions", "delete", None) {
             return Err(ApiError::Forbidden);
@@ -286,7 +300,14 @@ pub async fn list_sessions(
     // Authorization check
     let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
     {
-        let rules = state.policy_service.get_rules_for_policies(&ctx.policy_names).await;
+        let namespace = ctx.derive_namespace();
+        let rules = state
+            .policy_service
+            .get_rules_for_policies(&ctx.policy_names, &namespace)
+            .await
+            .map_err(|e| ApiError::Internal {
+                message: e.to_string(),
+            })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
         if !policy_set.evaluate(user_id, "sys/inject/sessions", "list", None) {
             return Err(ApiError::Forbidden);
@@ -309,7 +330,14 @@ pub async fn get_session_details(
     // Authorization check
     let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
     {
-        let rules = state.policy_service.get_rules_for_policies(&ctx.policy_names).await;
+        let namespace = ctx.derive_namespace();
+        let rules = state
+            .policy_service
+            .get_rules_for_policies(&ctx.policy_names, &namespace)
+            .await
+            .map_err(|e| ApiError::Internal {
+                message: e.to_string(),
+            })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
         if !policy_set.evaluate(user_id, "sys/inject/sessions", "read", None) {
             return Err(ApiError::Forbidden);

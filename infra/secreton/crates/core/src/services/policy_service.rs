@@ -6,6 +6,7 @@ use secreton_storage::{QueryParams, SecretEntry, SecurityLevel, StorageBackend};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyDefinition {
@@ -21,10 +22,18 @@ pub struct PolicyDefinition {
     pub is_active: bool,
 }
 
+#[derive(Clone)]
+struct CachedPolicy {
+    definition: PolicyDefinition,
+    fetched_at: Instant,
+}
+
 pub struct PolicyService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
-    cache: RwLock<HashMap<String, PolicyDefinition>>,
+    cache: RwLock<HashMap<String, CachedPolicy>>, // Key: "{namespace}:{name}"
 }
+
+const CACHE_TTL: Duration = Duration::from_secs(60);
 
 impl PolicyService {
     pub fn new(storage: Arc<dyn StorageBackend + Send + Sync>) -> Self {
@@ -34,31 +43,54 @@ impl PolicyService {
         }
     }
 
+    fn cache_key(namespace: &str, name: &str) -> String {
+        format!("{}:{}", namespace, name)
+    }
+
     /// Aggregate rules from a list of policy names
-    pub async fn get_rules_for_policies(&self, names: &[String]) -> Vec<PolicyRule> {
+    pub async fn get_rules_for_policies(
+        &self,
+        names: &[String],
+        namespace: &str,
+    ) -> Vec<PolicyRule> {
         let mut rules = Vec::new();
 
         for name in names {
+            let key = Self::cache_key(namespace, name);
+
             // Check cache first
             let cached_policy = if let Ok(cache) = self.cache.read() {
-                cache.get(name).cloned()
+                cache.get(&key).cloned()
             } else {
                 None
             };
 
-            if let Some(policy) = cached_policy {
-                if policy.is_active {
-                    rules.extend(policy.rules);
+            if let Some(entry) = cached_policy {
+                if entry.fetched_at.elapsed() < CACHE_TTL {
+                    if entry.definition.is_active {
+                        rules.extend(entry.definition.rules);
+                    }
+                    continue;
                 }
-                continue;
             }
 
-            // Fallback to storage
+            // Fallback to storage (not in cache or expired)
             if let Ok(policy) = self.get_policy(name).await {
+                // Validate namespace matches
+                if policy.namespace != namespace {
+                    continue;
+                }
+
                 if policy.is_active {
                     // Update cache
                     if let Ok(mut cache) = self.cache.write() {
-                        cache.insert(name.clone(), policy.clone());
+                        cache.insert(
+                            key,
+                            CachedPolicy {
+                                definition: policy.clone(),
+                                fetched_at: Instant::now(),
+                            },
+                        );
                     }
                     rules.extend(policy.rules);
                 }
@@ -164,6 +196,10 @@ impl PolicyService {
     }
 
     pub async fn delete_policy(&self, name: &str) -> Result<(), CoreError> {
+        // We need the policy to know the namespace for cache invalidation
+        let policy = self.get_policy(name).await?;
+        let key = Self::cache_key(&policy.namespace, name);
+
         let path = format!("sys/policies/{}", name);
         let deleted =
             self.storage
@@ -177,7 +213,7 @@ impl PolicyService {
         if deleted {
             // Remove from cache
             if let Ok(mut cache) = self.cache.write() {
-                cache.remove(name);
+                cache.remove(&key);
             }
             Ok(())
         } else {
@@ -270,8 +306,15 @@ impl PolicyService {
             })?;
 
         // Update cache
+        let key = Self::cache_key(&policy.namespace, &policy.name);
         if let Ok(mut cache) = self.cache.write() {
-            cache.insert(policy.name.clone(), policy.clone());
+            cache.insert(
+                key,
+                CachedPolicy {
+                    definition: policy.clone(),
+                    fetched_at: Instant::now(),
+                },
+            );
         }
 
         Ok(())

@@ -1065,11 +1065,22 @@ pub async fn policy_check_middleware(
         let policy_context = build_policy_context(ctx, &request);
 
         // Get rules from policy service based on user's policy names
+        let namespace = ctx.derive_namespace();
         let rules = state
             .services
             .policy_service
-            .get_rules_for_policies(&ctx.policy_names)
-            .await;
+            .get_rules_for_policies(&ctx.policy_names, &namespace)
+            .await
+            .map_err(|e| {
+                warn!("Failed to load policies: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "error": "Internal error loading policies"
+                    })),
+                )
+                    .into_response()
+            })?;
 
         // Create temporary policy set for evaluation
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
@@ -1188,7 +1199,7 @@ fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::
             .and_then(|c| c.metadata.get("mfa_passed"))
             .map(|v| v == "true")
             .unwrap_or(false),
-        "timestamp": chrono::Utc::now().to_rfc3339(),
+        // Removed timestamp to allow policy result caching
     })
 }
 
