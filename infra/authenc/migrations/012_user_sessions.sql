@@ -1,5 +1,8 @@
 -- User Sessions Table
 -- Stores active user authentication sessions with tokens and metadata
+-- Drop existing table from 001 if it exists to ensure new schema is applied
+DROP TABLE IF EXISTS user_sessions CASCADE;
+
 -- Create user_sessions table if it doesn't exist
 CREATE TABLE IF NOT EXISTS user_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -123,7 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_refresh_token_hash ON user_sessions
 CREATE INDEX IF NOT EXISTS idx_user_sessions_offline_token_hash ON user_sessions(offline_token_hash) WHERE offline_token_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at) WHERE NOT revoked;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_idle_expires_at ON user_sessions(idle_expires_at) WHERE NOT revoked AND idle_expires_at IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, realm_id) WHERE NOT revoked; -- Removed non-immutable NOW() check
+CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, realm_id) WHERE NOT revoked;
 
 CREATE INDEX IF NOT EXISTS idx_device_sessions_device_id ON device_sessions(device_id);
 CREATE INDEX IF NOT EXISTS idx_device_sessions_user_id ON device_sessions(user_id);
@@ -136,7 +139,7 @@ CREATE INDEX IF NOT EXISTS idx_offline_tokens_user_id ON offline_tokens(user_id)
 CREATE INDEX IF NOT EXISTS idx_offline_tokens_realm_id ON offline_tokens(realm_id);
 CREATE INDEX IF NOT EXISTS idx_offline_tokens_client_id ON offline_tokens(client_id);
 CREATE INDEX IF NOT EXISTS idx_offline_tokens_token_hash ON offline_tokens(token_hash);
-CREATE INDEX IF NOT EXISTS idx_offline_tokens_active ON offline_tokens(user_id, realm_id) WHERE NOT revoked; -- Removed non-immutable NOW() check
+CREATE INDEX IF NOT EXISTS idx_offline_tokens_active ON offline_tokens(user_id, realm_id) WHERE NOT revoked;
 
 CREATE INDEX IF NOT EXISTS idx_refresh_token_history_session_id ON refresh_token_history(user_session_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_token_history_rotated_at ON refresh_token_history(rotated_at);

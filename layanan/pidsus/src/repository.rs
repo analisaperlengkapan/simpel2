@@ -203,6 +203,7 @@ mod tests {
     use std::time::Instant;
 
     #[tokio::test]
+    #[ignore] // This test requires a populated database with 'pidsus.cases' table
     async fn test_get_stats_benchmark() {
         // Attempt to connect to DB. If not available, skip test.
         let db_url = env::var("DATABASE_URL")

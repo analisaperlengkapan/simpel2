@@ -18,6 +18,8 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
+  # Limit parallel build jobs to prevent OOM/IO errors on self-hosted runners
+  CARGO_BUILD_JOBS: 2
   # Default DB URL, will be overridden dynamically in jobs
   DATABASE_URL: postgres://simpelv2_test:integration_test_2024@localhost:5432/simpelv2_integration
   REDIS_URL: redis://localhost:6379
