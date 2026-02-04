@@ -132,7 +132,7 @@ pub fn AudioChallenge(
                              </Button>
                          }.into_any()
                      } else {
-                         let _: () = view! {};
+                         view! {};
                          ().into_any()
                      }}
                  </div>
@@ -530,7 +530,7 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
                         let future = wasm_bindgen_futures::JsFuture::from(p);
                         let resolve_play_error = resolve.clone();
                         spawn_local(async move {
-                            if let Err(_) = future.await {
+                            if (future.await).is_err() {
                                 let _ = resolve_play_error.call0(&wasm_bindgen::JsValue::NULL);
                             }
                         });

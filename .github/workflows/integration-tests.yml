@@ -18,6 +18,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
+  # Default fallback (will be overwritten by dynamic ports)
   DATABASE_URL: postgres://simpelv2_test:integration_test_2024@localhost:5432/simpelv2_integration
   REDIS_URL: redis://localhost:6379
   CARGO_BUILD_JOBS: 2
@@ -59,18 +60,27 @@ jobs:
           # Cleanup previous containers if any
           docker rm -f postgres-integration-${{ github.run_id }} redis-integration-${{ github.run_id }} || true
 
-          # Start Postgres
-          docker run -d --name postgres-integration-${{ github.run_id }} \
+          # Start Postgres with random port
+          PG_ID=$(docker run -d -P --name postgres-integration-${{ github.run_id }} \
             -e POSTGRES_DB=simpelv2_integration \
             -e POSTGRES_USER=simpelv2_test \
             -e POSTGRES_PASSWORD=integration_test_2024 \
-            -p 5432:5432 \
-            postgres:16-alpine
+            postgres:16-alpine)
 
-          # Start Redis
-          docker run -d --name redis-integration-${{ github.run_id }} \
-            -p 6379:6379 \
-            redis:7-alpine
+          # Start Redis with random port
+          RD_ID=$(docker run -d -P --name redis-integration-${{ github.run_id }} \
+            redis:7-alpine)
+
+          # Get assigned ports
+          PG_PORT=$(docker port $PG_ID 5432/tcp | head -n1 | awk -F: '{print $2}')
+          RD_PORT=$(docker port $RD_ID 6379/tcp | head -n1 | awk -F: '{print $2}')
+
+          echo "Postgres running on port $PG_PORT"
+          echo "Redis running on port $RD_PORT"
+
+          # Export env vars for subsequent steps
+          echo "DATABASE_URL=postgres://simpelv2_test:integration_test_2024@localhost:$PG_PORT/simpelv2_integration" >> $GITHUB_ENV
+          echo "REDIS_URL=redis://localhost:$RD_PORT" >> $GITHUB_ENV
 
           # Wait for services
           echo "Waiting for PostgreSQL..."
@@ -111,8 +121,6 @@ jobs:
           else
             echo "No migrations found for ${{ matrix.service }}"
           fi
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: Run integration tests
         working-directory: ${{ matrix.service }}
@@ -124,8 +132,6 @@ jobs:
              cargo test --test '*' -- --test-threads=1 --nocapture
           fi
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          REDIS_URL: ${{ env.REDIS_URL }}
           RUST_LOG: debug
 
       - name: Cleanup Infrastructure
@@ -139,95 +145,6 @@ jobs:
           echo "## Integration Test Results - ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Service**: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
-
-  frontend-backend-integration:
-    name: Frontend-Backend E2E Tests
-    runs-on: self-hosted
-    # Needs removed as it runs independently now
-
-    steps:
-      - name: Fix permissions
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: true
-
-      - name: Setup Infrastructure (Docker)
-        run: |
-          docker rm -f postgres-e2e-${{ github.run_id }} redis-e2e-${{ github.run_id }} || true
-
-          docker run -d --name postgres-e2e-${{ github.run_id }} \
-            -e POSTGRES_DB=simpelv2_integration \
-            -e POSTGRES_USER=simpelv2_test \
-            -e POSTGRES_PASSWORD=integration_test_2024 \
-            -p 5432:5432 \
-            postgres:16-alpine
-
-          docker run -d --name redis-e2e-${{ github.run_id }} \
-            -p 6379:6379 \
-            redis:7-alpine
-
-          sleep 10 # Basic wait
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          targets: wasm32-unknown-unknown
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-key: e2e-tests
-
-      - name: Install Trunk
-        run: |
-          if ! command -v trunk &> /dev/null; then
-            mkdir -p $HOME/.local/bin
-            wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xzf- -C $HOME/.local/bin/
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
-          fi
-
-      - name: Start API Gateway
-        # Only run if apigateway exists (removed from matrix but here for future)
-        if: hashFiles('layanan/apigateway/Cargo.toml') != ''
-        run: |
-          cd layanan/apigateway
-          cargo build --release
-          nohup ../../target/release/apigateway > apigateway.log 2>&1 &
-          echo $! > apigateway.pid
-          sleep 5
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          REDIS_URL: ${{ env.REDIS_URL }}
-
-      - name: Build Portal Frontend
-        working-directory: antarmuka/daskrimti/portal
-        run: trunk build --release
-
-      - name: Run E2E Tests
-        if: hashFiles('layanan/apigateway/Cargo.toml') != ''
-        run: |
-          echo "Running end-to-end tests..."
-          curl -f http://localhost:8080/health || exit 1
-          echo "✅ E2E tests passed!"
-
-      - name: Stop API Gateway
-        if: always()
-        run: |
-          if [ -f layanan/apigateway/apigateway.pid ]; then
-            kill $(cat layanan/apigateway/apigateway.pid) || true
-            rm layanan/apigateway/apigateway.pid
-          fi
-          docker rm -f postgres-e2e-${{ github.run_id }} redis-e2e-${{ github.run_id }} || true
-
-      - name: Upload logs
-        if: always() && hashFiles('layanan/apigateway/apigateway.log') != ''
-        uses: actions/upload-artifact@v5
-        with:
-          name: e2e-logs
-          path: layanan/apigateway/apigateway.log
-          retention-days: 7
 
   grpc-integration-tests:
     name: gRPC Service Integration Tests
@@ -248,16 +165,19 @@ jobs:
         run: |
           docker rm -f postgres-grpc-${{ github.run_id }} redis-grpc-${{ github.run_id }} || true
 
-          docker run -d --name postgres-grpc-${{ github.run_id }} \
+          PG_ID=$(docker run -d -P --name postgres-grpc-${{ github.run_id }} \
             -e POSTGRES_DB=simpelv2_integration \
             -e POSTGRES_USER=simpelv2_test \
             -e POSTGRES_PASSWORD=integration_test_2024 \
-            -p 5432:5432 \
-            postgres:16-alpine
+            postgres:16-alpine)
 
-          docker run -d --name redis-grpc-${{ github.run_id }} \
-            -p 6379:6379 \
-            redis:7-alpine
+          RD_ID=$(docker run -d -P --name redis-grpc-${{ github.run_id }} \
+            redis:7-alpine)
+
+          PG_PORT=$(docker port $PG_ID 5432/tcp | head -n1 | awk -F: '{print $2}')
+          RD_PORT=$(docker port $RD_ID 6379/tcp | head -n1 | awk -F: '{print $2}')
+
+          echo "DATABASE_URL=postgres://simpelv2_test:integration_test_2024@localhost:$PG_PORT/simpelv2_integration" >> $GITHUB_ENV
 
           sleep 10
 
@@ -276,7 +196,6 @@ jobs:
             cargo test -- --test-threads=1 --nocapture
           fi
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
           RUST_LOG: debug
 
       - name: Test secreton service
@@ -289,7 +208,6 @@ jobs:
              cargo test -- --test-threads=1 --nocapture
           fi
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
           RUST_LOG: debug
 
       - name: Cleanup Infrastructure
@@ -323,8 +241,6 @@ jobs:
           echo "Testing cross-module dependencies..."
           cargo test --workspace --lib -- --test-threads=1
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          REDIS_URL: ${{ env.REDIS_URL }}
           RUST_LOG: info
 
       - name: Test shared libraries

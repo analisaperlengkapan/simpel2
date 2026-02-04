@@ -228,7 +228,7 @@ pub fn BehavioralMetricsDisplay(
                                 </div>
                             }.into_any()
                         } else {
-                            let _: () = view! {};
+                            view! {};
                             ().into_any()
                         }}
                     </div>

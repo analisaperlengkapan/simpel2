@@ -17,7 +17,7 @@
     <link data-trunk rel="css" href="styles/custom.css">
 
     <!-- Trunk WASM configuration - lib only, no binary -->
-    <link data-trunk rel="rust" />
+    <link data-trunk rel="rust" data-wasm-opt="-Oz --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-extension --enable-reference-types" />
 
     <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com">

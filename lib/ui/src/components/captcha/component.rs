@@ -524,7 +524,7 @@ fn CaptchaContainer(
                                     />
                                 }.into_any()
                             } else {
-                                let _: () = view! {};
+                                view! {};
                                 ().into_any()
                             }}
 
@@ -543,7 +543,7 @@ fn CaptchaContainer(
                                     </div>
                                 }.into_any()
                             } else {
-                                let _: () = view! {};
+                                view! {};
                                 ().into_any()
                             }}
                         </div>
@@ -612,7 +612,7 @@ pub fn ChallengeDisplay(
                         </Button>
                     }.into_any()
                 } else {
-                    let _: () = view! {};
+                    view! {};
                     ().into_any()
                 }}
             </div>
@@ -933,7 +933,7 @@ pub fn ChallengeInput(
                         </div>
                     }.into_any(),
                     _ => {
-                        let _: () = view! {};
+                        view! {};
                         ().into_any()
                     }
                 }
@@ -969,7 +969,7 @@ pub fn ChallengeInput(
                     </div>
                 }.into_any()
             } else {
-                let _: () = view! {};
+                view! {};
                 ().into_any()
             }}
         </div>
