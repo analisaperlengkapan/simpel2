@@ -1,8 +1,7 @@
-use Secreton_core::security::{
-    AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig,
-    SecurityConfig, ComplianceStatus, SecurityMetrics, HealthStatus,
+use secreton_core::security::{
+    AdvancedSecurityOrchestrator, GovernmentGradeConfig,
 };
-use serde_json::json;
+use std::sync::Arc;
 
 /// Security validation and penetration testing suite
 /// Tests security properties, attack resistance, and compliance validation
@@ -25,7 +24,7 @@ mod security_validation_tests {
 
         // Minimum key length validation
         assert!(encryption_key.len() >= 32,
-               "Encryption key should be at least 256 bits (32 bytes), got { bytes",
+               "Encryption key should be at least 256 bits (32 bytes), got {} bytes",
                encryption_key.len());
 
         // Key uniqueness test
@@ -107,15 +106,21 @@ mod security_validation_tests {
         let encrypted_padded = orchestrator.encrypt_data(&padded_data).await?;
 
         // Malformed ciphertext should not reveal padding information
-        let mut corrupted_ciphertext = encrypted_padded.clone();
-        if let Some(last_byte) = corrupted_ciphertext.bytes().last() {
-            // Corrupt the last byte
-            let corrupted = format!("{}X", &corrupted_ciphertext[..corrupted_ciphertext.len()-1]);
-
-            let decrypt_result = orchestrator.decrypt_data(&corrupted).await;
-            // Should fail gracefully without revealing padding info
-            assert!(decrypt_result.is_err(), "Corrupted ciphertext should fail decryption");
+        // Safe mutation: working with bytes instead of trying to mutate string in place unsafely
+        let mut corrupted_ciphertext_bytes = encrypted_padded.into_bytes();
+        if let Some(last_byte) = corrupted_ciphertext_bytes.last_mut() {
+             *last_byte = last_byte.wrapping_add(1);
         }
+        // Attempt to convert back to string if the interface requires string
+        // Note: decrypt_data likely expects base64 or similar string, so corrupting bytes randomly might make it invalid utf8/base64
+        // A better test for padding oracle is submitting invalid base64 or valid base64 that decodes to invalid ciphertext
+
+        // Reconstruct a string that is "corrupted" but safe
+        let corrupted_string = String::from_utf8_lossy(&corrupted_ciphertext_bytes).to_string();
+
+        let decrypt_result = orchestrator.decrypt_data(&corrupted_string).await;
+        // Should fail gracefully without revealing padding info
+        assert!(decrypt_result.is_err(), "Corrupted ciphertext should fail decryption");
 
         Ok(())
     }
@@ -152,10 +157,10 @@ mod security_validation_tests {
             }
 
             if regular_access.granted {
-                // Regular user access should be more restricted than admin
+                // Regular user access implies admin should also have access (hierarchy)
                 assert!(
-                    !regular_access.granted,
-                    "Regular user should not have more access than admin"
+                    admin_access.granted,
+                    "Admin user should have at least the same access as regular user"
                 );
             }
 
@@ -254,12 +259,19 @@ mod security_validation_tests {
         assert_eq!(verified_data, sensitive_data, "Integrity verification should succeed for unmodified data");
 
         // Test tampering detection
-        let mut tampered_data = protected_data.clone();
-        if tampered_data.len() > 10 {
+        // Use safe byte manipulation instead of unsafe string mutation
+        let mut tampered_bytes = protected_data.into_bytes();
+        if tampered_bytes.len() > 10 {
             // Modify a byte in the middle
-            let tamper_pos = tampered_data.len() / 2;
-            let bytes = unsafe { tampered_data.as_bytes_mut() };
-            bytes[tamper_pos] = bytes[tamper_pos].wrapping_add(1);
+            let tamper_pos = tampered_bytes.len() / 2;
+            tampered_bytes[tamper_pos] = tampered_bytes[tamper_pos].wrapping_add(1);
+
+            // Reconstruct string (might be invalid UTF-8, but decrypt_and_verify_integrity handles bytes usually or fails)
+            // If the API strictly requires String, we assume it handles potentially invalid strings gracefully or we construct a valid one
+            // Ideally, encrypt/decrypt APIs should work on bytes (Vec<u8>). Assuming they take String for now.
+
+            // Try to make a valid string if possible, or pass as is (lossy)
+            let tampered_data = String::from_utf8_lossy(&tampered_bytes).to_string();
 
             let tamper_result = orchestrator.decrypt_and_verify_integrity(&tampered_data).await;
             assert!(
