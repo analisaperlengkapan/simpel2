@@ -1,3 +1,5 @@
+#![cfg(feature = "quantum-safe")]
+
 use Secreton_core::security::{
     AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig,
 };

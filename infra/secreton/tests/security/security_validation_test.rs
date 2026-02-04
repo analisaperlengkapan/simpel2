@@ -1,3 +1,5 @@
+#![cfg(feature = "quantum-safe")]
+
 use secreton_core::security::{
     AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig,
     SecurityConfig, ComplianceStatus, SecurityMetrics, HealthStatus,

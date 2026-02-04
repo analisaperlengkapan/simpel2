@@ -19,7 +19,9 @@ pub mod hashing;
 pub mod hybrid;
 pub mod key_derivation;
 pub mod kv_engine;
+#[cfg(feature = "quantum-safe")]
 pub mod pq_key_management;
+#[cfg(feature = "quantum-safe")]
 pub mod pqc;
 pub mod prelude;
 pub mod shamir;
@@ -43,11 +45,13 @@ pub use key_derivation::{
     DerivedKey, KdfParams, derive_key, derive_key_argon2id, derive_key_pbkdf2, presets, stretch,
 };
 pub use kv_engine::*;
+#[cfg(feature = "quantum-safe")]
 pub use pq_key_management::{
     ArchiveEncryptionResult, ArchiveKeyEntry, ArchivePurpose, HybridKeyEntry,
     HybridKeyExchangeResult, KeyPurpose, KeyStatus, MLDsaKeyEntry, MLKemKeyEntry,
     PostQuantumKeyManager,
 };
+#[cfg(feature = "quantum-safe")]
 pub use pqc::*;
 pub use shamir::*;
 pub use storage_integration::{

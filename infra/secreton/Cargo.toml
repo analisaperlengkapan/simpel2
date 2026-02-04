@@ -14,6 +14,10 @@ keywords = ["security", "vault", "cryptography", "zero-trust", "quantum-safe"]
 categories = ["cryptography", "authentication", "security-tools"]
 rust-version = "1.90"
 
+[features]
+default = []
+quantum-safe = ["secreton-core/quantum-safe", "secreton-crypto/quantum-safe"]
+
 [dependencies]
 # Core crate dependencies (local)
 secreton-core = { path = "crates/core" }

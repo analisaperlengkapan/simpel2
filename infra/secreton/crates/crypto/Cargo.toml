@@ -7,6 +7,15 @@ license.workspace = true
 description = "Cryptographic primitives and quantum-safe algorithms for Secreton using Ed25519 for signatures"
 keywords = ["cryptography", "quantum-safe", "post-quantum"]
 
+[features]
+default = []
+quantum-safe = [
+    "dep:pqcrypto-mldsa",
+    "dep:pqcrypto-mlkem",
+    "dep:pqcrypto-falcon",
+    "dep:pqcrypto-traits"
+]
+
 [dependencies]
 # Core dependencies
 tokio.workspace = true
@@ -55,10 +64,10 @@ subtle.workspace = true
 zeroize.workspace = true
 
 # Post-Quantum Cryptography
-pqcrypto-mldsa.workspace = true
-pqcrypto-mlkem.workspace = true
-pqcrypto-falcon.workspace = true
-pqcrypto-traits.workspace = true
+pqcrypto-mldsa = { workspace = true, optional = true }
+pqcrypto-mlkem = { workspace = true, optional = true }
+pqcrypto-falcon = { workspace = true, optional = true }
+pqcrypto-traits = { workspace = true, optional = true }
 
 # Shamir Secret Sharing
 num-bigint.workspace = true
