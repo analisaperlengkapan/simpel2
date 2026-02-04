@@ -73,7 +73,7 @@ impl MonsaktiClient {
     }
 
     /// Clone untuk parallel processing - Token tidak di-share
-    pub fn clone(&self) -> Self {
+    pub fn clone_client(&self) -> Self {
         Self {
             client: self.client.clone(),
             config: self.config.clone(),

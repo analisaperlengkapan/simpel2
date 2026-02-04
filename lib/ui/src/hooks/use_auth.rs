@@ -149,9 +149,9 @@ impl AuthContext {
                     use web_sys::{Request, RequestCredentials, RequestInit, RequestMode};
 
                     let mut opts = RequestInit::new();
-                    opts.method("GET");
-                    opts.mode(RequestMode::Cors);
-                    opts.credentials(RequestCredentials::Include);
+                    opts.set_method("GET");
+                    opts.set_mode(RequestMode::Cors);
+                    opts.set_credentials(RequestCredentials::Include);
 
                     if let Ok(request) = Request::new_with_str_and_init(&logout_url, &opts) {
                         let _ = wasm_bindgen_futures::JsFuture::from(

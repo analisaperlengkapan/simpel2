@@ -15,6 +15,8 @@
 //! - Preloading on hover for better UX
 
 use leptos::prelude::*;
+#[allow(unused_imports)]
+use wasm_bindgen::JsCast;
 
 /// Lazy loading utilities for code splitting
 ///
@@ -84,7 +86,6 @@ use leptos::prelude::*;
 ///     }
 /// }
 /// ```
-
 /// Default loading skeleton for lazy-loaded routes
 ///
 /// Provides a consistent loading experience across the application

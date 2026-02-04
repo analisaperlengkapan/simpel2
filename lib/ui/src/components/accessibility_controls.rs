@@ -28,7 +28,7 @@ impl FontSize {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "small" => Self::Small,
             "large" => Self::Large,
@@ -53,7 +53,7 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
     let class = class.unwrap_or_default();
     let (font_size, set_font_size) = use_storage::<String>("font-size", "medium".to_string());
 
-    let current_size = move || FontSize::from_str(&font_size.get());
+    let current_size = move || FontSize::parse(&font_size.get());
 
     // Apply font size to document root
     Effect::new(move |_| {

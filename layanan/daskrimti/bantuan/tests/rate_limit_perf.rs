@@ -19,13 +19,11 @@ async fn mutex_rate_limit(state: MutexState, ip: String, limit: u32) -> bool {
     if now - val.1 > 60 {
         *val = (1, now);
         true
+    } else if val.0 >= limit {
+        false
     } else {
-        if val.0 >= limit {
-            false
-        } else {
-            val.0 += 1;
-            true
-        }
+        val.0 += 1;
+        true
     }
 }
 
@@ -44,13 +42,11 @@ fn dashmap_rate_limit(state: DashMapState, ip: String, limit: u32) -> bool {
     if now - val.1 > 60 {
         *val = (1, now);
         true
+    } else if val.0 >= limit {
+        false
     } else {
-        if val.0 >= limit {
-            false
-        } else {
-            val.0 += 1;
-            true
-        }
+        val.0 += 1;
+        true
     }
 }
 

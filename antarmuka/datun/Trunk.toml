@@ -2,4 +2,14 @@
 target = "index.html"
 dist = "dist"
 release = true
-wasm_opt = false
+
+# Optimization configuration for WASM
+# Enable bulk-memory and nontrapping-float-to-int to support optimized instructions
+[[build.wasm_opt]]
+args = [
+    "-Oz",
+    "--enable-bulk-memory",
+    "--enable-nontrapping-float-to-int",
+    "--enable-sign-extension",
+    "--strip-debug",
+]

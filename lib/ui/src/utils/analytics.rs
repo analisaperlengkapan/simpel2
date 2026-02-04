@@ -419,14 +419,14 @@ fn generate_event_id() -> String {
 }
 
 /// Log event to console
-fn log_event(event: &UserEvent) {
+fn log_event(_event: &UserEvent) {
     #[cfg(debug_assertions)]
     {
         web_sys::console::log_1(&JsValue::from_str(&format!(
             "[Analytics] {} - {} (User: {:?})",
-            event.event_type.as_str(),
-            event.page,
-            event.user_id
+            _event.event_type.as_str(),
+            _event.page,
+            _event.user_id
         )));
     }
 }

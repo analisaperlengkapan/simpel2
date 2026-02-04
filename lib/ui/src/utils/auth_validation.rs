@@ -34,7 +34,7 @@ pub const SATKER_CODE_MAX_LENGTH: usize = 20;
 /// - Alphanumeric with underscore (_) or hyphen (-)
 /// - No spaces or special characters
 ///
-///   Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_username`
+/// Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_username`
 pub fn validate_username(username: &str) -> ValidationResult {
     if username.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(
@@ -74,7 +74,7 @@ pub fn validate_username(username: &str) -> ValidationResult {
 /// - At least one lowercase letter
 /// - At least one digit
 ///
-///   Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_password_complexity`
+/// Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_password_complexity`
 pub fn validate_password(password: &str) -> ValidationResult {
     let mut errors = Vec::new();
 
@@ -133,7 +133,7 @@ pub fn validate_password(password: &str) -> ValidationResult {
 /// - Uppercase letters and numbers only
 /// - No spaces or special characters
 ///
-///   Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_satker_code`
+/// Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_satker_code`
 pub fn validate_satker_code(code: &str) -> ValidationResult {
     if code.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(
@@ -171,13 +171,7 @@ pub fn validate_satker_code(code: &str) -> ValidationResult {
 /// - Exactly 6 digits
 /// - Numbers only
 ///
-///   Sinkron dengan: Backend MFA verification
-/// Validate MFA code (6 digits)
-/// Rules:
-/// - Exactly 6 digits
-/// - Numbers only
-///
-///   Sinkron dengan: Backend MFA verification
+/// Sinkron dengan: Backend MFA verification
 pub fn validate_mfa_code(code: &str) -> ValidationResult {
     if code.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(
@@ -201,7 +195,7 @@ pub fn validate_mfa_code(code: &str) -> ValidationResult {
 /// - 1-100 characters
 /// - Not empty
 ///
-///   Sinkron dengan: Backend realm validation
+/// Sinkron dengan: Backend realm validation
 pub fn validate_realm(realm: &str) -> ValidationResult {
     if realm.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(

@@ -48,25 +48,26 @@ pub fn AudioChallenge(
                 {
                     if !speech_synthesis.is_undefined() {
                         // Create speech utterance
-                        let utterance =
+                        if let Ok(utterance) =
                             web_sys::SpeechSynthesisUtterance::new_with_text(&audio_text.get())
-                                .unwrap();
-                        utterance.set_rate(playback_speed.get() as f32);
-                        utterance.set_volume(0.8);
+                        {
+                            utterance.set_rate(playback_speed.get() as f32);
+                            utterance.set_volume(0.8);
 
-                        // Set up event handlers
-                        let set_audio_playing_clone = set_audio_playing;
-                        let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
-                            set_audio_playing_clone.set(false);
-                        })
-                            as Box<dyn Fn()>);
+                            // Set up event handlers
+                            let set_audio_playing_clone = set_audio_playing;
+                            let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                                set_audio_playing_clone.set(false);
+                            })
+                                as Box<dyn Fn()>);
 
-                        utterance.set_onend(Some(onend.as_ref().unchecked_ref()));
-                        onend.forget(); // Keep closure alive
+                            utterance.set_onend(Some(onend.as_ref().unchecked_ref()));
+                            onend.forget(); // Keep closure alive
 
-                        // Speak the text
-                        let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
-                        synthesis.speak(&utterance);
+                            // Speak the text
+                            let synthesis: web_sys::SpeechSynthesis = speech_synthesis.unchecked_into();
+                            synthesis.speak(&utterance);
+                        }
                     }
                 }
             }
@@ -82,7 +83,7 @@ pub fn AudioChallenge(
         if let Some(window) = web_sys::window() {
             if let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into()) {
                 if !speech_synthesis.is_undefined() {
-                    let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
+                    let synthesis: web_sys::SpeechSynthesis = speech_synthesis.unchecked_into();
                     synthesis.cancel();
                 }
             }
@@ -132,8 +133,7 @@ pub fn AudioChallenge(
                              </Button>
                          }.into_any()
                      } else {
-                         let _: () = view! {};
-                         ().into_any()
+                         view! {}.into_any()
                      }}
                  </div>
 
@@ -530,7 +530,7 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
                         let future = wasm_bindgen_futures::JsFuture::from(p);
                         let resolve_play_error = resolve.clone();
                         spawn_local(async move {
-                            if let Err(_) = future.await {
+                            if (future.await).is_err() {
                                 let _ = resolve_play_error.call0(&wasm_bindgen::JsValue::NULL);
                             }
                         });
