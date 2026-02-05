@@ -135,7 +135,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
     };
 
     // Handle transition
-    let _handle_transition = move |target_status: i32| {
+    let handle_transition = move |target_status: i32| {
         let sid = satker_id.get();
         spawn_local(async move {
             let request = WorkflowTransitionRequest {
@@ -205,9 +205,23 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                             "Kode Satker: " <span class="font-mono">{satker.ms_satker_id.clone()}</span>
                                         </p>
                                     </div>
-                                    <span class=format!("px-3 py-1.5 rounded-full text-sm font-medium {}", badge_class)>
-                                        {status_label}
-                                    </span>
+                                    <div class="flex items-center gap-3">
+                                        <span class=format!("px-3 py-1.5 rounded-full text-sm font-medium {}", badge_class)>
+                                            {status_label}
+                                        </span>
+                                        <Show when=move || status.as_ref().map(|s| s.can_transition_to_next()).unwrap_or(false)>
+                                            <button
+                                                class="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors shadow-sm"
+                                                on:click=move |_| {
+                                                    if let Some(s) = status.as_ref() {
+                                                        handle_transition(s.next_status_code());
+                                                    }
+                                                }
+                                            >
+                                                "Ajukan / Setujui"
+                                            </button>
+                                        </Show>
+                                    </div>
                                 </div>
 
                                 // Stats cards

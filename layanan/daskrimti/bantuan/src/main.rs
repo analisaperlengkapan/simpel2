@@ -117,10 +117,12 @@ fn setup_sentry(config: &AppConfig) -> Option<sentry::ClientInitGuard> {
 }
 
 /// Setup database connection pool
-async fn setup_database(_config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
+async fn setup_database(config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
     tracing::info!("Connecting to database...");
 
-    let pool_config = deadpool_postgres::Config::new();
+    let mut pool_config = deadpool_postgres::Config::new();
+    pool_config.url = Some(config.database_url.clone());
+
     let pool = match pool_config.create_pool(
         Some(deadpool_postgres::Runtime::Tokio1),
         tokio_postgres::NoTls,
@@ -159,7 +161,6 @@ fn setup_metrics() -> Result<Registry, AppError> {
 }
 
 /// Create application router dengan semua middleware dan routes
-#[allow(deprecated)]
 #[allow(deprecated)]
 async fn create_app_router(state: AppState) -> Result<Router, AppError> {
     // CORS configuration
