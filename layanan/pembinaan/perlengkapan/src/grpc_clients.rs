@@ -238,8 +238,13 @@ impl IntegrasiClient {
         page: i32,
         per_page: i32,
     ) -> Result<integrasi::v1::GetSimanAssetsResponse> {
-        self.get_siman_assets(SimanAssetCategory::GedungBangunan, kode_satker, page, per_page)
-            .await
+        self.get_siman_assets(
+            SimanAssetCategory::GedungBangunan,
+            kode_satker,
+            page,
+            per_page,
+        )
+        .await
     }
 
     /// Get SIMAN angkutan bermotor (vehicles) assets
@@ -249,14 +254,19 @@ impl IntegrasiClient {
         page: i32,
         per_page: i32,
     ) -> Result<integrasi::v1::GetSimanAssetsResponse> {
-        self.get_siman_assets(SimanAssetCategory::AngkutanBermotor, kode_satker, page, per_page)
-            .await
+        self.get_siman_assets(
+            SimanAssetCategory::AngkutanBermotor,
+            kode_satker,
+            page,
+            per_page,
+        )
+        .await
     }
 }
 
 // Re-export commonly used types from integrasi proto
 pub use integrasi::v1::{
-    DataSource as IntegrasiDataSource, MonsaktiAsetTetap, MonsaktiPersediaan,
-    MonsaktiReference, MysimkariPegawai, MysimkariSatker, SimanAsset,
+    DataSource as IntegrasiDataSource, MonsaktiAsetTetap, MonsaktiPersediaan, MonsaktiReference,
+    MysimkariPegawai, MysimkariSatker, SimanAsset,
     SimanAssetCategory as IntegrasiSimanAssetCategory, SyncState as IntegrasiSyncState,
 };

@@ -164,7 +164,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Create Kebutuhan BMN service
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
-    let kebutuhan_bmn_service = KebutuhanBmnService::new(kebutuhan_bmn_repo, authenc_client.clone());
+    let kebutuhan_bmn_service =
+        KebutuhanBmnService::new(kebutuhan_bmn_repo, authenc_client.clone());
 
     // Create AppState
     let state = AppState {

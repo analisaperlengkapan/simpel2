@@ -11,7 +11,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify proto directories exist
     if !authenc_proto_dir.exists() {
-        eprintln!("Warning: Authenc proto directory not found: {:?}", authenc_proto_dir);
+        eprintln!(
+            "Warning: Authenc proto directory not found: {:?}",
+            authenc_proto_dir
+        );
         println!("cargo:warning=Authenc proto directory not found, skipping proto compilation");
         return Ok(());
     }
@@ -28,7 +31,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         proto_files.push(integrasi_proto);
         println!("cargo:warning=Including integrasi.proto");
     } else {
-        println!("cargo:warning=integrasi.proto not found at {:?}, skipping", integrasi_proto_dir);
+        println!(
+            "cargo:warning=integrasi.proto not found at {:?}, skipping",
+            integrasi_proto_dir
+        );
     }
 
     // Verify proto files exist
@@ -43,11 +49,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(false)
         .build_client(true)
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
-        .compile_protos(&proto_files, &[
-            authenc_proto_dir.clone(),
-            secreton_proto_dir,
-            integrasi_proto_dir,
-        ])?;
+        .compile_protos(
+            &proto_files,
+            &[
+                authenc_proto_dir.clone(),
+                secreton_proto_dir,
+                integrasi_proto_dir,
+            ],
+        )?;
 
     // Tell Cargo to rerun this build script if proto files change
     for proto_file in &proto_files {
