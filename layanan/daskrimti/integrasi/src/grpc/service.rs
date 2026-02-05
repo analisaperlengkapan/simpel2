@@ -238,9 +238,11 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetMonsaktiPersediaanRequest>,
     ) -> Result<Response<GetMonsaktiPersediaanResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
-        let offset = ((page - 1) * per_page) as i64;
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
+
+        let offset = ((page as i64) - 1) * (per_page as i64);
 
         info!(
             "GetMonsaktiPersediaan for satker: {}, page: {}",
@@ -343,9 +345,11 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetMonsaktiAsetTetapRequest>,
     ) -> Result<Response<GetMonsaktiAsetTetapResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
-        let offset = ((page - 1) * per_page) as i64;
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
+
+        let offset = ((page as i64) - 1) * (per_page as i64);
 
         info!(
             "GetMonsaktiAsetTetap for satker: {}, page: {}",
@@ -455,9 +459,11 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetMonsaktiTransaksiRequest>,
     ) -> Result<Response<GetMonsaktiTransaksiResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
-        let offset = ((page - 1) * per_page) as i64;
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
+
+        let offset = ((page as i64) - 1) * (per_page as i64);
 
         info!(
             "GetMonsaktiTransaksi for satker: {}, page: {}",
@@ -560,8 +566,9 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetMonsaktiKontrakPengadaanRequest>,
     ) -> Result<Response<GetMonsaktiKontrakPengadaanResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
 
         info!(
             "GetMonsaktiKontrakPengadaan for satker: {}, page: {}",
@@ -581,8 +588,9 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetMonsaktiSupplierRequest>,
     ) -> Result<Response<GetMonsaktiSupplierResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
 
         info!(
             "GetMonsaktiSupplier for satker: {}, filter: {}",
@@ -602,8 +610,9 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetMonsaktiRealisasiBelanjaRequest>,
     ) -> Result<Response<GetMonsaktiRealisasiBelanjaResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
 
         info!(
             "GetMonsaktiRealisasiBelanja for satker: {}, tahun: {}",
@@ -650,9 +659,11 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetMysimkariSatkerRequest>,
     ) -> Result<Response<GetMysimkariSatkerResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
-        let offset = ((page - 1) * per_page) as i64;
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
+
+        let offset = ((page as i64) - 1) * (per_page as i64);
 
         info!(
             "GetMysimkariSatker filter: {}, page: {}",
@@ -716,9 +727,11 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetMysimkariPegawaiRequest>,
     ) -> Result<Response<GetMysimkariPegawaiResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
-        let offset = ((page - 1) * per_page) as i64;
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
+
+        let offset = ((page as i64) - 1) * (per_page as i64);
 
         info!(
             "GetMysimkariPegawai for satker: {}, page: {}",
@@ -978,9 +991,11 @@ impl IntegrasiServiceImpl {
         table_name: &str,
     ) -> Result<Response<GetSimanAssetResponse>, Status> {
         let req = request.into_inner();
-        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
-        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100);
-        let offset = ((page - 1) * per_page) as i64;
+        let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1).max(1);
+
+        let per_page = req.pagination.as_ref().map(|p| p.per_page).unwrap_or(100).clamp(1, 1000);
+
+        let offset = ((page as i64) - 1) * (per_page as i64);
 
         info!(
             "GetSimanAssets from table: {}, satker: {}, page: {}",
