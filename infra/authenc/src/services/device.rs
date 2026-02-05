@@ -3,6 +3,7 @@ use crate::error::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::warn;
 use uuid::Uuid;
 
 /// Device information and metadata
@@ -281,7 +282,15 @@ impl DeviceService {
                     is_trusted: model_device.trust_score > 0.7,
                     last_seen: model_device.last_seen_at,
                     created_at: model_device.created_at,
-                    location: None, // TODO: Parse from location_data JSON - requires location tracking implementation
+                    location: model_device.location_data.and_then(|v| {
+                        match serde_json::from_value(v) {
+                            Ok(loc) => Some(loc),
+                            Err(e) => {
+                                warn!("Failed to parse device location data: {}", e);
+                                None
+                            }
+                        }
+                    }),
                     security_features: DeviceSecurityFeatures {
                         has_biometrics: false, // TODO: Store in database - requires biometrics detection implementation
                         has_hardware_security: false,
@@ -332,7 +341,15 @@ impl DeviceService {
                 is_trusted: model_device.trust_score > 0.7,
                 last_seen: model_device.last_seen_at,
                 created_at: model_device.created_at,
-                location: None, // TODO: Parse from location_data JSON - requires location tracking implementation
+                location: model_device.location_data.and_then(|v| {
+                    match serde_json::from_value(v) {
+                        Ok(loc) => Some(loc),
+                        Err(e) => {
+                            warn!("Failed to parse device location data: {}", e);
+                            None
+                        }
+                    }
+                }),
                 security_features: DeviceSecurityFeatures {
                     has_biometrics: false, // TODO: Store in database - requires biometrics detection implementation
                     has_hardware_security: false,
