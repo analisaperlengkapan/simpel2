@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
+[features]
+integration-tests = []
+
 [dependencies]
 axum = { workspace = true }
 tokio = { workspace = true }

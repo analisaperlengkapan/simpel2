@@ -968,6 +968,7 @@ impl AppConfig {
         since = "0.2.0",
         note = "Use `load()` instead for file-based config with env overrides"
     )]
+    #[allow(deprecated)]
     pub fn from_env() -> Result<Self> {
         let mut config = Self::default();
         config.apply_env_overrides()?;
@@ -1194,6 +1195,7 @@ mod tests {
                 ("JWT_SECRET", Some("test_secret")),
             ],
             || {
+                #[allow(deprecated)]
                 let config = AppConfig::from_env().unwrap();
                 assert_eq!(config.server.host, "127.0.0.1");
                 assert_eq!(config.server.port, 4000);

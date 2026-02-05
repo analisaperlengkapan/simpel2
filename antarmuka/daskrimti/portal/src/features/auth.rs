@@ -274,7 +274,11 @@ impl AuthService {
         };
 
         let permissions = match role {
-            UserRole::Admin => vec![
+            UserRole::Admin
+            | UserRole::AdminPusat
+            | UserRole::AdminEselonI
+            | UserRole::AdminWilayah
+            | UserRole::AdminSatker => vec![
                 "admin:*".to_string(),
                 "user:read".to_string(),
                 "user:write".to_string(),

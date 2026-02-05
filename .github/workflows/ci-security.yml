@@ -9,6 +9,11 @@ on:
     - cron: "0 2 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
@@ -42,7 +47,11 @@ jobs:
           if ! command -v cargo-audit &> /dev/null; then cargo install cargo-audit --locked; fi
           if ! command -v cargo-deny &> /dev/null; then
              echo "Installing cargo-deny..."
-             cargo install cargo-deny --locked
+             # Download pre-built binary to avoid compilation errors on self-hosted runners
+             mkdir -p /tmp/cargo-deny-install
+             curl -LsSf https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.0/cargo-deny-0.19.0-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C /tmp/cargo-deny-install
+             mv /tmp/cargo-deny-install/*/cargo-deny $HOME/.cargo/bin/
+             rm -rf /tmp/cargo-deny-install
           fi
 
       - name: Audit Workspace

@@ -1,5 +1,3 @@
 [build]
 target = "index.html"
-dist = "dist"
-release = true
 wasm_opt = false

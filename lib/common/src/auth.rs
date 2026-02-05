@@ -4,8 +4,16 @@ use serde::{Deserialize, Serialize};
 /// User role enum shared across services
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub enum UserRole {
-    /// System administrator
+    /// System administrator (global)
     Admin,
+    /// Central administrator (Kejaksaan Agung)
+    AdminPusat,
+    /// Eselon I administrator (Jampidsus, Jamintel, etc.)
+    AdminEselonI,
+    /// Regional administrator (Kejaksaan Tinggi)
+    AdminWilayah,
+    /// District administrator (Kejaksaan Negeri)
+    AdminSatker,
     /// Regular user
     #[default]
     User,
@@ -21,7 +29,11 @@ impl UserRole {
     /// Get role display name in Indonesian
     pub fn display_name(&self) -> String {
         match self {
-            Self::Admin => "Administrator".to_string(),
+            Self::Admin => "Administrator Global".to_string(),
+            Self::AdminPusat => "Administrator Pusat".to_string(),
+            Self::AdminEselonI => "Administrator Eselon I".to_string(),
+            Self::AdminWilayah => "Administrator Wilayah".to_string(),
+            Self::AdminSatker => "Administrator Satker".to_string(),
             Self::User => "Pengguna".to_string(),
             Self::Supervisor => "Supervisor".to_string(),
             Self::Guest => "Tamu".to_string(),
@@ -31,12 +43,27 @@ impl UserRole {
 
     /// Check if role has admin privileges
     pub fn is_admin(&self) -> bool {
-        matches!(self, Self::Admin)
+        matches!(
+            self,
+            Self::Admin
+                | Self::AdminPusat
+                | Self::AdminEselonI
+                | Self::AdminWilayah
+                | Self::AdminSatker
+        )
     }
 
     /// Check if role can manage users
     pub fn can_manage_users(&self) -> bool {
-        matches!(self, Self::Admin | Self::Supervisor)
+        matches!(
+            self,
+            Self::Admin
+                | Self::AdminPusat
+                | Self::AdminEselonI
+                | Self::AdminWilayah
+                | Self::AdminSatker
+                | Self::Supervisor
+        )
     }
 }
 

@@ -52,6 +52,7 @@ mod security_test_utils {
     }
 
     /// Simulate multiple failed MFA attempts
+    #[allow(dead_code)]
     pub async fn simulate_failed_attempts(
         mfa_service: &MfaService,
         user_id: Uuid,

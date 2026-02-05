@@ -2,7 +2,7 @@ use Secreton_core::security::{
     AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig,
 };
 use std::sync::{Arc, time::Instant};
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 /// Performance benchmarks and load testing for Secreton security system
 #[cfg(test)]
@@ -10,7 +10,8 @@ mod performance_tests {
     use super::*;
 
     /// Helper to create orchestrator for performance testing
-    async fn create_perf_orchestrator() -> Result<Arc<AdvancedSecurityOrchestrator>, Box<dyn std::error::Error>> {
+    async fn create_perf_orchestrator()
+    -> Result<Arc<AdvancedSecurityOrchestrator>, Box<dyn std::error::Error>> {
         let config = BankingGradeConfig::new();
         let orchestrator = AdvancedSecurityOrchestrator::new(config.into()).await?;
         Ok(Arc::new(orchestrator))
@@ -22,10 +23,10 @@ mod performance_tests {
 
         // Test different data sizes
         let test_cases = vec![
-            ("small", "x".repeat(100)),      // 100 bytes
-            ("medium", "x".repeat(1024)),    // 1KB
-            ("large", "x".repeat(10240)),    // 10KB
-            ("xlarge", "x".repeat(102400)),  // 100KB
+            ("small", "x".repeat(100)),     // 100 bytes
+            ("medium", "x".repeat(1024)),   // 1KB
+            ("large", "x".repeat(10240)),   // 10KB
+            ("xlarge", "x".repeat(102400)), // 100KB
         ];
 
         for (size_name, test_data) in test_cases {
@@ -46,23 +47,30 @@ mod performance_tests {
 
             let duration = start_time.elapsed();
             let ops_per_second = iterations as f64 / duration.as_secs_f64();
-            let mb_per_second = (test_data.len() * iterations) as f64 / (1024.0 * 1024.0) / duration.as_secs_f64();
+            let mb_per_second =
+                (test_data.len() * iterations) as f64 / (1024.0 * 1024.0) / duration.as_secs_f64();
 
-            println!("Encryption { data: {:.2 ops/sec, {:.2 MB/s",
-                     size_name, ops_per_second, mb_per_second);
+            println!(
+                "Encryption { data: {:.2 ops/sec, {:.2 MB/s",
+                size_name, ops_per_second, mb_per_second
+            );
 
             // Performance assertions based on data size
             let min_ops_per_sec = match size_name {
-                "small" => 500.0,   // Small data should be very fast
-                "medium" => 100.0,  // Medium data should be fast
-                "large" => 50.0,    // Large data should be reasonable
-                "xlarge" => 20.0,   // Very large data minimum threshold
+                "small" => 500.0,  // Small data should be very fast
+                "medium" => 100.0, // Medium data should be fast
+                "large" => 50.0,   // Large data should be reasonable
+                "xlarge" => 20.0,  // Very large data minimum threshold
                 _ => 10.0,
             };
 
-            assert!(ops_per_second >= min_ops_per_sec,
-                   "Encryption performance for { data too low: {:.2 ops/sec (minimum: {:.2})",
-                   size_name, ops_per_second, min_ops_per_sec);
+            assert!(
+                ops_per_second >= min_ops_per_sec,
+                "Encryption performance for { data too low: {:.2 ops/sec (minimum: {:.2})",
+                size_name,
+                ops_per_second,
+                min_ops_per_sec
+            );
         }
 
         Ok(())
@@ -95,7 +103,11 @@ mod performance_tests {
             }
 
             // Wait for all tasks with timeout
-            let results = timeout(Duration::from_secs(30), futures::future::try_join_all(tasks)).await?;
+            let results = timeout(
+                Duration::from_secs(30),
+                futures::future::try_join_all(tasks),
+            )
+            .await?;
 
             let duration = start_time.elapsed();
             let total_ops_per_sec = (concurrency * 2) as f64 / duration.as_secs_f64(); // 2 ops per task (encrypt + decrypt)
@@ -105,12 +117,18 @@ mod performance_tests {
                 result??;
             }
 
-            println!("Concurrency level {}: {:.2 total ops/sec ({:.2 ms average latency)",
-                     concurrency, total_ops_per_sec, duration.as_millis() as f64 / concurrency as f64);
+            println!(
+                "Concurrency level {}: {:.2 total ops/sec ({:.2 ms average latency)",
+                concurrency,
+                total_ops_per_sec,
+                duration.as_millis() as f64 / concurrency as f64
+            );
 
             // Performance should scale reasonably with concurrency
-            assert!(duration.as_secs() < 10,
-                   "Concurrent operations should complete within 10 seconds");
+            assert!(
+                duration.as_secs() < 10,
+                "Concurrent operations should complete within 10 seconds"
+            );
         }
 
         Ok(())
@@ -135,13 +153,17 @@ mod performance_tests {
         }
 
         let enrollment_duration = start_time.elapsed();
-        let enrollment_ops_per_sec = enrollment_iterations as f64 / enrollment_duration.as_secs_f64();
+        let enrollment_ops_per_sec =
+            enrollment_iterations as f64 / enrollment_duration.as_secs_f64();
 
         println!("MFA enrollment: {:.2} ops/sec", enrollment_ops_per_sec);
 
         // Should handle at least 10 enrollments per second
-        assert!(enrollment_ops_per_sec >= 5.0,
-               "MFA enrollment too slow: {:.2} ops/sec", enrollment_ops_per_sec);
+        assert!(
+            enrollment_ops_per_sec >= 5.0,
+            "MFA enrollment too slow: {:.2} ops/sec",
+            enrollment_ops_per_sec
+        );
 
         // Benchmark behavioral biometrics verification
         let user_id = "biometric_perf_user";
@@ -165,11 +187,17 @@ mod performance_tests {
         let biometric_duration = start_time.elapsed();
         let biometric_ops_per_sec = biometric_iterations as f64 / biometric_duration.as_secs_f64();
 
-        println!("Behavioral biometrics: {:.2} verifications/sec", biometric_ops_per_sec);
+        println!(
+            "Behavioral biometrics: {:.2} verifications/sec",
+            biometric_ops_per_sec
+        );
 
         // Should handle at least 20 biometric verifications per second
-        assert!(biometric_ops_per_sec >= 10.0,
-               "Biometric verification too slow: {:.2} ops/sec", biometric_ops_per_sec);
+        assert!(
+            biometric_ops_per_sec >= 10.0,
+            "Biometric verification too slow: {:.2} ops/sec",
+            biometric_ops_per_sec
+        );
 
         Ok(())
     }
@@ -180,8 +208,14 @@ mod performance_tests {
 
         // Benchmark threat indicator assessment
         let test_indicators = vec![
-            "192.168.1.100", "10.0.0.1", "172.16.0.1", "127.0.0.1",
-            "8.8.8.8", "1.1.1.1", "208.67.222.222", "9.9.9.9",
+            "192.168.1.100",
+            "10.0.0.1",
+            "172.16.0.1",
+            "127.0.0.1",
+            "8.8.8.8",
+            "1.1.1.1",
+            "208.67.222.222",
+            "9.9.9.9",
         ];
 
         let iterations_per_indicator = 50;
@@ -198,11 +232,17 @@ mod performance_tests {
         let duration = start_time.elapsed();
         let assessments_per_sec = total_assessments as f64 / duration.as_secs_f64();
 
-        println!("Threat indicator assessments: {:.2} assessments/sec", assessments_per_sec);
+        println!(
+            "Threat indicator assessments: {:.2} assessments/sec",
+            assessments_per_sec
+        );
 
         // Should handle at least 50 threat assessments per second
-        assert!(assessments_per_sec >= 25.0,
-               "Threat assessment too slow: {:.2} assessments/sec", assessments_per_sec);
+        assert!(
+            assessments_per_sec >= 25.0,
+            "Threat assessment too slow: {:.2} assessments/sec",
+            assessments_per_sec
+        );
 
         // Benchmark behavioral anomaly detection
         let anomaly_test_cases = vec![
@@ -238,11 +278,17 @@ mod performance_tests {
         let anomaly_duration = start_time.elapsed();
         let anomaly_detections_per_sec = anomaly_iterations as f64 / anomaly_duration.as_secs_f64();
 
-        println!("Behavioral anomaly detection: {:.2} detections/sec", anomaly_detections_per_sec);
+        println!(
+            "Behavioral anomaly detection: {:.2} detections/sec",
+            anomaly_detections_per_sec
+        );
 
         // Should handle at least 30 anomaly detections per second
-        assert!(anomaly_detections_per_sec >= 15.0,
-               "Anomaly detection too slow: {:.2} detections/sec", anomaly_detections_per_sec);
+        assert!(
+            anomaly_detections_per_sec >= 15.0,
+            "Anomaly detection too slow: {:.2} detections/sec",
+            anomaly_detections_per_sec
+        );
 
         Ok(())
     }
@@ -273,8 +319,11 @@ mod performance_tests {
         println!("HSM key generation: {:.2} keys/sec", key_gen_per_sec);
 
         // HSM key generation is expected to be slower
-        assert!(key_gen_per_sec >= 0.5,
-               "HSM key generation too slow: {:.2} keys/sec", key_gen_per_sec);
+        assert!(
+            key_gen_per_sec >= 0.5,
+            "HSM key generation too slow: {:.2} keys/sec",
+            key_gen_per_sec
+        );
 
         // Benchmark HSM encryption/decryption
         if let Some(key_id) = generated_keys.first() {
@@ -293,8 +342,11 @@ mod performance_tests {
             println!("HSM encrypt/decrypt: {:.2} ops/sec", hsm_ops_per_sec);
 
             // HSM operations are slower but should meet minimum thresholds
-            assert!(hsm_ops_per_sec >= 2.0,
-                   "HSM operations too slow: {:.2} ops/sec", hsm_ops_per_sec);
+            assert!(
+                hsm_ops_per_sec >= 2.0,
+                "HSM operations too slow: {:.2} ops/sec",
+                hsm_ops_per_sec
+            );
         }
 
         Ok(())
@@ -315,11 +367,17 @@ mod performance_tests {
         let health_duration = start_time.elapsed();
         let health_checks_per_sec = health_iterations as f64 / health_duration.as_secs_f64();
 
-        println!("Health status checks: {:.2} checks/sec", health_checks_per_sec);
+        println!(
+            "Health status checks: {:.2} checks/sec",
+            health_checks_per_sec
+        );
 
         // Health checks should be very fast
-        assert!(health_checks_per_sec >= 100.0,
-               "Health monitoring too slow: {:.2} checks/sec", health_checks_per_sec);
+        assert!(
+            health_checks_per_sec >= 100.0,
+            "Health monitoring too slow: {:.2} checks/sec",
+            health_checks_per_sec
+        );
 
         // Benchmark performance metrics collection
         let metrics_iterations = 100;
@@ -332,11 +390,17 @@ mod performance_tests {
         let metrics_duration = start_time.elapsed();
         let metrics_per_sec = metrics_iterations as f64 / metrics_duration.as_secs_f64();
 
-        println!("Performance metrics collection: {:.2} collections/sec", metrics_per_sec);
+        println!(
+            "Performance metrics collection: {:.2} collections/sec",
+            metrics_per_sec
+        );
 
         // Metrics collection should be reasonably fast
-        assert!(metrics_per_sec >= 50.0,
-               "Metrics collection too slow: {:.2} collections/sec", metrics_per_sec);
+        assert!(
+            metrics_per_sec >= 50.0,
+            "Metrics collection too slow: {:.2} collections/sec",
+            metrics_per_sec
+        );
 
         Ok(())
     }
@@ -364,12 +428,10 @@ mod performance_tests {
 
                 while task_start.elapsed() < test_duration {
                     match orch.encrypt_data(&data).await {
-                        Ok(encrypted) => {
-                            match orch.decrypt_data(&encrypted).await {
-                                Ok(_) => operations_completed += 1,
-                                Err(_) => break,
-                            }
-                        }
+                        Ok(encrypted) => match orch.decrypt_data(&encrypted).await {
+                            Ok(_) => operations_completed += 1,
+                            Err(_) => break,
+                        },
                         Err(_) => break,
                     }
 
@@ -397,20 +459,31 @@ mod performance_tests {
 
         let avg_ops_per_sec = total_operations as f64 / total_duration.as_secs_f64();
 
-        println!("Stress test completed: {} total operations in {:.2}s ({:.2} ops/sec)",
-                total_operations, total_duration.as_secs_f64(), avg_ops_per_sec);
+        println!(
+            "Stress test completed: {} total operations in {:.2}s ({:.2} ops/sec)",
+            total_operations,
+            total_duration.as_secs_f64(),
+            avg_ops_per_sec
+        );
 
         // System should maintain reasonable performance under sustained load
-        assert!(total_operations > 0, "System should complete at least some operations under load");
-        assert!(avg_ops_per_sec >= 10.0,
-               "System should maintain at least 10 ops/sec under sustained load, got {:.2}",
-               avg_ops_per_sec);
+        assert!(
+            total_operations > 0,
+            "System should complete at least some operations under load"
+        );
+        assert!(
+            avg_ops_per_sec >= 10.0,
+            "System should maintain at least 10 ops/sec under sustained load, got {:.2}",
+            avg_ops_per_sec
+        );
 
         // Check system health after stress test
         let post_stress_health = orchestrator.get_health_status().await?;
-        assert!(post_stress_health.overall_health >= 70.0,
-               "System health should remain reasonable after stress test: {}%",
-               post_stress_health.overall_health);
+        assert!(
+            post_stress_health.overall_health >= 70.0,
+            "System health should remain reasonable after stress test: {}%",
+            post_stress_health.overall_health
+        );
 
         Ok(())
     }

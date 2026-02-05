@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 // Testing boundary conditions, edge cases, and unusual scenarios
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct EdgeCaseState {
     users: Arc<Mutex<HashMap<String, serde_json::Value>>>,
     sessions: Arc<Mutex<HashMap<String, String>>>,
