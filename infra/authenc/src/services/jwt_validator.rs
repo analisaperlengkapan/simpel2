@@ -360,7 +360,7 @@ mod tests {
         let validator = JwtValidator::new(None);
 
         // Generate a valid token
-        let token = generate_jwt("test_user").expect("Failed to generate token");
+        let token = generate_jwt("test_user", None, None).expect("Failed to generate token");
 
         // Validate token
         let result = validator.validate_token(&token).await.unwrap();
