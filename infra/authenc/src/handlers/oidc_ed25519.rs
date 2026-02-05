@@ -250,6 +250,11 @@ pub async fn oidc_token_ed25519(
                 .await?
                 .ok_or_else(|| AuthencError::unauthorized("User not found"))?;
 
+            // Check if user account is enabled
+            if !user.enabled {
+                return Err(AuthencError::forbidden("User account is disabled"));
+            }
+
             // Get role (simplified, taking first role)
             let role = user
                 .roles
