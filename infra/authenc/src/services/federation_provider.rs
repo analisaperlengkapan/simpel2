@@ -114,7 +114,6 @@ impl FederationProvider for DummyFederationProvider {
                 roles: vec![],
                 permissions: vec![],
                 session_data: None,
-                secreton_access_policy: SecretonAccessPolicy::default(),
                 security_context: SecurityContext::default(),
                 attributes: None,
                 enabled: true,

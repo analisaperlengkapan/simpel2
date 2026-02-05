@@ -78,6 +78,8 @@ pub struct CreateUserRequest {
     pub enabled: Option<bool>,
     /// Whether the user must change their password on first login
     pub require_password_change: Option<bool>,
+    /// Additional attributes for flexibility (e.g. Secreton policy)
+    pub attributes: Option<serde_json::Value>,
 }
 /// Create a new user in the specified realm
 pub async fn create_user(
@@ -100,8 +102,7 @@ pub async fn create_user(
         realm_id: request.realm_id,
         organization_id: None,
         roles: None,
-        secreton_access_policy: None,
-        attributes: None,
+        attributes: request.attributes,
     };
 
     // Store the user
@@ -150,6 +151,8 @@ pub struct UpdateUserRequest {
     pub username: Option<String>,
     /// Optional new email address for the user
     pub email: Option<String>,
+    /// Additional attributes for flexibility
+    pub attributes: Option<serde_json::Value>,
 }
 
 /// Update an existing user's information in the specified realm
@@ -176,8 +179,7 @@ pub async fn update_user(
         email_verified: None,
         phone_verified: None,
         require_password_change: None,
-        secreton_access_policy: None,
-        attributes: None,
+        attributes: req.attributes,
     };
 
     // Update user in database

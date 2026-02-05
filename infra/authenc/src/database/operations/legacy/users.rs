@@ -133,15 +133,6 @@ pub async fn create_user(db: &Database, request: &CreateUserRequest) -> Result<U
         roles: Vec::new(),       // Roles would be loaded separately
         permissions: Vec::new(), // Permissions would be loaded separately
         session_data: None,      // Default to None for now
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec![row.get::<&str, String>("satker_code")],
-            access_level: crate::models::user::AccessLevel::ReadOnly,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(100),
-            allowed_paths: None,
-            denied_paths: None,
-        },
         security_context: SecurityContext {
             ip_address: None,
             user_agent: None,
@@ -150,7 +141,37 @@ pub async fn create_user(db: &Database, request: &CreateUserRequest) -> Result<U
             risk_score: None,
             metadata: None,
         },
-        attributes: row.get("attributes"),
+        attributes: {
+            // Merge secreton_access_policy into attributes if available
+            let mut attributes_json: Option<serde_json::Value> = row.get("attributes");
+
+            // Re-construct policy from satker_code as default if not in attributes
+            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
+                 let satker_code: String = row.get("satker_code");
+                 let policy = SecretonAccessPolicy {
+                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
+                    access_level: crate::models::user::AccessLevel::ReadOnly,
+                    time_restrictions: None,
+                    audit_required: true,
+                    rate_limit: Some(100),
+                    allowed_paths: None,
+                    denied_paths: None,
+                };
+
+                if let Ok(policy_json) = serde_json::to_value(policy) {
+                     if let Some(ref mut attr) = attributes_json {
+                         if let Some(obj) = attr.as_object_mut() {
+                             obj.insert("secreton_access_policy".to_string(), policy_json);
+                         }
+                     } else {
+                         attributes_json = Some(serde_json::json!({
+                             "secreton_access_policy": policy_json
+                         }));
+                     }
+                }
+            }
+            attributes_json
+        },
         enabled: row.get("enabled"),
         federated: row.get("federated"),
         created_at: row.get("created_at"),
@@ -210,15 +231,6 @@ pub async fn get_user_by_id(db: &Database, user_id: Uuid) -> Result<Option<User>
         roles: Vec::new(),       // Roles would be loaded separately
         permissions: Vec::new(), // Permissions would be loaded separately
         session_data: None,      // Default to None for now
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec![r.get::<&str, String>("satker_code")],
-            access_level: crate::models::user::AccessLevel::ReadOnly,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(100),
-            allowed_paths: None,
-            denied_paths: None,
-        },
         security_context: SecurityContext {
             ip_address: None,
             user_agent: None,
@@ -227,7 +239,34 @@ pub async fn get_user_by_id(db: &Database, user_id: Uuid) -> Result<Option<User>
             risk_score: None,
             metadata: None,
         },
-        attributes: r.get("attributes"),
+        attributes: {
+            let mut attributes_json: Option<serde_json::Value> = r.get("attributes");
+            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
+                 let satker_code: String = r.get("satker_code");
+                 let policy = SecretonAccessPolicy {
+                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
+                    access_level: crate::models::user::AccessLevel::ReadOnly,
+                    time_restrictions: None,
+                    audit_required: true,
+                    rate_limit: Some(100),
+                    allowed_paths: None,
+                    denied_paths: None,
+                };
+
+                if let Ok(policy_json) = serde_json::to_value(policy) {
+                     if let Some(ref mut attr) = attributes_json {
+                         if let Some(obj) = attr.as_object_mut() {
+                             obj.insert("secreton_access_policy".to_string(), policy_json);
+                         }
+                     } else {
+                         attributes_json = Some(serde_json::json!({
+                             "secreton_access_policy": policy_json
+                         }));
+                     }
+                }
+            }
+            attributes_json
+        },
         enabled: r.get("enabled"),
         federated: r.get("federated"),
         created_at: r.get("created_at"),
@@ -287,15 +326,6 @@ pub async fn get_user_by_username(db: &Database, username: &str) -> Result<Optio
         roles: Vec::new(),       // Roles would be loaded separately
         permissions: Vec::new(), // Permissions would be loaded separately
         session_data: None,      // Default to None for now
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec![r.get::<&str, String>("satker_code")],
-            access_level: crate::models::user::AccessLevel::ReadOnly,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(100),
-            allowed_paths: None,
-            denied_paths: None,
-        },
         security_context: SecurityContext {
             ip_address: None,
             user_agent: None,
@@ -304,7 +334,34 @@ pub async fn get_user_by_username(db: &Database, username: &str) -> Result<Optio
             risk_score: None,
             metadata: None,
         },
-        attributes: r.get("attributes"),
+        attributes: {
+            let mut attributes_json: Option<serde_json::Value> = r.get("attributes");
+            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
+                 let satker_code: String = r.get("satker_code");
+                 let policy = SecretonAccessPolicy {
+                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
+                    access_level: crate::models::user::AccessLevel::ReadOnly,
+                    time_restrictions: None,
+                    audit_required: true,
+                    rate_limit: Some(100),
+                    allowed_paths: None,
+                    denied_paths: None,
+                };
+
+                if let Ok(policy_json) = serde_json::to_value(policy) {
+                     if let Some(ref mut attr) = attributes_json {
+                         if let Some(obj) = attr.as_object_mut() {
+                             obj.insert("secreton_access_policy".to_string(), policy_json);
+                         }
+                     } else {
+                         attributes_json = Some(serde_json::json!({
+                             "secreton_access_policy": policy_json
+                         }));
+                     }
+                }
+            }
+            attributes_json
+        },
         enabled: r.get("enabled"),
         federated: r.get("federated"),
         created_at: r.get("created_at"),
@@ -519,15 +576,6 @@ fn row_to_user(row: &tokio_postgres::Row) -> User {
         roles: Vec::new(),       // Roles would be loaded separately
         permissions: Vec::new(), // Permissions would be loaded separately
         session_data: None,      // Default to None for now
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec![row.get::<usize, String>(9)], // satker_code at index 9
-            access_level: crate::models::user::AccessLevel::ReadOnly,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(100),
-            allowed_paths: None,
-            denied_paths: None,
-        },
         security_context: SecurityContext {
             ip_address: None,
             user_agent: None,
@@ -536,7 +584,37 @@ fn row_to_user(row: &tokio_postgres::Row) -> User {
             risk_score: None,
             metadata: None,
         },
-        attributes: row.get(29),
+        attributes: {
+            // Merge secreton_access_policy into attributes if available
+            let mut attributes_json: Option<serde_json::Value> = row.get("attributes");
+
+            // Re-construct policy from satker_code as default if not in attributes
+            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
+                 let satker_code: String = row.get("satker_code");
+                 let policy = SecretonAccessPolicy {
+                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
+                    access_level: crate::models::user::AccessLevel::ReadOnly,
+                    time_restrictions: None,
+                    audit_required: true,
+                    rate_limit: Some(100),
+                    allowed_paths: None,
+                    denied_paths: None,
+                };
+
+                if let Ok(policy_json) = serde_json::to_value(policy) {
+                     if let Some(ref mut attr) = attributes_json {
+                         if let Some(obj) = attr.as_object_mut() {
+                             obj.insert("secreton_access_policy".to_string(), policy_json);
+                         }
+                     } else {
+                         attributes_json = Some(serde_json::json!({
+                             "secreton_access_policy": policy_json
+                         }));
+                     }
+                }
+            }
+            attributes_json
+        },
         enabled: row.get(30),
         federated: row.get(31),
         created_at: row.get(32),
@@ -598,15 +676,6 @@ pub async fn get_all_users(db: &Database) -> Result<Vec<User>> {
             roles: Vec::new(),       // Roles would be loaded separately
             permissions: Vec::new(), // Permissions would be loaded separately
             session_data: None,      // Default to None for now
-            secreton_access_policy: SecretonAccessPolicy {
-                allowed_satker_secrets: vec![row.get::<&str, String>("satker_code")],
-                access_level: crate::models::user::AccessLevel::ReadOnly,
-                time_restrictions: None,
-                audit_required: true,
-                rate_limit: Some(100),
-                allowed_paths: None,
-                denied_paths: None,
-            },
             security_context: SecurityContext {
                 ip_address: None,
                 user_agent: None,
@@ -615,7 +684,37 @@ pub async fn get_all_users(db: &Database) -> Result<Vec<User>> {
                 risk_score: None,
                 metadata: None,
             },
-            attributes: row.get("attributes"),
+        attributes: {
+            // Merge secreton_access_policy into attributes if available
+            let mut attributes_json: Option<serde_json::Value> = row.get("attributes");
+
+            // Re-construct policy from satker_code as default if not in attributes
+            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
+                 let satker_code: String = row.get("satker_code");
+                 let policy = SecretonAccessPolicy {
+                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
+                    access_level: crate::models::user::AccessLevel::ReadOnly,
+                    time_restrictions: None,
+                    audit_required: true,
+                    rate_limit: Some(100),
+                    allowed_paths: None,
+                    denied_paths: None,
+                };
+
+                if let Ok(policy_json) = serde_json::to_value(policy) {
+                     if let Some(ref mut attr) = attributes_json {
+                         if let Some(obj) = attr.as_object_mut() {
+                             obj.insert("secreton_access_policy".to_string(), policy_json);
+                         }
+                     } else {
+                         attributes_json = Some(serde_json::json!({
+                             "secreton_access_policy": policy_json
+                         }));
+                     }
+                }
+            }
+            attributes_json
+        },
             enabled: row.get("enabled"),
             realm_id: row.get("realm_id"),
             federated: row.get("federated"),
@@ -708,22 +807,6 @@ pub async fn get_users_by_realm(db: &Database, realm_id: Uuid) -> Result<Vec<Use
             roles: Vec::new(),       // TODO: Load roles separately
             permissions: Vec::new(), // TODO: Load permissions separately
             session_data: None,
-            secreton_access_policy: SecretonAccessPolicy {
-                allowed_satker_secrets: vec![{
-                    let satker_code: String = row.get("satker_code");
-                    if satker_code.is_empty() {
-                        "UNKNOWN".to_string()
-                    } else {
-                        satker_code
-                    }
-                }],
-                access_level: AccessLevel::ReadOnly,
-                time_restrictions: None,
-                audit_required: true,
-                rate_limit: Some(100),
-                allowed_paths: None,
-                denied_paths: None,
-            },
             security_context: SecurityContext {
                 ip_address: None,
                 user_agent: None,
@@ -732,7 +815,37 @@ pub async fn get_users_by_realm(db: &Database, realm_id: Uuid) -> Result<Vec<Use
                 risk_score: None,
                 metadata: None,
             },
-            attributes: row.get("attributes"),
+        attributes: {
+            // Merge secreton_access_policy into attributes if available
+            let mut attributes_json: Option<serde_json::Value> = row.get("attributes");
+
+            // Re-construct policy from satker_code as default if not in attributes
+            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
+                 let satker_code: String = row.get("satker_code");
+                 let policy = SecretonAccessPolicy {
+                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
+                    access_level: crate::models::user::AccessLevel::ReadOnly,
+                    time_restrictions: None,
+                    audit_required: true,
+                    rate_limit: Some(100),
+                    allowed_paths: None,
+                    denied_paths: None,
+                };
+
+                if let Ok(policy_json) = serde_json::to_value(policy) {
+                     if let Some(ref mut attr) = attributes_json {
+                         if let Some(obj) = attr.as_object_mut() {
+                             obj.insert("secreton_access_policy".to_string(), policy_json);
+                         }
+                     } else {
+                         attributes_json = Some(serde_json::json!({
+                             "secreton_access_policy": policy_json
+                         }));
+                     }
+                }
+            }
+            attributes_json
+        },
             enabled: row.get("enabled"),
             realm_id: row.get("realm_id"),
             federated: row.get("federated"),

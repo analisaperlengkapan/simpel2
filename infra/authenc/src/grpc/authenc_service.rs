@@ -567,7 +567,6 @@ impl AuthencService for AuthencGrpcService {
             realm_id: None,
             organization_id: None,
             roles: None,
-            secreton_access_policy: None,
             attributes: if req.metadata.is_empty() {
                 None
             } else {
@@ -687,7 +686,6 @@ impl AuthencService for AuthencGrpcService {
             email_verified: None,
             phone_verified: None,
             require_password_change: None,
-            secreton_access_policy: None,
             attributes: if req.metadata.is_empty() {
                 None
             } else {
@@ -1791,7 +1789,6 @@ impl AuthencService for AuthencGrpcService {
                     realm_id: None,
                     organization_id: None,
                     roles: None,
-                    secreton_access_policy: None,
                     attributes: Some(serde_json::json!({
                         "federated": true,
                         "provider": req.provider,

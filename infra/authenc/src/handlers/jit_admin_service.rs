@@ -111,7 +111,6 @@ impl AdminService for JitAdminService {
                     .filter_map(|r| Uuid::parse_str(r).ok())
                     .collect(),
             ),
-            secreton_access_policy: None,
         };
 
         match users::create_user(&self.db, &db_request).await {

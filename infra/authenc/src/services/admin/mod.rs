@@ -820,7 +820,6 @@ impl AdminService for AdminManager {
             realm_id: Some(request.realm_id),
             organization_id: None, // TODO: Add organization support
             roles: None,
-            secreton_access_policy: None,
             attributes: request.attributes.clone(),
         };
 
@@ -876,7 +875,6 @@ impl AdminService for AdminManager {
             email_verified: request.email_verified,
             phone_verified: request.phone_verified,
             require_password_change: request.require_password_change,
-            secreton_access_policy: None,
             attributes: request.attributes.clone(),
         };
 

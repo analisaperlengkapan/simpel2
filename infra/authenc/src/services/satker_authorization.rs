@@ -431,7 +431,6 @@ mod tests {
             roles,
             permissions: vec![],
             session_data: None,
-            secreton_access_policy: Default::default(),
             security_context: Default::default(),
             attributes: None,
             enabled: true,
