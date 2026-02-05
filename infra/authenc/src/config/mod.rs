@@ -395,6 +395,8 @@ pub struct ClusterConfig {
     pub cluster_name: String,
     /// Unique identifier for this node
     pub node_id: Option<String>,
+    /// Address of this node
+    pub node_address: Option<String>,
     /// Type of cluster communication to use
     #[serde(default)]
     pub communication_type: crate::services::clustering::ClusterCommunicationType,
@@ -421,6 +423,7 @@ impl Default for ClusterConfig {
             enabled: false,
             cluster_name: default_cluster_name(),
             node_id: None,
+            node_address: None,
             communication_type: crate::services::clustering::ClusterCommunicationType::Infinispan,
             membership_type: crate::services::clustering::ClusterMembershipType::Kubernetes,
             consensus_type: crate::services::clustering::ClusterConsensusType::Raft,
