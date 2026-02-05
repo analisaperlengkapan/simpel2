@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use crate::{
     ApiError, ApiResponse, ApiResult,
     extractors::AuthenticatedUser,
-    handlers::AppState,
+    handlers::{AppState, policy::NamespaceQuery},
     helpers::create_audit_log,
     services::engine::{KeyMetadata, SecretMetadata},
 };
@@ -650,6 +650,12 @@ pub struct CreatePolicyRequest {
     pub name: String,
     pub rules: Vec<PolicyRule>,
     pub metadata: Option<PolicyMetadata>,
+    #[serde(default = "default_namespace")]
+    pub namespace: String,
+}
+
+fn default_namespace() -> String {
+    "default".to_string()
 }
 
 // Use canonical PolicyRule from core
@@ -1321,11 +1327,12 @@ pub async fn list_policies(
 pub async fn get_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Query(query): Query<NamespaceQuery>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
     let p = state
         .policy_service
-        .get_policy(name.clone())
+        .get_policy(name.clone(), query.namespace)
         .await
         .map_err(ApiError::Core)?;
 
@@ -1360,7 +1367,7 @@ pub async fn create_policy(
         .policy_service
         .create_policy(
             name.clone(),
-            "default".to_string(), // Default namespace
+            req.namespace,
             description,
             req.rules,
             user.username.clone(),
@@ -1378,6 +1385,7 @@ pub async fn create_policy(
 pub async fn update_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Query(query): Query<NamespaceQuery>,
     user: AuthenticatedUser,
     Json(req): Json<CreatePolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
@@ -1387,6 +1395,7 @@ pub async fn update_policy(
         .policy_service
         .update_policy(
             name.clone(),
+            query.namespace,
             description,
             Some(req.rules),
             None, // Don't change active status
@@ -1405,11 +1414,12 @@ pub async fn update_policy(
 pub async fn delete_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Query(query): Query<NamespaceQuery>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     state
         .policy_service
-        .delete_policy(name.clone())
+        .delete_policy(name.clone(), query.namespace)
         .await
         .map_err(ApiError::Core)?;
 

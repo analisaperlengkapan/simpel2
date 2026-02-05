@@ -156,18 +156,23 @@ pub async fn inject_env(
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
 
+    // Load policies once
+    let namespace = ctx.derive_namespace();
+    let rules = state
+        .policy_service
+        .get_rules_for_policies(&ctx.policy_names, &namespace)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
+    let policy_set = secreton_core::services::policy::PolicySet::new(rules);
+
     for secret_config in &request.secrets {
         secret_paths.push(secret_config.path.clone());
 
         // Authorization check
-        {
-            let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
-                message: "Failed to acquire policy lock".to_string(),
-            })?;
-
-            if !policy_set.evaluate(user_id, &secret_config.path, "read", Some(&policy_context)) {
-                return Err(ApiError::Forbidden);
-            }
+        if !policy_set.evaluate(user_id, &secret_config.path, "read", Some(&policy_context)) {
+            return Err(ApiError::Forbidden);
         }
 
         // Fetch secret from Secreton
@@ -254,9 +259,15 @@ pub async fn cleanup_session(
     let is_owner = session.created_by == user_id && user_id != "anonymous";
 
     if !is_owner {
-        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
-            message: "Failed to acquire policy lock".to_string(),
-        })?;
+        let namespace = ctx.derive_namespace();
+        let rules = state
+            .policy_service
+            .get_rules_for_policies(&ctx.policy_names, &namespace)
+            .await
+            .map_err(|e| ApiError::Internal {
+                message: e.to_string(),
+            })?;
+        let policy_set = secreton_core::services::policy::PolicySet::new(rules);
         if !policy_set.evaluate(user_id, "sys/inject/sessions", "delete", None) {
             return Err(ApiError::Forbidden);
         }
@@ -289,9 +300,15 @@ pub async fn list_sessions(
     // Authorization check
     let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
     {
-        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
-            message: "Failed to acquire policy lock".to_string(),
-        })?;
+        let namespace = ctx.derive_namespace();
+        let rules = state
+            .policy_service
+            .get_rules_for_policies(&ctx.policy_names, &namespace)
+            .await
+            .map_err(|e| ApiError::Internal {
+                message: e.to_string(),
+            })?;
+        let policy_set = secreton_core::services::policy::PolicySet::new(rules);
         if !policy_set.evaluate(user_id, "sys/inject/sessions", "list", None) {
             return Err(ApiError::Forbidden);
         }
@@ -313,9 +330,15 @@ pub async fn get_session_details(
     // Authorization check
     let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
     {
-        let policy_set = state.policy.read().map_err(|_| ApiError::Internal {
-            message: "Failed to acquire policy lock".to_string(),
-        })?;
+        let namespace = ctx.derive_namespace();
+        let rules = state
+            .policy_service
+            .get_rules_for_policies(&ctx.policy_names, &namespace)
+            .await
+            .map_err(|e| ApiError::Internal {
+                message: e.to_string(),
+            })?;
+        let policy_set = secreton_core::services::policy::PolicySet::new(rules);
         if !policy_set.evaluate(user_id, "sys/inject/sessions", "read", None) {
             return Err(ApiError::Forbidden);
         }

@@ -2,7 +2,17 @@
 target = "index.html"
 dist = "dist"
 release = true
-wasm-opt = false  # Disable wasm-opt to avoid optimization errors
+
+# Enable wasm-opt with required features
+[[build.wasm_opt]]
+args = [
+    "-Oz",
+    "--enable-bulk-memory",
+    "--enable-nontrapping-float-to-int",
+    "--enable-sign-ext",
+    "--enable-mutable-globals",
+    "--strip-debug",
+]
 
 # Advanced wasm-bindgen configuration
 [build.wasm-bindgen]
@@ -24,7 +34,6 @@ open = false
 watch = ["src", "styles"]
 
 [tools]
-wasm-opt = false
 ignore = ["target", "dist", "Cargo.lock", ".git"]
 debounce = 100
 

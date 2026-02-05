@@ -225,3 +225,27 @@ impl Config {
         })
     }
 }
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            base: BaseServiceConfig::default(),
+            base_url: default_monsakti_base_url(),
+            mysimkari_base_url: default_mysimkari_base_url(),
+            output_dir: default_output_dir(),
+            tokens: HashMap::new(),
+            db_config: None,
+            siman_client_id: None,
+            siman_client_secret: None,
+            siman_token_url: default_siman_token_url(),
+            siman_ba_key: None,
+            siman_base_url: default_siman_base_url(),
+            siman_concurrency_limit: default_concurrency_limit(),
+            scheduler_enabled: default_scheduler_enabled(),
+            monsakti_schedule: default_monsakti_schedule(),
+            mysimkari_schedule: default_mysimkari_schedule(),
+            siman_schedule: default_siman_schedule(),
+            scheduler_timezone: default_scheduler_timezone(),
+        }
+    }
+}

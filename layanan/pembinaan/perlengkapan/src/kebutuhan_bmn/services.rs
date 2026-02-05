@@ -241,7 +241,7 @@ impl KebutuhanBmnService {
                     Some(current.status_kode),
                     target_status.to_code(),
                     &format!("Transition to {}", target_status.label()),
-                    request.komentar.as_deref(),
+                    request.komentar.clone(),
                     user_id,
                     user_info.clone(),
                 )
@@ -292,7 +292,7 @@ impl KebutuhanBmnService {
                 Some(current.status_kode),
                 target_status.to_code(),
                 &format!("Transition to {}", target_status.label()),
-                request.komentar.as_deref(),
+                request.komentar.clone(),
                 user_id,
                 user_info,
             )
@@ -341,7 +341,7 @@ impl KebutuhanBmnService {
         &self,
         pengajuan_id: Uuid,
         satker_id: &str,
-        satker_name: Option<&str>,
+        satker_name: Option<String>,
         user_id: Option<Uuid>,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
         // Verify pengajuan exists and is editable

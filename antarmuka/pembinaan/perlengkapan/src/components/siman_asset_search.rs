@@ -45,9 +45,9 @@ pub fn SimanAssetSearch(
         set_error.set(None);
 
         let kat = kategori.get();
-        let kat_ref = kat.as_deref();
 
         spawn_local(async move {
+            let kat_ref = kat.as_deref();
             match search_siman_assets(&term, kat_ref, Some(20)).await {
                 Ok(response) => {
                     set_results.set(response.data);
@@ -332,7 +332,9 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
             </Show>
 
             <Show when=move || !loading.get() && summary.get().is_some()>
-                {move || summary.get().map(|s| view! {
+                {move || summary.get().map(|s| {
+                    let by_category_list = StoredValue::new(s.by_category.clone());
+                    view! {
                     <div class="space-y-4">
                         // Total stats
                         <div class="grid grid-cols-2 gap-4">
@@ -354,7 +356,7 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
                                 <h5 class="font-semibold text-gray-700 mb-2">"Per Kategori"</h5>
                                 <div class="space-y-2">
                                     <For
-                                        each=move || s.by_category.clone()
+                                        each=move || by_category_list.get_value()
                                         key=|c| c.category.clone()
                                         children=|cat| {
                                             view! {
@@ -369,7 +371,7 @@ pub fn SimanAssetSummaryCard(#[prop(into)] satker_id: String) -> impl IntoView {
                             </div>
                         </Show>
                     </div>
-                })}
+                }})}
             </Show>
         </div>
     }

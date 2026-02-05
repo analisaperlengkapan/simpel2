@@ -134,6 +134,7 @@ struct StoredUser {
     pub last_login: Option<chrono::DateTime<chrono::Utc>>,
     pub mfa_enabled: bool,
     pub roles: HashSet<String>,
+    pub policies: HashSet<String>,
     pub namespace: String,
     pub is_locked: bool,
     pub failed_attempts: u32,
@@ -156,6 +157,7 @@ impl From<&User> for StoredUser {
             last_login: user.last_login,
             mfa_enabled: user.mfa_enabled,
             roles: user.roles.clone(),
+            policies: user.policies.clone(),
             namespace: user.namespace.clone(),
             is_locked: user.is_locked,
             failed_attempts: user.failed_attempts,
@@ -180,6 +182,7 @@ impl From<StoredUser> for User {
             last_login: stored.last_login,
             mfa_enabled: stored.mfa_enabled,
             roles: stored.roles,
+            policies: stored.policies,
             namespace: stored.namespace,
             is_locked: stored.is_locked,
             failed_attempts: stored.failed_attempts,
@@ -234,6 +237,7 @@ struct Claims {
     iat: usize,
     jti: String,
     roles: Vec<String>,
+    policies: Vec<String>,
     token_type: String, // "access" or "refresh"
     // Extended claims for stateless validation
     username: String,
@@ -383,6 +387,7 @@ impl AuthService {
             last_login: Some(chrono::Utc::now()), // Active now
             mfa_enabled: claims.mfa_enabled,
             roles: claims.roles.into_iter().collect(),
+            policies: claims.policies.into_iter().collect(),
             namespace: claims.namespace,
             is_locked: false,
             failed_attempts: 0,
@@ -443,6 +448,7 @@ impl AuthService {
         password: &str,
         full_name: Option<&str>,
         roles: Vec<String>,
+        policies: Vec<String>,
         metadata: Option<HashMap<String, String>>,
         is_active: bool,
     ) -> Result<User, AuthError> {
@@ -467,6 +473,7 @@ impl AuthService {
             last_login: None,
             mfa_enabled: false,
             roles: roles.into_iter().collect(),
+            policies: policies.into_iter().collect(),
             namespace: "default".to_string(),
             is_locked: false,
             failed_attempts: 0,
@@ -485,12 +492,16 @@ impl AuthService {
         email: Option<String>,
         full_name: Option<String>,
         is_active: Option<bool>,
+        policies: Option<Vec<String>>,
         metadata: Option<HashMap<String, String>>,
     ) -> Result<User, AuthError> {
         let mut user = self.get_user(user_id).await?;
 
         if let Some(email) = email {
             user.email = email;
+        }
+        if let Some(p) = policies {
+            user.policies = p.into_iter().collect();
         }
         if let Some(full_name) = full_name {
             user.full_name = Some(full_name);
@@ -631,8 +642,10 @@ impl AuthService {
         }
     }
 
-    /// Get user effective policies (permissions)
-    pub async fn get_user_policies(&self, user: &User) -> Result<Vec<String>, AuthError> {
+    /// Get user effective permissions (aggregated from roles)
+    /// NOTE: This does NOT include policy names from `user.policies`.
+    /// `user.policies` should be used to load PolicyDefinition objects.
+    pub async fn get_user_permissions(&self, user: &User) -> Result<Vec<String>, AuthError> {
         let mut all_permissions = Vec::new();
 
         for role_name in &user.roles {
@@ -642,7 +655,6 @@ impl AuthService {
                 }
                 Err(_) => {
                     // Ignore missing roles to allow partial success
-                    // This can happen if a role was deleted but the user still has it assigned
                     continue;
                 }
             }
@@ -652,6 +664,24 @@ impl AuthService {
         all_permissions.dedup();
 
         Ok(all_permissions)
+    }
+
+    /// Get user effective policy names (explicit + role-derived)
+    pub fn get_user_policy_names(&self, user: &User) -> Vec<String> {
+        let mut policy_names: Vec<String> = user.policies.iter().cloned().collect();
+
+        // Add role-based policies (convention: role name = policy name suffix or mapping)
+        // For simple implementations, we might assume roles map 1:1 to policies if configured,
+        // but here we just return the explicit ones plus any we might derive.
+        // The API middleware currently derives "{role}-policy". We can replicate that or leave it to the caller.
+        // For Core consistency, let's include role-based defaults if that's the model.
+        for role in &user.roles {
+            policy_names.push(format!("{}-policy", role.to_lowercase()));
+        }
+
+        policy_names.sort();
+        policy_names.dedup();
+        policy_names
     }
 
     /// Create role
@@ -850,6 +880,8 @@ impl AuthService {
 
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
+        let mut policies: Vec<String> = user.policies.iter().cloned().collect();
+        policies.sort();
 
         let claims = Claims {
             sub: user.id.to_string(),
@@ -859,6 +891,7 @@ impl AuthService {
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
             roles,
+            policies,
             token_type: "access".to_string(),
             username: user.username.clone(),
             email: user.email.clone(),
@@ -889,6 +922,8 @@ impl AuthService {
 
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
+        let mut policies: Vec<String> = user.policies.iter().cloned().collect();
+        policies.sort();
 
         let claims = Claims {
             sub: user.id.to_string(),
@@ -898,6 +933,7 @@ impl AuthService {
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
             roles,
+            policies,
             token_type: "refresh".to_string(),
             username: user.username.clone(),
             email: user.email.clone(),

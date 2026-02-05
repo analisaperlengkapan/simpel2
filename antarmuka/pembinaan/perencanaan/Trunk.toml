@@ -2,6 +2,9 @@
 target = "index.html"
 dist = "dist"
 
+[[build.wasm_opt]]
+args = ["-Oz", "--enable-bulk-memory", "--enable-nontrapping-float-to-int", "--enable-sign-ext", "--enable-mutable-globals", "--enable-reference-types"]
+
 [[build.wasm-bindgen]]
 target = "web"
 

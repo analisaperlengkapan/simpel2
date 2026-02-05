@@ -3,16 +3,17 @@ target = "index.html"
 dist = "dist"
 release = false
 
-# Disable wasm-opt for now to avoid validation errors
-# Will re-enable after basic functionality is confirmed
-# [[build.wasm_opt]]
-# args = [
-#     "-Oz",
-#     "--enable-bulk-memory",
-#     "--strip-debug",
-#     "--dce",
-#     "--vacuum",
-# ]
+# Enable wasm-opt with required features
+[[build.wasm_opt]]
+args = [
+    "-Oz",
+    "--enable-bulk-memory",
+    "--enable-nontrapping-float-to-int",
+    "--enable-sign-ext",
+    "--enable-mutable-globals",
+    "--enable-reference-types",
+    "--strip-debug",
+]
 
 # Simplified wasm-bindgen configuration for development
 [[build.wasm-bindgen]]

@@ -41,6 +41,8 @@ struct StoredUser {
     pub last_login: Option<chrono::DateTime<chrono::Utc>>,
     pub mfa_enabled: bool,
     pub roles: HashSet<String>,
+    #[serde(default)]
+    pub policies: HashSet<String>,
     pub namespace: String,
     pub is_locked: bool,
     pub failed_attempts: u32,
@@ -63,6 +65,7 @@ impl From<&User> for StoredUser {
             last_login: user.last_login,
             mfa_enabled: user.mfa_enabled,
             roles: user.roles.clone(),
+            policies: user.policies.clone(),
             namespace: user.namespace.clone(),
             is_locked: user.is_locked,
             failed_attempts: user.failed_attempts,
@@ -87,6 +90,7 @@ impl From<StoredUser> for User {
             last_login: stored.last_login,
             mfa_enabled: stored.mfa_enabled,
             roles: stored.roles,
+            policies: stored.policies,
             namespace: stored.namespace,
             is_locked: stored.is_locked,
             failed_attempts: stored.failed_attempts,
@@ -141,6 +145,8 @@ struct Claims {
     iat: usize,
     jti: String,
     roles: Vec<String>,
+    #[serde(default)]
+    policies: Vec<String>,
     token_type: String, // "access" or "refresh"
     // Extended claims for stateless validation
     username: String,
@@ -150,6 +156,10 @@ struct Claims {
     is_active: bool,
     mfa_enabled: bool,
     namespace: String,
+    // Metadata fields needed for context reconstruction
+    satker_code: Option<String>,
+    wilayah_code: Option<String>,
+    admin_level: Option<String>,
 }
 
 /// Authentication service
@@ -401,6 +411,18 @@ impl AuthService {
         // Reconstruct user from claims
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| AuthError::InvalidToken)?;
 
+        // Reconstruct metadata
+        let mut metadata = HashMap::new();
+        if let Some(s) = claims.satker_code {
+            metadata.insert("satker_code".to_string(), s);
+        }
+        if let Some(w) = claims.wilayah_code {
+            metadata.insert("wilayah_code".to_string(), w);
+        }
+        if let Some(a) = claims.admin_level {
+            metadata.insert("admin_level".to_string(), a);
+        }
+
         Ok(User {
             id: user_id,
             username: claims.username,
@@ -414,11 +436,12 @@ impl AuthService {
             last_login: Some(chrono::Utc::now()), // Active now
             mfa_enabled: claims.mfa_enabled,
             roles: claims.roles.into_iter().collect(),
+            policies: claims.policies.into_iter().collect(),
             namespace: claims.namespace,
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
-            metadata: HashMap::new(), // Metadata not currently in JWT
+            metadata,
         })
     }
 
@@ -552,6 +575,7 @@ impl AuthService {
             last_login: None,
             mfa_enabled: false,
             roles: roles.into_iter().collect(),
+            policies: std::collections::HashSet::new(),
             namespace: "default".to_string(),
             is_locked: false,
             failed_attempts: 0,
@@ -953,6 +977,9 @@ impl AuthService {
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
 
+        let mut policies: Vec<String> = user.policies.iter().cloned().collect();
+        policies.sort();
+
         let claims = Claims {
             sub: user.id.to_string(),
             iss: config.jwt.issuer.clone(),
@@ -961,6 +988,7 @@ impl AuthService {
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
             roles,
+            policies,
             token_type: "access".to_string(),
             username: user.username.clone(),
             email: user.email.clone(),
@@ -969,6 +997,9 @@ impl AuthService {
             is_active: user.is_active,
             mfa_enabled: user.mfa_enabled,
             namespace: user.namespace.clone(),
+            satker_code: user.metadata.get("satker_code").cloned(),
+            wilayah_code: user.metadata.get("wilayah_code").cloned(),
+            admin_level: user.metadata.get("admin_level").cloned(),
         };
 
         let algorithm = Algorithm::from_str(&config.jwt.algorithm)
@@ -998,6 +1029,9 @@ impl AuthService {
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
 
+        let mut policies: Vec<String> = user.policies.iter().cloned().collect();
+        policies.sort();
+
         let claims = Claims {
             sub: user.id.to_string(),
             iss: config.jwt.issuer.clone(),
@@ -1006,6 +1040,7 @@ impl AuthService {
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
             roles,
+            policies,
             token_type: "refresh".to_string(),
             username: user.username.clone(),
             email: user.email.clone(),
@@ -1014,6 +1049,9 @@ impl AuthService {
             is_active: user.is_active,
             mfa_enabled: user.mfa_enabled,
             namespace: user.namespace.clone(),
+            satker_code: user.metadata.get("satker_code").cloned(),
+            wilayah_code: user.metadata.get("wilayah_code").cloned(),
+            admin_level: user.metadata.get("admin_level").cloned(),
         };
 
         let algorithm = Algorithm::from_str(&config.jwt.algorithm)
@@ -1388,6 +1426,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             roles: HashSet::new(),
+            policies: HashSet::new(),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,
@@ -1474,6 +1513,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             roles: HashSet::from(["admin".to_string()]),
+            policies: HashSet::new(),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,
@@ -1516,6 +1556,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             roles: HashSet::from(["viewer".to_string()]),
+            policies: HashSet::new(),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,
@@ -1555,6 +1596,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             roles: HashSet::from(["user".to_string()]),
+            policies: HashSet::new(),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,
@@ -1617,6 +1659,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             roles: HashSet::new(),
+            policies: HashSet::new(),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,
@@ -1709,6 +1752,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             roles: HashSet::from(["role1".to_string(), "role2".to_string()]),
+            policies: HashSet::new(),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,
@@ -1758,6 +1802,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             roles: HashSet::from(["user".to_string()]),
+            policies: HashSet::new(),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,

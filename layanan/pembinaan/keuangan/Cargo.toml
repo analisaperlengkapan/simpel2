@@ -25,3 +25,6 @@ thiserror = { workspace = true }
 garde = { workspace = true, features = ["derive"] }
 jsonwebtoken = { workspace = true }
 lib-common = { workspace = true, features = ["axum", "telemetry", "db"] }
+
+[features]
+integration-tests = []

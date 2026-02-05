@@ -532,23 +532,32 @@ pub async fn auth_middleware(
     });
 
     // Policy names
-    // Check metadata for 'policy_names' or 'policies'
-    let policy_names: Vec<String> = if let Some(p) = user
-        .metadata
-        .get("policy_names")
-        .or_else(|| user.metadata.get("policies"))
-    {
-        p.split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect()
-    } else {
-        // Default to role-based
-        user.roles
+    // Prioritize explicit policy bindings from user.policies, then check metadata
+    let mut policy_names: Vec<String> = user.policies.iter().cloned().collect();
+
+    // If no explicit policies, check metadata for 'policy_names' or 'policies'
+    if policy_names.is_empty() {
+        if let Some(p) = user
+            .metadata
+            .get("policy_names")
+            .or_else(|| user.metadata.get("policies"))
+        {
+            policy_names = p
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
+    }
+
+    // If still no policies, fallback to role-based policies
+    if policy_names.is_empty() {
+        policy_names = user
+            .roles
             .iter()
             .map(|r| format!("{}-policy", r.to_lowercase()))
-            .collect()
-    };
+            .collect();
+    }
 
     // Create request context
     let context = RequestContext {
@@ -1064,18 +1073,26 @@ pub async fn policy_check_middleware(
         // Build policy evaluation context
         let policy_context = build_policy_context(ctx, &request);
 
-        // Get policy service from state
-        let policy_set = match state.services.policy.read() {
-            Ok(guard) => guard,
-            Err(e) => {
-                tracing::error!("Failed to acquire policy read lock: {}", e);
-                return Err((
+        // Get rules from policy service based on user's policy names
+        let namespace = ctx.derive_namespace();
+        let rules = state
+            .services
+            .policy_service
+            .get_rules_for_policies(&ctx.policy_names, &namespace)
+            .await
+            .map_err(|e| {
+                warn!("Failed to load policies: {}", e);
+                (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "Policy service unavailable",
+                    Json(serde_json::json!({
+                        "error": "Internal error loading policies"
+                    })),
                 )
-                    .into_response());
-            }
-        };
+                    .into_response()
+            })?;
+
+        // Create temporary policy set for evaluation
+        let policy_set = secreton_core::services::policy::PolicySet::new(rules);
 
         // Evaluate policy
         let start_time = Instant::now();

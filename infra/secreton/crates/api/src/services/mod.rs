@@ -128,9 +128,6 @@ pub struct ServiceContainer {
     /// Lease manager
     pub lease_manager: Arc<LeaseManager>,
 
-    /// Policy service for authorization
-    pub policy: Arc<RwLock<PolicySet>>,
-
     /// Policy persistence service
     pub policy_service: Arc<policy::PolicyService>,
 
@@ -213,7 +210,6 @@ impl ServiceContainer {
             rabbitmq_engine,
             kafka_engine,
             rotation_engine,
-            policy,
             policy_service,
             wrapping_service,
         ) = Self::initialize_secrets_engines(pool.clone());
@@ -256,7 +252,6 @@ impl ServiceContainer {
             kafka_engine,
             rotation_engine,
             lease_manager,
-            policy,
             policy_service,
             wrapping_service,
             hsm,
@@ -415,7 +410,6 @@ impl ServiceContainer {
         Arc<RabbitMqEngine>,
         Arc<KafkaEngine>,
         Arc<AutoRotationEngine>,
-        Arc<RwLock<PolicySet>>,
         Arc<policy::PolicyService>,
         Arc<WrappingService>,
     ) {
@@ -467,10 +461,6 @@ impl ServiceContainer {
         let rotation_engine = Arc::new(AutoRotationEngine::new());
         tracing::info!("✅ Auto-rotation engine initialized");
 
-        let default_policies = vec![];
-        let policy = Arc::new(RwLock::new(PolicySet::new(default_policies)));
-        tracing::info!("✅ Policy service initialized");
-
         let policy_service = Arc::new(policy::PolicyService::new(pool.clone()));
         tracing::info!("✅ Policy persistence service initialized");
 
@@ -494,7 +484,6 @@ impl ServiceContainer {
             rabbitmq_engine,
             kafka_engine,
             rotation_engine,
-            policy,
             policy_service,
             wrapping_service,
         )
@@ -861,8 +850,6 @@ impl ServiceContainer {
         let lease_manager = Arc::new(LeaseManager::new(pool.clone()));
 
         // Initialize policy service for mock
-        let default_policies = vec![];
-        let policy = Arc::new(RwLock::new(PolicySet::new(default_policies)));
         let policy_service = Arc::new(policy::PolicyService::new(pool.clone()));
 
         // Initialize wrapping service for mock
@@ -908,7 +895,6 @@ impl ServiceContainer {
             kafka_engine,
             rotation_engine,
             lease_manager,
-            policy,
             policy_service,
             wrapping_service,
             hsm: None, // No HSM in mock

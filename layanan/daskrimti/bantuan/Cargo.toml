@@ -71,6 +71,7 @@ tempfile = { workspace = true }
 mockall = { workspace = true }
 
 [features]
+integration-tests = []
 default = ["ai", "webhook"]
 ai = []
 webhook = []

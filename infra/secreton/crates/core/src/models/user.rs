@@ -44,6 +44,10 @@ pub struct User {
     /// User roles (set for deduplication)
     pub roles: HashSet<String>,
 
+    /// Explicitly assigned policies
+    #[serde(default)]
+    pub policies: HashSet<String>,
+
     /// Namespace/tenant (for multi-tenancy)
     pub namespace: String,
 
@@ -78,6 +82,7 @@ impl User {
             last_login: None,
             mfa_enabled: false,
             roles: HashSet::new(),
+            policies: HashSet::new(),
             namespace: "default".to_string(),
             is_locked: false,
             failed_attempts: 0,

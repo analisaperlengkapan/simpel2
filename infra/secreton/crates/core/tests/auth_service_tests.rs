@@ -30,6 +30,7 @@ async fn test_last_login_update() {
             password,
             Some("Test User"),
             vec!["user".to_string()],
+            vec![],
             None,
             true,
         )
@@ -65,6 +66,7 @@ async fn test_refresh_token() {
             "password123",
             Some("Test User"),
             vec!["user".to_string()],
+            vec![],
             None,
             true,
         )
@@ -76,6 +78,9 @@ async fn test_refresh_token() {
         .authenticate("testuser", "password123", None, "127.0.0.1", "test-agent")
         .await
         .unwrap();
+
+    // Ensure time passes so token timestamps are different
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // 3. Use the refresh token to get a new access token
     let refreshed_token = auth_service
@@ -114,6 +119,7 @@ async fn test_refresh_token_with_access_token() {
             "password123",
             None,
             vec!["user".to_string()],
+            vec![],
             None,
             true,
         )
