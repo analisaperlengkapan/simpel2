@@ -273,19 +273,19 @@ impl AuthService {
             UserRole::User
         };
 
-        let permissions = match role {
-            UserRole::Admin
-            | UserRole::AdminPusat
-            | UserRole::AdminEselonI
-            | UserRole::AdminWilayah
-            | UserRole::AdminSatker => vec![
+        // Determine permissions based on role's capabilities (not hardcoded variants)
+        let permissions = if role.is_admin() {
+            vec![
                 "admin:*".to_string(),
                 "user:read".to_string(),
                 "user:write".to_string(),
-            ],
-            UserRole::Supervisor => vec!["user:read".to_string(), "user:write".to_string()],
-            UserRole::User => vec!["user:read".to_string()],
-            UserRole::Guest => vec![],
+            ]
+        } else if matches!(role, UserRole::Supervisor) {
+            vec!["user:read".to_string(), "user:write".to_string()]
+        } else if matches!(role, UserRole::Guest) {
+            vec![]
+        } else {
+            vec!["user:read".to_string()]
         };
 
         let now = chrono::Utc::now();

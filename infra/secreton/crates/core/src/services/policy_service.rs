@@ -161,7 +161,11 @@ impl PolicyService {
         Ok(policy)
     }
 
-    pub async fn get_policy(&self, name: &str, namespace: &str) -> Result<PolicyDefinition, CoreError> {
+    pub async fn get_policy(
+        &self,
+        name: &str,
+        namespace: &str,
+    ) -> Result<PolicyDefinition, CoreError> {
         let path = Self::storage_path(namespace, name);
         let entry = self
             .storage

@@ -25,6 +25,3 @@ tokio-postgres = { workspace = true, features = ["with-uuid-1", "with-chrono-0_4
 garde = { workspace = true, features = ["derive", "email"] }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
-
-[features]
-integration-tests = []

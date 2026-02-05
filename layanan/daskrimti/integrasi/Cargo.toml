@@ -12,7 +12,6 @@ categories = ["api-bindings", "web-programming::http-client"]
 [features]
 integration-tests = []
 default = []
-integration-tests = []
 grpc = ["dep:tonic", "dep:prost", "dep:tonic-prost"]
 
 [dependencies]

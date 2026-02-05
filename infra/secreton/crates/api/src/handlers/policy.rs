@@ -309,7 +309,10 @@ pub async fn get_policy(
     Path(name): Path<String>,
     Query(query): Query<NamespaceQuery>,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
-    info!("Getting policy: name={}, namespace={}", name, query.namespace);
+    info!(
+        "Getting policy: name={}, namespace={}",
+        name, query.namespace
+    );
 
     // Check admin permission
     if !is_admin(&state)? {
@@ -357,7 +360,10 @@ pub async fn update_policy(
     Query(query): Query<NamespaceQuery>,
     Json(req): Json<UpdatePolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
-    info!("Updating policy: name={}, namespace={}", name, query.namespace);
+    info!(
+        "Updating policy: name={}, namespace={}",
+        name, query.namespace
+    );
 
     // Check admin permission
     if !is_admin(&state)? {
@@ -370,7 +376,14 @@ pub async fn update_policy(
 
     let p = state
         .policy_service
-        .update_policy(name, query.namespace, req.description, req.rules, req.is_active, user)
+        .update_policy(
+            name,
+            query.namespace,
+            req.description,
+            req.rules,
+            req.is_active,
+            user,
+        )
         .await
         .map_err(ApiError::Core)?;
 
@@ -406,7 +419,10 @@ pub async fn delete_policy(
     Path(name): Path<String>,
     Query(query): Query<NamespaceQuery>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    info!("Deleting policy: name={}, namespace={}", name, query.namespace);
+    info!(
+        "Deleting policy: name={}, namespace={}",
+        name, query.namespace
+    );
 
     // Check admin permission
     if !is_admin(&state)? {
@@ -445,7 +461,14 @@ pub async fn test_policy(
 
     let res = state
         .policy_service
-        .test_policy(name, req.namespace, req.user, req.path, req.action, req.context)
+        .test_policy(
+            name,
+            req.namespace,
+            req.user,
+            req.path,
+            req.action,
+            req.context,
+        )
         .await
         .map_err(ApiError::Core)?;
 

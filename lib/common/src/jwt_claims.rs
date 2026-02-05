@@ -69,24 +69,46 @@ impl Claims {
             .unwrap_or_else(|| self.sub.clone())
     }
 
-    /// Get primary role (Admin > Supervisor > User)
+    /// Get primary role from JWT claims.
+    /// Returns the highest-priority role found, or User if no recognized roles.
+    /// Custom roles (like admin_pusat, admin_wilayah, etc.) are supported flexibly
+    /// without hardcoding - any role starting with "admin" gets admin privileges.
     pub fn get_primary_role(&self) -> crate::auth::UserRole {
+        // Check for standard roles first (highest priority)
         if self.has_role("admin") {
-            crate::auth::UserRole::Admin
-        } else if self.has_role("admin_pusat") {
-            crate::auth::UserRole::AdminPusat
-        } else if self.has_role("admin_eselon1") {
-            crate::auth::UserRole::AdminEselonI
-        } else if self.has_role("admin_wilayah") {
-            crate::auth::UserRole::AdminWilayah
-        } else if self.has_role("admin_satker") {
-            crate::auth::UserRole::AdminSatker
-        } else if self.has_role("supervisor") {
-            crate::auth::UserRole::Supervisor
-        } else if self.has_role("guest") {
-            crate::auth::UserRole::Guest
+            return crate::auth::UserRole::Admin;
+        }
+        if self.has_role("supervisor") {
+            return crate::auth::UserRole::Supervisor;
+        }
+        if self.has_role("guest") {
+            return crate::auth::UserRole::Guest;
+        }
+
+        // Check for any admin-like role in realm_access (flexible)
+        if let Some(ref ra) = self.realm_access {
+            for role in &ra.roles {
+                let lower = role.to_lowercase();
+                // Any role starting with "admin" (admin_pusat, admin_wilayah, etc.)
+                if lower.starts_with("admin") {
+                    return crate::auth::UserRole::Custom(role.clone());
+                }
+            }
+        }
+
+        // Default to User
+        crate::auth::UserRole::User
+    }
+
+    /// Get all roles as UserRole enums
+    pub fn get_all_roles(&self) -> Vec<crate::auth::UserRole> {
+        if let Some(ref ra) = self.realm_access {
+            ra.roles
+                .iter()
+                .map(|r| crate::auth::UserRole::from_string(r))
+                .collect()
         } else {
-            crate::auth::UserRole::User
+            vec![crate::auth::UserRole::User]
         }
     }
 }

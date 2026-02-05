@@ -21,6 +21,3 @@ anyhow = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 garde = { workspace = true, features = ["derive", "serde"] }
-
-[features]
-integration-tests = []

@@ -4,10 +4,7 @@ use crate::{
     error::Result,
     models::{
         User,
-        user::{
-            CreateUserRequest, SecretonAccessPolicy, SecurityContext,
-            UpdateUserRequest,
-        },
+        user::{CreateUserRequest, SecretonAccessPolicy, SecurityContext, UpdateUserRequest},
     },
 };
 use chrono::{DateTime, Utc};

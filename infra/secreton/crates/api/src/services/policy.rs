@@ -137,15 +137,21 @@ impl PolicyService {
                     all_rules.extend(rules.clone());
 
                     let key = Self::cache_key(namespace, &name);
-                    cache_update.insert(key, CachedPolicy {
-                        rules,
-                        fetched_at: Instant::now(),
-                    });
+                    cache_update.insert(
+                        key,
+                        CachedPolicy {
+                            rules,
+                            fetched_at: Instant::now(),
+                        },
+                    );
                 }
                 Err(e) => {
                     // Propagate deserialization error so bad policy data is detected
                     return Err(CoreError::Validation {
-                        message: format!("Failed to deserialize rules for policy '{}': {}", name, e),
+                        message: format!(
+                            "Failed to deserialize rules for policy '{}': {}",
+                            name, e
+                        ),
                     });
                 }
             }
@@ -462,7 +468,11 @@ impl PolicyService {
         })
     }
 
-    pub async fn get_policy(&self, name: String, namespace: String) -> Result<PolicyServiceResponse, CoreError> {
+    pub async fn get_policy(
+        &self,
+        name: String,
+        namespace: String,
+    ) -> Result<PolicyServiceResponse, CoreError> {
         let client = self.pool.get().await.map_err(|e| CoreError::Internal {
             message: format!("Database error: {}", e),
             source: None,
@@ -526,7 +536,10 @@ impl PolicyService {
         })?;
 
         let existing = client
-            .query_opt("SELECT id, version FROM policies WHERE name = $1 AND namespace = $2", &[&name, &namespace])
+            .query_opt(
+                "SELECT id, version FROM policies WHERE name = $1 AND namespace = $2",
+                &[&name, &namespace],
+            )
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database error: {}", e),
@@ -652,7 +665,10 @@ impl PolicyService {
         })?;
 
         let row = client
-            .query_opt("SELECT id FROM policies WHERE name = $1 AND namespace = $2", &[&name, &namespace])
+            .query_opt(
+                "SELECT id FROM policies WHERE name = $1 AND namespace = $2",
+                &[&name, &namespace],
+            )
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Database error: {}", e),

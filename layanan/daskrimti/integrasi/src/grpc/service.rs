@@ -633,7 +633,8 @@ impl IntegrasiService for IntegrasiServiceImpl {
                 }
             }
         } else {
-            let count_query = "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai WHERE kode_satker = $1";
+            let count_query =
+                "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai WHERE kode_satker = $1";
             match self
                 .state
                 .db_client
@@ -672,10 +673,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
             "#;
             self.state
                 .db_client
-                .query(
-                    query,
-                    &[&req.kode_satker, &(per_page as i64), &offset],
-                )
+                .query(query, &[&req.kode_satker, &(per_page as i64), &offset])
                 .await
         };
 

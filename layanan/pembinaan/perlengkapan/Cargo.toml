@@ -73,6 +73,3 @@ tonic-prost-build = { workspace = true }
 mockall = { workspace = true }
 mime = "0.3"
 axum-test = { workspace = true }
-
-[features]
-integration-tests = []
