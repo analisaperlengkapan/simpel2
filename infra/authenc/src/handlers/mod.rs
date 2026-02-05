@@ -131,6 +131,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .layer(axum::middleware::from_fn_with_state(
             Arc::new(crate::middleware::auth_middleware::AuthState {
                 jwt_secret: state.config.security.jwt_secret.clone(),
+                database: Some(db_state.clone()),
             }),
             crate::middleware::auth_middleware::auth_middleware,
         ))
@@ -190,6 +191,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
                 .layer(axum::middleware::from_fn_with_state(
                     Arc::new(crate::middleware::auth_middleware::AuthState {
                         jwt_secret: state.config.security.jwt_secret.clone(),
+                        database: Some(db_state.clone()),
                     }),
                     crate::middleware::auth_middleware::auth_middleware,
                 ))

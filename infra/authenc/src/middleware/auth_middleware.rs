@@ -6,9 +6,13 @@ use axum::{
     response::Response,
 };
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use std::sync::Arc;
 use tracing::error;
+use uuid::Uuid;
 
+use crate::database::Database;
+use crate::database::operations::{roles, users};
 use crate::error::AuthencError;
 
 // Local result type for middleware that can return Response errors
@@ -32,6 +36,8 @@ pub struct AuthUser {
 pub struct AuthState {
     /// Secret key used for JWT token validation
     pub jwt_secret: String,
+    /// Database connection for fetching user details (optional for testing)
+    pub database: Option<Arc<Database>>,
 }
 
 /// Middleware function that validates JWT tokens from the Authorization header
@@ -54,7 +60,9 @@ pub async fn auth_middleware(
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
     // Validate the token
-    let user = validate_token(token, &state.jwt_secret).map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let user = validate_token(token, &state)
+        .await
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     // Insert the user into the request extensions
     request.extensions_mut().insert(user);
@@ -63,7 +71,7 @@ pub async fn auth_middleware(
 }
 
 /// Extract and validate the JWT token
-fn validate_token(token: &str, _secret: &str) -> Result<AuthUser, AuthencError> {
+async fn validate_token(token: &str, state: &AuthState) -> Result<AuthUser, AuthencError> {
     // Use Ed25519 JWT verification
     let claims = crate::utils::crypto::jwt::verify_jwt(token).map_err(|e| {
         error!("JWT validation failed: {}", e);
@@ -86,12 +94,28 @@ fn validate_token(token: &str, _secret: &str) -> Result<AuthUser, AuthencError> 
         }
     }
 
-    // For now, create a basic AuthUser from the claims
-    // TODO: In the future, we should store more user info in JWT or fetch from DB
+    let (email, roles) = if let Some(db) = &state.database {
+        if let Ok(user_id) = Uuid::from_str(&claims.sub) {
+            let user = users::get_user_by_id(db, user_id).await.unwrap_or(None);
+            let user_roles = roles::get_user_roles(db, &user_id)
+                .await
+                .unwrap_or_else(|_| Vec::new());
+            let role_names: Vec<String> = user_roles.into_iter().map(|r| r.name).collect();
+            let email = user
+                .map(|u| u.email)
+                .unwrap_or_else(|| "user@example.com".to_string());
+            (email, role_names)
+        } else {
+            ("user@example.com".to_string(), vec!["user".to_string()])
+        }
+    } else {
+        ("user@example.com".to_string(), vec!["user".to_string()])
+    };
+
     Ok(AuthUser {
         id: claims.sub,
-        email: "user@example.com".to_string(), // TODO: Get from JWT or DB
-        roles: vec!["user".to_string()],       // TODO: Get from JWT or DB
+        email,
+        roles,
     })
 }
 
@@ -132,9 +156,13 @@ fn is_public_endpoint(path: &str) -> bool {
 }
 
 /// Create an auth middleware layer
-pub fn auth_layer(secret: &str) -> impl tower::Layer<axum::Router> + Clone + Send + 'static {
+pub fn auth_layer(
+    secret: &str,
+    database: Option<Arc<Database>>,
+) -> impl tower::Layer<axum::Router> + Clone + Send + 'static {
     let state = Arc::new(AuthState {
         jwt_secret: secret.to_string(),
+        database,
     });
 
     middleware::from_fn_with_state::<_, _, axum::body::Body>(state, auth_middleware)
@@ -143,10 +171,10 @@ pub fn auth_layer(secret: &str) -> impl tower::Layer<axum::Router> + Clone + Sen
 #[cfg(test)]
 mod tests {
     use axum::{
-        Router,
         body::Body,
         http::{Request, StatusCode},
         routing::get,
+        Router,
     };
     use tower::ServiceExt;
 
@@ -162,6 +190,7 @@ mod tests {
     async fn test_public_endpoints_no_auth_required() {
         let state = Arc::new(AuthState {
             jwt_secret: "test-secret".to_string(),
+            database: None,
         });
 
         let app = Router::new()
@@ -213,6 +242,7 @@ mod tests {
     async fn test_protected_endpoints_require_auth() {
         let state = Arc::new(AuthState {
             jwt_secret: "test-secret".to_string(),
+            database: None,
         });
 
         let app = Router::new()
@@ -266,6 +296,7 @@ mod tests {
 
         let state = Arc::new(AuthState {
             jwt_secret: "test-secret".to_string(),
+            database: None,
         });
 
         let app = Router::new()
@@ -312,6 +343,7 @@ mod tests {
 
         let state = Arc::new(AuthState {
             jwt_secret: "test-secret".to_string(),
+            database: None,
         });
 
         let app = Router::new()
@@ -369,6 +401,7 @@ mod tests {
     async fn test_invalid_jwt_token() {
         let state = Arc::new(AuthState {
             jwt_secret: "test-secret".to_string(),
+            database: None,
         });
 
         let app = Router::new()
@@ -394,9 +427,11 @@ mod tests {
     async fn test_auth_state_creation() {
         let state = AuthState {
             jwt_secret: "my-secret-key".to_string(),
+            database: None,
         };
 
         assert_eq!(state.jwt_secret, "my-secret-key");
+        assert!(state.database.is_none());
     }
 
     #[tokio::test]
