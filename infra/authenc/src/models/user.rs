@@ -142,6 +142,8 @@ impl Default for SecurityContext {
 }
 
 /// Secreton access policy defining what secrets a user can access
+/// Note: This struct is now decoupled from the User model.
+/// Policies should be stored in the `attributes` JSON field or managed externally.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretonAccessPolicy {
     /// Satker codes where user can access secrets
@@ -301,11 +303,9 @@ pub struct User {
     pub permissions: Vec<Permission>,
     /// Encrypted session data for SIMKARI operations
     pub session_data: Option<serde_json::Value>,
-    /// Secreton access policy for this user
-    pub secreton_access_policy: SecretonAccessPolicy,
     /// Security context for the user
     pub security_context: SecurityContext,
-    /// Additional user attributes as JSON
+    /// Additional user attributes as JSON (Stores Secreton Policy here if needed)
     pub attributes: Option<serde_json::Value>,
     /// Whether the user account is enabled
     pub enabled: bool,
@@ -892,10 +892,6 @@ pub struct CreateUserRequest {
     #[garde(length(max = 50))]
     pub roles: Option<Vec<Uuid>>,
 
-    /// Secreton access policy for the user
-    #[garde(skip)]
-    pub secreton_access_policy: Option<SecretonAccessPolicy>,
-
     /// Additional user attributes as JSON
     #[garde(skip)]
     pub attributes: Option<serde_json::Value>,
@@ -978,10 +974,6 @@ pub struct UpdateUserRequest {
     #[garde(skip)]
     pub require_password_change: Option<bool>,
 
-    /// Updated secreton access policy
-    #[garde(skip)]
-    pub secreton_access_policy: Option<SecretonAccessPolicy>,
-
     /// Additional user attributes as JSON
     #[garde(skip)]
     pub attributes: Option<serde_json::Value>,
@@ -1046,7 +1038,6 @@ impl User {
         realm_id: Option<Uuid>,
     ) -> Self {
         let now = Utc::now();
-        let satker_code_clone = satker_code.clone();
         Self {
             id: Uuid::new_v4(),
             username,
@@ -1080,15 +1071,6 @@ impl User {
             roles: Vec::new(),
             permissions: Vec::new(),
             session_data: None,
-            secreton_access_policy: SecretonAccessPolicy {
-                allowed_satker_secrets: vec![satker_code_clone],
-                access_level: AccessLevel::ReadOnly,
-                time_restrictions: None,
-                audit_required: true,
-                rate_limit: Some(100),
-                allowed_paths: None,
-                denied_paths: None,
-            },
             security_context: SecurityContext {
                 ip_address: None,
                 user_agent: None,
@@ -1129,11 +1111,19 @@ impl User {
             .collect()
     }
 
-    /// Check if user can access secreton path
+    /// Check if user can access secreton path (Legacy compatibility)
     pub fn can_access_secreton_path(&self, path: &str) -> bool {
-        self.secreton_access_policy
-            .can_access_path(path, &self.satker_code)
-            && self.secreton_access_policy.is_time_allowed(&Utc::now())
+        if let Some(attrs) = &self.attributes {
+            if let Some(policy_val) = attrs.get("secreton_access_policy") {
+                if let Ok(policy) =
+                    serde_json::from_value::<SecretonAccessPolicy>(policy_val.clone())
+                {
+                    return policy.can_access_path(path, &self.satker_code)
+                        && policy.is_time_allowed(&Utc::now());
+                }
+            }
+        }
+        false
     }
 
     /// Update security context
@@ -1170,12 +1160,6 @@ impl User {
 
             self.updated_at = Utc::now();
         }
-    }
-
-    /// Update secreton access policy
-    pub fn update_secreton_access_policy(&mut self, policy: SecretonAccessPolicy) {
-        self.secreton_access_policy = policy;
-        self.updated_at = Utc::now();
     }
 
     /// Check if user is active (enabled and not deleted)
@@ -1238,9 +1222,6 @@ impl User {
         }
         if let Some(require_password_change) = request.require_password_change {
             self.require_password_change = require_password_change;
-        }
-        if let Some(secreton_access_policy) = request.secreton_access_policy {
-            self.secreton_access_policy = secreton_access_policy;
         }
         if let Some(attributes) = request.attributes {
             self.attributes = Some(attributes);
@@ -1331,7 +1312,17 @@ impl From<User> for UserResponse {
             realm_id: user.realm_id,
             organization_id: user.organization_id,
             roles: user.roles.iter().map(|r| r.name.clone()).collect(),
-            secreton_access_level: user.secreton_access_policy.access_level,
+            secreton_access_level: {
+                if let Some(attrs) = &user.attributes {
+                    attrs
+                        .get("secreton_access_policy")
+                        .and_then(|p| p.get("access_level"))
+                        .and_then(|l| serde_json::from_value::<AccessLevel>(l.clone()).ok())
+                        .unwrap_or(AccessLevel::ReadOnly)
+                } else {
+                    AccessLevel::ReadOnly
+                }
+            },
             enabled: user.enabled,
             created_at: user.created_at,
             updated_at: user.updated_at,
@@ -1382,21 +1373,6 @@ impl TryFrom<tokio_postgres::Row> for User {
                 let json_str: Option<String> = row.try_get("session_data").ok().flatten();
                 json_str.and_then(|s| serde_json::from_str(&s).ok())
             },
-            secreton_access_policy: {
-                let policy_str: Option<String> =
-                    row.try_get("secreton_access_policy").ok().flatten();
-                policy_str
-                    .and_then(|s| serde_json::from_str(&s).ok())
-                    .unwrap_or_else(|| SecretonAccessPolicy {
-                        allowed_satker_secrets: vec![satker_code.clone()],
-                        access_level: AccessLevel::ReadOnly,
-                        time_restrictions: None,
-                        audit_required: true,
-                        rate_limit: Some(100),
-                        allowed_paths: None,
-                        denied_paths: None,
-                    })
-            },
             security_context: {
                 let context_str: Option<String> = row.try_get("security_context").ok().flatten();
                 context_str
@@ -1411,8 +1387,29 @@ impl TryFrom<tokio_postgres::Row> for User {
                     })
             },
             attributes: {
-                let json_str: Option<String> = row.try_get("attributes")?;
-                json_str.and_then(|s| serde_json::from_str(&s).ok())
+                // Merge secreton_access_policy into attributes if it exists in the row (migration support)
+                let mut attributes_json: Option<serde_json::Value> = {
+                    let json_str: Option<String> = row.try_get("attributes")?;
+                    json_str.and_then(|s| serde_json::from_str(&s).ok())
+                };
+
+                let secreton_policy_str: Option<String> =
+                    row.try_get("secreton_access_policy").ok().flatten();
+                if let Some(policy_str) = secreton_policy_str {
+                    if let Ok(policy_json) = serde_json::from_str::<serde_json::Value>(&policy_str)
+                    {
+                        if let Some(ref mut attr) = attributes_json {
+                            if let Some(obj) = attr.as_object_mut() {
+                                obj.insert("secreton_access_policy".to_string(), policy_json);
+                            }
+                        } else {
+                            attributes_json = Some(serde_json::json!({
+                                "secreton_access_policy": policy_json
+                            }));
+                        }
+                    }
+                }
+                attributes_json
             },
             enabled: row.try_get("enabled")?,
             federated: row.try_get("federated")?,

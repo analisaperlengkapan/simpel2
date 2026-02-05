@@ -338,7 +338,6 @@ pub mod jit_provisioning {
                 realm_id: Some(request.realm_id),
                 organization_id: None,
                 roles: None,
-                secreton_access_policy: None,
             };
 
             users::create_user(&self.db, &create_request).await

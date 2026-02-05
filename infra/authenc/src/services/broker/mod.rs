@@ -514,20 +514,6 @@ impl IdentityBroker for LdapIdentityBroker {
             roles: Vec::new(),       // Roles would be loaded separately
             permissions: Vec::new(), // Permissions would be loaded separately
             session_data: None,      // Default to None for now
-            secreton_access_policy: SecretonAccessPolicy {
-                allowed_satker_secrets: external_user
-                    .attributes
-                    .get("satker_code")
-                    .map(|v| v.as_str().to_string())
-                    .into_iter()
-                    .collect(),
-                access_level: crate::models::user::AccessLevel::ReadOnly,
-                time_restrictions: None,
-                audit_required: true,
-                rate_limit: Some(100),
-                allowed_paths: None,
-                denied_paths: None,
-            },
             security_context: SecurityContext {
                 ip_address: None,
                 user_agent: None,
@@ -628,20 +614,6 @@ fn create_user_from_ldap_entry(entry: &SearchEntry, config: &LdapConfig) -> Resu
         roles: Vec::new(),       // Roles would be loaded separately
         permissions: Vec::new(), // Permissions would be loaded separately
         session_data: None,      // Default to None for now
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: attrs
-                .get("satkerCode")
-                .and_then(|v| v.first())
-                .cloned()
-                .into_iter()
-                .collect(),
-            access_level: crate::models::user::AccessLevel::ReadOnly,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(100),
-            allowed_paths: None,
-            denied_paths: None,
-        },
         security_context: SecurityContext {
             ip_address: None,
             user_agent: None,

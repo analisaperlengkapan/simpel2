@@ -463,7 +463,6 @@ pub async fn batch_lookup_users(db: &Database, user_ids: Vec<Uuid>) -> Result<Ha
             roles: Vec::new(),       // Loaded separately if needed
             permissions: Vec::new(), // Loaded separately if needed
             session_data: row.get(29),
-            secreton_access_policy: Default::default(), // Loaded separately if needed
             security_context: Default::default(),
             attributes: row.get(30),
             enabled: row.get(31),

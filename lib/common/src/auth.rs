@@ -13,16 +13,19 @@ pub enum UserRole {
     Supervisor,
     /// Guest (read-only)
     Guest,
+    /// Custom role defined by external provider or dynamic configuration
+    Custom(String),
 }
 
 impl UserRole {
     /// Get role display name in Indonesian
-    pub fn display_name(&self) -> &'static str {
+    pub fn display_name(&self) -> String {
         match self {
-            Self::Admin => "Administrator",
-            Self::User => "Pengguna",
-            Self::Supervisor => "Supervisor",
-            Self::Guest => "Tamu",
+            Self::Admin => "Administrator".to_string(),
+            Self::User => "Pengguna".to_string(),
+            Self::Supervisor => "Supervisor".to_string(),
+            Self::Guest => "Tamu".to_string(),
+            Self::Custom(name) => name.clone(),
         }
     }
 

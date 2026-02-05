@@ -618,15 +618,6 @@ impl MfaService {
             roles: Vec::new(),
             permissions: Vec::new(),
             session_data: None,
-            secreton_access_policy: crate::models::user::SecretonAccessPolicy {
-                allowed_satker_secrets: vec![row.get::<_, String>(5)],
-                access_level: crate::models::user::AccessLevel::ReadOnly,
-                time_restrictions: None,
-                audit_required: true,
-                rate_limit: Some(100),
-                allowed_paths: None,
-                denied_paths: None,
-            },
             security_context: crate::models::user::SecurityContext {
                 ip_address: None,
                 user_agent: None,

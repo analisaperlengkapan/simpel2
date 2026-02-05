@@ -230,7 +230,6 @@ impl UserStorageProvider for DefaultUserStorageProvider {
             realm_id: user.realm_id,
             organization_id: user.organization_id,
             roles: None,
-            secreton_access_policy: None,
             attributes: user.attributes.clone(),
         };
         self.user_store.add_user(request).await
@@ -252,7 +251,6 @@ impl UserStorageProvider for DefaultUserStorageProvider {
             email_verified: Some(user.email_verified),
             phone_verified: Some(user.phone_verified),
             require_password_change: Some(user.require_password_change),
-            secreton_access_policy: None,
             attributes: user.attributes.clone(),
         };
         self.user_store.update_user(user.id, request).await

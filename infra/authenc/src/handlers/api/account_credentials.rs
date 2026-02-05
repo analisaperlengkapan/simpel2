@@ -113,7 +113,6 @@ pub async fn update_account_password(
         email_verified: None,
         phone_verified: None,
         require_password_change: None,
-        secreton_access_policy: None,
         attributes: None,
     };
     // Note: This is a temporary implementation. In production, we should have a separate password field

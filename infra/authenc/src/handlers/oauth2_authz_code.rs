@@ -57,6 +57,7 @@ fn validate_code_challenge_method(method: &str) -> bool {
 }
 
 /// Verify PKCE code verifier against code challenge
+#[allow(dead_code)]
 fn verify_code_challenge(code_verifier: &str, code_challenge: &str, method: &str) -> bool {
     match method {
         "S256" => {
