@@ -28,7 +28,6 @@ jobs:
       - name: Fix permissions
         run: |
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
 
       - name: Checkout repository
         uses: actions/checkout@v6
