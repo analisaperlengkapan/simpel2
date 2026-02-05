@@ -93,6 +93,19 @@ pub struct DeviceSecurityFeatures {
     pub jailbreak_detected: bool,
 }
 
+impl Default for DeviceSecurityFeatures {
+    fn default() -> Self {
+        Self {
+            has_biometrics: false,
+            has_hardware_security: false,
+            has_screen_lock: false,
+            encryption_enabled: false,
+            remote_wipe_capable: false,
+            jailbreak_detected: false,
+        }
+    }
+}
+
 /// Device trust policy
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceTrustPolicy {
@@ -242,8 +255,20 @@ impl DeviceService {
             devices::update_trust_score(&self.db, device_id, trust_score, factors).await?;
         }
 
-        // TODO: Implement other update fields (device_name, etc.)
-        // Currently only trust score updates are supported
+        if updates.device_name.is_some() || updates.security_features.is_some() {
+            let security_features_json = updates
+                .security_features
+                .map(|sf| serde_json::to_value(sf).unwrap_or(serde_json::Value::Null));
+
+            devices::update_device_info(
+                &self.db,
+                device_id,
+                updates.device_name,
+                security_features_json,
+            )
+            .await?;
+        }
+
         Ok(())
     }
 
@@ -282,14 +307,10 @@ impl DeviceService {
                     last_seen: model_device.last_seen_at,
                     created_at: model_device.created_at,
                     location: None, // TODO: Parse from location_data JSON - requires location tracking implementation
-                    security_features: DeviceSecurityFeatures {
-                        has_biometrics: false, // TODO: Store in database - requires biometrics detection implementation
-                        has_hardware_security: false,
-                        has_screen_lock: false,
-                        encryption_enabled: false,
-                        remote_wipe_capable: false,
-                        jailbreak_detected: false,
-                    },
+                    security_features: model_device
+                        .security_features
+                        .and_then(|v| serde_json::from_value(v).ok())
+                        .unwrap_or_default(),
                 };
                 Ok(Some(device_info))
             }
@@ -333,14 +354,10 @@ impl DeviceService {
                 last_seen: model_device.last_seen_at,
                 created_at: model_device.created_at,
                 location: None, // TODO: Parse from location_data JSON - requires location tracking implementation
-                security_features: DeviceSecurityFeatures {
-                    has_biometrics: false, // TODO: Store in database - requires biometrics detection implementation
-                    has_hardware_security: false,
-                    has_screen_lock: false,
-                    encryption_enabled: false,
-                    remote_wipe_capable: false,
-                    jailbreak_detected: false,
-                },
+                security_features: model_device
+                    .security_features
+                    .and_then(|v| serde_json::from_value(v).ok())
+                    .unwrap_or_default(),
             };
             service_devices.push(device_info);
         }
@@ -650,6 +667,9 @@ impl DeviceService {
             browser_version: device.browser_version.clone(),
             ip_address: device.ip_address.parse().ok(),
             user_agent: Some(device.user_agent.clone()),
+            security_features: Some(
+                serde_json::to_value(&device.security_features).unwrap_or(serde_json::Value::Null),
+            ),
         };
 
         devices::register_device(&self.db, device.user_id, &model_device_info).await?;
