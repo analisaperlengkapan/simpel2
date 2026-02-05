@@ -150,6 +150,13 @@ jobs:
             sleep 1
           done
 
+          # Final check - fail if not ready
+          if ! docker exec "$CID" pg_isready -U simpelv2_test > /dev/null 2>&1; then
+            echo "PostgreSQL failed to start within timeout!"
+            docker logs "$CID"
+            exit 1
+          fi
+
       - name: Start Redis
         id: start-redis
         run: |

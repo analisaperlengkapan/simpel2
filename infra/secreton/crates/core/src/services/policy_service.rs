@@ -47,6 +47,13 @@ impl PolicyService {
         format!("{}:{}", namespace, name)
     }
 
+    /// Helper to generate storage path for a policy
+    fn storage_path(namespace: &str, name: &str) -> String {
+        // Namespaced path: sys/policies/{namespace}/{name}
+        // This ensures tenant isolation at the storage level.
+        format!("sys/policies/{}/{}", namespace, name)
+    }
+
     /// Aggregate rules from a list of policy names
     pub async fn get_rules_for_policies(
         &self,
@@ -82,13 +89,8 @@ impl PolicyService {
             }
 
             // Fallback to storage (not in cache or expired)
-            match self.get_policy(name).await {
+            match self.get_policy(name, namespace).await {
                 Ok(policy) => {
-                    // Validate namespace matches
-                    if policy.namespace != namespace {
-                        continue;
-                    }
-
                     if policy.is_active {
                         // Update cache
                         if let Ok(mut cache) = self.cache.write() {
@@ -124,7 +126,7 @@ impl PolicyService {
         rules: Vec<PolicyRule>,
         created_by: String,
     ) -> Result<PolicyDefinition, CoreError> {
-        let path = format!("sys/policies/{}", name);
+        let path = Self::storage_path(&namespace, &name);
 
         // Check if exists
         if self
@@ -159,8 +161,8 @@ impl PolicyService {
         Ok(policy)
     }
 
-    pub async fn get_policy(&self, name: &str) -> Result<PolicyDefinition, CoreError> {
-        let path = format!("sys/policies/{}", name);
+    pub async fn get_policy(&self, name: &str, namespace: &str) -> Result<PolicyDefinition, CoreError> {
+        let path = Self::storage_path(namespace, name);
         let entry = self
             .storage
             .get_by_path(&path)
@@ -179,7 +181,7 @@ impl PolicyService {
             Ok(policy)
         } else {
             Err(CoreError::NotFound {
-                resource: format!("Policy {}", name),
+                resource: format!("Policy {} in namespace {}", name, namespace),
             })
         }
     }
@@ -187,12 +189,13 @@ impl PolicyService {
     pub async fn update_policy(
         &self,
         name: &str,
+        namespace: &str,
         description: Option<String>,
         rules: Option<Vec<PolicyRule>>,
         is_active: Option<bool>,
         updated_by: String,
     ) -> Result<PolicyDefinition, CoreError> {
-        let mut policy = self.get_policy(name).await?;
+        let mut policy = self.get_policy(name, namespace).await?;
 
         if let Some(desc) = description {
             policy.description = Some(desc);
@@ -212,12 +215,10 @@ impl PolicyService {
         Ok(policy)
     }
 
-    pub async fn delete_policy(&self, name: &str) -> Result<(), CoreError> {
-        // We need the policy to know the namespace for cache invalidation
-        let policy = self.get_policy(name).await?;
-        let key = Self::cache_key(&policy.namespace, name);
+    pub async fn delete_policy(&self, name: &str, namespace: &str) -> Result<(), CoreError> {
+        let key = Self::cache_key(namespace, name);
+        let path = Self::storage_path(namespace, name);
 
-        let path = format!("sys/policies/{}", name);
         let deleted =
             self.storage
                 .delete_by_path(&path)
@@ -235,7 +236,7 @@ impl PolicyService {
             Ok(())
         } else {
             Err(CoreError::NotFound {
-                resource: format!("Policy {}", name),
+                resource: format!("Policy {} in namespace {}", name, namespace),
             })
         }
     }
@@ -246,12 +247,18 @@ impl PolicyService {
         limit: Option<u32>,
         offset: Option<u32>,
     ) -> Result<(Vec<PolicyDefinition>, u64), CoreError> {
-        let params = QueryParams::new().with_path_prefix("sys/policies/".to_string());
-        // StorageBackend list returns EngineEntries, we need to deserialize them.
-        // And pagination/filtering might need to happen in memory if storage doesn't support deep query.
+        // If namespace is provided, only query that namespace prefix
+        // If not provided, we might list all (requires scanning multiple subpaths or root if backend supports recursive)
+        // For security/isolation, listing should usually be scoped to a namespace.
+        // Assuming implicit "default" if None, or query root "sys/policies/" recursively.
 
-        // Basic implementation: list all, filter/paginate in memory
-        // Optimization: storage.list usually returns metadata/entries.
+        let prefix = if let Some(ns) = &namespace {
+            format!("sys/policies/{}/", ns)
+        } else {
+            "sys/policies/".to_string()
+        };
+
+        let params = QueryParams::new().with_path_prefix(prefix);
 
         let entries = self
             .storage
@@ -270,10 +277,11 @@ impl PolicyService {
                     source: None,
                 })?;
 
-            if let Some(ns) = &namespace
-                && &policy.namespace != ns
-            {
-                continue;
+            // Double check namespace matches if filtering was requested
+            if let Some(ns) = &namespace {
+                if &policy.namespace != ns {
+                    continue;
+                }
             }
 
             policies.push(policy);
@@ -297,7 +305,7 @@ impl PolicyService {
     }
 
     async fn save_policy(&self, policy: &PolicyDefinition) -> Result<(), CoreError> {
-        let path = format!("sys/policies/{}", policy.name);
+        let path = Self::storage_path(&policy.namespace, &policy.name);
         let data = serde_json::to_vec(policy).map_err(|e| CoreError::Internal {
             message: e.to_string(),
             source: None,
@@ -308,7 +316,8 @@ impl PolicyService {
             data,
             serde_json::json!({
                 "type": "policy",
-                "version": policy.version
+                "version": policy.version,
+                "namespace": policy.namespace
             }),
             SecurityLevel::Internal, // Policies are internal config
             policy.created_by.clone(),
