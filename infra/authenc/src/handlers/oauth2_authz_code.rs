@@ -162,16 +162,20 @@ pub async fn authorize(
         .await?;
 
     // Build redirect URI with authorization code
-    let mut redirect_url = params.redirect_uri.clone();
-    let separator = if redirect_url.contains('?') { "&" } else { "?" };
-    redirect_url.push_str(&format!("{}code={}", separator, auth_code));
+    let mut redirect_url = url::Url::parse(&params.redirect_uri)
+        .map_err(|_| AuthencError::validation("Invalid redirect_uri format"))?;
 
-    // Include state parameter if provided (CSRF protection)
-    if let Some(state_param) = params.state {
-        redirect_url.push_str(&format!("&state={}", state_param));
+    {
+        let mut pairs = redirect_url.query_pairs_mut();
+        pairs.append_pair("code", &auth_code);
+
+        // Include state parameter if provided (CSRF protection)
+        if let Some(state_param) = params.state {
+            pairs.append_pair("state", &state_param);
+        }
     }
 
-    Ok(Redirect::to(&redirect_url).into_response())
+    Ok(Redirect::to(redirect_url.as_str()).into_response())
 }
 
 /// OAuth2 Token Endpoint
