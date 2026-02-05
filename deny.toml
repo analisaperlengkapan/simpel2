@@ -1,0 +1,33 @@
+# cargo-deny configuration
+
+[advisories]
+ignore = [
+    # RSA Marvin Attack: Timing vulnerability in PKCS#1 v1.5 decryption
+    # No fix available in rsa crate yet. We don't use RSA for new code (using Ed25519),
+    # but some transitive dependencies might.
+    "RUSTSEC-2023-0071",
+]
+
+[licenses]
+unlicensed = "deny"
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-3-Clause",
+    "BSD-2-Clause",
+    "ISC",
+    "CC0-1.0",
+    "0BSD",
+    "Zlib",
+    "MPL-2.0",
+    "Unicode-DFS-2016",
+    "Unlicense",
+    "OpenSSL",
+]
+copyleft = "deny"
+allow-osi-fsf-free-from-copyleft = false
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"

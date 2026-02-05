@@ -94,7 +94,6 @@ jobs:
       matrix:
         service:
           - layanan/authenc
-          - layanan/apigateway
           - layanan/badiklat
           - layanan/datun
           - layanan/intel
