@@ -399,12 +399,16 @@ pub struct PolicyResponse {
     pub policy_type: String,
     /// Logic used by the policy
     pub logic: String,
+    /// Decision strategy used by the policy
+    pub decision_strategy: String,
     /// Configuration for the policy
     pub config: serde_json::Value,
     /// Whether the policy is enabled
     pub enabled: bool,
     /// ID of the realm the policy belongs to
     pub realm_id: Uuid,
+    /// ID of the resource server
+    pub resource_server_id: Uuid,
     /// Timestamp when the policy was created
     pub created_at: DateTime<Utc>,
     /// Timestamp when the policy was last updated
@@ -1198,7 +1202,7 @@ impl AdminService for AdminManager {
     }
 
     async fn get_policies(&self, realm_id: &Uuid) -> Result<Vec<PolicyResponse>, String> {
-        let query = "SELECT id, name, description, policy_type, logic, config, enabled, realm_id, created_at, updated_at FROM uma_policies WHERE realm_id = $1 ORDER BY name ASC";
+        let query = "SELECT id, name, description, policy_type, logic, decision_strategy, config, enabled, realm_id, resource_server_id, created_at, updated_at FROM uma_policies WHERE realm_id = $1 ORDER BY name ASC";
 
         let rows = self
             .db
@@ -1216,9 +1220,11 @@ impl AdminService for AdminManager {
                     .unwrap_or_default(),
                 policy_type: row.get("policy_type"),
                 logic: row.get("logic"),
+                decision_strategy: row.get("decision_strategy"),
                 config: row.get("config"),
                 enabled: row.get("enabled"),
                 realm_id: row.get("realm_id"),
+                resource_server_id: row.get("resource_server_id"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
             });
