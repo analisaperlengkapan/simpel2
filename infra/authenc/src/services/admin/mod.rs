@@ -1197,9 +1197,34 @@ impl AdminService for AdminManager {
         })
     }
 
-    async fn get_policies(&self, _realm_id: &Uuid) -> Result<Vec<PolicyResponse>, String> {
-        // TODO: Implement policy listing
-        Ok(vec![])
+    async fn get_policies(&self, realm_id: &Uuid) -> Result<Vec<PolicyResponse>, String> {
+        let query = "SELECT id, name, description, policy_type, logic, config, enabled, realm_id, created_at, updated_at FROM uma_policies WHERE realm_id = $1 ORDER BY name ASC";
+
+        let rows = self
+            .db
+            .query_raw(query, &[realm_id])
+            .await
+            .map_err(|e| format!("Failed to get policies: {}", e))?;
+
+        let mut policies = Vec::new();
+        for row in rows {
+            policies.push(PolicyResponse {
+                id: row.get("id"),
+                name: row.get("name"),
+                description: row
+                    .get::<_, Option<String>>("description")
+                    .unwrap_or_default(),
+                policy_type: row.get("policy_type"),
+                logic: row.get("logic"),
+                config: row.get("config"),
+                enabled: row.get("enabled"),
+                realm_id: row.get("realm_id"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            });
+        }
+
+        Ok(policies)
     }
 
     async fn create_policy(&self, _request: CreatePolicyRequest) -> Result<PolicyResponse, String> {
