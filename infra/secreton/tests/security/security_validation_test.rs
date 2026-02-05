@@ -24,9 +24,11 @@ mod security_validation_tests {
         let encryption_key = orchestrator.generate_encryption_key().await?;
 
         // Minimum key length validation
-        assert!(encryption_key.len() >= 32,
-               "Encryption key should be at least 256 bits (32 bytes), got { bytes",
-               encryption_key.len());
+        assert!(
+            encryption_key.len() >= 32,
+            "Encryption key should be at least 256 bits (32 bytes), got {} bytes",
+            encryption_key.len()
+        );
 
         // Key uniqueness test
         let key2 = orchestrator.generate_encryption_key().await?;
@@ -153,7 +155,7 @@ mod security_validation_tests {
 
             if regular_access.granted {
                 // Regular user access should be more restricted than admin
-                       "Regular user should not have more access than admin");
+                assert!(!admin_access.granted, "Regular user should not have more access than admin");
             }
 
             if guest_access.granted {
@@ -187,10 +189,10 @@ mod security_validation_tests {
                 Err(_) => {
                     // System should start blocking after multiple failures
                     if failed_attempts >= 3 {
-                        println!("Brute force protection activated after { attempts", failed_attempts);
+                        println!("Brute force protection activated after {} attempts", failed_attempts);
                         break;
                     }
-                ,
+                }
                 Ok(true) => panic!("Should not authenticate with wrong credentials"),
             }
         }
@@ -255,7 +257,7 @@ mod security_validation_tests {
         if tampered_data.len() > 10 {
             // Modify a byte in the middle
             let tamper_pos = tampered_data.len() / 2;
-            let bytes = unsafe { tampered_data.as_bytes_mut() ;
+            let bytes = unsafe { tampered_data.as_bytes_mut() };
             bytes[tamper_pos] = bytes[tamper_pos].wrapping_add(1);
 
             let tamper_result = orchestrator.decrypt_and_verify_integrity(&tampered_data).await;
