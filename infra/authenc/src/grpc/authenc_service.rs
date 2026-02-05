@@ -1491,6 +1491,11 @@ impl AuthencService for AuthencGrpcService {
                     .map_err(Self::map_error)?
                     .ok_or_else(|| Status::unauthenticated("User not found"))?;
 
+                // Check if user account is enabled
+                if !user.enabled {
+                    return Err(Status::permission_denied("User account is disabled"));
+                }
+
                 let roles: Vec<String> = user.roles.iter().map(|r| r.name.clone()).collect();
 
                 // Generate new access token
