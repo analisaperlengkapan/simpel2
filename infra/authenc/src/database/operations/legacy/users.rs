@@ -13,6 +13,51 @@ use crate::{
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+/// Helper function to merge legacy Secreton policy into attributes
+///
+/// This ensures backward compatibility by reconstructing a default policy
+/// from the satker_code if one is not present in the attributes JSON.
+fn enrich_attributes_with_policy(
+    mut attributes_json: Option<serde_json::Value>,
+    satker_code: &str,
+) -> Option<serde_json::Value> {
+    // Check if policy is missing from attributes
+    if attributes_json.is_none()
+        || attributes_json
+            .as_ref()
+            .map(|a| a.get("secreton_access_policy").is_none())
+            .unwrap_or(false)
+    {
+        // Create default policy based on satker_code (legacy behavior)
+        let policy = SecretonAccessPolicy {
+            allowed_satker_secrets: vec![if satker_code.is_empty() {
+                "UNKNOWN".to_string()
+            } else {
+                satker_code.to_string()
+            }],
+            access_level: crate::models::user::AccessLevel::ReadOnly,
+            time_restrictions: None,
+            audit_required: true,
+            rate_limit: Some(100),
+            allowed_paths: None,
+            denied_paths: None,
+        };
+
+        if let Ok(policy_json) = serde_json::to_value(policy) {
+            if let Some(ref mut attr) = attributes_json {
+                if let Some(obj) = attr.as_object_mut() {
+                    obj.insert("secreton_access_policy".to_string(), policy_json);
+                }
+            } else {
+                attributes_json = Some(serde_json::json!({
+                    "secreton_access_policy": policy_json
+                }));
+            }
+        }
+    }
+    attributes_json
+}
+
 pub async fn create_user(db: &Database, request: &CreateUserRequest) -> Result<User> {
     // Prepare all data outside the async block
     let username = request.username.clone();
@@ -100,85 +145,7 @@ pub async fn create_user(db: &Database, request: &CreateUserRequest) -> Result<U
         .await?;
 
     // Convert row to User by extracting values directly
-    let user = User {
-        id: row.get("id"),
-        username: row.get("username"),
-        email: row.get("email"),
-        email_verified: row.get("email_verified"),
-        first_name: row.get("first_name"),
-        last_name: row.get("last_name"),
-        nip: row.get("nip"),
-        nama: row.get("nama"),
-        jabatan: row.get("jabatan"),
-        satker_code: row.get("satker_code"),
-        phone_number: row.get("phone_number"),
-        phone_verified: row.get("phone_verified"),
-        password_hash: row.get("password_hash"),
-        totp_secret: row.get("totp_secret"),
-        totp_backup_codes: row.get("totp_backup_codes"),
-        mfa_enabled: row.get("mfa_enabled"),
-        mfa_setup_at: row.get("mfa_setup_at"),
-        mfa_last_used: row.get("mfa_last_used"),
-        webauthn_enabled: row.get("webauthn_enabled"),
-        account_locked: row.get("account_locked"),
-        account_locked_until: row.get("account_locked_until"),
-        failed_login_attempts: row.get("failed_login_attempts"),
-        last_login_at: row.get("last_login_at"),
-        last_failed_login_at: row.get("last_failed_login_at"),
-        password_changed_at: row.get("password_changed_at"),
-        password_expires_at: row.get("password_expires_at"),
-        require_password_change: row.get("require_password_change"),
-        realm_id: row.get("realm_id"),
-        organization_id: row.get("organization_id"),
-        roles: Vec::new(),       // Roles would be loaded separately
-        permissions: Vec::new(), // Permissions would be loaded separately
-        session_data: None,      // Default to None for now
-        security_context: SecurityContext {
-            ip_address: None,
-            user_agent: None,
-            session_id: None,
-            timestamp: chrono::Utc::now(),
-            risk_score: None,
-            metadata: None,
-        },
-        attributes: {
-            // Merge secreton_access_policy into attributes if available
-            let mut attributes_json: Option<serde_json::Value> = row.get("attributes");
-
-            // Re-construct policy from satker_code as default if not in attributes
-            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
-                 let satker_code: String = row.get("satker_code");
-                 let policy = SecretonAccessPolicy {
-                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
-                    access_level: crate::models::user::AccessLevel::ReadOnly,
-                    time_restrictions: None,
-                    audit_required: true,
-                    rate_limit: Some(100),
-                    allowed_paths: None,
-                    denied_paths: None,
-                };
-
-                if let Ok(policy_json) = serde_json::to_value(policy) {
-                     if let Some(ref mut attr) = attributes_json {
-                         if let Some(obj) = attr.as_object_mut() {
-                             obj.insert("secreton_access_policy".to_string(), policy_json);
-                         }
-                     } else {
-                         attributes_json = Some(serde_json::json!({
-                             "secreton_access_policy": policy_json
-                         }));
-                     }
-                }
-            }
-            attributes_json
-        },
-        enabled: row.get("enabled"),
-        federated: row.get("federated"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-        deleted_at: row.get("deleted_at"),
-        login_count: row.get("login_count"),
-    };
+    let user = row_to_user(&row);
 
     Ok(user)
 }
@@ -198,82 +165,7 @@ pub async fn get_user_by_id(db: &Database, user_id: Uuid) -> Result<Option<User>
     "#;
 
     let row = db.query_opt_prepared(query, &[&user_id]).await?;
-    Ok(row.map(|r| User {
-        id: r.get("id"),
-        username: r.get("username"),
-        email: r.get("email"),
-        email_verified: r.get("email_verified"),
-        first_name: r.get("first_name"),
-        last_name: r.get("last_name"),
-        nip: r.get("nip"),
-        nama: r.get("nama"),
-        jabatan: r.get("jabatan"),
-        satker_code: r.get("satker_code"),
-        phone_number: r.get("phone_number"),
-        phone_verified: r.get("phone_verified"),
-        password_hash: r.get("password_hash"),
-        totp_secret: r.get("totp_secret"),
-        totp_backup_codes: r.get("totp_backup_codes"),
-        mfa_enabled: r.get("mfa_enabled"),
-        mfa_setup_at: r.get("mfa_setup_at"),
-        mfa_last_used: r.get("mfa_last_used"),
-        webauthn_enabled: r.get("webauthn_enabled"),
-        account_locked: r.get("account_locked"),
-        account_locked_until: r.get("account_locked_until"),
-        failed_login_attempts: r.get("failed_login_attempts"),
-        last_login_at: r.get("last_login_at"),
-        last_failed_login_at: r.get("last_failed_login_at"),
-        password_changed_at: r.get("password_changed_at"),
-        password_expires_at: r.get("password_expires_at"),
-        require_password_change: r.get("require_password_change"),
-        realm_id: r.get("realm_id"),
-        organization_id: r.get("organization_id"),
-        roles: Vec::new(),       // Roles would be loaded separately
-        permissions: Vec::new(), // Permissions would be loaded separately
-        session_data: None,      // Default to None for now
-        security_context: SecurityContext {
-            ip_address: None,
-            user_agent: None,
-            session_id: None,
-            timestamp: chrono::Utc::now(),
-            risk_score: None,
-            metadata: None,
-        },
-        attributes: {
-            let mut attributes_json: Option<serde_json::Value> = r.get("attributes");
-            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
-                 let satker_code: String = r.get("satker_code");
-                 let policy = SecretonAccessPolicy {
-                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
-                    access_level: crate::models::user::AccessLevel::ReadOnly,
-                    time_restrictions: None,
-                    audit_required: true,
-                    rate_limit: Some(100),
-                    allowed_paths: None,
-                    denied_paths: None,
-                };
-
-                if let Ok(policy_json) = serde_json::to_value(policy) {
-                     if let Some(ref mut attr) = attributes_json {
-                         if let Some(obj) = attr.as_object_mut() {
-                             obj.insert("secreton_access_policy".to_string(), policy_json);
-                         }
-                     } else {
-                         attributes_json = Some(serde_json::json!({
-                             "secreton_access_policy": policy_json
-                         }));
-                     }
-                }
-            }
-            attributes_json
-        },
-        enabled: r.get("enabled"),
-        federated: r.get("federated"),
-        created_at: r.get("created_at"),
-        updated_at: r.get("updated_at"),
-        deleted_at: r.get("deleted_at"),
-        login_count: r.get("login_count"),
-    }))
+    Ok(row.map(|r| row_to_user(&r)))
 }
 
 pub async fn get_user_by_username(db: &Database, username: &str) -> Result<Option<User>> {
@@ -293,82 +185,7 @@ pub async fn get_user_by_username(db: &Database, username: &str) -> Result<Optio
     "#;
 
     let row = db.query_opt_prepared(query, &[&username]).await?;
-    Ok(row.map(|r| User {
-        id: r.get("id"),
-        username: r.get("username"),
-        email: r.get("email"),
-        email_verified: r.get("email_verified"),
-        first_name: r.get("first_name"),
-        last_name: r.get("last_name"),
-        nip: r.get("nip"),
-        nama: r.get("nama"),
-        jabatan: r.get("jabatan"),
-        satker_code: r.get("satker_code"),
-        phone_number: r.get("phone_number"),
-        phone_verified: r.get("phone_verified"),
-        password_hash: r.get("password_hash"),
-        totp_secret: r.get("totp_secret"),
-        totp_backup_codes: r.get("totp_backup_codes"),
-        mfa_enabled: r.get("mfa_enabled"),
-        mfa_setup_at: r.get("mfa_setup_at"),
-        mfa_last_used: r.get("mfa_last_used"),
-        webauthn_enabled: r.get("webauthn_enabled"),
-        account_locked: r.get("account_locked"),
-        account_locked_until: r.get("account_locked_until"),
-        failed_login_attempts: r.get("failed_login_attempts"),
-        last_login_at: r.get("last_login_at"),
-        last_failed_login_at: r.get("last_failed_login_at"),
-        password_changed_at: r.get("password_changed_at"),
-        password_expires_at: r.get("password_expires_at"),
-        require_password_change: r.get("require_password_change"),
-        realm_id: r.get("realm_id"),
-        organization_id: r.get("organization_id"),
-        roles: Vec::new(),       // Roles would be loaded separately
-        permissions: Vec::new(), // Permissions would be loaded separately
-        session_data: None,      // Default to None for now
-        security_context: SecurityContext {
-            ip_address: None,
-            user_agent: None,
-            session_id: None,
-            timestamp: chrono::Utc::now(),
-            risk_score: None,
-            metadata: None,
-        },
-        attributes: {
-            let mut attributes_json: Option<serde_json::Value> = r.get("attributes");
-            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
-                 let satker_code: String = r.get("satker_code");
-                 let policy = SecretonAccessPolicy {
-                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
-                    access_level: crate::models::user::AccessLevel::ReadOnly,
-                    time_restrictions: None,
-                    audit_required: true,
-                    rate_limit: Some(100),
-                    allowed_paths: None,
-                    denied_paths: None,
-                };
-
-                if let Ok(policy_json) = serde_json::to_value(policy) {
-                     if let Some(ref mut attr) = attributes_json {
-                         if let Some(obj) = attr.as_object_mut() {
-                             obj.insert("secreton_access_policy".to_string(), policy_json);
-                         }
-                     } else {
-                         attributes_json = Some(serde_json::json!({
-                             "secreton_access_policy": policy_json
-                         }));
-                     }
-                }
-            }
-            attributes_json
-        },
-        enabled: r.get("enabled"),
-        federated: r.get("federated"),
-        created_at: r.get("created_at"),
-        updated_at: r.get("updated_at"),
-        deleted_at: r.get("deleted_at"),
-        login_count: r.get("login_count"),
-    }))
+    Ok(row.map(|r| row_to_user(&r)))
 }
 
 pub async fn get_user_by_email(db: &Database, email: &str) -> Result<Option<User>> {
@@ -543,36 +360,50 @@ pub async fn unlock_account(db: &Database, user_id: Uuid) -> Result<()> {
 }
 
 fn row_to_user(row: &tokio_postgres::Row) -> User {
+    // Extract satker_code first to use in fallback policy
+    let satker_code_val: String = if let Ok(val) = row.try_get("satker_code") {
+        val
+    } else {
+        // Fallback for queries that might select by index or alias, though here we mostly select by name
+        // Or if column is missing (should panic in get but try_get is safer if we wanted)
+        // Since we used get() in original code, we stick to safe retrieval where possible
+        // But for this helper, let's use the index fallback if needed or empty string
+        "UNKNOWN".to_string()
+    };
+
+    let attributes_raw: Option<serde_json::Value> = row.try_get("attributes").ok();
+    let enriched_attributes = enrich_attributes_with_policy(attributes_raw, &satker_code_val);
+
     User {
-        id: row.get(0),
-        username: row.get(1),
-        email: row.get(2),
-        email_verified: row.get(3),
-        first_name: row.get(4),
-        last_name: row.get(5),
-        nip: row.get(6),
-        nama: row.get(7),
-        jabatan: row.get(8),
-        satker_code: row.get(9),
-        phone_number: row.get(10),
-        phone_verified: row.get(11),
-        password_hash: row.get(12),
-        totp_secret: row.get(13),
-        totp_backup_codes: row.get(14),
-        mfa_enabled: row.get(15),
-        mfa_setup_at: row.get(16),
-        mfa_last_used: row.get(17),
-        webauthn_enabled: row.get(18),
-        account_locked: row.get(19),
-        account_locked_until: row.get(20),
-        failed_login_attempts: row.get(21),
-        last_login_at: row.get(22),
-        last_failed_login_at: row.get(23),
-        password_changed_at: row.get(24),
-        password_expires_at: row.get(25),
-        require_password_change: row.get(26),
-        realm_id: row.get(27),
-        organization_id: row.get(28),
+        id: row.get("id"),
+        username: row.get("username"),
+        email: row.get("email"),
+        email_verified: row.get("email_verified"),
+        first_name: row.get("first_name"),
+        last_name: row.get("last_name"),
+        nip: row.try_get("nip").ok(),
+        nama: row.try_get("nama").ok(),
+        jabatan: row.try_get("jabatan").ok(),
+        satker_code: satker_code_val,
+        phone_number: row.get("phone_number"),
+        phone_verified: row.get("phone_verified"),
+        password_hash: row.get("password_hash"),
+        totp_secret: row.get("totp_secret"),
+        totp_backup_codes: row.get("totp_backup_codes"),
+        mfa_enabled: row.try_get("mfa_enabled").unwrap_or(false),
+        mfa_setup_at: row.try_get("mfa_setup_at").ok().flatten(),
+        mfa_last_used: row.try_get("mfa_last_used").ok().flatten(),
+        webauthn_enabled: row.get("webauthn_enabled"),
+        account_locked: row.get("account_locked"),
+        account_locked_until: row.get("account_locked_until"),
+        failed_login_attempts: row.get("failed_login_attempts"),
+        last_login_at: row.get("last_login_at"),
+        last_failed_login_at: row.get("last_failed_login_at"),
+        password_changed_at: row.get("password_changed_at"),
+        password_expires_at: row.get("password_expires_at"),
+        require_password_change: row.get("require_password_change"),
+        realm_id: row.get("realm_id"),
+        organization_id: row.get("organization_id"),
         roles: Vec::new(),       // Roles would be loaded separately
         permissions: Vec::new(), // Permissions would be loaded separately
         session_data: None,      // Default to None for now
@@ -584,43 +415,13 @@ fn row_to_user(row: &tokio_postgres::Row) -> User {
             risk_score: None,
             metadata: None,
         },
-        attributes: {
-            // Merge secreton_access_policy into attributes if available
-            let mut attributes_json: Option<serde_json::Value> = row.get("attributes");
-
-            // Re-construct policy from satker_code as default if not in attributes
-            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
-                 let satker_code: String = row.get("satker_code");
-                 let policy = SecretonAccessPolicy {
-                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
-                    access_level: crate::models::user::AccessLevel::ReadOnly,
-                    time_restrictions: None,
-                    audit_required: true,
-                    rate_limit: Some(100),
-                    allowed_paths: None,
-                    denied_paths: None,
-                };
-
-                if let Ok(policy_json) = serde_json::to_value(policy) {
-                     if let Some(ref mut attr) = attributes_json {
-                         if let Some(obj) = attr.as_object_mut() {
-                             obj.insert("secreton_access_policy".to_string(), policy_json);
-                         }
-                     } else {
-                         attributes_json = Some(serde_json::json!({
-                             "secreton_access_policy": policy_json
-                         }));
-                     }
-                }
-            }
-            attributes_json
-        },
-        enabled: row.get(30),
-        federated: row.get(31),
-        created_at: row.get(32),
-        updated_at: row.get(33),
-        deleted_at: row.get(34),
-        login_count: row.get(35),
+        attributes: enriched_attributes,
+        enabled: row.get("enabled"),
+        federated: row.get("federated"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+        deleted_at: row.get("deleted_at"),
+        login_count: row.try_get("login_count").unwrap_or(0),
     }
 }
 
@@ -645,85 +446,7 @@ pub async fn get_all_users(db: &Database) -> Result<Vec<User>> {
     let mut users = Vec::new();
 
     for row in rows {
-        users.push(User {
-            id: row.get("id"),
-            username: row.get("username"),
-            email: row.get("email"),
-            email_verified: row.get("email_verified"),
-            first_name: row.get("first_name"),
-            last_name: row.get("last_name"),
-            nip: row.get("nip"),
-            nama: row.get("nama"),
-            jabatan: row.get("jabatan"),
-            satker_code: row.get("satker_code"),
-            phone_number: row.get("phone_number"),
-            phone_verified: row.get("phone_verified"),
-            password_hash: row.get("password_hash"),
-            totp_secret: row.get("totp_secret"),
-            totp_backup_codes: row.get("totp_backup_codes"),
-            mfa_enabled: row.get("mfa_enabled"),
-            mfa_setup_at: row.get("mfa_setup_at"),
-            mfa_last_used: row.get("mfa_last_used"),
-            webauthn_enabled: row.get("webauthn_enabled"),
-            account_locked: row.get("account_locked"),
-            account_locked_until: row.get("account_locked_until"),
-            failed_login_attempts: row.get("failed_login_attempts"),
-            last_failed_login_at: row.get("last_failed_login_at"),
-            password_changed_at: row.get("password_changed_at"),
-            password_expires_at: row.get("password_expires_at"),
-            require_password_change: row.get("require_password_change"),
-            organization_id: row.get("organization_id"),
-            roles: Vec::new(),       // Roles would be loaded separately
-            permissions: Vec::new(), // Permissions would be loaded separately
-            session_data: None,      // Default to None for now
-            security_context: SecurityContext {
-                ip_address: None,
-                user_agent: None,
-                session_id: None,
-                timestamp: chrono::Utc::now(),
-                risk_score: None,
-                metadata: None,
-            },
-        attributes: {
-            // Merge secreton_access_policy into attributes if available
-            let mut attributes_json: Option<serde_json::Value> = row.get("attributes");
-
-            // Re-construct policy from satker_code as default if not in attributes
-            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
-                 let satker_code: String = row.get("satker_code");
-                 let policy = SecretonAccessPolicy {
-                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
-                    access_level: crate::models::user::AccessLevel::ReadOnly,
-                    time_restrictions: None,
-                    audit_required: true,
-                    rate_limit: Some(100),
-                    allowed_paths: None,
-                    denied_paths: None,
-                };
-
-                if let Ok(policy_json) = serde_json::to_value(policy) {
-                     if let Some(ref mut attr) = attributes_json {
-                         if let Some(obj) = attr.as_object_mut() {
-                             obj.insert("secreton_access_policy".to_string(), policy_json);
-                         }
-                     } else {
-                         attributes_json = Some(serde_json::json!({
-                             "secreton_access_policy": policy_json
-                         }));
-                     }
-                }
-            }
-            attributes_json
-        },
-            enabled: row.get("enabled"),
-            realm_id: row.get("realm_id"),
-            federated: row.get("federated"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-            deleted_at: row.get("deleted_at"),
-            last_login_at: row.get("last_login_at"),
-            login_count: row.get("login_count"),
-        });
+        users.push(row_to_user(&row));
     }
 
     Ok(users)
@@ -756,105 +479,7 @@ pub async fn get_users_by_realm(db: &Database, realm_id: Uuid) -> Result<Vec<Use
     let mut users = Vec::new();
 
     for row in rows {
-        users.push(User {
-            id: row.get("id"),
-            username: row.get("username"),
-            email: row.get("email"),
-            email_verified: row.get("email_verified"),
-            first_name: row.get("first_name"),
-            last_name: row.get("last_name"),
-            nip: {
-                let nip: String = row.get("nip");
-                if nip.is_empty() { None } else { Some(nip) }
-            },
-            nama: {
-                let nama: String = row.get("nama");
-                if nama.is_empty() { None } else { Some(nama) }
-            },
-            jabatan: {
-                let jabatan: String = row.get("jabatan");
-                if jabatan.is_empty() {
-                    None
-                } else {
-                    Some(jabatan)
-                }
-            },
-            satker_code: {
-                let satker_code: String = row.get("satker_code");
-                if satker_code.is_empty() {
-                    "UNKNOWN".to_string()
-                } else {
-                    satker_code
-                }
-            },
-            phone_number: row.get("phone_number"),
-            phone_verified: row.get("phone_verified"),
-            password_hash: row.get("password_hash"),
-            totp_secret: row.get("totp_secret"),
-            totp_backup_codes: row.get("totp_backup_codes"),
-            mfa_enabled: row.get("mfa_enabled"),
-            mfa_setup_at: row.get("mfa_setup_at"),
-            mfa_last_used: row.get("mfa_last_used"),
-            webauthn_enabled: row.get("webauthn_enabled"),
-            account_locked: row.get("account_locked"),
-            account_locked_until: row.get("account_locked_until"),
-            failed_login_attempts: row.get("failed_login_attempts"),
-            last_failed_login_at: row.get("last_failed_login_at"),
-            password_changed_at: row.get("password_changed_at"),
-            password_expires_at: row.get("password_expires_at"),
-            require_password_change: row.get("require_password_change"),
-            organization_id: row.get("organization_id"),
-            roles: Vec::new(),       // TODO: Load roles separately
-            permissions: Vec::new(), // TODO: Load permissions separately
-            session_data: None,
-            security_context: SecurityContext {
-                ip_address: None,
-                user_agent: None,
-                session_id: None,
-                timestamp: chrono::Utc::now(),
-                risk_score: None,
-                metadata: None,
-            },
-        attributes: {
-            // Merge secreton_access_policy into attributes if available
-            let mut attributes_json: Option<serde_json::Value> = row.get("attributes");
-
-            // Re-construct policy from satker_code as default if not in attributes
-            if attributes_json.is_none() || attributes_json.as_ref().map(|a| a.get("secreton_access_policy").is_none()).unwrap_or(false) {
-                 let satker_code: String = row.get("satker_code");
-                 let policy = SecretonAccessPolicy {
-                    allowed_satker_secrets: vec![if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }],
-                    access_level: crate::models::user::AccessLevel::ReadOnly,
-                    time_restrictions: None,
-                    audit_required: true,
-                    rate_limit: Some(100),
-                    allowed_paths: None,
-                    denied_paths: None,
-                };
-
-                if let Ok(policy_json) = serde_json::to_value(policy) {
-                     if let Some(ref mut attr) = attributes_json {
-                         if let Some(obj) = attr.as_object_mut() {
-                             obj.insert("secreton_access_policy".to_string(), policy_json);
-                         }
-                     } else {
-                         attributes_json = Some(serde_json::json!({
-                             "secreton_access_policy": policy_json
-                         }));
-                     }
-                }
-            }
-            attributes_json
-        },
-            enabled: row.get("enabled"),
-            realm_id: row.get("realm_id"),
-            federated: row.get("federated"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-            deleted_at: row.get("deleted_at"),
-            last_login_at: row.get("last_login_at"),
-            login_count: row.get("login_count"),
-        });
+        users.push(row_to_user(&row));
     }
 
     Ok(users)

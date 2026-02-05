@@ -1114,12 +1114,14 @@ impl User {
     /// Check if user can access secreton path (Legacy compatibility)
     pub fn can_access_secreton_path(&self, path: &str) -> bool {
         if let Some(attrs) = &self.attributes {
-             if let Some(policy_val) = attrs.get("secreton_access_policy") {
-                 if let Ok(policy) = serde_json::from_value::<SecretonAccessPolicy>(policy_val.clone()) {
-                     return policy.can_access_path(path, &self.satker_code)
-                         && policy.is_time_allowed(&Utc::now());
-                 }
-             }
+            if let Some(policy_val) = attrs.get("secreton_access_policy") {
+                if let Ok(policy) =
+                    serde_json::from_value::<SecretonAccessPolicy>(policy_val.clone())
+                {
+                    return policy.can_access_path(path, &self.satker_code)
+                        && policy.is_time_allowed(&Utc::now());
+                }
+            }
         }
         false
     }
@@ -1311,14 +1313,15 @@ impl From<User> for UserResponse {
             organization_id: user.organization_id,
             roles: user.roles.iter().map(|r| r.name.clone()).collect(),
             secreton_access_level: {
-                 if let Some(attrs) = &user.attributes {
-                     attrs.get("secreton_access_policy")
+                if let Some(attrs) = &user.attributes {
+                    attrs
+                        .get("secreton_access_policy")
                         .and_then(|p| p.get("access_level"))
                         .and_then(|l| serde_json::from_value::<AccessLevel>(l.clone()).ok())
                         .unwrap_or(AccessLevel::ReadOnly)
-                 } else {
-                     AccessLevel::ReadOnly
-                 }
+                } else {
+                    AccessLevel::ReadOnly
+                }
             },
             enabled: user.enabled,
             created_at: user.created_at,
@@ -1390,18 +1393,20 @@ impl TryFrom<tokio_postgres::Row> for User {
                     json_str.and_then(|s| serde_json::from_str(&s).ok())
                 };
 
-                let secreton_policy_str: Option<String> = row.try_get("secreton_access_policy").ok().flatten();
+                let secreton_policy_str: Option<String> =
+                    row.try_get("secreton_access_policy").ok().flatten();
                 if let Some(policy_str) = secreton_policy_str {
-                    if let Ok(policy_json) = serde_json::from_str::<serde_json::Value>(&policy_str) {
-                         if let Some(ref mut attr) = attributes_json {
-                             if let Some(obj) = attr.as_object_mut() {
-                                 obj.insert("secreton_access_policy".to_string(), policy_json);
-                             }
-                         } else {
-                             attributes_json = Some(serde_json::json!({
-                                 "secreton_access_policy": policy_json
-                             }));
-                         }
+                    if let Ok(policy_json) = serde_json::from_str::<serde_json::Value>(&policy_str)
+                    {
+                        if let Some(ref mut attr) = attributes_json {
+                            if let Some(obj) = attr.as_object_mut() {
+                                obj.insert("secreton_access_policy".to_string(), policy_json);
+                            }
+                        } else {
+                            attributes_json = Some(serde_json::json!({
+                                "secreton_access_policy": policy_json
+                            }));
+                        }
                     }
                 }
                 attributes_json
