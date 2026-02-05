@@ -12,7 +12,7 @@ use serde::Deserialize;
 use tracing::{debug, info};
 use uuid::Uuid;
 
-use crate::errors::{AppError, AppResult, bad_request};
+use crate::errors::{AppError, bad_request};
 use crate::middleware::Claims;
 use crate::models::{ApiResponse, PaginatedResponse};
 

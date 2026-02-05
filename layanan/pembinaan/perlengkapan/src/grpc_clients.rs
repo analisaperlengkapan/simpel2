@@ -265,8 +265,3 @@ impl IntegrasiClient {
 }
 
 // Re-export commonly used types from integrasi proto
-pub use integrasi::v1::{
-    DataSource as IntegrasiDataSource, MonsaktiAsetTetap, MonsaktiPersediaan, MonsaktiReference,
-    MysimkariPegawai, MysimkariSatker, SimanAsset,
-    SimanAssetCategory as IntegrasiSimanAssetCategory, SyncState as IntegrasiSyncState,
-};

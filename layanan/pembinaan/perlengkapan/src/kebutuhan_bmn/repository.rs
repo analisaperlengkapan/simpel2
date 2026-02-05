@@ -6,8 +6,7 @@
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
 use serde_json::{Value, json};
-use tokio_postgres::Row;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use uuid::Uuid;
 
 use super::models::*;

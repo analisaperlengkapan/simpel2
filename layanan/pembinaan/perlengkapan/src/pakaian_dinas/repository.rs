@@ -272,7 +272,7 @@ impl PakaianDinasRepository {
         let id = Uuid::new_v4();
         let now = chrono::Utc::now();
 
-        let row = client
+        let _row = client
             .query_one(
                 r#"
                 INSERT INTO ms_spesifikasi_pakaian_dinas
@@ -380,7 +380,7 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
         let offset = (page - 1) * per_page;
 
-        let (count_query, total): (String, i64) = if let Some(sid) = spesifikasi_id {
+        let (_count_query, total): (String, i64) = if let Some(sid) = spesifikasi_id {
             let row = client
                 .query_one(
                     "SELECT COUNT(*) as total FROM ms_subspesifikasi_pakaian_dinas WHERE spesifikasi_id = $1",
@@ -569,7 +569,7 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
         let offset = (page - 1) * per_page;
 
-        let (count_sql, data_sql, total): (String, String, i64) = if let Some(t) = tahun {
+        let (_count_sql, data_sql, total): (String, String, i64) = if let Some(t) = tahun {
             let row = client
                 .query_one(
                     "SELECT COUNT(*) as total FROM pengajuan_pakaian_dinas WHERE tahun = $1",

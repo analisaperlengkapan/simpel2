@@ -9,7 +9,7 @@
 
 use chrono::Datelike;
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 use validator::Validate;
 

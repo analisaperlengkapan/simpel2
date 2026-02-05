@@ -269,8 +269,8 @@ impl PakaianDinasService {
     pub async fn process_validator_action(
         &self,
         request: ValidatorActionRequest,
-        user_nip: &str,
-        user_nama: &str,
+        _user_nip: &str,
+        _user_nama: &str,
         user_role: &str,
     ) -> AppResult<PengajuanSatker> {
         // Get current satker submission
@@ -280,7 +280,7 @@ impl PakaianDinasService {
             .await?;
 
         // Determine next status based on current status and action
-        let next_status =
+        let _next_status =
             self.determine_next_status(satker.aktivitas_id, &request.aksi, user_role)?;
 
         // TODO: Update satker status and log activity
