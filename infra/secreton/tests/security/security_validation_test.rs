@@ -153,7 +153,14 @@ mod security_validation_tests {
 
             if regular_access.granted {
                 // Regular user access should be more restricted than admin
-                       "Regular user should not have more access than admin");
+                // If regular user has access, admin MUST also have access (Regular <= Admin)
+                // But generally regular users shouldn't have access to sensitive resources
+                assert!(
+                    admin_access.granted,
+                    "Regular user should not have more access than admin (Admin denied, Regular granted)"
+                );
+                // Also warn or fail because they shouldn't have access at all
+                panic!("Regular user granted access to sensitive resource: {}", resource);
             }
 
             if guest_access.granted {
@@ -187,10 +194,10 @@ mod security_validation_tests {
                 Err(_) => {
                     // System should start blocking after multiple failures
                     if failed_attempts >= 3 {
-                        println!("Brute force protection activated after { attempts", failed_attempts);
+                        println!("Brute force protection activated after {} attempts", failed_attempts);
                         break;
                     }
-                ,
+                }
                 Ok(true) => panic!("Should not authenticate with wrong credentials"),
             }
         }
@@ -255,7 +262,7 @@ mod security_validation_tests {
         if tampered_data.len() > 10 {
             // Modify a byte in the middle
             let tamper_pos = tampered_data.len() / 2;
-            let bytes = unsafe { tampered_data.as_bytes_mut() ;
+            let bytes = unsafe { tampered_data.as_bytes_mut() };
             bytes[tamper_pos] = bytes[tamper_pos].wrapping_add(1);
 
             let tamper_result = orchestrator.decrypt_and_verify_integrity(&tampered_data).await;
