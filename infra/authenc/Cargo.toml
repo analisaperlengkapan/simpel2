@@ -79,7 +79,7 @@ admin_console = []
 
 # Quantum-resistant cryptography features
 quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
-tpm = ["dep:tss-esapi"]
+tpm = ["dep:tss-esapi"] # Requires tss2-sys system library (libtss2-dev)
 
 [dependencies]
 # Core async runtime
