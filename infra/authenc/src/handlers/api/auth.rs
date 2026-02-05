@@ -299,8 +299,21 @@ pub async fn login(
             }));
         } else {
             // Normal login without MFA (for users not requiring MFA)
-            let token = jwt::generate_jwt(&user.id.to_string())
-                .map_err(|_| AuthencError::internal("Token generation failed"))?;
+            // Fetch roles
+            let user_roles = crate::database::operations::roles::get_user_roles(
+                state.user_store.database(),
+                &user.id,
+            )
+            .await
+            .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
+            let roles: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
+            let token = jwt::generate_jwt(
+                &user.id.to_string(),
+                Some(user.email.clone()),
+                Some(roles),
+            )
+            .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
             // Fire successful login event
             let event = crate::services::events::EventBuilder::new(
@@ -353,8 +366,21 @@ pub async fn test_login(
         .ok_or_else(|| AuthencError::internal("Test user not found"))?;
 
     // Generate JWT token
-    let token = jwt::generate_jwt(&test_user.id.to_string())
-        .map_err(|_| AuthencError::internal("Token generation failed"))?;
+    // Fetch roles
+    let user_roles = crate::database::operations::roles::get_user_roles(
+        state.user_store.database(),
+        &test_user.id,
+    )
+    .await
+    .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
+    let roles: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
+    let token = jwt::generate_jwt(
+        &test_user.id.to_string(),
+        Some(test_user.email.clone()),
+        Some(roles),
+    )
+    .map_err(|_| AuthencError::internal("Token generation failed"))?;
     let message = format!("Test login successful for user {}", test_user.username);
 
     // Fire successful login event
@@ -495,9 +521,30 @@ pub async fn mfa_verify_setup(
         }
     }
 
+    // Fetch user for claims
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await
+        .map_err(|_| AuthencError::internal("User retrieval failed"))?
+        .ok_or_else(|| AuthencError::internal("User not found"))?;
+
     // Generate full access token after successful MFA setup
-    let access_token = jwt::generate_jwt(&user_id.to_string())
-        .map_err(|_| AuthencError::internal("Token generation failed"))?;
+    // Fetch roles
+    let user_roles = crate::database::operations::roles::get_user_roles(
+        state.user_store.database(),
+        &user.id,
+    )
+    .await
+    .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
+    let roles: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
+    let access_token = jwt::generate_jwt(
+        &user_id.to_string(),
+        Some(user.email.clone()),
+        Some(roles),
+    )
+    .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
     // Fire MFA setup completed event
     let event = crate::services::events::EventBuilder::new(
@@ -598,9 +645,30 @@ pub async fn mfa_verify(
         }
     }
 
+    // Fetch user for claims
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await
+        .map_err(|_| AuthencError::internal("User retrieval failed"))?
+        .ok_or_else(|| AuthencError::internal("User not found"))?;
+
     // Generate full access token after successful MFA verification
-    let access_token = jwt::generate_jwt(&user_id.to_string())
-        .map_err(|_| AuthencError::internal("Token generation failed"))?;
+    // Fetch roles
+    let user_roles = crate::database::operations::roles::get_user_roles(
+        state.user_store.database(),
+        &user.id,
+    )
+    .await
+    .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
+    let roles: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
+    let access_token = jwt::generate_jwt(
+        &user_id.to_string(),
+        Some(user.email.clone()),
+        Some(roles),
+    )
+    .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
     // Fire MFA verification successful event
     let event = crate::services::events::EventBuilder::new(

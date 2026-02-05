@@ -26,6 +26,12 @@ pub struct Claims {
     /// Token purpose (access, mfa_verification, etc.)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<String>,
+    /// Email address of the user
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// List of roles assigned to the user
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub roles: Option<Vec<String>>,
 }
 
 /// Refresh token claims with JWT ID for token rotation
@@ -114,6 +120,8 @@ pub fn generate_temp_jwt(user_id: &str) -> Result<String, String> {
         sub: user_id.to_owned(),
         exp: expiration,
         purpose: Some("mfa_verification".to_string()),
+        email: None,
+        roles: None,
     };
 
     // Create JWT header
@@ -154,7 +162,11 @@ pub fn generate_temp_jwt(user_id: &str) -> Result<String, String> {
 /// use authenc::utils::crypto::jwt::generate_jwt;
 /// let token = generate_jwt("user123").expect("Failed to generate token");
 /// ```
-pub fn generate_jwt(user_id: &str) -> Result<String, String> {
+pub fn generate_jwt(
+    user_id: &str,
+    email: Option<String>,
+    roles: Option<Vec<String>>,
+) -> Result<String, String> {
     let expiration = SystemTime::now()
         .checked_add(Duration::from_secs(60 * 60))
         .unwrap()
@@ -166,6 +178,8 @@ pub fn generate_jwt(user_id: &str) -> Result<String, String> {
         sub: user_id.to_owned(),
         exp: expiration,
         purpose: Some("access".to_string()),
+        email,
+        roles,
     };
 
     // Create JWT header
@@ -458,15 +472,20 @@ mod tests {
     #[test]
     fn test_jwt_generation_and_verification() {
         let user_id = "test_user_123";
+        let email = Some("test@example.com".to_string());
+        let roles = Some(vec!["user".to_string(), "admin".to_string()]);
 
         // Generate a JWT
-        let token = generate_jwt(user_id).expect("Failed to generate JWT");
+        let token =
+            generate_jwt(user_id, email.clone(), roles.clone()).expect("Failed to generate JWT");
 
         // Verify the JWT
         let claims = verify_jwt(&token).expect("Failed to verify JWT");
 
         // Check that the claims are correct
         assert_eq!(claims.sub, user_id);
+        assert_eq!(claims.email, email);
+        assert_eq!(claims.roles, roles);
         assert!(claims.exp > 0); // Expiration should be set
     }
 
@@ -484,7 +503,7 @@ mod tests {
         let user_id = "test_user_123";
 
         // Generate a valid JWT
-        let token = generate_jwt(user_id).expect("Failed to generate JWT");
+        let token = generate_jwt(user_id, None, None).expect("Failed to generate JWT");
 
         // Tamper with the token (change a character in the payload)
         let mut token_bytes = token.into_bytes();

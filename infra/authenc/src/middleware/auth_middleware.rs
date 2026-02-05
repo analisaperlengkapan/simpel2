@@ -86,12 +86,13 @@ fn validate_token(token: &str, _secret: &str) -> Result<AuthUser, AuthencError> 
         }
     }
 
-    // For now, create a basic AuthUser from the claims
-    // TODO: In the future, we should store more user info in JWT or fetch from DB
+    // Create AuthUser from the claims
     Ok(AuthUser {
         id: claims.sub,
-        email: "user@example.com".to_string(), // TODO: Get from JWT or DB
-        roles: vec!["user".to_string()],       // TODO: Get from JWT or DB
+        email: claims
+            .email
+            .unwrap_or_else(|| "user@example.com".to_string()),
+        roles: claims.roles.unwrap_or_else(|| vec!["user".to_string()]),
     })
 }
 
@@ -281,7 +282,12 @@ mod tests {
             .layer(axum::middleware::from_fn_with_state(state, auth_middleware));
 
         // Generate a valid JWT token
-        let token = generate_jwt("test-user-id").expect("Failed to generate token");
+        let token = generate_jwt(
+            "test-user-id",
+            Some("test@email.com".to_string()),
+            Some(vec!["admin".to_string()]),
+        )
+        .expect("Failed to generate token");
 
         let response = app
             .oneshot(
@@ -302,7 +308,7 @@ mod tests {
             .unwrap()
             .to_bytes();
         let body_str = String::from_utf8(bytes.to_vec()).unwrap();
-        assert!(body_str.contains("user@example.com"));
+        assert!(body_str.contains("test@email.com"));
         assert!(body_str.contains("test-user-id"));
     }
 
@@ -341,7 +347,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
         // Test with valid authentication
-        let token = generate_jwt("test-user-id").expect("Failed to generate token");
+        let token = generate_jwt("test-user-id", None, None).expect("Failed to generate token");
 
         let response = app
             .oneshot(

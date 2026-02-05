@@ -324,9 +324,23 @@ impl AuthencService for AuthencGrpcService {
             }
         }
 
+        // Fetch user roles
+        let user_roles = crate::database::operations::roles::get_user_roles(
+            self.state.user_store.database(),
+            &user.id,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to fetch user roles: {}", e)))?;
+
+        let role_names: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
         // Generate JWT tokens
-        let access_token = crate::utils::jwt::generate_jwt(&user.id.to_string())
-            .map_err(|_| Status::internal("Token generation failed"))?;
+        let access_token = crate::utils::jwt::generate_jwt(
+            &user.id.to_string(),
+            Some(user.email.clone()),
+            Some(role_names.clone()),
+        )
+        .map_err(|_| Status::internal("Token generation failed"))?;
 
         let refresh_token = crate::utils::jwt::generate_refresh_token(&user.id.to_string())
             .map_err(|_| Status::internal("Refresh token generation failed"))?;
@@ -362,7 +376,7 @@ impl AuthencService for AuthencGrpcService {
             username: user.username.clone(),
             email: user.email.clone(),
             full_name: user.nama.clone(),
-            roles: user.roles.iter().map(|r| r.name.clone()).collect(),
+            roles: role_names,
             is_active: user.enabled,
             mfa_enabled: user.mfa_enabled,
             created_at: user.created_at.timestamp(),
@@ -407,9 +421,23 @@ impl AuthencService for AuthencGrpcService {
             return Err(Status::permission_denied("User account is disabled"));
         }
 
+        // Fetch user roles
+        let user_roles = crate::database::operations::roles::get_user_roles(
+            self.state.user_store.database(),
+            &user.id,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to fetch user roles: {}", e)))?;
+
+        let role_names: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
         // Generate new tokens
-        let new_access_token = crate::utils::jwt::generate_jwt(&user_id)
-            .map_err(|_| Status::internal("Token generation failed"))?;
+        let new_access_token = crate::utils::jwt::generate_jwt(
+            &user_id,
+            Some(user.email.clone()),
+            Some(role_names),
+        )
+        .map_err(|_| Status::internal("Token generation failed"))?;
 
         let new_refresh_token = crate::utils::jwt::generate_refresh_token(&user_id)
             .map_err(|_| Status::internal("Refresh token generation failed"))?;
@@ -644,13 +672,23 @@ impl AuthencService for AuthencGrpcService {
             .map_err(Self::map_error)?
             .ok_or_else(|| Status::not_found("User not found"))?;
 
+        // Fetch user roles
+        let user_roles = crate::database::operations::roles::get_user_roles(
+            self.state.user_store.database(),
+            &user.id,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to fetch user roles: {}", e)))?;
+
+        let role_names: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
         // Build user info response
         let user_info = proto::UserInfo {
             user_id: user.id.to_string(),
             username: user.username.clone(),
             email: user.email.clone(),
             full_name: user.nama.clone(),
-            roles: user.roles.iter().map(|r| r.name.clone()).collect(),
+            roles: role_names,
             is_active: user.enabled,
             mfa_enabled: user.mfa_enabled,
             created_at: user.created_at.timestamp(),
@@ -703,6 +741,16 @@ impl AuthencService for AuthencGrpcService {
             .await
             .map_err(Self::map_error)?;
 
+        // Fetch user roles
+        let user_roles = crate::database::operations::roles::get_user_roles(
+            self.state.user_store.database(),
+            &user.id,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to fetch user roles: {}", e)))?;
+
+        let role_names: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
         // Fire user update event
         let event_manager = self.state.event_manager.write().await;
         let event = crate::services::events::EventBuilder::new(
@@ -722,7 +770,7 @@ impl AuthencService for AuthencGrpcService {
             username: user.username.clone(),
             email: user.email.clone(),
             full_name: user.nama.clone(),
-            roles: user.roles.iter().map(|r| r.name.clone()).collect(),
+            roles: role_names,
             is_active: user.enabled,
             mfa_enabled: user.mfa_enabled,
             created_at: user.created_at.timestamp(),
@@ -1434,13 +1482,13 @@ impl AuthencService for AuthencGrpcService {
 
                 // Generate tokens (simplified - in production, validate code properly)
                 let user_id = "user_from_code"; // Extract from validated code
-                let access_token = crate::utils::jwt::generate_jwt(user_id)
+                let access_token = crate::utils::jwt::generate_jwt(user_id, None, None)
                     .map_err(|_| Status::internal("Token generation failed"))?;
 
                 let refresh_token = crate::utils::jwt::generate_refresh_token(user_id)
                     .map_err(|_| Status::internal("Refresh token generation failed"))?;
 
-                let id_token = crate::utils::jwt::generate_jwt(user_id)
+                let id_token = crate::utils::jwt::generate_jwt(user_id, None, None)
                     .map_err(|_| Status::internal("ID token generation failed"))?;
 
                 Ok(Response::new(OAuthTokenResponse {
@@ -1465,7 +1513,7 @@ impl AuthencService for AuthencGrpcService {
                 let user_id = claims.sub;
 
                 // Generate new access token
-                let new_access_token = crate::utils::jwt::generate_jwt(&user_id)
+                let new_access_token = crate::utils::jwt::generate_jwt(&user_id, None, None)
                     .map_err(|_| Status::internal("Token generation failed"))?;
 
                 let new_refresh_token = crate::utils::jwt::generate_refresh_token(&user_id)
@@ -1493,7 +1541,7 @@ impl AuthencService for AuthencGrpcService {
                 // Verify client credentials (simplified)
                 // In production, validate against clients table
 
-                let access_token = crate::utils::jwt::generate_jwt(&client_id)
+                let access_token = crate::utils::jwt::generate_jwt(&client_id, None, None)
                     .map_err(|_| Status::internal("Token generation failed"))?;
 
                 Ok(Response::new(OAuthTokenResponse {
@@ -1808,9 +1856,23 @@ impl AuthencService for AuthencGrpcService {
             Err(e) => return Err(Self::map_error(e)),
         };
 
+        // Fetch user roles
+        let user_roles = crate::database::operations::roles::get_user_roles(
+            self.state.user_store.database(),
+            &user.id,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to fetch user roles: {}", e)))?;
+
+        let role_names: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
+
         // Generate our own tokens
-        let access_token = crate::utils::jwt::generate_jwt(&user.id.to_string())
-            .map_err(|_| Status::internal("Token generation failed"))?;
+        let access_token = crate::utils::jwt::generate_jwt(
+            &user.id.to_string(),
+            Some(user.email.clone()),
+            Some(role_names.clone()),
+        )
+        .map_err(|_| Status::internal("Token generation failed"))?;
 
         let refresh_token = crate::utils::jwt::generate_refresh_token(&user.id.to_string())
             .map_err(|_| Status::internal("Refresh token generation failed"))?;
