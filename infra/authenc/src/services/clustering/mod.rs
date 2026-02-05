@@ -495,6 +495,8 @@ impl DistributedConsensus for RaftConsensus {
 pub struct ClusterManager {
     /// Unique identifier for this node
     node_id: String,
+    /// Address of this node
+    node_address: String,
     /// Name of the cluster
     #[allow(dead_code)]
     cluster_name: String,
@@ -514,6 +516,7 @@ impl ClusterManager {
     /// Create a new cluster manager
     pub fn new(
         node_id: String,
+        node_address: String,
         cluster_name: String,
         communication: Box<dyn ClusterCommunication>,
         membership: Box<dyn ClusterMembership>,
@@ -529,6 +532,7 @@ impl ClusterManager {
 
         Self {
             node_id,
+            node_address,
             cluster_name,
             communication,
             membership,
@@ -541,6 +545,7 @@ impl ClusterManager {
     /// Create a cluster manager with in-memory components for development/testing
     pub fn new_in_memory(
         node_id: String,
+        node_address: String,
         cluster_name: String,
     ) -> (Self, broadcast::Sender<(String, Vec<u8>)>) {
         let (broadcast_tx, _broadcast_rx) = broadcast::channel(100);
@@ -553,7 +558,14 @@ impl ClusterManager {
         let membership = Box::new(InMemoryClusterMembership::new(cluster_name.clone()));
         let consensus = Box::new(RaftConsensus::new(node_id.clone(), vec![]));
 
-        let manager = Self::new(node_id, cluster_name, communication, membership, consensus);
+        let manager = Self::new(
+            node_id,
+            node_address,
+            cluster_name,
+            communication,
+            membership,
+            consensus,
+        );
         (manager, broadcast_tx)
     }
 
@@ -562,7 +574,7 @@ impl ClusterManager {
         // Join the cluster
         let node = ClusterNode {
             node_id: self.node_id.clone(),
-            address: "localhost:7800".to_string(), // TODO: Get actual address
+            address: self.node_address.clone(),
             status: NodeStatus::Starting,
             last_seen: chrono::Utc::now(),
             metadata: HashMap::new(),

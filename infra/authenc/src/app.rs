@@ -487,9 +487,15 @@ impl AppState {
                 .node_id
                 .clone()
                 .unwrap_or_else(|| format!("node-{}", uuid::Uuid::new_v4().simple()));
+            let node_address = config
+                .clustering
+                .node_address
+                .clone()
+                .unwrap_or_else(|| config.server_addr().to_string());
             let (manager, _broadcast_tx) =
                 crate::services::clustering::ClusterManager::new_in_memory(
                     node_id,
+                    node_address,
                     config.clustering.cluster_name.clone(),
                 );
             Some(Arc::new(manager))
