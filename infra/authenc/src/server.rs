@@ -62,7 +62,7 @@ impl DualServer {
         };
 
         // Start gRPC server if enabled
-        let grpc_handle = if self.state.config.server.grpc_enabled {
+        let grpc_handle: Option<tokio::task::JoinHandle<()>> = if self.state.config.server.grpc_enabled {
             #[cfg(feature = "grpc")]
             {
                 let state = self.state.clone();

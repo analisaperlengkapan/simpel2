@@ -27,6 +27,8 @@ spec:
         - name: portal-backend
           image: localhost:32000/simpelv2/layanan-daskrimti-portal:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 3010
               name: http
