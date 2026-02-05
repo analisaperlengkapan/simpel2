@@ -5,7 +5,7 @@ use crate::{
     models::{
         User,
         user::{
-            AccessLevel, CreateUserRequest, SecretonAccessPolicy, SecurityContext,
+            CreateUserRequest, SecretonAccessPolicy, SecurityContext,
             UpdateUserRequest,
         },
     },

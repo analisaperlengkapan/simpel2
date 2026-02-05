@@ -64,6 +64,7 @@ fn default_refresh_purpose() -> String {
 /// - Use strong random secrets (at least 32 bytes)
 /// # Returns
 /// A `Result` containing the secret bytes on success, or an error string on failure
+#[allow(dead_code)]
 fn get_jwt_secret() -> Result<Vec<u8>, String> {
     // Try to get from environment variable
     if let Ok(secret) = std::env::var("JWT_SECRET") {

@@ -1580,7 +1580,7 @@ pub struct OcspClient {
     cache_duration: Duration,
 
     /// HTTP timeout for OCSP requests (default: 10 seconds)
-    timeout: Duration,
+    _timeout: Duration,
 }
 
 impl OcspClient {
@@ -1600,7 +1600,7 @@ impl OcspClient {
             http_client,
             response_cache: Arc::new(Mutex::new(HashMap::new())),
             cache_duration: Duration::from_secs(300), // 5 minutes
-            timeout: Duration::from_secs(10),
+            _timeout: Duration::from_secs(10),
         })
     }
 
@@ -1616,7 +1616,7 @@ impl OcspClient {
             http_client,
             response_cache: Arc::new(Mutex::new(HashMap::new())),
             cache_duration,
-            timeout,
+            _timeout: timeout,
         })
     }
 
