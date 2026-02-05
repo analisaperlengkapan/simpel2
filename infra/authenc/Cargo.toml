@@ -28,6 +28,7 @@ path = "src/bin/generate-signing-keys.rs"
 
 [features]
 integration-tests = []
+unsafe-oauth-testing = []
 # Framework features
 default = [
     "axum",

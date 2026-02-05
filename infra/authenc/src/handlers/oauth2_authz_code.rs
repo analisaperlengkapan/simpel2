@@ -129,7 +129,13 @@ pub async fn authorize(
     }
 
     // TODO: In production, check user authentication
+    #[cfg(feature = "unsafe-oauth-testing")]
     let user_id = Uuid::new_v4().to_string();
+
+    #[cfg(not(feature = "unsafe-oauth-testing"))]
+    return Err(AuthencError::unauthorized(
+        "Authentication required. 'unsafe-oauth-testing' feature disabled.",
+    ));
 
     // Generate authorization code
     let auth_code = generate_authorization_code();
