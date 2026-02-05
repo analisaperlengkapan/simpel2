@@ -37,8 +37,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Get database URL
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL environment variable must be set");
+    let database_url =
+        std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
 
     info!("Connecting to database...");
 

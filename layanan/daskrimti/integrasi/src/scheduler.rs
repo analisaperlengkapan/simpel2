@@ -184,7 +184,11 @@ async fn fetch_mysimkari_data(config: Config) -> Result<()> {
                 match mysimkari::api::pegawai_satker(&mut client, id).await {
                     Ok(pegawai_response) => {
                         if let Some(pegawai_array) = pegawai_response.as_array() {
-                            info!("    ✓ Pegawai for satker {}: {} records", id, pegawai_array.len());
+                            info!(
+                                "    ✓ Pegawai for satker {}: {} records",
+                                id,
+                                pegawai_array.len()
+                            );
                         }
                     }
                     Err(e) => {
@@ -241,17 +245,17 @@ async fn fetch_siman_data(config: Config) -> Result<()> {
 }
 
 /// Save data to database or file based on configuration
-async fn save_data(
-    table_name: &str,
-    data: &[serde_json::Value],
-    config: &Config,
-) -> Result<()> {
+async fn save_data(table_name: &str, data: &[serde_json::Value], config: &Config) -> Result<()> {
     let storage_type = std::env::var("STORAGE_TYPE").unwrap_or_else(|_| "json".to_string());
 
     match storage_type.as_str() {
         "database" => {
             if let Some(ref _db_config) = config.db_config {
-                info!("  💾 Saving {} records to database (table: {})", data.len(), table_name);
+                info!(
+                    "  💾 Saving {} records to database (table: {})",
+                    data.len(),
+                    table_name
+                );
                 // Database storage logic here
                 // Use config.db_pool or create connection
                 // For now, just log
