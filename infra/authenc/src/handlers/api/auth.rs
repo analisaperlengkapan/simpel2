@@ -308,12 +308,9 @@ pub async fn login(
             .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
             let roles: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
 
-            let token = jwt::generate_jwt(
-                &user.id.to_string(),
-                Some(user.email.clone()),
-                Some(roles),
-            )
-            .map_err(|_| AuthencError::internal("Token generation failed"))?;
+            let token =
+                jwt::generate_jwt(&user.id.to_string(), Some(user.email.clone()), Some(roles))
+                    .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
             // Fire successful login event
             let event = crate::services::events::EventBuilder::new(
@@ -531,20 +528,15 @@ pub async fn mfa_verify_setup(
 
     // Generate full access token after successful MFA setup
     // Fetch roles
-    let user_roles = crate::database::operations::roles::get_user_roles(
-        state.user_store.database(),
-        &user.id,
-    )
-    .await
-    .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
+    let user_roles =
+        crate::database::operations::roles::get_user_roles(state.user_store.database(), &user.id)
+            .await
+            .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
     let roles: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
 
-    let access_token = jwt::generate_jwt(
-        &user_id.to_string(),
-        Some(user.email.clone()),
-        Some(roles),
-    )
-    .map_err(|_| AuthencError::internal("Token generation failed"))?;
+    let access_token =
+        jwt::generate_jwt(&user_id.to_string(), Some(user.email.clone()), Some(roles))
+            .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
     // Fire MFA setup completed event
     let event = crate::services::events::EventBuilder::new(
@@ -655,20 +647,15 @@ pub async fn mfa_verify(
 
     // Generate full access token after successful MFA verification
     // Fetch roles
-    let user_roles = crate::database::operations::roles::get_user_roles(
-        state.user_store.database(),
-        &user.id,
-    )
-    .await
-    .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
+    let user_roles =
+        crate::database::operations::roles::get_user_roles(state.user_store.database(), &user.id)
+            .await
+            .map_err(|e| AuthencError::internal(format!("Failed to fetch roles: {}", e)))?;
     let roles: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
 
-    let access_token = jwt::generate_jwt(
-        &user_id.to_string(),
-        Some(user.email.clone()),
-        Some(roles),
-    )
-    .map_err(|_| AuthencError::internal("Token generation failed"))?;
+    let access_token =
+        jwt::generate_jwt(&user_id.to_string(), Some(user.email.clone()), Some(roles))
+            .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
     // Fire MFA verification successful event
     let event = crate::services::events::EventBuilder::new(

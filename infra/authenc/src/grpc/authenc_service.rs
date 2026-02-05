@@ -432,12 +432,9 @@ impl AuthencService for AuthencGrpcService {
         let role_names: Vec<String> = user_roles.iter().map(|r| r.name.clone()).collect();
 
         // Generate new tokens
-        let new_access_token = crate::utils::jwt::generate_jwt(
-            &user_id,
-            Some(user.email.clone()),
-            Some(role_names),
-        )
-        .map_err(|_| Status::internal("Token generation failed"))?;
+        let new_access_token =
+            crate::utils::jwt::generate_jwt(&user_id, Some(user.email.clone()), Some(role_names))
+                .map_err(|_| Status::internal("Token generation failed"))?;
 
         let new_refresh_token = crate::utils::jwt::generate_refresh_token(&user_id)
             .map_err(|_| Status::internal("Refresh token generation failed"))?;
