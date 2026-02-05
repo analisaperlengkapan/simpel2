@@ -166,8 +166,10 @@ pub async fn get_user_by_id(db: &Database, user_id: Uuid) -> Result<Option<User>
     let query = r#"
         SELECT
             id, username, email, email_verified, first_name, last_name,
+            nip, nama, jabatan, satker_code,
             phone_number, phone_verified, password_hash, totp_secret,
-            totp_backup_codes, webauthn_enabled, account_locked,
+            totp_backup_codes, mfa_enabled, mfa_setup_at, mfa_last_used,
+            webauthn_enabled, account_locked,
             account_locked_until, failed_login_attempts, last_login_at,
             last_failed_login_at, password_changed_at, password_expires_at,
             require_password_change, realm_id, organization_id, attributes,

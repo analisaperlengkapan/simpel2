@@ -95,19 +95,28 @@ async fn validate_token(token: &str, state: &AuthState) -> Result<AuthUser, Auth
     }
 
     let (email, roles) = if let Some(db) = &state.database {
-        if let Ok(user_id) = Uuid::from_str(&claims.sub) {
-            let user = users::get_user_by_id(db, user_id).await.unwrap_or(None);
-            let user_roles = roles::get_user_roles(db, &user_id)
-                .await
-                .unwrap_or_else(|_| Vec::new());
-            let role_names: Vec<String> = user_roles.into_iter().map(|r| r.name).collect();
-            let email = user
-                .map(|u| u.email)
-                .unwrap_or_else(|| "user@example.com".to_string());
-            (email, role_names)
-        } else {
-            ("user@example.com".to_string(), vec!["user".to_string()])
-        }
+        let user_id = Uuid::from_str(&claims.sub).map_err(|e| {
+            error!("Invalid user ID format in token: {}", e);
+            AuthencError::unauthorized("Invalid token claims")
+        })?;
+
+        let user_opt = users::get_user_by_id(db, user_id).await.map_err(|e| {
+            error!("Database error fetching user {}: {}", user_id, e);
+            AuthencError::database("Failed to verify user identity")
+        })?;
+
+        let user = user_opt.ok_or_else(|| {
+            error!("User {} not found in database (revoked access?)", user_id);
+            AuthencError::unauthorized("User identity could not be verified")
+        })?;
+
+        let user_roles = roles::get_user_roles(db, &user_id).await.map_err(|e| {
+            error!("Database error fetching roles for user {}: {}", user_id, e);
+            AuthencError::database("Failed to retrieve user permissions")
+        })?;
+
+        let role_names: Vec<String> = user_roles.into_iter().map(|r| r.name).collect();
+        (user.email, role_names)
     } else {
         ("user@example.com".to_string(), vec!["user".to_string()])
     };
