@@ -539,9 +539,13 @@ nursery = { level = "warn", priority = -1 }
 opt-level = 1                # Light optimization for better dev experience
 debug = true                 # Keep debug info for development
 incremental = true           # Enable incremental compilation
-codegen-units = 256          # Parallel compilation for faster builds
+codegen-units = 1            # Single unit to prevent resource exhaustion (os error 2)
 lto = false                  # Disable LTO in dev for faster incremental builds
 split-debuginfo = "unpacked" # Faster debug builds on Linux/macOS
+
+[profile.doc]
+inherits = "dev"
+codegen-units = 1
 
 [profile.release]
 # Maximum optimization for production
@@ -574,16 +578,20 @@ lto = "thin"     # Thin LTO for balance
 # Optimize dependencies in dev mode for faster runtime
 [profile.dev.package."*"]
 opt-level = 2 # Optimize dependencies while keeping fast compile times
+codegen-units = 1 # Force single unit for dependencies
 
 # Optimize specific heavy dependencies
 [profile.dev.package.tokio]
 opt-level = 3 # Tokio benefits from optimization
+codegen-units = 1
 
 [profile.dev.package.axum]
 opt-level = 3 # Axum benefits from optimization
+codegen-units = 1
 
 [profile.dev.package.leptos]
 opt-level = 3 # Leptos benefits from optimization
+codegen-units = 1
 
 # =============================================================================
 # Security & Optimization Summary (October 2025)
