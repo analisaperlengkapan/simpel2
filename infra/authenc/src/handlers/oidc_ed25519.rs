@@ -174,7 +174,12 @@ pub async fn oidc_jwks_ed25519() -> Result<Json<serde_json::Value>, AuthencError
 /// - Tokens are signed with Ed25519 for integrity
 /// - Supports standard OAuth2 token response format
 /// - Implements token rotation for refresh tokens
+use crate::services::stores::UserStoreTrait;
+use axum::extract::State;
+use std::sync::Arc;
+
 pub async fn oidc_token_ed25519(
+    State(state): State<Arc<crate::app::AppState>>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, AuthencError> {
     // Simplified token endpoint for demonstration
@@ -184,9 +189,14 @@ pub async fn oidc_token_ed25519(
 
     match grant_type.as_str() {
         "authorization_code" => {
+            // In a real implementation, we would validate the code and fetch the user
+            // For now, we still use demo values for this flow as we don't have code storage yet
+            // but we'll mark it as TODO
+            let user_id = "demo_user";
+
             // Generate tokens using Ed25519
             let access_token = generate_ed25519_jwt(
-                "demo_user",
+                user_id,
                 "demo_client",
                 Some("user@example.com"),
                 Some("Demo User"),
@@ -194,7 +204,7 @@ pub async fn oidc_token_ed25519(
             );
 
             let id_token = generate_ed25519_jwt(
-                "demo_user",
+                user_id,
                 "demo_client",
                 Some("user@example.com"),
                 Some("Demo User"),
@@ -203,7 +213,7 @@ pub async fn oidc_token_ed25519(
 
             // Generate refresh token
             let refresh_token =
-                crate::utils::jwt::generate_refresh_token("demo_user").map_err(|e| {
+                crate::utils::jwt::generate_refresh_token(user_id).map_err(|e| {
                     AuthencError::internal(&format!("Failed to generate refresh token: {}", e))
                 })?;
 
@@ -229,26 +239,44 @@ pub async fn oidc_token_ed25519(
                 AuthencError::unauthorized(&format!("Invalid refresh token: {}", e))
             })?;
 
-            // Generate new access token
+            let user_id_str = claims.sub;
+            let user_id = uuid::Uuid::parse_str(&user_id_str)
+                .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
+
+            // Fetch user from database to get fresh details
+            let user = state
+                .user_store
+                .get_user(user_id)
+                .await?
+                .ok_or_else(|| AuthencError::unauthorized("User not found"))?;
+
+            // Get role (simplified, taking first role)
+            let role = user
+                .roles
+                .first()
+                .map(|r| r.name.clone())
+                .unwrap_or_else(|| "user".to_string());
+
+            // Generate new access token with fresh data
             let access_token = generate_ed25519_jwt(
-                &claims.sub,
+                &user_id_str,
                 "demo_client",
-                Some("user@example.com"),
-                Some("Demo User"),
-                Some("user"),
+                Some(&user.email),
+                user.nama.as_deref().or(Some("User")),
+                Some(&role),
             );
 
             // Generate new ID token
             let id_token = generate_ed25519_jwt(
-                &claims.sub,
+                &user_id_str,
                 "demo_client",
-                Some("user@example.com"),
-                Some("Demo User"),
-                Some("user"),
+                Some(&user.email),
+                user.nama.as_deref().or(Some("User")),
+                Some(&role),
             );
 
             // Generate new refresh token (token rotation)
-            let new_refresh_token = crate::utils::jwt::generate_refresh_token(&claims.sub)
+            let new_refresh_token = crate::utils::jwt::generate_refresh_token(&user_id_str)
                 .map_err(|e| {
                     AuthencError::internal(&format!("Failed to generate refresh token: {}", e))
                 })?;
@@ -391,6 +419,7 @@ pub async fn oidc_userinfo_ed25519(
 /// - Supports CORS for iframe-based refresh
 /// - Prevents refresh token reuse attacks
 pub async fn oidc_refresh_ed25519(
+    State(state): State<Arc<crate::app::AppState>>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, AuthencError> {
     // Extract refresh token
@@ -402,26 +431,44 @@ pub async fn oidc_refresh_ed25519(
     let claims = crate::utils::jwt::verify_refresh_token(refresh_token)
         .map_err(|e| AuthencError::unauthorized(&format!("Invalid refresh token: {}", e)))?;
 
+    let user_id_str = claims.sub;
+    let user_id = uuid::Uuid::parse_str(&user_id_str)
+        .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
+
+    // Fetch user from database to get fresh details
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
+        .ok_or_else(|| AuthencError::unauthorized("User not found"))?;
+
+    // Get role (simplified, taking first role)
+    let role = user
+        .roles
+        .first()
+        .map(|r| r.name.clone())
+        .unwrap_or_else(|| "user".to_string());
+
     // Generate new access token
     let access_token = generate_ed25519_jwt(
-        &claims.sub,
+        &user_id_str,
         "demo_client",
-        Some("user@example.com"),
-        Some("Demo User"),
-        Some("user"),
+        Some(&user.email),
+        user.nama.as_deref().or(Some("User")),
+        Some(&role),
     );
 
     // Generate new ID token
     let id_token = generate_ed25519_jwt(
-        &claims.sub,
+        &user_id_str,
         "demo_client",
-        Some("user@example.com"),
-        Some("Demo User"),
-        Some("user"),
+        Some(&user.email),
+        user.nama.as_deref().or(Some("User")),
+        Some(&role),
     );
 
     // Generate new refresh token (token rotation)
-    let new_refresh_token = crate::utils::jwt::generate_refresh_token(&claims.sub)
+    let new_refresh_token = crate::utils::jwt::generate_refresh_token(&user_id_str)
         .map_err(|e| AuthencError::internal(&format!("Failed to generate refresh token: {}", e)))?;
 
     let response = serde_json::json!({

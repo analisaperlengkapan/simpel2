@@ -414,12 +414,9 @@ impl AuthencService for AuthencGrpcService {
 
         // Generate new tokens
         let roles: Vec<String> = user.roles.iter().map(|r| r.name.clone()).collect();
-        let new_access_token = crate::utils::jwt::generate_jwt(
-            &user_id,
-            Some(user.email.clone()),
-            Some(roles),
-        )
-        .map_err(|_| Status::internal("Token generation failed"))?;
+        let new_access_token =
+            crate::utils::jwt::generate_jwt(&user_id, Some(user.email.clone()), Some(roles))
+                .map_err(|_| Status::internal("Token generation failed"))?;
 
         let new_refresh_token = crate::utils::jwt::generate_refresh_token(&user_id)
             .map_err(|_| Status::internal("Refresh token generation failed"))?;
@@ -1487,7 +1484,8 @@ impl AuthencService for AuthencGrpcService {
                     .state
                     .user_store
                     .get_user(
-                        uuid::Uuid::parse_str(&user_id).map_err(|_| Status::internal("Invalid user ID"))?,
+                        uuid::Uuid::parse_str(&user_id)
+                            .map_err(|_| Status::internal("Invalid user ID"))?,
                     )
                     .await
                     .map_err(Self::map_error)?
@@ -1495,19 +1493,10 @@ impl AuthencService for AuthencGrpcService {
 
                 let roles: Vec<String> = user.roles.iter().map(|r| r.name.clone()).collect();
 
-                // Check if user is still active
-                if !user.enabled {
-                    return Err(Status::permission_denied("User account is disabled"));
-                }
-
                 // Generate new access token
-                let new_access_token = crate::utils::jwt::generate_jwt(
-                    &user_id,
-                    Some(user.email),
-                    Some(roles),
-                )
-                .map_err(|_| Status::internal("Token generation failed"))?;
-
+                let new_access_token =
+                    crate::utils::jwt::generate_jwt(&user_id, Some(user.email), Some(roles))
+                        .map_err(|_| Status::internal("Token generation failed"))?;
 
                 let new_refresh_token = crate::utils::jwt::generate_refresh_token(&user_id)
                     .map_err(|_| Status::internal("Refresh token generation failed"))?;

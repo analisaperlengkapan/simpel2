@@ -300,12 +300,9 @@ pub async fn login(
         } else {
             // Normal login without MFA (for users not requiring MFA)
             let roles: Vec<String> = user.roles.iter().map(|r| r.name.clone()).collect();
-            let token = jwt::generate_jwt(
-                &user.id.to_string(),
-                Some(user.email.clone()),
-                Some(roles),
-            )
-            .map_err(|_| AuthencError::internal("Token generation failed"))?;
+            let token =
+                jwt::generate_jwt(&user.id.to_string(), Some(user.email.clone()), Some(roles))
+                    .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
             // Fire successful login event
             let event = crate::services::events::EventBuilder::new(
@@ -515,12 +512,9 @@ pub async fn mfa_verify_setup(
     let roles: Vec<String> = user.roles.iter().map(|r| r.name.clone()).collect();
 
     // Generate full access token after successful MFA setup
-    let access_token = jwt::generate_jwt(
-        &user_id.to_string(),
-        Some(user.email.clone()),
-        Some(roles),
-    )
-    .map_err(|_| AuthencError::internal("Token generation failed"))?;
+    let access_token =
+        jwt::generate_jwt(&user_id.to_string(), Some(user.email.clone()), Some(roles))
+            .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
     // Fire MFA setup completed event
     let event = crate::services::events::EventBuilder::new(
@@ -631,12 +625,9 @@ pub async fn mfa_verify(
     let roles: Vec<String> = user.roles.iter().map(|r| r.name.clone()).collect();
 
     // Generate full access token after successful MFA verification
-    let access_token = jwt::generate_jwt(
-        &user_id.to_string(),
-        Some(user.email.clone()),
-        Some(roles),
-    )
-    .map_err(|_| AuthencError::internal("Token generation failed"))?;
+    let access_token =
+        jwt::generate_jwt(&user_id.to_string(), Some(user.email.clone()), Some(roles))
+            .map_err(|_| AuthencError::internal("Token generation failed"))?;
 
     // Fire MFA verification successful event
     let event = crate::services::events::EventBuilder::new(
