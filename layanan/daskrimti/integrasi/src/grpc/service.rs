@@ -23,11 +23,9 @@ use crate::grpc::proto::{
     GetMysimkariPegawaiResponse, GetMysimkariSatkerRequest, GetMysimkariSatkerResponse,
     GetSimanAssetRequest, GetSimanAssetResponse, GetSimanAssetsRequest, GetSimanAssetsResponse,
     GetSyncStatusRequest, GetSyncStatusResponse, HealthCheckRequest, HealthCheckResponse,
-    MonsaktiAsetTetap, MonsaktiPersediaan,
-    MonsaktiReference, MonsaktiTransaksi,
-    MysimkariPegawai, MysimkariSatker, PaginationInfo, SaldoAnggaranSummary, SimanAsset,
-    SyncState, TriggerSyncRequest, TriggerSyncResponse,
-    integrasi_service_server::IntegrasiService,
+    MonsaktiAsetTetap, MonsaktiPersediaan, MonsaktiReference, MonsaktiTransaksi, MysimkariPegawai,
+    MysimkariSatker, PaginationInfo, SaldoAnggaranSummary, SimanAsset, SyncState,
+    TriggerSyncRequest, TriggerSyncResponse, integrasi_service_server::IntegrasiService,
 };
 
 /// Shared state for the gRPC service
@@ -106,12 +104,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
         info!("HealthCheck request received");
 
         // Check database connectivity
-        let db_status = match self
-            .state
-            .db_client
-            .simple_query("SELECT 1")
-            .await
-        {
+        let db_status = match self.state.db_client.simple_query("SELECT 1").await {
             Ok(_) => "connected".to_string(),
             Err(e) => format!("error: {}", e),
         };
@@ -120,10 +113,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
 
         let mut service_status = HashMap::new();
         service_status.insert("database".to_string(), db_status);
-        service_status.insert(
-            "grpc".to_string(),
-            "running".to_string(),
-        );
+        service_status.insert("grpc".to_string(), "running".to_string());
 
         Ok(Response::new(HealthCheckResponse {
             healthy,
@@ -276,36 +266,35 @@ impl IntegrasiService for IntegrasiServiceImpl {
             LIMIT $1 OFFSET $2
         "#;
 
-        let items: Vec<MonsaktiPersediaan> =
-            match self
-                .state
-                .db_client
-                .query(query, &[&(per_page as i64), &offset])
-                .await
-            {
-                Ok(rows) => rows
-                    .iter()
-                    .map(|row| MonsaktiPersediaan {
-                        id: row
-                            .try_get::<_, uuid::Uuid>("id")
-                            .map(|u| u.to_string())
-                            .unwrap_or_default(),
-                        kode_satker: row.try_get("kode_satker").unwrap_or_default(),
-                        kode_barang: row.try_get("kode_barang").unwrap_or_default(),
-                        nama_barang: row.try_get("nama_barang").unwrap_or_default(),
-                        satuan: row.try_get("satuan").unwrap_or_default(),
-                        jumlah: row.try_get::<_, f64>("jumlah").unwrap_or(0.0),
-                        harga_satuan: row.try_get::<_, f64>("harga_satuan").unwrap_or(0.0),
-                        total_nilai: row.try_get::<_, f64>("total_nilai").unwrap_or(0.0),
-                        tahun_anggaran: row.try_get("tahun_anggaran").unwrap_or_default(),
-                        extra_fields: HashMap::new(),
-                    })
-                    .collect(),
-                Err(e) => {
-                    error!("Failed to query persediaan: {}", e);
-                    Vec::new()
-                }
-            };
+        let items: Vec<MonsaktiPersediaan> = match self
+            .state
+            .db_client
+            .query(query, &[&(per_page as i64), &offset])
+            .await
+        {
+            Ok(rows) => rows
+                .iter()
+                .map(|row| MonsaktiPersediaan {
+                    id: row
+                        .try_get::<_, uuid::Uuid>("id")
+                        .map(|u| u.to_string())
+                        .unwrap_or_default(),
+                    kode_satker: row.try_get("kode_satker").unwrap_or_default(),
+                    kode_barang: row.try_get("kode_barang").unwrap_or_default(),
+                    nama_barang: row.try_get("nama_barang").unwrap_or_default(),
+                    satuan: row.try_get("satuan").unwrap_or_default(),
+                    jumlah: row.try_get::<_, f64>("jumlah").unwrap_or(0.0),
+                    harga_satuan: row.try_get::<_, f64>("harga_satuan").unwrap_or(0.0),
+                    total_nilai: row.try_get::<_, f64>("total_nilai").unwrap_or(0.0),
+                    tahun_anggaran: row.try_get("tahun_anggaran").unwrap_or_default(),
+                    extra_fields: HashMap::new(),
+                })
+                .collect(),
+            Err(e) => {
+                error!("Failed to query persediaan: {}", e);
+                Vec::new()
+            }
+        };
 
         Ok(Response::new(GetMonsaktiPersediaanResponse {
             items,
@@ -346,57 +335,44 @@ impl IntegrasiService for IntegrasiServiceImpl {
             LIMIT $1 OFFSET $2
         "#;
 
-        let items: Vec<MonsaktiAsetTetap> =
-            match self
-                .state
-                .db_client
-                .query(query, &[&(per_page as i64), &offset])
-                .await
-            {
-                Ok(rows) => rows
-                    .iter()
-                    .map(|row| {
-                        let data: serde_json::Value =
-                            row.try_get("data").unwrap_or(serde_json::Value::Null);
-                        MonsaktiAsetTetap {
-                            id: row
-                                .try_get::<_, uuid::Uuid>("id")
-                                .map(|u| u.to_string())
-                                .unwrap_or_default(),
-                            kode_satker: data["kdsatker"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            nup: data["nup"].as_str().unwrap_or_default().to_string(),
-                            kode_barang: data["kdbarang"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            nama_barang: data["nmbarang"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            merk_type: data["merktype"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            nilai_perolehan: data["nlperolehan"].as_f64().unwrap_or(0.0),
-                            nilai_penyusutan: data["nlpenyusutan"].as_f64().unwrap_or(0.0),
-                            nilai_buku: data["nlbuku"].as_f64().unwrap_or(0.0),
-                            kondisi: data["kondisi"].as_str().unwrap_or_default().to_string(),
-                            tahun_perolehan: data["thnperolehan"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            extra_fields: HashMap::new(),
-                        }
-                    })
-                    .collect(),
-                Err(e) => {
-                    error!("Failed to query aset_tetap: {}", e);
-                    Vec::new()
-                }
-            };
+        let items: Vec<MonsaktiAsetTetap> = match self
+            .state
+            .db_client
+            .query(query, &[&(per_page as i64), &offset])
+            .await
+        {
+            Ok(rows) => rows
+                .iter()
+                .map(|row| {
+                    let data: serde_json::Value =
+                        row.try_get("data").unwrap_or(serde_json::Value::Null);
+                    MonsaktiAsetTetap {
+                        id: row
+                            .try_get::<_, uuid::Uuid>("id")
+                            .map(|u| u.to_string())
+                            .unwrap_or_default(),
+                        kode_satker: data["kdsatker"].as_str().unwrap_or_default().to_string(),
+                        nup: data["nup"].as_str().unwrap_or_default().to_string(),
+                        kode_barang: data["kdbarang"].as_str().unwrap_or_default().to_string(),
+                        nama_barang: data["nmbarang"].as_str().unwrap_or_default().to_string(),
+                        merk_type: data["merktype"].as_str().unwrap_or_default().to_string(),
+                        nilai_perolehan: data["nlperolehan"].as_f64().unwrap_or(0.0),
+                        nilai_penyusutan: data["nlpenyusutan"].as_f64().unwrap_or(0.0),
+                        nilai_buku: data["nlbuku"].as_f64().unwrap_or(0.0),
+                        kondisi: data["kondisi"].as_str().unwrap_or_default().to_string(),
+                        tahun_perolehan: data["thnperolehan"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .to_string(),
+                        extra_fields: HashMap::new(),
+                    }
+                })
+                .collect(),
+            Err(e) => {
+                error!("Failed to query aset_tetap: {}", e);
+                Vec::new()
+            }
+        };
 
         Ok(Response::new(GetMonsaktiAsetTetapResponse {
             items,
@@ -437,50 +413,37 @@ impl IntegrasiService for IntegrasiServiceImpl {
             LIMIT $1 OFFSET $2
         "#;
 
-        let items: Vec<MonsaktiTransaksi> =
-            match self
-                .state
-                .db_client
-                .query(query, &[&(per_page as i64), &offset])
-                .await
-            {
-                Ok(rows) => rows
-                    .iter()
-                    .map(|row| {
-                        let data: serde_json::Value =
-                            row.try_get("data").unwrap_or(serde_json::Value::Null);
-                        MonsaktiTransaksi {
-                            id: row
-                                .try_get::<_, uuid::Uuid>("id")
-                                .map(|u| u.to_string())
-                                .unwrap_or_default(),
-                            kode_satker: data["kdsatker"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            no_dokumen: data["nodok"].as_str().unwrap_or_default().to_string(),
-                            tanggal_dokumen: data["tgldok"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            jenis_transaksi: data["jenistrx"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            nilai: data["nilai"].as_f64().unwrap_or(0.0),
-                            keterangan: data["keterangan"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            extra_fields: HashMap::new(),
-                        }
-                    })
-                    .collect(),
-                Err(e) => {
-                    error!("Failed to query transaksi: {}", e);
-                    Vec::new()
-                }
-            };
+        let items: Vec<MonsaktiTransaksi> = match self
+            .state
+            .db_client
+            .query(query, &[&(per_page as i64), &offset])
+            .await
+        {
+            Ok(rows) => rows
+                .iter()
+                .map(|row| {
+                    let data: serde_json::Value =
+                        row.try_get("data").unwrap_or(serde_json::Value::Null);
+                    MonsaktiTransaksi {
+                        id: row
+                            .try_get::<_, uuid::Uuid>("id")
+                            .map(|u| u.to_string())
+                            .unwrap_or_default(),
+                        kode_satker: data["kdsatker"].as_str().unwrap_or_default().to_string(),
+                        no_dokumen: data["nodok"].as_str().unwrap_or_default().to_string(),
+                        tanggal_dokumen: data["tgldok"].as_str().unwrap_or_default().to_string(),
+                        jenis_transaksi: data["jenistrx"].as_str().unwrap_or_default().to_string(),
+                        nilai: data["nilai"].as_f64().unwrap_or(0.0),
+                        keterangan: data["keterangan"].as_str().unwrap_or_default().to_string(),
+                        extra_fields: HashMap::new(),
+                    }
+                })
+                .collect(),
+            Err(e) => {
+                error!("Failed to query transaksi: {}", e);
+                Vec::new()
+            }
+        };
 
         Ok(Response::new(GetMonsaktiTransaksiResponse {
             items,
@@ -612,32 +575,31 @@ impl IntegrasiService for IntegrasiServiceImpl {
             LIMIT $1 OFFSET $2
         "#;
 
-        let items: Vec<MysimkariSatker> =
-            match self
-                .state
-                .db_client
-                .query(query, &[&(per_page as i64), &offset])
-                .await
-            {
-                Ok(rows) => rows
-                    .iter()
-                    .map(|row| MysimkariSatker {
-                        kode_satker: row.try_get("kode_satker").unwrap_or_default(),
-                        nama_satker: row.try_get("nama_satker").unwrap_or_default(),
-                        alamat: row.try_get("alamat").unwrap_or_default(),
-                        telepon: row.try_get("telepon").unwrap_or_default(),
-                        email: row.try_get("email").unwrap_or_default(),
-                        kode_wilayah: row.try_get("kode_wilayah").unwrap_or_default(),
-                        nama_wilayah: row.try_get("nama_wilayah").unwrap_or_default(),
-                        jumlah_pegawai: row.try_get::<_, i32>("jumlah_pegawai").unwrap_or(0),
-                        extra_fields: HashMap::new(),
-                    })
-                    .collect(),
-                Err(e) => {
-                    error!("Failed to query mysimkari_satker: {}", e);
-                    Vec::new()
-                }
-            };
+        let items: Vec<MysimkariSatker> = match self
+            .state
+            .db_client
+            .query(query, &[&(per_page as i64), &offset])
+            .await
+        {
+            Ok(rows) => rows
+                .iter()
+                .map(|row| MysimkariSatker {
+                    kode_satker: row.try_get("kode_satker").unwrap_or_default(),
+                    nama_satker: row.try_get("nama_satker").unwrap_or_default(),
+                    alamat: row.try_get("alamat").unwrap_or_default(),
+                    telepon: row.try_get("telepon").unwrap_or_default(),
+                    email: row.try_get("email").unwrap_or_default(),
+                    kode_wilayah: row.try_get("kode_wilayah").unwrap_or_default(),
+                    nama_wilayah: row.try_get("nama_wilayah").unwrap_or_default(),
+                    jumlah_pegawai: row.try_get::<_, i32>("jumlah_pegawai").unwrap_or(0),
+                    extra_fields: HashMap::new(),
+                })
+                .collect(),
+            Err(e) => {
+                error!("Failed to query mysimkari_satker: {}", e);
+                Vec::new()
+            }
+        };
 
         Ok(Response::new(GetMysimkariSatkerResponse {
             items,
@@ -775,8 +737,8 @@ impl IntegrasiService for IntegrasiServiceImpl {
         request: Request<GetSimanAssetsRequest>,
     ) -> Result<Response<GetSimanAssetsResponse>, Status> {
         let req = request.into_inner();
-        let category =
-            proto::SimanAssetCategory::try_from(req.category).unwrap_or(proto::SimanAssetCategory::Unspecified);
+        let category = proto::SimanAssetCategory::try_from(req.category)
+            .unwrap_or(proto::SimanAssetCategory::Unspecified);
 
         let table_name = match category {
             proto::SimanAssetCategory::Tanah => "siman_aset_tanah",
@@ -804,7 +766,9 @@ impl IntegrasiService for IntegrasiServiceImpl {
             pagination: req.pagination,
         });
 
-        let response = self.get_siman_assets_by_table(inner_request, table_name).await?;
+        let response = self
+            .get_siman_assets_by_table(inner_request, table_name)
+            .await?;
         let inner = response.into_inner();
 
         Ok(Response::new(GetSimanAssetsResponse {
