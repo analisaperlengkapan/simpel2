@@ -9,6 +9,8 @@ use std::sync::Arc;
 use crate::app::AppState;
 
 // Handlers
+/// Authorization helpers for capability-based access control
+pub mod auth_helpers;
 /// Consent UI handlers for user consent management
 pub mod consent_ui;
 /// Health check handlers for Axum web framework

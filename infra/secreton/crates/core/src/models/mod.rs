@@ -36,7 +36,7 @@
 //!
 //! # Example: User Model
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::models::user::{User, Token};
 //! use chrono::Utc;
 //!
@@ -61,7 +61,7 @@
 //!
 //! # Example: Secret Model
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::models::secret::Secret;
 //! use std::collections::HashMap;
 //!
@@ -83,7 +83,7 @@
 //!
 //! # Example: Policy Model
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::models::policy::{Policy, PolicyRule};
 //!
 //! # fn example() {
@@ -106,7 +106,7 @@
 //!
 //! # Example: Audit Event Model
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::models::audit::{AuditEvent, AuditEventType, OperationResult};
 //!
 //! # fn example() {
@@ -130,7 +130,7 @@
 //!
 //! All models implement `serde::Serialize` and `serde::Deserialize`:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::models::user::User;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -163,7 +163,7 @@
 //!
 //! Models include validation logic:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::models::policy::PolicyRule;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -200,7 +200,7 @@
 //!
 //! Many models support builder pattern:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::models::audit::AuditEvent;
 //!
 //! # fn example() {
@@ -230,7 +230,7 @@
 //!
 //! Type-safe enums for categories:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::models::audit::AuditEventType;
 //!
 //! # fn example() {
@@ -253,6 +253,7 @@
 pub mod approle;
 pub mod audit;
 pub mod auth;
+pub mod dynamic_role;
 pub mod lease;
 pub mod mfa;
 pub mod pki;
@@ -271,6 +272,11 @@ pub use audit::{
 pub use auth::{
     AuthMethod, AuthMethodType, AuthRequest, AuthResponse, LoginRequest, LoginResponse,
     RefreshTokenRequest, UserInfo,
+};
+pub use dynamic_role::{
+    AuthMethodType as DynamicAuthMethodType, Capability, DynamicRoleStore, EffectiveCapabilities,
+    EngineRoleType, PathAccessResult, PolicyEffect, PolicyRule as DynamicPolicyRule, SshKeyType,
+    TokenType, UserRoleType,
 };
 pub use policy::{ControlGroup, Policy, PolicyRule};
 pub use user::{Token, User};

@@ -168,14 +168,12 @@ impl CaptchaOperations {
             BehaviorClassification::Unknown => "Unknown",
         };
 
-        // Convert f64 to String for NUMERIC column
-        let risk_score_str = metrics.risk_score.to_string();
-
+        // Pass f64 directly - tokio-postgres handles this for NUMERIC columns
         let query = r#"
             INSERT INTO captcha_behavioral_metrics (
                 id, challenge_id, session_id, mouse_movements, keystroke_dynamics,
                 timing_patterns, browser_fingerprint, risk_score, classification
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::numeric, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
         self.db
@@ -189,7 +187,7 @@ impl CaptchaOperations {
                     &keystroke_dynamics_json,
                     &timing_patterns_json,
                     &browser_fingerprint_json,
-                    &risk_score_str,
+                    &metrics.risk_score,
                     &classification_str,
                 ],
             )
@@ -226,14 +224,12 @@ impl CaptchaOperations {
             RiskLevel::Critical => "Critical",
         };
 
-        // Convert f64 to Option<String> for NUMERIC column
-        let confidence_score_str = confidence_score.map(|v| v.to_string());
-
+        // Pass Option<f64> directly - tokio-postgres handles this for NUMERIC columns
         let query = r#"
             INSERT INTO captcha_validation_attempts (
                 id, challenge_id, ip_address, user_agent, answer_provided,
                 success, confidence_score, risk_assessment, behavioral_metrics_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7::numeric, $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
         tracing::info!(
@@ -254,7 +250,7 @@ impl CaptchaOperations {
                     &user_agent,
                     &answer_provided,
                     &success,
-                    &confidence_score_str,
+                    &confidence_score,
                     &risk_assessment_str,
                     &behavioral_metrics_id,
                 ],
@@ -417,20 +413,13 @@ impl CaptchaOperations {
         let metric_uuid = Uuid::parse_str(&metrics.metric_id)
             .map_err(|_| AuthencError::validation("Invalid metric ID"))?;
 
-        // Convert f64 to String for NUMERIC columns (tokio-postgres doesn't support f64→NUMERIC directly)
-        let success_rate_str = metrics.success_rate.to_string();
-        let failure_rate_str = metrics.failure_rate.to_string();
-        let avg_difficulty_str = metrics.average_difficulty.to_string();
-        let memory_usage_str = metrics.memory_usage_mb.to_string();
-        let cpu_usage_str = metrics.cpu_usage_percent.to_string();
-
-        // Use explicit casts from text to numeric for f64 values
+        // Pass f64 values directly - tokio-postgres handles this for NUMERIC columns
         let query = r#"
             INSERT INTO captcha_performance_metrics (
                 id, timestamp, challenge_generation_latency_ms, validation_latency_ms,
                 success_rate, failure_rate, average_difficulty, concurrent_challenges,
                 memory_usage_mb, cpu_usage_percent
-            ) VALUES ($1, $2, $3, $4, $5::numeric, $6::numeric, $7::numeric, $8, $9::numeric, $10::numeric)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         "#;
 
         tracing::info!(
@@ -446,7 +435,7 @@ impl CaptchaOperations {
         let val_latency: i64 = metrics.validation_latency_ms as i64;
         let concurrent: i64 = metrics.concurrent_challenges as i64;
 
-        // Use &str references for String values
+        // Pass f64 directly for NUMERIC columns
         self.db
             .execute(
                 query,
@@ -455,12 +444,12 @@ impl CaptchaOperations {
                     &timestamp,
                     &gen_latency,
                     &val_latency,
-                    &success_rate_str.as_str(),
-                    &failure_rate_str.as_str(),
-                    &avg_difficulty_str.as_str(),
+                    &metrics.success_rate,
+                    &metrics.failure_rate,
+                    &metrics.average_difficulty,
                     &concurrent,
-                    &memory_usage_str.as_str(),
-                    &cpu_usage_str.as_str(),
+                    &metrics.memory_usage_mb,
+                    &metrics.cpu_usage_percent,
                 ],
             )
             .await?;
@@ -482,18 +471,13 @@ impl CaptchaOperations {
         let metric_uuid = Uuid::parse_str(&metrics.metric_id)
             .map_err(|_| AuthencError::validation("Invalid metric ID"))?;
 
-        // Convert f64 to String for NUMERIC columns
-        let accuracy_rate_str = metrics.accuracy_rate.to_string();
-        let precision_str = metrics.precision.to_string();
-        let recall_str = metrics.recall.to_string();
-        let f1_score_str = metrics.f1_score.to_string();
-
+        // Pass f64 directly - tokio-postgres handles this for NUMERIC columns
         let query = r#"
             INSERT INTO captcha_bot_detection_metrics (
                 id, timestamp, total_detections, true_positives, false_positives,
                 true_negatives, false_negatives, accuracy_rate, precision_rate,
                 recall_rate, f1_score, risk_distribution
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::numeric, $9::numeric, $10::numeric, $11::numeric, $12)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         "#;
 
         self.db
@@ -507,10 +491,10 @@ impl CaptchaOperations {
                     &(metrics.false_positives as i64),
                     &(metrics.true_negatives as i64),
                     &(metrics.false_negatives as i64),
-                    &accuracy_rate_str,
-                    &precision_str,
-                    &recall_str,
-                    &f1_score_str,
+                    &metrics.accuracy_rate,
+                    &metrics.precision,
+                    &metrics.recall,
+                    &metrics.f1_score,
                     &risk_distribution_json,
                 ],
             )
@@ -547,18 +531,13 @@ impl CaptchaOperations {
         let metric_uuid = Uuid::parse_str(&metrics.metric_id)
             .map_err(|_| AuthencError::validation("Invalid metric ID"))?;
 
-        // Convert f64 to String for NUMERIC columns
-        let abandonment_rate_str = metrics.abandonment_rate.to_string();
-        let retry_rate_str = metrics.retry_rate.to_string();
-        let accessibility_rate_str = metrics.accessibility_usage_rate.to_string();
-        let satisfaction_score_str = metrics.user_satisfaction_score.to_string();
-
+        // Pass f64 directly - tokio-postgres handles this for NUMERIC columns
         let query = r#"
             INSERT INTO captcha_user_experience_metrics (
                 id, timestamp, average_completion_time_ms, abandonment_rate, retry_rate,
                 accessibility_usage_rate, user_satisfaction_score, challenge_type_preferences,
                 difficulty_distribution
-            ) VALUES ($1, $2, $3, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
         self.db
@@ -568,10 +547,10 @@ impl CaptchaOperations {
                     &metric_uuid,
                     &timestamp,
                     &(metrics.average_completion_time_ms as i64),
-                    &abandonment_rate_str,
-                    &retry_rate_str,
-                    &accessibility_rate_str,
-                    &satisfaction_score_str,
+                    &metrics.abandonment_rate,
+                    &metrics.retry_rate,
+                    &metrics.accessibility_usage_rate,
+                    &metrics.user_satisfaction_score,
                     &challenge_type_preferences_json,
                     &difficulty_distribution_json,
                 ],

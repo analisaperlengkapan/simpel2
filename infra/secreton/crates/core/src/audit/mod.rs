@@ -49,7 +49,7 @@
 //!
 //! # Example: Manual Audit Logging
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::audit::{AuditLogger, AuditLog, AuditStatus};
 //! use std::sync::Arc;
 //!
@@ -72,7 +72,7 @@
 //!
 //! # Example: Using Audit Middleware
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::audit::AuditMiddleware;
 //! use axum::{Router, routing::get};
 //!
@@ -96,7 +96,7 @@
 //!
 //! # Query and Analysis
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::audit::{AuditLogger, AuditQuery};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {

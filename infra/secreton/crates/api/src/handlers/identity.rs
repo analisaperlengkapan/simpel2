@@ -301,6 +301,7 @@ mod tests {
     use tower::ServiceExt;
 
     #[tokio::test]
+    #[ignore = "Requires database/infrastructure"]
     async fn test_oidc_discovery() {
         let config = ApiConfig::default();
         let services = ServiceContainer::new(&config).await.unwrap();

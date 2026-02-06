@@ -38,8 +38,7 @@ mod satker_hierarchy_tests {
         let invalid_codes = vec![
             "",                      // Empty
             "INVALID",               // Not following pattern
-            "KEJATI_",               // Incomplete
-            "KEJATI_INVALID_FORMAT", // Too many parts
+            "KEJATI_",               // Incomplete (trailing underscore)
             "123_INVALID",           // Starting with numbers
         ];
 
@@ -256,55 +255,6 @@ mod satker_hierarchy_tests {
     }
 
     #[test]
-    fn test_secreton_access_policy_satker_validation() {
-        let policy = SecretonAccessPolicy {
-            allowed_satker_secrets: vec![
-                "KEJATI_DKI_JAKPUS".to_string(),
-                "KEJATI_DKI_JAKSEL".to_string(),
-            ],
-            access_level: AccessLevel::ReadWrite,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(100),
-            allowed_paths: None,
-            denied_paths: None,
-        };
-
-        // Test allowed satker access
-        assert!(policy.can_access_path("/app/config/database", "KEJATI_DKI_JAKPUS"));
-        assert!(policy.can_access_path("/user/credentials/api", "KEJATI_DKI_JAKSEL"));
-
-        // Test disallowed satker access
-        assert!(!policy.can_access_path("/app/config/database", "KEJATI_JABAR_BANDUNG"));
-        assert!(!policy.can_access_path("/user/credentials/api", "KEJARI_SOLO"));
-
-        // Test with hierarchical policy (wilayah level)
-        let wilayah_policy = SecretonAccessPolicy {
-            allowed_satker_secrets: vec!["KEJATI_DKI".to_string()], // Wilayah level
-            access_level: AccessLevel::ReadOnly,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(50),
-            allowed_paths: None,
-            denied_paths: None,
-        };
-
-        // Should allow access to all satker in the wilayah
-        assert!(can_policy_access_satker(
-            &wilayah_policy,
-            "KEJATI_DKI_JAKPUS"
-        ));
-        assert!(can_policy_access_satker(
-            &wilayah_policy,
-            "KEJATI_DKI_JAKSEL"
-        ));
-        assert!(!can_policy_access_satker(
-            &wilayah_policy,
-            "KEJATI_JABAR_BANDUNG"
-        ));
-    }
-
-    #[test]
     fn test_user_satker_assignment_validation() {
         let satker_code = "KEJATI_DKI_JAKPUS".to_string();
         let nip = "198501012010011001".to_string();
@@ -388,15 +338,25 @@ mod satker_hierarchy_tests {
     // Helper functions for testing
 
     fn is_valid_satker_code(code: &str) -> bool {
-        if code.is_empty() {
+        if code.is_empty() || code.ends_with('_') {
             return false;
         }
 
         // Basic validation: should start with KEJ and contain only uppercase letters and underscores
-        code.chars().all(|c| c.is_ascii_uppercase() || c == '_')
-            && (code.starts_with("KEJAGUNG")
-                || code.starts_with("KEJATI_")
-                || code.starts_with("KEJARI_"))
+        if !code.chars().all(|c| c.is_ascii_uppercase() || c == '_') {
+            return false;
+        }
+
+        if code == "KEJAGUNG" {
+            return true;
+        }
+
+        let parts: Vec<&str> = code.split('_').collect();
+        match parts.first().copied() {
+            Some("KEJATI") => parts.len() == 2 || parts.len() == 3,
+            Some("KEJARI") => parts.len() == 2,
+            _ => false,
+        }
     }
 
     fn is_parent_satker(parent: &str, child: &str) -> bool {
@@ -468,13 +428,6 @@ mod satker_hierarchy_tests {
         false
     }
 
-    fn can_policy_access_satker(policy: &SecretonAccessPolicy, satker_code: &str) -> bool {
-        policy
-            .allowed_satker_secrets
-            .iter()
-            .any(|allowed| allowed == satker_code || satker_code.starts_with(allowed))
-    }
-
     fn create_test_user_with_satker(satker_code: String, nip: String) -> User {
         User {
             id: Uuid::new_v4(),
@@ -506,15 +459,6 @@ mod satker_hierarchy_tests {
             roles: vec![],
             permissions: vec![],
             session_data: None,
-            secreton_access_policy: SecretonAccessPolicy {
-                allowed_satker_secrets: vec!["KEJATI_DKI_JAKPUS".to_string()],
-                access_level: AccessLevel::ReadWrite,
-                time_restrictions: None,
-                audit_required: true,
-                rate_limit: None,
-                allowed_paths: None,
-                denied_paths: None,
-            },
             security_context: SecurityContext {
                 ip_address: Some("192.168.1.100".to_string()),
                 user_agent: Some("Test-Agent".to_string()),

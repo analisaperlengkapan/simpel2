@@ -11,7 +11,7 @@ use tokio::time::timeout;
 use uuid::Uuid;
 
 use authenc::error::{AuthencError, Result};
-use authenc::models::user::{AccessLevel, SecretonAccessPolicy, SecurityContext, User};
+use authenc::models::user::{SecurityContext, User};
 use authenc::secreton_client::secreton_client::SecretonClient;
 use authenc::services::mfa_service::MfaService;
 use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
@@ -92,15 +92,6 @@ mod test_utils {
             roles: Vec::new(),
             permissions: Vec::new(),
             session_data: None,
-            secreton_access_policy: SecretonAccessPolicy {
-                allowed_satker_secrets: vec!["001".to_string()],
-                access_level: AccessLevel::ReadWrite,
-                time_restrictions: None,
-                audit_required: true,
-                rate_limit: Some(100),
-                allowed_paths: None,
-                denied_paths: None,
-            },
             security_context: SecurityContext {
                 ip_address: Some("127.0.0.1".to_string()),
                 user_agent: Some("integration-test-agent".to_string()),
@@ -615,6 +606,8 @@ mod integration_tests {
 
     /// Test error handling and fallback scenarios
     #[tokio::test]
+
+    #[ignore = "Requires database/infrastructure"]
     async fn test_mfa_error_handling_scenarios() {
         let db_pool = create_integration_db_pool().await;
 

@@ -158,8 +158,121 @@ pub fn validate_password_strength(
         }
     }
 
+    // Check for 3+ repeated characters (e.g., "aaa", "111")
+    if has_repeated_characters(password, 3) {
+        errors.push("Password must not contain 3 or more repeated characters in a row".to_string());
+        strength_score = strength_score.saturating_sub(10);
+    }
+
+    // Check for sequential characters (e.g., "abc", "123", "qwe")
+    if has_sequential_characters(&lower_password) {
+        errors.push(
+            "Password must not contain sequential character patterns (e.g., abc, 123, qwerty)"
+                .to_string(),
+        );
+        strength_score = strength_score.saturating_sub(10);
+    }
+
     let is_valid = errors.is_empty();
     PasswordStrengthResult::new(is_valid, errors, strength_score.min(100))
+}
+
+/// Check if a string contains N or more identical characters in a row
+///
+/// # Examples
+/// ```rust,no_run
+/// # use lib_common::crypto::password::has_repeated_characters;
+/// assert!(has_repeated_characters("Passsword", 3));   // 3x 's'
+/// assert!(!has_repeated_characters("Password", 3));    // max 2 consecutive
+/// ```
+pub fn has_repeated_characters(password: &str, min_repeat: usize) -> bool {
+    if min_repeat < 2 || password.len() < min_repeat {
+        return false;
+    }
+    let chars: Vec<char> = password.chars().collect();
+    let mut count = 1usize;
+    for i in 1..chars.len() {
+        if chars[i] == chars[i - 1] {
+            count += 1;
+            if count >= min_repeat {
+                return true;
+            }
+        } else {
+            count = 1;
+        }
+    }
+    false
+}
+
+/// Check if a string contains common sequential character patterns
+///
+/// Detects:
+/// - Numeric sequences: "123", "234", "345", ...
+/// - Alphabetic sequences: "abc", "bcd", "cde", ...
+/// - Keyboard row patterns: "qwe", "wer", "asd", "zxc", etc.
+///
+/// Checks forward sequences of 3+ consecutive characters.
+pub fn has_sequential_characters(password: &str) -> bool {
+    let lower = password.to_lowercase();
+    let chars: Vec<char> = lower.chars().collect();
+
+    // Check keyboard row patterns (common sequences typed on QWERTY layout)
+    let keyboard_rows = [
+        "qwertyuiop",
+        "asdfghjkl",
+        "zxcvbnm",
+        "1234567890",
+    ];
+
+    for row in &keyboard_rows {
+        // Check for 3+ consecutive chars from same keyboard row in order
+        let row_chars: Vec<char> = row.chars().collect();
+        for window in row_chars.windows(3) {
+            let pattern: String = window.iter().collect();
+            if lower.contains(&pattern) {
+                return true;
+            }
+        }
+    }
+
+    // Check ascending/descending alphabetic sequences (e.g., "abc", "cba")
+    if chars.len() >= 3 {
+        for i in 0..chars.len() - 2 {
+            let a = chars[i] as i32;
+            let b = chars[i + 1] as i32;
+            let c = chars[i + 2] as i32;
+
+            // All must be lowercase letters
+            if chars[i].is_ascii_lowercase()
+                && chars[i + 1].is_ascii_lowercase()
+                && chars[i + 2].is_ascii_lowercase()
+            {
+                // Ascending: a, b, c (diff = +1, +1)
+                if b - a == 1 && c - b == 1 {
+                    return true;
+                }
+                // Descending: c, b, a (diff = -1, -1)
+                if b - a == -1 && c - b == -1 {
+                    return true;
+                }
+            }
+
+            // Also check ascending/descending digit sequences
+            if chars[i].is_ascii_digit()
+                && chars[i + 1].is_ascii_digit()
+                && chars[i + 2].is_ascii_digit()
+            {
+                if b - a == 1 && c - b == 1 {
+                    return true;
+                }
+                if b - a == -1 && c - b == -1 {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
 }
 
 /// Check if a password matches any in the password history
@@ -169,8 +282,9 @@ pub fn check_password_history(
     history_limit: usize,
 ) -> bool {
     let check_count = password_history.len().min(history_limit);
+    let skip_count = password_history.len().saturating_sub(check_count);
 
-    for hash in password_history.iter().take(check_count) {
+    for hash in password_history.iter().skip(skip_count) {
         if let Ok(matches) = verify_password(hash, password)
             && matches
         {

@@ -1,3 +1,7 @@
+pub mod capability_checker;
+
+pub use capability_checker::{CapabilityChecker, capabilities, legacy_role_to_capabilities};
+
 use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

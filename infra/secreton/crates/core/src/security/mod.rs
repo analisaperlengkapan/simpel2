@@ -44,7 +44,7 @@
 //!
 //! # Example: Set Secret Security Level
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::security::{SecurityLevel, SecurityManager};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -64,7 +64,7 @@
 //!
 //! # Example: Check User Clearance
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::security::{SecurityLevel, SecurityManager};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -128,7 +128,7 @@
 //!
 //! Critical secrets encrypted with master key:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::security::SealWrapper;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -165,7 +165,7 @@
 //!
 //! Hardware Security Module for cryptographic operations:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::security::HsmProvider;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {

@@ -21,7 +21,7 @@ async fn test_jwt_validation_without_cache() {
     let validator = JwtValidator::new(None);
 
     // Generate a valid token
-    let token = generate_jwt("test_user").expect("Failed to generate token");
+    let token = generate_jwt("test_user", None, None).expect("Failed to generate token");
 
     // Measure validation time
     let start = Instant::now();
@@ -99,7 +99,7 @@ async fn test_jwt_validation_with_cache() {
     let validator = JwtValidator::new(Some(cache));
 
     // Generate a valid token
-    let token = generate_jwt("test_user_cached").expect("Failed to generate JWT");
+    let token = generate_jwt("test_user_cached", None, None).expect("Failed to generate JWT");
 
     // First validation (cache miss)
     let start = Instant::now();
@@ -154,7 +154,7 @@ async fn test_token_revocation_and_blacklist() {
     let validator = JwtValidator::new(Some(cache));
 
     // Generate a valid token
-    let token = generate_jwt("test_user_revoke").expect("Failed to generate token");
+    let token = generate_jwt("test_user_revoke", None, None).expect("Failed to generate token");
 
     // Validate token (should be valid)
     let result1 = validator.validate_token(&token).await.unwrap();
@@ -199,7 +199,7 @@ async fn test_cache_invalidation() {
     let validator = JwtValidator::new(Some(cache));
 
     // Generate a valid token
-    let token = generate_jwt("test_user_invalidate").expect("Failed to generate token");
+    let token = generate_jwt("test_user_invalidate", None, None).expect("Failed to generate token");
 
     // First validation (cache miss)
     let result1 = validator.validate_token(&token).await.unwrap();
@@ -255,7 +255,9 @@ async fn benchmark_jwt_validation_performance() {
 
     // Generate test tokens
     let tokens: Vec<String> = (0..100)
-        .map(|i| generate_jwt(&format!("user_{}", i)).expect("Failed to generate token"))
+        .map(|i| {
+            generate_jwt(&format!("user_{}", i), None, None).expect("Failed to generate token")
+        })
         .collect();
 
     // Warm up cache
@@ -310,7 +312,7 @@ async fn test_concurrent_jwt_validations() {
     let validator = Arc::new(JwtValidator::new(Some(cache)));
 
     // Generate a token
-    let token = generate_jwt("concurrent_user").expect("Failed to generate token");
+    let token = generate_jwt("concurrent_user", None, None).expect("Failed to generate token");
 
     // Spawn multiple concurrent validation tasks
     let mut handles = vec![];

@@ -17,7 +17,7 @@ use super::security_monitoring::{
     CaptchaSecurityEvent, CaptchaSecurityEventData, CaptchaSecurityMonitoringState,
 };
 use super::types::*;
-use crate::utils::crypto::password::{hash_password, verify_password};
+use sha2::{Digest, Sha256};
 
 /// Challenge validator trait
 #[async_trait]
@@ -240,29 +240,25 @@ impl ValidationEngine {
         None
     }
 
-    /// Hash an answer for comparison using authenc crypto module
-    fn hash_answer(&self, answer: &str, salt: &str) -> Result<String, CaptchaError> {
-        let input = format!("{}:{}", answer.trim().to_lowercase(), salt);
-        hash_password(&input).map_err(|e| CaptchaError::ValidationFailed {
-            message: format!("Hash generation failed: {}", e),
-            attempts_remaining: 0,
-            next_difficulty: 1,
-        })
+    /// Hash an answer for comparison using SHA256 (must match generator)
+    fn hash_answer(&self, answer: &str, challenge_id: &str) -> String {
+        // Use uppercase to match the displayed CAPTCHA text
+        let normalized_answer = answer.trim().to_uppercase();
+        let mut hasher = Sha256::new();
+        hasher.update(normalized_answer.as_bytes());
+        hasher.update(challenge_id.as_bytes());
+        hex::encode(hasher.finalize())
     }
 
-    /// Verify answer hash
+    /// Verify answer hash using SHA256 comparison
     fn verify_answer_hash(
         &self,
         answer: &str,
-        salt: &str,
+        challenge_id: &str,
         expected_hash: &str,
     ) -> Result<bool, CaptchaError> {
-        let input = format!("{}:{}", answer.trim().to_lowercase(), salt);
-        verify_password(expected_hash, &input).map_err(|e| CaptchaError::ValidationFailed {
-            message: format!("Hash verification failed: {}", e),
-            attempts_remaining: 0,
-            next_difficulty: 1,
-        })
+        let computed_hash = self.hash_answer(answer, challenge_id);
+        Ok(computed_hash == expected_hash)
     }
 
     /// Calculate confidence score based on multiple factors
@@ -638,7 +634,7 @@ impl ChallengeValidatorTrait for ValidationEngine {
         // 2. Compare with expected answer hash
         // 3. Consider fuzzy matching for accessibility
 
-        let answer_hash = self.hash_answer(answer, &challenge.id)?;
+        let answer_hash = self.hash_answer(answer, &challenge.id);
         Ok(answer_hash == challenge.expected_answer_hash)
     }
 

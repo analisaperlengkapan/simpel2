@@ -11,11 +11,11 @@ mod tests {
         assert!(!spi.is_internal());
         assert_eq!(
             spi.get_provider_class(),
-            "org.keycloak.migration.MigrationProvider"
+            "org.simpelv2.migration.MigrationProvider"
         );
         assert_eq!(
             spi.get_provider_factory_class(),
-            "org.keycloak.migration.MigrationProviderFactory"
+            "org.simpelv2.migration.MigrationProviderFactory"
         );
     }
 

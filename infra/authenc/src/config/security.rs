@@ -140,11 +140,20 @@ impl CsrfConfig {
             cookie_name: "csrf_token".to_string(),
             token_length: 32,
             excluded_paths: vec![
+                // Health and monitoring endpoints
                 "/health".to_string(),
                 "/health/ready".to_string(),
                 "/health/live".to_string(),
                 "/metrics".to_string(),
                 "/api/docs".to_string(),
+                // Authentication endpoints (user not yet authenticated)
+                "/api/v1/auth/login".to_string(),
+                "/api/v1/auth/register".to_string(),
+                "/api/v1/auth/refresh".to_string(),
+                "/api/v1/auth/password-reset".to_string(),
+                // CAPTCHA endpoints (required before authentication)
+                "/api/captcha".to_string(),
+                "/api/v1/captcha".to_string(),
             ],
         }
     }

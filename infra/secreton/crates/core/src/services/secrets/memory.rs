@@ -183,6 +183,10 @@ impl MemorySecretEngine {
         value: serde_json::Value,
         _context: Option<serde_json::Value>,
     ) -> Result<Secret, CoreError> {
+        // First verify the secret exists and get the current version
+        let existing = self.get_secret_by_path(path).await?;
+        let new_version = existing.version + 1;
+
         let security_context = crate::models::audit::SecurityContext {
             auth_method: Some("test".to_string()),
             token_type: Some("test".to_string()),
@@ -192,20 +196,40 @@ impl MemorySecretEngine {
             encryption_algorithm: None,
             sensitive_data_involved: false,
         };
-        // In memory engine, store_secret works for update too as it invalidates cache
+        // Store the updated value
         self.store_secret(path, value, &security_context).await?;
+
+        // Update the version in the underlying storage entry
+        if let Ok(Some(mut entry)) = self.storage.get_by_path(path).await {
+            entry.version = new_version;
+            let _ = self.storage.update(&entry).await;
+        }
+
+        // Invalidate cache so the next read picks up the new version
+        if self.config.enable_cache {
+            let mut cache = self.cache.write().await;
+            cache.remove(path);
+        }
+
         self.get_secret_by_path(path).await
     }
 
     /// Compatibility method for tests: Delete a secret
     pub async fn delete_secret(&self, path: &str) -> Result<(), CoreError> {
-        self.storage
+        let deleted = self
+            .storage
             .delete_by_path(path)
             .await
             .map_err(|e| CoreError::Internal {
                 message: format!("Failed to delete secret: {}", e),
                 source: None,
             })?;
+
+        if !deleted {
+            return Err(CoreError::NotFound {
+                resource: path.to_string(),
+            });
+        }
 
         if self.config.enable_cache {
             let mut cache = self.cache.write().await;

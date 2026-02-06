@@ -1,4 +1,4 @@
-FROM rust:1.85-slim-bookworm as builder
+FROM rust:latest as builder
 
 WORKDIR /workspace
 
@@ -6,17 +6,23 @@ WORKDIR /workspace
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace files
 COPY Cargo.toml Cargo.lock ./
 
-# Patch Cargo.toml to only include lib-common and this service
+# Patch Cargo.toml to only include required packages
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/pembinaan/perlengkapan"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/daskrimti/integrasi", "layanan/pembinaan/perlengkapan"]' Cargo.toml || true
 
 COPY lib/common ./lib/common
+COPY layanan/daskrimti/integrasi ./layanan/daskrimti/integrasi
 COPY layanan/pembinaan/perlengkapan ./layanan/pembinaan/perlengkapan
+
+# Copy proto files needed by build.rs
+COPY infra/authenc/proto ./infra/authenc/proto
+COPY infra/secreton/proto ./infra/secreton/proto
 
 # Build release
 RUN cargo build --release -p layanan-perlengkapan

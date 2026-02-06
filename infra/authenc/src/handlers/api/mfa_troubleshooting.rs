@@ -841,6 +841,9 @@ pub async fn get_guided_setup_steps(
 
 // Helper functions
 
+/// Verify admin token and return admin user ID
+///
+/// Uses capability-based authorization instead of hardcoded role checks.
 async fn verify_admin_token(token: &str, state: &Arc<crate::app::AppState>) -> Result<Uuid> {
     let claims =
         jwt::verify_jwt(token).map_err(|_| AuthencError::unauthorized("Invalid admin token"))?;
@@ -848,22 +851,19 @@ async fn verify_admin_token(token: &str, state: &Arc<crate::app::AppState>) -> R
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
-    let user = state
+    // Verify user exists
+    let _user = state
         .user_store
         .get_user(user_id)
         .await?
         .ok_or_else(|| AuthencError::unauthorized("Admin user not found"))?;
 
-    let is_admin = user.roles.iter().any(|role| {
-        role.name == "admin"
-            || role.name == "system_admin"
-            || role.name == "mfa_admin"
-            || role.name == "security_admin"
-    });
-
-    if !is_admin {
-        return Err(AuthencError::forbidden("Admin privileges required"));
-    }
+    // Check MFA admin capability using dynamic authorization
+    state
+        .capability_checker
+        .require_any_capability(&user_id, &["mfa:admin", "mfa:bypass", "system:admin"])
+        .await
+        .map_err(|_| AuthencError::forbidden("Admin privileges required"))?;
 
     Ok(user_id)
 }

@@ -1,4 +1,6 @@
 # Istio DestinationRules for SIMPelv2
+# NOTE: authenc and secreton have sidecar.istio.io/inject: "false"
+# so we must use DISABLE mode to allow plaintext connections from sidecared pods
 
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
@@ -8,7 +10,7 @@ spec:
   host: authenc
   trafficPolicy:
     tls:
-      mode: ISTIO_MUTUAL
+      mode: DISABLE  # authenc has no Istio sidecar
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
@@ -18,7 +20,7 @@ spec:
   host: secreton
   trafficPolicy:
     tls:
-      mode: ISTIO_MUTUAL
+      mode: DISABLE  # secreton has no Istio sidecar
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule

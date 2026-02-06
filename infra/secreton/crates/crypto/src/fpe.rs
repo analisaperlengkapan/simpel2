@@ -19,7 +19,7 @@
 //! - Legacy system integration with format constraints
 
 use aes::Aes256;
-use fpe::ff1::{BinaryNumeralString, FF1};
+use fpe::ff1::{FlexibleNumeralString, FF1};
 use rand::RngCore;
 use thiserror::Error;
 use zeroize::ZeroizeOnDrop;
@@ -209,16 +209,14 @@ impl FpeEngine {
         let ff = FF1::<Aes256>::new(&self.key.key, self.alphabet.radix())
             .map_err(|e| FpeError::EncryptionFailed(e.to_string()))?;
 
-        // Encrypt
-        let ciphertext_numerals = ff
-            .encrypt(
-                tweak,
-                &BinaryNumeralString::from_bytes_le(&numerals_to_bytes(&numerals)),
-            )
+        // Encrypt using FlexibleNumeralString (supports any radix)
+        let ns = FlexibleNumeralString::from(numerals);
+        let ciphertext_ns = ff
+            .encrypt(tweak, &ns)
             .map_err(|e| FpeError::EncryptionFailed(e.to_string()))?;
 
         // Convert back to string
-        let ciphertext_nums = bytes_to_numerals(&ciphertext_numerals.to_bytes_le(), numerals.len());
+        let ciphertext_nums: Vec<u16> = ciphertext_ns.into();
         self.alphabet.from_numerals(&ciphertext_nums)
     }
 
@@ -244,44 +242,19 @@ impl FpeEngine {
         let ff = FF1::<Aes256>::new(&self.key.key, self.alphabet.radix())
             .map_err(|e| FpeError::DecryptionFailed(e.to_string()))?;
 
-        // Decrypt
-        let plaintext_numerals = ff
-            .decrypt(
-                tweak,
-                &BinaryNumeralString::from_bytes_le(&numerals_to_bytes(&numerals)),
-            )
+        // Decrypt using FlexibleNumeralString (supports any radix)
+        let ns = FlexibleNumeralString::from(numerals);
+        let plaintext_ns = ff
+            .decrypt(tweak, &ns)
             .map_err(|e| FpeError::DecryptionFailed(e.to_string()))?;
 
         // Convert back to string
-        let plaintext_nums = bytes_to_numerals(&plaintext_numerals.to_bytes_le(), numerals.len());
+        let plaintext_nums: Vec<u16> = plaintext_ns.into();
         self.alphabet.from_numerals(&plaintext_nums)
     }
 }
 
-/// Convert numerals to bytes for FF1
-fn numerals_to_bytes(numerals: &[u16]) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    for &n in numerals {
-        bytes.extend_from_slice(&n.to_le_bytes());
-    }
-    bytes
-}
 
-/// Convert bytes to numerals
-fn bytes_to_numerals(bytes: &[u8], count: usize) -> Vec<u16> {
-    let mut numerals = Vec::with_capacity(count);
-    for i in 0..count {
-        let idx = i * 2;
-        if idx + 1 < bytes.len() {
-            numerals.push(u16::from_le_bytes([bytes[idx], bytes[idx + 1]]));
-        } else if idx < bytes.len() {
-            numerals.push(u16::from_le_bytes([bytes[idx], 0]));
-        } else {
-            numerals.push(0);
-        }
-    }
-    numerals
-}
 
 #[cfg(test)]
 mod tests {

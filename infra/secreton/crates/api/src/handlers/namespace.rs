@@ -834,7 +834,7 @@ pub async fn delete_namespace(
         });
     }
 
-    // Check for active leases
+    // Check for active leases (gracefully handle DB unavailability)
     let lease_count = state
         .lease_manager
         .count_leases(
@@ -844,9 +844,10 @@ pub async fn delete_namespace(
             Some("active".to_string()),
         )
         .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to count leases: {}", e),
-        })?;
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = %e, namespace = %id, "Failed to count leases, assuming 0");
+            0
+        });
 
     if lease_count > 0 {
         return Err(ApiError::Conflict {

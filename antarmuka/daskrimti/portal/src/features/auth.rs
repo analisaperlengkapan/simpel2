@@ -153,12 +153,14 @@ impl AuthService {
             use gloo_net::http::Request;
 
             let api_url = Self::get_api_url();
-            let login_url = format!("{}/api/auth/login", api_url);
+            // api_url already includes /api/auth prefix
+            let login_url = format!("{}/login", api_url);
 
             // Prepare JSON request body
             let body = serde_json::json!({
                 "username": credentials.username,
                 "password": credentials.password,
+                "realm": "master",
                 "captcha_token": credentials.captcha_token,
             });
 
@@ -706,7 +708,8 @@ impl AuthService {
             use gloo_net::http::Request;
 
             let api_url = Self::get_api_url();
-            let setup_url = format!("{}/api/auth/mfa/setup", api_url);
+            // api_url already includes /api/auth prefix
+            let setup_url = format!("{}/mfa/setup", api_url);
 
             // Get temp token for authentication
             let token = Self::get_temp_token()
@@ -756,7 +759,8 @@ impl AuthService {
             use gloo_net::http::Request;
 
             let api_url = Self::get_api_url();
-            let verify_url = format!("{}/api/auth/mfa/verify-setup", api_url);
+            // api_url already includes /api/auth prefix
+            let verify_url = format!("{}/mfa/verify-setup", api_url);
 
             // Get temp token for authentication
             let token = Self::get_temp_token()
@@ -809,7 +813,8 @@ impl AuthService {
             use gloo_net::http::Request;
 
             let api_url = Self::get_api_url();
-            let verify_url = format!("{}/api/auth/mfa/verify", api_url);
+            // api_url already includes /api/auth prefix
+            let verify_url = format!("{}/mfa/verify", api_url);
 
             // Get temp token for authentication
             let token =
@@ -870,7 +875,8 @@ impl AuthService {
             use gloo_net::http::Request;
 
             let api_url = Self::get_api_url();
-            let status_url = format!("{}/api/auth/mfa/status", api_url);
+            // api_url already includes /api/auth prefix
+            let status_url = format!("{}/mfa/status", api_url);
 
             // Get token for authentication
             let token =

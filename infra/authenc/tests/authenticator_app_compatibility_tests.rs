@@ -59,7 +59,7 @@ const AUTHENTICATOR_APPS: &[AuthenticatorTestCase] = &[
         supports_8_digits: true,
         supports_custom_period: false, // Only supports 30s
         requires_issuer: false,
-        max_secret_length: Some(32), // Base32 characters
+        max_secret_length: Some(64), // Base32 characters (supports up to 256-bit keys)
     },
     AuthenticatorTestCase {
         name: "1Password",

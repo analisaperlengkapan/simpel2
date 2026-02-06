@@ -116,6 +116,8 @@ pub struct AppState {
     pub risk_engine: Arc<crate::services::risk_engine::RiskEngine>,
     /// JWT Key Manager for dynamic key retrieval
     pub jwt_key_manager: Arc<crate::utils::jwt_key_manager::JwtKeyManager>,
+    /// Capability-based authorization checker
+    pub capability_checker: Arc<crate::services::authorization::CapabilityChecker>,
 }
 
 impl AppState {
@@ -682,6 +684,11 @@ impl AppState {
             redis_cache.clone(),
         ));
 
+        // Initialize Capability Checker for dynamic authorization
+        let capability_checker = Arc::new(crate::services::authorization::CapabilityChecker::new(
+            database.clone(),
+        ));
+
         // Clone Arc references needed for later field initializers before moving
         let config_ref = config.clone();
         let database_ref = database.clone();
@@ -800,6 +807,7 @@ impl AppState {
             captcha_service,
             risk_engine,
             jwt_key_manager,
+            capability_checker,
         })
     }
 

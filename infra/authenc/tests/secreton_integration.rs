@@ -416,6 +416,7 @@ mod comprehensive_secreton_integration_tests {
     }
 
     #[tokio::test]
+    #[ignore = "Requires running Secreton service"]
     async fn test_role_isolation_validation_from_authenc() {
         let config = test_config();
         let secreton_client = SecretonClient::new(
@@ -1208,7 +1209,6 @@ fn create_test_user(nip: &str, satker_code: &str) -> User {
         roles: vec![create_basic_role(satker_code)],
         permissions: vec![],
         session_data: None,
-        secreton_access_policy: create_secreton_access_policy(satker_code),
         security_context: Default::default(),
         attributes: None,
         enabled: true,
@@ -1223,7 +1223,6 @@ fn create_test_user(nip: &str, satker_code: &str) -> User {
 fn create_admin_user(admin_level: &str, admin_satker: &str, nip: &str) -> User {
     let mut user = create_test_user(nip, admin_satker);
     user.roles = vec![create_admin_role(admin_level, admin_satker)];
-    user.secreton_access_policy = create_admin_secreton_access_policy(admin_level, admin_satker);
     user
 }
 
@@ -1279,40 +1278,6 @@ fn create_admin_role(admin_level: &str, admin_satker: &str) -> authenc::models::
         attributes: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
-    }
-}
-
-fn create_secreton_access_policy(satker_code: &str) -> authenc::models::user::SecretonAccessPolicy {
-    authenc::models::user::SecretonAccessPolicy {
-        allowed_satker_secrets: vec![satker_code.to_string()],
-        access_level: authenc::models::user::AccessLevel::ReadOnly,
-        time_restrictions: None,
-        audit_required: true,
-        rate_limit: None,
-        allowed_paths: None,
-        denied_paths: None,
-    }
-}
-
-fn create_admin_secreton_access_policy(
-    admin_level: &str,
-    admin_satker: &str,
-) -> authenc::models::user::SecretonAccessPolicy {
-    let allowed_satker = match admin_level {
-        "AdminPusat" | "AdminEselonI" => vec!["*".to_string()], // Access to all satker
-        "AdminWilayah" => vec![format!("{}*", admin_satker)],   // Access to wilayah satker
-        "AdminSatker" => vec![admin_satker.to_string()],        // Access to own satker only
-        _ => vec![admin_satker.to_string()],
-    };
-
-    authenc::models::user::SecretonAccessPolicy {
-        allowed_satker_secrets: allowed_satker,
-        access_level: authenc::models::user::AccessLevel::Admin,
-        time_restrictions: None,
-        audit_required: true,
-        rate_limit: None,
-        allowed_paths: None,
-        denied_paths: None,
     }
 }
 

@@ -49,7 +49,7 @@ mod tests {
                     message: "Rate limit exceeded".to_string()
                 }
             ),
-            "Rate limit exceeded"
+            "Rate limit exceeded: Rate limit exceeded"
         );
         assert_eq!(
             format!("{}", AuthencError::ServiceUnavailable),

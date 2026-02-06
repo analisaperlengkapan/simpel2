@@ -305,23 +305,20 @@ async fn verify_admin_token(
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
-    // Get user and verify admin privileges
-    let user = state
+    // Verify user exists
+    let _user = state
         .user_store
         .get_user(user_id)
         .await?
         .ok_or_else(|| AuthencError::unauthorized("Admin user not found"))?;
 
-    // Check if user has admin role (simplified check - in production, use proper RBAC)
-    let is_admin = user.roles.iter().any(|role| {
-        role.name == "admin" || role.name == "system_admin" || role.name == "mfa_admin"
-    });
-
-    if !is_admin {
-        return Err(AuthencError::forbidden(
-            "Admin privileges required for MFA management",
-        ));
-    }
+    // Check MFA admin capability using dynamic authorization
+    // Checks: mfa:admin, mfa:bypass, or system:admin
+    state
+        .capability_checker
+        .require_any_capability(&user_id, &["mfa:admin", "mfa:bypass", "system:admin"])
+        .await
+        .map_err(|_| AuthencError::forbidden("MFA admin privileges required"))?;
 
     Ok(user_id)
 }

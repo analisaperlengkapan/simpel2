@@ -46,7 +46,6 @@ async fn user_store_basic_flow() {
         realm_id: None,
         organization_id: None,
         roles: None,
-        secreton_access_policy: None,
         attributes: None,
     };
 

@@ -14,7 +14,8 @@ use crate::state::AppState;
 pub struct CaptchaRequest {
     pub challenge_type: String,
     pub difficulty: u8,
-    pub session_id: String,
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 /// CAPTCHA challenge response
@@ -32,7 +33,8 @@ pub struct CaptchaResponse {
 pub struct VerifyRequest {
     pub challenge_id: String,
     pub answer: String,
-    pub session_id: String,
+    #[serde(default)]
+    pub session_id: Option<String>,
     pub behavioral_data: Option<serde_json::Value>,
 }
 
@@ -55,19 +57,17 @@ pub async fn generate_challenge(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CaptchaRequest>,
 ) -> impl IntoResponse {
-    info!(
-        "CAPTCHA challenge request: session_id={}",
-        request.session_id
-    );
+    // Generate session_id if not provided
+    let session_id = request
+        .session_id
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    info!("CAPTCHA challenge request: session_id={}", session_id);
 
     // Call Authenc via gRPC to generate CAPTCHA
     match state
         .authenc
-        .generate_captcha(
-            &request.challenge_type,
-            request.difficulty,
-            &request.session_id,
-        )
+        .generate_captcha(&request.challenge_type, request.difficulty, &session_id)
         .await
     {
         Ok(challenge) => {
@@ -97,13 +97,18 @@ pub async fn verify_captcha(
         request.challenge_id
     );
 
+    // Use session_id if provided, otherwise use a default based on challenge_id
+    let session_id = request
+        .session_id
+        .unwrap_or_else(|| request.challenge_id.clone());
+
     // Call Authenc via gRPC to verify CAPTCHA
     match state
         .authenc
         .verify_captcha(
             &request.challenge_id,
             &request.answer,
-            &request.session_id,
+            &session_id,
             request.behavioral_data,
         )
         .await

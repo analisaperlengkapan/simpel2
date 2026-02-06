@@ -450,6 +450,7 @@ mod shamir_advanced_tests {
     }
 
     #[test]
+    #[cfg_attr(not(feature = "vss"), ignore = "Requires vss feature for commitment verification")]
     fn test_wrong_commitment() {
         // Test that wrong commitment is rejected
         let secret1 = b"secret one";

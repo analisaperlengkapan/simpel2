@@ -121,6 +121,12 @@ impl Challenge {
         self
     }
 
+    /// Set a specific challenge ID (used when hash was computed with this ID)
+    pub fn with_id(mut self, id: String) -> Self {
+        self.id = id;
+        self
+    }
+
     /// Set plaintext data (transient)
     pub fn with_plaintext_data(mut self, data: String) -> Self {
         self.plaintext_data = Some(data);

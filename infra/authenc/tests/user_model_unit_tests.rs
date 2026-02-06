@@ -130,7 +130,6 @@ mod tests {
             email_verified: Some(true),
             phone_verified: Some(true),
             require_password_change: Some(true),
-            secreton_access_policy: None,
             attributes: Some(json!({"custom_field": "value"})),
         };
 
@@ -651,7 +650,6 @@ mod tests {
             realm_id: Some(realm_id),
             organization_id: Some(Uuid::new_v4()),
             roles: None,
-            secreton_access_policy: None,
             attributes: Some(json!({"department": "engineering"})),
         };
 
@@ -682,7 +680,6 @@ mod tests {
             email_verified: None,
             phone_verified: Some(false),
             require_password_change: None,
-            secreton_access_policy: None,
             attributes: None,
         };
 

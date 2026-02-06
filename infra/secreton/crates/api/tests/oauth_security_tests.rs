@@ -146,19 +146,6 @@ async fn test_bug_2_oauth_state_encryption() {
     // Total overhead = 60 bytes
     let data = entry.encrypted_data;
 
-    // Calculate expected plaintext length to verify
-    let original_data = serde_json::json!({
-        "provider": "github",
-    });
-    let plaintext_len = serde_json::to_vec(&original_data).unwrap().len();
-
-    // Verify length matches expected encrypted format
-    assert_eq!(
-        data.len(),
-        plaintext_len + 60,
-        "Encrypted data length incorrect. Expected plaintext + 60 bytes overhead"
-    );
-
     // Verify we can decrypt it
     let decrypted = crypto
         .decrypt_simple(&data)
@@ -166,4 +153,21 @@ async fn test_bug_2_oauth_state_encryption() {
     let json: serde_json::Value =
         serde_json::from_slice(&decrypted).expect("Decrypted data should be JSON");
     assert_eq!(json["provider"], "github");
+
+    // Verify encryption overhead is exactly 60 bytes (32 key + 12 nonce + 16 auth tag)
+    // Note: The handler stores {"provider":..., "created_at":...} so plaintext
+    // is larger than just {"provider": "github"}
+    assert_eq!(
+        data.len(),
+        decrypted.len() + 60,
+        "Encryption overhead should be exactly 60 bytes (32 key + 12 nonce + 16 tag)"
+    );
+
+    // Verify plaintext is longer than minimal data (includes created_at)
+    let minimal_data = serde_json::json!({ "provider": "github" });
+    let minimal_len = serde_json::to_vec(&minimal_data).unwrap().len();
+    assert!(
+        decrypted.len() > minimal_len,
+        "Handler should store additional data beyond just the provider name"
+    );
 }

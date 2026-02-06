@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS dynamic_credentials (
     lease_id VARCHAR(255),
     namespace VARCHAR(255) NOT NULL DEFAULT 'default',
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     revoked BOOLEAN NOT NULL DEFAULT FALSE,
     revoked_at TIMESTAMP WITH TIME ZONE
 );

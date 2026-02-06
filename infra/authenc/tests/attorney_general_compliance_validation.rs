@@ -8,9 +8,7 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 use authenc::config::AuthencConfig;
-use authenc::models::user::{
-    AccessLevel, AdminLevel, RoleScope, SecretonAccessPolicy, SecurityContext,
-};
+use authenc::models::user::{AdminLevel, RoleScope, SecurityContext};
 
 /// Test suite for validating Attorney General's Office compliance requirements
 #[cfg(test)]
@@ -581,15 +579,6 @@ fn create_admin_user(nama: &str, email: &str, admin_level: AdminLevel, satker_co
         jabatan: "Administrator".to_string(),
         roles: vec![role],
         permissions: vec![],
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec![satker_code.to_string()],
-            access_level: AccessLevel::Admin,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: None,
-            allowed_paths: None,
-            denied_paths: None,
-        },
         last_auth: Utc::now(),
         security_context: SecurityContext::default(),
     }
@@ -605,15 +594,6 @@ fn create_test_jaksa(nip: &str, satker_code: &str) -> User {
         jabatan: "Jaksa Muda".to_string(),
         roles: vec![],
         permissions: vec![],
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec![satker_code.to_string()],
-            access_level: AccessLevel::ReadOnly,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: None,
-            allowed_paths: None,
-            denied_paths: None,
-        },
         last_auth: Utc::now(),
         security_context: SecurityContext::default(),
     }
@@ -777,7 +757,6 @@ struct User {
     jabatan: String,
     roles: Vec<Role>,
     permissions: Vec<Permission>,
-    secreton_access_policy: SecretonAccessPolicy,
     last_auth: DateTime<Utc>,
     security_context: SecurityContext,
 }

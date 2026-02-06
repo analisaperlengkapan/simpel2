@@ -13,7 +13,7 @@
 //! - Size limits to prevent abuse
 //!
 //! # Example
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::services::wrapping::{WrappingService, WrapRequest};
 //! use std::time::Duration;
 //!

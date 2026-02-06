@@ -271,6 +271,7 @@ mod tests {
     use tower::ServiceExt;
 
     #[tokio::test]
+    #[ignore = "Requires database/infrastructure"]
     async fn test_list_policies() {
         let config = ApiConfig::default();
         let services = ServiceContainer::new(&config).await.unwrap();

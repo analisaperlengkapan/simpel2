@@ -1,47 +1,87 @@
--- User Sessions Table
--- Stores active user authentication sessions with tokens and metadata
--- Drop existing table from 001 if it exists to ensure new schema is applied
-DROP TABLE IF EXISTS user_sessions CASCADE;
+-- User Sessions Table Enhancement
+-- Enhanced session management with support for tokens, offline access, and security tracking
+-- This migration adds new columns to the existing user_sessions table from 001_initial_schema.sql
 
--- Create user_sessions table if it doesn't exist
-CREATE TABLE IF NOT EXISTS user_sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
-    client_id UUID REFERENCES oauth2_clients(id) ON DELETE SET NULL,
+-- Add new columns to user_sessions if they don't exist
+-- Using DO block for idempotent ALTER TABLE operations
+DO $$
+BEGIN
+    -- Add realm_id column
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'realm_id') THEN
+        ALTER TABLE user_sessions ADD COLUMN realm_id UUID REFERENCES realms(id) ON DELETE CASCADE;
+    END IF;
 
-    -- Token information
-    token_hash VARCHAR(64) NOT NULL UNIQUE, -- SHA256 hash of the access token
-    refresh_token_hash VARCHAR(64) UNIQUE, -- SHA256 hash of refresh token (if present)
-    offline_token_hash VARCHAR(64) UNIQUE, -- SHA256 hash of offline token (if present)
+    -- Add client_id column
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'client_id') THEN
+        ALTER TABLE user_sessions ADD COLUMN client_id UUID REFERENCES oauth2_clients(id) ON DELETE SET NULL;
+    END IF;
 
-    -- Session lifecycle
-    started_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP NOT NULL,
-    last_accessed TIMESTAMP NOT NULL DEFAULT NOW(),
-    idle_expires_at TIMESTAMP, -- For idle timeout
+    -- Add offline_token_hash column
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'offline_token_hash') THEN
+        ALTER TABLE user_sessions ADD COLUMN offline_token_hash VARCHAR(64) UNIQUE;
+    END IF;
 
-    -- Token rotation tracking
-    refresh_count INTEGER NOT NULL DEFAULT 0,
-    refresh_token_expires_at TIMESTAMP,
-    offline_token_expires_at TIMESTAMP,
+    -- Add started_at column
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'started_at') THEN
+        ALTER TABLE user_sessions ADD COLUMN started_at TIMESTAMP NOT NULL DEFAULT NOW();
+    END IF;
 
-    -- Client information
-    ip_address INET,
-    user_agent TEXT,
+    -- Add last_accessed column (if last_activity_at exists, rename it)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'last_accessed') THEN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'last_activity_at') THEN
+            ALTER TABLE user_sessions RENAME COLUMN last_activity_at TO last_accessed;
+        ELSE
+            ALTER TABLE user_sessions ADD COLUMN last_accessed TIMESTAMP NOT NULL DEFAULT NOW();
+        END IF;
+    END IF;
 
-    -- Session state
-    revoked BOOLEAN NOT NULL DEFAULT FALSE,
-    revoked_at TIMESTAMP,
-    revoked_reason TEXT,
+    -- Add idle_expires_at column
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'idle_expires_at') THEN
+        ALTER TABLE user_sessions ADD COLUMN idle_expires_at TIMESTAMP;
+    END IF;
 
-    -- Additional metadata
-    authentication_method VARCHAR(50), -- password, otp, webauthn, etc.
-    protocol VARCHAR(20), -- openid-connect, saml, etc.
+    -- Add token rotation tracking columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'refresh_count') THEN
+        ALTER TABLE user_sessions ADD COLUMN refresh_count INTEGER NOT NULL DEFAULT 0;
+    END IF;
 
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'refresh_token_expires_at') THEN
+        ALTER TABLE user_sessions ADD COLUMN refresh_token_expires_at TIMESTAMP;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'offline_token_expires_at') THEN
+        ALTER TABLE user_sessions ADD COLUMN offline_token_expires_at TIMESTAMP;
+    END IF;
+
+    -- Add session state columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'revoked') THEN
+        ALTER TABLE user_sessions ADD COLUMN revoked BOOLEAN NOT NULL DEFAULT FALSE;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'revoked_at') THEN
+        ALTER TABLE user_sessions ADD COLUMN revoked_at TIMESTAMP;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'revoked_reason') THEN
+        ALTER TABLE user_sessions ADD COLUMN revoked_reason TEXT;
+    END IF;
+
+    -- Add metadata columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'authentication_method') THEN
+        ALTER TABLE user_sessions ADD COLUMN authentication_method VARCHAR(50);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'protocol') THEN
+        ALTER TABLE user_sessions ADD COLUMN protocol VARCHAR(20);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name = 'updated_at') THEN
+        ALTER TABLE user_sessions ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT NOW();
+    END IF;
+
+    -- Rename token_hash to use VARCHAR(64) if needed (already compatible)
+    -- Rename refresh_token_hash to use VARCHAR(64) if needed (already compatible)
+END $$;
 
 -- Device Sessions Table
 -- Tracks device-specific session information for security and analytics

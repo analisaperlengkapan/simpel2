@@ -3,6 +3,7 @@ target = "index.html"
 dist = "dist"
 release = true
 wasm_opt = false
+public_url = "/"
 
 # Advanced wasm-bindgen configuration
 [build.wasm-bindgen]

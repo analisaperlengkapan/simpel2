@@ -512,7 +512,21 @@ mod tests {
             ..Default::default()
         };
 
-        let redis_cache = Arc::new(RedisCache::new(&redis_config).await?);
+        // Use a timeout to avoid hanging when Redis is not available
+        let redis_cache = match tokio::time::timeout(
+            Duration::from_secs(3),
+            RedisCache::new(&redis_config),
+        )
+        .await
+        {
+            Ok(Ok(cache)) => Arc::new(cache),
+            Ok(Err(e)) => return Err(e),
+            Err(_) => {
+                return Err(AuthencError::internal(
+                    "Redis connection timed out - Redis not available",
+                ));
+            }
+        };
         Ok(Arc::new(MultiLayerCache::with_defaults(redis_cache)))
     }
 

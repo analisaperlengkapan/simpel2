@@ -454,7 +454,7 @@ mod resilience_validation {
 
 // Helper functions for creating test data
 fn create_test_user_with_secreton_access() -> User {
-    use authenc::models::user::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy};
+    use authenc::models::user::{AdminLevel, Role, RoleScope};
 
     User {
         id: Uuid::new_v4(),
@@ -505,15 +505,6 @@ fn create_test_user_with_secreton_access() -> User {
         }],
         permissions: vec![],
         session_data: None,
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec!["SATKER_TEST".to_string()],
-            access_level: AccessLevel::ReadWrite,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: None,
-            allowed_paths: None,
-            denied_paths: None,
-        },
         security_context: Default::default(),
         attributes: None,
         enabled: true,
@@ -528,7 +519,6 @@ fn create_test_user_with_secreton_access() -> User {
 fn create_test_user_with_secret_access(satker_code: &str) -> User {
     let mut user = create_test_user_with_secreton_access();
     user.satker_code = satker_code.to_string();
-    user.secreton_access_policy.allowed_satker_secrets = vec![satker_code.to_string()];
     user
 }
 
@@ -548,26 +538,14 @@ async fn create_token_for_user(user: &User) -> Result<String, AuthencError> {
 
 // Additional helpers for test data
 fn get_secreton_permissions(user: &User) -> SecretonPermissions {
-    use authenc::models::user::AccessLevel;
-
     let mut satker_permissions = std::collections::HashMap::new();
-    satker_permissions.insert(
-        user.satker_code.clone(),
-        user.secreton_access_policy.allowed_satker_secrets.clone(),
-    );
+    satker_permissions.insert(user.satker_code.clone(), vec![user.satker_code.clone()]);
 
     SecretonPermissions {
-        read_secrets: user.secreton_access_policy.allowed_satker_secrets.clone(),
-        write_secrets: if matches!(
-            user.secreton_access_policy.access_level,
-            AccessLevel::ReadWrite | AccessLevel::Admin
-        ) {
-            user.secreton_access_policy.allowed_satker_secrets.clone()
-        } else {
-            vec![]
-        },
-        admin_operations: matches!(user.secreton_access_policy.access_level, AccessLevel::Admin),
-        audit_access: user.secreton_access_policy.audit_required,
+        read_secrets: vec![user.satker_code.clone()],
+        write_secrets: vec![user.satker_code.clone()],
+        admin_operations: false,
+        audit_access: true,
         satker_permissions,
     }
 }

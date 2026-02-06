@@ -40,7 +40,7 @@
 //!
 //! # Example
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::services::zero_knowledge::{ZeroKnowledgeService, ZeroKnowledgeMetadata};
 //!
 //! # async fn example(service: impl ZeroKnowledgeService) -> Result<(), Box<dyn std::error::Error>> {

@@ -15,6 +15,9 @@ async fn create_test_database() -> Database {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_event_success() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -41,6 +44,9 @@ async fn test_store_event_success() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_event_with_error() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -64,6 +70,9 @@ async fn test_store_event_with_error() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_event_multiple_types() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -101,6 +110,9 @@ async fn test_store_event_multiple_types() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_admin_event_create() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -126,6 +138,9 @@ async fn test_store_admin_event_create() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_admin_event_update() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -151,6 +166,9 @@ async fn test_store_admin_event_update() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_admin_event_delete() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -176,6 +194,9 @@ async fn test_store_admin_event_delete() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_admin_event_action() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -201,6 +222,9 @@ async fn test_store_admin_event_action() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_admin_event_with_error() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -229,6 +253,9 @@ async fn test_store_admin_event_with_error() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_event_with_details() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);
@@ -260,6 +287,9 @@ async fn test_store_event_with_details() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_store_multiple_events_bulk() {
     let db = Arc::new(create_test_database().await);
     let provider = DefaultEventProvider::new(db);

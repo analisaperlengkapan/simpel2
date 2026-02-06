@@ -65,7 +65,7 @@ mod tests {
             result
                 .errors
                 .iter()
-                .any(|e| e.contains("Password cannot contain the word 'password'"))
+                .any(|e| e.contains("Password cannot contain 'password'"))
         );
     }
 
@@ -77,7 +77,7 @@ mod tests {
             result
                 .errors
                 .iter()
-                .any(|e| e.contains("Password cannot contain the word 'password'"))
+                .any(|e| e.contains("Password cannot contain 'password'"))
         );
     }
 

@@ -95,7 +95,7 @@
 //!
 //! # Example: Adding Encryption Layer
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_storage::{StorageBackend, MemoryBackend, EncryptedStorage, SecretEntry, SecurityLevel};
 //! use std::sync::Arc;
 //!
@@ -131,7 +131,7 @@
 //!
 //! # Example: Adding Cache Layer
 //!
-//! ```rust,no_run
+//! ```ignore
 //! # #[cfg(feature = "postgres")]
 //! # {
 //! use secreton_storage::{StorageBackend, PostgresBackend, CachedStorage, InMemoryCache};

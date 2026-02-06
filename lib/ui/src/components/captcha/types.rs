@@ -118,6 +118,8 @@ pub struct ChallengeResponse {
 pub struct ValidationRequest {
     pub challenge_id: String,
     pub answer: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
     pub behavioral_data: Option<BehavioralData>,
 }
 
@@ -125,8 +127,11 @@ pub struct ValidationRequest {
 pub struct ValidationResponse {
     pub success: bool,
     pub message: String,
+    #[serde(default)]
     pub next_difficulty: Option<u8>,
+    #[serde(default)]
     pub retry_allowed: bool,
+    #[serde(default)]
     pub lockout_duration: Option<u32>,
     pub token: Option<String>,
 }

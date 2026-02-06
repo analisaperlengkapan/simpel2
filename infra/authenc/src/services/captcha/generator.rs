@@ -414,41 +414,14 @@ impl ChallengeGeneratorTrait for ChallengeGenerator {
     async fn generate_visual_challenge(&self, difficulty: u8) -> Result<String, CaptchaError> {
         let mut generator = Self::new(); // Create new instance for thread safety
 
-        // Choose between basic and advanced image challenges based on difficulty
-        let challenge_variant = if difficulty >= 5 {
-            // Higher difficulty - use advanced challenges more often
-            generator.rng.gen_range(0..4)
-        } else {
-            // Lower difficulty - use basic challenges
-            generator.rng.gen_range(0..2)
-        };
-
-        match challenge_variant {
-            0 => {
-                let visual_challenge = generator.generate_text_challenge(difficulty)?;
-                serde_json::to_string(&visual_challenge).map_err(|e| {
-                    CaptchaError::GenerationFailed {
-                        message: format!("Serialization failed: {}", e),
-                        recoverable: true,
-                        retry_after: Some(Duration::from_secs(1)),
-                    }
-                })
-            }
-            1 => {
-                let visual_challenge = generator.generate_image_selection_challenge(difficulty)?;
-                serde_json::to_string(&visual_challenge).map_err(|e| {
-                    CaptchaError::GenerationFailed {
-                        message: format!("Serialization failed: {}", e),
-                        recoverable: true,
-                        retry_after: Some(Duration::from_secs(1)),
-                    }
-                })
-            }
-            _ => {
-                // Use advanced image challenges
-                generator.generate_advanced_image_challenge(difficulty)
-            }
-        }
+        // Use text_recognition challenges only until image endpoint is implemented
+        // TODO: Re-enable image_selection and advanced challenges when /api/captcha/image endpoint is ready
+        let visual_challenge = generator.generate_text_challenge(difficulty)?;
+        serde_json::to_string(&visual_challenge).map_err(|e| CaptchaError::GenerationFailed {
+            message: format!("Serialization failed: {}", e),
+            recoverable: true,
+            retry_after: Some(Duration::from_secs(1)),
+        })
     }
 
     async fn generate_audio_challenge(&self, difficulty: u8) -> Result<String, CaptchaError> {
@@ -583,6 +556,7 @@ impl ChallengeGeneratorTrait for ChallengeGenerator {
             session_id,
             "127.0.0.1".to_string(), // Placeholder IP - will be extracted from request context
         )
+        .with_id(challenge_id) // Use the same ID that was used for hashing
         .with_encrypted_data(encrypted_challenge_data)
         .with_encryption_flag(is_encrypted)
         .with_plaintext_data(challenge_data);

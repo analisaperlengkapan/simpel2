@@ -18,7 +18,7 @@
 //!
 //! Simply use the prelude:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::prelude::*;
 //!
 //! // All common types now available
@@ -70,7 +70,7 @@
 //!
 //! # Example: Service Implementation
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::prelude::*;
 //!
 //! pub struct SecretService {
@@ -101,7 +101,7 @@
 //!
 //! # Example: Error Handling
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::prelude::*;
 //!
 //! async fn process_request(user: &User) -> CoreResult<()> {

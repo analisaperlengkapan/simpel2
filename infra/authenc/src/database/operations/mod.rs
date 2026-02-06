@@ -1,6 +1,7 @@
 // Database operations submodules
 pub mod client_registration_ops;
 pub mod client_scopes_ops;
+pub mod dynamic_role_ops;
 pub mod protocol_mappers_ops;
 pub mod tokens;
 

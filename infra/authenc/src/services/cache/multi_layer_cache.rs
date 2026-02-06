@@ -326,7 +326,17 @@ mod tests {
             ..Default::default()
         };
 
-        Ok(Arc::new(RedisCache::new(&config).await?))
+        let cache =
+            match tokio::time::timeout(Duration::from_secs(3), RedisCache::new(&config)).await {
+                Ok(Ok(c)) => c,
+                Ok(Err(e)) => return Err(e),
+                Err(_) => {
+                    return Err(crate::error::AuthencError::internal(
+                        "Redis connection timed out - Redis not available",
+                    ));
+                }
+            };
+        Ok(Arc::new(cache))
     }
 
     #[tokio::test]

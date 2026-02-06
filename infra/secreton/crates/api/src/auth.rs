@@ -193,6 +193,16 @@ impl Default for JwtAuthConfig {
 }
 
 /// User roles for RBAC
+///
+/// # Deprecation Notice
+/// This enum is deprecated in favor of dynamic role types from the database.
+/// Use `UserRoleType` with `DynamicRoleStore` for new code.
+///
+/// Migration: `dynamic_role::migration::map_user_role(role.as_string())`
+#[deprecated(
+    since = "2.0.0",
+    note = "Use dynamic role types from DynamicRoleStore instead"
+)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UserRole {
     Admin,
@@ -202,6 +212,7 @@ pub enum UserRole {
     ReadOnly,
 }
 
+#[allow(deprecated)]
 impl UserRole {
     pub fn as_string(&self) -> String {
         match self {
@@ -223,9 +234,30 @@ impl UserRole {
             _ => None,
         }
     }
+
+    /// Convert to dynamic role code for migration
+    pub fn to_dynamic_role_code(&self) -> &'static str {
+        match self {
+            UserRole::Admin => "admin",
+            UserRole::EngineAdmin => "engine-admin",
+            UserRole::KeyManager => "key-manager",
+            UserRole::CryptoUser => "crypto-user",
+            UserRole::ReadOnly => "read-only",
+        }
+    }
 }
 
 /// Permissions for fine-grained access control
+///
+/// # Deprecation Notice
+/// This enum is deprecated in favor of dynamic capabilities from the database.
+/// Use `Capability` with `DynamicRoleStore` for new code.
+///
+/// Migration: `dynamic_role::migration::map_permission(perm.as_string())`
+#[deprecated(
+    since = "2.0.0",
+    note = "Use dynamic capabilities from DynamicRoleStore instead"
+)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Permission {
     // Key management permissions
@@ -253,6 +285,7 @@ pub enum Permission {
     AccessAuditLogs,
 }
 
+#[allow(deprecated)]
 impl Permission {
     pub fn as_string(&self) -> String {
         match self {
@@ -272,6 +305,28 @@ impl Permission {
             Permission::ConfigureSystem => "configure-system".to_string(),
             Permission::ManageUsers => "manage-users".to_string(),
             Permission::AccessAuditLogs => "access-audit-logs".to_string(),
+        }
+    }
+
+    /// Convert to dynamic capability code for migration
+    pub fn to_capability_code(&self) -> &'static str {
+        match self {
+            Permission::CreateKey => "create-key",
+            Permission::DeleteKey => "delete-key",
+            Permission::RotateKey => "rotate-key",
+            Permission::ReadKey => "read-key",
+            Permission::ListKeys => "list-keys",
+            Permission::Encrypt => "encrypt",
+            Permission::Decrypt => "decrypt",
+            Permission::Sign => "sign",
+            Permission::Verify => "verify",
+            Permission::GenerateRandom => "generate-random",
+            Permission::HashData => "hash-data",
+            Permission::DeriveKey => "derive-key",
+            Permission::ViewMetrics => "view-metrics",
+            Permission::ConfigureSystem => "configure-system",
+            Permission::ManageUsers => "manage-users",
+            Permission::AccessAuditLogs => "access-audit-logs",
         }
     }
 }

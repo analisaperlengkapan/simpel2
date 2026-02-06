@@ -5,59 +5,173 @@
 use super::types::ChallengeResponse;
 use serde_json::Value;
 
-/// Parse the question text from challenge data
-pub fn parse_challenge_question(data: Option<ChallengeResponse>) -> String {
-    data.and_then(|d| {
-        serde_json::from_str::<Value>(&d.challenge_data)
-            .ok()
-            .and_then(|v| {
-                v.get("question")
-                    .and_then(|q| q.as_str())
-                    .map(|s| s.to_string())
-            })
-    })
-    .unwrap_or_else(|| "Loading...".to_string())
+/// Parsed challenge data for rendering
+#[derive(Clone, Debug, Default)]
+pub struct ParsedChallenge {
+    /// The challenge type (e.g., "text_recognition", "image_selection")
+    pub challenge_type: String,
+    /// Instructions for the user
+    pub instructions: String,
+    /// Visual or display data
+    pub display_data: String,
+    /// Answer options if available
+    pub options: Vec<String>,
+    /// Images for image selection challenges
+    pub images: Vec<ImageData>,
+    /// Grid size for image grid
+    pub grid_size: usize,
+    /// Text to recognize (for text_recognition)
+    pub text_to_recognize: Option<String>,
 }
 
-/// Parse the visual display text from challenge data
-pub fn parse_challenge_visual(data: Option<ChallengeResponse>) -> String {
-    data.and_then(|d| {
-        serde_json::from_str::<Value>(&d.challenge_data)
-            .ok()
-            .and_then(|v| {
-                v.get("visual")
-                    .and_then(|visual| visual.as_str().map(|s| s.to_string()))
-                    .or_else(|| {
-                        // Fallback to question if no visual field
-                        v.get("question")
-                            .and_then(|q| q.as_str())
-                            .map(|s| s.to_string())
+/// Image data for image selection challenges
+#[derive(Clone, Debug, Default)]
+pub struct ImageData {
+    pub index: usize,
+    pub url: String,
+    pub alt: String,
+}
+
+/// Parse challenge data into structured format
+pub fn parse_challenge(data: Option<ChallengeResponse>) -> ParsedChallenge {
+    let Some(response) = data else {
+        return ParsedChallenge::default();
+    };
+
+    // Parse outer JSON
+    let Ok(outer) = serde_json::from_str::<Value>(&response.challenge_data) else {
+        return ParsedChallenge::default();
+    };
+
+    let challenge_type = outer
+        .get("challenge_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let instructions = outer
+        .get("instructions")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Complete the challenge")
+        .to_string();
+
+    // Parse inner data field (may be nested JSON string)
+    let inner_data = outer.get("data").and_then(|v| {
+        v.as_str()
+            .and_then(|s| serde_json::from_str::<Value>(s).ok())
+            .or_else(|| Some(v.clone()))
+    });
+
+    let mut parsed = ParsedChallenge {
+        challenge_type: challenge_type.clone(),
+        instructions,
+        ..Default::default()
+    };
+
+    match challenge_type.as_str() {
+        "text_recognition" => {
+            // Extract text to recognize from data field
+            // Format: "VAZF:4f668449-2db3-4df5-88ec-946c9c520fa1"
+            if let Some(data_str) = outer.get("data").and_then(|v| v.as_str()) {
+                if let Some((text, _)) = data_str.split_once(':') {
+                    parsed.text_to_recognize = Some(text.to_string());
+                    parsed.display_data = text.to_string();
+                }
+            }
+        }
+        "image_selection" => {
+            if let Some(inner) = inner_data {
+                parsed.grid_size =
+                    inner.get("grid_size").and_then(|v| v.as_u64()).unwrap_or(3) as usize;
+
+                let total_images = inner
+                    .get("total_images")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(9) as usize;
+
+                let category = inner
+                    .get("category")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("objects");
+
+                let nonce = inner
+                    .get("nonce")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("default");
+
+                // Generate placeholder images (backend should provide actual URLs)
+                for i in 0..total_images {
+                    parsed.images.push(ImageData {
+                        index: i,
+                        url: format!("/api/captcha/image/{}/{}", nonce, i),
+                        alt: format!("Image {} for {} selection", i + 1, category),
+                    });
+                }
+            }
+        }
+        "math" | "logical" => {
+            // Legacy format support
+            parsed.display_data = outer
+                .get("visual")
+                .or_else(|| outer.get("question"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string();
+
+            if let Some(opts) = outer.get("options").and_then(|v| v.as_array()) {
+                parsed.options = opts
+                    .iter()
+                    .filter_map(|v| {
+                        v.as_u64()
+                            .map(|n| n.to_string())
+                            .or_else(|| v.as_str().map(|s| s.to_string()))
                     })
-            })
-    })
-    .unwrap_or_else(|| "...".to_string())
+                    .collect();
+            }
+        }
+        _ => {
+            // Fallback
+            parsed.display_data = outer
+                .get("data")
+                .and_then(|v| v.as_str())
+                .unwrap_or("...")
+                .to_string();
+        }
+    }
+
+    parsed
+}
+
+/// Parse the question text from challenge data (legacy support)
+pub fn parse_challenge_question(data: Option<ChallengeResponse>) -> String {
+    let parsed = parse_challenge(data);
+    if !parsed.instructions.is_empty() {
+        parsed.instructions
+    } else {
+        "Complete the challenge".to_string()
+    }
+}
+
+/// Parse the visual display text from challenge data (legacy support)
+pub fn parse_challenge_visual(data: Option<ChallengeResponse>) -> String {
+    let parsed = parse_challenge(data);
+    if let Some(text) = parsed.text_to_recognize {
+        text
+    } else if !parsed.display_data.is_empty() {
+        parsed.display_data
+    } else {
+        "...".to_string()
+    }
 }
 
 /// Parse answer options from challenge data
 pub fn parse_answer_options(data: Option<ChallengeResponse>) -> Vec<String> {
-    data.and_then(|d| {
-        serde_json::from_str::<Value>(&d.challenge_data)
-            .ok()
-            .and_then(|v| {
-                v.get("options").and_then(|opts| {
-                    opts.as_array().map(|arr| {
-                        arr.iter()
-                            .filter_map(|val| {
-                                val.as_u64()
-                                    .map(|n| n.to_string())
-                                    .or_else(|| val.as_str().map(|s| s.to_string()))
-                            })
-                            .collect()
-                    })
-                })
-            })
-    })
-    .unwrap_or_else(|| vec!["...".to_string()])
+    let parsed = parse_challenge(data);
+    if !parsed.options.is_empty() {
+        parsed.options
+    } else {
+        vec!["...".to_string()]
+    }
 }
 
 #[cfg(test)]

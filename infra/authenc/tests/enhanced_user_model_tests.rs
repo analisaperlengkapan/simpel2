@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod enhanced_user_model_tests {
     use authenc::models::user::*;
-    use chrono::{Duration, NaiveDate, NaiveTime, TimeZone, Utc};
+    use chrono::{Duration, Utc};
     use serde_json::json;
     use uuid::Uuid;
 
@@ -115,96 +115,11 @@ mod enhanced_user_model_tests {
     }
 
     #[test]
-    fn test_secreton_access_policy_path_validation() {
-        let policy = SecretonAccessPolicy {
-            allowed_satker_secrets: vec![
-                "KEJATI_DKI_JAKPUS".to_string(),
-                "KEJATI_DKI_JAKSEL".to_string(),
-            ],
-            access_level: AccessLevel::ReadWrite,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(100),
-            allowed_paths: Some(vec![
-                "/app/config/".to_string(),
-                "/user/credentials/".to_string(),
-            ]),
-            denied_paths: Some(vec!["/admin/".to_string(), "/system/root/".to_string()]),
-        };
-
-        // Test allowed paths with allowed satker
-        assert!(policy.can_access_path("/app/config/database", "KEJATI_DKI_JAKPUS"));
-        assert!(policy.can_access_path("/user/credentials/api_key", "KEJATI_DKI_JAKSEL"));
-
-        // Test denied paths (should be denied even with allowed satker)
-        assert!(!policy.can_access_path("/admin/users", "KEJATI_DKI_JAKPUS"));
-        assert!(!policy.can_access_path("/system/root/password", "KEJATI_DKI_JAKSEL"));
-
-        // Test disallowed satker
-        assert!(!policy.can_access_path("/app/config/database", "KEJATI_JABAR_BANDUNG"));
-
-        // Test path not in allowed list
-        assert!(!policy.can_access_path("/other/path", "KEJATI_DKI_JAKPUS"));
-    }
-
-    #[test]
-    fn test_secreton_access_policy_time_restrictions() {
-        let time_restrictions = TimeRestrictions {
-            start_hour: 8,                     // 8 AM
-            end_hour: 17,                      // 5 PM
-            allowed_days: vec![1, 2, 3, 4, 5], // Monday to Friday
-            timezone: "Asia/Jakarta".to_string(),
-        };
-
-        let policy = SecretonAccessPolicy {
-            allowed_satker_secrets: vec!["KEJATI_DKI_JAKPUS".to_string()],
-            access_level: AccessLevel::ReadOnly,
-            time_restrictions: Some(time_restrictions),
-            audit_required: true,
-            rate_limit: None,
-            allowed_paths: None,
-            denied_paths: None,
-        };
-
-        // Create test times using specific known dates
-        // January 8, 2024 is a Monday
-        let monday_date = NaiveDate::from_ymd_opt(2024, 1, 8).unwrap();
-        let monday_10am = Utc
-            .from_utc_datetime(&monday_date.and_time(NaiveTime::from_hms_opt(10, 0, 0).unwrap()));
-        let monday_6pm = Utc
-            .from_utc_datetime(&monday_date.and_time(NaiveTime::from_hms_opt(18, 0, 0).unwrap()));
-
-        // January 7, 2024 is a Sunday
-        let sunday_date = NaiveDate::from_ymd_opt(2024, 1, 7).unwrap();
-        let sunday_10am = Utc
-            .from_utc_datetime(&sunday_date.and_time(NaiveTime::from_hms_opt(10, 0, 0).unwrap()));
-
-        // Test allowed time (Monday 10 AM)
-        assert!(policy.is_time_allowed(&monday_10am));
-
-        // Test disallowed time (Monday 6 PM - after hours)
-        assert!(!policy.is_time_allowed(&monday_6pm));
-
-        // Test disallowed day (Sunday)
-        assert!(!policy.is_time_allowed(&sunday_10am));
-    }
-
-    #[test]
     fn test_enhanced_user_creation_with_simkari_fields() {
         let satker_code = "KEJATI_DKI_JAKPUS".to_string();
         let nip = "198501012010011001".to_string();
         let nama = "Budi Santoso".to_string();
         let jabatan = "Jaksa Muda".to_string();
-
-        let secreton_policy = SecretonAccessPolicy {
-            allowed_satker_secrets: vec![satker_code.clone()],
-            access_level: AccessLevel::ReadWrite,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(50),
-            allowed_paths: None,
-            denied_paths: None,
-        };
 
         let security_context = SecurityContext {
             ip_address: Some("192.168.1.100".to_string()),
@@ -248,7 +163,6 @@ mod enhanced_user_model_tests {
             roles: vec![],
             permissions: vec![],
             session_data: Some(json!({"last_activity": "document_review"})),
-            secreton_access_policy: secreton_policy,
             security_context: security_context,
             attributes: Some(json!({"department": "pidana_umum"})),
             enabled: true,
@@ -264,11 +178,6 @@ mod enhanced_user_model_tests {
         assert_eq!(user.nama, Some(nama));
         assert_eq!(user.jabatan, Some(jabatan));
         assert_eq!(user.satker_code, satker_code);
-        assert!(user.secreton_access_policy.audit_required);
-        assert_eq!(
-            user.secreton_access_policy.access_level,
-            AccessLevel::ReadWrite
-        );
         assert!(user.security_context.risk_score.is_some());
     }
 

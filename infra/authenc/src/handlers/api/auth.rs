@@ -1,4 +1,5 @@
 use crate::error::AuthencError;
+use crate::services::authorization::capabilities;
 use crate::services::mfa_service::MfaService;
 use crate::services::stores::user_store::UserStoreTrait;
 use crate::utils::jwt;
@@ -43,13 +44,19 @@ pub struct LoginRequest {
     #[garde(length(min = 8, max = 128))]
     pub password: String,
 
-    /// The realm the user belongs to
-    #[garde(length(min = 1, max = 100))]
+    /// The realm the user belongs to (optional, defaults to "master")
+    #[garde(skip)]
+    #[serde(default = "default_realm")]
     pub realm: String,
 
     /// Optional CAPTCHA token for verification
     #[garde(skip)]
     pub captcha_token: Option<String>,
+}
+
+/// Default realm value
+fn default_realm() -> String {
+    "master".to_string()
 }
 
 impl LoginRequest {
@@ -695,21 +702,14 @@ pub async fn mfa_disable(
     let admin_user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid admin user ID in token"))?;
 
-    // Check if user has admin privileges
-    let admin_user = state
-        .user_store
-        .get_user(admin_user_id)
-        .await?
-        .ok_or_else(|| AuthencError::unauthorized("Admin user not found"))?;
-
-    // Check if user has admin role (simplified check - in production, use proper RBAC)
-    let is_admin = admin_user
-        .roles
-        .iter()
-        .any(|role| role.name == "admin" || role.name == "system_admin");
-    if !is_admin {
-        return Err(AuthencError::forbidden("Admin privileges required"));
-    }
+    // Check if user has MFA bypass capability (replaces hardcoded role check)
+    state
+        .capability_checker
+        .require_any_capability(
+            &admin_user_id,
+            &[capabilities::MFA_BYPASS, capabilities::SYSTEM_ADMIN],
+        )
+        .await?;
 
     let target_user_id =
         Uuid::parse_str(&req.user_id).map_err(|_| AuthencError::validation("Invalid user ID"))?;
@@ -782,22 +782,14 @@ pub async fn mfa_reset(
         let target_id = Uuid::parse_str(user_id_str)
             .map_err(|_| AuthencError::validation("Invalid target user ID"))?;
 
-        // Check if requesting user has admin privileges
-        let admin_user = state
-            .user_store
-            .get_user(requesting_user_id)
-            .await?
-            .ok_or_else(|| AuthencError::unauthorized("User not found"))?;
-
-        let is_admin = admin_user
-            .roles
-            .iter()
-            .any(|role| role.name == "admin" || role.name == "system_admin");
-        if !is_admin {
-            return Err(AuthencError::forbidden(
-                "Admin privileges required for resetting other users' MFA",
-            ));
-        }
+        // Check if requesting user has MFA bypass capability
+        state
+            .capability_checker
+            .require_any_capability(
+                &requesting_user_id,
+                &[capabilities::MFA_BYPASS, capabilities::SYSTEM_ADMIN],
+            )
+            .await?;
 
         target_id
     } else {

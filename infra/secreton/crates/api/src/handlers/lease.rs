@@ -71,10 +71,14 @@ where
             .cloned()
             .unwrap_or_else(|| "default".to_string());
 
+        // Check for admin capabilities using dynamic authorization
+        // Replaces hardcoded role checks with capability-based authorization
+        // Uses user_permissions which contains capability codes from JWT
         let is_admin = context
-            .user_roles
+            .user_permissions
             .iter()
-            .any(|r| r == "admin" || r == "superuser")
+            .any(|c| c == "system:admin" || c == "secrets:admin" || c == "leases:admin")
+            || context.user_roles.iter().any(|r| r == "superuser")
             || context
                 .jwt_claims
                 .as_ref()

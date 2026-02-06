@@ -216,7 +216,7 @@ mod tests {
 
         Router::new()
             .route(
-                "/v1/secret/classify/*path",
+                "/v1/secret/classify/{*path}",
                 axum::routing::post(classify_secret),
             )
             .route(
@@ -224,11 +224,11 @@ mod tests {
                 axum::routing::get(get_classification_report),
             )
             .route(
-                "/v1/secret/classification/*path",
+                "/v1/secret/classification/{*path}",
                 axum::routing::get(get_secret_classification),
             )
             .route(
-                "/v1/secret/require-mfa/*path",
+                "/v1/secret/require-mfa/{*path}",
                 axum::routing::get(check_mfa_required),
             )
             .route(

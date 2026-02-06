@@ -11,6 +11,8 @@ pub mod client_scope;
 pub mod consent;
 /// Device management and trust models
 pub mod device;
+/// Dynamic role and permission models (database-driven, replaces hardcoded enums)
+pub mod dynamic_role;
 /// Event system models for user and admin events
 pub mod events;
 /// Group membership and hierarchy models
@@ -92,3 +94,10 @@ pub use webauthn::*;
 // Legacy re-exports
 pub use audit_log::AuditLog;
 pub use oidc_client::OidcClient;
+
+// Dynamic role system re-exports
+pub use dynamic_role::{
+    AccessLevel, ActorType, AdminLevelType, AuthorizationPolicy, AuthorizationRequest,
+    AuthorizationResult, Capability, CredentialTypeConfig, DynamicRoleStore, EffectiveCapabilities,
+    PolicyEffect, RoleType, SatkerType, ScopeType,
+};

@@ -47,7 +47,7 @@
 //!
 //! # Example: Create Namespace Hierarchy
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::namespace::{NamespaceService, NamespaceType};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -74,7 +74,7 @@
 //!
 //! # Example: Access Control Check
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::namespace::{NamespaceAccessControl, AdminLevel};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -114,7 +114,7 @@
 //!
 //! Resource limits enforced per namespace:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::namespace::{NamespaceQuotas, QuotaUsage};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -172,7 +172,7 @@
 //!
 //! User's namespace extracted from JWT claims:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::namespace::JwtClaims;
 //!
 //! # fn example() {
@@ -199,7 +199,7 @@
 //!
 //! Moving secrets between namespaces:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! # let service: secreton_core::namespace::NamespaceService = unimplemented!();
 //! // Move secrets from one namespace to another

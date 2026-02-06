@@ -776,7 +776,6 @@ fn create_test_user(nip: &str, satker_code: &str) -> User {
         roles: vec![],
         permissions: vec![],
         session_data: None,
-        secreton_access_policy: Default::default(),
         security_context: Default::default(),
         attributes: None,
         enabled: true,

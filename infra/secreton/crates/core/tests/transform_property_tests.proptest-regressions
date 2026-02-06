@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc a74610b84569df444408f4400361a384078014c43234cc33f96bb086728c4a41 # shrinks to plaintext = "a000a0", tweak = []
+cc fcc26a902abb349e6065c9ec4cf76a8e0b7cc1a09c8e081d9e4cc9fc9d7af201 # shrinks to first_part = "100", second_part = "00", tweak = []

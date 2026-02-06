@@ -33,7 +33,7 @@ spec:
             runAsUser: 1000
           containers:
             - name: integrasi-batch
-              image: localhost:32000/simpelv2/layanan-daskrimti-integrasi:staging
+              image: localhost:32000/simpelv2/layanan-daskrimti-integrasi:latest
               imagePullPolicy: IfNotPresent
               securityContext:
                 allowPrivilegeEscalation: false
@@ -138,8 +138,8 @@ spec:
         runAsUser: 1000
       containers:
         - name: integrasi-grpc
-          image: localhost:32000/simpelv2/layanan-daskrimti-integrasi-grpc:staging
-          imagePullPolicy: IfNotPresent
+          image: localhost:32000/simpelv2/layanan-daskrimti-integrasi-grpc:latest
+          imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

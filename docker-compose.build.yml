@@ -11,14 +11,14 @@ services:
 
   secreton:
     build:
-      context: ./infra/secreton
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: infra/secreton/Dockerfile
     image: localhost:32000/simpelv2/secreton:latest
 
   authenc:
     build:
-      context: ./infra/authenc
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: infra/authenc/Dockerfile
     image: localhost:32000/simpelv2/authenc:latest
 
   # =====================================================
@@ -30,6 +30,20 @@ services:
       context: .
       dockerfile: layanan/daskrimti/portal/Dockerfile
     image: localhost:32000/simpelv2/layanan-daskrimti-portal:latest
+
+  layanan-daskrimti-integrasi:
+    build:
+      context: .
+      dockerfile: layanan/daskrimti/integrasi/Dockerfile
+      target: cli
+    image: localhost:32000/simpelv2/layanan-daskrimti-integrasi:latest
+
+  layanan-daskrimti-integrasi-grpc:
+    build:
+      context: .
+      dockerfile: layanan/daskrimti/integrasi/Dockerfile
+      target: grpc
+    image: localhost:32000/simpelv2/layanan-daskrimti-integrasi-grpc:latest
 
   layanan-pembinaan-perlengkapan:
     build:

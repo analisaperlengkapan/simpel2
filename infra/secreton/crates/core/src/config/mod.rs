@@ -30,7 +30,7 @@
 //!
 //! # Example: Load Configuration
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::config::SecretonConfig;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -66,7 +66,7 @@
 //!
 //! Some settings can be changed at runtime without restart:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::config::DynamicConfig;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -85,7 +85,7 @@
 //!
 //! # MFA Policy Configuration
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::config::MfaPolicyLoader;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -121,7 +121,7 @@
 //! - MFA methods must be supported
 //! - Crypto algorithms must be approved (FIPS 140-3)
 //!
-//! ```rust,no_run
+//! ```ignore
 //! # use secreton_core::config::SecretonConfig;
 //! # fn example() {
 //! match SecretonConfig::load() {
@@ -138,7 +138,7 @@
 //!
 //! Watch config files for changes:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! # use secreton_core::config::DynamicConfig;
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let dynamic = DynamicConfig::new();
@@ -194,7 +194,7 @@
 //!
 //! Development-safe defaults:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! # use secreton_core::config::SecretonConfig;
 //! let config = SecretonConfig::default();
 //! // server: 127.0.0.1:8200

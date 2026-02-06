@@ -120,6 +120,10 @@ impl OtpCredentialProvider {
         let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret)
             .ok_or_else(|| Error::unauthorized("Invalid OTP secret format"))?;
 
+        if secret_bytes.is_empty() {
+            return Err(Error::unauthorized("Invalid OTP secret format"));
+        }
+
         // Get current time step
         let current_time = Utc::now().timestamp() as u64;
         let time_step = current_time / period as u64;

@@ -8,9 +8,18 @@
 //! - DELETE /admin/config/{key} - Delete configuration
 //! - POST /admin/config/reload - Hot reload configuration
 //! - GET /admin/config/{key}/history - View change history
+//!
+//! ## Authorization
+//!
+//! All endpoints require capability-based authorization:
+//! - `config:read` - Required for viewing configuration
+//! - `config:write` - Required for updating configuration
+//! - `config:delete` - Required for deleting configuration
+//! - `config:reload` - Required for hot reload
 
 use crate::error::{AuthencError, Result};
 use crate::extractors::AuthenticatedUser;
+use crate::services::authorization::{CapabilityChecker, capabilities};
 use crate::services::config_manager::ConfigManager;
 use axum::{
     Json, Router,
@@ -23,10 +32,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tracing::{info, warn};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct ConfigState {
     pub config_manager: Arc<ConfigManager>,
+    pub capability_checker: Arc<CapabilityChecker>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,8 +56,18 @@ pub struct ConfigResponse {
 }
 
 /// Create configuration routes
-pub fn create_routes(config_manager: Arc<ConfigManager>) -> Router {
-    let state = ConfigState { config_manager };
+///
+/// # Arguments
+/// * `config_manager` - Configuration manager instance
+/// * `capability_checker` - Capability checker for authorization
+pub fn create_routes(
+    config_manager: Arc<ConfigManager>,
+    capability_checker: Arc<CapabilityChecker>,
+) -> Router {
+    let state = ConfigState {
+        config_manager,
+        capability_checker,
+    };
 
     Router::new()
         // Get all configuration
@@ -71,14 +92,13 @@ async fn get_all_config(
     State(state): State<ConfigState>,
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
-    // Check admin role
-    if !user
-        .roles
-        .iter()
-        .any(|r| r == "admin" || r == "config-admin")
-    {
-        return Err(AuthencError::forbidden("Insufficient permissions"));
-    }
+    // Check capability (replaces hardcoded role check)
+    let user_id = Uuid::parse_str(&user.id)
+        .map_err(|_| AuthencError::bad_request("Invalid user ID"))?;
+    state
+        .capability_checker
+        .require_capability(&user_id, capabilities::CONFIG_READ)
+        .await?;
 
     let config = state.config_manager.get_all().await?;
 
@@ -94,14 +114,13 @@ async fn get_category_config(
     Path(category): Path<String>,
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
-    // Check admin role
-    if !user
-        .roles
-        .iter()
-        .any(|r| r == "admin" || r == "config-admin")
-    {
-        return Err(AuthencError::forbidden("Insufficient permissions"));
-    }
+    // Check capability
+    let user_id = Uuid::parse_str(&user.id)
+        .map_err(|_| AuthencError::bad_request("Invalid user ID"))?;
+    state
+        .capability_checker
+        .require_capability(&user_id, capabilities::CONFIG_READ)
+        .await?;
 
     let config = state.config_manager.get_category(&category).await?;
 
@@ -118,14 +137,13 @@ async fn get_config(
     Path(key): Path<String>,
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
-    // Check admin role
-    if !user
-        .roles
-        .iter()
-        .any(|r| r == "admin" || r == "config-admin")
-    {
-        return Err(AuthencError::forbidden("Insufficient permissions"));
-    }
+    // Check capability
+    let user_id = Uuid::parse_str(&user.id)
+        .map_err(|_| AuthencError::bad_request("Invalid user ID"))?;
+    state
+        .capability_checker
+        .require_capability(&user_id, capabilities::CONFIG_READ)
+        .await?;
 
     let value = state.config_manager.get(&key).await?;
 
@@ -143,14 +161,13 @@ async fn update_config(
     AuthenticatedUser { user, .. }: AuthenticatedUser,
     Json(req): Json<ConfigRequest>,
 ) -> Result<impl IntoResponse> {
-    // Check admin role
-    if !user
-        .roles
-        .iter()
-        .any(|r| r == "admin" || r == "config-admin")
-    {
-        return Err(AuthencError::forbidden("Insufficient permissions"));
-    }
+    // Check capability
+    let user_id = Uuid::parse_str(&user.id)
+        .map_err(|_| AuthencError::bad_request("Invalid user ID"))?;
+    state
+        .capability_checker
+        .require_capability(&user_id, capabilities::CONFIG_WRITE)
+        .await?;
 
     // Prevent modification of system configuration without explicit approval
     if key.starts_with("system.") {
@@ -192,14 +209,13 @@ async fn delete_config(
     Path(key): Path<String>,
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
-    // Check admin role
-    if !user
-        .roles
-        .iter()
-        .any(|r| r == "admin" || r == "config-admin")
-    {
-        return Err(AuthencError::forbidden("Insufficient permissions"));
-    }
+    // Check capability
+    let user_id = Uuid::parse_str(&user.id)
+        .map_err(|_| AuthencError::bad_request("Invalid user ID"))?;
+    state
+        .capability_checker
+        .require_capability(&user_id, capabilities::CONFIG_DELETE)
+        .await?;
 
     // Prevent deletion of system configuration
     if key.starts_with("system.") {
@@ -230,14 +246,13 @@ async fn reload_config(
     State(state): State<ConfigState>,
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
-    // Check admin role
-    if !user
-        .roles
-        .iter()
-        .any(|r| r == "admin" || r == "config-admin")
-    {
-        return Err(AuthencError::forbidden("Insufficient permissions"));
-    }
+    // Check capability
+    let user_id = Uuid::parse_str(&user.id)
+        .map_err(|_| AuthencError::bad_request("Invalid user ID"))?;
+    state
+        .capability_checker
+        .require_capability(&user_id, capabilities::CONFIG_RELOAD)
+        .await?;
 
     state.config_manager.reload_all().await?;
 
@@ -258,14 +273,13 @@ async fn get_config_history(
     Path(key): Path<String>,
     AuthenticatedUser { user, .. }: AuthenticatedUser,
 ) -> Result<impl IntoResponse> {
-    // Check admin role
-    if !user
-        .roles
-        .iter()
-        .any(|r| r == "admin" || r == "config-admin")
-    {
-        return Err(AuthencError::forbidden("Insufficient permissions"));
-    }
+    // Check capability (audit read for history)
+    let user_id = Uuid::parse_str(&user.id)
+        .map_err(|_| AuthencError::bad_request("Invalid user ID"))?;
+    state
+        .capability_checker
+        .require_any_capability(&user_id, &[capabilities::CONFIG_READ, capabilities::AUDIT_READ])
+        .await?;
 
     let history = state.config_manager.get_history(&key, 50).await?;
 

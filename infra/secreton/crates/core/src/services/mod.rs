@@ -33,7 +33,7 @@
 //! - Comprehensive audit logging via [`crate::audit::AuditLogger`]
 //!
 //! # Example
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::services::seal::SealManager;
 //! use secreton_core::storage::InMemoryStorage;
 //! use std::sync::Arc;
@@ -70,6 +70,9 @@ pub mod seal;
 pub mod token;
 pub mod wrapping;
 pub mod zero_knowledge;
+
+// Dynamic role system
+pub mod dynamic_role_service;
 
 // Auth services
 pub mod auth;

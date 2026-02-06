@@ -20,9 +20,7 @@ use uuid::Uuid;
 use authenc::config::AuthencConfig;
 use authenc::crypto::SecretonPermissions;
 use authenc::error::AuthencError;
-use authenc::models::user::{
-    AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, SecurityContext, User,
-};
+use authenc::models::user::{AdminLevel, Role, RoleScope, SecurityContext, User};
 
 /// Test suite for comprehensive authenc-secreton integration
 #[cfg(test)]
@@ -901,18 +899,6 @@ fn create_test_user_with_comprehensive_access(satker_code: &str) -> User {
         ],
         permissions: vec![],
         session_data: None,
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec![satker_code.to_string()],
-            access_level: AccessLevel::ReadWrite,
-            time_restrictions: None,
-            audit_required: true,
-            rate_limit: Some(100),
-            allowed_paths: Some(vec![
-                format!("secrets/{}/*", satker_code),
-                format!("config/{}/*", satker_code),
-            ]),
-            denied_paths: None,
-        },
         security_context: SecurityContext {
             ip_address: Some("192.168.1.100".to_string()),
             user_agent: Some("AuthencIntegrationTest/1.0".to_string()),
@@ -938,24 +924,15 @@ fn create_admin_user_with_level(admin_level: AdminLevel, target_satker: &str) ->
     match &admin_level {
         AdminLevel::AdminPusat => {
             user.satker_code = "KEJAGUNG".to_string();
-            user.secreton_access_policy.allowed_satker_secrets = vec!["*".to_string()];
-            user.secreton_access_policy.access_level = AccessLevel::Admin;
         }
         AdminLevel::AdminEselonI => {
             user.satker_code = "KEJAGUNG".to_string();
-            user.secreton_access_policy.allowed_satker_secrets =
-                vec!["KEJATI_*".to_string(), "KEJARI_*".to_string()];
-            user.secreton_access_policy.access_level = AccessLevel::Admin;
         }
         AdminLevel::AdminWilayah(wilayah) => {
             user.satker_code = wilayah.clone();
-            user.secreton_access_policy.allowed_satker_secrets = vec![format!("{}*", wilayah)];
-            user.secreton_access_policy.access_level = AccessLevel::ReadWrite;
         }
         AdminLevel::AdminSatker(satker) => {
             user.satker_code = satker.clone();
-            user.secreton_access_policy.allowed_satker_secrets = vec![satker.clone()];
-            user.secreton_access_policy.access_level = AccessLevel::ReadWrite;
         }
     }
 
@@ -1032,22 +1009,13 @@ async fn create_post_quantum_token(
 // Additional helper functions for test helpers
 fn get_secreton_permissions(user: &User) -> SecretonPermissions {
     let mut satker_permissions = HashMap::new();
-    for satker in &user.secreton_access_policy.allowed_satker_secrets {
-        satker_permissions.insert(satker.clone(), vec!["*".to_string()]);
-    }
+    satker_permissions.insert(user.satker_code.clone(), vec!["*".to_string()]);
 
     SecretonPermissions {
-        read_secrets: user.secreton_access_policy.allowed_satker_secrets.clone(),
-        write_secrets: if matches!(
-            user.secreton_access_policy.access_level,
-            AccessLevel::ReadWrite | AccessLevel::Admin
-        ) {
-            user.secreton_access_policy.allowed_satker_secrets.clone()
-        } else {
-            vec![]
-        },
-        admin_operations: matches!(user.secreton_access_policy.access_level, AccessLevel::Admin),
-        audit_access: user.secreton_access_policy.audit_required,
+        read_secrets: vec![user.satker_code.clone()],
+        write_secrets: vec![user.satker_code.clone()],
+        admin_operations: false,
+        audit_access: true,
         satker_permissions,
     }
 }

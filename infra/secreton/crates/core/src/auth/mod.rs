@@ -49,7 +49,7 @@
 //!
 //! # Example: Authenticate User
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::auth::{AuthProvider, AuthencAuthProvider, Credentials};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -74,7 +74,7 @@
 //!
 //! # Example: Validate JWT Token
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::auth::{AuthProvider, AuthencAuthProvider};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -98,7 +98,7 @@
 //!
 //! Secreton integrates post-quantum signature validation for future-proof security:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::auth::{PostQuantumValidator, PqSignature};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {

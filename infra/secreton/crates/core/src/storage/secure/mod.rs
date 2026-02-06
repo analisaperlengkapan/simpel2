@@ -43,7 +43,7 @@
 //!
 //! Key rotation can be configured using `KeyConfig`:
 //!
-//! ```rust
+//! ```ignore
 //! # use secreton_core::storage::secure::{KeyConfig, SecureStorage, MemoryKeyStore};
 //! # use std::sync::Arc;
 //! # use std::time::Duration;
@@ -91,7 +91,7 @@ const KEY_VERSION_LENGTH: usize = 8; // First 8 bytes of key ID
 /// that controls its lifecycle and usage. The key material is stored in
 /// base64-encoded format for safe serialization.
 /// # Example
-/// ```rust
+/// ```ignore
 /// use std::collections::HashMap;
 /// use secreton_core::storage::secure::KeyEntry;
 /// let key_entry = KeyEntry {
@@ -149,7 +149,7 @@ pub struct KeyEntry {
 /// This struct defines the rotation and retention policies for encryption keys.
 /// All durations are specified in seconds.
 /// # Example
-/// ```
+/// ```ignore
 /// use secreton_core::storage::secure::KeyConfig;
 /// // Rotate keys every 30 days, keep old keys for 90 days
 /// let config = KeyConfig {
@@ -299,7 +299,7 @@ pub trait KeyStore: Send + Sync {
 /// This implementation stores keys in memory and is not persistent across
 /// restarts. It's primarily intended for testing and development purposes.
 /// # Example
-/// ```rust
+/// ```ignore
 /// use std::sync::Arc;
 /// use secreton_core::storage::secure::{MemoryKeyStore, KeyStore, KeyEntry};
 /// use std::collections::HashMap;
@@ -607,7 +607,7 @@ impl SecureStorage {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```ignore
     /// use std::sync::Arc;
     /// use secreton_core::storage::secure::
     ///     SecureStorage, MemoryKeyStore, KeyConfig

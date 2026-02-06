@@ -63,14 +63,14 @@ fn test_ocsp_extract_url_not_implemented() {
 
     let cert = builder.build();
 
-    // OCSP URL extraction not yet implemented
+    // Certificate has no AIA extension, so no OCSP URL will be found
     let result = client.extract_ocsp_url(&cert);
-    assert!(result.is_err(), "Should return error - not yet implemented");
+    assert!(result.is_err(), "Should return error - no OCSP URL in cert without AIA extension");
     assert!(
         result
             .unwrap_err()
             .to_string()
-            .contains("not yet implemented")
+            .contains("No OCSP URL found")
     );
 }
 

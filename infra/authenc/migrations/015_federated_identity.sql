@@ -30,28 +30,28 @@ CREATE TABLE IF NOT EXISTS federated_identity_links (
     UNIQUE(user_id, identity_provider_alias)
 );
 
--- Identity Provider Mappers Table
+-- Identity Provider Mappers Table Enhancement
 -- Maps attributes from external IdPs to local user attributes
-CREATE TABLE IF NOT EXISTS identity_provider_mappers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
+-- This enhances the identity_provider_mappers table from 001_initial_schema.sql
 
-    -- Mapper identification
-    name VARCHAR(255) NOT NULL,
-    identity_provider_alias VARCHAR(255) NOT NULL,
-    mapper_type VARCHAR(100) NOT NULL, -- attribute-importer, hardcoded-attribute, username-template, role-mapper
+-- Add new columns to identity_provider_mappers if they don't exist
+DO $$
+BEGIN
+    -- Add identity_provider_alias column (alternative to identity_provider_id)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'identity_provider_mappers' AND column_name = 'identity_provider_alias') THEN
+        ALTER TABLE identity_provider_mappers ADD COLUMN identity_provider_alias VARCHAR(255);
+    END IF;
 
-    -- Mapper configuration
-    config JSONB NOT NULL, -- Mapper-specific configuration
+    -- Add sync_mode column
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'identity_provider_mappers' AND column_name = 'sync_mode') THEN
+        ALTER TABLE identity_provider_mappers ADD COLUMN sync_mode VARCHAR(50) NOT NULL DEFAULT 'IMPORT';
+    END IF;
 
-    -- Synchronization mode
-    sync_mode VARCHAR(50) NOT NULL DEFAULT 'IMPORT', -- IMPORT, FORCE, LEGACY
-
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-
-    UNIQUE(realm_id, identity_provider_alias, name)
-);
+    -- Add realm_id if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'identity_provider_mappers' AND column_name = 'realm_id') THEN
+        ALTER TABLE identity_provider_mappers ADD COLUMN realm_id UUID REFERENCES realms(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- Identity Broker Configuration Table
 -- Configuration for identity brokering

@@ -14,6 +14,7 @@ pub mod combined_storage;
 pub mod config_builder;
 pub mod metrics;
 mod network;
+pub mod policy_state_machine;
 mod state_machine;
 mod types;
 
@@ -22,6 +23,10 @@ pub use config_builder::RaftClusterConfigBuilder;
 pub use metrics::{HealthStatus as RaftHealthStatus, MetricsCollector, RaftMetrics};
 
 pub use network::{NetworkConfig, SecretonNetwork, SecretonNetworkFactory};
+pub use policy_state_machine::{
+    PolicyCommand, PolicyEffect, PolicyEntry, PolicyResponse, PolicyRuleEntry, PolicySnapshot,
+    PolicyStateMachine, PolicyTargetType, TimeConstraints, parse_toml_policy,
+};
 pub use state_machine::{SecretonStateMachine, StateMachineCommand, StateMachineResponse};
 pub use types::{Config, Entry, LogId, Membership, NodeId, Raft, SecretonTypeConfig, Vote};
 

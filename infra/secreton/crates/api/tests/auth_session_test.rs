@@ -3,6 +3,7 @@ use secreton_api::services::ServiceContainer;
 use std::sync::Arc;
 
 #[tokio::test]
+#[ignore = "Requires database connection"]
 async fn test_auth_service_sessions() {
     let config = ApiConfig::default();
     let services = Arc::new(ServiceContainer::new(&config).await.expect("services"));

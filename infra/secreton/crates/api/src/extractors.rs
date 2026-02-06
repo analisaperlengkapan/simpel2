@@ -31,7 +31,7 @@ where
 /// This extractor automatically retrieves user information from the RequestContext
 /// populated by the authentication middleware. Use this in any handler that requires authentication.
 /// # Example
-/// ```rust,no_run
+/// ```ignore
 /// use secreton_api::extractors::{AuthenticatedUser, ApiError};
 /// async fn my_handler(user: AuthenticatedUser) -> Result<String, ApiError> {
 ///     Ok(format!("Hello, {}!", user.username))

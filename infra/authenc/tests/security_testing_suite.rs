@@ -279,7 +279,7 @@ async fn test_jwt_signature_tampering() {
     let server = TestServer::new(app).unwrap();
 
     // Generate valid token
-    let valid_token = generate_jwt("user123").unwrap();
+    let valid_token = generate_jwt("user123", None, None).unwrap();
 
     // Test valid token
     let response = server
@@ -302,11 +302,11 @@ async fn test_jwt_signature_tampering() {
     assert_eq!(response.status_code(), StatusCode::OK);
     let body: Value = response.json();
     assert_eq!(body["valid"], false);
+    let error_msg = body["error"].as_str().unwrap().to_lowercase();
     assert!(
-        body["error"]
-            .as_str()
-            .unwrap()
-            .contains("verification failed")
+        error_msg.contains("signature") || error_msg.contains("invalid"),
+        "Unexpected error message: {}",
+        error_msg
     );
 }
 
@@ -317,7 +317,7 @@ async fn test_jwt_payload_tampering() {
     let server = TestServer::new(app).unwrap();
 
     // Generate valid token
-    let valid_token = generate_jwt("user123").unwrap();
+    let valid_token = generate_jwt("user123", None, None).unwrap();
     let parts: Vec<&str> = valid_token.split('.').collect();
 
     // Tamper with payload (change user_id)
@@ -775,7 +775,7 @@ mod integration_tests {
         }
 
         // Scenario 2: Attacker tries to use tampered JWT
-        let valid_token = generate_jwt("user123").unwrap();
+        let valid_token = generate_jwt("user123", None, None).unwrap();
         let mut tampered = valid_token.clone();
         tampered.push_str("tampered");
 

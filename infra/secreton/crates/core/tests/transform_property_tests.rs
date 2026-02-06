@@ -19,7 +19,8 @@ proptest! {
     #[test]
     fn property_tokenization_format_preservation(
         // Generate numeric strings with at least some variation (avoid all same digit)
-        first_part in "[1-9][0-9]{2,7}",
+        // FF1 requires radix^len >= 1,000,000; for radix 10 the minimum length is 6
+        first_part in "[1-9][0-9]{3,7}",
         second_part in "[0-9]{2,7}",
         tweak in prop::collection::vec(any::<u8>(), 0..=32),
     ) {

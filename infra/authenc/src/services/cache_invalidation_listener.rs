@@ -150,6 +150,7 @@ mod tests {
     use crate::config::RedisConfig;
     use crate::events::{EventCategory, EventType as SystemEventType};
     use crate::services::cache::{MultiLayerCache, RedisCache};
+    use std::time::Duration;
     use uuid::Uuid;
 
     /// Get Redis URL from environment or use default with password for docker
@@ -166,7 +167,20 @@ mod tests {
             ..Default::default()
         };
 
-        let redis_cache = Arc::new(RedisCache::new(&redis_config).await?);
+        let redis_cache = match tokio::time::timeout(
+            Duration::from_secs(3),
+            RedisCache::new(&redis_config),
+        )
+        .await
+        {
+            Ok(Ok(cache)) => Arc::new(cache),
+            Ok(Err(e)) => return Err(e),
+            Err(_) => {
+                return Err(crate::error::AuthencError::internal(
+                    "Redis connection timed out - Redis not available",
+                ));
+            }
+        };
         let multi_cache = Arc::new(MultiLayerCache::with_defaults(redis_cache));
 
         let invalidation_service = Arc::new(

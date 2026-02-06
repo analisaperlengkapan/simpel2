@@ -43,6 +43,9 @@ async fn cleanup(db: &Database, realm_id: Uuid) {
 // ============================================================================
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_event_listener_register_and_list() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -83,6 +86,9 @@ async fn test_event_listener_register_and_list() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_event_webhook_registration() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -128,6 +134,9 @@ async fn test_event_webhook_registration() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_event_log_query_with_filters() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -191,6 +200,9 @@ async fn test_event_log_query_with_filters() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_event_statistics_with_date_range() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -235,6 +247,9 @@ async fn test_event_statistics_with_date_range() {
 // ============================================================================
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_protocol_mapper_client_crud() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -306,6 +321,9 @@ async fn test_protocol_mapper_client_crud() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_protocol_mapper_realm_level() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -343,6 +361,9 @@ async fn test_protocol_mapper_realm_level() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_protocol_mapper_protocol_filtering() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -400,6 +421,9 @@ async fn test_protocol_mapper_protocol_filtering() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_protocol_mapper_statistics() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -440,6 +464,9 @@ async fn test_protocol_mapper_statistics() {
 // ============================================================================
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_authenticator_registration_and_listing() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -480,6 +507,9 @@ async fn test_authenticator_registration_and_listing() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_authenticator_update_and_delete() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -532,6 +562,9 @@ async fn test_authenticator_update_and_delete() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_authentication_flow_execution_crud() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -595,6 +628,9 @@ async fn test_authentication_flow_execution_crud() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_execution_statistics() {
     let (db, realm_id) = setup_test_env().await;
 
@@ -616,6 +652,9 @@ async fn test_execution_statistics() {
 // ============================================================================
 
 #[tokio::test]
+
+
+#[ignore = "Requires database/infrastructure"]
 async fn test_session5_all_api_endpoints() {
     println!("\n🚀 Session 5: REST API Integration Tests");
     println!("==========================================\n");

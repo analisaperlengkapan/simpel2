@@ -28,7 +28,7 @@
 //!
 //! # Example: LRU Cache with TTL
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::cache::LruCache;
 //! use std::time::Duration;
 //!
@@ -50,7 +50,7 @@
 //!
 //! # Example: Secure Memory for Secrets
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::memory::SecureMemory;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -77,7 +77,7 @@
 //!
 //! # Example: Configuration Loading
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::config::ConfigLoader;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -101,7 +101,7 @@
 //!
 //! Reduce Authenc load by caching validated tokens:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::cache::LruCache;
 //! use std::time::Duration;
 //!
@@ -128,7 +128,7 @@
 //!
 //! Cache expensive policy evaluations:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::cache::LruCache;
 //! use std::time::Duration;
 //!
@@ -157,7 +157,7 @@
 //!
 //! Sensitive data automatically cleared from memory:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::memory::SecureVec;
 //!
 //! # fn example() {
@@ -176,7 +176,7 @@
 //!
 //! Prevent sensitive data from being swapped to disk:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::memory::LockedMemory;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -197,7 +197,7 @@
 //!
 //! Monitor cache effectiveness:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::cache::LruCache;
 //!
 //! # fn example() {
@@ -212,7 +212,7 @@
 //!
 //! Reuse memory allocations to reduce overhead:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::memory::MemoryPool;
 //!
 //! # fn example() {
@@ -232,7 +232,7 @@
 //!
 //! ## Environment Variable Parsing
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::config;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -246,7 +246,7 @@
 //!
 //! ## Default Values
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::config::default_if_empty;
 //!
 //! # fn example() {
@@ -263,7 +263,7 @@
 //!
 //! Cache expensive computations:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::cache::LruCache;
 //! use std::time::Duration;
 //!
@@ -282,7 +282,7 @@
 //!
 //! ## Secure String Handling
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::utils::memory::SecureString;
 //!
 //! # fn example() {

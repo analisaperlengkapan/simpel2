@@ -41,7 +41,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         realm_id: Some(realm_id),
         organization_id: None,
         roles: None,
-        secreton_access_policy: None,
         attributes: None,
     };
 

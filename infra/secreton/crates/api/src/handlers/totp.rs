@@ -275,6 +275,7 @@ mod tests {
     use tower::ServiceExt;
 
     #[tokio::test]
+    #[ignore = "Requires database/infrastructure"]
     async fn test_create_totp_key() {
         let config = ApiConfig::default();
         let services = ServiceContainer::new(&config).await.unwrap();
@@ -302,6 +303,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "Requires database/infrastructure"]
     async fn test_list_totp_keys() {
         let config = ApiConfig::default();
         let services = ServiceContainer::new(&config).await.unwrap();

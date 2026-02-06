@@ -229,6 +229,7 @@ mod tests {
     use tower::ServiceExt;
 
     #[tokio::test]
+    #[ignore = "Requires database/infrastructure"]
     async fn test_list_aws_roles() {
         let config = ApiConfig::default();
         let services = ServiceContainer::new(&config).await.unwrap();

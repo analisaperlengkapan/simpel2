@@ -66,7 +66,7 @@ patches:
           kubernetes.io/hostname: simple02
 
   # Schedule all deployments to simple02 for staging
-  # Also set imagePullPolicy to Never since images are imported locally
+  # Use Always since images are pushed to local registry at localhost:32000
   - target:
       kind: Deployment
     patch: |-
@@ -76,7 +76,7 @@ patches:
           kubernetes.io/hostname: simple02
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Never
+        value: Always
 
   # Reduce resources for staging
   - target:

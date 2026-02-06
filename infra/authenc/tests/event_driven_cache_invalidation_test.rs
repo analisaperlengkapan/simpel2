@@ -405,6 +405,9 @@ async fn test_role_change_event_invalidates_cache() {
 }
 
 #[tokio::test]
+
+
+#[ignore = "Requires Redis"]
 async fn test_event_consumer_stats() {
     // This test doesn't require Kafka, just tests the stats structure
     let cache = create_test_cache().await;

@@ -39,7 +39,7 @@
 //!
 //! # Example: Rust SDK
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::sdk_libraries::{SdkConfig, SecretonClient};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -145,7 +145,7 @@
 //!
 //! Consistent error handling across languages:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::sdk_libraries::SecretonClient;
 //!
 //! # async fn example() {
@@ -171,7 +171,7 @@
 //!
 //! Automatic namespace scoping:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use secreton_core::sdk_libraries::{SdkConfig, SecretonClient};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -271,7 +271,7 @@
 //!
 //! ## 2. Connection Reuse
 //!
-//! ```rust,no_run
+//! ```ignore
 //! // ❌ BAD - New client per request
 //! for _ in 0..100 {
 //!     let client = SecretonClient::new(config.clone())?;
@@ -287,7 +287,7 @@
 //!
 //! ## 3. Error Handling
 //!
-//! ```rust,no_run
+//! ```ignore
 //! // ❌ BAD - Panic on error
 //! let secret = client.read_secret("/path").await.unwrap();
 //!

@@ -79,7 +79,6 @@ impl UserStoreTrait for MockUserStore {
             roles: vec![],
             permissions: vec![],
             session_data: None,
-            secreton_access_policy: request.secreton_access_policy.unwrap_or_default(),
             security_context: authenc::models::user::SecurityContext::default(),
             attributes: request.attributes,
             enabled: true,
@@ -201,7 +200,6 @@ mod tests {
             realm_id: Some(Uuid::new_v4()),
             organization_id: None,
             roles: None,
-            secreton_access_policy: None,
             attributes: None,
         };
 

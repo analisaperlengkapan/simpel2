@@ -25,40 +25,44 @@ pub struct BatchPermissionResult {
 /// Perform batch permission checks for multiple resources
 /// This function optimizes permission checking by:
 /// 1. Fetching user data once
-/// 2. Checking all permissions in parallel
+/// 2. Checking all permissions using capability-based authorization
 /// 3. Caching results for future requests
 pub async fn batch_check_permissions(
     state: Arc<AppState>,
     user_id: Uuid,
     checks: Vec<(String, String)>, // (resource, action) pairs
 ) -> Result<Vec<BatchPermissionResult>, AuthencError> {
-    // Fetch user once for all checks
+    // Verify user exists
     let user = state
         .user_store
         .get_user(user_id)
         .await?
         .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
-    // Process all permission checks in parallel
+    // Process all permission checks
     let mut results = Vec::with_capacity(checks.len());
 
     for (resource, action) in checks {
-        // Check if user has the required permission
+        // Check if user has the required permission via direct grants
         let has_permission = user
             .permissions
             .iter()
             .any(|p| p.resource_type == resource && p.action == action);
 
-        // If not directly granted, check role-based permissions
-        let has_role_permission = if !has_permission {
-            user.roles
-                .iter()
-                .any(|role| role.name == "admin" || role.name == "system_admin")
+        // If not directly granted, check capability-based permissions
+        let has_capability_permission = if !has_permission {
+            // Build capability code (e.g., "users:read", "config:write")
+            let capability_code = format!("{}:{}", resource, action);
+            state
+                .capability_checker
+                .user_has_any_capability(&user_id, &[capability_code.as_str(), "system:admin"])
+                .await
+                .unwrap_or(false)
         } else {
             false
         };
 
-        let allowed = has_permission || has_role_permission;
+        let allowed = has_permission || has_capability_permission;
 
         let reason = if !allowed {
             Some(format!(

@@ -53,6 +53,16 @@ use uuid::Uuid;
 // }
 
 /// Organization roles
+///
+/// # Deprecation Notice
+/// This enum is deprecated in favor of dynamic role types from the database.
+/// Use `dynamic_role::RoleType` with `DynamicRoleStore` for new code.
+///
+/// Migration: `dynamic_role::migration::map_organization_role(role.as_str())`
+#[deprecated(
+    since = "2.0.0",
+    note = "Use dynamic role types from DynamicRoleStore instead"
+)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OrganizationRole {
     /// Owner of the organization with full administrative privileges
@@ -65,6 +75,7 @@ pub enum OrganizationRole {
     Guest,
 }
 
+#[allow(deprecated)]
 impl OrganizationRole {
     /// Convert the role to its string representation
     pub fn as_str(&self) -> &'static str {
@@ -75,8 +86,19 @@ impl OrganizationRole {
             OrganizationRole::Guest => "GUEST",
         }
     }
+
+    /// Convert to dynamic role code
+    pub fn to_dynamic_role_code(&self) -> &'static str {
+        match self {
+            OrganizationRole::Owner => "org-owner",
+            OrganizationRole::Admin => "org-admin",
+            OrganizationRole::Member => "org-member",
+            OrganizationRole::Guest => "org-guest",
+        }
+    }
 }
 
+#[allow(deprecated)]
 impl FromStr for OrganizationRole {
     type Err = ();
 

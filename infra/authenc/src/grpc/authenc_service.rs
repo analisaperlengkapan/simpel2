@@ -1166,19 +1166,21 @@ impl AuthencService for AuthencGrpcService {
             }
         });
 
-        // If not directly granted, check role-based permissions
-        let has_role_permission = if !has_permission {
-            // Check if any of the user's roles grant the permission
-            // In a full implementation, this would query role permissions
-            user.roles.iter().any(|role| {
-                // Simplified check - in production, query role permissions from database
-                role.name == "admin" || role.name == "system_admin"
-            })
+        // If not directly granted, check capability-based permissions
+        let has_capability_permission = if !has_permission {
+            // Use capability checker for dynamic authorization
+            // This replaces hardcoded role checks with database-driven capabilities
+            let capability_code = format!("{}:{}", req.resource, req.action);
+            self.state
+                .capability_checker
+                .user_has_any_capability(&user.id, &[capability_code.as_str(), "system:admin"])
+                .await
+                .unwrap_or(false)
         } else {
             false
         };
 
-        let allowed = has_permission || has_role_permission;
+        let allowed = has_permission || has_capability_permission;
 
         let reason = if !allowed {
             Some(format!(

@@ -88,7 +88,6 @@ async fn test_webauthn_registration_challenge_generation() {
         realm_id: None,
         organization_id: None,
         roles: None,
-        secreton_access_policy: None,
         attributes: None,
     };
 
@@ -239,7 +238,6 @@ async fn test_webauthn_authentication_challenge_generation() {
         realm_id: None,
         organization_id: None,
         roles: None,
-        secreton_access_policy: None,
         attributes: None,
     };
 

@@ -112,7 +112,6 @@ async fn test_user_store_comprehensive_operations() {
             realm_id: Some(realm_id),
             organization_id: None,
             roles: None,
-            secreton_access_policy: None,
             attributes: None,
         },
         CreateUserRequest {
@@ -129,7 +128,6 @@ async fn test_user_store_comprehensive_operations() {
             realm_id: Some(realm_id),
             organization_id: None,
             roles: None,
-            secreton_access_policy: None,
             attributes: None,
         },
     ];
@@ -176,7 +174,6 @@ async fn test_user_store_comprehensive_operations() {
         email_verified: Some(true),
         phone_verified: Some(false),
         require_password_change: Some(false),
-        secreton_access_policy: None,
         attributes: None,
     };
     let updated_alice = store.update_user(alice_id, update_req).await.unwrap();
@@ -273,7 +270,6 @@ async fn test_user_store_error_handling() {
         email_verified: Some(false),
         phone_verified: Some(false),
         require_password_change: Some(false),
-        secreton_access_policy: None,
         attributes: None,
     };
 
@@ -352,7 +348,6 @@ async fn test_user_store_bulk_operations() {
             realm_id: Some(realm_id),
             organization_id: None,
             roles: None,
-            secreton_access_policy: None,
             attributes: None,
         };
         bulk_users.push(user_req);
