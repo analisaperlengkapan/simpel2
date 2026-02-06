@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::models::user::Permission; // Import Permission from user.rs
 
 /// Role entity for role-based access control
 /// Represents a role in the role-based access control (RBAC) system.
@@ -14,6 +15,11 @@ use uuid::Uuid;
 /// * `client_role` - Whether this is a client-specific role
 /// * `client_id` - Client identifier if this is a client role
 /// * `attributes` - Additional role attributes as JSON
+/// * `permissions` - Permissions granted by this role (added for consistency with user::Role)
+/// * `managed_by` - Admin level code that manages this role (added for consistency with user::Role)
+/// * `scope` - Scope code where this role applies (added for consistency with user::Role)
+/// * `priority` - Priority level for role resolution (added for consistency with user::Role)
+/// * `active` - Whether this role is active (added for consistency with user::Role)
 /// * `created_at` - Role creation timestamp
 /// * `updated_at` - Last modification timestamp
 /// * `deleted_at` - Soft delete timestamp (None if active)
@@ -31,6 +37,13 @@ pub struct Role {
     pub name: String,
     /// Optional description of the role's purpose and permissions
     pub description: Option<String>,
+    /// Permissions granted by this role
+    #[serde(default)]
+    pub permissions: Vec<Permission>,
+    /// Admin level code that manages this role (dynamic)
+    pub managed_by: Option<String>,
+    /// Scope code where this role applies (dynamic)
+    pub scope: Option<String>,
     /// ID of the realm this role belongs to (enforces multi-tenancy)
     pub realm_id: Option<Uuid>,
     /// Whether this is a composite role (contains other roles)
@@ -39,6 +52,12 @@ pub struct Role {
     pub client_role: bool,
     /// Client identifier if this is a client role
     pub client_id: Option<String>,
+    /// Priority level for role resolution (higher number = higher priority)
+    #[serde(default)]
+    pub priority: i32,
+    /// Whether this role is active
+    #[serde(default = "default_active")]
+    pub active: bool,
     /// Additional role attributes as JSON
     pub attributes: Option<serde_json::Value>,
     /// Timestamp when the role was created
@@ -47,6 +66,10 @@ pub struct Role {
     pub updated_at: DateTime<Utc>,
     /// Timestamp when the role was soft-deleted (None if active)
     pub deleted_at: Option<DateTime<Utc>>,
+}
+
+fn default_active() -> bool {
+    true
 }
 
 /// Role creation request
@@ -158,10 +181,15 @@ impl Role {
             id: Uuid::new_v4(),
             name,
             description,
+            permissions: Vec::new(),
+            managed_by: None,
+            scope: None,
             realm_id: Some(realm_id),
             composite: false,
             client_role: false,
             client_id: None,
+            priority: 0,
+            active: true,
             attributes: None,
             created_at: now,
             updated_at: now,
@@ -182,7 +210,7 @@ impl Role {
     /// - Soft deleted roles maintain referential integrity
     /// - Role status affects user access control
     pub fn is_active(&self) -> bool {
-        self.deleted_at.is_none()
+        self.active && self.deleted_at.is_none()
     }
 
     /// Soft delete the role
@@ -198,6 +226,7 @@ impl Role {
     pub fn delete(&mut self) {
         self.deleted_at = Some(Utc::now());
         self.updated_at = Utc::now();
+        self.active = false;
     }
 
     /// Update role fields

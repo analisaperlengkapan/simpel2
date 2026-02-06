@@ -143,11 +143,13 @@ impl SatkerAuthorizationService {
     fn get_user_admin_level(&self, user: &User) -> Option<String> {
         // Check roles for admin roles
         for role in &user.roles {
-            if let Some(managed_by) = &role.managed_by {
-                return Some(managed_by.clone());
-            }
-            // Fallback for roles named "admin" without managed_by set (legacy/migration)
-            if role.name.contains("admin") {
+            // Only consider roles that are explicitly identified as admin roles
+            // This prevents privilege escalation from non-admin roles that might have managed_by set
+            if role.name.to_lowercase().contains("admin") {
+                if let Some(managed_by) = &role.managed_by {
+                    return Some(managed_by.clone());
+                }
+                // Fallback for roles named "admin" without managed_by set (legacy/migration)
                 if let Some(scope) = &role.scope {
                     if scope == "pusat" { return Some("pusat".to_string()); }
                     if scope.starts_with("wilayah") { return Some(scope.clone()); } // Treat scope as level code
