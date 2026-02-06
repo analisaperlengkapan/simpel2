@@ -17,26 +17,26 @@ Definisi pengguna di `authenc` sangat kaya dan disesuaikan dengan struktur organ
     *   `satker_code`: Kode Satuan Kerja (Menentukan lokasi dinas, misal: Kejaksaan Negeri Medan).
     *   `jabatan`: Posisi struktural/fungsional.
     *   `roles`: Daftar objek `Role` yang kompleks.
-    *   `attributes`: JSON fleksibel untuk menyimpan kebijakan tambahan (misal: *legacy* `SecretonAccessPolicy`).
+    *   `attributes`: JSON fleksibel untuk menyimpan kebijakan tambahan (misal: *legacy* `SecretonAccessPolicy` atau preferensi aplikasi spesifik).
+    *   `realm_id`: Mendukung multi-tenancy (lihat bagian Multi-Tenancy).
 
 ### Peran & Wewenang (Role & Authority)
 Sistem *Role-Based Access Control* (RBAC) di `authenc` bersifat dinamis dan hierarkis.
 
 *   **Lokasi Kode**: `infra/authenc/src/models/role.rs`
 *   **Struktur Role**:
-    *   `name`: Nama peran (misal: `staff_keuangan`).
-    *   `scope`: Cakupan wewenang. Ini adalah fitur krusial untuk struktur organisasi.
-        *   `pusat`: Wewenang nasional (Kejaksaan Agung).
-        *   `satker:{KODE}`: Wewenang terbatas pada satu Satker.
-        *   `global`: Wewenang sistem secara umum.
+    *   `name`: Nama peran (misal: `staff_keuangan`, `admin_wilayah`).
+    *   `scope`: Cakupan wewenang. Mendukung struktur hierarkis Kejaksaan:
+        *   `global`: Wewenang sistem secara umum (Super Admin).
+        *   `pusat`: Wewenang nasional (Kejaksaan Agung/Eselon I).
+        *   `wilayah:{KODE}`: Wewenang tingkat regional (Kejaksaan Tinggi). Mencakup semua satker di bawah wilayah tersebut.
+        *   `satker:{KODE}`: Wewenang terbatas pada satu Satker (Kejaksaan Negeri/Cabjari).
     *   `managed_by`: Menentukan level admin yang boleh mengelola role ini (mencegah *privilege escalation*).
     *   `permissions`: Daftar izin granular (`resource`, `action`, `scope`) yang melekat pada role.
 
-### Tingkatan (Levels)
-Tingkatan tidak lagi didefinisikan sebagai Enum statis (`AdminLevel`), melainkan diturunkan dari kombinasi `Role` dan `Scope`.
-*   **Super Admin**: Memiliki role dengan scope `global` atau atribut `is_superuser`.
-*   **Admin Pusat**: Role dengan scope `pusat`.
-*   **Admin Satker**: Role dengan scope `satker:XYZ`.
+### Tingkatan (Levels) & Fleksibilitas
+Tingkatan (*Level*) diturunkan secara dinamis dari kombinasi `Role` dan `Scope` dalam token, bukan *hardcoded* enum.
+*   **Fleksibilitas Custom**: Atribut `attributes` (JSONB) pada `User` dan `Role` memungkinkan penambahan metadata kebijakan kustom tanpa mengubah skema database, mengakomodasi kebutuhan bisnis yang dinamis.
 
 ---
 
@@ -51,9 +51,9 @@ Model ini lebih ringkas dan berfokus pada akses teknis.
 *   **Atribut Kunci**:
     *   `id`: UUID (Sesuai dengan Authenc).
     *   `is_superuser`: Boolean (Akses root ke Vault).
-    *   `roles`: `HashSet<String>` (Hanya nama role, tanpa detail scope yang kompleks).
+    *   `roles`: `HashSet<String>` (Hanya nama role).
     *   `policies`: `HashSet<String>` (Nama kebijakan akses eksplisit).
-    *   `namespace`: Isolasi multi-tenant.
+    *   `namespace`: Isolasi multi-tenant (Sesuai dengan `realm_id` di Authenc).
 
 ### Kebijakan (Policy)
 Secreton menggunakan *Policy-Based Access Control* yang lebih berorientasi pada *Path* (jalur secret).
@@ -67,31 +67,34 @@ Secreton menggunakan *Policy-Based Access Control* yang lebih berorientasi pada 
 
 ---
 
-## 3. Hubungan & Sinkronisasi (Federated Validation)
+## 3. Multi-Tenancy & Isolation (Realm & Namespace)
 
-Tidak ada sinkronisasi database "fisik" (seperti replikasi tabel) antara Authenc dan Secreton. Hubungan keduanya bersifat **Stateless** dan **Just-In-Time (JIT)** melalui validasi token.
+Untuk memastikan fleksibilitas pengaturan role dan isolasi data yang baik (Best Practice), sistem ini mengadopsi konsep:
+*   **Authenc: Realm**: Mengelompokkan user, role, dan konfigurasi authentication dalam domain terisolasi (misal: `internal-kejaksaan`, `vendor-eksternal`).
+*   **Secreton: Namespace**: Memisahkan secrets dan policy dalam ruang nama berbeda.
+*   **Rekomendasi**: Penggunaan Realm dan Namespace sangat disarankan untuk mencegah kebocoran akses antar konteks yang berbeda, memberikan fleksibilitas maksimal dalam manajemen kewenangan.
 
-### Mekanisme Kerja
+---
+
+## 4. Standar Integrasi & Sinkronisasi
+
+Sistem mengadopsi pendekatan **Stateless** dan **Just-In-Time (JIT)**, serta standar komunikasi modern.
+
+### Protokol Komunikasi (gRPC vs HTTP)
+*   **Antar Backend (Service-to-Service)**: Komunikasi antara `authenc`, `secreton`, dan layanan lain (`layanan/perlengkapan`, `layanan/integrasi`) diutamakan menggunakan **gRPC** (Protobuf) untuk performa tinggi, *type-safety*, dan latensi rendah.
+*   **Token Validation**: Endpoint validasi token juga dapat diakses via gRPC untuk efisiensi tinggi dalam volume request besar.
+
+### Mekanisme Sinkronisasi (Federated Validation)
 Mekanisme ini diimplementasikan di `infra/secreton/crates/core/src/auth/authenc_provider.rs`.
 
-1.  **Login**: Pengguna login ke `authenc` dan mendapatkan **JWT Token**. Token ini berisi klaim (`sub`, `roles`, `realm_id`).
-2.  **Request**: Pengguna mengirim request ke API `secreton` dengan header `Authorization: Bearer <TOKEN>`.
-3.  **Validasi (Trust)**:
-    *   `secreton` tidak memvalidasi signature lokal saja (opsi via `OidcVerifier`), tetapi utamanya menggunakan **Remote Validation**.
-    *   Secreton memanggil endpoint `POST {authenc_url}/v1/auth/validate-token`.
-4.  **Mapping (Sinkronisasi On-The-Fly)**:
-    *   `authenc` merespons dengan validitas token dan **User Info** terbaru.
-    *   Respons berisi: `satker_code`, `roles` (list string), dan `permissions`.
-    *   `secreton` secara otomatis memetakan respons ini menjadi objek `User` dan `Claims` internal untuk durasi request tersebut.
-
-### Detail Teknis Integrasi
-*   **Authenc Provider**: Struct `AuthencAuthProvider` di Secreton bertugas melakukan panggilan HTTP ke Authenc.
-*   **Caching**: Hasil validasi di-cache di memori Secreton (`TokenCache`) selama beberapa menit untuk performa, sehingga tidak setiap request memanggil Authenc.
-*   **Otorisasi**:
-    *   Role di Authenc (misal: "staff_keuangan") dikirim sebagai string ke Secreton.
-    *   Di Secreton, harus ada Policy yang mengizinkan role "staff_keuangan" untuk mengakses path tertentu (misal: `secret/keuangan/*`).
+1.  **Login**: Pengguna login ke `authenc` -> JWT Token (berisi `sub`, `roles`, `realm_id`, `scope`).
+2.  **Request**: API Call ke `secreton` dengan header `Authorization: Bearer <TOKEN>`.
+3.  **Trust & Mapping**:
+    *   `secreton` memvalidasi token ke `authenc` (via gRPC/HTTP).
+    *   `authenc` mengembalikan User Info terkini (termasuk update role/scope yang baru diubah).
+    *   `secreton` memetakan data tersebut ke sesi internal memori (`TokenCache`).
 
 ### Kesimpulan Alur Data
-*   **Source**: Semua data pengguna dan role dikelola di **Authenc**.
-*   **Consumer**: **Secreton** hanya mengonsumsi data tersebut saat runtime (saat ada request).
-*   **Keuntungan**: Perubahan role di Authenc (misal: pencabutan akses) berlaku hampir instan di Secreton (setelah cache expired), tanpa perlu job sinkronisasi yang kompleks.
+*   **Source of Truth**: `infra/authenc`.
+*   **JIT Consumer**: `infra/secreton` dan layanan mikro lainnya.
+*   **Keuntungan**: Sinkronisasi instan, konsistensi data terjamin, dan overhead manajemen data yang minimal.
