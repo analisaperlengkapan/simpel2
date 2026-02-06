@@ -94,6 +94,11 @@ pub async fn create_role(
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
         deleted_at: None,
+        permissions: Vec::new(),
+        managed_by: None,
+        scope: None,
+        priority: 0,
+        active: true,
     };
 
     state.role_store.add_role(role.clone());

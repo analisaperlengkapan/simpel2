@@ -43,6 +43,11 @@ pub async fn create_role(
         created_at: row.get(8),
         updated_at: row.get(9),
         deleted_at: None, // Not selected in query
+        permissions: Vec::new(),
+        managed_by: None,
+        scope: None,
+        priority: 0,
+        active: true,
     })
 }
 
@@ -71,6 +76,11 @@ pub async fn get_role_by_id(db: &Database, role_id: &Uuid) -> Result<Option<Role
         created_at: r.get(8),
         updated_at: r.get(9),
         deleted_at: None, // Not selected in query
+        permissions: Vec::new(),
+        managed_by: None,
+        scope: None,
+        priority: 0,
+        active: true,
     }))
 }
 
@@ -103,6 +113,11 @@ pub async fn list_roles_by_realm(db: &Database, realm_id: &Uuid) -> Result<Vec<R
             created_at: row.get(8),
             updated_at: row.get(9),
             deleted_at: None, // Not selected in query
+            permissions: Vec::new(),
+            managed_by: None,
+            scope: None,
+            priority: 0,
+            active: true,
         });
     }
 
@@ -162,6 +177,11 @@ pub async fn get_user_roles(db: &Database, user_id: &Uuid) -> Result<Vec<Role>> 
             created_at: row.get(8),
             updated_at: row.get(9),
             deleted_at: None, // Not selected in query
+            permissions: Vec::new(),
+            managed_by: None,
+            scope: None,
+            priority: 0,
+            active: true,
         });
     }
 

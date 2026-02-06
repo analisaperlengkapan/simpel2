@@ -1,6 +1,6 @@
 use crate::error::AuthencError;
 use crate::models::satker::{CrossSatkerValidation, Satker, SatkerHierarchy};
-use crate::models::user::{AdminLevel, Role, RoleScope, User};
+use crate::models::user::{Role, User};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -73,50 +73,88 @@ impl SatkerAuthorizationService {
         target_satker_code: &str,
         hierarchy: &SatkerHierarchy,
     ) -> bool {
-        match &role.scope {
-            RoleScope::Pusat => true, // Pusat level can access all satkers
-            RoleScope::Wilayah(wilayah) => {
-                // Check if target satker is in this wilayah
-                target_satker_code.starts_with(wilayah)
-                    || hierarchy.is_descendant(target_satker_code, wilayah)
+        if let Some(scope) = &role.scope {
+            if scope == "global" || scope == "pusat" {
+                return true;
             }
-            RoleScope::Satker(satker) => {
-                // Check if target is the same satker or a descendant
-                satker == target_satker_code || hierarchy.is_descendant(target_satker_code, satker)
+
+            if scope.starts_with("wilayah:") {
+                let wilayah = &scope[8..];
+                return target_satker_code.starts_with(wilayah)
+                    || hierarchy.is_descendant(target_satker_code, wilayah);
+            }
+
+            if scope.starts_with("satker:") {
+                let satker = &scope[7..];
+                return satker == target_satker_code
+                    || hierarchy.is_descendant(target_satker_code, satker);
+            }
+
+            // Legacy/Direct match support
+            if scope == target_satker_code {
+                return true;
             }
         }
+        false
     }
 
     /// Check if an admin level can access a target satker
     fn admin_can_access(
         &self,
-        admin_level: &AdminLevel,
+        admin_level: &str,
         target_satker_code: &str,
         hierarchy: &SatkerHierarchy,
     ) -> bool {
         match admin_level {
-            AdminLevel::AdminPusat | AdminLevel::AdminEselonI => true,
-            AdminLevel::AdminWilayah(wilayah) => {
-                target_satker_code.starts_with(wilayah)
-                    || hierarchy.is_descendant(target_satker_code, wilayah)
+            "pusat" | "eselon_i" => true,
+            "wilayah" => {
+                // Determine user's wilayah from context (not passed here currently)
+                // This is a limitation of stateless check without full user context
+                // But usually admin_level string might contain scope like "wilayah:DKI"
+                // If it's just "wilayah", we'd need to know WHICH wilayah.
+                // Assuming admin_level might encode scope or we rely on role scope.
+                // For now, let's assume strict code checks are done in role_grants_access.
+                // If admin_level is just "wilayah", we can't really know unless we look up user's satker.
+                // Ideally admin_level should be descriptive or paired with scope.
+                false // Safer default if we can't verify scope
             }
-            AdminLevel::AdminSatker(satker) => {
-                satker == target_satker_code || hierarchy.is_descendant(target_satker_code, satker)
+            "satker" => {
+                // Similar issue, need specific satker code.
+                false
+            }
+            val => {
+                // If value contains specific code
+                if val.starts_with("wilayah:") {
+                    let w = &val[8..];
+                    return target_satker_code.starts_with(w)
+                        || hierarchy.is_descendant(target_satker_code, w);
+                }
+                if val.starts_with("satker:") {
+                    let s = &val[7..];
+                    return s == target_satker_code
+                        || hierarchy.is_descendant(target_satker_code, s);
+                }
+                false
             }
         }
     }
 
     /// Get the admin level of a user (if any)
-    fn get_user_admin_level(&self, user: &User) -> Option<AdminLevel> {
+    fn get_user_admin_level(&self, user: &User) -> Option<String> {
         // Check roles for admin roles
         for role in &user.roles {
-            if role.name.contains("admin") {
-                // Determine admin level from role scope
-                return Some(match &role.scope {
-                    RoleScope::Pusat => AdminLevel::AdminPusat,
-                    RoleScope::Wilayah(w) => AdminLevel::AdminWilayah(w.clone()),
-                    RoleScope::Satker(s) => AdminLevel::AdminSatker(s.clone()),
-                });
+            // Only consider roles that are explicitly identified as admin roles
+            // This prevents privilege escalation from non-admin roles that might have managed_by set
+            if role.name.to_lowercase().contains("admin") {
+                if let Some(managed_by) = &role.managed_by {
+                    return Some(managed_by.clone());
+                }
+                // Fallback for roles named "admin" without managed_by set (legacy/migration)
+                if let Some(scope) = &role.scope {
+                    if scope == "pusat" { return Some("pusat".to_string()); }
+                    if scope.starts_with("wilayah") { return Some(scope.clone()); } // Treat scope as level code
+                    if scope.starts_with("satker") { return Some(scope.clone()); }
+                }
             }
         }
         None
@@ -237,13 +275,13 @@ impl SatkerAuthorizationService {
 
         // Add satkers from role scopes
         for role in &user.roles {
-            match &role.scope {
-                RoleScope::Pusat => {
-                    // Pusat can access all satkers
+            if let Some(scope) = &role.scope {
+                if scope == "global" || scope == "pusat" {
                     return Ok(hierarchy.satkers.keys().cloned().collect());
                 }
-                RoleScope::Wilayah(wilayah) => {
-                    // Add all satkers in this wilayah
+
+                if scope.starts_with("wilayah:") {
+                    let wilayah = &scope[8..];
                     accessible.extend(
                         hierarchy
                             .satkers
@@ -251,10 +289,9 @@ impl SatkerAuthorizationService {
                             .filter(|code| code.starts_with(wilayah))
                             .cloned(),
                     );
-                }
-                RoleScope::Satker(satker) => {
-                    // Add this satker and its descendants
-                    accessible.push(satker.clone());
+                } else if scope.starts_with("satker:") {
+                    let satker = &scope[7..];
+                    accessible.push(satker.to_string());
                     accessible.extend(hierarchy.get_descendants(satker));
                 }
             }
@@ -282,17 +319,23 @@ impl SatkerAuthorizationService {
         };
 
         // Check if admin level can manage the target satker
-        Ok(match admin_level {
-            AdminLevel::AdminPusat | AdminLevel::AdminEselonI => true,
-            AdminLevel::AdminWilayah(wilayah) => {
-                target_satker_code.starts_with(&wilayah)
-                    || hierarchy.is_descendant(target_satker_code, &wilayah)
+        match admin_level.as_str() {
+            "pusat" | "eselon_i" => Ok(true),
+            val => {
+                if val.starts_with("wilayah:") {
+                    let w = &val[8..];
+                    Ok(target_satker_code.starts_with(w)
+                        || hierarchy.is_descendant(target_satker_code, w))
+                } else if val.starts_with("satker:") {
+                    let s = &val[7..];
+                    Ok(s == target_satker_code
+                        || hierarchy.is_descendant(target_satker_code, s))
+                } else {
+                    // Fallback: If managed_by is just "wilayah", we can't check efficiently here without more context
+                    Ok(false)
+                }
             }
-            AdminLevel::AdminSatker(satker) => {
-                &satker == target_satker_code
-                    || hierarchy.is_descendant(target_satker_code, &satker)
-            }
-        })
+        }
     }
 
     /// Get satker hierarchy information
@@ -377,7 +420,7 @@ pub struct SatkerHierarchyInfo {
 mod tests {
     use super::*;
     use crate::models::satker::{Satker, SatkerType};
-    use crate::models::user::{Role, RoleScope, User};
+    use crate::models::user::{Role, User};
     use chrono::Utc;
     use uuid::Uuid;
 
@@ -465,9 +508,9 @@ mod tests {
             id: Uuid::new_v4(),
             name: "admin".to_string(),
             description: None,
-            scope: RoleScope::Pusat,
+            scope: Some("pusat".to_string()),
             permissions: vec![],
-            managed_by: AdminLevel::AdminPusat,
+            managed_by: Some("pusat".to_string()),
             realm_id: None,
             composite: false,
             client_role: false,
@@ -497,9 +540,9 @@ mod tests {
             id: Uuid::new_v4(),
             name: "manager".to_string(),
             description: None,
-            scope: RoleScope::Satker("PARENT".to_string()),
+            scope: Some("satker:PARENT".to_string()),
             permissions: vec![],
-            managed_by: AdminLevel::AdminSatker("PARENT".to_string()),
+            managed_by: Some("satker:PARENT".to_string()),
             realm_id: None,
             composite: false,
             client_role: false,
