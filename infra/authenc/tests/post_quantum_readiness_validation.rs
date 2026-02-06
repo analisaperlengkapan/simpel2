@@ -1,1109 +1,531 @@
 //! Post-Quantum Cryptography Readiness Validation Tests
 //!
-//! This module validates the post-quantum cryptography readiness of the authenc system
-//! and ensures smooth migration path from classical to quantum-safe algorithms.
-
-use uuid::Uuid;
-
-use authenc::config::AppConfig as AuthencConfig;
-
-// CryptoMode and HybridCrypto are defined as mocks later in this file, so we
-// intentionally do not import them from the main crate.
-
-/// Test suite for validating post-quantum cryptography readiness
-#[cfg(test)]
-mod post_quantum_readiness {
-    use super::*;
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_hybrid_cryptography_support() {
-        let _config = test_config();
-
-        // Test all supported cryptographic modes
-        let crypto_modes = vec![
-            CryptoMode::Classical,
-            CryptoMode::Hybrid,
-            CryptoMode::PostQuantum,
-        ];
-
-        for mode in crypto_modes {
-            let crypto_engine = HybridCrypto { mode: mode.clone() };
-
-            // Test basic cryptographic operations in each mode
-            let test_data = b"Test data for post-quantum validation";
-
-            // Test encryption/decryption
-            let encrypted = crypto_engine.encrypt(test_data).await.unwrap();
-            let decrypted = crypto_engine.decrypt(&encrypted).await.unwrap();
-            assert_eq!(test_data, decrypted.as_slice());
-
-            // Test digital signatures
-            let signature = crypto_engine.sign(test_data).await.unwrap();
-            let is_valid = crypto_engine.verify(test_data, &signature).await.unwrap();
-            assert!(is_valid);
-
-            // Verify algorithm selection based on mode
-            let crypto_info = crypto_engine.get_crypto_info();
-            match mode {
-                CryptoMode::Classical => {
-                    assert!(crypto_info.signature_algorithm == "Ed25519");
-                    assert!(crypto_info.encryption_algorithm == "AES-256-GCM");
-                }
-                CryptoMode::Hybrid => {
-                    assert!(
-                        crypto_info.signature_algorithm.contains("Ed25519")
-                            && crypto_info.signature_algorithm.contains("ML-DSA")
-                    );
-                    assert!(
-                        crypto_info.encryption_algorithm.contains("AES-256-GCM")
-                            && crypto_info.encryption_algorithm.contains("ML-KEM")
-                    );
-                }
-                CryptoMode::PostQuantum => {
-                    assert!(crypto_info.signature_algorithm.starts_with("ML-DSA"));
-                    assert!(crypto_info.encryption_algorithm.starts_with("ML-KEM"));
-                }
-            }
-        }
-    }
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_ml_dsa_signature_algorithms() {
-        let _config = test_config();
-        let crypto_engine = HybridCrypto {
-            mode: CryptoMode::PostQuantum,
-        };
-
-        // Test ML-DSA signature variants
-        let ml_dsa_variants = vec![
-            "ML-DSA-44", // NIST Level 2
-            "ML-DSA-65", // NIST Level 3
-            "ML-DSA-87", // NIST Level 5
-        ];
-
-        for &variant in &ml_dsa_variants {
-            // Generate key pair for the variant
-            let key_pair = crypto_engine
-                .generate_ml_dsa_keypair(variant)
-                .await
-                .unwrap();
-
-            // Test signature generation and verification
-            let message = format!("Test message for {}", variant);
-            let signature = crypto_engine
-                .sign_with_ml_dsa(message.as_bytes(), &key_pair.private_key, variant)
-                .await
-                .unwrap();
-            let is_valid = crypto_engine
-                .verify_ml_dsa_signature(
-                    message.as_bytes(),
-                    &signature,
-                    &key_pair.public_key,
-                    variant,
-                )
-                .await
-                .unwrap();
-
-            assert!(is_valid);
-
-            // Verify signature properties
-            let sig_info = crypto_engine.get_ml_dsa_signature_info(&signature, variant);
-            assert_eq!(sig_info.algorithm, variant);
-            assert!(sig_info.signature_size > 0);
-            assert!(sig_info.security_level >= 2); // At least NIST Level 2
-
-            // Test cross-variant compatibility (should fail)
-            for &other_variant in &ml_dsa_variants {
-                if other_variant != variant {
-                    let cross_verify = crypto_engine
-                        .verify_ml_dsa_signature(
-                            message.as_bytes(),
-                            &signature,
-                            &key_pair.public_key,
-                            other_variant,
-                        )
-                        .await;
-                    assert!(cross_verify.is_err() || !cross_verify.unwrap());
-                }
-            }
-        }
-    }
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_ml_kem_key_encapsulation() {
-        let _config = test_config();
-        let crypto_engine = HybridCrypto {
-            mode: CryptoMode::PostQuantum,
-        };
-
-        // Test ML-KEM variants
-        let ml_kem_variants = vec![
-            "ML-KEM-512",  // NIST Level 1
-            "ML-KEM-768",  // NIST Level 3
-            "ML-KEM-1024", // NIST Level 5
-        ];
-
-        for variant in ml_kem_variants {
-            // Generate key pair for the variant
-            let key_pair = crypto_engine
-                .generate_ml_kem_keypair(variant)
-                .await
-                .unwrap();
-
-            // Test key encapsulation and decapsulation
-            let (ciphertext, shared_secret) = crypto_engine
-                .ml_kem_encapsulate(&key_pair.public_key, variant)
-                .await
-                .unwrap();
-            let decapsulated_secret = crypto_engine
-                .ml_kem_decapsulate(&ciphertext, &key_pair.private_key, variant)
-                .await
-                .unwrap();
-
-            assert_eq!(shared_secret, decapsulated_secret);
-
-            // Verify shared secret properties
-            assert_eq!(shared_secret.len(), 32); // 256-bit shared secret
-
-            // Test that different encapsulations produce different ciphertexts
-            let (ciphertext2, shared_secret2) = crypto_engine
-                .ml_kem_encapsulate(&key_pair.public_key, variant)
-                .await
-                .unwrap();
-            assert_ne!(ciphertext, ciphertext2);
-            assert_ne!(shared_secret, shared_secret2);
-
-            // Verify KEM properties
-            let kem_info = crypto_engine.get_ml_kem_info(variant);
-            assert_eq!(kem_info.algorithm, variant);
-            assert!(kem_info.public_key_size > 0);
-            assert!(kem_info.private_key_size > 0);
-            assert!(kem_info.ciphertext_size > 0);
-            assert!(kem_info.security_level >= 1); // At least NIST Level 1
-        }
-    }
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_hybrid_signature_verification() {
-        let _config = test_config();
-        let crypto_engine = HybridCrypto {
-            mode: CryptoMode::Hybrid,
-        };
-
-        // Test hybrid signatures (Ed25519 + ML-DSA)
-        let test_message = b"Hybrid signature test for SIMKARI authentication";
-
-        // Generate hybrid signature and wrap in HybridSignature for component-level tests
-        let hybrid_sig_bytes = crypto_engine.sign_hybrid(test_message).await.unwrap();
-        let mut hybrid_signature = HybridSignature {
-            data: hybrid_sig_bytes.clone(),
-        };
-
-        // Verify hybrid signature
-        let is_valid = crypto_engine
-            .verify_hybrid(test_message, &hybrid_sig_bytes)
-            .await
-            .unwrap();
-        assert!(is_valid);
-
-        // Verify signature components
-        let sig_components = crypto_engine.decompose_hybrid_signature(&hybrid_sig_bytes);
-        assert!(sig_components.ed25519_signature.is_some());
-        assert!(sig_components.ml_dsa_signature.is_some());
-
-        // Test individual component verification
-        let ed25519_valid = crypto_engine
-            .verify_ed25519_component(test_message, &sig_components.ed25519_signature.unwrap())
-            .await
-            .unwrap();
-        assert!(ed25519_valid);
-
-        let ml_dsa_valid = crypto_engine
-            .verify_ml_dsa_component(test_message, &sig_components.ml_dsa_signature.unwrap())
-            .await
-            .unwrap();
-        assert!(ml_dsa_valid);
-
-        // Test that signature fails if either component is invalid
-        hybrid_signature.corrupt_ed25519_component();
-        let invalid_result = crypto_engine
-            .verify_hybrid(test_message, &hybrid_signature.data)
-            .await
-            .unwrap();
-        assert!(!invalid_result);
-    }
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_hybrid_key_exchange() {
-        let _config = test_config();
-        let crypto_engine = HybridCrypto {
-            mode: CryptoMode::Hybrid,
-        };
-
-        // Test hybrid key exchange (X25519 + ML-KEM)
-
-        // Generate key pairs for both parties
-        let _alice_keys = crypto_engine.generate_hybrid_keypair().await.unwrap();
-        let bob_keys = crypto_engine.generate_hybrid_keypair().await.unwrap();
-
-        // Alice initiates key exchange
-        let (alice_message, _alice_ephemeral) = crypto_engine
-            .hybrid_key_exchange_initiate(&bob_keys.public_key)
-            .await
-            .unwrap();
-
-        // Bob responds to key exchange
-        let (bob_message, bob_shared_secret) = crypto_engine
-            .hybrid_key_exchange_respond(&alice_message)
-            .await
-            .unwrap();
-
-        // Alice completes key exchange
-        let alice_shared_secret = crypto_engine
-            .hybrid_key_exchange_complete(&bob_message)
-            .await
-            .unwrap();
-
-        // Verify both parties have the same shared secret
-        assert_eq!(alice_shared_secret, bob_shared_secret);
-
-        // Verify shared secret properties
-        assert_eq!(alice_shared_secret.len(), 64); // 512-bit hybrid shared secret
-
-        // Verify key exchange components
-        let alice_components = crypto_engine.decompose_hybrid_shared_secret(&alice_shared_secret);
-        assert!(alice_components.x25519_component.is_some());
-        assert!(alice_components.ml_kem_component.is_some());
-
-        // Test key derivation from hybrid shared secret
-        let derived_key = crypto_engine
-            .derive_key_from_hybrid_secret(&alice_shared_secret, b"SIMKARI-AUTH")
-            .await
-            .unwrap();
-        assert_eq!(derived_key.len(), 32); // 256-bit derived key
-    }
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_post_quantum_jwt_signing() {
-        let _config = test_config();
-        let crypto_engine = HybridCrypto {
-            mode: CryptoMode::PostQuantum,
-        };
-
-        // Test JWT signing with post-quantum algorithms
-        let user = create_test_user();
-        let jwt_claims = serde_json::json!({
-            "sub": user.id.to_string(),
-            "nip": user.nip,
-            "satker_code": user.satker_code,
-            "iat": chrono::Utc::now().timestamp(),
-            "exp": (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
-            "pq_ready": true
-        });
-
-        // Sign JWT with ML-DSA
-        let pq_jwt = crypto_engine.sign_jwt_ml_dsa(&jwt_claims).await.unwrap();
-
-        // Verify JWT signature
-        let verified_claims = crypto_engine.verify_jwt_ml_dsa(&pq_jwt).await.unwrap();
-        assert_eq!(verified_claims["sub"], user.id.to_string());
-        assert_eq!(verified_claims["nip"], user.nip);
-        assert_eq!(verified_claims["pq_ready"], true);
-
-        // Test JWT header contains correct algorithm
-        let jwt_header = crypto_engine.decode_jwt_header(&pq_jwt).unwrap();
-        assert!(jwt_header.alg.starts_with("ML-DSA"));
-        // assert_eq!(jwt_header.alg, "ML-DSA-87");
-        // Test cross-algorithm verification (should fail)
-        let classical_crypto = HybridCrypto {
-            mode: CryptoMode::Classical,
-        };
-        let classical_verification = classical_crypto.verify_jwt(&pq_jwt).await;
-        assert!(classical_verification.is_err());
-    }
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_migration_compatibility() {
-        let _config = test_config();
-
-        // Test migration from Classical -> Hybrid -> PostQuantum
-        let test_data = b"Migration compatibility test data";
-
-        // Start with classical cryptography
-        let classical_crypto = HybridCrypto::new(CryptoMode::Classical).await.unwrap();
-        let classical_encrypted = classical_crypto.encrypt(test_data).await.unwrap();
-        let classical_signature = classical_crypto.sign(test_data).await.unwrap();
-
-        // Migrate to hybrid cryptography
-        let hybrid_crypto = HybridCrypto {
-            mode: CryptoMode::Hybrid,
-        };
-
-        // Hybrid should be able to verify classical signatures
-        let classical_sig_valid = hybrid_crypto
-            .verify_classical_signature(test_data, &classical_signature)
-            .await
-            .unwrap();
-        assert!(classical_sig_valid);
-
-        // Hybrid should be able to decrypt classical data
-        let classical_decrypted = hybrid_crypto
-            .decrypt_classical(&classical_encrypted)
-            .await
-            .unwrap();
-        assert_eq!(test_data, classical_decrypted.as_slice());
-
-        // Create hybrid signatures and encryption
-        let hybrid_encrypted = hybrid_crypto.encrypt(test_data).await.unwrap();
-        let hybrid_signature = hybrid_crypto.sign_hybrid(test_data).await.unwrap();
-
-        // Migrate to post-quantum only
-        let pq_crypto = HybridCrypto {
-            mode: CryptoMode::PostQuantum,
-        };
-
-        // Post-quantum should be able to verify hybrid signatures (ML-DSA component)
-        let hybrid_sig_valid = pq_crypto
-            .verify_hybrid_ml_dsa_component(test_data, &hybrid_signature)
-            .await
-            .unwrap();
-        assert!(hybrid_sig_valid);
-
-        // Post-quantum should be able to decrypt hybrid data (ML-KEM component)
-        let hybrid_decrypted = pq_crypto
-            .decrypt_hybrid_ml_kem_component(&hybrid_encrypted)
-            .await
-            .unwrap();
-        assert_eq!(test_data, hybrid_decrypted.as_slice());
-
-        // Test migration metadata
-        let migration_info = pq_crypto.get_migration_info().unwrap();
-        assert!(migration_info.supports_classical);
-        assert!(migration_info.supports_hybrid);
-        assert!(migration_info.supports_post_quantum);
-        assert!(migration_info.migration_path_available);
-    }
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_algorithm_agility() {
-        let _config = test_config();
-        let crypto_engine = HybridCrypto::new(CryptoMode::Hybrid).await.unwrap();
-
-        // Test algorithm agility - ability to switch algorithms dynamically
-        let test_data = b"Algorithm agility test";
-
-        // Test signature algorithm switching
-        let signature_algorithms = vec![
-            "Ed25519",
-            "ML-DSA-44",
-            "ML-DSA-65",
-            "ML-DSA-87",
-            "Ed25519+ML-DSA-44", // Hybrid
-        ];
-
-        for algorithm in signature_algorithms {
-            let signature = crypto_engine
-                .sign_with_algorithm(test_data, algorithm)
-                .await
-                .unwrap();
-            let is_valid = crypto_engine
-                .verify_with_algorithm(test_data, &signature, algorithm)
-                .await
-                .unwrap();
-            assert!(is_valid);
-
-            // Verify algorithm metadata
-            let sig_info = crypto_engine.get_signature_algorithm_info(algorithm);
-            assert_eq!(sig_info.algorithm, algorithm);
-            assert!(sig_info.security_level >= 1);
-        }
-
-        // Test encryption algorithm switching
-        let encryption_algorithms = vec![
-            "AES-256-GCM",
-            "ML-KEM-512",
-            "ML-KEM-768",
-            "ML-KEM-1024",
-            "AES-256-GCM+ML-KEM-768", // Hybrid
-        ];
-
-        for algorithm in encryption_algorithms {
-            let encrypted = crypto_engine
-                .encrypt_with_algorithm(test_data, algorithm)
-                .await
-                .unwrap();
-            let decrypted = crypto_engine
-                .decrypt_with_algorithm(&encrypted, algorithm)
-                .await
-                .unwrap();
-            assert_eq!(test_data, decrypted.as_slice());
-
-            // Verify algorithm metadata
-            let enc_info = crypto_engine.get_encryption_algorithm_info(algorithm);
-            assert_eq!(enc_info.algorithm, algorithm);
-            assert!(enc_info.security_level >= 1);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_performance_benchmarks() {
-        let _config = test_config();
-
-        // Benchmark different cryptographic modes
-        let modes = vec![
-            CryptoMode::Classical,
-            CryptoMode::Hybrid,
-            CryptoMode::PostQuantum,
-        ];
-
-        let test_data = vec![0u8; 1024]; // 1KB test data
-        let iterations = 100;
-
-        for mode in modes {
-            let crypto_engine = HybridCrypto::new(mode.clone()).await.unwrap();
-
-            // Benchmark encryption
-            let start = std::time::Instant::now();
-            for _ in 0..iterations {
-                let _ = crypto_engine.encrypt(&test_data).await.unwrap();
-            }
-            let encryption_time = start.elapsed();
-
-            // Benchmark signing
-            let start = std::time::Instant::now();
-            for _ in 0..iterations {
-                let _ = crypto_engine.sign(&test_data).await.unwrap();
-            }
-            let signing_time = start.elapsed();
-
-            // Log performance metrics
-            println!("Mode: {:?}", mode);
-            println!(
-                "  Encryption: {:?} per operation",
-                encryption_time / iterations as u32
-            );
-            println!(
-                "  Signing: {:?} per operation",
-                signing_time / iterations as u32
-            );
-
-            // Verify performance is within acceptable bounds
-            match mode {
-                CryptoMode::Classical => {
-                    // Classical should be fastest
-                    assert!(encryption_time.as_millis() < 1000); // < 1s for 100 operations
-                    assert!(signing_time.as_millis() < 500); // < 0.5s for 100 operations
-                }
-                CryptoMode::Hybrid => {
-                    // Hybrid should be slower but reasonable
-                    assert!(encryption_time.as_millis() < 5000); // < 5s for 100 operations
-                    assert!(signing_time.as_millis() < 2000); // < 2s for 100 operations
-                }
-                CryptoMode::PostQuantum => {
-                    // Post-quantum may be slower but should still be usable
-                    assert!(encryption_time.as_millis() < 10000); // < 10s for 100 operations
-                    assert!(signing_time.as_millis() < 5000); // < 5s for 100 operations
-                }
-            }
-        }
-    }
-
-    #[tokio::test]
-
-
-    #[ignore = "Mock implementations lack round-trip consistency; requires real PQ crypto library"]
-    async fn test_quantum_safe_key_storage() {
-        let _config = test_config();
-        let crypto_engine = HybridCrypto::new(CryptoMode::PostQuantum).await.unwrap();
-
-        // Test quantum-safe key storage and retrieval
-        let key_types = vec![
-            ("ML-DSA-44", "signature"),
-            ("ML-DSA-65", "signature"),
-            ("ML-DSA-87", "signature"),
-            ("ML-KEM-512", "kem"),
-            ("ML-KEM-768", "kem"),
-            ("ML-KEM-1024", "kem"),
-        ];
-
-        for (algorithm, key_type) in key_types {
-            // Generate key pair
-            let key_pair = match key_type {
-                "signature" => crypto_engine
-                    .generate_ml_dsa_keypair(algorithm)
-                    .await
-                    .unwrap(),
-                "kem" => crypto_engine
-                    .generate_ml_kem_keypair(algorithm)
-                    .await
-                    .unwrap(),
-                _ => panic!("Unknown key type"),
-            };
-
-            // Store keys securely
-            let key_id = Uuid::new_v4().to_string();
-            crypto_engine
-                .store_quantum_safe_key(&key_id, &key_pair, algorithm)
-                .await
-                .unwrap();
-
-            // Retrieve keys
-            let retrieved_key_pair = crypto_engine
-                .retrieve_quantum_safe_key(&key_id, algorithm)
-                .await
-                .unwrap();
-
-            // Verify key integrity
-            assert_eq!(key_pair.public_key, retrieved_key_pair.public_key);
-            assert_eq!(key_pair.private_key, retrieved_key_pair.private_key);
-
-            // Test key usage after retrieval
-            let test_data = b"Key storage test";
-            match key_type {
-                "signature" => {
-                    let signature = crypto_engine
-                        .sign_with_ml_dsa(test_data, &retrieved_key_pair.private_key, algorithm)
-                        .await
-                        .unwrap();
-                    let is_valid = crypto_engine
-                        .verify_ml_dsa_signature(
-                            test_data,
-                            &signature,
-                            &retrieved_key_pair.public_key,
-                            algorithm,
-                        )
-                        .await
-                        .unwrap();
-                    assert!(is_valid);
-                }
-                "kem" => {
-                    let (ciphertext, shared_secret) = crypto_engine
-                        .ml_kem_encapsulate(&retrieved_key_pair.public_key, algorithm)
-                        .await
-                        .unwrap();
-                    let decapsulated_secret = crypto_engine
-                        .ml_kem_decapsulate(&ciphertext, &retrieved_key_pair.private_key, algorithm)
-                        .await
-                        .unwrap();
-                    assert_eq!(shared_secret, decapsulated_secret);
-                }
-                _ => {}
-            }
-
-            // Test key deletion
-            crypto_engine
-                .delete_quantum_safe_key(&key_id)
-                .await
-                .unwrap();
-            let deletion_result = crypto_engine
-                .retrieve_quantum_safe_key(&key_id, algorithm)
-                .await;
-            assert!(deletion_result.is_err());
-        }
+//! Tests that exercise REAL post-quantum cryptographic operations using:
+//! - ML-DSA-44 (digital signatures via pqcrypto-mldsa)
+//! - ML-KEM-768 (key encapsulation via pqcrypto-mlkem)
+//! - Falcon-512 (compact signatures via pqcrypto-falcon)
+//! - Hybrid Classical + PQ (Ed25519 + ML-DSA, X25519 + ML-KEM)
+//!
+//! Run with: cargo test -p authenc --test post_quantum_readiness_validation --features quantum
+
+#![cfg(feature = "quantum")]
+
+use authenc::crypto::pqc::{PqcError, falcon, hybrid, mldsa, mlkem};
+
+// ============================================================================
+// ML-DSA-44 (CRYSTALS-Dilithium) Tests
+// ============================================================================
+
+#[test]
+fn test_mldsa_keypair_generation() {
+    let (pk, _sk) = mldsa::SecretKey::new().expect("ML-DSA keygen should succeed");
+    let pk_bytes = pk.as_bytes();
+    // ML-DSA-44 public key = 1312 bytes
+    assert_eq!(pk_bytes.len(), 1312, "ML-DSA-44 public key should be 1312 bytes");
+}
+
+#[test]
+fn test_mldsa_sign_verify_roundtrip() {
+    let (pk, sk) = mldsa::SecretKey::new().expect("keygen");
+    let message = b"SIMPelv2 Post-Quantum signature test";
+
+    let signature = sk.sign(message).expect("signing should succeed");
+    assert!(
+        pk.verify(message, &signature).is_ok(),
+        "ML-DSA signature verification should succeed"
+    );
+}
+
+#[test]
+fn test_mldsa_verify_wrong_message_fails() {
+    let (pk, sk) = mldsa::SecretKey::new().expect("keygen");
+    let message = b"Original message";
+    let tampered = b"Tampered message";
+
+    let signature = sk.sign(message).expect("signing");
+    assert!(
+        pk.verify(tampered, &signature).is_err(),
+        "Verification with wrong message should fail"
+    );
+}
+
+#[test]
+fn test_mldsa_verify_wrong_key_fails() {
+    let (_pk1, sk1) = mldsa::SecretKey::new().expect("keygen 1");
+    let (pk2, _sk2) = mldsa::SecretKey::new().expect("keygen 2");
+    let message = b"Key mismatch test";
+
+    let signature = sk1.sign(message).expect("signing");
+    assert!(
+        pk2.verify(message, &signature).is_err(),
+        "Verification with wrong public key should fail"
+    );
+}
+
+#[test]
+fn test_mldsa_key_sizes() {
+    let (pk_size, sk_size, sig_size) = mldsa::key_sizes();
+    assert_eq!(pk_size, 1312, "ML-DSA-44 public key size");
+    assert_eq!(sk_size, 2560, "ML-DSA-44 secret key size");
+    assert_eq!(sig_size, 2420, "ML-DSA-44 signature size");
+}
+
+#[test]
+fn test_mldsa_key_serialization_roundtrip() {
+    let (pk, sk) = mldsa::SecretKey::new().expect("keygen");
+    let message = b"Serialization roundtrip test";
+
+    // Serialize keys
+    let pk_bytes = pk.as_bytes().to_vec();
+    let sk_bytes = sk.as_bytes(); // Vec<u8>
+
+    // Deserialize keys (SecretKey requires both sk + pk bytes)
+    let pk_restored = mldsa::PublicKey::from_bytes(&pk_bytes)
+        .expect("Public key deserialization should succeed");
+    let sk_restored = mldsa::SecretKey::from_bytes_with_public(&sk_bytes, &pk_bytes)
+        .expect("Secret key deserialization should succeed");
+
+    // Sign with restored key, verify with restored key
+    let signature = sk_restored.sign(message).expect("signing with restored key");
+    assert!(
+        pk_restored.verify(message, &signature).is_ok(),
+        "Signature with deserialized keys should verify"
+    );
+}
+
+#[test]
+fn test_mldsa_signature_serialization() {
+    let (pk, sk) = mldsa::SecretKey::new().expect("keygen");
+    let message = b"Signature serialization test";
+
+    let signature = sk.sign(message).expect("signing");
+    let sig_bytes = signature.as_bytes().to_vec();
+
+    // Verify expected signature size
+    assert_eq!(sig_bytes.len(), 2420, "ML-DSA-44 signature should be 2420 bytes");
+
+    // Deserialize and verify
+    let sig_restored = mldsa::Signature::from_bytes(&sig_bytes)
+        .expect("Signature deserialization should succeed");
+    assert!(
+        pk.verify(message, &sig_restored).is_ok(),
+        "Deserialized signature should verify"
+    );
+}
+
+// ============================================================================
+// ML-KEM-768 (CRYSTALS-Kyber) Tests
+// ============================================================================
+
+#[test]
+fn test_mlkem_keypair_generation() {
+    let (pk, _sk) = mlkem::SecretKey::new().expect("ML-KEM keygen should succeed");
+    let pk_bytes = pk.as_bytes();
+    // ML-KEM-768 public key = 1184 bytes
+    assert_eq!(pk_bytes.len(), 1184, "ML-KEM-768 public key should be 1184 bytes");
+}
+
+#[test]
+fn test_mlkem_encapsulate_decapsulate_roundtrip() {
+    let (pk, sk) = mlkem::SecretKey::new().expect("keygen");
+
+    let (ct, ss_enc) = pk.encapsulate().expect("encapsulation should succeed");
+    let ss_dec = sk.decapsulate(&ct).expect("decapsulation should succeed");
+
+    assert_eq!(
+        ss_enc.as_bytes(),
+        ss_dec.as_bytes(),
+        "Shared secrets from encapsulation and decapsulation must match"
+    );
+}
+
+#[test]
+fn test_mlkem_wrong_key_decapsulation() {
+    let (pk, _sk1) = mlkem::SecretKey::new().expect("keygen 1");
+    let (_pk2, sk2) = mlkem::SecretKey::new().expect("keygen 2");
+
+    let (ct, ss_enc) = pk.encapsulate().expect("encapsulation");
+    // ML-KEM decapsulation with wrong key produces different (implicit reject) shared secret
+    let ss_dec = sk2.decapsulate(&ct).expect("decapsulation succeeds but with wrong secret");
+    assert_ne!(
+        ss_enc.as_bytes(),
+        ss_dec.as_bytes(),
+        "Different key should produce different shared secret (implicit reject)"
+    );
+}
+
+#[test]
+fn test_mlkem_key_sizes() {
+    let (pk_size, sk_size, ct_size, ss_size) = mlkem::key_sizes();
+    assert_eq!(pk_size, 1184, "ML-KEM-768 public key size");
+    assert_eq!(sk_size, 2400, "ML-KEM-768 secret key size");
+    assert_eq!(ct_size, 1088, "ML-KEM-768 ciphertext size");
+    assert_eq!(ss_size, 32, "ML-KEM-768 shared secret size");
+}
+
+#[test]
+fn test_mlkem_shared_secret_is_32_bytes() {
+    let (pk, sk) = mlkem::SecretKey::new().expect("keygen");
+    let (ct, ss_enc) = pk.encapsulate().expect("encapsulation");
+    let ss_dec = sk.decapsulate(&ct).expect("decapsulation");
+
+    assert_eq!(ss_enc.as_bytes().len(), 32, "Shared secret should be 32 bytes");
+    assert_eq!(ss_dec.as_bytes().len(), 32, "Decapsulated shared secret should be 32 bytes");
+}
+
+#[test]
+fn test_mlkem_key_serialization_roundtrip() {
+    let (pk, sk) = mlkem::SecretKey::new().expect("keygen");
+
+    let pk_bytes = pk.as_bytes().to_vec();
+    let sk_bytes = sk.as_bytes(); // Vec<u8>
+
+    let pk_restored = mlkem::PublicKey::from_bytes(&pk_bytes)
+        .expect("Public key deserialization should succeed");
+    let sk_restored = mlkem::SecretKey::from_bytes_with_public(&sk_bytes, &pk_bytes)
+        .expect("Secret key deserialization should succeed");
+
+    let (ct, ss_enc) = pk_restored.encapsulate().expect("encapsulation");
+    let ss_dec = sk_restored.decapsulate(&ct).expect("decapsulation");
+
+    assert_eq!(
+        ss_enc.as_bytes(),
+        ss_dec.as_bytes(),
+        "Shared secrets with deserialized keys must match"
+    );
+}
+
+#[test]
+fn test_mlkem_ciphertext_serialization() {
+    let (pk, sk) = mlkem::SecretKey::new().expect("keygen");
+
+    let (ct, ss_enc) = pk.encapsulate().expect("encapsulation");
+    let ct_bytes = ct.as_bytes().to_vec();
+
+    // Verify expected ciphertext size
+    assert_eq!(ct_bytes.len(), 1088, "ML-KEM-768 ciphertext should be 1088 bytes");
+
+    // Deserialize ciphertext and decapsulate
+    let ct_restored = mlkem::Ciphertext::from_bytes(&ct_bytes)
+        .expect("Ciphertext deserialization should succeed");
+    let ss_dec = sk.decapsulate(&ct_restored).expect("decapsulation with restored ciphertext");
+
+    assert_eq!(
+        ss_enc.as_bytes(),
+        ss_dec.as_bytes(),
+        "Decapsulation with deserialized ciphertext must produce same shared secret"
+    );
+}
+
+// ============================================================================
+// Falcon-512 Tests
+// ============================================================================
+
+#[test]
+fn test_falcon_keypair_generation() {
+    let (pk, _sk) = falcon::SecretKey::new().expect("Falcon keygen should succeed");
+    let pk_bytes = pk.as_bytes();
+    // Falcon-512 public key = 897 bytes
+    assert_eq!(pk_bytes.len(), 897, "Falcon-512 public key should be 897 bytes");
+}
+
+#[test]
+fn test_falcon_sign_verify_roundtrip() {
+    let (pk, sk) = falcon::SecretKey::new().expect("keygen");
+    let message = b"Falcon-512 signature verification";
+
+    let signature = sk.sign(message).expect("signing should succeed");
+    assert!(
+        pk.verify(message, &signature).is_ok(),
+        "Falcon signature verification should succeed"
+    );
+}
+
+#[test]
+fn test_falcon_verify_wrong_message_fails() {
+    let (pk, sk) = falcon::SecretKey::new().expect("keygen");
+    let message = b"Correct message";
+    let tampered = b"Tampered message";
+
+    let signature = sk.sign(message).expect("signing");
+    assert!(
+        pk.verify(tampered, &signature).is_err(),
+        "Falcon verification with wrong message should fail"
+    );
+}
+
+#[test]
+fn test_falcon_key_sizes() {
+    let (pk_size, sk_size, sig_size) = falcon::key_sizes();
+    assert_eq!(pk_size, 897, "Falcon-512 public key size");
+    assert!(sk_size > 0, "Falcon secret key should have non-zero size");
+    assert!(sig_size > 0, "Falcon signature should have non-zero size");
+}
+
+// ============================================================================
+// Hybrid Crypto Tests (Classical + PQ)
+// ============================================================================
+
+#[test]
+fn test_hybrid_encrypt_decrypt_roundtrip() {
+    let (pk, sk) = mlkem::SecretKey::new().expect("keygen");
+    let plaintext = b"Hybrid encryption test for SIMPelv2 government BMN data";
+
+    let (ct, encrypted, nonce) = hybrid::encrypt_hybrid(&pk, plaintext)
+        .expect("Hybrid encryption should succeed");
+
+    let decrypted = hybrid::decrypt_hybrid(&sk, &ct, &encrypted, &nonce)
+        .expect("Hybrid decryption should succeed");
+
+    assert_eq!(
+        plaintext.as_slice(),
+        decrypted.as_slice(),
+        "Decrypted data must match original plaintext"
+    );
+}
+
+#[test]
+fn test_hybrid_encrypt_various_sizes() {
+    let (pk, sk) = mlkem::SecretKey::new().expect("keygen");
+
+    // Test with various payload sizes
+    let test_cases: Vec<Vec<u8>> = vec![
+        vec![0u8; 0],       // empty
+        vec![42u8; 1],      // 1 byte
+        vec![0xAB; 16],     // 16 bytes (AES block)
+        vec![0xCD; 256],    // 256 bytes
+        vec![0xEF; 4096],   // 4 KB
+    ];
+
+    for plaintext in &test_cases {
+        let (ct, encrypted, nonce) = hybrid::encrypt_hybrid(&pk, plaintext)
+            .expect("Encryption should succeed for all sizes");
+
+        let decrypted = hybrid::decrypt_hybrid(&sk, &ct, &encrypted, &nonce)
+            .expect("Decryption should succeed for all sizes");
+
+        assert_eq!(
+            plaintext.as_slice(),
+            decrypted.as_slice(),
+            "Roundtrip failed for payload size {}",
+            plaintext.len()
+        );
     }
 }
 
-// Helper functions for post-quantum testing
-fn test_config() -> AuthencConfig {
-    AuthencConfig::default()
+#[test]
+fn test_hybrid_sign_verify_roundtrip() {
+    use ed25519_dalek::SigningKey;
+
+    // Generate Ed25519 (classical) keypair
+    let ed_sk = SigningKey::generate(&mut rand::rngs::OsRng);
+    let ed_pk = ed25519_dalek::VerifyingKey::from(&ed_sk);
+
+    // Generate ML-DSA (post-quantum) keypair
+    let (ml_pk, ml_sk) = mldsa::SecretKey::new().expect("ML-DSA keygen");
+
+    let message = b"Hybrid signature: Ed25519 + ML-DSA for government data integrity";
+
+    let (ed_sig, ml_sig) = hybrid::sign_hybrid(message, &ed_sk, &ml_sk)
+        .expect("Hybrid signing should succeed");
+
+    assert!(
+        hybrid::verify_hybrid(message, &ed_sig, &ml_sig, &ed_pk, &ml_pk).is_ok(),
+        "Hybrid signature verification should succeed"
+    );
 }
 
-#[derive(Debug, Clone)]
-struct User {
-    id: Uuid,
-    nip: String,
-    nama: String,
-    email: String,
-    satker_code: String,
-    jabatan: String,
+#[test]
+fn test_hybrid_sign_wrong_message_fails() {
+    use ed25519_dalek::SigningKey;
+
+    let ed_sk = SigningKey::generate(&mut rand::rngs::OsRng);
+    let ed_pk = ed25519_dalek::VerifyingKey::from(&ed_sk);
+    let (ml_pk, ml_sk) = mldsa::SecretKey::new().expect("keygen");
+
+    let message = b"Original";
+    let tampered = b"Tampered";
+
+    let (ed_sig, ml_sig) = hybrid::sign_hybrid(message, &ed_sk, &ml_sk)
+        .expect("Signing should succeed");
+
+    assert!(
+        hybrid::verify_hybrid(tampered, &ed_sig, &ml_sig, &ed_pk, &ml_pk).is_err(),
+        "Hybrid verification with wrong message should fail"
+    );
 }
 
-fn create_test_user() -> User {
-    User {
-        id: Uuid::new_v4(),
-        nip: "198001012000011001".to_string(),
-        nama: "Test User PQ".to_string(),
-        email: "test.pq@kejaksaan.go.id".to_string(),
-        satker_code: "KEJARI_TEST".to_string(),
-        jabatan: "Jaksa Muda".to_string(),
-    }
+#[test]
+fn test_hybrid_decrypt_with_wrong_key_fails() {
+    let (pk1, _sk1) = mlkem::SecretKey::new().expect("keygen 1");
+    let (_pk2, sk2) = mlkem::SecretKey::new().expect("keygen 2");
+    let plaintext = b"Confidential BMN asset inventory";
+
+    let (ct, encrypted, nonce) = hybrid::encrypt_hybrid(&pk1, plaintext)
+        .expect("Encryption should succeed");
+
+    // Decryption with wrong key should fail (AES-GCM tag mismatch)
+    let result = hybrid::decrypt_hybrid(&sk2, &ct, &encrypted, &nonce);
+    assert!(
+        result.is_err(),
+        "Hybrid decryption with wrong key should fail"
+    );
 }
 
-// Mock types and implementations for testing
-#[derive(Debug, Clone, PartialEq)]
-pub enum CryptoMode {
-    Classical,
-    Hybrid,
-    PostQuantum,
+// ============================================================================
+// Performance Benchmarks
+// ============================================================================
+
+#[test]
+fn test_mldsa_performance() {
+    use std::time::Instant;
+
+    let (pk, sk) = mldsa::SecretKey::new().expect("keygen");
+    let message = b"Performance benchmark message for ML-DSA-44";
+
+    let start = Instant::now();
+    let iterations: u128 = 10;
+    for _ in 0..iterations {
+        let sig = sk.sign(message).expect("sign");
+        let _ = pk.verify(message, &sig);
+    }
+    let elapsed = start.elapsed();
+    let avg_ms = elapsed.as_millis() / iterations;
+
+    // ML-DSA should complete sign+verify in under 100ms on average
+    assert!(
+        avg_ms < 100,
+        "ML-DSA sign+verify should average under 100ms (got {}ms)",
+        avg_ms
+    );
 }
 
-#[derive(Debug, Clone)]
-pub struct HybridCrypto {
-    mode: CryptoMode,
+#[test]
+fn test_mlkem_performance() {
+    use std::time::Instant;
+
+    let iterations: u128 = 10;
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let (pk, sk) = mlkem::SecretKey::new().expect("keygen");
+        let (ct, _ss_enc) = pk.encapsulate().expect("encapsulate");
+        let _ss_dec = sk.decapsulate(&ct).expect("decapsulate");
+    }
+    let elapsed = start.elapsed();
+    let avg_ms = elapsed.as_millis() / iterations;
+
+    // ML-KEM should complete keygen+encap+decap in under 50ms on average
+    assert!(
+        avg_ms < 50,
+        "ML-KEM keygen+encap+decap should average under 50ms (got {}ms)",
+        avg_ms
+    );
 }
 
-#[derive(Debug, Clone)]
-pub struct KeyPair {
-    pub public_key: Vec<u8>,
-    pub private_key: Vec<u8>,
+// ============================================================================
+// NIST Parameter Validation
+// ============================================================================
+
+#[test]
+fn test_nist_mldsa44_parameters() {
+    // Validate ML-DSA-44 (formerly Dilithium2) NIST parameter sizes
+    let (pk_size, sk_size, sig_size) = mldsa::key_sizes();
+    assert_eq!(pk_size, 1312, "NIST ML-DSA-44 public key = 1312 bytes");
+    assert_eq!(sk_size, 2560, "NIST ML-DSA-44 secret key = 2560 bytes");
+    assert_eq!(sig_size, 2420, "NIST ML-DSA-44 signature = 2420 bytes");
 }
 
-#[derive(Debug, Clone)]
-pub struct CryptoInfo {
-    pub signature_algorithm: String,
-    pub encryption_algorithm: String,
+#[test]
+fn test_nist_mlkem768_parameters() {
+    // Validate ML-KEM-768 (formerly Kyber768) NIST parameter sizes
+    let (pk_size, sk_size, ct_size, ss_size) = mlkem::key_sizes();
+    assert_eq!(pk_size, 1184, "NIST ML-KEM-768 public key = 1184 bytes");
+    assert_eq!(sk_size, 2400, "NIST ML-KEM-768 secret key = 2400 bytes");
+    assert_eq!(ct_size, 1088, "NIST ML-KEM-768 ciphertext = 1088 bytes");
+    assert_eq!(ss_size, 32, "NIST ML-KEM-768 shared secret = 32 bytes");
 }
 
-#[derive(Debug, Clone)]
-pub struct SignatureInfo {
-    pub algorithm: String,
-    pub signature_size: usize,
-    pub security_level: u8,
+#[test]
+fn test_nist_falcon512_public_key_size() {
+    // Validate Falcon-512 public key size
+    let (pk_size, _sk_size, _sig_size) = falcon::key_sizes();
+    assert_eq!(pk_size, 897, "NIST Falcon-512 public key = 897 bytes");
 }
 
-#[derive(Debug, Clone)]
-pub struct KemInfo {
-    pub algorithm: String,
-    pub public_key_size: usize,
-    pub private_key_size: usize,
-    pub ciphertext_size: usize,
-    pub security_level: u8,
+// ============================================================================
+// Migration Readiness
+// ============================================================================
+
+#[test]
+fn test_pq_migration_readiness() {
+    // Verify all three PQ algorithm families are operational
+
+    // 1. ML-DSA: Sign + Verify
+    let (mldsa_pk, mldsa_sk) = mldsa::SecretKey::new().expect("ML-DSA keygen");
+    let msg = b"Migration readiness";
+    let sig = mldsa_sk.sign(msg).expect("ML-DSA sign");
+    assert!(mldsa_pk.verify(msg, &sig).is_ok(), "ML-DSA must be operational");
+
+    // 2. ML-KEM: Encapsulate + Decapsulate
+    let (mlkem_pk, mlkem_sk) = mlkem::SecretKey::new().expect("ML-KEM keygen");
+    let (ct, ss_enc) = mlkem_pk.encapsulate().expect("ML-KEM encapsulate");
+    let ss_dec = mlkem_sk.decapsulate(&ct).expect("ML-KEM decapsulate");
+    assert_eq!(ss_enc.as_bytes(), ss_dec.as_bytes(), "ML-KEM must be operational");
+
+    // 3. Falcon: Sign + Verify
+    let (falcon_pk, falcon_sk) = falcon::SecretKey::new().expect("Falcon keygen");
+    let sig = falcon_sk.sign(msg).expect("Falcon sign");
+    assert!(falcon_pk.verify(msg, &sig).is_ok(), "Falcon must be operational");
+
+    // 4. Hybrid Encryption
+    let (pk, sk) = mlkem::SecretKey::new().expect("keygen for hybrid");
+    let data = b"Government BMN data";
+    let (ct, enc, nonce) = hybrid::encrypt_hybrid(&pk, data).expect("Hybrid encrypt");
+    let dec = hybrid::decrypt_hybrid(&sk, &ct, &enc, &nonce).expect("Hybrid decrypt");
+    assert_eq!(data.as_slice(), dec.as_slice(), "Hybrid encryption must be operational");
 }
 
-#[derive(Debug, Clone)]
-pub struct MigrationInfo {
-    pub supports_classical: bool,
-    pub supports_hybrid: bool,
-    pub supports_post_quantum: bool,
-    pub migration_path_available: bool,
+#[test]
+fn test_pqc_error_types() {
+    // Verify error types are properly defined with correct Display messages
+    let err = PqcError::InvalidKey;
+    assert!(format!("{err}").contains("Invalid key"), "InvalidKey display: {err}");
+
+    let err = PqcError::InvalidSignature;
+    assert!(format!("{err}").contains("Invalid signature"), "InvalidSignature display: {err}");
+
+    let err = PqcError::VerificationFailed;
+    assert!(format!("{err}").contains("verification failed"), "VerificationFailed display: {err}");
+
+    let err = PqcError::KeyGenerationFailed;
+    assert!(format!("{err}").contains("Key generation"), "KeyGenerationFailed display: {err}");
+
+    let err = PqcError::CryptoOperationFailed;
+    assert!(format!("{err}").contains("Encryption/decryption"), "CryptoOperationFailed display: {err}");
+
+    let err = PqcError::FeatureNotAvailable;
+    assert!(format!("{err}").contains("quantum"), "FeatureNotAvailable display: {err}");
 }
 
-#[derive(Debug, Clone)]
-pub struct HybridSignature {
-    pub data: Vec<u8>,
+#[test]
+fn test_mldsa_invalid_key_from_bytes() {
+    // Verify that invalid byte lengths are rejected
+    let result = mldsa::PublicKey::from_bytes(&[0u8; 10]);
+    assert!(result.is_err(), "Invalid public key bytes should be rejected");
+
+    let result = mldsa::SecretKey::from_bytes_with_public(&[0u8; 10], &[0u8; 10]);
+    assert!(result.is_err(), "Invalid secret key bytes should be rejected");
 }
 
-#[derive(Debug, Clone)]
-pub struct SharedSecretComponents {
-    pub x25519_component: Option<Vec<u8>>,
-    pub ml_kem_component: Option<Vec<u8>>,
-}
+#[test]
+fn test_mlkem_invalid_key_from_bytes() {
+    // Verify that invalid byte lengths are rejected
+    let result = mlkem::PublicKey::from_bytes(&[0u8; 10]);
+    assert!(result.is_err(), "Invalid public key bytes should be rejected");
 
-#[derive(Debug, Clone)]
-pub struct SignatureComponents {
-    pub ed25519_signature: Option<Vec<u8>>,
-    pub ml_dsa_signature: Option<Vec<u8>>,
-}
+    let result = mlkem::SecretKey::from_bytes_with_public(&[0u8; 10], &[0u8; 10]);
+    assert!(result.is_err(), "Invalid secret key bytes should be rejected");
 
-#[derive(Debug, Clone)]
-pub struct JwtHeader {
-    pub alg: String,
-    pub typ: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct AlgorithmInfo {
-    pub name: String,
-    pub quantum_safe: bool,
-}
-
-// Mock implementations
-impl HybridCrypto {
-    pub async fn new(mode: CryptoMode) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(Self { mode })
-    }
-
-    pub async fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        // Store original data prefixed with a length header for round-trip mock
-        let len = (data.len() as u32).to_le_bytes();
-        let mut encrypted = Vec::with_capacity(4 + data.len());
-        encrypted.extend_from_slice(&len);
-        encrypted.extend_from_slice(data);
-        Ok(encrypted)
-    }
-
-    pub async fn decrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        // Extract original data from mock-encrypted format
-        if data.len() < 4 {
-            return Ok(data.to_vec());
-        }
-        let len = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
-        Ok(data[4..4 + len].to_vec())
-    }
-
-    pub async fn sign(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(format!("signature_{:?}_{}", self.mode, data.len()).into_bytes())
-    }
-
-    pub async fn verify(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub fn get_crypto_info(&self) -> CryptoInfo {
-        match self.mode {
-            CryptoMode::Classical => CryptoInfo {
-                signature_algorithm: "Ed25519".to_string(),
-                encryption_algorithm: "AES-256-GCM".to_string(),
-            },
-            CryptoMode::Hybrid => CryptoInfo {
-                signature_algorithm: "Ed25519+ML-DSA-44".to_string(),
-                encryption_algorithm: "AES-256-GCM+ML-KEM-768".to_string(),
-            },
-            CryptoMode::PostQuantum => CryptoInfo {
-                signature_algorithm: "ML-DSA-65".to_string(),
-                encryption_algorithm: "ML-KEM-768".to_string(),
-            },
-        }
-    }
-
-    // Additional mock methods for comprehensive testing
-    pub async fn generate_ml_dsa_keypair(
-        &self,
-        variant: &str,
-    ) -> Result<KeyPair, Box<dyn std::error::Error>> {
-        Ok(KeyPair {
-            public_key: format!("ml_dsa_pub_{}", variant).into_bytes(),
-            private_key: format!("ml_dsa_priv_{}", variant).into_bytes(),
-        })
-    }
-
-    pub async fn generate_ml_kem_keypair(
-        &self,
-        variant: &str,
-    ) -> Result<KeyPair, Box<dyn std::error::Error>> {
-        Ok(KeyPair {
-            public_key: format!("ml_kem_pub_{}", variant).into_bytes(),
-            private_key: format!("ml_kem_priv_{}", variant).into_bytes(),
-        })
-    }
-
-    pub async fn ml_kem_encapsulate(
-        &self,
-        _public_key: &[u8],
-        variant: &str,
-    ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
-        let ciphertext = format!("kem_ciphertext_{}", variant).into_bytes();
-        let shared_secret = b"shared_secret_32_bytes_123456789012".to_vec();
-        Ok((ciphertext, shared_secret))
-    }
-
-    pub async fn ml_kem_decapsulate(
-        &self,
-        _ciphertext: &[u8],
-        _private_key: &[u8],
-        _variant: &str,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(b"shared_secret_32_bytes_123456789012".to_vec())
-    }
-
-    pub fn get_ml_kem_info(&self, variant: &str) -> KemInfo {
-        KemInfo {
-            algorithm: variant.to_string(),
-            public_key_size: 1184,
-            private_key_size: 2400,
-            ciphertext_size: 1088,
-            security_level: match variant {
-                "ML-KEM-512" => 1,
-                "ML-KEM-768" => 2,
-                "ML-KEM-1024" => 3,
-                _ => 1,
-            },
-        }
-    }
-
-    pub fn get_migration_info(&self) -> Result<MigrationInfo, Box<dyn std::error::Error>> {
-        Ok(MigrationInfo {
-            supports_classical: true,
-            supports_hybrid: true,
-            supports_post_quantum: true,
-            migration_path_available: true,
-        })
-    }
-
-    pub async fn sign_jwt_ml_dsa(
-        &self,
-        claims: &serde_json::Value,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        Ok(format!("jwt_ml_dsa_{}", claims.to_string().len()))
-    }
-
-    pub async fn verify_jwt_ml_dsa(
-        &self,
-        _token: &str,
-    ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-        Ok(serde_json::json!({"verified": true}))
-    }
-
-    pub fn decode_jwt_header(&self, _token: &str) -> Result<JwtHeader, Box<dyn std::error::Error>> {
-        Ok(JwtHeader {
-            alg: "ML-DSA".to_string(),
-            typ: "JWT".to_string(),
-        })
-    }
-
-    pub async fn verify_jwt(
-        &self,
-        _token: &str,
-    ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-        Ok(serde_json::json!({"verified": true}))
-    }
-
-    pub async fn verify_classical_signature(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub async fn decrypt_classical(
-        &self,
-        data: &[u8],
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        self.decrypt(data).await
-    }
-
-    pub async fn sign_hybrid(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(format!("hybrid_signature_{}", data.len()).into_bytes())
-    }
-
-    pub async fn verify_hybrid(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub async fn verify_hybrid_ml_dsa_component(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub async fn decrypt_hybrid_ml_kem_component(
-        &self,
-        data: &[u8],
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        self.decrypt(data).await
-    }
-
-    pub async fn verify_ed25519_component(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub async fn verify_ml_dsa_component(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub async fn sign_with_algorithm(
-        &self,
-        data: &[u8],
-        algorithm: &str,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(format!("sig_{}_{}", algorithm, data.len()).into_bytes())
-    }
-
-    pub async fn verify_with_algorithm(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-        _algorithm: &str,
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub fn get_signature_algorithm_info(&self, algorithm: &str) -> SignatureInfo {
-        SignatureInfo {
-            algorithm: algorithm.to_string(),
-            signature_size: 64,
-            security_level: 2,
-        }
-    }
-
-    pub async fn encrypt_with_algorithm(
-        &self,
-        data: &[u8],
-        _algorithm: &str,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        self.encrypt(data).await
-    }
-
-    pub async fn decrypt_with_algorithm(
-        &self,
-        data: &[u8],
-        _algorithm: &str,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        self.decrypt(data).await
-    }
-
-    pub fn get_encryption_algorithm_info(&self, algorithm: &str) -> KemInfo {
-        KemInfo {
-            algorithm: algorithm.to_string(),
-            public_key_size: 32,
-            private_key_size: 32,
-            ciphertext_size: 48,
-            security_level: 2,
-        }
-    }
-
-    pub async fn generate_hybrid_keypair(&self) -> Result<KeyPair, Box<dyn std::error::Error>> {
-        Ok(KeyPair {
-            public_key: b"hybrid_public_key".to_vec(),
-            private_key: b"hybrid_private_key".to_vec(),
-        })
-    }
-
-    pub async fn hybrid_key_exchange_initiate(
-        &self,
-        _peer_public_key: &[u8],
-    ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
-        Ok((b"message".to_vec(), b"ephemeral".to_vec()))
-    }
-
-    pub async fn hybrid_key_exchange_respond(
-        &self,
-        _message: &[u8],
-    ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
-        Ok((b"response".to_vec(), b"shared_secret".to_vec()))
-    }
-
-    pub async fn hybrid_key_exchange_complete(
-        &self,
-        _response: &[u8],
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(b"shared_secret".to_vec())
-    }
-
-    pub fn decompose_hybrid_signature(&self, _signature: &[u8]) -> SignatureComponents {
-        SignatureComponents {
-            ed25519_signature: Some(b"ed25519_sig".to_vec()),
-            ml_dsa_signature: Some(b"ml_dsa_sig".to_vec()),
-        }
-    }
-
-    pub fn decompose_hybrid_shared_secret(&self, _secret: &[u8]) -> SharedSecretComponents {
-        SharedSecretComponents {
-            x25519_component: Some(b"x25519_component".to_vec()),
-            ml_kem_component: Some(b"ml_kem_component".to_vec()),
-        }
-    }
-
-    pub async fn derive_key_from_hybrid_secret(
-        &self,
-        _secret: &[u8],
-        _info: &[u8],
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(b"derived_key_32_bytes_123456789012".to_vec())
-    }
-
-    pub async fn store_quantum_safe_key(
-        &self,
-        _key_id: &str,
-        _key_pair: &KeyPair,
-        _algorithm: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(())
-    }
-
-    pub async fn retrieve_quantum_safe_key(
-        &self,
-        key_id: &str,
-        algorithm: &str,
-    ) -> Result<KeyPair, Box<dyn std::error::Error>> {
-        // Return predictable keys based on key_id and algorithm for round-trip consistency
-        Ok(KeyPair {
-            public_key: format!("pub_{}_{}", key_id, algorithm).into_bytes(),
-            private_key: format!("priv_{}_{}", key_id, algorithm).into_bytes(),
-        })
-    }
-
-    pub async fn delete_quantum_safe_key(
-        &self,
-        _key_id: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(())
-    }
-
-    pub async fn sign_with_ml_dsa(
-        &self,
-        data: &[u8],
-        _private_key: &[u8],
-        variant: &str,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(format!("ml_dsa_sig_{}_{}", variant, data.len()).into_bytes())
-    }
-
-    pub async fn verify_ml_dsa_signature(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-        _public_key: &[u8],
-        _variant: &str,
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub fn get_ml_dsa_signature_info(&self, signature: &[u8], variant: &str) -> SignatureInfo {
-        SignatureInfo {
-            algorithm: variant.to_string(),
-            signature_size: signature.len(),
-            security_level: match variant {
-                "ML-DSA-44" => 2,
-                "ML-DSA-65" => 3,
-                "ML-DSA-87" => 5,
-                _ => 1,
-            },
-        }
-    }
-
-    // Additional mock methods would continue here...
-    // For brevity, I'm including just the essential ones for the test structure
-}
-
-impl HybridSignature {
-    pub fn corrupt_ed25519_component(&mut self) {
-        // Mock corruption for testing
-        if !self.data.is_empty() {
-            self.data[0] = self.data[0].wrapping_add(1);
-        }
-    }
+    let result = mlkem::Ciphertext::from_bytes(&[0u8; 10]);
+    assert!(result.is_err(), "Invalid ciphertext bytes should be rejected");
 }

@@ -1,4 +1,3 @@
-use crate::error::AuthencError;
 use crate::utils::validation::{
     email_validator, email_validator_optional, nip_validator_optional, phone_validator_optional,
     sanitize_email, sanitize_satker_code, sanitize_string, sanitize_username,
@@ -818,4 +817,235 @@ pub struct JITUserProvisioningResponse {
     pub created: bool,
     /// The federated identity link
     pub federated_identity: FederatedIdentity,
+}
+
+/// Federated identity (alias for UserIdentityProviderLink)
+pub type FederatedIdentity = UserIdentityProviderLink;
+
+/// Request to create a new user in the database
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateUserRequest {
+    /// Username for the new user
+    pub username: String,
+    /// Email address for the new user
+    pub email: String,
+    /// Kode satuan kerja
+    pub satker_code: String,
+    /// Password (will be hashed before storage)
+    pub password: Option<String>,
+    /// First name
+    pub first_name: Option<String>,
+    /// Last name
+    pub last_name: Option<String>,
+    /// NIP (Nomor Induk Pegawai)
+    pub nip: Option<String>,
+    /// Nama lengkap pegawai
+    pub nama: Option<String>,
+    /// Jabatan pegawai
+    pub jabatan: Option<String>,
+    /// Phone number
+    pub phone_number: Option<String>,
+    /// Realm ID
+    pub realm_id: Option<Uuid>,
+    /// Organization ID
+    pub organization_id: Option<Uuid>,
+    /// Roles to assign
+    pub roles: Option<Vec<Uuid>>,
+    /// Additional attributes
+    pub attributes: Option<serde_json::Value>,
+}
+
+/// Request to update an existing user
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateUserRequest {
+    /// New username
+    pub username: Option<String>,
+    /// New email
+    pub email: Option<String>,
+    /// New kode satuan kerja
+    pub satker_code: Option<String>,
+    /// New first name
+    pub first_name: Option<String>,
+    /// New last name
+    pub last_name: Option<String>,
+    /// New NIP
+    pub nip: Option<String>,
+    /// New nama lengkap
+    pub nama: Option<String>,
+    /// New jabatan
+    pub jabatan: Option<String>,
+    /// New phone number
+    pub phone_number: Option<String>,
+    /// Enable/disable account
+    pub enabled: Option<bool>,
+    /// Email verification status
+    pub email_verified: Option<bool>,
+    /// Phone verification status
+    pub phone_verified: Option<bool>,
+    /// Force password change on next login
+    pub require_password_change: Option<bool>,
+    /// Additional attributes
+    pub attributes: Option<serde_json::Value>,
+}
+
+/// User response for API endpoints
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserResponse {
+    /// Unique identifier
+    pub id: Uuid,
+    /// Username
+    pub username: String,
+    /// Email address
+    pub email: String,
+    /// First name
+    pub first_name: Option<String>,
+    /// Last name
+    pub last_name: Option<String>,
+    /// Whether the account is enabled
+    pub enabled: bool,
+    /// Whether email is verified
+    pub email_verified: bool,
+    /// Realm ID
+    pub realm_id: Option<Uuid>,
+    /// Additional attributes
+    pub attributes: Option<serde_json::Value>,
+    /// When the user was created
+    pub created_at: DateTime<Utc>,
+    /// When the user was last updated
+    pub updated_at: DateTime<Utc>,
+}
+
+impl From<User> for UserResponse {
+    fn from(user: User) -> Self {
+        Self {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            enabled: user.enabled,
+            email_verified: user.email_verified,
+            realm_id: user.realm_id,
+            attributes: user.attributes,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        }
+    }
+}
+
+impl User {
+    /// Create a new User with default values
+    pub fn new(
+        username: String,
+        email: String,
+        satker_code: String,
+        password_hash: Option<String>,
+        realm_id: Option<Uuid>,
+    ) -> Self {
+        let now = Utc::now();
+        Self {
+            id: Uuid::new_v4(),
+            username,
+            email,
+            email_verified: false,
+            first_name: None,
+            last_name: None,
+            nip: None,
+            nama: None,
+            jabatan: None,
+            satker_code,
+            phone_number: None,
+            phone_verified: false,
+            password_hash,
+            totp_secret: None,
+            totp_backup_codes: None,
+            mfa_enabled: false,
+            mfa_setup_at: None,
+            mfa_last_used: None,
+            webauthn_enabled: false,
+            account_locked: false,
+            account_locked_until: None,
+            failed_login_attempts: 0,
+            last_login_at: None,
+            last_failed_login_at: None,
+            password_changed_at: None,
+            password_expires_at: None,
+            require_password_change: false,
+            realm_id,
+            organization_id: None,
+            roles: Vec::new(),
+            permissions: Vec::new(),
+            session_data: None,
+            security_context: SecurityContext {
+                ip_address: None,
+                user_agent: None,
+                session_id: None,
+                timestamp: now,
+                risk_score: None,
+                metadata: None,
+            },
+            attributes: None,
+            enabled: true,
+            federated: false,
+            created_at: now,
+            updated_at: now,
+            deleted_at: None,
+            login_count: 0,
+        }
+    }
+}
+
+impl From<tokio_postgres::Row> for User {
+    fn from(row: tokio_postgres::Row) -> Self {
+        let satker_code: String = row.try_get("satker_code").unwrap_or_else(|_| "UNKNOWN".to_string());
+        Self {
+            id: row.get("id"),
+            username: row.get("username"),
+            email: row.get("email"),
+            email_verified: row.get("email_verified"),
+            first_name: row.get("first_name"),
+            last_name: row.get("last_name"),
+            nip: row.try_get("nip").ok(),
+            nama: row.try_get("nama").ok(),
+            jabatan: row.try_get("jabatan").ok(),
+            satker_code,
+            phone_number: row.get("phone_number"),
+            phone_verified: row.get("phone_verified"),
+            password_hash: row.get("password_hash"),
+            totp_secret: row.get("totp_secret"),
+            totp_backup_codes: row.get("totp_backup_codes"),
+            mfa_enabled: row.try_get("mfa_enabled").unwrap_or(false),
+            mfa_setup_at: row.try_get("mfa_setup_at").ok().flatten(),
+            mfa_last_used: row.try_get("mfa_last_used").ok().flatten(),
+            webauthn_enabled: row.get("webauthn_enabled"),
+            account_locked: row.get("account_locked"),
+            account_locked_until: row.get("account_locked_until"),
+            failed_login_attempts: row.get("failed_login_attempts"),
+            last_login_at: row.get("last_login_at"),
+            last_failed_login_at: row.get("last_failed_login_at"),
+            password_changed_at: row.get("password_changed_at"),
+            password_expires_at: row.get("password_expires_at"),
+            require_password_change: row.get("require_password_change"),
+            realm_id: row.get("realm_id"),
+            organization_id: row.get("organization_id"),
+            roles: Vec::new(),
+            permissions: Vec::new(),
+            session_data: None,
+            security_context: SecurityContext {
+                ip_address: None,
+                user_agent: None,
+                session_id: None,
+                timestamp: Utc::now(),
+                risk_score: None,
+                metadata: None,
+            },
+            attributes: row.try_get("attributes").ok(),
+            enabled: row.get("enabled"),
+            federated: row.get("federated"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            deleted_at: row.get("deleted_at"),
+            login_count: row.try_get("login_count").unwrap_or(0),
+        }
+    }
 }

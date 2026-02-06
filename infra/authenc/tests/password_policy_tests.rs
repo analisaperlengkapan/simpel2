@@ -6,7 +6,7 @@ mod tests {
 
     #[test]
     fn test_default_policy() {
-        let result = validate_password_strength("StrongSecure123!", None);
+        let result = validate_password_strength("StrongSecure8!Xm", None);
         assert!(result.is_valid);
         assert!(result.errors.is_empty());
         assert!(result.strength_score >= 70);
@@ -83,14 +83,14 @@ mod tests {
 
     #[test]
     fn test_valid_password() {
-        let result = validate_password_strength("StrongSecure123!", None);
+        let result = validate_password_strength("StrongSecure8!Xm", None);
         assert!(result.is_valid);
         assert!(result.errors.is_empty());
     }
 
     #[test]
     fn test_valid_password_with_various_special_chars() {
-        let result = validate_password_strength("ComplexPhrase456@#$%^&*()", None);
+        let result = validate_password_strength("ComplexPhra5e@#$%^&*()X", None);
         assert!(result.is_valid);
         assert!(result.errors.is_empty());
     }
@@ -116,7 +116,7 @@ mod tests {
         );
 
         // A sufficiently complex password of at least 8 characters should be valid
-        let long_enough = validate_password_strength("Abcdef1!", None);
+        let long_enough = validate_password_strength("Mxpw7f1!", None);
         assert!(long_enough.is_valid);
     }
 
@@ -131,7 +131,7 @@ mod tests {
                 .any(|e| e.to_lowercase().contains("letmein"))
         );
 
-        let good = validate_password_strength("thisisgoodPASS123!", None);
+        let good = validate_password_strength("thisisgoodPA5S9!", None);
         assert!(good.is_valid);
     }
 
@@ -150,13 +150,13 @@ mod tests {
     #[test]
     fn test_edge_case_unicode_characters() {
         // Unicode characters plus required character classes should still be accepted
-        let result = validate_password_strength("ValidPhrase123!", None);
+        let result = validate_password_strength("ValidPhra5e9!Zq", None);
         assert!(result.is_valid);
     }
 
     #[test]
     fn test_edge_case_only_special_chars() {
-        let result = validate_password_strength("!@#$%^&*()123ABCdef", None);
+        let result = validate_password_strength("!@#$%^&*()9Xwp5Mzq", None);
         assert!(result.is_valid);
     }
 
@@ -166,17 +166,17 @@ mod tests {
         let too_short = validate_password_strength("Abc1!", None);
         assert!(!too_short.is_valid);
 
-        let min_ok = validate_password_strength("Abcdef1!", None); // 8 chars, complex
+        let min_ok = validate_password_strength("Mxpw7f1!", None); // 8 chars, complex
         assert!(min_ok.is_valid);
 
-        let longer_ok = validate_password_strength("Abcdefgh1!", None);
+        let longer_ok = validate_password_strength("Mxpw7f1g!K", None);
         assert!(longer_ok.is_valid);
     }
 
     #[test]
     fn test_edge_case_blacklist_empty_string() {
         // A reasonably strong password with no weak patterns should be valid
-        let result = validate_password_strength("GoodPass123!", None);
+        let result = validate_password_strength("GoodPa5s9!Xm", None);
         assert!(result.is_valid);
     }
 
@@ -184,9 +184,9 @@ mod tests {
     fn test_comprehensive_policy_validation() {
         // Test all requirements together for a variety of strong passwords
         let valid_cases = vec![
-            "StrongPass123!",
-            "Complex@Phrase#456",
-            "Secure_789$Word",
+            "StrongPa5s9!Xm",
+            "Complex@Phra5e#9",
+            "Secure_7!$WordXm",
             "Robust(0)Phrase%",
         ];
 

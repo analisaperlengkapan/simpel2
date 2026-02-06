@@ -35,7 +35,7 @@ pub use eddsa_ed448_keys::{
     EddsaJwk, EddsaJwkSet, get_eddsa_jwk_set, sign_jwt_eddsa, verify_jwt_eddsa,
 };
 pub use enhanced::{
-    AdminLevel, AuditSignature, BatchValidationRequest, BatchValidationResponse, CryptoMetrics,
+    AuditSignature, BatchValidationRequest, BatchValidationResponse, CryptoMetrics,
     EncryptedSessionData, EnhancedCryptoEngine, OperationMetrics, PegawaiClaims, PostQuantumMode,
     SecretonPermissions,
 };
