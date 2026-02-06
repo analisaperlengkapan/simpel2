@@ -114,23 +114,10 @@ pub struct PegawaiClaims {
     pub eselon: Option<String>,
     /// Wilayah (Region) code for kejaksaan tinggi
     pub wilayah_code: Option<String>,
-    /// Admin level for hierarchical operations
-    pub admin_level: Option<AdminLevel>,
+    /// Admin level code for hierarchical operations (e.g. "pusat", "satker")
+    pub admin_level: Option<String>,
     /// Secreton access permissions
     pub secreton_permissions: SecretonPermissions,
-}
-
-/// Administrative levels in the Attorney General's Office hierarchy
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AdminLevel {
-    /// Admin for specific satker
-    AdminSatker(String),
-    /// Admin for specific wilayah (kejaksaan tinggi)
-    AdminWilayah(String),
-    /// Admin for eselon I level
-    AdminEselonI,
-    /// Admin for central level
-    AdminPusat,
 }
 
 /// Secreton access permissions for role-based access
@@ -209,7 +196,7 @@ pub struct SignerInfo {
     /// Satker code
     pub satker_code: String,
     /// Admin level of the signer
-    pub admin_level: Option<AdminLevel>,
+    pub admin_level: Option<String>,
 }
 
 /// Batch validation request
@@ -946,7 +933,7 @@ mod tests {
             name: "John Doe".to_string(),
             role: "admin".to_string(),
             satker_code: "A.01.01".to_string(),
-            admin_level: Some(AdminLevel::AdminSatker("A.01.01".to_string())),
+            admin_level: Some("satker".to_string()),
         };
 
         let signature = engine.generate_audit_signature(data, signer.clone()).await;

@@ -10,81 +10,6 @@ use garde::Validate;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Administrative levels in the Attorney General's Office hierarchy
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum AdminLevel {
-    /// Admin for a specific satker (satuan kerja)
-    AdminSatker(String),
-    /// Admin for a specific wilayah (regional area)
-    AdminWilayah(String),
-    /// Admin for Eselon I level at central office
-    AdminEselonI,
-    /// Admin at central/national level
-    AdminPusat,
-}
-
-impl AdminLevel {
-    /// Check if this admin level can manage the given admin level
-    pub fn can_manage(&self, other: &AdminLevel) -> bool {
-        match (self, other) {
-            (AdminLevel::AdminPusat, _) => true,
-            (AdminLevel::AdminEselonI, AdminLevel::AdminSatker(_)) => true,
-            (AdminLevel::AdminEselonI, AdminLevel::AdminWilayah(_)) => true,
-            (AdminLevel::AdminWilayah(region1), AdminLevel::AdminSatker(satker)) => {
-                // Check if satker belongs to this region (simplified check)
-                satker.starts_with(region1)
-            }
-            (AdminLevel::AdminSatker(satker1), AdminLevel::AdminSatker(satker2)) => {
-                satker1 == satker2
-            }
-            _ => false,
-        }
-    }
-
-    /// Get the scope of this admin level
-    pub fn get_scope(&self) -> RoleScope {
-        match self {
-            AdminLevel::AdminSatker(satker) => RoleScope::Satker(satker.clone()),
-            AdminLevel::AdminWilayah(wilayah) => RoleScope::Wilayah(wilayah.clone()),
-            AdminLevel::AdminEselonI => RoleScope::Pusat,
-            AdminLevel::AdminPusat => RoleScope::Pusat,
-        }
-    }
-}
-
-/// Role scope defining the organizational level where the role applies
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum RoleScope {
-    /// Role applies to a specific satker (satuan kerja)
-    Satker(String),
-    /// Role applies to a specific wilayah (regional area)
-    Wilayah(String),
-    /// Role applies at central/national level
-    Pusat,
-}
-
-impl RoleScope {
-    /// Check if this scope includes the given satker
-    pub fn includes_satker(&self, satker_code: &str) -> bool {
-        match self {
-            RoleScope::Satker(scope_satker) => scope_satker == satker_code,
-            RoleScope::Wilayah(wilayah) => satker_code.starts_with(wilayah),
-            RoleScope::Pusat => true,
-        }
-    }
-
-    /// Check if this scope can access resources from another scope
-    pub fn can_access(&self, other: &RoleScope) -> bool {
-        match (self, other) {
-            (RoleScope::Pusat, _) => true,
-            (RoleScope::Wilayah(w1), RoleScope::Wilayah(w2)) => w1 == w2,
-            (RoleScope::Wilayah(w), RoleScope::Satker(s)) => s.starts_with(w),
-            (RoleScope::Satker(s1), RoleScope::Satker(s2)) => s1 == s2,
-            _ => false,
-        }
-    }
-}
-
 /// Access level for secreton operations
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AccessLevel {
@@ -418,12 +343,12 @@ pub struct Role {
     pub name: String,
     /// Description of the role
     pub description: Option<String>,
-    /// Scope where this role applies (Satker, Wilayah, or Pusat)
-    pub scope: RoleScope,
     /// Permissions granted by this role
     pub permissions: Vec<Permission>,
-    /// Admin level that manages this role
-    pub managed_by: AdminLevel,
+    /// Admin level code that manages this role (dynamic)
+    pub managed_by: Option<String>,
+    /// Scope code where this role applies (dynamic)
+    pub scope: Option<String>,
     /// ID of the realm this role belongs to
     pub realm_id: Option<Uuid>,
     /// Whether this is a composite role (contains other roles)
@@ -446,13 +371,36 @@ pub struct Role {
 
 impl Role {
     /// Check if this role can be assigned to a user in the given satker
+    /// Now uses dynamic scope checking (simplified for now)
     pub fn can_assign_to_satker(&self, satker_code: &str) -> bool {
-        self.scope.includes_satker(satker_code)
+        if let Some(scope) = &self.scope {
+            // Simplified logic: strict match or wildcard
+            // In a real dynamic system, we'd query ScopeType
+            if scope == "global" || scope == "pusat" {
+                return true;
+            }
+            if scope.starts_with("satker:") {
+                let scope_satker = &scope[7..];
+                return scope_satker == satker_code;
+            }
+            // Fallback for migration compatibility
+            if scope == satker_code {
+                return true;
+            }
+        }
+        false
     }
 
     /// Check if this role grants access to resources in the given scope
-    pub fn grants_access_to(&self, target_scope: &RoleScope) -> bool {
-        self.scope.can_access(target_scope)
+    pub fn grants_access_to(&self, target_scope: &str) -> bool {
+         if let Some(scope) = &self.scope {
+             if scope == "global" || scope == "pusat" {
+                 return true;
+             }
+             // Simple prefix matching
+             return target_scope.starts_with(scope);
+         }
+         false
     }
 
     /// Get all permissions for this role that apply to the given resource type
@@ -479,8 +427,8 @@ pub struct Permission {
     pub resource_pattern: Option<String>,
     /// Action allowed on the resource (read, write, delete, admin, etc.)
     pub action: String,
-    /// Scope where this permission applies
-    pub scope: RoleScope,
+    /// Scope where this permission applies (dynamic string)
+    pub scope: Option<String>,
     /// Conditions that must be met for this permission to apply
     pub conditions: Option<serde_json::Value>,
     /// ID of the realm this permission belongs to
@@ -509,8 +457,18 @@ impl Permission {
         }
 
         // Check scope includes the satker
-        if !self.scope.includes_satker(satker_code) {
-            return false;
+        if let Some(scope) = &self.scope {
+            // Simplified check - assumes scope is either global or satker prefix
+            if scope != "global" && scope != "pusat" {
+                if scope.starts_with("satker:") {
+                    let scope_satker = &scope[7..];
+                    if scope_satker != satker_code {
+                        return false;
+                    }
+                } else if scope != satker_code {
+                     return false;
+                }
+            }
         }
 
         // Check resource pattern match if specified
