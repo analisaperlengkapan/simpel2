@@ -14,7 +14,7 @@ default = []
 grpc = ["dep:tonic", "dep:prost", "dep:tonic-prost"]
 
 [dependencies]
-reqwest = { version = "0.12", features = [
+reqwest = { version = "0.13", features = [
   "json",
   "native-tls",
   "cookies",

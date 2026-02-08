@@ -210,7 +210,7 @@ config = { version = "0.15.19", default-features = false, features = [
 tera = "1.20.1"
 
 # HTTP Client - Unified version
-reqwest = { version = "0.12", features = [
+reqwest = { version = "0.13", features = [
     "json",
     "multipart",
     "stream",
