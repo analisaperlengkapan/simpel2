@@ -296,7 +296,7 @@ hkdf = "0.12"
 fluent-bundle = "0.16"
 unic-langid = "0.9"
 axum-test = "18.1"
-rdkafka = { version = "0.38", features = ["tokio"] }
+rdkafka = { version = "0.39", features = ["tokio"] }
 totp-rs = { version = "5.7", default-features = false }
 totp-lite = "2.0"
 blake3 = "1.8.2"

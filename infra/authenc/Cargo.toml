@@ -205,7 +205,7 @@ url = { version = "2.5.4", optional = true }
 urlencoding = "2.1"
 
 # Messaging
-rdkafka = { version = "0.38", features = ["tokio", "ssl-vendored"], optional = true }
+rdkafka = { version = "0.39", features = ["tokio", "ssl-vendored"], optional = true }
 
 # Object Storage (S3/MinIO)
 aws-sdk-s3 = "1.90.0"
