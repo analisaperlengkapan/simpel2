@@ -462,7 +462,7 @@ generic-array = "1.3"
 aes = "0.8.4"
 scrypt = "0.11"
 cbc = "0.1"
-rcgen = "0.13"
+rcgen = "0.14"
 pem = "3.0"
 der-parser = "9.0"
 aide = { version = "0.15.1", features = ["axum", "macros"] }
