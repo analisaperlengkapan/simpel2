@@ -54,7 +54,8 @@ dotenvy = { workspace = true }
 reqwest = { workspace = true }
 bigdecimal = { workspace = true }
 lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }
-layanan-integrasi = { path = "../../daskrimti/integrasi" }
+# TODO: layanan-integrasi needs to be restructured - temporarily disabled
+# layanan-integrasi = { path = "../../daskrimti/integrasi" }
 
 # gRPC
 tonic = { workspace = true }

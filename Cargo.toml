@@ -12,47 +12,41 @@ members = [
     "lib/ui",
     "lib/common",
 
+    # Frontend Microfrontends (Leptos) - Contoh/Example implementations
+    "antarmuka/contoh/badiklat",
+    "antarmuka/contoh/datun",
+    "antarmuka/contoh/intel",
+    "antarmuka/contoh/pemulihan_aset",
+    "antarmuka/contoh/pengawasan",
+    "antarmuka/contoh/pidmil",
+    "antarmuka/contoh/pidsus",
+    "antarmuka/contoh/pidum",
 
-    # Frontend Microfrontends (Leptos)
-    "antarmuka/badiklat",
-    "antarmuka/datun",
-    "antarmuka/intel",
-    "antarmuka/pemulihan_aset",
-    "antarmuka/pengawasan",
-    "antarmuka/pidmil",
-    "antarmuka/pidsus",
-    "antarmuka/pidum",
+    # Pembinaan Microfrontends - Contoh
+    "antarmuka/contoh/pembinaan/keuangan",
+    "antarmuka/contoh/pembinaan/perencanaan",
 
-    # Daskrimti Frontend
-    "antarmuka/daskrimti/portal",
+    # Active Production Microfrontends
+    "antarmuka/portal",
+    "antarmuka/perlengkapan",
 
-    # Pembinaan Microfrontends
-    "antarmuka/pembinaan/keuangan",
-    "antarmuka/pembinaan/perencanaan",
-    "antarmuka/pembinaan/perlengkapan",
+    # Backend Layanan - Contoh/Example implementations
+    "layanan/contoh/badiklat",
+    "layanan/contoh/datun",
+    "layanan/contoh/intel",
+    "layanan/contoh/pemulihan_aset",
+    "layanan/contoh/pengawasan",
+    "layanan/contoh/pidmil",
+    "layanan/contoh/pidsus",
+    "layanan/contoh/pidum",
 
-    # Backend Layanan Utama
-    "layanan/badiklat",
-    "layanan/datun",
-    "layanan/intel",
-    "layanan/pemulihan_aset",
-    "layanan/pengawasan",
-    "layanan/pidmil",
-    "layanan/pidsus",
-    "layanan/pidum",
+    # Backend Layanan Pembinaan - Contoh
+    "layanan/contoh/pembinaan/keuangan",
+    "layanan/contoh/pembinaan/perencanaan",
 
-    # Backend Layanan Pembinaan
-    "layanan/pembinaan/keuangan",
-    "layanan/pembinaan/perlengkapan",
-    "layanan/pembinaan/perencanaan",
-
-    # Backend Shared Layanan (Daskrimti)
-    "layanan/daskrimti/portal",
-    "layanan/daskrimti/ai",
-    "layanan/daskrimti/bantuan",
-    "layanan/daskrimti/dokumen",
-    "layanan/daskrimti/integrasi",
-    "layanan/daskrimti/notifikasi",
+    # Active Production Backend Services
+    "layanan/portal",
+    "layanan/perlengkapan",
 
     # Infrastructure Services (Part of main workspace for dependency management)
     "infra/authenc",
@@ -72,16 +66,10 @@ members = [
 ]
 
 default-members = [
-    "antarmuka/daskrimti/portal",
-    "antarmuka/pembinaan/keuangan",
-    "antarmuka/pembinaan/perencanaan",
-    "antarmuka/pembinaan/perlengkapan",
-    "layanan/pembinaan/keuangan",
-    "layanan/pembinaan/perlengkapan",
-    "layanan/pembinaan/perencanaan",
-    "layanan/daskrimti/bantuan",
-    "layanan/daskrimti/integrasi",
-    "layanan/daskrimti/notifikasi",
+    "antarmuka/portal",
+    "antarmuka/perlengkapan",
+    "layanan/portal",
+    "layanan/perlengkapan",
 ]
 
 [workspace.package]
