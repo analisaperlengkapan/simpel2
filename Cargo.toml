@@ -11,6 +11,7 @@ members = [
     # Shared Libraries
     "lib/ui",
     "lib/common",
+    "lib/perlengkapan",
 
     # Frontend Microfrontends (Leptos) - Contoh/Example implementations
     "antarmuka/contoh/badiklat",
@@ -46,7 +47,14 @@ members = [
 
     # Active Production Backend Services
     "layanan/portal",
-    "layanan/perlengkapan",
+
+    # Perlengkapan sub-crates (following infra/secreton pattern)
+    "layanan/perlengkapan/crates/api",
+    "layanan/perlengkapan/crates/integrasi",
+    "layanan/perlengkapan/crates/ai",
+    "layanan/perlengkapan/crates/dokumen",
+    "layanan/perlengkapan/crates/notifikasi",
+    "layanan/perlengkapan/crates/bantuan",
 
     # Infrastructure Services (Part of main workspace for dependency management)
     "infra/authenc",
@@ -69,7 +77,7 @@ default-members = [
     "antarmuka/portal",
     "antarmuka/perlengkapan",
     "layanan/portal",
-    "layanan/perlengkapan",
+    "layanan/perlengkapan/crates/api",
 ]
 
 [workspace.package]
@@ -170,6 +178,7 @@ proc-macro2 = "1.0.103"
 # Frontend Shared Dependencies
 lib-ui = { path = "lib/ui" }
 lib-common = { path = "lib/common" }
+lib-perlengkapan = { path = "lib/perlengkapan" }
 regex = "1.11"
 urlencoding = "2.1"
 

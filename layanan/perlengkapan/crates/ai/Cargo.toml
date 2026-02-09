@@ -1,5 +1,5 @@
 [package]
-name = "layanan-ai"
+name = "layanan-perlengkapan-ai"
 version.workspace = true
 edition.workspace = true
 authors = ["SIMPelv2 Team"]
@@ -73,6 +73,7 @@ garde = { workspace = true }
 sha2 = { workspace = true }
 hmac = { workspace = true }
 lib-common = { workspace = true, features = ["telemetry", "db"] }
+lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

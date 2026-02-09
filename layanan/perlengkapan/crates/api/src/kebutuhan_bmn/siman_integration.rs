@@ -13,8 +13,8 @@
 //! let assets = siman.get_existing_assets("001.01.06", "Laptop").await?;
 //! ```
 
-use layanan_integrasi::MonsaktiClient;
-use layanan_integrasi::{SimanAssetCategory, get_aset_by_category, get_row_count};
+use layanan_perlengkapan_integrasi::MonsaktiClient;
+use layanan_perlengkapan_integrasi::{SimanAssetCategory, get_aset_by_category, get_row_count};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -420,7 +420,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_infer_category_tik() {
-        let client = layanan_integrasi::MonsaktiClient::new(layanan_integrasi::Config::default())
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(layanan_perlengkapan_integrasi::Config::default())
             .await
             .unwrap();
         let integration = SimanIntegration::new(client);
@@ -441,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_infer_category_vehicle() {
-        let client = layanan_integrasi::MonsaktiClient::new(layanan_integrasi::Config::default())
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(layanan_perlengkapan_integrasi::Config::default())
             .await
             .unwrap();
         let integration = SimanIntegration::new(client);
@@ -458,7 +458,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_infer_category_non_tik() {
-        let client = layanan_integrasi::MonsaktiClient::new(layanan_integrasi::Config::default())
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(layanan_perlengkapan_integrasi::Config::default())
             .await
             .unwrap();
         let integration = SimanIntegration::new(client);

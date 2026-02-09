@@ -1,7 +1,7 @@
 [package]
-name = "layanan-integrasi"
-version = "1.0.0"
-edition = "2024"
+name = "layanan-perlengkapan-integrasi"
+version.workspace = true
+edition.workspace = true
 authors = ["SIMPelv2 Team"]
 description = "SIMPelv2 - Layanan Integrasi untuk External APIs (MonSAKTI, MySIMKARI, dll)"
 license = "MIT"
@@ -41,7 +41,8 @@ sha2 = "0.10"
 tokio-cron-scheduler = { workspace = true }
 futures = { workspace = true }
 bytes = "1.10"
-lib-common = { path = "../../../lib/common", features = ["telemetry", "db"] }
+lib-common = { path = "../../../../lib/common", features = ["telemetry", "db"] }
+lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
 
 # gRPC dependencies (optional, for server mode)
 tonic = { workspace = true, optional = true }

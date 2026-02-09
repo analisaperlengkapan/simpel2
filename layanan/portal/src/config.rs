@@ -51,7 +51,7 @@ impl AppConfig {
             },
             database: DatabaseConfig {
                 url: std::env::var("DATABASE_URL")
-                    .unwrap_or_else(|_| "postgres://localhost/simpelv2".to_string()),
+                    .unwrap_or_else(|_| "postgres://localhost/perlengkapan".to_string()),
                 max_connections: std::env::var("DATABASE_MAX_CONNECTIONS")
                     .unwrap_or_else(|_| "10".to_string())
                     .parse()?,

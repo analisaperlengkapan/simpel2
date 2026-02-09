@@ -1,76 +1,27 @@
-[package]
-name = "layanan-perlengkapan"
-version.workspace = true
-edition.workspace = true
+# Perlengkapan Workspace
+#
+# This is the workspace manifest for all perlengkapan-related crates.
+# Each service is organized under crates/ following the infra/secreton pattern.
+
+[workspace]
+resolver = "2"
+
+members = [
+    "crates/api",
+    "crates/integrasi",
+    "crates/ai",
+    "crates/dokumen",
+    "crates/notifikasi",
+    "crates/bantuan",
+]
+
+# Inherit common settings from root workspace
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
 authors = ["SIMPelv2 Team"]
-description = "Layanan Perlengkapan untuk manajemen BMN Kejaksaan RI"
+license = "MIT"
 
-[[bin]]
-name = "layanan-perlengkapan"
-path = "src/main.rs"
-
-[features]
-integration-tests = []
-
-[dependencies]
-# Web framework
-axum = { workspace = true }
-tower = { workspace = true }
-tower-http = { workspace = true, features = ["cors", "trace", "fs"] }
-
-# Async runtime
-tokio = { workspace = true, features = ["full"] }
-
-# Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
-
-# Database
-tokio-postgres = { workspace = true }
-deadpool-postgres = { workspace = true }
-
-# UUID and time
-uuid = { workspace = true }
-chrono = { workspace = true }
-
-# Error handling
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-
-# Logging
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-
-# Authentication & JWT
-jsonwebtoken = { workspace = true }
-
-# Validation
-validator = { workspace = true }
-
-# Environment variables
-dotenvy = { workspace = true }
-
-# HTTP client
-reqwest = { workspace = true }
-bigdecimal = { workspace = true }
-lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }
-# TODO: layanan-integrasi needs to be restructured - temporarily disabled
-# layanan-integrasi = { path = "../../daskrimti/integrasi" }
-
-# gRPC
-tonic = { workspace = true }
-tonic-prost = { workspace = true }
-prost = { workspace = true }
-http = { workspace = true }
-http-body = { workspace = true }
-http-body-util = { workspace = true }
-
-async-trait = { workspace = true }
-
-[build-dependencies]
-tonic-prost-build = { workspace = true }
-
-[dev-dependencies]
-mockall = { workspace = true }
-mime = "0.3"
-axum-test = { workspace = true }
+[workspace.dependencies]
+# All dependencies are inherited from the root workspace at /var/www/simpelv2/Cargo.toml
+# Sub-crates should use `{ workspace = true }` for common dependencies

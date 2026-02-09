@@ -17,6 +17,15 @@ SIMPelv2 menyediakan solusi terintegrasi untuk pengelolaan BMN, mulai dari peren
 - **17 Backend Microservices** dengan gRPC internal communication
 - **Enterprise CI/CD** dengan 12+ security tools
 
+### 📦 Mockup Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `antarmuka/contoh/*` | Mockup microfrontend (placeholder untuk modul yang belum diimplementasi) |
+| `layanan/contoh/*` | Mockup backend service (placeholder untuk layanan yang belum diimplementasi) |
+
+> **Superapps Ready**: SIMPelv2 dirancang dengan arsitektur modular yang siap diintegrasikan menjadi SIMKARI Superapps jika diperlukan. Lihat [AGENTS.md](AGENTS.md) untuk detail.
+
 ## 🌐 Production Deployment
 
 ### Live URLs

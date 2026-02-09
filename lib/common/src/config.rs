@@ -271,7 +271,7 @@ impl BaseServiceConfig {
         let _ = dotenvy::dotenv();
 
         let database_url = std::env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/simpelv2".to_string());
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/perlengkapan".to_string());
 
         let database_pool_size = std::env::var("DATABASE_POOL_SIZE")
             .ok()

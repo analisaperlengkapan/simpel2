@@ -31,7 +31,7 @@
 //! - `0 0 12 * * MON-FRI` - Weekdays at 12:00
 
 use anyhow::Result;
-use layanan_integrasi::{Config, scheduler::IntegrationScheduler};
+use layanan_perlengkapan_integrasi::{Config, scheduler::IntegrationScheduler};
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

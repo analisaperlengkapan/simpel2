@@ -2,7 +2,7 @@
 /// Menggunakan unified batch processing dengan storage strategy yang fleksibel
 /// Menangani integrasi dengan external APIs: MonSAKTI, MySIMKARI, dll.
 use clap::{Parser, ValueEnum};
-use layanan_integrasi::{
+use layanan_perlengkapan_integrasi::{
     Config, MonsaktiClient, fetch_all_data, fetch_all_data_with_mysimkari, fetch_all_satker,
     fetch_all_satker_with_modules, fetch_all_satker_with_modules_from_db, fetch_global_references,
     fetch_satker_complete, fetch_satker_parallel, fetch_satker_with_modules, get_satker_list,
@@ -153,7 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Process MonSAKTI based on mode
 async fn process_monsakti(
     client: &mut MonsaktiClient,
-    storage: &layanan_integrasi::StorageStrategy,
+    storage: &layanan_perlengkapan_integrasi::StorageStrategy,
     args: &Args,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let module_filter = args.monsakti_module.as_deref();
@@ -224,9 +224,9 @@ async fn process_monsakti(
 /// Process MySIMKARI
 async fn process_mysimkari(
     client: &mut MonsaktiClient,
-    storage: &layanan_integrasi::StorageStrategy,
+    storage: &layanan_perlengkapan_integrasi::StorageStrategy,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use layanan_integrasi::batch::fetchers::fetch_mysimkari;
+    use layanan_perlengkapan_integrasi::batch::fetchers::fetch_mysimkari;
 
     info!("Fetching MySIMKARI data...");
     fetch_mysimkari(client, storage).await?;
@@ -237,10 +237,10 @@ async fn process_mysimkari(
 /// Process SIMAN - Fetch all asset categories
 async fn process_siman(
     client: &mut MonsaktiClient,
-    storage: &layanan_integrasi::StorageStrategy,
+    storage: &layanan_perlengkapan_integrasi::StorageStrategy,
     category_filter: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use layanan_integrasi::siman::{
+    use layanan_perlengkapan_integrasi::siman::{
         SimanAssetCategory, endpoints::fetch_all_assets_with_pagination,
     };
 

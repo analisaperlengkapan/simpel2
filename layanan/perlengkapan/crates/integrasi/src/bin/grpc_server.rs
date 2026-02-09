@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use layanan_integrasi::grpc::{server::GrpcServerConfig, start_grpc_server};
+use layanan_perlengkapan_integrasi::grpc::{server::GrpcServerConfig, start_grpc_server};
 use tokio_postgres::NoTls;
 use tracing::{error, info};
 
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,layanan_integrasi=debug".into()),
+                .unwrap_or_else(|_| "info,layanan_perlengkapan_integrasi=debug".into()),
         )
         .init();
 

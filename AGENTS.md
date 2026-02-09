@@ -563,3 +563,33 @@ sequenceDiagram
 | Integrate with government APIs | `layanan/daskrimti/integrasi/AGENTS.md` |
 | Work on backend services | This file (root `AGENTS.md`) |
 | Work on frontend microfrontends | This file (root `AGENTS.md`) |
+
+---
+
+## 🗄️ Database Architecture
+
+Setiap layanan memiliki database terpisah untuk isolasi:
+
+| Database | Service | Description |
+|----------|---------|-------------|
+| `perlengkapan` | layanan/perlengkapan/* | Core BMN management |
+| `authenc` | infra/authenc | Authentication & SSO |
+| `secreton` | infra/secreton | Secrets management |
+
+---
+
+## 📦 Mockup Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `antarmuka/contoh/*` | Mockup microfrontends (placeholder untuk modul yang belum diimplementasi) |
+| `layanan/contoh/*` | Mockup backend services (placeholder untuk layanan yang belum diimplementasi) |
+
+> **Note**: Direktori contoh berisi mockup untuk menunjukkan struktur standar. Implementasi akhir bisa berbeda.
+
+---
+
+## 🚀 Superapps Readiness
+
+> **Catatan Tambahan**: SIMPelv2 dirancang dengan arsitektur modular yang siap diintegrasikan menjadi **SIMKARI Superapps** jika diperlukan di masa depan. Arsitektur microfrontend dan microservices memungkinkan penambahan modul baru dengan mudah.
+

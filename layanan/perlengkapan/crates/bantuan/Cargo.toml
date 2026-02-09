@@ -1,5 +1,5 @@
 [package]
-name = "simpelv2-bantuan"
+name = "layanan-perlengkapan-bantuan"
 version.workspace = true
 edition.workspace = true
 authors = ["SIMPelv2 Team"]
@@ -61,6 +61,7 @@ base64 = { workspace = true }
 captcha = { workspace = true }
 moka = { version = "0.12", features = ["future"] }
 lib-common = { workspace = true, features = ["telemetry", "db"] }
+lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
@@ -77,6 +78,6 @@ ai = []
 webhook = []
 
 [[bin]]
-name = "simpelv2-bantuan"
+name = "layanan-perlengkapan-bantuan"
 path = "src/main.rs"
 

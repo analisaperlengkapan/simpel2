@@ -1,5 +1,6 @@
 # SIMPelv2 Perencanaan - Strategic Planning
 
+
 ## 📋 Overview
 
 **Perencanaan - Strategic Planning** Sistem perencanaan strategis dan pengadaan aset
