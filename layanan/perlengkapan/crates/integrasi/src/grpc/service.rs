@@ -711,8 +711,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
         &self,
         request: Request<GetSimanAssetRequest>,
     ) -> Result<Response<GetSimanAssetResponse>, Status> {
-        self.get_siman_assets_by_table(request, "siman_aset_tanah")
-            .await
+        self.get_siman_assets_by_jenis(request, "Tanah").await
     }
 
     /// Get SIMAN gedung bangunan assets
@@ -720,7 +719,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
         &self,
         request: Request<GetSimanAssetRequest>,
     ) -> Result<Response<GetSimanAssetResponse>, Status> {
-        self.get_siman_assets_by_table(request, "siman_aset_gedung_bangunan")
+        self.get_siman_assets_by_jenis(request, "Gedung dan Bangunan")
             .await
     }
 
@@ -729,8 +728,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
         &self,
         request: Request<GetSimanAssetRequest>,
     ) -> Result<Response<GetSimanAssetResponse>, Status> {
-        self.get_siman_assets_by_table(request, "siman_aset_alat_besar")
-            .await
+        self.get_siman_assets_by_jenis(request, "Alat Besar").await
     }
 
     /// Get SIMAN angkutan bermotor assets
@@ -738,7 +736,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
         &self,
         request: Request<GetSimanAssetRequest>,
     ) -> Result<Response<GetSimanAssetResponse>, Status> {
-        self.get_siman_assets_by_table(request, "siman_aset_angkutan_bermotor")
+        self.get_siman_assets_by_jenis(request, "Alat Angkutan Bermotor")
             .await
     }
 
@@ -751,22 +749,22 @@ impl IntegrasiService for IntegrasiServiceImpl {
         let category = proto::SimanAssetCategory::try_from(req.category)
             .unwrap_or(proto::SimanAssetCategory::Unspecified);
 
-        let table_name = match category {
-            proto::SimanAssetCategory::Tanah => "siman_aset_tanah",
-            proto::SimanAssetCategory::GedungBangunan => "siman_aset_gedung_bangunan",
-            proto::SimanAssetCategory::AlatBesar => "siman_aset_alat_besar",
-            proto::SimanAssetCategory::AngkutanBermotor => "siman_aset_angkutan_bermotor",
-            proto::SimanAssetCategory::AlatPersenjataan => "siman_aset_alat_persenjataan",
-            proto::SimanAssetCategory::TakBerwujud => "siman_aset_tak_berwujud",
-            proto::SimanAssetCategory::TetapLainnya => "siman_aset_tetap_lainnya",
-            proto::SimanAssetCategory::BangunanAir => "siman_aset_bangunan_air",
-            proto::SimanAssetCategory::InstalasiJaringan => "siman_aset_instalasi_jaringan",
-            proto::SimanAssetCategory::JalanJembatan => "siman_aset_jalan_jembatan",
-            proto::SimanAssetCategory::Kdp => "siman_aset_kdp",
-            proto::SimanAssetCategory::KhususTik => "siman_aset_khusus_tik",
-            proto::SimanAssetCategory::NonTik => "siman_aset_non_tik",
-            proto::SimanAssetCategory::Rumah => "siman_aset_rumah",
-            proto::SimanAssetCategory::TetapRenovasi => "siman_aset_tetap_renovasi",
+        let jenis_aset = match category {
+            proto::SimanAssetCategory::Tanah => "Tanah",
+            proto::SimanAssetCategory::GedungBangunan => "Gedung dan Bangunan",
+            proto::SimanAssetCategory::AlatBesar => "Alat Besar",
+            proto::SimanAssetCategory::AngkutanBermotor => "Alat Angkutan Bermotor",
+            proto::SimanAssetCategory::AlatPersenjataan => "Alat Persenjataan",
+            proto::SimanAssetCategory::TakBerwujud => "Aset Tak Berwujud",
+            proto::SimanAssetCategory::TetapLainnya => "Aset Tetap Lainnya",
+            proto::SimanAssetCategory::BangunanAir => "Bangunan Air",
+            proto::SimanAssetCategory::InstalasiJaringan => "Instalasi dan Jaringan",
+            proto::SimanAssetCategory::JalanJembatan => "Jalan dan Jembatan",
+            proto::SimanAssetCategory::Kdp => "Konstruksi Dalam Pengerjaan",
+            proto::SimanAssetCategory::KhususTik => "Peralatan Mesin Khusus TIK",
+            proto::SimanAssetCategory::NonTik => "Peralatan Mesin Non TIK",
+            proto::SimanAssetCategory::Rumah => "Rumah Negara",
+            proto::SimanAssetCategory::TetapRenovasi => "Aset Tetap Renovasi",
             proto::SimanAssetCategory::Unspecified => {
                 return Err(Status::invalid_argument("Category must be specified"));
             }
@@ -778,7 +776,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
         });
 
         let response = self
-            .get_siman_assets_by_table(inner_request, table_name)
+            .get_siman_assets_by_jenis(inner_request, jenis_aset)
             .await?;
         let inner = response.into_inner();
 
@@ -831,11 +829,11 @@ impl IntegrasiService for IntegrasiServiceImpl {
         let mut timestamps = HashMap::new();
         let mut record_counts = HashMap::new();
 
-        // Get last sync from data_sync_log table
+        // Get last sync from api_log table
         let query = r#"
-            SELECT source, MAX(sync_started_at) as last_sync, SUM(records_synced) as total_records
-            FROM integrasi.data_sync_log
-            GROUP BY source
+            SELECT module as source, MAX(started_at) as last_sync, COALESCE(SUM(record_count), 0) as total_records
+            FROM integrasi.api_log
+            GROUP BY module
         "#;
 
         match self.state.db_client.query(query, &[]).await {
@@ -853,7 +851,7 @@ impl IntegrasiService for IntegrasiServiceImpl {
                 }
             }
             Err(e) => {
-                warn!("Failed to query data_sync_log: {}", e);
+                warn!("Failed to query api_log: {}", e);
             }
         }
 
@@ -865,11 +863,11 @@ impl IntegrasiService for IntegrasiServiceImpl {
 }
 
 impl IntegrasiServiceImpl {
-    /// Helper to query SIMAN assets from a specific table
-    async fn get_siman_assets_by_table(
+    /// Helper to query SIMAN assets from unified siman_aset table filtered by jenis_aset
+    async fn get_siman_assets_by_jenis(
         &self,
         request: Request<GetSimanAssetRequest>,
-        table_name: &str,
+        jenis_aset: &str,
     ) -> Result<Response<GetSimanAssetResponse>, Status> {
         let req = request.into_inner();
         let page = req.pagination.as_ref().map(|p| p.page).unwrap_or(1);
@@ -877,51 +875,55 @@ impl IntegrasiServiceImpl {
         let offset = ((page - 1) * per_page) as i64;
 
         info!(
-            "GetSimanAssets from table: {}, satker: {}, page: {}",
-            table_name, req.kode_satker, page
+            "GetSimanAssets jenis: {}, satker: {}, page: {}",
+            jenis_aset, req.kode_satker, page
         );
 
         // Count total
-        let count_query = format!("SELECT COUNT(*) FROM integrasi.{}", table_name);
-        let total_items: i64 = match self.state.db_client.query_one(&count_query, &[]).await {
+        let count_query =
+            "SELECT COUNT(*) FROM integrasi.siman_aset WHERE jenis_aset = $1";
+        let total_items: i64 = match self
+            .state
+            .db_client
+            .query_one(count_query, &[&jenis_aset])
+            .await
+        {
             Ok(row) => row.try_get(0).unwrap_or(0),
             Err(e) => {
-                error!("Failed to count {}: {}", table_name, e);
+                error!("Failed to count siman_aset ({}): {}", jenis_aset, e);
                 0
             }
         };
 
         // Query data
-        let query = format!(
-            r#"
+        let query = r#"
             SELECT id, nup, kode_barang, nama_barang, kode_satker, nama_satker,
                    nilai_perolehan, nilai_buku, kondisi, tahun_perolehan, lokasi, status_penggunaan
-            FROM integrasi.{}
+            FROM integrasi.siman_aset
+            WHERE jenis_aset = $1
             ORDER BY id
-            LIMIT $1 OFFSET $2
-        "#,
-            table_name
-        );
+            LIMIT $2 OFFSET $3
+        "#;
 
         let items: Vec<SimanAsset> = match self
             .state
             .db_client
-            .query(&query, &[&(per_page as i64), &offset])
+            .query(&query, &[&jenis_aset, &(per_page as i64), &offset])
             .await
         {
             Ok(rows) => rows
                 .iter()
                 .map(|row| SimanAsset {
                     id: row
-                        .try_get::<_, uuid::Uuid>("id")
-                        .map(|u| u.to_string())
+                        .try_get::<_, i64>("id")
+                        .map(|i| i.to_string())
                         .unwrap_or_default(),
                     nup: row.try_get("nup").unwrap_or_default(),
                     kode_barang: row.try_get("kode_barang").unwrap_or_default(),
                     nama_barang: row.try_get("nama_barang").unwrap_or_default(),
                     kode_satker: row.try_get("kode_satker").unwrap_or_default(),
                     nama_satker: row.try_get("nama_satker").unwrap_or_default(),
-                    category: 0, // Will be set by caller
+                    category: 0,
                     nilai_perolehan: row.try_get::<_, f64>("nilai_perolehan").unwrap_or(0.0),
                     nilai_buku: row.try_get::<_, f64>("nilai_buku").unwrap_or(0.0),
                     kondisi: row.try_get("kondisi").unwrap_or_default(),
@@ -932,7 +934,7 @@ impl IntegrasiServiceImpl {
                 })
                 .collect(),
             Err(e) => {
-                error!("Failed to query {}: {}", table_name, e);
+                error!("Failed to query siman_aset ({}): {}", jenis_aset, e);
                 Vec::new()
             }
         };

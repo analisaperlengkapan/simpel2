@@ -1032,6 +1032,12 @@ impl PakaianDinasRepository {
         if let Some(ref satker_id) = filter.satker_id {
             where_clause.push_str(&format!(" AND ps.satker_id = '{}'", satker_id));
         }
+        if let Some(ref eselon) = filter.eselon {
+            where_clause.push_str(&format!(" AND psp.eselon = '{}'", eselon));
+        }
+        if let Some(ref jenis) = filter.jenis {
+            where_clause.push_str(&format!(" AND psp.jenis = '{}'", jenis));
+        }
 
         let count_query = format!(
             r#"
@@ -1053,7 +1059,7 @@ impl PakaianDinasRepository {
             r#"
             SELECT
                 psp.nip, psp.nama, s.nama as satker_nama, psp.jabatan, psp.pangkat,
-                psp.jenis_kelamin, psp.with_hijab,
+                psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab,
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'BAJU' THEN pu.ukuran END) as ukuran_baju,
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'CELANA' THEN pu.ukuran END) as ukuran_celana,
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'SEPATU' THEN pu.ukuran END) as ukuran_sepatu
@@ -1063,7 +1069,8 @@ impl PakaianDinasRepository {
             LEFT JOIN pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
             LEFT JOIN pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             {}
-            GROUP BY psp.id, psp.nip, psp.nama, s.nama, psp.jabatan, psp.pangkat, psp.jenis_kelamin, psp.with_hijab
+            GROUP BY psp.id, psp.nip, psp.nama, s.nama, psp.jabatan, psp.pangkat,
+                     psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab
             ORDER BY s.nama, psp.nama
             LIMIT $2 OFFSET $3
             "#,

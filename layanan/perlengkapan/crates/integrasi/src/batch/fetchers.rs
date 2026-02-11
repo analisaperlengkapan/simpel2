@@ -489,6 +489,12 @@ pub async fn fetch_glp(
 }
 
 /// Fetch data MySIMKARI (satker dan pegawai)
+///
+/// Strategy: UPSERT + mark inactive employees
+/// - Satker: UPSERT berdasarkan kode_satker (UNIQUE constraint)
+/// - Pegawai: UPSERT berdasarkan nip (UNIQUE constraint)
+/// - Setelah semua pegawai diproses, NIP yang TIDAK ada di data tarikan baru
+///   ditandai status_pegawai = 'nonaktif' (bukan dihapus, untuk audit trail)
 pub async fn fetch_mysimkari(
     client: &mut MonsaktiClient,
     storage: &StorageStrategy,
@@ -496,15 +502,21 @@ pub async fn fetch_mysimkari(
     info!("Fetching MySIMKARI data...");
     let circuit_breaker = api::MySIMKARICircuitBreaker::new();
 
+    // Collect all NIPs from fresh pull for comparison later
+    let mut all_fresh_nips: std::collections::HashSet<String> = std::collections::HashSet::new();
+
     // Get Satker
     if let Ok(data) = api::get_satker(client, &circuit_breaker).await {
+        let satker_count = data.as_array().map(|a| a.len()).unwrap_or(0);
+        info!("📊 MySIMKARI: {} satker dari API", satker_count);
+
         storage
             .save_with_table(client, "mysimkari_satker", &data, "global")
             .await?;
 
         // Fetch pegawai untuk setiap satker
         if let Some(array) = data.as_array() {
-            for item in array {
+            for (idx, item) in array.iter().enumerate() {
                 let Some(obj) = item.as_object() else {
                     continue;
                 };
@@ -513,13 +525,22 @@ pub async fn fetch_mysimkari(
 
                 match api::pegawai_satker(client, id_str, &circuit_breaker).await {
                     Ok(mut pegawai_data) => {
-                        // Inject satker_id ke setiap pegawai record
+                        // Collect NIPs from this batch
                         if let Some(pegawai_array) = pegawai_data.as_array_mut() {
                             for pegawai in pegawai_array.iter_mut() {
                                 if let Some(pegawai_obj) = pegawai.as_object_mut() {
                                     // Add satker_id if not exists
                                     if !pegawai_obj.contains_key("satker_id") {
                                         pegawai_obj.insert("satker_id".to_string(), id.clone());
+                                    }
+                                    // Ensure status_pegawai = 'aktif' for fresh data
+                                    pegawai_obj
+                                        .insert("status_pegawai".to_string(), serde_json::Value::String("aktif".to_string()));
+                                    // Collect NIP
+                                    if let Some(nip) = pegawai_obj.get("nip").and_then(|v| v.as_str()) {
+                                        if !nip.is_empty() {
+                                            all_fresh_nips.insert(nip.to_string());
+                                        }
                                     }
                                 }
                             }
@@ -536,6 +557,52 @@ pub async fn fetch_mysimkari(
 
                 // Rate limiting
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+                // Progress log every 50 satker
+                if (idx + 1) % 50 == 0 {
+                    info!(
+                        "📈 Progress: {}/{} satker processed, {} unique NIPs collected",
+                        idx + 1,
+                        array.len(),
+                        all_fresh_nips.len()
+                    );
+                }
+            }
+        }
+    }
+
+    info!(
+        "📊 MySIMKARI: {} unique NIPs collected from fresh pull",
+        all_fresh_nips.len()
+    );
+
+    // Mark employees NOT in fresh pull as nonaktif
+    if !all_fresh_nips.is_empty() {
+        if let Some(db) = client.get_db_client() {
+            // Use parameterized IN clause for safety
+            // Build a single UPDATE with array comparison for efficiency
+            let nip_array: Vec<&str> = all_fresh_nips.iter().map(|s| s.as_str()).collect();
+            let result = db
+                .execute(
+                    "UPDATE mysimkari_pegawai SET status_pegawai = 'nonaktif', updated_at = CURRENT_TIMESTAMP WHERE status_pegawai = 'aktif' AND nip != ALL($1::text[])",
+                    &[&nip_array],
+                )
+                .await;
+
+            match result {
+                Ok(count) => {
+                    if count > 0 {
+                        info!(
+                            "📋 MySIMKARI: {} pegawai ditandai nonaktif (tidak ada di data tarikan baru)",
+                            count
+                        );
+                    } else {
+                        info!("✅ MySIMKARI: Semua pegawai eksisting masih aktif");
+                    }
+                }
+                Err(e) => {
+                    error!("❌ MySIMKARI: Gagal update status nonaktif: {}", e);
+                }
             }
         }
     }

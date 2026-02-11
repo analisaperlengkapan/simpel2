@@ -88,6 +88,11 @@ impl MonsaktiClient {
         &self.config
     }
 
+    /// Getter untuk database client (read-only access)
+    pub fn get_db_client(&self) -> Option<&tokio_postgres::Client> {
+        self.db_client.as_ref()
+    }
+
     /// Fungsi fetch generik untuk semua endpoint dengan auto-retry pada token expired
     pub async fn fetch(
         &mut self,

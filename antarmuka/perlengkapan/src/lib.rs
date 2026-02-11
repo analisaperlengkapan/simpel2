@@ -62,8 +62,7 @@ use components::pemakaian_form::PemakaianForm;
 use components::pemakaian_list::PemakaianList;
 use components::pemeliharaan_form::PemeliharaanForm;
 use components::pemeliharaan_list::PemeliharaanList;
-use components::pengadaan_form::PengadaanForm;
-use components::pengadaan_list::PengadaanList;
+// Pengadaan components removed - not part of perlengkapan domain
 use components::pengalihan_form::PengalihanForm;
 use components::pengalihan_list::PengalihanList;
 use components::penghapusan_form::PenghapusanForm;
@@ -72,7 +71,8 @@ use components::penghapusan_list::PenghapusanList;
 use components::pakaian_dinas_jenis_list::PakaianDinasJenisList;
 use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
-use components::pakaian_dinas_ukuran::{UkuranPegawai, UkuranPegawaiSatker};
+// UkuranPegawai removed - no pegawai user in perlengkapan domain
+use components::pakaian_dinas_ukuran::UkuranPegawaiSatker;
 
 // ============================================================================
 // Constants & Configuration
@@ -150,8 +150,8 @@ pub fn DashboardRoutes() -> impl IntoView {
                         // Kebutuhan BMN routes (new!)
                         <Route path=path!("/kebutuhan-bmn/*") view=KebutuhanBmnRoutes />
 
-                        // Pengadaan routes
-                        <Route path=path!("/pengadaan/*") view=PengadaanRoutes />
+                        // Pengadaan routes - REMOVED: Not part of perlengkapan domain
+                        // Pengadaan is managed by separate procurement system
 
                         // Pengelolaan BMN routes
                         <Route path=path!("/pengelolaan/*") view=PengelolaanRoutes />
@@ -233,7 +233,9 @@ fn KebutuhanBmnRoutes() -> impl IntoView {
     }
 }
 
-// Pengadaan Routes
+// Pengadaan Routes - REMOVED: Not part of perlengkapan domain
+// Pengadaan is managed by separate procurement system
+/*
 #[component]
 fn PengadaanRoutes() -> impl IntoView {
     view! {
@@ -246,6 +248,7 @@ fn PengadaanRoutes() -> impl IntoView {
         </Routes>
     }
 }
+*/
 
 // Pemeliharaan Routes
 #[component]
@@ -322,17 +325,8 @@ fn PakaianDinasRoutes() -> impl IntoView {
             <Route path=path!("/pengajuan") view=PakaianDinasPengajuanList />
             <Route path=path!("/pengajuan/:id/satker") view=|| view! { <div>"Pengajuan per Satker"</div> } />
 
-            // Ukuran pegawai (personal)
-            <Route path=path!("/ukuran-saya") view=|| {
-                // In real app, get pegawai_id from JWT claims via context
-                view! {
-                    <UkuranPegawai
-                        pegawai_id="current-user-id".to_string()
-                        pegawai_nama="Nama Pegawai".to_string()
-                        pegawai_nip="199001012020011001".to_string()
-                    />
-                }
-            } />
+            // Ukuran pegawai (personal) - REMOVED: No pegawai user in perlengkapan domain
+            // Operator Satker manages ukuran on behalf of pegawai
 
             // Ukuran pegawai per satker (admin view)
             <Route path=path!("/satker/:satker_id/ukuran") view=|| {

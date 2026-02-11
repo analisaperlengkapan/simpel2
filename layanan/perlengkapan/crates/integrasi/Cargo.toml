@@ -44,6 +44,7 @@ bytes = "1.10"
 rand = { workspace = true }
 lib-common = { path = "../../../../lib/common", features = ["telemetry", "db"] }
 lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
+prometheus = { workspace = true }
 
 # gRPC dependencies (optional, for server mode)
 tonic = { workspace = true, optional = true }

@@ -1529,10 +1529,12 @@ pub struct PegawaiWithSizes {
 /// Report: Rekap Ukuran (Size summary)
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LaporanRekapUkuran {
-    pub group: String,
-    pub size: String,
-    pub jumlah: i64,
-    pub jenis_kelamin: Option<String>,
+    pub pakaian_nama: String,
+    pub ukuran_group: String,
+    pub ukuran: String,
+    pub jumlah_laki: i64,
+    pub jumlah_perempuan: i64,
+    pub jumlah_total: i64,
 }
 
 /// Report: Daftar Pegawai (Employee list)
@@ -1543,9 +1545,13 @@ pub struct LaporanDaftarPegawai {
     pub satker_nama: String,
     pub jabatan: Option<String>,
     pub jenis_kelamin: Option<String>,
+    pub gol_kd: Option<String>,
+    pub jenis: Option<String>,
+    pub eselon: Option<String>,
     pub ukuran_baju: Option<String>,
     pub ukuran_celana: Option<String>,
     pub ukuran_sepatu: Option<String>,
+    pub with_hijab: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1553,6 +1559,9 @@ pub struct LaporanQuery {
     pub pengajuan_id: Option<String>,
     pub satker_id: Option<String>,
     pub jenis_pakaian_id: Option<String>,
+    pub jenis_kelamin: Option<String>,
+    pub eselon: Option<String>,
+    pub jenis: Option<String>,
 }
 
 // ============ PAKAIAN DINAS API Functions ============
@@ -2407,6 +2416,15 @@ pub async fn fetch_laporan_rekap_ukuran(
     if let Some(ref jid) = query.jenis_pakaian_id {
         params.push(format!("jenis_pakaian_id={}", jid));
     }
+    if let Some(ref jk) = query.jenis_kelamin {
+        params.push(format!("jenis_kelamin={}", jk));
+    }
+    if let Some(ref e) = query.eselon {
+        params.push(format!("eselon={}", e));
+    }
+    if let Some(ref j) = query.jenis {
+        params.push(format!("jenis={}", j));
+    }
     if !params.is_empty() {
         url.push_str(&format!("?{}", params.join("&")));
     }
@@ -2461,6 +2479,15 @@ pub async fn fetch_laporan_daftar_pegawai(
     }
     if let Some(ref jid) = query.jenis_pakaian_id {
         url.push_str(&format!("&jenis_pakaian_id={}", jid));
+    }
+    if let Some(ref jk) = query.jenis_kelamin {
+        url.push_str(&format!("&jenis_kelamin={}", jk));
+    }
+    if let Some(ref e) = query.eselon {
+        url.push_str(&format!("&eselon={}", e));
+    }
+    if let Some(ref j) = query.jenis {
+        url.push_str(&format!("&jenis={}", j));
     }
 
     let token = get_auth_token()

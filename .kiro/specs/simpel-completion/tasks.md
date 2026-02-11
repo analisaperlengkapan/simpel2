@@ -4,6 +4,26 @@
 
 This implementation plan completes SIMPEL (Sistem Informasi Manajemen Perlengkapan) from 70-75% to production-ready state. The project involves database optimization, code consolidation, mandatory integrations (SIMAN, MySIMKARI), workflow engine, document/notification services, and advanced features.
 
+## ⚠️ CRITICAL ROLE STRUCTURE UPDATE (February 2026)
+
+**PERLENGKAPAN DOMAIN ROLES - NO PEGAWAI ACCESS:**
+
+The perlengkapan (equipment management) domain has a specific role structure that differs from other domains. **Pegawai (employees) do NOT have direct access to perlengkapan features.**
+
+**Authorized Roles in Perlengkapan Domain:**
+1. **Operator Satker** - Work unit operator who manages all perlengkapan operations including BMN usage permits on behalf of employees
+2. **Validator Wilayah** - Regional validator for approval workflows
+3. **Validator Pusat** - Central validator for final approvals
+4. **Admin** - Administrator with special authority in perlengkapan service and microfrontend
+
+**Key Implications:**
+- Pemakaian BMN (equipment usage permits) are managed BY Operator Satker ON BEHALF OF employees
+- Employees do not submit permit requests directly - Operator Satker does this for them
+- All workflow approvals use Validator Wilayah and Validator Pusat roles (NOT generic "Verifikator" or "Pimpinan")
+- Frontend components should only show features accessible to these 4 roles
+- Authorization checks must validate against these 4 roles only
+- Notifications are sent to these 4 roles only (not to employees)
+
 **Current Status (Updated February 2026):**
 - ✅ Infrastructure: Authenc (50K LOC), Secreton (40K LOC), K8s deployed
 - ✅ Backend: `layanan/perlengkapan/crates/api` (kebutuhan_bmn, pakaian_dinas modules)
@@ -42,14 +62,14 @@ This implementation plan completes SIMPEL (Sistem Informasi Manajemen Perlengkap
 
 ## Phase 1: Database Refactoring & Standardization (Weeks 1-2)
 
-- [x] 1. Database Schema Standardization
-  - [x] 1.1 Audit existing schema and create standardization plan
+- [ ] 1. Database Schema Standardization
+  - [ ] 1.1 Audit existing schema and create standardization plan
     - Review all existing tables in perlengkapan schema
     - Document naming inconsistencies
     - Create migration plan for renaming
     - _Requirements: NFR-M005_
 
-  - [x] 1.2 Create integration schema and tables
+  - [ ] 1.2 Create integration schema and tables
     - Create `integrasi` schema
     - Implement `siman_aset_tanah` table with JSONB raw_data
     - Implement `siman_aset_gedung_bangunan` table
@@ -61,7 +81,7 @@ This implementation plan completes SIMPEL (Sistem Informasi Manajemen Perlengkap
     - Add GIN indexes for JSONB columns
     - _Requirements: REQ-I001, REQ-I002, REQ-I008_
 
-  - [x] 1.3 Create new entity tables
+  - [ ] 1.3 Create new entity tables
     - Implement `roadmap_sarpras` table with period constraints
     - Implement `mapping_kodefikasi` table
     - Implement `riwayat_pemenuhan` table
@@ -71,7 +91,7 @@ This implementation plan completes SIMPEL (Sistem Informasi Manajemen Perlengkap
     - Add appropriate indexes and foreign keys
     - _Requirements: REQ-K008, REQ-M007, REQ-K009, REQ-P001_
 
-  - [x] 1.4 Create database views for dashboards
+  - [ ] 1.4 Create database views for dashboards
     - Implement `v_gap_analysis` view with kebutuhan vs existing assets
     - Implement `v_workflow_metrics` view for workflow performance
     - Implement `mv_dashboard_metrics` materialized view with aggregated metrics
@@ -79,7 +99,7 @@ This implementation plan completes SIMPEL (Sistem Informasi Manajemen Perlengkap
     - Set up cron job for view refresh (every 5 minutes)
     - _Requirements: REQ-DB001, REQ-DB004, REQ-DB013, NFR-P006_
 
-  - [x] 1.5 Add performance indexes
+  - [ ] 1.5 Add performance indexes
     - Create foreign key indexes on all tables
     - Create full-text search indexes using pg_trgm extension
     - Create composite indexes for common query patterns (satker_id + tahun_anggaran, status + created_at)
@@ -87,7 +107,7 @@ This implementation plan completes SIMPEL (Sistem Informasi Manajemen Perlengkap
     - Analyze query performance with EXPLAIN and add missing indexes
     - _Requirements: NFR-P001, NFR-P002, REQ-K005_
 
-  - [x] 1.6 Migrate existing data to new schema
+  - [ ] 1.6 Migrate existing data to new schema
     - Write data migration scripts for renamed tables
     - Test migration on staging database with full dataset
     - Backup production database (full backup + WAL archiving)
@@ -96,7 +116,7 @@ This implementation plan completes SIMPEL (Sistem Informasi Manajemen Perlengkap
     - Test rollback procedure
     - _Requirements: NFR-A003, NFR-A004, NFR-A005_
 
-- [x] 2. Checkpoint - Database validation
+- [ ] 2. Checkpoint - Database validation
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 2: Shared Libraries Enhancement (Weeks 3-4)
@@ -594,32 +614,36 @@ This implementation plan completes SIMPEL (Sistem Informasi Manajemen Perlengkap
 
 - [x] 27. Implement pemakaian BMN module
   - [x] 27.1 Create pemakaian backend
-    - Implement izin pemakaian CRUD operations (create, read, update, delete)
+    - Implement izin pemakaian CRUD operations (create, read, update, delete) - **ACCESSED BY OPERATOR SATKER ONLY**
     - Add dynamic form validation per BMN type (vehicle: SIM required, housing: family data, laptop: justification)
     - Implement available BMN query (no active permit, kondisi BAIK)
     - Add one BMN = one active permit validation (check existing active permits)
     - Implement permit number generation (format: IZN/{YEAR}/{SATKER}/{SEQUENCE})
     - Add permit renewal with history tracking (link to previous permit)
-    - Implement permit revocation with reason and approval
+    - Implement permit revocation with reason and approval - **BY ADMIN ONLY**
     - Add auto-expiry scheduler (daily check at 00:00 WIB)
-    - Integrate with workflow engine for approval process
+    - Integrate with workflow engine for approval process - **USES VALIDATOR WILAYAH AND VALIDATOR PUSAT ROLES**
     - _Requirements: REQ-P001, REQ-P002, REQ-P003, REQ-P004, REQ-P005, REQ-P008, REQ-P009, REQ-P010, REQ-P016_
+    - _Note: Operator Satker creates permits on behalf of employees, NOT employees directly_
 
   - [x] 27.2 Create pemakaian frontend
-    - Implement izin pemakaian form
+    - Implement izin pemakaian form - **FOR OPERATOR SATKER ONLY**
     - Add BMN selection with availability check
-    - Create permit history view
-    - Add renewal interface
-    - Implement document upload
+    - Add employee (pegawai) selection dropdown - **OPERATOR SELECTS EMPLOYEE, NOT SELF-SERVICE**
+    - Create permit history view - **VISIBLE TO OPERATOR SATKER, VALIDATORS, ADMIN**
+    - Add renewal interface - **FOR OPERATOR SATKER ONLY**
+    - Implement document upload - **FOR OPERATOR SATKER ONLY**
     - _Requirements: REQ-P001, REQ-P014_
+    - _Note: No pegawai-facing UI components - all operations through Operator Satker_
 
   - [x] 27.3 Implement pemakaian monitoring
-    - Create active usage monitoring dashboard (total active permits, by BMN type, by satker)
+    - Create active usage monitoring dashboard (total active permits, by BMN type, by satker) - **FOR ADMIN AND VALIDATOR PUSAT**
     - Add usage history per BMN (timeline view with all permits)
-    - Add usage history per pegawai (all permits issued to pegawai)
-    - Implement BMN utilization report (% of BMN with active permits)
-    - Add expiring permits alert (permits expiring in next 30 days)
+    - Add usage history per pegawai (all permits issued to pegawai) - **VIEW ONLY, NOT PEGAWAI-ACCESSIBLE**
+    - Implement BMN utilization report (% of BMN with active permits) - **FOR ADMIN AND VALIDATOR PUSAT**
+    - Add expiring permits alert (permits expiring in next 30 days) - **NOTIFY OPERATOR SATKER, NOT PEGAWAI**
     - _Requirements: REQ-P011, REQ-P012, REQ-P013, REQ-P007_
+    - _Note: Monitoring dashboards for authorized roles only, not for employees_
 
 - [x] 28. Checkpoint - Advanced features validation
   - Ensure all tests pass, ask the user if questions arise.
@@ -745,30 +769,32 @@ Based on comprehensive codebase analysis, the following critical gaps prevent en
     - [ ] Modify workflow engine transition() method
       - Add notification hook after each state transition
       - Call notifikasi service gRPC client (send_notification method)
-      - Resolve notification recipients (get approver from Authenc based on role + satker)
+      - Resolve notification recipients (get user from Authenc based on role + satker) - **USES PERLENGKAPAN ROLES ONLY**
       - Select notification template based on state transition
       - Handle notification errors (log error, don't block workflow)
     - [ ] Implement notifications for Kebutuhan BMN workflow
-      - SUBMITTED state: Notify approver (role: Verifikator, satker: same as requester)
-      - APPROVED state: Notify requester + generate document
-      - REJECTED state: Notify requester with rejection reason
-      - REVISION_REQUIRED state: Notify requester with revision notes
+      - SUBMITTED state: Notify validator (role: **Validator Wilayah**, satker: same as requester)
+      - APPROVED state: Notify requester (Operator Satker) + generate document
+      - REJECTED state: Notify requester (Operator Satker) with rejection reason
+      - REVISION_REQUIRED state: Notify requester (Operator Satker) with revision notes
     - [ ] Implement notifications for Penghapusan BMN workflow
-      - SUBMITTED state: Notify approver (role: Verifikator)
-      - APPROVED state: Notify requester + generate SK Penghapusan
-      - REJECTED state: Notify requester with reason
+      - SUBMITTED state: Notify validator (role: **Validator Wilayah**)
+      - APPROVED state: Notify requester (Operator Satker) + generate SK Penghapusan
+      - REJECTED state: Notify requester (Operator Satker) with reason
     - [ ] Implement notifications for Pemakaian BMN workflow
-      - SUBMITTED state: Notify approver (role: Pimpinan Satker)
-      - APPROVED state: Notify requester + activate permit
-      - REJECTED state: Notify requester with reason
+      - SUBMITTED state: Notify validator (role: **Validator Wilayah**) - **NOT TO PEGAWAI**
+      - APPROVED state: Notify requester (**Operator Satker**, NOT pegawai) + activate permit
+      - REJECTED state: Notify requester (**Operator Satker**, NOT pegawai) with reason
+      - **NOTE: Operator Satker is responsible for informing employee about permit status**
     - [ ] Implement notification recipient resolution
-      - Query Authenc for users with specific role in satker
-      - Handle multiple approvers (send to all)
-      - Handle no approvers found (escalate to parent satker)
+      - Query Authenc for users with specific role in satker - **PERLENGKAPAN ROLES ONLY**
+      - Handle multiple validators (send to all)
+      - Handle no validators found (escalate to parent satker or Validator Pusat)
     - [ ] Write integration tests
       - Test notification sent after each state transition
-      - Test recipient resolution (single approver, multiple approvers, no approver)
+      - Test recipient resolution (single validator, multiple validators, no validator)
       - Test notification error handling (service unavailable, invalid recipient)
+      - Test that pegawai role is NOT included in notification recipients
     - _Requirements: REQ-N001, REQ-N003, REQ-N005, REQ-W011_
     - _Priority: CRITICAL_
     - _Estimated Time: 2 days_
@@ -781,38 +807,38 @@ Based on comprehensive codebase analysis, the following critical gaps prevent en
       - Create repository.rs (database operations)
       - Create models.rs (data models)
     - [ ] Implement CRUD operations for penghapusan BMN
-      - Implement create_penghapusan (POST /penghapusan-bmn)
-      - Implement get_penghapusan (GET /penghapusan-bmn/:id)
-      - Implement list_penghapusan (GET /penghapusan-bmn with filters)
-      - Implement update_penghapusan (PUT /penghapusan-bmn/:id)
-      - Implement delete_penghapusan (DELETE /penghapusan-bmn/:id)
+      - Implement create_penghapusan (POST /penghapusan-bmn) - **OPERATOR SATKER ONLY**
+      - Implement get_penghapusan (GET /penghapusan-bmn/:id) - **AUTHORIZED ROLES ONLY**
+      - Implement list_penghapusan (GET /penghapusan-bmn with filters) - **AUTHORIZED ROLES ONLY**
+      - Implement update_penghapusan (PUT /penghapusan-bmn/:id) - **OPERATOR SATKER ONLY**
+      - Implement delete_penghapusan (DELETE /penghapusan-bmn/:id) - **ADMIN ONLY**
     - [ ] Create workflow configuration for penghapusan BMN
       - Define workflow states (DRAFT → SUBMITTED → REVIEWED → APPROVED/REJECTED)
-      - Configure role requirements (Operator → Verifikator → Pimpinan)
+      - Configure role requirements (**Operator Satker → Validator Wilayah → Validator Pusat**)
       - Set SLA per state (SUBMITTED: 2 days, REVIEWED: 3 days)
-      - Add workflow validation rules
+      - Add workflow validation rules - **VALIDATE PERLENGKAPAN ROLES ONLY**
     - [ ] Integrate with workflow engine
       - Use WorkflowEngine::for_penghapusan_bmn()
       - Implement transition endpoints (POST /penghapusan-bmn/:id/transition)
-      - Add role validation for each transition
+      - Add role validation for each transition - **PERLENGKAPAN ROLES ONLY**
       - Add audit logging for all transitions
     - [ ] Add document generation after approval
       - Generate SK Penghapusan BMN via dokumen service
       - Store document reference in penghapusan_bmn table
-      - Add document download endpoint (GET /penghapusan-bmn/:id/document)
+      - Add document download endpoint (GET /penghapusan-bmn/:id/document) - **AUTHORIZED ROLES ONLY**
     - [ ] Add notification after each transition
       - Send notification via notifikasi service
-      - Notify approver on SUBMITTED
-      - Notify requester on APPROVED/REJECTED
+      - Notify validator on SUBMITTED - **VALIDATOR WILAYAH OR VALIDATOR PUSAT**
+      - Notify requester on APPROVED/REJECTED - **OPERATOR SATKER**
     - [ ] Connect frontend components to backend
-      - Update penghapusan_form.rs to call new backend API
-      - Update penghapusan_list.rs to fetch from new backend
-      - Add transition buttons to frontend
-      - Add document download link
+      - Update penghapusan_form.rs to call new backend API - **OPERATOR SATKER ACCESS ONLY**
+      - Update penghapusan_list.rs to fetch from new backend - **AUTHORIZED ROLES ONLY**
+      - Add transition buttons to frontend - **ROLE-BASED VISIBILITY**
+      - Add document download link - **AUTHORIZED ROLES ONLY**
     - [ ] Add to routes.rs with authentication middleware
       - Add penghapusan_bmn routes to main router
       - Add JWT validation middleware
-      - Add role-based authorization middleware
+      - Add role-based authorization middleware - **PERLENGKAPAN ROLES ONLY**
     - [ ] Create database migration for penghapusan_bmn_aktivitas table
       - Create migration file (V037__penghapusan_bmn_aktivitas.sql)
       - Add penghapusan_bmn_aktivitas table (id, penghapusan_id, aktivitas_id, user_id, catatan, created_at)
@@ -820,9 +846,9 @@ Based on comprehensive codebase analysis, the following critical gaps prevent en
     - [ ] Write integration tests
       - Test complete workflow (create → submit → approve → generate SK → notify)
       - Test rejection workflow
-      - Test role validation
+      - Test role validation - **VERIFY ONLY PERLENGKAPAN ROLES CAN ACCESS**
       - Test document generation
-      - Test notification delivery
+      - Test notification delivery - **VERIFY PEGAWAI NOT IN RECIPIENTS**
     - _Requirements: REQ-W001, REQ-W004, REQ-W005, REQ-D002, REQ-N001, REQ-A007_
     - _Priority: CRITICAL - Complete gap, compliance risk_
     - _Estimated Time: 3 days_
@@ -830,21 +856,23 @@ Based on comprehensive codebase analysis, the following critical gaps prevent en
   - [x] 28.5.5 Integrate Pemakaian BMN Scheduler with Notification Service (REQUIRES 28.5.1 COMPLETE - CAN RUN PARALLEL WITH 28.5.6-28.5.8)
     - [ ] Modify pemakaian_bmn/scheduler.rs
       - Replace TODO comments with actual notification calls
-      - Implement H-30 reminder notification (30 days before expiry)
-      - Implement H-14 reminder notification (14 days before expiry)
-      - Implement H-7 reminder notification (7 days before expiry)
-      - Implement expiry notification (on expiry date)
+      - Implement H-30 reminder notification (30 days before expiry) - **NOTIFY OPERATOR SATKER, NOT PEGAWAI**
+      - Implement H-14 reminder notification (14 days before expiry) - **NOTIFY OPERATOR SATKER, NOT PEGAWAI**
+      - Implement H-7 reminder notification (7 days before expiry) - **NOTIFY OPERATOR SATKER, NOT PEGAWAI**
+      - Implement expiry notification (on expiry date) - **NOTIFY OPERATOR SATKER, NOT PEGAWAI**
     - [ ] Create permit expiry reminder template
-      - Add template variables (permit_number, bmn_name, expiry_date, days_remaining)
-      - Add action link (renew permit)
+      - Add template variables (permit_number, bmn_name, pegawai_name, expiry_date, days_remaining)
+      - Add action link (renew permit) - **LINK FOR OPERATOR SATKER, NOT PEGAWAI**
       - Add contact information for questions
+      - **NOTE: Template addressed to Operator Satker, mentions employee name for reference**
     - [ ] Test scheduler notification delivery
       - Use tokio::time::advance for testing
-      - Test H-30 reminder sent correctly
-      - Test H-14 reminder sent correctly
-      - Test H-7 reminder sent correctly
-      - Test expiry notification sent correctly
+      - Test H-30 reminder sent correctly to Operator Satker
+      - Test H-14 reminder sent correctly to Operator Satker
+      - Test H-7 reminder sent correctly to Operator Satker
+      - Test expiry notification sent correctly to Operator Satker
       - Test no duplicate notifications
+      - **Verify pegawai is NOT in notification recipients**
     - [ ] Add notification metrics to Prometheus
       - Add permit_expiry_reminders_sent_total counter
       - Add permit_expiry_notifications_sent_total counter
@@ -903,15 +931,15 @@ Based on comprehensive codebase analysis, the following critical gaps prevent en
   - [x] 28.5.8 Implement SLA Monitoring with Notification (REQUIRES 28.5.1 COMPLETE - CAN RUN PARALLEL WITH 28.5.5, 28.5.6, 28.5.7)
     - [ ] Modify workflow/sla.rs
       - Call notifikasi service on SLA breach
-      - Send notification to approver (escalation to supervisor)
-      - Send notification to requester (informational)
+      - Send notification to validator (escalation to supervisor) - **VALIDATOR WILAYAH OR VALIDATOR PUSAT**
+      - Send notification to requester (informational) - **OPERATOR SATKER**
     - [ ] Create SLA breach notification template
       - Add template variables (entity_name, state, sla_deadline, days_overdue)
       - Add escalation message
-      - Add action link (approve/reject)
+      - Add action link (approve/reject) - **FOR VALIDATORS ONLY**
     - [ ] Implement automatic escalation notification
-      - Query Authenc for next level approver (parent satker or higher role)
-      - Send escalation notification
+      - Query Authenc for next level validator (parent satker or Validator Pusat)
+      - Send escalation notification - **TO VALIDATORS ONLY, NOT PEGAWAI**
       - Log escalation in workflow activity
     - [ ] Add SLA breach metrics to Prometheus
       - Add workflow_sla_breaches_total counter (by workflow_type, state)
@@ -924,9 +952,10 @@ Based on comprehensive codebase analysis, the following critical gaps prevent en
       - Add alert rules (breach rate > 10%)
     - [ ] Test SLA breach detection and notification
       - Test SLA breach detected correctly
-      - Test notification sent to approver
-      - Test escalation notification sent
+      - Test notification sent to validator
+      - Test escalation notification sent to higher validator
       - Test metrics recorded
+      - **Verify pegawai role not included in notifications**
     - _Requirements: REQ-W003, REQ-N008, NFR-M004_
     - _Priority: MEDIUM_
     - _Estimated Time: 1 day_
@@ -1866,7 +1895,38 @@ Based on service dependencies (updated with Phase 7.5 integrations):
 
 ---
 
-**Document Status:** UPDATED v2.1.0
+**Document Status:** UPDATED v2.2.0
 **Last Updated:** February 9, 2026
 **Next Review:** After Phase 7.5 completion
 **Classification:** Internal - Kejaksaan Republik Indonesia
+
+## ⚠️ CRITICAL ROLE STRUCTURE CHANGES (v2.2.0)
+
+**IMPORTANT:** This version (v2.2.0) reflects critical role structure changes for the perlengkapan domain:
+
+**Removed:**
+- ❌ Pegawai (employee) direct access to perlengkapan features
+- ❌ Generic "Verifikator" and "Pimpinan" roles in perlengkapan workflows
+
+**Updated Roles:**
+- ✅ **Operator Satker** - Manages all perlengkapan operations including permits on behalf of employees
+- ✅ **Validator Wilayah** - Regional validator (replaces generic "Verifikator")
+- ✅ **Validator Pusat** - Central validator (replaces generic "Pimpinan")
+- ✅ **Admin** - Administrator with special authority
+
+**Key Changes:**
+1. All pemakaian BMN (equipment usage permit) operations are performed BY Operator Satker ON BEHALF OF employees
+2. Employees do not have self-service access to perlengkapan features
+3. All workflow approvals use Validator Wilayah and Validator Pusat roles
+4. All notifications are sent to authorized roles only (Operator Satker, Validators, Admin)
+5. Frontend components must enforce role-based access control for these 4 roles only
+6. Authorization middleware must validate against perlengkapan roles only
+
+**Impact on Implementation:**
+- Phase 7.5 tasks updated to reflect correct role structure
+- Workflow notification tasks specify correct recipient roles
+- Pemakaian BMN tasks clarify Operator Satker manages permits for employees
+- All authorization checks must validate against 4 authorized roles only
+- UI components must not show pegawai-facing features
+
+**Compliance:** This role structure aligns with organizational security requirements and separation of duties principles for government asset management.

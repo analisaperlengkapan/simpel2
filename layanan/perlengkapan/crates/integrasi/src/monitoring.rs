@@ -119,27 +119,27 @@ async fn get_sync_status(
         format!(
             r#"
             SELECT
-                source,
-                MAX(sync_started_at) as last_sync_at,
-                SUM(records_fetched) as total_records,
+                module as source,
+                MAX(started_at) as last_sync_at,
+                COALESCE(SUM(record_count), 0) as total_records,
                 COUNT(*) as total_syncs,
                 SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful_syncs
-            FROM integrasi.data_sync_log
-            WHERE source = '{}'
-            GROUP BY source
+            FROM integrasi.api_log
+            WHERE module = '{}'
+            GROUP BY module
         "#,
             source
         )
     } else {
         r#"
             SELECT
-                source,
-                MAX(sync_started_at) as last_sync_at,
-                SUM(records_fetched) as total_records,
+                module as source,
+                MAX(started_at) as last_sync_at,
+                COALESCE(SUM(record_count), 0) as total_records,
                 COUNT(*) as total_syncs,
                 SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful_syncs
-            FROM integrasi.data_sync_log
-            GROUP BY source
+            FROM integrasi.api_log
+            GROUP BY module
         "#
         .to_string()
     };
@@ -212,13 +212,13 @@ async fn get_sync_history(
         format!(
             r#"
             SELECT
-                id, source, table_name, module, endpoint,
-                records_fetched, records_inserted, records_updated, records_failed,
-                success, error_message, sync_started_at,
-                EXTRACT(EPOCH FROM (sync_completed_at - sync_started_at))::INTEGER as duration_seconds
-            FROM integrasi.data_sync_log
-            WHERE source = '{}' AND sync_started_at >= CURRENT_TIMESTAMP - INTERVAL '{} days'
-            ORDER BY sync_started_at DESC
+                id, module as source, endpoint,
+                COALESCE(record_count, 0) as records_fetched,
+                success, error_message, started_at as sync_started_at,
+                EXTRACT(EPOCH FROM (completed_at - started_at))::INTEGER as duration_seconds
+            FROM integrasi.api_log
+            WHERE module = '{}' AND started_at >= CURRENT_TIMESTAMP - INTERVAL '{} days'
+            ORDER BY started_at DESC
             LIMIT {}
         "#,
             source, days, limit
@@ -227,13 +227,13 @@ async fn get_sync_history(
         format!(
             r#"
             SELECT
-                id, source, table_name, module, endpoint,
-                records_fetched, records_inserted, records_updated, records_failed,
-                success, error_message, sync_started_at,
-                EXTRACT(EPOCH FROM (sync_completed_at - sync_started_at))::INTEGER as duration_seconds
-            FROM integrasi.data_sync_log
-            WHERE sync_started_at >= CURRENT_TIMESTAMP - INTERVAL '{} days'
-            ORDER BY sync_started_at DESC
+                id, module as source, endpoint,
+                COALESCE(record_count, 0) as records_fetched,
+                success, error_message, started_at as sync_started_at,
+                EXTRACT(EPOCH FROM (completed_at - started_at))::INTEGER as duration_seconds
+            FROM integrasi.api_log
+            WHERE started_at >= CURRENT_TIMESTAMP - INTERVAL '{} days'
+            ORDER BY started_at DESC
             LIMIT {}
         "#,
             days, limit
@@ -247,13 +247,13 @@ async fn get_sync_history(
                 .map(|row| SyncHistoryItem {
                     id: row.try_get("id").unwrap_or(0),
                     source: row.try_get("source").unwrap_or_default(),
-                    table_name: row.try_get("table_name").unwrap_or_default(),
-                    module: row.try_get("module").unwrap_or_default(),
+                    table_name: String::new(),
+                    module: row.try_get("source").unwrap_or_default(),
                     endpoint: row.try_get("endpoint").unwrap_or_default(),
                     records_fetched: row.try_get("records_fetched").unwrap_or(0),
-                    records_inserted: row.try_get("records_inserted").unwrap_or(0),
-                    records_updated: row.try_get("records_updated").unwrap_or(0),
-                    records_failed: row.try_get("records_failed").unwrap_or(0),
+                    records_inserted: 0,
+                    records_updated: 0,
+                    records_failed: 0,
                     success: row.try_get("success").unwrap_or(false),
                     error_message: row.try_get("error_message").ok(),
                     sync_started_at: row
@@ -288,29 +288,29 @@ async fn get_alerts(State(state): State<MonitoringState>) -> impl IntoResponse {
     let query = r#"
         WITH recent_failures AS (
             SELECT
-                source,
+                module as source,
                 COUNT(*) as failure_count,
-                MAX(sync_started_at) as last_failure_at,
+                MAX(started_at) as last_failure_at,
                 MAX(error_message) as last_error
-            FROM integrasi.data_sync_log
+            FROM integrasi.api_log
             WHERE success = false
-                AND sync_started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
-            GROUP BY source
+                AND started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+            GROUP BY module
         ),
         consecutive_failures AS (
             SELECT
-                source,
+                module as source,
                 COUNT(*) as consecutive_count
             FROM (
                 SELECT
-                    source,
+                    module,
                     success,
-                    ROW_NUMBER() OVER (PARTITION BY source ORDER BY sync_started_at DESC) as rn
-                FROM integrasi.data_sync_log
-                WHERE sync_started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                    ROW_NUMBER() OVER (PARTITION BY module ORDER BY started_at DESC) as rn
+                FROM integrasi.api_log
+                WHERE started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
             ) sub
             WHERE success = false AND rn <= 5
-            GROUP BY source
+            GROUP BY module
         )
         SELECT
             rf.source,
@@ -393,8 +393,8 @@ async fn get_dashboard_metrics(State(state): State<MonitoringState>) -> impl Int
             COUNT(*) as total_syncs,
             SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful_syncs,
             SUM(CASE WHEN NOT success THEN 1 ELSE 0 END) as failed_syncs
-        FROM integrasi.data_sync_log
-        WHERE sync_started_at >= CURRENT_DATE
+        FROM integrasi.api_log
+        WHERE started_at >= CURRENT_DATE
     "#;
 
     let (total_syncs, successful_syncs, failed_syncs) =
@@ -420,13 +420,13 @@ async fn get_dashboard_metrics(State(state): State<MonitoringState>) -> impl Int
     // Get sync status by source
     let status_query = r#"
         SELECT
-            source,
-            MAX(sync_started_at) as last_sync_at,
-            SUM(records_fetched) as total_records,
+            module as source,
+            MAX(started_at) as last_sync_at,
+            COALESCE(SUM(record_count), 0) as total_records,
             COUNT(*) as total_syncs,
             SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful_syncs
-        FROM integrasi.data_sync_log
-        GROUP BY source
+        FROM integrasi.api_log
+        GROUP BY module
     "#;
 
     let mut sync_status_by_source = HashMap::new();
@@ -469,12 +469,12 @@ async fn get_dashboard_metrics(State(state): State<MonitoringState>) -> impl Int
     // Get recent sync history (last 10)
     let history_query = r#"
         SELECT
-            id, source, table_name, module, endpoint,
-            records_fetched, records_inserted, records_updated, records_failed,
-            success, error_message, sync_started_at,
-            EXTRACT(EPOCH FROM (sync_completed_at - sync_started_at))::INTEGER as duration_seconds
-        FROM integrasi.data_sync_log
-        ORDER BY sync_started_at DESC
+            id, module as source, endpoint,
+            COALESCE(record_count, 0) as records_fetched,
+            success, error_message, started_at as sync_started_at,
+            EXTRACT(EPOCH FROM (completed_at - started_at))::INTEGER as duration_seconds
+        FROM integrasi.api_log
+        ORDER BY started_at DESC
         LIMIT 10
     "#;
 
@@ -484,13 +484,13 @@ async fn get_dashboard_metrics(State(state): State<MonitoringState>) -> impl Int
             .map(|row| SyncHistoryItem {
                 id: row.try_get("id").unwrap_or(0),
                 source: row.try_get("source").unwrap_or_default(),
-                table_name: row.try_get("table_name").unwrap_or_default(),
-                module: row.try_get("module").unwrap_or_default(),
+                table_name: String::new(),
+                module: row.try_get("source").unwrap_or_default(),
                 endpoint: row.try_get("endpoint").unwrap_or_default(),
                 records_fetched: row.try_get("records_fetched").unwrap_or(0),
-                records_inserted: row.try_get("records_inserted").unwrap_or(0),
-                records_updated: row.try_get("records_updated").unwrap_or(0),
-                records_failed: row.try_get("records_failed").unwrap_or(0),
+                records_inserted: 0,
+                records_updated: 0,
+                records_failed: 0,
                 success: row.try_get("success").unwrap_or(false),
                 error_message: row.try_get("error_message").ok(),
                 sync_started_at: row
@@ -510,29 +510,29 @@ async fn get_dashboard_metrics(State(state): State<MonitoringState>) -> impl Int
     let alerts_query = r#"
         WITH recent_failures AS (
             SELECT
-                source,
+                module as source,
                 COUNT(*) as failure_count,
-                MAX(sync_started_at) as last_failure_at,
+                MAX(started_at) as last_failure_at,
                 MAX(error_message) as last_error
-            FROM integrasi.data_sync_log
+            FROM integrasi.api_log
             WHERE success = false
-                AND sync_started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
-            GROUP BY source
+                AND started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+            GROUP BY module
         ),
         consecutive_failures AS (
             SELECT
-                source,
+                module as source,
                 COUNT(*) as consecutive_count
             FROM (
                 SELECT
-                    source,
+                    module,
                     success,
-                    ROW_NUMBER() OVER (PARTITION BY source ORDER BY sync_started_at DESC) as rn
-                FROM integrasi.data_sync_log
-                WHERE sync_started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                    ROW_NUMBER() OVER (PARTITION BY module ORDER BY started_at DESC) as rn
+                FROM integrasi.api_log
+                WHERE started_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
             ) sub
             WHERE success = false AND rn <= 5
-            GROUP BY source
+            GROUP BY module
         )
         SELECT
             rf.source,

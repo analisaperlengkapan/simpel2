@@ -129,42 +129,72 @@ impl SyncStatusStorage {
     async fn upsert_satker(&self, db: &PgClient, data: &Value) -> Result<(), MonsaktiError> {
         let query = r#"
             INSERT INTO mysimkari_satker (
-                id,
+                api_id,
                 kode_satker,
                 nama_satker,
-                wilayah,
                 tipe_satker,
-                raw_data,
+                alamat_satker,
+                telp_satker,
+                website_satker,
+                city,
+                long,
+                lat,
+                provinsi,
+                wilayah,
+                kategori_satker,
+                pulau,
+                parent_id,
                 synced_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
             ON CONFLICT (kode_satker)
             DO UPDATE SET
                 nama_satker = EXCLUDED.nama_satker,
-                wilayah = EXCLUDED.wilayah,
                 tipe_satker = EXCLUDED.tipe_satker,
-                raw_data = EXCLUDED.raw_data,
-                synced_at = NOW()
+                alamat_satker = EXCLUDED.alamat_satker,
+                telp_satker = EXCLUDED.telp_satker,
+                website_satker = EXCLUDED.website_satker,
+                city = EXCLUDED.city,
+                long = EXCLUDED.long,
+                lat = EXCLUDED.lat,
+                provinsi = EXCLUDED.provinsi,
+                wilayah = EXCLUDED.wilayah,
+                kategori_satker = EXCLUDED.kategori_satker,
+                pulau = EXCLUDED.pulau,
+                parent_id = EXCLUDED.parent_id,
+                synced_at = NOW(),
+                updated_at = NOW()
         "#;
 
-        let id = data
+        let api_id = data
             .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
+            .and_then(|v| v.as_str());
         let kode_satker = data
             .get("kode_satker")
             .and_then(|v| v.as_str())
             .unwrap_or_default();
         let nama_satker = data
             .get("nama_satker")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
-        let wilayah = data.get("wilayah").and_then(|v| v.as_str());
+            .and_then(|v| v.as_str());
         let tipe_satker = data.get("tipe_satker").and_then(|v| v.as_str());
+        let alamat_satker = data.get("alamat_satker").and_then(|v| v.as_str());
+        let telp_satker = data.get("telp_satker").and_then(|v| v.as_str());
+        let website_satker = data.get("website_satker").and_then(|v| v.as_str());
+        let city = data.get("city").and_then(|v| v.as_str());
+        let long = data.get("long").and_then(|v| v.as_str());
+        let lat = data.get("lat").and_then(|v| v.as_str());
+        let provinsi = data.get("provinsi").and_then(|v| v.as_str());
+        let wilayah = data.get("wilayah").and_then(|v| v.as_str());
+        let kategori_satker = data.get("kategori_satker").and_then(|v| v.as_str());
+        let pulau = data.get("pulau").and_then(|v| v.as_str());
+        let parent_id = data.get("parent_id").and_then(|v| v.as_str());
 
         db.execute(
             query,
-            &[&id, &kode_satker, &nama_satker, &wilayah, &tipe_satker, &data],
+            &[&api_id, &kode_satker, &nama_satker, &tipe_satker,
+              &alamat_satker, &telp_satker, &website_satker, &city,
+              &long, &lat, &provinsi, &wilayah, &kategori_satker,
+              &pulau, &parent_id],
         )
         .await?;
 
@@ -177,51 +207,75 @@ impl SyncStatusStorage {
                 nip,
                 nama,
                 satker_id,
-                satker_code,
+                nama_satker,
                 jabatan,
-                golongan,
+                jenis_jabatan_terakhir,
+                eselon,
+                golpang,
+                gol_kd,
+                jk,
+                agama,
+                email_dinas,
+                no_hp,
+                nrp,
+                foto,
+                bidang,
+                jabat_tmt,
                 status_pegawai,
-                raw_data,
                 synced_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'aktif', NOW())
             ON CONFLICT (nip)
             DO UPDATE SET
                 nama = EXCLUDED.nama,
                 satker_id = EXCLUDED.satker_id,
-                satker_code = EXCLUDED.satker_code,
+                nama_satker = EXCLUDED.nama_satker,
                 jabatan = EXCLUDED.jabatan,
-                golongan = EXCLUDED.golongan,
-                status_pegawai = EXCLUDED.status_pegawai,
-                raw_data = EXCLUDED.raw_data,
-                synced_at = NOW()
+                jenis_jabatan_terakhir = EXCLUDED.jenis_jabatan_terakhir,
+                eselon = EXCLUDED.eselon,
+                golpang = EXCLUDED.golpang,
+                gol_kd = EXCLUDED.gol_kd,
+                jk = EXCLUDED.jk,
+                agama = EXCLUDED.agama,
+                email_dinas = EXCLUDED.email_dinas,
+                no_hp = EXCLUDED.no_hp,
+                nrp = EXCLUDED.nrp,
+                foto = EXCLUDED.foto,
+                bidang = EXCLUDED.bidang,
+                jabat_tmt = EXCLUDED.jabat_tmt,
+                status_pegawai = 'aktif',
+                synced_at = NOW(),
+                updated_at = NOW()
         "#;
 
         let nip = data
             .get("nip")
             .and_then(|v| v.as_str())
             .unwrap_or_default();
-        let nama = data
-            .get("nama")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
+        let nama = data.get("nama").and_then(|v| v.as_str());
         let satker_id = data.get("satker_id").and_then(|v| v.as_str());
-        let satker_code = data.get("satker_code").and_then(|v| v.as_str());
+        let nama_satker = data.get("nama_satker").and_then(|v| v.as_str());
         let jabatan = data.get("jabatan").and_then(|v| v.as_str());
-        let golongan = data.get("golongan").and_then(|v| v.as_str());
-        let status_pegawai = data.get("status_pegawai").and_then(|v| v.as_str());
+        let jenis_jabatan = data.get("jenis_jabatan_terakhir").and_then(|v| v.as_str());
+        let eselon = data.get("eselon").and_then(|v| v.as_str());
+        let golpang = data.get("golpang").and_then(|v| v.as_str());
+        let gol_kd = data.get("gol_kd").or_else(|| data.get("GOL_KD")).and_then(|v| v.as_str());
+        let jk = data.get("jk").and_then(|v| v.as_str());
+        let agama = data.get("agama").and_then(|v| v.as_str());
+        let email_dinas = data.get("email_dinas").and_then(|v| v.as_str());
+        let no_hp = data.get("no_hp").and_then(|v| v.as_str());
+        let nrp = data.get("nrp").and_then(|v| v.as_str());
+        let foto = data.get("foto").and_then(|v| v.as_str());
+        let bidang = data.get("bidang").and_then(|v| v.as_str());
+        let jabat_tmt = data.get("jabat_tmt").and_then(|v| v.as_str());
 
         db.execute(
             query,
             &[
-                &nip,
-                &nama,
-                &satker_id,
-                &satker_code,
-                &jabatan,
-                &golongan,
-                &status_pegawai,
-                &data,
+                &nip, &nama, &satker_id, &nama_satker, &jabatan,
+                &jenis_jabatan, &eselon, &golpang, &gol_kd, &jk,
+                &agama, &email_dinas, &no_hp, &nrp, &foto, &bidang,
+                &jabat_tmt,
             ],
         )
         .await?;

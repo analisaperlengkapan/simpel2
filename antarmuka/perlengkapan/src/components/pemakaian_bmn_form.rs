@@ -1,6 +1,13 @@
 //! # Pemakaian BMN Form Component
 //!
 //! Dynamic form for creating BMN usage permits with type-specific fields.
+//!
+//! **IMPORTANT - ROLE STRUCTURE:**
+//! - This form is ONLY accessible by Operator Satker
+//! - Operator Satker creates permits ON BEHALF OF employees (pegawai)
+//! - There is NO self-service for employees in perlengkapan domain
+//! - Operator Satker inputs pegawai NIP and name manually or selects from dropdown
+//!
 //! Requirements: REQ-P001, REQ-P002, REQ-P014
 
 use leptos::prelude::*;
@@ -216,8 +223,13 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 </div>
 
                 // Pegawai Information
+                // NOTE: Operator Satker fills this on behalf of employee
+                // TODO: Add pegawai dropdown from MySIMKARI integration
                 <div class="border-t pt-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">"Informasi Pemohon"</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        "Informasi Pegawai yang Akan Menggunakan BMN"
+                        <span class="text-sm text-gray-500 ml-2">"(Diisi oleh Operator Satker)"</span>
+                    </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">"NIP"</label>

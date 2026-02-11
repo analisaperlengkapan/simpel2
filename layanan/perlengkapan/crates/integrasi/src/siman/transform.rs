@@ -20,8 +20,8 @@ use uuid::Uuid;
 pub struct TransformedAsset {
     /// Internal UUID (generated)
     pub id: Uuid,
-    /// Asset category
-    pub kategori_aset: String,
+    /// Jenis aset (e.g. "Tanah", "Alat Besar", etc.)
+    pub jenis_aset: String,
     /// NUP (Nomor Urut Pendaftaran)
     pub nup: Option<String>,
     /// Kode barang
@@ -36,18 +36,16 @@ pub struct TransformedAsset {
     pub nilai_perolehan: Option<f64>,
     /// Satker code
     pub satker_code: Option<String>,
-    /// Raw data from SIMAN API (for debugging)
-    pub raw_data: Value,
     /// Validation errors (if any)
     pub validation_errors: Vec<String>,
 }
 
 impl TransformedAsset {
     /// Create a new transformed asset
-    pub fn new(category: SimanAssetCategory, raw_data: Value) -> Self {
+    pub fn new(category: SimanAssetCategory, _raw_data: Value) -> Self {
         Self {
             id: Uuid::new_v4(),
-            kategori_aset: category.description().to_string(),
+            jenis_aset: category.description().to_string(),
             nup: None,
             kode_barang: None,
             nama_barang: None,
@@ -55,7 +53,6 @@ impl TransformedAsset {
             tahun_perolehan: None,
             nilai_perolehan: None,
             satker_code: None,
-            raw_data,
             validation_errors: Vec::new(),
         }
     }
@@ -273,7 +270,7 @@ impl SimanTransformer {
     pub fn to_database_json(asset: &TransformedAsset) -> Value {
         serde_json::json!({
             "id": asset.id,
-            "kategori_aset": asset.kategori_aset,
+            "jenis_aset": asset.jenis_aset,
             "nup": asset.nup,
             "kode_barang": asset.kode_barang,
             "nama_barang": asset.nama_barang,
@@ -281,7 +278,6 @@ impl SimanTransformer {
             "tahun_perolehan": asset.tahun_perolehan,
             "nilai_perolehan": asset.nilai_perolehan,
             "satker_code": asset.satker_code,
-            "raw_data": asset.raw_data,
             "validation_errors": asset.validation_errors,
         })
     }
@@ -397,7 +393,7 @@ mod tests {
 
         assert!(json.is_object());
         assert!(json.get("id").is_some());
-        assert_eq!(json.get("kategori_aset").and_then(|v| v.as_str()), Some("Tanah"));
-        assert!(json.get("raw_data").is_some());
+        assert_eq!(json.get("jenis_aset").and_then(|v| v.as_str()), Some("Tanah"));
+        assert!(json.get("raw_data").is_none());
     }
 }

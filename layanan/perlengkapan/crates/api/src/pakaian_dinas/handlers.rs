@@ -67,6 +67,8 @@ pub struct LaporanDaftarQuery {
     pub pengajuan_id: Uuid,
     pub satker_id: Option<Uuid>,
     pub jenis_kelamin: Option<String>,
+    pub eselon: Option<String>,
+    pub jenis: Option<String>,
 }
 
 // ============ Master: Jenis Pakaian Dinas ============
@@ -549,6 +551,8 @@ pub async fn get_laporan_daftar_pegawai(
         pengajuan_id: Some(query.pengajuan_id),
         satker_id: query.satker_id,
         jenis_kelamin: query.jenis_kelamin,
+        eselon: query.eselon,
+        jenis: query.jenis,
         ..Default::default()
     };
 
@@ -649,6 +653,62 @@ pub async fn download_rekapitulasi_handler(
         }),
         "URL rekapitulasi berhasil diambil".to_string(),
     )))
+}
+// ============ Export / Cetak Handlers ============
+
+#[derive(Debug, Deserialize)]
+pub struct CetakQuery {
+    pub jenis_laporan: String,  // "rekap" or "daftar"
+    pub jenis_file: String,     // "excel" or "pdf"
+    pub pengajuan_id: Uuid,
+    pub satker_id: Option<Uuid>,
+    pub jenis_kelamin: Option<String>,
+    pub eselon: Option<String>,
+    pub jenis: Option<String>,
+}
+
+/// GET /pakaian-dinas/laporan/cetak
+/// Export report as PDF or Excel — matching simpel_web-main LaporanController::cetak()
+pub async fn cetak_laporan(
+    State(service): State<PakaianDinasService>,
+    Query(query): Query<CetakQuery>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::http::header;
+    use axum::response::IntoResponse;
+
+    let filter = LaporanFilter {
+        pengajuan_id: Some(query.pengajuan_id),
+        satker_id: query.satker_id,
+        jenis_kelamin: query.jenis_kelamin,
+        eselon: query.eselon,
+        jenis: query.jenis,
+        ..Default::default()
+    };
+
+    match (query.jenis_laporan.as_str(), query.jenis_file.as_str()) {
+        ("rekap", "excel") => {
+            let buffer = super::export::generate_rekap_xlsx(&service, query.pengajuan_id, &filter).await?;
+            let headers = [
+                (header::CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                (header::CONTENT_DISPOSITION, "attachment; filename=\"Laporan_Rekap.xlsx\""),
+            ];
+            Ok((headers, buffer).into_response())
+        }
+        ("daftar", "excel") => {
+            let buffer = super::export::generate_daftar_xlsx(&service, query.pengajuan_id, &filter).await?;
+            let headers = [
+                (header::CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                (header::CONTENT_DISPOSITION, "attachment; filename=\"Laporan_Daftar.xlsx\""),
+            ];
+            Ok((headers, buffer).into_response())
+        }
+        ("rekap", "pdf") | ("daftar", "pdf") => {
+            // TODO: PDF generation with printpdf (to be implemented)
+            Err(bad_request("PDF export belum tersedia, gunakan Excel terlebih dahulu"))
+        }
+        _ => Err(bad_request("Jenis laporan atau file tidak valid. Gunakan jenis_laporan=rekap|daftar dan jenis_file=excel|pdf")),
+    }
 }
 
 // ============ Unit Tests ============

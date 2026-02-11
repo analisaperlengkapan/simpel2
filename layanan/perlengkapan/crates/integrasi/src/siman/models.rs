@@ -149,25 +149,25 @@ impl SimanAssetCategory {
         }
     }
 
-    /// Mendapatkan nama kategori aset (SHORT FORM - sesuai database column `kategori_aset`)
+    /// Mendapatkan nama jenis aset (sesuai database column `jenis_aset`)
     /// Gunakan method ini untuk query database dan menyimpan data
     pub fn description(&self) -> &'static str {
         match self {
             Self::AlatBesar => "Alat Besar",
-            Self::AngkutanBermotor => "Angkutan Bermotor",
+            Self::AngkutanBermotor => "Alat Angkutan Bermotor",
             Self::AlatPersenjataan => "Alat Persenjataan",
-            Self::TakBerwujud => "Tak Berwujud",
+            Self::TakBerwujud => "Aset Tak Berwujud",
             Self::BangunanAir => "Bangunan Air",
-            Self::GedungBangunan => "Gedung Bangunan",
-            Self::InstalasiJaringan => "Instalasi Jaringan",
+            Self::GedungBangunan => "Gedung dan Bangunan",
+            Self::InstalasiJaringan => "Instalasi dan Jaringan",
             Self::JalandanJembatan => "Jalan dan Jembatan",
-            Self::NonTIK => "Non TIK",
-            Self::Rumah => "Rumah",
+            Self::NonTIK => "Peralatan Mesin Non TIK",
+            Self::Rumah => "Rumah Negara",
             Self::Tanah => "Tanah",
-            Self::TetapLainnya => "Tetap Lainnya",
-            Self::KDP => "KDP",
-            Self::KhususTIK => "Khusus TIK",
-            Self::TetapRenovasi => "Tetap Renovasi",
+            Self::TetapLainnya => "Aset Tetap Lainnya",
+            Self::KDP => "Konstruksi Dalam Pengerjaan",
+            Self::KhususTIK => "Peralatan Mesin Khusus TIK",
+            Self::TetapRenovasi => "Aset Tetap Renovasi",
         }
     }
 
@@ -214,26 +214,26 @@ impl SimanAssetCategory {
         ]
     }
 
-    /// Parse dari string kategori_aset di database ke enum
+    /// Parse dari string jenis_aset di database ke enum
     /// Returns None jika string tidak valid
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "Alat Besar" => Some(Self::AlatBesar),
-            "Angkutan Bermotor" => Some(Self::AngkutanBermotor),
+            "Alat Angkutan Bermotor" => Some(Self::AngkutanBermotor),
             "Alat Persenjataan" => Some(Self::AlatPersenjataan),
-            "Tak Berwujud" => Some(Self::TakBerwujud),
+            "Aset Tak Berwujud" => Some(Self::TakBerwujud),
             "Bangunan Air" => Some(Self::BangunanAir),
-            "Gedung Bangunan" => Some(Self::GedungBangunan),
-            "Instalasi Jaringan" => Some(Self::InstalasiJaringan),
+            "Gedung dan Bangunan" => Some(Self::GedungBangunan),
+            "Instalasi dan Jaringan" => Some(Self::InstalasiJaringan),
             "Jalan dan Jembatan" => Some(Self::JalandanJembatan),
-            "Non TIK" => Some(Self::NonTIK),
-            "Rumah" => Some(Self::Rumah),
+            "Peralatan Mesin Non TIK" => Some(Self::NonTIK),
+            "Rumah Negara" => Some(Self::Rumah),
             "Tanah" => Some(Self::Tanah),
-            "Tetap Lainnya" => Some(Self::TetapLainnya),
-            "KDP" => Some(Self::KDP),
-            "Khusus TIK" => Some(Self::KhususTIK),
-            "Tetap Renovasi" => Some(Self::TetapRenovasi),
+            "Aset Tetap Lainnya" => Some(Self::TetapLainnya),
+            "Konstruksi Dalam Pengerjaan" => Some(Self::KDP),
+            "Peralatan Mesin Khusus TIK" => Some(Self::KhususTIK),
+            "Aset Tetap Renovasi" => Some(Self::TetapRenovasi),
             _ => None,
         }
     }
@@ -266,18 +266,18 @@ mod tests {
 
     #[test]
     fn test_description_matches_database() {
-        // Pastikan description() return value yang exact match dengan database
+        // Pastikan description() return value yang exact match dengan kolom jenis_aset
         assert_eq!(SimanAssetCategory::AlatBesar.description(), "Alat Besar");
         assert_eq!(
             SimanAssetCategory::TakBerwujud.description(),
-            "Tak Berwujud"
+            "Aset Tak Berwujud"
         );
         assert_eq!(
             SimanAssetCategory::GedungBangunan.description(),
-            "Gedung Bangunan"
+            "Gedung dan Bangunan"
         );
-        assert_eq!(SimanAssetCategory::NonTIK.description(), "Non TIK");
-        assert_eq!(SimanAssetCategory::KDP.description(), "KDP");
+        assert_eq!(SimanAssetCategory::NonTIK.description(), "Peralatan Mesin Non TIK");
+        assert_eq!(SimanAssetCategory::KDP.description(), "Konstruksi Dalam Pengerjaan");
     }
 
     #[test]

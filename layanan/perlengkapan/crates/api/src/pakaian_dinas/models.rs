@@ -704,6 +704,9 @@ pub struct LaporanDaftarPegawai {
     pub jabatan: Option<String>,
     pub pangkat: Option<String>,
     pub jenis_kelamin: String,
+    pub gol_kd: Option<String>,
+    pub jenis: Option<String>,
+    pub eselon: Option<String>,
     pub ukuran_baju: Option<String>,
     pub ukuran_celana: Option<String>,
     pub ukuran_sepatu: Option<String>,
@@ -719,6 +722,9 @@ impl LaporanDaftarPegawai {
             jabatan: row.try_get("jabatan").ok(),
             pangkat: row.try_get("pangkat").ok(),
             jenis_kelamin: row.get("jenis_kelamin"),
+            gol_kd: row.try_get("gol_kd").ok(),
+            jenis: row.try_get("jenis").ok(),
+            eselon: row.try_get("eselon").ok(),
             ukuran_baju: row.try_get("ukuran_baju").ok(),
             ukuran_celana: row.try_get("ukuran_celana").ok(),
             ukuran_sepatu: row.try_get("ukuran_sepatu").ok(),
@@ -728,7 +734,7 @@ impl LaporanDaftarPegawai {
 }
 
 /// Report filter options
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct LaporanFilter {
     pub pengajuan_id: Option<Uuid>,
     pub tahun: Option<i32>,

@@ -715,18 +715,16 @@ pub async fn fetch_all_assets_with_pagination(
                         failed_count += (end_id - current_id + 1) as usize;
                     } else {
                         // Inject required fields for SIMAN database schema
-                        let category_name = category.description().to_string(); // "Alat Besar", etc
+                        let category_name = category.description().to_string(); // e.g. "Alat Besar"
                         let enhanced_records: Vec<serde_json::Value> = records
                             .iter()
                             .map(|record| {
                                 if let Some(mut obj) = record.as_object().cloned() {
-                                    // Add kategori_aset field (REQUIRED by DB)
+                                    // Add jenis_aset field (REQUIRED by DB)
                                     obj.insert(
-                                        "kategori_aset".to_string(),
+                                        "jenis_aset".to_string(),
                                         serde_json::Value::String(category_name.clone()),
                                     );
-                                    // Add raw_data field (store complete API response)
-                                    obj.insert("raw_data".to_string(), record.clone());
                                     serde_json::Value::Object(obj)
                                 } else {
                                     record.clone()

@@ -90,36 +90,13 @@ impl<'a> ToSql for SqlParam<'a> {
 pub fn json_to_sql_param<'a>(value: &'a Value, column_name: &str) -> SqlParam<'a> {
     match value {
         Value::String(s) => {
-            // Special handling for api_id column - convert to i64
-            if column_name == "api_id" {
-                if let Ok(num) = s.parse::<i64>() {
-                    return SqlParam::I64(num);
-                }
-                // If parse fails, return NULL - SKIP THIS COLUMN!
-                return SqlParam::NullI64;
-            }
-
-            // Try to parse as UUID for id/parent_id/satker_id columns only
-            if (column_name == "id" || column_name.ends_with("_id"))
-                && let Ok(uuid) = Uuid::parse_str(s)
-            {
-                return SqlParam::Uuid(uuid);
-            }
-
-            // Everything else is TEXT - keep as string ref
+            // All _id columns are TEXT in our schema — do NOT auto-convert to UUID.
+            // This avoids WrongType errors when the DB column is TEXT but the
+            // value looks like a UUID string.
             SqlParam::RefString(s.as_str())
         }
         Value::Number(n) => {
-            // Special handling for api_id - store as i64
-            if column_name == "api_id" {
-                if let Some(num) = n.as_i64() {
-                    return SqlParam::I64(num);
-                }
-                // Return NULL for api_id if not i64
-                return SqlParam::NullI64;
-            }
-
-            // For all other numbers, convert to string
+            // For all numbers, convert to string
             // PostgreSQL TEXT columns accept strings, and NUMERIC can cast from string
             // This avoids complex type matching logic
             SqlParam::NumberText(n)
@@ -129,17 +106,12 @@ pub fn json_to_sql_param<'a>(value: &'a Value, column_name: &str) -> SqlParam<'a
             SqlParam::RefString(if *b { "true" } else { "false" })
         }
         Value::Null => {
-            // For api_id column, return NULL as Option<i64>
-            if column_name == "api_id" {
-                return SqlParam::NullI64;
-            }
-            // For other columns, return NULL as Option<String>
+            // For all columns, return NULL as Option<String>
             SqlParam::NullString
         }
         Value::Array(_arr) => {
-            // For JSONB columns, pass the value as serde_json::Value directly
-            if column_name == "raw_data"
-                || column_name.ends_with("_json")
+            // For columns ending in _json or _data, pass as JSONB
+            if column_name.ends_with("_json")
                 || column_name.ends_with("_data")
             {
                 return SqlParam::JsonValue(value);
@@ -148,9 +120,8 @@ pub fn json_to_sql_param<'a>(value: &'a Value, column_name: &str) -> SqlParam<'a
             SqlParam::JsonToText(value)
         }
         Value::Object(_) => {
-            // For JSONB columns, pass the value as serde_json::Value directly
-            if column_name == "raw_data"
-                || column_name.ends_with("_json")
+            // For columns ending in _json or _data, pass as JSONB
+            if column_name.ends_with("_json")
                 || column_name.ends_with("_data")
             {
                 return SqlParam::JsonValue(value);
@@ -159,6 +130,146 @@ pub fn json_to_sql_param<'a>(value: &'a Value, column_name: &str) -> SqlParam<'a
             SqlParam::JsonToText(value)
         }
     }
+}
+
+/// Query PostgreSQL for unique constraint columns on a table (excluding PRIMARY KEY).
+/// Returns the column names that form unique constraints, used for ON CONFLICT UPSERT.
+async fn get_unique_columns(db: &Client, table_name: &str) -> Vec<String> {
+    // Use pg_class + pg_namespace join instead of $1::regclass to avoid
+    // tokio-postgres parameter type inference issues with regclass OID
+    let query = r#"
+        SELECT a.attname
+        FROM pg_constraint c
+        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+        JOIN pg_class cl ON cl.oid = c.conrelid
+        JOIN pg_namespace ns ON ns.oid = cl.relnamespace
+        WHERE c.contype = 'u'
+          AND cl.relname = $1
+          AND ns.nspname = $2
+        ORDER BY a.attnum
+    "#;
+    // Try integrasi schema first, then public
+    for schema in &["integrasi", "public"] {
+        if let Ok(rows) = db.query(query, &[&table_name, schema]).await {
+            let cols: Vec<String> = rows.iter().map(|r| r.get::<_, String>(0)).collect();
+            if !cols.is_empty() {
+                return cols;
+            }
+        }
+    }
+    Vec::new()
+}
+
+/// Auto-create table if it doesn't exist, inferring column types from data
+async fn ensure_table_exists(
+    db: &Client,
+    table_name: &str,
+    columns: &[String],
+) -> Result<(), MonsaktiError> {
+    // Check if table exists via pg_tables (search_path aware)
+    let exists = db
+        .query_one(
+            "SELECT EXISTS(SELECT 1 FROM pg_tables WHERE tablename = $1)",
+            &[&table_name],
+        )
+        .await
+        .map(|row| row.get::<_, bool>(0))
+        .unwrap_or(false);
+
+    if exists {
+        // Table exists — check for missing columns and add them
+        let existing_cols_rows = db
+            .query(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = $1",
+                &[&table_name],
+            )
+            .await
+            .unwrap_or_default();
+
+        let existing_cols: std::collections::HashSet<String> = existing_cols_rows
+            .iter()
+            .map(|r| r.get::<_, String>(0))
+            .collect();
+
+        let mut added = 0u32;
+        for col in columns {
+            let col_lower = col.to_lowercase();
+            if !existing_cols.contains(&col_lower) {
+                let col_type = if col_lower == "api_id" {
+                    "BIGINT"
+                } else {
+                    "TEXT"
+                };
+                let alter_sql = format!(
+                    "ALTER TABLE {} ADD COLUMN IF NOT EXISTS {} {}",
+                    table_name, col_lower, col_type
+                );
+                match db.execute(&alter_sql, &[]).await {
+                    Ok(_) => {
+                        info!(
+                            "➕ [SCHEMA] Added missing column '{}' ({}) to table '{}'",
+                            col_lower, col_type, table_name
+                        );
+                        added += 1;
+                    }
+                    Err(e) => {
+                        warn!(
+                            "⚠️  [SCHEMA] Failed to add column '{}' to '{}': {}",
+                            col_lower, table_name, e
+                        );
+                    }
+                }
+            }
+        }
+        if added > 0 {
+            info!(
+                "✅ [SCHEMA] Added {} missing column(s) to existing table '{}'",
+                added, table_name
+            );
+        }
+        return Ok(());
+    }
+
+    info!(
+        "📋 [AUTO-CREATE] Table '{}' does not exist, creating...",
+        table_name
+    );
+
+    // Build column definitions: all TEXT except special ones
+    let col_defs: Vec<String> = std::iter::once("id BIGSERIAL PRIMARY KEY".to_string())
+        .chain(columns.iter().map(|col| {
+            // All columns are TEXT for simplicity and compatibility
+            format!("{} TEXT", col)
+        }))
+        .chain(std::iter::once(
+            "synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP".to_string(),
+        ))
+        .chain(std::iter::once(
+            "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP".to_string(),
+        ))
+        .collect();
+
+    let create_sql = format!(
+        "CREATE TABLE IF NOT EXISTS {} ({})",
+        table_name,
+        col_defs.join(", ")
+    );
+
+    db.execute(&create_sql, &[]).await.map_err(|e| {
+        error!(
+            "❌ [AUTO-CREATE] Failed to create table '{}': {}",
+            table_name, e
+        );
+        MonsaktiError::DatabaseError(e)
+    })?;
+
+    info!(
+        "✅ [AUTO-CREATE] Table '{}' created with {} columns",
+        table_name,
+        columns.len()
+    );
+
+    Ok(())
 }
 
 /// Bulk insert data ke PostgreSQL dengan batch processing
@@ -245,6 +356,9 @@ pub async fn bulk_insert_postgres(
 
     info!("📝 [BULK INSERT] Columns to insert: {:?}", columns);
 
+    // Auto-create table if it doesn't exist
+    ensure_table_exists(db, table_name, &columns).await?;
+
     let mut count = 0;
     let mut failed = 0;
 
@@ -256,12 +370,45 @@ pub async fn bulk_insert_postgres(
 
     // Prepare query once (optimization: hoisted out of loop)
     let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${}", i)).collect();
-    let query = format!(
-        "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
-        table_name,
-        columns.join(", "),
-        placeholders.join(", ")
-    );
+
+    // Auto-detect unique constraint columns to build proper UPSERT query
+    let unique_cols = get_unique_columns(db, table_name).await;
+    let query = if !unique_cols.is_empty() {
+        // Build ON CONFLICT (unique_col) DO UPDATE SET ... for all non-key columns
+        let update_cols: Vec<String> = columns
+            .iter()
+            .filter(|c| !unique_cols.contains(c))
+            .map(|c| format!("{} = EXCLUDED.{}", c, c))
+            .collect();
+        let update_clause = if update_cols.is_empty() {
+            "DO NOTHING".to_string()
+        } else {
+            // Also update synced_at on conflict
+            format!(
+                "DO UPDATE SET {}, synced_at = CURRENT_TIMESTAMP",
+                update_cols.join(", ")
+            )
+        };
+        info!(
+            "🔑 [BULK INSERT] Using UPSERT on unique column(s): {:?}",
+            unique_cols
+        );
+        format!(
+            "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT ({}) {}",
+            table_name,
+            columns.join(", "),
+            placeholders.join(", "),
+            unique_cols.join(", "),
+            update_clause
+        )
+    } else {
+        format!(
+            "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
+            table_name,
+            columns.join(", "),
+            placeholders.join(", ")
+        )
+    };
 
     // Reuse vector allocation for params to reduce memory churn
     let mut params: Vec<SqlParam> = Vec::with_capacity(columns.len());
@@ -417,40 +564,41 @@ mod tests {
             panic!("Expected RefString");
         }
 
-        // 2. api_id as i64 string
+        // 2. api_id as string (treated as TEXT now, not i64)
         let v = json!("12345");
         let p = json_to_sql_param(&v, "api_id");
-        if let SqlParam::I64(n) = p {
-            assert_eq!(n, 12345);
+        if let SqlParam::RefString(s) = p {
+            assert_eq!(s, "12345");
         } else {
-            panic!("Expected I64");
+            panic!("Expected RefString for api_id string");
         }
 
-        // 3. api_id as number
+        // 3. api_id as number (converted to text representation)
         let v = json!(67890);
         let p = json_to_sql_param(&v, "api_id");
-        if let SqlParam::I64(n) = p {
-            assert_eq!(n, 67890);
+        if let SqlParam::NumberText(n) = p {
+            assert_eq!(n.as_i64(), Some(67890));
         } else {
-            panic!("Expected I64");
+            panic!("Expected NumberText for api_id number");
         }
 
-        // 4. api_id invalid
+        // 4. non-numeric string for api_id (stays as text)
         let v = json!("not-a-number");
         let p = json_to_sql_param(&v, "api_id");
-        match p {
-            SqlParam::NullI64 => {}
-            _ => panic!("Expected NullI64"),
+        if let SqlParam::RefString(s) = p {
+            assert_eq!(s, "not-a-number");
+        } else {
+            panic!("Expected RefString for non-numeric api_id");
         }
 
-        // 5. UUID
+        // 5. UUID-like string stays as TEXT (no auto-detection)
         let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
         let v = json!(uuid_str);
         let p = json_to_sql_param(&v, "id");
-        if let SqlParam::Uuid(u) = p {
-            assert_eq!(u.to_string(), uuid_str);
+        if let SqlParam::RefString(s) = p {
+            assert_eq!(s, uuid_str);
         } else {
-            panic!("Expected Uuid");
+            panic!("Expected RefString for UUID-like string");
         }
 
         // 6. Bool
@@ -470,9 +618,9 @@ mod tests {
             _ => panic!("Expected NullString"),
         }
 
-        // 8. JSONB
+        // 8. JSONB (column ending in _data)
         let v = json!({"foo": "bar"});
-        let p = json_to_sql_param(&v, "raw_data");
+        let p = json_to_sql_param(&v, "extra_data");
         if let SqlParam::JsonValue(val) = p {
             assert_eq!(val, &v);
         } else {

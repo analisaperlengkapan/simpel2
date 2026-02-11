@@ -2,7 +2,9 @@
 -- SIMPelv2 - Layanan Integrasi Database Schema
 -- ============================================================================
 -- Purpose: Complete database schema for integration service
--- Modules: MonSAKTI (8 modules), MySIMKARI, SIMAN v2.0
+-- Sources: MonSAKTI (8 modules: ADM/ANG/AST/BEN/GLP/KOM/PEM/PER),
+--          MySIMKARI, SIMAN v2.0 (15 jenis aset)
+-- Tables : 34 total (2 audit + 1 SIMAN + 2 MySIMKARI + 29 MonSAKTI)
 -- ============================================================================
 
 -- Create schema for isolation
@@ -11,32 +13,31 @@ SET search_path TO integrasi, public;
 
 -- Enable extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pg_trgm"; -- For text search optimization
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- ============================================================================
--- AUDIT & LOGGING TABLES (Actively Used)
+-- AUDIT & LOGGING (2 tables — consolidated)
 -- ============================================================================
 
--- API Call Log - Tracks all external API calls
-CREATE TABLE IF NOT EXISTS api_call_log (
+-- Unified API log — tracks API calls, batch ops, sync status, token events
+CREATE TABLE IF NOT EXISTS api_log (
     id BIGSERIAL PRIMARY KEY,
 
-    -- Request Information
+    -- Classification
+    log_type VARCHAR(20) NOT NULL DEFAULT 'api_call',
+        -- api_call | batch | sync | token_reset
     module VARCHAR(20) NOT NULL,
-    endpoint VARCHAR(100) NOT NULL,
+    endpoint VARCHAR(100),
+
+    -- Request context
     kode_kl VARCHAR(10),
     kdsatker VARCHAR(20),
     full_url TEXT,
-
-    -- Request Details (optional)
     request_method VARCHAR(10) DEFAULT 'GET',
-    request_headers JSONB,
-    request_params JSONB,
 
-    -- Response Information
+    -- Response
     response_status INTEGER,
     response_time_ms INTEGER,
-    response_size_bytes INTEGER,
     record_count INTEGER,
 
     -- Result
@@ -44,439 +45,524 @@ CREATE TABLE IF NOT EXISTS api_call_log (
     error_message TEXT,
     retry_count INTEGER DEFAULT 0,
 
-    -- Token Management
-    token_used VARCHAR(50),
-    token_refreshed BOOLEAN DEFAULT false,
-    new_token_received BOOLEAN DEFAULT false,
-
-    -- Storage Metadata
-    storage_strategy VARCHAR(20),
-    data_saved BOOLEAN DEFAULT false,
-
     -- Timestamps
-    started_at TIMESTAMPTZ NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- Batch Processing Log - Tracks batch operations
-CREATE TABLE IF NOT EXISTS batch_processing_log (
-    id BIGSERIAL PRIMARY KEY,
-
-    module VARCHAR(20) NOT NULL,
-    endpoint VARCHAR(100) NOT NULL,
-    batch_size INTEGER NOT NULL,
-
-    total_records INTEGER NOT NULL,
-    successful_records INTEGER DEFAULT 0,
-    failed_records INTEGER DEFAULT 0,
-
-    start_time TIMESTAMPTZ NOT NULL,
-    end_time TIMESTAMPTZ,
-    duration_ms INTEGER,
-
-    error_summary TEXT,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
--- Data Sync Log - Tracks data synchronization
-CREATE TABLE IF NOT EXISTS data_sync_log (
-    id BIGSERIAL PRIMARY KEY,
-
-    table_name VARCHAR(100) NOT NULL,
-    module VARCHAR(20) NOT NULL,
-    endpoint VARCHAR(100) NOT NULL,
-
-    sync_type VARCHAR(20) DEFAULT 'full',  -- full, incremental, delta
-    records_synced INTEGER DEFAULT 0,
-    records_updated INTEGER DEFAULT 0,
-    records_inserted INTEGER DEFAULT 0,
-    records_deleted INTEGER DEFAULT 0,
-
-    sync_started_at TIMESTAMPTZ NOT NULL,
-    sync_completed_at TIMESTAMPTZ,
-    sync_status VARCHAR(20) DEFAULT 'pending', -- pending, running, completed, failed
-
-    error_message TEXT,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
--- Token Reset Log - Tracks token refresh operations
-CREATE TABLE IF NOT EXISTS token_reset_log (
-    id BIGSERIAL PRIMARY KEY,
-
-    module VARCHAR(20) NOT NULL,
-    old_token_prefix VARCHAR(50),
-    new_token_prefix VARCHAR(50),
-
-    reset_reason VARCHAR(100),
-    reset_triggered_by VARCHAR(50) DEFAULT 'auto', -- auto, manual, expired
-
-    success BOOLEAN DEFAULT false,
-    error_message TEXT,
-
-    reset_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- API Tokens - Stores current tokens for each module
+-- Active API tokens per module
 CREATE TABLE IF NOT EXISTS api_tokens (
     id BIGSERIAL PRIMARY KEY,
-
     module VARCHAR(20) NOT NULL UNIQUE,
-    token TEXT NOT NULL,
-    token_type VARCHAR(20) DEFAULT 'bearer', -- bearer, oauth2, api_key
-
+    token_value TEXT NOT NULL,
+    token_hash TEXT,
+    token_type VARCHAR(20) DEFAULT 'bearer',
+    is_active BOOLEAN DEFAULT true,
+    is_expired BOOLEAN DEFAULT false,
     issued_at TIMESTAMPTZ,
     expires_at TIMESTAMPTZ,
-    last_refreshed_at TIMESTAMPTZ,
-
-    is_active BOOLEAN DEFAULT true,
+    refreshed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     refresh_count INTEGER DEFAULT 0,
-
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
--- MONSAKTI MODULE TABLES (Schema-only, data inserted dynamically)
+-- SIMAN v2.0 — SINGLE UNIFIED TABLE (15 jenis aset)
+-- ============================================================================
+-- Jenis aset: Tanah, Alat Angkutan Bermotor, Peralatan Mesin Non TIK,
+--   Peralatan Mesin Khusus TIK, Alat Besar, Alat Persenjataan,
+--   Gedung dan Bangunan, Rumah Negara, Jalan dan Jembatan, Bangunan Air,
+--   Instalasi dan Jaringan, Aset Tetap Lainnya, Aset Tak Berwujud,
+--   Aset Tetap Renovasi, Konstruksi Dalam Pengerjaan
+
+CREATE TABLE IF NOT EXISTS siman_aset (
+    id BIGSERIAL PRIMARY KEY,
+    jenis_aset TEXT NOT NULL,
+    -- Remaining columns are added dynamically from API response
+    -- via ensure_table_exists() self-healing schema mechanism
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MYSIMKARI (2 tables)
 -- ============================================================================
 
--- ADM Module: Reference Admin
+CREATE TABLE IF NOT EXISTS mysimkari_satker (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    kode_satker TEXT NOT NULL UNIQUE,
+    nama_satker TEXT,
+    tipe_satker TEXT,
+    alamat_satker TEXT,
+    telp_satker TEXT,
+    website_satker TEXT,
+    city TEXT,
+    long TEXT,
+    lat TEXT,
+    provinsi TEXT,
+    wilayah TEXT,
+    kategori_satker TEXT,
+    pulau TEXT,
+    parent_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS mysimkari_pegawai (
+    id BIGSERIAL PRIMARY KEY,
+    nip TEXT NOT NULL UNIQUE,
+    nama TEXT,
+    satker_id TEXT,
+    nama_satker TEXT,
+    jabatan TEXT,
+    jenis_jabatan_terakhir TEXT,
+    eselon TEXT,
+    golpang TEXT,
+    gol_kd TEXT,
+    jk TEXT,
+    agama TEXT,
+    email_dinas TEXT,
+    no_hp TEXT,
+    nrp TEXT,
+    foto TEXT,
+    bidang TEXT,
+    jabat_tmt TEXT,
+    status_pegawai TEXT NOT NULL DEFAULT 'aktif',
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MONSAKTI — ADM Module (6 tables)
+-- ============================================================================
+
 CREATE TABLE IF NOT EXISTS adm_ref_admin (
     id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,  -- Original ID from API
-
+    api_id TEXT,
     kdsatker TEXT,
     nmsatker TEXT,
     kdunit TEXT,
     nmunit TEXT,
     kode_kl TEXT,
-
-    raw_data JSONB,  -- Full API response
-
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- ADM Module: Banks Reference
 CREATE TABLE IF NOT EXISTS adm_ref_bank (
     id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,
-
+    api_id TEXT,
     kdbank TEXT,
     nmbank TEXT,
-
-    raw_data JSONB,
-
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- ADM Module: SPP Types
 CREATE TABLE IF NOT EXISTS adm_ref_jns_spp (
     id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,
-
+    api_id TEXT,
     kdjnsspp TEXT,
     nmjnsspp TEXT,
-
-    raw_data JSONB,
-
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- Generic pattern for other MonSAKTI endpoints
--- Tables created dynamically based on endpoint pattern: {module}_{endpoint}
--- Examples: ang_data_ang, pem_data_spm, ben_data_setoran, etc.
--- All follow same structure: id, api_id, raw_data, timestamps
-
--- ============================================================================
--- MYSIMKARI TABLES
--- ============================================================================
-
--- MySIMKARI: Satker (Work Units)
-CREATE TABLE IF NOT EXISTS mysimkari_satker (
+CREATE TABLE IF NOT EXISTS adm_ref_uraian (
     id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,
-
-    kode_satker TEXT,
-    nama_satker TEXT,
-    alamat TEXT,
-    telepon TEXT,
-
-    raw_data JSONB,
-
+    api_id TEXT,
+    jenis TEXT,
+    kode TEXT,
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- MySIMKARI: Pegawai (Employees)
-CREATE TABLE IF NOT EXISTS mysimkari_pegawai (
+CREATE TABLE IF NOT EXISTS adm_ref_aset (
     id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,
+    api_id TEXT,
+    jenis TEXT,
+    kode TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
-    nip TEXT,
-    nama TEXT,
-    satker_id TEXT,
-    jabatan TEXT,
-    golongan TEXT,
-
-    raw_data JSONB,
-
+CREATE TABLE IF NOT EXISTS adm_pejabat (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
--- SIMAN v2.0 TABLES (Asset Management)
+-- MONSAKTI — ANG Module (3 tables)
 -- ============================================================================
 
--- SIMAN: Tanah (Land)
-CREATE TABLE IF NOT EXISTS siman_aset_tanah (
+CREATE TABLE IF NOT EXISTS ang_ref_sts (
     id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,
-
-    kode_barang TEXT,
-    nama_barang TEXT,
-    luas_m2 NUMERIC,
-    alamat TEXT,
-    tahun_perolehan INTEGER,
-    nilai_perolehan NUMERIC,
-
-    raw_data JSONB,
-
+    api_id TEXT,
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- SIMAN: Gedung dan Bangunan
-CREATE TABLE IF NOT EXISTS siman_aset_gedung_bangunan (
+CREATE TABLE IF NOT EXISTS ang_data_ang (
     id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,
-
-    kode_barang TEXT,
-    nama_barang TEXT,
-    luas_m2 NUMERIC,
-    alamat TEXT,
-    kondisi TEXT,
-    tahun_perolehan INTEGER,
-    nilai_perolehan NUMERIC,
-
-    raw_data JSONB,
-
+    api_id TEXT,
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- SIMAN: Alat Besar (Heavy Equipment)
-CREATE TABLE IF NOT EXISTS siman_aset_alat_besar (
+CREATE TABLE IF NOT EXISTS ang_pendapatan (
     id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,
-
-    kode_barang TEXT,
-    nama_barang TEXT,
-    merk TEXT,
-    tipe TEXT,
-    tahun_perolehan INTEGER,
-    nilai_perolehan NUMERIC,
-    kondisi TEXT,
-
-    raw_data JSONB,
-
+    api_id TEXT,
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-
--- SIMAN: Angkutan Bermotor (Vehicles)
-CREATE TABLE IF NOT EXISTS siman_aset_angkutan_bermotor (
-    id BIGSERIAL PRIMARY KEY,
-    api_id BIGINT UNIQUE,
-
-    kode_barang TEXT,
-    nama_barang TEXT,
-    merk TEXT,
-    tipe TEXT,
-    no_polisi TEXT,
-    no_bpkb TEXT,
-    no_rangka TEXT,
-    no_mesin TEXT,
-    tahun_perolehan INTEGER,
-    nilai_perolehan NUMERIC,
-    kondisi TEXT,
-
-    raw_data JSONB,
-
-    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
--- Additional SIMAN tables (created as needed by scheduler)
--- Pattern: siman_aset_{category} with raw_data JSONB for flexibility
 
 -- ============================================================================
--- INDEXES FOR PERFORMANCE
+-- MONSAKTI — BEN Module (10 tables)
 -- ============================================================================
 
--- API Call Log Indexes
-CREATE INDEX IF NOT EXISTS idx_api_call_log_module_endpoint ON api_call_log(module, endpoint);
-CREATE INDEX IF NOT EXISTS idx_api_call_log_created_at ON api_call_log(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_api_call_log_success ON api_call_log(success, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_api_call_log_kdsatker ON api_call_log(kdsatker) WHERE kdsatker IS NOT NULL;
+CREATE TABLE IF NOT EXISTS ben_kas_tunai (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
--- Batch Processing Log Indexes
-CREATE INDEX IF NOT EXISTS idx_batch_log_module ON batch_processing_log(module, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_batch_log_start_time ON batch_processing_log(start_time DESC);
+CREATE TABLE IF NOT EXISTS ben_kas_bank (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
--- Data Sync Log Indexes
-CREATE INDEX IF NOT EXISTS idx_sync_log_table ON data_sync_log(table_name, sync_status);
-CREATE INDEX IF NOT EXISTS idx_sync_log_started ON data_sync_log(sync_started_at DESC);
+CREATE TABLE IF NOT EXISTS ben_spby (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
--- API Tokens Indexes
+CREATE TABLE IF NOT EXISTS ben_kuitansi (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ben_drpp (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ben_pungut_pajak (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ben_setor_pajak (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ben_pnbp (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ben_tup (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ben_pengembalian (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MONSAKTI — PEM Module (2 tables)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS pem_realisasi (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pem_spp_header (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MONSAKTI — KOM Module (3 tables)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS kom_kontrak_header (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS kom_capaian_ro (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS kom_supplier_header (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MONSAKTI — AST Module (1 table)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS ast_aset_trx (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MONSAKTI — PER Module (1 table)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS per_persedia_trx (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MONSAKTI — GLP Module (3 tables)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS glp_buku_besar (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS glp_neraca_sawal (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS glp_fa_detail (
+    id BIGSERIAL PRIMARY KEY,
+    api_id TEXT,
+    synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- INDEXES
+-- ============================================================================
+
+-- API Log
+CREATE INDEX IF NOT EXISTS idx_api_log_module ON api_log(module, endpoint);
+CREATE INDEX IF NOT EXISTS idx_api_log_created ON api_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_log_type ON api_log(log_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_log_success ON api_log(success) WHERE success = false;
+
+-- API Tokens
 CREATE INDEX IF NOT EXISTS idx_api_tokens_module ON api_tokens(module) WHERE is_active = true;
-CREATE INDEX IF NOT EXISTS idx_api_tokens_expires ON api_tokens(expires_at) WHERE is_active = true;
 
--- MonSAKTI Indexes
+-- SIMAN
+CREATE INDEX IF NOT EXISTS idx_siman_aset_jenis ON siman_aset(jenis_aset);
+CREATE INDEX IF NOT EXISTS idx_siman_aset_synced ON siman_aset(synced_at DESC);
+
+-- MySIMKARI
+CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_satker ON mysimkari_pegawai(satker_id);
+CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_status ON mysimkari_pegawai(status_pegawai);
+
+-- MonSAKTI ADM
 CREATE INDEX IF NOT EXISTS idx_adm_ref_admin_kdsatker ON adm_ref_admin(kdsatker);
 CREATE INDEX IF NOT EXISTS idx_adm_ref_admin_synced ON adm_ref_admin(synced_at DESC);
 
--- MySIMKARI Indexes
-CREATE INDEX IF NOT EXISTS idx_mysimkari_satker_kode ON mysimkari_satker(kode_satker);
-CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_nip ON mysimkari_pegawai(nip);
-CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_satker ON mysimkari_pegawai(satker_id);
-
--- SIMAN Indexes
-CREATE INDEX IF NOT EXISTS idx_siman_tanah_kode ON siman_aset_tanah(kode_barang);
-CREATE INDEX IF NOT EXISTS idx_siman_gedung_kode ON siman_aset_gedung_bangunan(kode_barang);
-CREATE INDEX IF NOT EXISTS idx_siman_alat_besar_kode ON siman_aset_alat_besar(kode_barang);
-CREATE INDEX IF NOT EXISTS idx_siman_angkutan_nopol ON siman_aset_angkutan_bermotor(no_polisi);
-
--- JSONB GIN indexes for fast JSON queries
-CREATE INDEX IF NOT EXISTS idx_api_call_log_request_params ON api_call_log USING GIN(request_params);
-CREATE INDEX IF NOT EXISTS idx_adm_ref_admin_raw_data ON adm_ref_admin USING GIN(raw_data);
-
 -- ============================================================================
--- VIEWS FOR MONITORING & ANALYTICS
+-- VIEWS
 -- ============================================================================
 
--- View: Recent Failed API Calls
+-- Recent failed API calls
 CREATE OR REPLACE VIEW v_recent_failed_calls AS
-SELECT
-    module,
-    endpoint,
-    error_message,
-    retry_count,
-    created_at,
-    response_status,
-    full_url
-FROM api_call_log
+SELECT log_type, module, endpoint, error_message, retry_count,
+       response_status, full_url, created_at
+FROM api_log
 WHERE success = false
 ORDER BY created_at DESC
 LIMIT 100;
 
--- View: Token Health Status
+-- Token health
 CREATE OR REPLACE VIEW v_token_health AS
 SELECT
-    t.module,
-    t.is_active,
-    t.expires_at,
-    t.last_refreshed_at,
-    t.refresh_count,
+    t.module, t.is_active, t.expires_at, t.last_refreshed_at, t.refresh_count,
     CASE
         WHEN t.expires_at < CURRENT_TIMESTAMP THEN 'EXPIRED'
         WHEN t.expires_at < CURRENT_TIMESTAMP + INTERVAL '1 day' THEN 'EXPIRING_SOON'
         WHEN NOT t.is_active THEN 'INACTIVE'
         ELSE 'HEALTHY'
-    END as health_status,
-    (SELECT COUNT(*) FROM api_call_log WHERE module = t.module AND token_refreshed = true) as total_refreshes,
-    (SELECT COUNT(*) FROM api_call_log WHERE module = t.module AND success = false AND created_at > CURRENT_TIMESTAMP - INTERVAL '1 hour') as recent_failures
+    END AS health_status
 FROM api_tokens t
-ORDER BY
-    CASE
-        WHEN t.expires_at < CURRENT_TIMESTAMP THEN 1
-        WHEN t.expires_at < CURRENT_TIMESTAMP + INTERVAL '1 day' THEN 2
-        WHEN NOT t.is_active THEN 3
-        ELSE 4
-    END;
+ORDER BY health_status;
 
--- View: API Statistics by Module
-CREATE OR REPLACE VIEW v_api_stats_by_module AS
+-- API stats by module (last 7 days)
+CREATE OR REPLACE VIEW v_api_stats AS
 SELECT
-    module,
-    endpoint,
-    COUNT(*) as total_calls,
-    COUNT(*) FILTER (WHERE success = true) as successful_calls,
-    COUNT(*) FILTER (WHERE success = false) as failed_calls,
-    AVG(response_time_ms) FILTER (WHERE response_time_ms IS NOT NULL) as avg_response_time_ms,
-    SUM(record_count) FILTER (WHERE record_count IS NOT NULL) as total_records_fetched,
-    MAX(created_at) as last_called_at
-FROM api_call_log
+    module, endpoint,
+    COUNT(*) AS total_calls,
+    COUNT(*) FILTER (WHERE success) AS ok,
+    COUNT(*) FILTER (WHERE NOT success) AS fail,
+    AVG(response_time_ms) FILTER (WHERE response_time_ms IS NOT NULL)::INT AS avg_ms,
+    SUM(record_count) FILTER (WHERE record_count IS NOT NULL) AS total_records,
+    MAX(created_at) AS last_call
+FROM api_log
 WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
 GROUP BY module, endpoint
 ORDER BY total_calls DESC;
 
+-- SIMAN ringkasan per jenis aset
+CREATE OR REPLACE VIEW v_siman_ringkasan AS
+SELECT
+    jenis_aset,
+    COUNT(*) AS jumlah,
+    MAX(synced_at) AS terakhir_sync
+FROM siman_aset
+GROUP BY jenis_aset
+ORDER BY jenis_aset;
+
 -- ============================================================================
--- TRIGGERS FOR AUTO-UPDATE
+-- TRIGGERS
 -- ============================================================================
 
--- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
--- Apply trigger to all relevant tables
-CREATE TRIGGER update_adm_ref_admin_updated_at BEFORE UPDATE ON adm_ref_admin FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_adm_ref_bank_updated_at BEFORE UPDATE ON adm_ref_bank FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_adm_ref_jns_spp_updated_at BEFORE UPDATE ON adm_ref_jns_spp FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_mysimkari_satker_updated_at BEFORE UPDATE ON mysimkari_satker FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_mysimkari_pegawai_updated_at BEFORE UPDATE ON mysimkari_pegawai FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_siman_tanah_updated_at BEFORE UPDATE ON siman_aset_tanah FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_siman_gedung_updated_at BEFORE UPDATE ON siman_aset_gedung_bangunan FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_siman_alat_besar_updated_at BEFORE UPDATE ON siman_aset_alat_besar FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_siman_angkutan_updated_at BEFORE UPDATE ON siman_aset_angkutan_bermotor FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_api_tokens_updated_at BEFORE UPDATE ON api_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- COMMENTS FOR DOCUMENTATION
--- ============================================================================
-
-COMMENT ON SCHEMA integrasi IS 'Integration service database schema for external API data';
-
-COMMENT ON TABLE api_call_log IS 'Audit log of all external API calls with detailed request/response tracking';
-COMMENT ON TABLE batch_processing_log IS 'Tracks batch processing operations for bulk data sync';
-COMMENT ON TABLE data_sync_log IS 'Synchronization log for data import/export operations';
-COMMENT ON TABLE token_reset_log IS 'Audit trail for API token refresh/reset operations';
-COMMENT ON TABLE api_tokens IS 'Current active tokens for all integrated APIs';
-
-COMMENT ON TABLE adm_ref_admin IS 'MonSAKTI ADM: Reference data for administrative units';
-COMMENT ON TABLE mysimkari_satker IS 'MySIMKARI: Work unit (satker) master data';
-COMMENT ON TABLE mysimkari_pegawai IS 'MySIMKARI: Employee master data';
-
-COMMENT ON TABLE siman_aset_tanah IS 'SIMAN: Land assets (Barang Milik Negara - Tanah)';
-COMMENT ON TABLE siman_aset_gedung_bangunan IS 'SIMAN: Building and construction assets';
-COMMENT ON TABLE siman_aset_alat_besar IS 'SIMAN: Heavy equipment assets';
-COMMENT ON TABLE siman_aset_angkutan_bermotor IS 'SIMAN: Vehicle assets';
+-- Apply trigger to tables with updated_at column
+DO $$
+DECLARE
+    tbl TEXT;
+BEGIN
+    FOR tbl IN
+        SELECT table_name FROM information_schema.columns
+        WHERE table_schema = 'integrasi' AND column_name = 'updated_at'
+    LOOP
+        EXECUTE format(
+            'DROP TRIGGER IF EXISTS trg_updated_at_%I ON %I; '
+            'CREATE TRIGGER trg_updated_at_%I BEFORE UPDATE ON %I '
+            'FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();',
+            tbl, tbl, tbl, tbl
+        );
+    END LOOP;
+END $$;
 
 -- ============================================================================
--- COMPLETION MESSAGE
+-- COMMENTS
 -- ============================================================================
 
+COMMENT ON SCHEMA integrasi IS 'Integration service: MonSAKTI + MySIMKARI + SIMAN data';
+COMMENT ON TABLE api_log IS 'Unified audit log: API calls, batch ops, sync, token events';
+COMMENT ON TABLE api_tokens IS 'Active API tokens per module';
+COMMENT ON TABLE siman_aset IS 'SIMAN v2.0: All 15 jenis aset in a single table';
+COMMENT ON TABLE mysimkari_satker IS 'MySIMKARI: Satuan kerja master data';
+COMMENT ON TABLE mysimkari_pegawai IS 'MySIMKARI: Pegawai master data';
+COMMENT ON TABLE adm_ref_admin IS 'MonSAKTI ADM: Referensi satuan kerja';
+COMMENT ON TABLE adm_ref_bank IS 'MonSAKTI ADM: Referensi bank';
+COMMENT ON TABLE adm_ref_jns_spp IS 'MonSAKTI ADM: Referensi jenis SPP';
+COMMENT ON TABLE adm_ref_uraian IS 'MonSAKTI ADM: Referensi uraian program/kegiatan/output/akun';
+COMMENT ON TABLE adm_ref_aset IS 'MonSAKTI ADM: Referensi pengkodean aset';
+COMMENT ON TABLE adm_pejabat IS 'MonSAKTI ADM: Data pejabat';
+COMMENT ON TABLE ang_ref_sts IS 'MonSAKTI ANG: Referensi STS history';
+COMMENT ON TABLE ang_data_ang IS 'MonSAKTI ANG: Data anggaran';
+COMMENT ON TABLE ang_pendapatan IS 'MonSAKTI ANG: Data pendapatan';
+COMMENT ON TABLE ben_kas_tunai IS 'MonSAKTI BEN: Kas tunai';
+COMMENT ON TABLE ben_kas_bank IS 'MonSAKTI BEN: Kas bank';
+COMMENT ON TABLE ben_spby IS 'MonSAKTI BEN: SPBY';
+COMMENT ON TABLE ben_kuitansi IS 'MonSAKTI BEN: Kuitansi';
+COMMENT ON TABLE ben_drpp IS 'MonSAKTI BEN: DRPP';
+COMMENT ON TABLE ben_pungut_pajak IS 'MonSAKTI BEN: Pungut pajak';
+COMMENT ON TABLE ben_setor_pajak IS 'MonSAKTI BEN: Setor pajak';
+COMMENT ON TABLE ben_pnbp IS 'MonSAKTI BEN: PNBP';
+COMMENT ON TABLE ben_tup IS 'MonSAKTI BEN: TUP';
+COMMENT ON TABLE ben_pengembalian IS 'MonSAKTI BEN: Pengembalian belanja';
+COMMENT ON TABLE pem_realisasi IS 'MonSAKTI PEM: Realisasi belanja';
+COMMENT ON TABLE pem_spp_header IS 'MonSAKTI PEM: SPP header';
+COMMENT ON TABLE kom_kontrak_header IS 'MonSAKTI KOM: Kontrak header';
+COMMENT ON TABLE kom_capaian_ro IS 'MonSAKTI KOM: Capaian RO';
+COMMENT ON TABLE kom_supplier_header IS 'MonSAKTI KOM: Supplier header';
+COMMENT ON TABLE ast_aset_trx IS 'MonSAKTI AST: Transaksi aset tetap';
+COMMENT ON TABLE per_persedia_trx IS 'MonSAKTI PER: Transaksi persediaan';
+COMMENT ON TABLE glp_buku_besar IS 'MonSAKTI GLP: Buku besar';
+COMMENT ON TABLE glp_neraca_sawal IS 'MonSAKTI GLP: Neraca saldo awal';
+COMMENT ON TABLE glp_fa_detail IS 'MonSAKTI GLP: Fixed assets detail';
+
+-- ============================================================================
 DO $$
 BEGIN
-    RAISE NOTICE '✅ Integration service schema initialized successfully';
-    RAISE NOTICE '📊 Created: 13 tables, 20+ indexes, 3 views, 9 triggers';
-    RAISE NOTICE '🔍 Schema: integrasi';
+    RAISE NOTICE '✅ Integration schema initialized';
+    RAISE NOTICE '📊 34 tables: 2 audit + 1 SIMAN + 2 MySIMKARI + 29 MonSAKTI';
 END $$;

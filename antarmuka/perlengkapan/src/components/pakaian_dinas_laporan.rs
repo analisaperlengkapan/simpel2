@@ -1,6 +1,7 @@
 //! Pakaian Dinas Laporan (Reports) Component
 //!
 //! Dashboard for viewing various reports on uniform data.
+//! Format follows simpel_web-main: cetakRekapTemplateV & cetakDaftarTemplateV
 
 use crate::api::{
     JenisPakaianDinas, LaporanDaftarPegawai, LaporanQuery, LaporanRekapUkuran,
@@ -15,6 +16,9 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
     let (selected_pengajuan, set_selected_pengajuan) = signal(Option::<String>::None);
     let (selected_satker, set_selected_satker) = signal(Option::<String>::None);
     let (selected_jenis, set_selected_jenis) = signal(Option::<String>::None);
+    let (selected_jenis_kelamin, set_selected_jenis_kelamin) = signal(Option::<String>::None);
+    let (selected_jenis_pegawai, set_selected_jenis_pegawai) = signal(Option::<String>::None);
+    let (selected_eselon, set_selected_eselon) = signal(Option::<String>::None);
 
     // Fetch filter options
     let pengajuan_options = LocalResource::new(|| async move {
@@ -76,7 +80,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                 </button>
             </div>
 
-            // Filters
+            // Filters — matching simpel_web-main laporanV.blade.php
             <div class="mb-6 p-4 bg-gray-50 rounded-lg">
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">"Filter Laporan"</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -156,7 +160,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         </Suspense>
                     </div>
 
-                    // Satker filter (text input for now)
+                    // Satker filter
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">"Satker"</label>
                         <input
@@ -169,7 +173,129 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                             }
                         />
                     </div>
+
+                    // Jenis Kelamin filter
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">"Jenis Kelamin"</label>
+                        <select
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            on:change=move |ev| {
+                                let val = event_target_value(&ev);
+                                set_selected_jenis_kelamin.set(if val.is_empty() { None } else { Some(val) });
+                            }
+                        >
+                            <option value="">"Semua"</option>
+                            <option value="L">"Laki-laki"</option>
+                            <option value="P">"Perempuan"</option>
+                        </select>
+                    </div>
+
+                    // Jenis Pegawai filter (Jaksa / TU)
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">"Jenis Pegawai"</label>
+                        <select
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            on:change=move |ev| {
+                                let val = event_target_value(&ev);
+                                set_selected_jenis_pegawai.set(if val.is_empty() { None } else { Some(val) });
+                            }
+                        >
+                            <option value="">"Semua"</option>
+                            <option value="0">"Jaksa"</option>
+                            <option value="1">"Tata Usaha"</option>
+                        </select>
+                    </div>
+
+                    // Eselon filter
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">"Eselon"</label>
+                        <select
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            on:change=move |ev| {
+                                let val = event_target_value(&ev);
+                                set_selected_eselon.set(if val.is_empty() { None } else { Some(val) });
+                            }
+                        >
+                            <option value="">"Semua Eselon"</option>
+                            <option value="I">"Eselon I"</option>
+                            <option value="II">"Eselon II"</option>
+                            <option value="III">"Eselon III"</option>
+                            <option value="IV">"Eselon IV"</option>
+                        </select>
+                    </div>
                 </div>
+            </div>
+
+            // Export buttons — matching simpel_web-main cetak functionality
+            <div class="mb-6 flex gap-3">
+                <button
+                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                    on:click=move |_| {
+                        let jenis_laporan = active_tab.get();
+                        let mut url = format!(
+                            "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file=excel",
+                            jenis_laporan
+                        );
+                        if let Some(ref pid) = selected_pengajuan.get() {
+                            url.push_str(&format!("&pengajuan_id={}", pid));
+                        }
+                        if let Some(ref sid) = selected_satker.get() {
+                            url.push_str(&format!("&satker_id={}", sid));
+                        }
+                        if let Some(ref jk) = selected_jenis_kelamin.get() {
+                            url.push_str(&format!("&jenis_kelamin={}", jk));
+                        }
+                        if let Some(ref e) = selected_eselon.get() {
+                            url.push_str(&format!("&eselon={}", e));
+                        }
+                        if let Some(ref j) = selected_jenis_pegawai.get() {
+                            url.push_str(&format!("&jenis={}", j));
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            if let Some(window) = web_sys::window() {
+                                let _ = window.open_with_url_and_target(&url, "_blank");
+                            }
+                        }
+                    }
+                >
+                    <i class="fas fa-file-excel"></i>
+                    "Cetak Excel"
+                </button>
+                <button
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                    on:click=move |_| {
+                        let jenis_laporan = active_tab.get();
+                        let mut url = format!(
+                            "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file=pdf",
+                            jenis_laporan
+                        );
+                        if let Some(ref pid) = selected_pengajuan.get() {
+                            url.push_str(&format!("&pengajuan_id={}", pid));
+                        }
+                        if let Some(ref sid) = selected_satker.get() {
+                            url.push_str(&format!("&satker_id={}", sid));
+                        }
+                        if let Some(ref jk) = selected_jenis_kelamin.get() {
+                            url.push_str(&format!("&jenis_kelamin={}", jk));
+                        }
+                        if let Some(ref e) = selected_eselon.get() {
+                            url.push_str(&format!("&eselon={}", e));
+                        }
+                        if let Some(ref j) = selected_jenis_pegawai.get() {
+                            url.push_str(&format!("&jenis={}", j));
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            if let Some(window) = web_sys::window() {
+                                let _ = window.open_with_url_and_target(&url, "_blank");
+                            }
+                        }
+                    }
+                >
+                    <i class="fas fa-file-pdf"></i>
+                    "Cetak PDF"
+                </button>
             </div>
 
             // Tab Content
@@ -178,6 +304,9 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                     pengajuan_id=selected_pengajuan.get()
                     satker_id=selected_satker.get()
                     jenis_pakaian_id=selected_jenis.get()
+                    jenis_kelamin=selected_jenis_kelamin.get()
+                    jenis=selected_jenis_pegawai.get()
+                    eselon=selected_eselon.get()
                 />
             </Show>
 
@@ -186,23 +315,37 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                     pengajuan_id=selected_pengajuan.get()
                     satker_id=selected_satker.get()
                     jenis_pakaian_id=selected_jenis.get()
+                    jenis_kelamin=selected_jenis_kelamin.get()
+                    jenis=selected_jenis_pegawai.get()
+                    eselon=selected_eselon.get()
                 />
             </Show>
         </div>
     }
 }
 
+/// Rekap Ukuran Tab — matching simpel_web-main cetakRekapTemplateV.blade.php
+///
+/// Shows a table per spesifikasi (pakaian_nama) with:
+/// - Columns: Ukuran values
+/// - Rows: jumlah_laki, jumlah_perempuan, jumlah_total
 #[component]
 fn RekapUkuranTab(
     pengajuan_id: Option<String>,
     satker_id: Option<String>,
     jenis_pakaian_id: Option<String>,
+    jenis_kelamin: Option<String>,
+    jenis: Option<String>,
+    eselon: Option<String>,
 ) -> impl IntoView {
     let data = LocalResource::new(move || {
         let query = LaporanQuery {
             pengajuan_id: pengajuan_id.clone(),
             satker_id: satker_id.clone(),
             jenis_pakaian_id: jenis_pakaian_id.clone(),
+            jenis_kelamin: jenis_kelamin.clone(),
+            eselon: eselon.clone(),
+            jenis: jenis.clone(),
         };
         async move {
             match fetch_laporan_rekap_ukuran(query).await {
@@ -232,160 +375,147 @@ fn RekapUkuranTab(
                             }
                                 .into_any()
                         } else {
-                            // Group by group (BAJU, CELANA, SEPATU)
-                            let baju: Vec<_> = rekap
-                                .iter()
-                                .filter(|r| r.group == "BAJU")
-                                .cloned()
-                                .collect();
-                            let celana: Vec<_> = rekap
-                                .iter()
-                                .filter(|r| r.group == "CELANA")
-                                .cloned()
-                                .collect();
-                            let sepatu: Vec<_> = rekap
-                                .iter()
-                                .filter(|r| r.group == "SEPATU")
-                                .cloned()
-                                .collect();
+                            // Group by pakaian_nama (spesifikasi)
+                            let mut groups: Vec<String> = vec![];
+                            for r in &rekap {
+                                if !groups.contains(&r.pakaian_nama) {
+                                    groups.push(r.pakaian_nama.clone());
+                                }
+                            }
 
-                            // Clone for iteration in For loop
-                            let baju_for_for = baju.clone();
-                            let celana_for_for = celana.clone();
-                            let sepatu_for_for = sepatu.clone();
-
-                            // Clone for sum calculation
-                            let baju_for_sum = baju.clone();
-                            let celana_for_sum = celana.clone();
-                            let sepatu_for_sum = sepatu.clone();
+                            let groups_for_view = groups.clone();
+                            let rekap_for_view = rekap.clone();
 
                             view! {
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    // Baju card
-                                    <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                                        <h4 class="font-semibold text-blue-800 mb-3">
-                                            <i class="fas fa-tshirt mr-2"></i>
-                                            "Rekap Ukuran Baju"
-                                        </h4>
-                                        <table class="w-full text-sm">
-                                            <thead>
-                                                <tr class="text-blue-600">
-                                                    <th class="text-left p-1">"Ukuran"</th>
-                                                    <th class="text-right p-1">"Jumlah"</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <For
-                                                    each=move || baju_for_for.clone()
-                                                    key=|r| format!("{}-{}", r.group, r.size)
-                                                    children=move |r: LaporanRekapUkuran| {
-                                                        view! {
-                                                            <tr class="border-t border-blue-100">
-                                                                <td class="p-1 font-medium">{r.size}</td>
-                                                                <td class="p-1 text-right">{r.jumlah.to_string()}</td>
-                                                            </tr>
-                                                        }
-                                                    }
-                                                />
-                                            </tbody>
-                                            <tfoot>
-                                                <tr class="border-t-2 border-blue-300 font-semibold">
-                                                    <td class="p-1">"Total"</td>
-                                                    <td class="p-1 text-right">
-                                                        {baju_for_sum.iter().map(|r| r.jumlah).sum::<i64>().to_string()}
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
+                                <div class="space-y-8">
+                                    {groups_for_view
+                                        .into_iter()
+                                        .map(|group_name| {
+                                            let items: Vec<LaporanRekapUkuran> = rekap_for_view
+                                                .iter()
+                                                .filter(|r| r.pakaian_nama == group_name)
+                                                .cloned()
+                                                .collect();
+                                            let ukuran_group = items
+                                                .first()
+                                                .map(|r| r.ukuran_group.clone())
+                                                .unwrap_or_default();
+                                            let items_for_header = items.clone();
+                                            let items_for_body_l = items.clone();
+                                            let items_for_body_p = items.clone();
+                                            let items_for_body_total = items.clone();
+                                            let total_l: i64 = items.iter().map(|r| r.jumlah_laki).sum();
+                                            let total_p: i64 = items.iter().map(|r| r.jumlah_perempuan).sum();
+                                            let total_all: i64 = items.iter().map(|r| r.jumlah_total).sum();
+                                            let color_class = match ukuran_group.as_str() {
+                                                "BAJU" => "blue",
+                                                "CELANA" => "green",
+                                                "SEPATU" => "orange",
+                                                _ => "gray",
+                                            };
 
-                                    // Celana card
-                                    <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                                        <h4 class="font-semibold text-green-800 mb-3">
-                                            <i class="fas fa-male mr-2"></i>
-                                            "Rekap Ukuran Celana"
-                                        </h4>
-                                        <table class="w-full text-sm">
-                                            <thead>
-                                                <tr class="text-green-600">
-                                                    <th class="text-left p-1">"Ukuran"</th>
-                                                    <th class="text-right p-1">"Jumlah"</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <For
-                                                    each=move || celana_for_for.clone()
-                                                    key=|r| format!("{}-{}", r.group, r.size)
-                                                    children=move |r: LaporanRekapUkuran| {
-                                                        view! {
-                                                            <tr class="border-t border-green-100">
-                                                                <td class="p-1 font-medium">{r.size}</td>
-                                                                <td class="p-1 text-right">{r.jumlah.to_string()}</td>
-                                                            </tr>
-                                                        }
-                                                    }
-                                                />
-                                            </tbody>
-                                            <tfoot>
-                                                <tr class="border-t-2 border-green-300 font-semibold">
-                                                    <td class="p-1">"Total"</td>
-                                                    <td class="p-1 text-right">
-                                                        {celana_for_sum.iter().map(|r| r.jumlah).sum::<i64>().to_string()}
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-
-                                    // Sepatu card
-                                    <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                                        <h4 class="font-semibold text-orange-800 mb-3">
-                                            <i class="fas fa-shoe-prints mr-2"></i>
-                                            "Rekap Ukuran Sepatu"
-                                        </h4>
-                                        <table class="w-full text-sm">
-                                            <thead>
-                                                <tr class="text-orange-600">
-                                                    <th class="text-left p-1">"Ukuran"</th>
-                                                    <th class="text-right p-1">"Jumlah"</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <For
-                                                    each=move || sepatu_for_for.clone()
-                                                    key=|r| format!("{}-{}", r.group, r.size)
-                                                    children=move |r: LaporanRekapUkuran| {
-                                                        view! {
-                                                            <tr class="border-t border-orange-100">
-                                                                <td class="p-1 font-medium">{r.size}</td>
-                                                                <td class="p-1 text-right">{r.jumlah.to_string()}</td>
-                                                            </tr>
-                                                        }
-                                                    }
-                                                />
-                                            </tbody>
-                                            <tfoot>
-                                                <tr class="border-t-2 border-orange-300 font-semibold">
-                                                    <td class="p-1">"Total"</td>
-                                                    <td class="p-1 text-right">
-                                                        {sepatu_for_sum.iter().map(|r| r.jumlah).sum::<i64>().to_string()}
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                // Export buttons
-                                <div class="mt-6 flex gap-2">
-                                    <button class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                        <i class="fas fa-file-excel mr-2"></i>
-                                        "Export Excel"
-                                    </button>
-                                    <button class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                                        <i class="fas fa-file-pdf mr-2"></i>
-                                        "Export PDF"
-                                    </button>
+                                            view! {
+                                                <div class=format!(
+                                                    "bg-{}-50 rounded-lg p-4 border border-{}-200",
+                                                    color_class, color_class,
+                                                )>
+                                                    <h4 class=format!(
+                                                        "font-semibold text-{}-800 mb-3 text-lg",
+                                                        color_class,
+                                                    )>
+                                                        {format!("{} ({})", group_name, ukuran_group)}
+                                                    </h4>
+                                                    <div class="overflow-x-auto">
+                                                        <table class="w-full text-sm border-collapse">
+                                                            <thead>
+                                                                <tr class=format!(
+                                                                    "bg-{}-100 text-{}-700",
+                                                                    color_class, color_class,
+                                                                )>
+                                                                    <th class="p-2 text-left border font-semibold">
+                                                                        "Gender"
+                                                                    </th>
+                                                                    {items_for_header
+                                                                        .iter()
+                                                                        .map(|r| {
+                                                                            view! {
+                                                                                <th class="p-2 text-center border font-semibold">
+                                                                                    {r.ukuran.clone()}
+                                                                                </th>
+                                                                            }
+                                                                        })
+                                                                        .collect::<Vec<_>>()}
+                                                                    <th class="p-2 text-center border font-bold">
+                                                                        "Total"
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                // Laki-laki row
+                                                                <tr class="border-b">
+                                                                    <td class="p-2 font-medium border">
+                                                                        "Laki-laki (L)"
+                                                                    </td>
+                                                                    {items_for_body_l
+                                                                        .iter()
+                                                                        .map(|r| {
+                                                                            view! {
+                                                                                <td class="p-2 text-center border">
+                                                                                    {r.jumlah_laki.to_string()}
+                                                                                </td>
+                                                                            }
+                                                                        })
+                                                                        .collect::<Vec<_>>()}
+                                                                    <td class="p-2 text-center border font-bold">
+                                                                        {total_l.to_string()}
+                                                                    </td>
+                                                                </tr>
+                                                                // Perempuan row
+                                                                <tr class="border-b">
+                                                                    <td class="p-2 font-medium border">
+                                                                        "Perempuan (P)"
+                                                                    </td>
+                                                                    {items_for_body_p
+                                                                        .iter()
+                                                                        .map(|r| {
+                                                                            view! {
+                                                                                <td class="p-2 text-center border">
+                                                                                    {r.jumlah_perempuan.to_string()}
+                                                                                </td>
+                                                                            }
+                                                                        })
+                                                                        .collect::<Vec<_>>()}
+                                                                    <td class="p-2 text-center border font-bold">
+                                                                        {total_p.to_string()}
+                                                                    </td>
+                                                                </tr>
+                                                                // Total row
+                                                                <tr class=format!(
+                                                                    "bg-{}-100 font-semibold",
+                                                                    color_class,
+                                                                )>
+                                                                    <td class="p-2 font-bold border">"Jumlah"</td>
+                                                                    {items_for_body_total
+                                                                        .iter()
+                                                                        .map(|r| {
+                                                                            view! {
+                                                                                <td class="p-2 text-center border font-bold">
+                                                                                    {r.jumlah_total.to_string()}
+                                                                                </td>
+                                                                            }
+                                                                        })
+                                                                        .collect::<Vec<_>>()}
+                                                                    <td class="p-2 text-center border font-bold">
+                                                                        {total_all.to_string()}
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()}
                                 </div>
                             }
                                 .into_any()
@@ -396,11 +526,18 @@ fn RekapUkuranTab(
     }
 }
 
+/// Daftar Pegawai Tab — matching simpel_web-main cetakDaftarTemplateV.blade.php
+///
+/// Table columns: No, NIP, Nama, Jabatan, Golongan, Status (J/T), Gender, Busana Muslimah,
+/// then ukuran columns (Baju, Celana, Sepatu)
 #[component]
 fn DaftarPegawaiTab(
     pengajuan_id: Option<String>,
     satker_id: Option<String>,
     jenis_pakaian_id: Option<String>,
+    jenis_kelamin: Option<String>,
+    jenis: Option<String>,
+    eselon: Option<String>,
 ) -> impl IntoView {
     let (page, set_page) = signal(1);
 
@@ -409,6 +546,9 @@ fn DaftarPegawaiTab(
             pengajuan_id: pengajuan_id.clone(),
             satker_id: satker_id.clone(),
             jenis_pakaian_id: jenis_pakaian_id.clone(),
+            jenis_kelamin: jenis_kelamin.clone(),
+            eselon: eselon.clone(),
+            jenis: jenis.clone(),
         };
         let p = page.get();
         async move {
@@ -447,41 +587,86 @@ fn DaftarPegawaiTab(
                                                 <th class="p-3 font-semibold border-b">"No"</th>
                                                 <th class="p-3 font-semibold border-b">"NIP"</th>
                                                 <th class="p-3 font-semibold border-b">"Nama"</th>
-                                                <th class="p-3 font-semibold border-b">"Satker"</th>
                                                 <th class="p-3 font-semibold border-b">"Jabatan"</th>
-                                                <th class="p-3 font-semibold border-b text-center">"L/P"</th>
-                                                <th class="p-3 font-semibold border-b text-center">"Baju"</th>
-                                                <th class="p-3 font-semibold border-b text-center">"Celana"</th>
-                                                <th class="p-3 font-semibold border-b text-center">"Sepatu"</th>
+                                                <th class="p-3 font-semibold border-b">"Golongan"</th>
+                                                <th class="p-3 font-semibold border-b text-center">
+                                                    "Status"
+                                                </th>
+                                                <th class="p-3 font-semibold border-b text-center">
+                                                    "Gender"
+                                                </th>
+                                                <th class="p-3 font-semibold border-b text-center">
+                                                    "Busana Muslimah"
+                                                </th>
+                                                <th class="p-3 font-semibold border-b text-center">
+                                                    "Baju"
+                                                </th>
+                                                <th class="p-3 font-semibold border-b text-center">
+                                                    "Celana"
+                                                </th>
+                                                <th class="p-3 font-semibold border-b text-center">
+                                                    "Sepatu"
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody class="text-gray-700 text-sm">
                                             <For
-                                                each=move || response.data.clone().into_iter().enumerate()
+                                                each=move || {
+                                                    response.data.clone().into_iter().enumerate()
+                                                }
                                                 key=|(_, item)| item.nip.clone()
-                                                children=move |(idx, item): (usize, LaporanDaftarPegawai)| {
+                                                children=move |(idx, item): (
+                                                    usize,
+                                                    LaporanDaftarPegawai,
+                                                )| {
+                                                    let status_label = match item
+                                                        .jenis
+                                                        .as_deref()
+                                                    {
+                                                        Some("0") => "J",
+                                                        Some("1") => "T",
+                                                        _ => "-",
+                                                    };
+                                                    let hijab_label = match item.with_hijab {
+                                                        Some(true) => "Y",
+                                                        Some(false) => "T",
+                                                        None => "-",
+                                                    };
                                                     view! {
                                                         <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
                                                             <td class="p-3">
-                                                                {((page.get() - 1) * 20 + idx as i32 + 1).to_string()}
+                                                                {((page.get() - 1) * 20 + idx as i32 + 1)
+                                                                    .to_string()}
                                                             </td>
                                                             <td class="p-3 font-mono text-sm">{item.nip}</td>
                                                             <td class="p-3 font-medium">{item.nama}</td>
-                                                            <td class="p-3">{item.satker_nama}</td>
                                                             <td class="p-3">
                                                                 {item.jabatan.unwrap_or_else(|| "-".to_string())}
                                                             </td>
                                                             <td class="p-3 text-center">
-                                                                {item.jenis_kelamin.unwrap_or_else(|| "-".to_string())}
+                                                                {item.gol_kd.unwrap_or_else(|| "-".to_string())}
+                                                            </td>
+                                                            <td class="p-3 text-center">{status_label}</td>
+                                                            <td class="p-3 text-center">
+                                                                {item
+                                                                    .jenis_kelamin
+                                                                    .unwrap_or_else(|| "-".to_string())}
+                                                            </td>
+                                                            <td class="p-3 text-center">{hijab_label}</td>
+                                                            <td class="p-3 text-center font-semibold">
+                                                                {item
+                                                                    .ukuran_baju
+                                                                    .unwrap_or_else(|| "-".to_string())}
                                                             </td>
                                                             <td class="p-3 text-center font-semibold">
-                                                                {item.ukuran_baju.unwrap_or_else(|| "-".to_string())}
+                                                                {item
+                                                                    .ukuran_celana
+                                                                    .unwrap_or_else(|| "-".to_string())}
                                                             </td>
                                                             <td class="p-3 text-center font-semibold">
-                                                                {item.ukuran_celana.unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                            <td class="p-3 text-center font-semibold">
-                                                                {item.ukuran_sepatu.unwrap_or_else(|| "-".to_string())}
+                                                                {item
+                                                                    .ukuran_sepatu
+                                                                    .unwrap_or_else(|| "-".to_string())}
                                                             </td>
                                                         </tr>
                                                     }
@@ -509,25 +694,15 @@ fn DaftarPegawaiTab(
                                             </button>
                                             <button
                                                 class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                prop:disabled=move || page.get() >= response.total_pages
+                                                prop:disabled=move || {
+                                                    page.get() >= response.total_pages
+                                                }
                                                 on:click=move |_| set_page.update(|p| *p += 1)
                                             >
                                                 "Selanjutnya"
                                             </button>
                                         </div>
                                     </div>
-                                </div>
-
-                                // Export buttons
-                                <div class="mt-6 flex gap-2">
-                                    <button class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                        <i class="fas fa-file-excel mr-2"></i>
-                                        "Export Excel"
-                                    </button>
-                                    <button class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                                        <i class="fas fa-file-pdf mr-2"></i>
-                                        "Export PDF"
-                                    </button>
                                 </div>
                             }
                                 .into_any()

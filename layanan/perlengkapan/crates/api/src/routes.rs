@@ -21,38 +21,19 @@ pub fn create_routes(state: AppState) -> Router {
         // Asset (Read-Only)
         .route("/assets", get(get_all_assets))
         .route("/assets/:id", get(get_asset_by_id))
-        // Pengadaan
+        // Pengadaan - REMOVED: Not part of perlengkapan domain
+        // Pengadaan is managed by separate procurement system
+        /*
         .route("/pengadaan", get(get_all_pengadaan).post(create_pengadaan))
         .route("/pengadaan/:id", get(get_pengadaan_by_id))
-        // Pengadaan Sub-Documents
-        .route(
-            "/pengadaan/:id/hps",
-            get(get_pengadaan_hps).post(create_pengadaan_hps),
-        )
-        .route(
-            "/pengadaan/:id/skppbj",
-            get(get_pengadaan_skppbj).post(create_pengadaan_skppbj),
-        )
-        .route(
-            "/pengadaan/:id/spk",
-            get(get_pengadaan_spk).post(create_pengadaan_spk),
-        )
-        .route(
-            "/pengadaan/:id/ringkasan",
-            get(get_pengadaan_ringkasan).post(create_pengadaan_ringkasan),
-        )
-        .route(
-            "/pengadaan/:id/kontrak",
-            get(get_pengadaan_kontrak).post(create_pengadaan_kontrak),
-        )
-        .route(
-            "/pengadaan/:id/bast",
-            get(get_pengadaan_bast).post(create_pengadaan_bast),
-        )
-        .route(
-            "/pengadaan/:id/nodis",
-            get(get_pengadaan_nodis).post(create_pengadaan_nodis),
-        )
+        .route("/pengadaan/:id/hps", get(get_pengadaan_hps).post(create_pengadaan_hps))
+        .route("/pengadaan/:id/skppbj", get(get_pengadaan_skppbj).post(create_pengadaan_skppbj))
+        .route("/pengadaan/:id/spk", get(get_pengadaan_spk).post(create_pengadaan_spk))
+        .route("/pengadaan/:id/ringkasan", get(get_pengadaan_ringkasan).post(create_pengadaan_ringkasan))
+        .route("/pengadaan/:id/kontrak", get(get_pengadaan_kontrak).post(create_pengadaan_kontrak))
+        .route("/pengadaan/:id/bast", get(get_pengadaan_bast).post(create_pengadaan_bast))
+        .route("/pengadaan/:id/nodis", get(get_pengadaan_nodis).post(create_pengadaan_nodis))
+        */
         // Analisis Kebutuhan
         .route("/analisis", get(get_all_analisis).post(create_analisis))
         .route("/analisis/:id", get(get_analisis_by_id))
@@ -185,6 +166,10 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pakaian-dinas/laporan/daftar-pegawai",
             get(pakaian_dinas::get_laporan_daftar_pegawai),
+        )
+        .route(
+            "/pakaian-dinas/laporan/cetak",
+            get(pakaian_dinas::cetak_laporan),
         )
         // Workflow Transitions
         .route(

@@ -64,15 +64,13 @@ impl ApiCallLog {
     /// Save log to database
     pub async fn save(&self, db: &Client) -> Result<i64, MonsaktiError> {
         let query = r#"
-            INSERT INTO api_call_log (
-                module, endpoint, kode_kl, kdsatker, full_url,
-                request_method, request_headers, request_params,
-                response_status, response_time_ms, response_size_bytes, record_count,
+            INSERT INTO api_log (
+                log_type, module, endpoint, kode_kl, kdsatker, full_url,
+                request_method,
+                response_status, response_time_ms, record_count,
                 success, error_message, retry_count,
-                token_used, token_refreshed, new_token_received,
-                storage_strategy, data_saved,
                 started_at, completed_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ) VALUES ('api_call', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         "#;
 
@@ -86,20 +84,12 @@ impl ApiCallLog {
                     &self.kdsatker,
                     &self.full_url,
                     &self.request_method,
-                    &self.request_headers,
-                    &self.request_params,
                     &self.response_status,
                     &self.response_time_ms,
-                    &self.response_size_bytes,
                     &self.record_count,
                     &self.success,
                     &self.error_message,
                     &self.retry_count,
-                    &self.token_used,
-                    &self.token_refreshed,
-                    &self.new_token_received,
-                    &self.storage_strategy,
-                    &self.data_saved,
                 ],
             )
             .await?;
@@ -137,11 +127,11 @@ impl BatchProcessingLog {
     /// Start batch processing log
     pub async fn start(&self, db: &Client) -> Result<i64, MonsaktiError> {
         let query = r#"
-            INSERT INTO batch_processing_log (
-                batch_type, kode_kl, kdsatker, total_satker,
-                status, storage_strategy, parallel_mode,
+            INSERT INTO api_log (
+                log_type, module, endpoint, kode_kl, kdsatker,
+                record_count, success, error_message,
                 started_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+            ) VALUES ('batch', $1, $2, $3, $4, $5, false, NULL, CURRENT_TIMESTAMP)
             RETURNING id
         "#;
 
@@ -152,10 +142,8 @@ impl BatchProcessingLog {
                     &self.batch_type,
                     &self.kode_kl,
                     &self.kdsatker,
+                    &self.kdsatker,
                     &self.total_satker,
-                    &self.status,
-                    &self.storage_strategy,
-                    &self.parallel_mode,
                 ],
             )
             .await?;
@@ -171,33 +159,20 @@ impl BatchProcessingLog {
         batch_id: i64,
         processed: i32,
         failed: i32,
-        total_calls: i32,
-        successful_calls: i32,
-        failed_calls: i32,
+        _total_calls: i32,
+        _successful_calls: i32,
+        _failed_calls: i32,
     ) -> Result<(), MonsaktiError> {
         let query = r#"
-            UPDATE batch_processing_log
-            SET processed_satker = $2,
-                failed_satker = $3,
-                total_api_calls = $4,
-                successful_calls = $5,
-                failed_calls = $6,
-                updated_at = CURRENT_TIMESTAMP
+            UPDATE api_log
+            SET record_count = $2,
+                retry_count = $3,
+                completed_at = CURRENT_TIMESTAMP
             WHERE id = $1
         "#;
 
-        db.execute(
-            query,
-            &[
-                &batch_id,
-                &processed,
-                &failed,
-                &total_calls,
-                &successful_calls,
-                &failed_calls,
-            ],
-        )
-        .await?;
+        db.execute(query, &[&batch_id, &processed, &failed])
+            .await?;
 
         Ok(())
     }
@@ -209,16 +184,16 @@ impl BatchProcessingLog {
         status: &str,
         error_message: Option<&str>,
     ) -> Result<(), MonsaktiError> {
+        let success = status == "completed";
         let query = r#"
-            UPDATE batch_processing_log
-            SET status = $2,
+            UPDATE api_log
+            SET success = $2,
                 error_message = $3,
-                completed_at = CURRENT_TIMESTAMP,
-                duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
+                completed_at = CURRENT_TIMESTAMP
             WHERE id = $1
         "#;
 
-        db.execute(query, &[&batch_id, &status, &error_message])
+        db.execute(query, &[&batch_id, &success, &error_message])
             .await?;
 
         info!(
@@ -266,16 +241,15 @@ impl DataSyncLog {
     pub async fn save(
         &self,
         db: &Client,
-        batch_id: Option<i64>,
-        api_call_id: Option<i64>,
+        _batch_id: Option<i64>,
+        _api_call_id: Option<i64>,
     ) -> Result<i64, MonsaktiError> {
         let query = r#"
-            INSERT INTO data_sync_log (
-                table_name, module, endpoint,
-                records_fetched, records_inserted, records_updated, records_failed,
-                kode_kl, kdsatker, batch_id, api_call_id,
-                success, error_message
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            INSERT INTO api_log (
+                log_type, module, endpoint, kode_kl, kdsatker,
+                record_count, success, error_message,
+                started_at, completed_at
+            ) VALUES ('sync', $1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         "#;
 
@@ -283,17 +257,11 @@ impl DataSyncLog {
             .query_one(
                 query,
                 &[
-                    &self.table_name,
                     &self.module,
                     &self.endpoint,
-                    &self.records_fetched,
-                    &self.records_inserted,
-                    &self.records_updated,
-                    &self.records_failed,
                     &self.kode_kl,
                     &self.kdsatker,
-                    &batch_id,
-                    &api_call_id,
+                    &self.records_inserted,
                     &self.success,
                     &self.error_message,
                 ],
@@ -331,12 +299,13 @@ impl TokenResetLog {
     }
 
     /// Save reset log to database
-    pub async fn save(&self, db: &Client, api_call_id: Option<i64>) -> Result<i64, MonsaktiError> {
+    pub async fn save(&self, db: &Client, _api_call_id: Option<i64>) -> Result<i64, MonsaktiError> {
         let query = r#"
-            INSERT INTO token_reset_log (
-                module, kode_kl, reset_reason, reset_method,
-                success, error_message, new_token_received, api_call_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO api_log (
+                log_type, module, endpoint, kode_kl,
+                success, error_message,
+                started_at, completed_at
+            ) VALUES ('token_reset', $1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         "#;
 
@@ -345,13 +314,10 @@ impl TokenResetLog {
                 query,
                 &[
                     &self.module,
-                    &self.kode_kl,
                     &self.reset_reason,
-                    &self.reset_method,
+                    &self.kode_kl,
                     &self.success,
                     &self.error_message,
-                    &self.new_token_received,
-                    &api_call_id,
                 ],
             )
             .await?;

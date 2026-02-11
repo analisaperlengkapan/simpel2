@@ -1,7 +1,9 @@
 //! Middleware modules for Axum backend services
 
+#[cfg(feature = "axum")]
 pub mod security;
 
+#[cfg(feature = "axum")]
 pub use security::{
     csrf_validation_middleware,
     input_validation_middleware,

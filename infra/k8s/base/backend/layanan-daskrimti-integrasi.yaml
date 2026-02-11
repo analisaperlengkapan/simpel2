@@ -19,6 +19,7 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 3
+      activeDeadlineSeconds: 7200  # 2 hour timeout
       template:
         metadata:
           labels:
@@ -28,13 +29,15 @@ spec:
             sidecar.istio.io/inject: "false"  # Batch jobs don't need mesh
         spec:
           restartPolicy: OnFailure
+          nodeSelector:
+            kubernetes.io/hostname: simple02
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
           containers:
             - name: integrasi-batch
               image: localhost:32000/simpelv2/layanan-daskrimti-integrasi:latest
-              imagePullPolicy: IfNotPresent
+              imagePullPolicy: Always
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:
@@ -49,6 +52,9 @@ spec:
                 - "complete"
                 - "--kode-kl"
                 - "006"
+              envFrom:
+                - secretRef:
+                    name: integration-secrets
               env:
                 - name: DATABASE_URL
                   valueFrom:
@@ -60,45 +66,8 @@ spec:
                     configMapKeyRef:
                       name: simpelv2-config
                       key: RUST_LOG
-                # MonSAKTI Integration
-                - name: MONSAKTI_API_URL
-                  valueFrom:
-                    configMapKeyRef:
-                      name: backend-config
-                      key: MONSAKTI_API_URL
-                      optional: true
-                - name: MONSAKTI_API_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: integration-secrets
-                      key: monsakti-api-key
-                      optional: true
-                # MySIMKARI Integration
-                - name: MYSIMKARI_API_URL
-                  valueFrom:
-                    configMapKeyRef:
-                      name: backend-config
-                      key: MYSIMKARI_API_URL
-                      optional: true
-                - name: MYSIMKARI_API_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: integration-secrets
-                      key: mysimkari-api-key
-                      optional: true
-                # SIMAN Integration
-                - name: SIMAN_API_URL
-                  valueFrom:
-                    configMapKeyRef:
-                      name: backend-config
-                      key: SIMAN_API_URL
-                      optional: true
-                - name: SIMAN_API_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: integration-secrets
-                      key: siman-api-key
-                      optional: true
+                - name: STORAGE_TYPE
+                  value: "database"
               resources:
                 requests:
                   cpu: "100m"
