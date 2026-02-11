@@ -1,0 +1,337 @@
+{
+    "dashboard": {
+        "title": "SIMPelv2 - System Health",
+        "tags": [
+            "simpelv2",
+            "health",
+            "overview"
+        ],
+        "timezone": "Asia/Jakarta",
+        "schemaVersion": 38,
+        "version": 1,
+        "refresh": "30s",
+        "panels": [
+            {
+                "id": 1,
+                "title": "Service Uptime",
+                "type": "stat",
+                "gridPos": {
+                    "h": 4,
+                    "w": 6,
+                    "x": 0,
+                    "y": 0
+                },
+                "targets": [
+                    {
+                        "expr": "up",
+                        "legendFormat": "{{job}}",
+                        "refId": "A"
+                    }
+                ],
+                "options": {
+                    "reduceOptions": {
+                        "values": false,
+                        "calcs": [
+                            "lastNotNull"
+                        ]
+                    },
+                    "text": {},
+                    "textMode": "value_and_name"
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "mappings": [
+                            {
+                                "type": "value",
+                                "value": "0",
+                                "text": "DOWN",
+                                "color": "red"
+                            },
+                            {
+                                "type": "value",
+                                "value": "1",
+                                "text": "UP",
+                                "color": "green"
+                            }
+                        ],
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": 0,
+                                    "color": "red"
+                                },
+                                {
+                                    "value": 1,
+                                    "color": "green"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 2,
+                "title": "HTTP Request Rate",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 4
+                },
+                "targets": [
+                    {
+                        "expr": "sum(rate(http_requests_total[5m])) by (instance)",
+                        "legendFormat": "{{instance}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "reqps",
+                        "label": "Requests/sec"
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 3,
+                "title": "HTTP Error Rate",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 4
+                },
+                "targets": [
+                    {
+                        "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (instance) / sum(rate(http_requests_total[5m])) by (instance)",
+                        "legendFormat": "{{instance}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "percentunit",
+                        "label": "Error Rate"
+                    },
+                    {
+                        "format": "short"
+                    }
+                ],
+                "alert": {
+                    "conditions": [
+                        {
+                            "evaluator": {
+                                "params": [
+                                    0.05
+                                ],
+                                "type": "gt"
+                            },
+                            "operator": {
+                                "type": "and"
+                            },
+                            "query": {
+                                "params": [
+                                    "A",
+                                    "5m",
+                                    "now"
+                                ]
+                            },
+                            "reducer": {
+                                "params": [],
+                                "type": "avg"
+                            },
+                            "type": "query"
+                        }
+                    ],
+                    "executionErrorState": "alerting",
+                    "frequency": "1m",
+                    "handler": 1,
+                    "name": "High HTTP Error Rate",
+                    "noDataState": "no_data",
+                    "notifications": []
+                }
+            },
+            {
+                "id": 4,
+                "title": "HTTP Response Time (p95)",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 12
+                },
+                "targets": [
+                    {
+                        "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, instance))",
+                        "legendFormat": "{{instance}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "s",
+                        "label": "Response Time"
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 5,
+                "title": "CPU Usage",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 12
+                },
+                "targets": [
+                    {
+                        "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                        "legendFormat": "{{instance}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "percent",
+                        "label": "CPU %",
+                        "max": 100,
+                        "min": 0
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 6,
+                "title": "Memory Usage",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 20
+                },
+                "targets": [
+                    {
+                        "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+                        "legendFormat": "{{instance}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "percent",
+                        "label": "Memory %",
+                        "max": 100,
+                        "min": 0
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 7,
+                "title": "Disk Usage",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 20
+                },
+                "targets": [
+                    {
+                        "expr": "(node_filesystem_size_bytes{mountpoint=\"/\"} - node_filesystem_avail_bytes{mountpoint=\"/\"}) / node_filesystem_size_bytes{mountpoint=\"/\"} * 100",
+                        "legendFormat": "{{instance}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "percent",
+                        "label": "Disk %",
+                        "max": 100,
+                        "min": 0
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 8,
+                "title": "Database Connections",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 28
+                },
+                "targets": [
+                    {
+                        "expr": "database_connections{state=\"active\"}",
+                        "legendFormat": "Active",
+                        "refId": "A"
+                    },
+                    {
+                        "expr": "database_connections{state=\"idle\"}",
+                        "legendFormat": "Idle",
+                        "refId": "B"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "short",
+                        "label": "Connections"
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 9,
+                "title": "Cache Hit Rate",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 28
+                },
+                "targets": [
+                    {
+                        "expr": "sum(rate(cache_operations_total{operation=\"get\",result=\"hit\"}[5m])) / sum(rate(cache_operations_total{operation=\"get\"}[5m]))",
+                        "legendFormat": "Hit Rate",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "percentunit",
+                        "label": "Hit Rate",
+                        "max": 1,
+                        "min": 0
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            }
+        ]
+    }
+}

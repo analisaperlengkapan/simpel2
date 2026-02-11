@@ -170,9 +170,10 @@ MONSAKTI_TOKEN_ADM=eyJ0eXAiOiJKV1QiLCJhbGci...
 MONSAKTI_TOKEN_ANG=eyJ0eXAiOiJKV1QiLCJhbGci...
 # ... (8 modules total)
 
-# MySIMKARI
+# MySIMKARI (token terpisah per kategori endpoint)
 MYSIMKARI_BASE_URL=https://mysimkari.kejaksaan.go.id/api/anbut
-MYSIMKARI_TOKEN=eyJhbGciOiJIUzI1NiJ9...
+MYSIMKARI_TOKEN=eyJhbGciOiJIUzI1NiJ9...          # Token untuk endpoint get-satker
+MYSIMKARI_TOKEN_PEGAWAI=eyJhbGciOiJIUzI1NiJ9...   # Token untuk endpoint pegawai-satker, pegawai/{nip}, pegawai-aktif, pegawai-mutasi
 
 # SIMAN OAuth2
 SIMAN_CLIENT_ID=simanv2.kejagung
@@ -225,13 +226,18 @@ impl MonsaktiClient {
         }
     }
 
-    // MySIMKARI API call
+    // MySIMKARI API call (token dipilih otomatis berdasarkan endpoint)
     pub async fn fetch_mysimkari(
         &mut self,
         endpoint: &str,
         vars: Vec<String>,
     ) -> Result<MonsaktiResponse, MonsaktiError> {
-        let token = self.config.tokens.get("MYSIMKARI")?;
+        // Token key ditentukan otomatis:
+        // - "get-satker" → MYSIMKARI (dari MYSIMKARI_TOKEN)
+        // - "pegawai-satker", "pegawai", "pegawai-aktif", "pegawai-mutasi" → MYSIMKARI_PEGAWAI (dari MYSIMKARI_TOKEN_PEGAWAI)
+        // Jika MYSIMKARI_TOKEN_PEGAWAI belum dikonfigurasi, fallback ke MYSIMKARI_TOKEN
+        let token_key = Self::mysimkari_token_key(endpoint);
+        let token = self.get_current_token(token_key)?;
         let url = format!("{}/{}/{}",
             self.config.mysimkari_base_url, endpoint, vars.join("/"));
         // ...

@@ -323,6 +323,10 @@ clamav-client = "2.1.0"
 # Template engines
 handlebars = "6.3.2"
 
+# PDF generation
+printpdf = "0.7.0"
+headless_chrome = "1.0.15"
+
 # Additional utilities
 rust-embed = "8.8.0"
 captcha = "1.0"

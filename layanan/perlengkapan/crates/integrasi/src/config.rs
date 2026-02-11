@@ -161,9 +161,14 @@ impl Config {
             }
         }
 
-        // Load MySIMKARI token separately (MYSIMKARI_TOKEN)
+        // Load MySIMKARI token separately (MYSIMKARI_TOKEN untuk get-satker)
         if let Ok(t) = std::env::var("MYSIMKARI_TOKEN") {
             tokens.insert("MYSIMKARI".to_string(), t);
+        }
+
+        // Load MySIMKARI pegawai token (MYSIMKARI_TOKEN_PEGAWAI untuk pegawai-satker, pegawai/{nip}, pegawai-aktif, pegawai-mutasi)
+        if let Ok(t) = std::env::var("MYSIMKARI_TOKEN_PEGAWAI") {
+            tokens.insert("MYSIMKARI_PEGAWAI".to_string(), t);
         }
 
         // Set db_config from base.database_url if available

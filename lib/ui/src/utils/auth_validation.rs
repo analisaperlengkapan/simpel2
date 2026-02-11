@@ -167,17 +167,12 @@ pub fn validate_satker_code(code: &str) -> ValidationResult {
 }
 
 /// Validate MFA code (6 digits)
+///
 /// Rules:
 /// - Exactly 6 digits
 /// - Numbers only
 ///
-///   Sinkron dengan: Backend MFA verification
-/// Validate MFA code (6 digits)
-/// Rules:
-/// - Exactly 6 digits
-/// - Numbers only
-///
-///   Sinkron dengan: Backend MFA verification
+/// Sinkron dengan: Backend MFA verification
 pub fn validate_mfa_code(code: &str) -> ValidationResult {
     if code.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(
@@ -197,11 +192,12 @@ pub fn validate_mfa_code(code: &str) -> ValidationResult {
 }
 
 /// Validate realm name
+///
 /// Rules:
 /// - 1-100 characters
 /// - Not empty
 ///
-///   Sinkron dengan: Backend realm validation
+/// Sinkron dengan: Backend realm validation
 pub fn validate_realm(realm: &str) -> ValidationResult {
     if realm.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(

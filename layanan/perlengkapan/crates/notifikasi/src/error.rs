@@ -39,8 +39,10 @@ pub enum AppError {
     #[error("Bad request: {0}")]
     #[allow(dead_code)]
     BadRequest(Box<str>),
-    #[error("Internal server error")]
-    Internal,
+    #[error("Internal server error: {0}")]
+    Internal(Box<str>),
+    #[error("Config error: {0}")]
+    Config(Box<str>),
     #[error("Redis error: {0}")]
     Redis(redis::RedisError),
 }
@@ -52,15 +54,21 @@ impl From<redis::RedisError> for AppError {
 }
 
 impl From<deadpool_postgres::PoolError> for AppError {
-    fn from(_err: deadpool_postgres::PoolError) -> Self {
-        AppError::Internal
+    fn from(err: deadpool_postgres::PoolError) -> Self {
+        AppError::Internal(format!("Pool error: {}", err).into_boxed_str())
+    }
+}
+
+impl From<serde_json::Error> for AppError {
+    fn from(err: serde_json::Error) -> Self {
+        AppError::Internal(format!("JSON error: {}", err).into_boxed_str())
     }
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let status = match self {
-            AppError::Db(_) | AppError::Io(_) | AppError::Internal | AppError::Redis(_) => {
+            AppError::Db(_) | AppError::Io(_) | AppError::Internal(_) | AppError::Redis(_) | AppError::Config(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
             AppError::NotFound => StatusCode::NOT_FOUND,

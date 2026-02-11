@@ -539,6 +539,250 @@ pub async fn get_siman_satker_summary(
 }
 
 // ============================================================================
+// Search Handlers
+// ============================================================================
+
+/// Query parameters for advanced search
+#[derive(Debug, Deserialize)]
+pub struct SearchQueryParams {
+    /// Search term (required)
+    pub q: String,
+
+    /// Pagination
+    #[serde(default = "default_page")]
+    pub page: i32,
+    #[serde(default = "default_per_page")]
+    pub per_page: i32,
+
+    /// Filters
+    pub satker_id: Option<Uuid>,
+    pub tahun_anggaran: Option<i32>,
+    pub status: Option<String>, // Comma-separated list
+    pub kode_barang: Option<String>,
+    pub is_sbsk: Option<bool>,
+    pub date_from: Option<String>,
+    pub date_to: Option<String>,
+
+    /// Sort options
+    #[serde(default = "default_sort_field")]
+    pub sort_by: String,
+    #[serde(default = "default_sort_direction")]
+    pub sort_dir: String,
+}
+
+fn default_sort_field() -> String {
+    "relevance".to_string()
+}
+
+fn default_sort_direction() -> String {
+    "desc".to_string()
+}
+
+/// GET /kebutuhan-bmn/search
+/// Advanced full-text search with filters and pagination
+pub async fn search_kebutuhan(
+    State(service): State<KebutuhanBmnService>,
+    Query(params): Query<SearchQueryParams>,
+    _claims: Claims,
+) -> Result<Json<PaginatedResponse<KebutuhanBmnSummary>>, AppError> {
+    use lib_perlengkapan::search::{
+        SearchQuery, SearchFilters, Pagination, SortOptions, SortField, SortDirection,
+    };
+
+    // Validate search query
+    if params.q.trim().is_empty() {
+        return Err(bad_request("Search query cannot be empty"));
+    }
+    if params.q.len() < 2 {
+        return Err(bad_request("Search query must be at least 2 characters"));
+    }
+
+    // Validate pagination
+    let pagination_check = PaginationQuery {
+        page: params.page,
+        per_page: params.per_page,
+    };
+    pagination_check.validate()?;
+
+    // Parse status list
+    let status_list = params.status.as_ref().map(|s| {
+        s.split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<String>>()
+    });
+
+    // Build search query
+    let search_query = SearchQuery {
+        query: params.q.clone(),
+        filters: SearchFilters {
+            satker_id: params.satker_id,
+            tahun_anggaran: params.tahun_anggaran,
+            status: status_list,
+            kode_barang: params.kode_barang.clone(),
+            priority_level: None,
+            date_from: params.date_from.clone(),
+            date_to: params.date_to.clone(),
+            is_sbsk: params.is_sbsk,
+        },
+        pagination: Pagination {
+            page: params.page,
+            per_page: params.per_page,
+        },
+        sort: SortOptions {
+            field: SortField::from_str(&params.sort_by).unwrap_or(SortField::Relevance),
+            direction: SortDirection::from_str(&params.sort_dir)
+                .unwrap_or(SortDirection::Descending),
+        },
+    };
+
+    // Execute search
+    let results = service.search_kebutuhan(search_query).await?;
+
+    Ok(Json(PaginatedResponse::new(
+        results.results.into_iter().map(|r| r.item).collect(),
+        results.total,
+        results.page,
+        results.per_page,
+        format!("Found {} results for '{}'", results.total, params.q),
+    )))
+}
+
+/// GET /kebutuhan-bmn/search/suggestions
+/// Get search suggestions based on partial query
+#[derive(Debug, Deserialize)]
+pub struct SuggestionsQuery {
+    pub q: String,
+    #[serde(default = "default_suggestions_limit")]
+    pub limit: i32,
+}
+
+fn default_suggestions_limit() -> i32 {
+    10
+}
+
+pub async fn get_search_suggestions(
+    State(service): State<KebutuhanBmnService>,
+    Query(params): Query<SuggestionsQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<String>>>, AppError> {
+    if params.q.len() < 2 {
+        return Err(bad_request("Query must be at least 2 characters"));
+    }
+
+    let suggestions = service.get_search_suggestions(&params.q, params.limit).await?;
+
+    Ok(Json(ApiResponse::success(
+        suggestions,
+        "Suggestions retrieved successfully".to_string(),
+    )))
+}
+
+// ============================================================================
+// Batch Operations Handlers
+// ============================================================================
+
+/// POST /kebutuhan-bmn/batch/approve
+/// Batch approve multiple kebutuhan
+pub async fn batch_approve_kebutuhan(
+    State(service): State<KebutuhanBmnService>,
+    claims: Claims,
+    Json(request): Json<super::models::BatchApproveRequest>,
+) -> Result<Json<ApiResponse<super::models::BatchOperationResponse>>, AppError> {
+    use validator::Validate;
+
+    // Validate request
+    request
+        .validate()
+        .map_err(|e| AppError::BadRequest(format!("Validation error: {}", e)))?;
+
+    info!(
+        "Batch approve requested for {} items by user {}",
+        request.kebutuhan_ids.len(),
+        claims.user_id
+    );
+
+    let user_id = Some(claims.user_id);
+    let user_info = Some(extract_user_info(&claims));
+
+    let response = service
+        .batch_approve_kebutuhan(request, user_id, user_info)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        response,
+        "Batch approval completed".to_string(),
+    )))
+}
+
+/// POST /kebutuhan-bmn/batch/reject
+/// Batch reject multiple kebutuhan
+pub async fn batch_reject_kebutuhan(
+    State(service): State<KebutuhanBmnService>,
+    claims: Claims,
+    Json(request): Json<super::models::BatchRejectRequest>,
+) -> Result<Json<ApiResponse<super::models::BatchOperationResponse>>, AppError> {
+    use validator::Validate;
+
+    // Validate request
+    request
+        .validate()
+        .map_err(|e| AppError::BadRequest(format!("Validation error: {}", e)))?;
+
+    info!(
+        "Batch reject requested for {} items by user {}",
+        request.kebutuhan_ids.len(),
+        claims.user_id
+    );
+
+    let user_id = Some(claims.user_id);
+    let user_info = Some(extract_user_info(&claims));
+
+    let response = service
+        .batch_reject_kebutuhan(request, user_id, user_info)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        response,
+        "Batch rejection completed".to_string(),
+    )))
+}
+
+/// POST /kebutuhan-bmn/batch/update-status
+/// Batch update status for multiple kebutuhan
+pub async fn batch_update_status(
+    State(service): State<KebutuhanBmnService>,
+    claims: Claims,
+    Json(request): Json<super::models::BatchUpdateStatusRequest>,
+) -> Result<Json<ApiResponse<super::models::BatchOperationResponse>>, AppError> {
+    use validator::Validate;
+
+    // Validate request
+    request
+        .validate()
+        .map_err(|e| AppError::BadRequest(format!("Validation error: {}", e)))?;
+
+    info!(
+        "Batch update status requested for {} items to status {} by user {}",
+        request.kebutuhan_ids.len(),
+        request.target_status,
+        claims.user_id
+    );
+
+    let user_id = Some(claims.user_id);
+    let user_info = Some(extract_user_info(&claims));
+
+    let response = service
+        .batch_update_status(request, user_id, user_info)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        response,
+        "Batch status update completed".to_string(),
+    )))
+}
+
+// ============================================================================
 // Report/Export Handlers (Placeholder)
 // ============================================================================
 

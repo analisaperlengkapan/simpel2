@@ -9,6 +9,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let authenc_proto_dir = PathBuf::from("../../../../infra/authenc/proto");
     let secreton_proto_dir = PathBuf::from("../../../../infra/secreton/proto");
     let integrasi_proto_dir = PathBuf::from("../integrasi/proto");
+    let dokumen_proto_dir = PathBuf::from("../dokumen/proto");
+    let notifikasi_proto_dir = PathBuf::from("../notifikasi/proto");
 
     // Verify proto directories exist
     if !authenc_proto_dir.exists() {
@@ -38,6 +40,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
+    // Add dokumen proto if exists
+    let dokumen_proto = dokumen_proto_dir.join("dokumen.proto");
+    if dokumen_proto.exists() {
+        proto_files.push(dokumen_proto);
+        println!("cargo:warning=Including dokumen.proto");
+    } else {
+        println!(
+            "cargo:warning=dokumen.proto not found at {:?}, skipping",
+            dokumen_proto_dir
+        );
+    }
+
+    // Add notifikasi proto if exists
+    let notifikasi_proto = notifikasi_proto_dir.join("notifikasi.proto");
+    if notifikasi_proto.exists() {
+        proto_files.push(notifikasi_proto);
+        println!("cargo:warning=Including notifikasi.proto");
+    } else {
+        println!(
+            "cargo:warning=notifikasi.proto not found at {:?}, skipping",
+            notifikasi_proto_dir
+        );
+    }
+
     // Verify proto files exist
     for proto_file in &proto_files {
         if !proto_file.exists() {
@@ -56,6 +82,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 authenc_proto_dir.clone(),
                 secreton_proto_dir,
                 integrasi_proto_dir,
+                dokumen_proto_dir,
+                notifikasi_proto_dir,
             ],
         )?;
 

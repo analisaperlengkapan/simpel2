@@ -494,9 +494,10 @@ pub async fn fetch_mysimkari(
     storage: &StorageStrategy,
 ) -> Result<(), MonsaktiError> {
     info!("Fetching MySIMKARI data...");
+    let circuit_breaker = api::MySIMKARICircuitBreaker::new();
 
     // Get Satker
-    if let Ok(data) = api::get_satker(client).await {
+    if let Ok(data) = api::get_satker(client, &circuit_breaker).await {
         storage
             .save_with_table(client, "mysimkari_satker", &data, "global")
             .await?;
@@ -510,7 +511,7 @@ pub async fn fetch_mysimkari(
                 let Some(id) = obj.get("id") else { continue };
                 let Some(id_str) = id.as_str() else { continue };
 
-                match api::pegawai_satker(client, id_str).await {
+                match api::pegawai_satker(client, id_str, &circuit_breaker).await {
                     Ok(mut pegawai_data) => {
                         // Inject satker_id ke setiap pegawai record
                         if let Some(pegawai_array) = pegawai_data.as_array_mut() {

@@ -40,6 +40,7 @@ use wasm_bindgen::prelude::*;
 
 mod api;
 mod components;
+mod utils;
 #[cfg(test)]
 mod tests;
 

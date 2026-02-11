@@ -45,6 +45,31 @@ pub enum AppError {
 
     #[error("Parse error: {0}")]
     Parse(String),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Excel error: {0}")]
+    Excel(String),
+}
+
+// Implement From for common error types
+impl From<tokio_postgres::Error> for AppError {
+    fn from(err: tokio_postgres::Error) -> Self {
+        AppError::Database(err.to_string())
+    }
+}
+
+impl From<deadpool_postgres::PoolError> for AppError {
+    fn from(err: deadpool_postgres::PoolError) -> Self {
+        AppError::Database(err.to_string())
+    }
+}
+
+impl From<rust_xlsxwriter::XlsxError> for AppError {
+    fn from(err: rust_xlsxwriter::XlsxError) -> Self {
+        AppError::Excel(err.to_string())
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -118,6 +143,24 @@ impl IntoResponse for AppError {
                 None,
             ),
             AppError::Parse(msg) => (StatusCode::BAD_REQUEST, "PARSE_ERROR", msg.clone(), None),
+            AppError::Io(e) => {
+                tracing::error!("IO error: {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "IO_ERROR",
+                    format!("IO operation failed: {}", e),
+                    None,
+                )
+            }
+            AppError::Excel(msg) => {
+                tracing::error!("Excel error: {}", msg);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "EXCEL_ERROR",
+                    msg.clone(),
+                    None,
+                )
+            }
         };
 
         let body = ErrorResponse {

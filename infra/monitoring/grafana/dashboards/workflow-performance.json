@@ -1,0 +1,317 @@
+{
+    "dashboard": {
+        "title": "SIMPelv2 - Workflow Performance",
+        "tags": [
+            "simpelv2",
+            "workflow",
+            "performance"
+        ],
+        "timezone": "Asia/Jakarta",
+        "schemaVersion": 38,
+        "version": 1,
+        "refresh": "1m",
+        "panels": [
+            {
+                "id": 1,
+                "title": "Workflow Transition Rate",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 0
+                },
+                "targets": [
+                    {
+                        "expr": "sum(rate(workflow_transitions_total[5m])) by (entity_type, status)",
+                        "legendFormat": "{{entity_type}} - {{status}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "ops",
+                        "label": "Transitions/sec"
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "title": "Workflow Success Rate",
+                "type": "stat",
+                "gridPos": {
+                    "h": 4,
+                    "w": 6,
+                    "x": 12,
+                    "y": 0
+                },
+                "targets": [
+                    {
+                        "expr": "sum(rate(workflow_transitions_total{status=\"success\"}[5m])) / sum(rate(workflow_transitions_total[5m]))",
+                        "refId": "A"
+                    }
+                ],
+                "options": {
+                    "reduceOptions": {
+                        "values": false,
+                        "calcs": [
+                            "lastNotNull"
+                        ]
+                    },
+                    "textMode": "value"
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percentunit",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": 0,
+                                    "color": "red"
+                                },
+                                {
+                                    "value": 0.90,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 0.95,
+                                    "color": "green"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 3,
+                "title": "Workflow Transition Duration (p95)",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 8
+                },
+                "targets": [
+                    {
+                        "expr": "histogram_quantile(0.95, sum(rate(workflow_transition_duration_seconds_bucket[5m])) by (le, entity_type))",
+                        "legendFormat": "{{entity_type}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "s",
+                        "label": "Duration"
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 4,
+                "title": "Workflow Items by State",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 8
+                },
+                "targets": [
+                    {
+                        "expr": "workflow_items_by_state",
+                        "legendFormat": "{{entity_type}} - {{state}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "short",
+                        "label": "Items"
+                    },
+                    {
+                        "format": "short"
+                    }
+                ]
+            },
+            {
+                "id": 5,
+                "title": "SLA Breaches",
+                "type": "graph",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 16
+                },
+                "targets": [
+                    {
+                        "expr": "increase(workflow_sla_breaches_total[1h])",
+                        "legendFormat": "{{entity_type}} - {{state}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "short",
+                        "label": "Breaches/hour"
+                    },
+                    {
+                        "format": "short"
+                    }
+                ],
+                "alert": {
+                    "conditions": [
+                        {
+                            "evaluator": {
+                                "params": [
+                                    5
+                                ],
+                                "type": "gt"
+                            },
+                            "operator": {
+                                "type": "and"
+                            },
+                            "query": {
+                                "params": [
+                                    "A",
+                                    "5m",
+                                    "now"
+                                ]
+                            },
+                            "reducer": {
+                                "params": [],
+                                "type": "avg"
+                            },
+                            "type": "query"
+                        }
+                    ],
+                    "executionErrorState": "alerting",
+                    "frequency": "1m",
+                    "handler": 1,
+                    "name": "Multiple SLA Breaches",
+                    "noDataState": "no_data",
+                    "notifications": []
+                }
+            },
+            {
+                "id": 6,
+                "title": "Workflow Bottlenecks (Items > 1 hour in state)",
+                "type": "table",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 16
+                },
+                "targets": [
+                    {
+                        "expr": "workflow_items_by_state > 50",
+                        "format": "table",
+                        "instant": true,
+                        "refId": "A"
+                    }
+                ],
+                "transformations": [
+                    {
+                        "id": "organize",
+                        "options": {
+                            "excludeByName": {
+                                "Time": true
+                            },
+                            "indexByName": {},
+                            "renameByName": {
+                                "entity_type": "Entity Type",
+                                "state": "State",
+                                "Value": "Count"
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 7,
+                "title": "Workflow Transitions by State",
+                "type": "piechart",
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 24
+                },
+                "targets": [
+                    {
+                        "expr": "sum(increase(workflow_transitions_total[1h])) by (to_state)",
+                        "legendFormat": "{{to_state}}",
+                        "refId": "A"
+                    }
+                ],
+                "options": {
+                    "legend": {
+                        "displayMode": "table",
+                        "placement": "right",
+                        "values": [
+                            "value",
+                            "percent"
+                        ]
+                    },
+                    "pieType": "pie"
+                }
+            },
+            {
+                "id": 8,
+                "title": "Average Workflow Processing Time",
+                "type": "stat",
+                "gridPos": {
+                    "h": 4,
+                    "w": 6,
+                    "x": 12,
+                    "y": 24
+                },
+                "targets": [
+                    {
+                        "expr": "avg(rate(workflow_transition_duration_seconds_sum[5m]) / rate(workflow_transition_duration_seconds_count[5m]))",
+                        "refId": "A"
+                    }
+                ],
+                "options": {
+                    "reduceOptions": {
+                        "values": false,
+                        "calcs": [
+                            "lastNotNull"
+                        ]
+                    },
+                    "textMode": "value"
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "s",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": 0,
+                                    "color": "green"
+                                },
+                                {
+                                    "value": 5,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 10,
+                                    "color": "red"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        ]
+    }
+}

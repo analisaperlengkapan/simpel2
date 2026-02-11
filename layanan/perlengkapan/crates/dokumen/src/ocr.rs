@@ -20,7 +20,7 @@ impl OcrService {
 
     pub async fn request_ocr(
         &self,
-        document_id: Uuid,
+        _document_id: Uuid,
         file_bytes: Vec<u8>,
     ) -> Result<OcrResult, AppError> {
         let url = format!("{}/ocr", self.config.ai_service_url);

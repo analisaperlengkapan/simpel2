@@ -3,37 +3,87 @@
   // SIMPelv2 - Multi-Module Workspace Configuration
   // ==========================================
   // Description: Complete development environment for SIMPelv2 project
-  // Version: 2.0 - Optimized for crash prevention and performance
-  // Last Updated: August 20, 2025
+  // Version: 3.0 - Updated to match actual codebase structure
+  // Last Updated: February 9, 2026
   // ==========================================
   "folders": [
     {
       "name": "🏠 SIMPelv2 Root",
       "path": "."
     },
+    // ========================================
+    // SHARED LIBRARIES
+    // ========================================
     {
-      "name": "🎨 Shared Components (Working)",
-      "path": "./antarmuka/shared"
+      "name": "📚 lib-ui (Shared UI Components)",
+      "path": "./lib/ui"
     },
     {
-      "name": "🖥️ Frontend Microfrontends",
-      "path": "./antarmuka"
+      "name": "📚 lib-common (Shared Utilities)",
+      "path": "./lib/common"
     },
     {
-      "name": "⚙️ Backend Services",
-      "path": "./layanan"
+      "name": "📚 lib-perlengkapan (Perlengkapan Domain)",
+      "path": "./lib/perlengkapan"
+    },
+    // ========================================
+    // PRODUCTION MICROFRONTENDS
+    // ========================================
+    {
+      "name": "🌐 Portal Microfrontend",
+      "path": "./antarmuka/portal"
     },
     {
-      "name": "🐳 Infrastructure",
-      "path": "./infra"
+      "name": "🌐 Perlengkapan Microfrontend",
+      "path": "./antarmuka/perlengkapan"
+    },
+    // ========================================
+    // EXAMPLE/MOCKUP MICROFRONTENDS
+    // ========================================
+    {
+      "name": "📦 Contoh Microfrontends (Examples)",
+      "path": "./antarmuka/contoh"
+    },
+    // ========================================
+    // PRODUCTION BACKEND SERVICES
+    // ========================================
+    {
+      "name": "⚙️ Portal Backend Service",
+      "path": "./layanan/portal"
     },
     {
-      "name": "📜 Scripts & Tools",
-      "path": "./scripts"
+      "name": "⚙️ Perlengkapan Backend Service",
+      "path": "./layanan/perlengkapan"
+    },
+    // ========================================
+    // EXAMPLE/MOCKUP BACKEND SERVICES
+    // ========================================
+    {
+      "name": "📦 Contoh Backend Services (Examples)",
+      "path": "./layanan/contoh"
+    },
+    // ========================================
+    // INFRASTRUCTURE SERVICES
+    // ========================================
+    {
+      "name": "🔐 Authenc (Identity Provider)",
+      "path": "./infra/authenc"
     },
     {
-      "name": "📖 Documentation",
-      "path": "./docs"
+      "name": "🔒 Secreton (Secrets Vault)",
+      "path": "./infra/secreton"
+    },
+    {
+      "name": "☸️ Kubernetes Manifests",
+      "path": "./infra/k8s"
+    },
+    {
+      "name": "📊 Monitoring",
+      "path": "./infra/monitoring"
+    },
+    {
+      "name": "🌐 Nginx",
+      "path": "./infra/nginx"
     }
   ],
   "settings": {
@@ -48,6 +98,8 @@
       "**/dist/**": true,
       "**/pkg/**": true,
       "**/layanan/*/target/**": true,
+      "**/antarmuka/*/target/**": true,
+      "**/infra/*/target/**": true,
       "**/.vscode-server/**": true,
       "**/.cache/**": true
     },
@@ -58,35 +110,25 @@
       "**/pkg/**": true,
       "**/.git/**": true,
       "**/layanan/*/target/**": true,
+      "**/antarmuka/*/target/**": true,
+      "**/infra/*/target/**": true,
       "**/.*cache*/**": true
     },
     // ========================================
-    // RUST ANALYZER WORKSPACE SETTINGS - CRASH PREVENTION
+    // RUST ANALYZER WORKSPACE SETTINGS
     // ========================================
+    // Use root Cargo.toml for unified workspace analysis
     "rust-analyzer.linkedProjects": [
-  "./antarmuka/shared/Cargo.toml",
-  "./layanan/badiklat/Cargo.toml",
-  "./layanan/datun/Cargo.toml",
-  "./layanan/intel/Cargo.toml",
-  "./layanan/pemulihan_aset/Cargo.toml",
-  "./layanan/pengawasan/Cargo.toml",
-  "./layanan/pidmil/Cargo.toml",
-  "./layanan/pidsus/Cargo.toml",
-  "./layanan/pidum/Cargo.toml",
-  "./layanan/shared/ai/Cargo.toml",
-  "./layanan/shared/bantuan/Cargo.toml",
-  "./layanan/shared/dasbor/Cargo.toml",
-  "./layanan/shared/dokumen/Cargo.toml",
-  "./layanan/shared/integrasi/Cargo.toml",
-  "./layanan/shared/keamanan/Cargo.toml",
-  "./layanan/shared/konfigurasi/Cargo.toml",
-  "./layanan/shared/laporan/Cargo.toml",
-  "./layanan/shared/notifikasi/Cargo.toml"
+      "./Cargo.toml"
     ],
-    "rust-analyzer.cargo.buildScripts.enable": false,
-    "rust-analyzer.procMacro.enable": false,
-    "rust-analyzer.checkOnSave.enable": false,
-    "rust-analyzer.diagnostics.enable": false,
+    "rust-analyzer.cargo.features": "all",
+    "rust-analyzer.cargo.buildScripts.enable": true,
+    "rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.checkOnSave.enable": true,
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.diagnostics.enable": true,
+    "rust-analyzer.cargo.allTargets": false,
+    "rust-analyzer.cargo.target": null,
     // ========================================
     // EDITOR WORKSPACE BEHAVIOR
     // ========================================
@@ -107,46 +149,34 @@
       "editor.semanticHighlighting.enabled": true
     },
     "[toml]": {
-      "editor.defaultFormatter": null
+      "editor.defaultFormatter": "tamasfe.even-better-toml"
     },
     "[json]": {
       "editor.defaultFormatter": "vscode.json-language-features"
     },
+    "[jsonc]": {
+      "editor.defaultFormatter": "vscode.json-language-features"
+    },
     "[yaml]": {
-      "editor.defaultFormatter": null
+      "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
+    "[markdown]": {
+      "editor.defaultFormatter": "yzhang.markdown-all-in-one"
     }
   },
   "tasks": {
     "version": "2.0.0",
     "tasks": [
+      // ========================================
+      // WORKSPACE-WIDE TASKS
+      // ========================================
       {
-        "label": "🎨 Build Shared Components",
-        "type": "shell",
-        "command": "cargo",
-        "args": [
-          "build",
-          "--manifest-path",
-          "antarmuka/shared/Cargo.toml"
-        ],
-        "group": "build",
-        "presentation": {
-          "echo": true,
-          "reveal": "always",
-          "focus": false,
-          "panel": "shared"
-        },
-        "problemMatcher": [
-          "$rustc"
-        ]
-      },
-      {
-        "label": "🔍 Check Shared Components",
+        "label": "🔍 Check Workspace",
         "type": "shell",
         "command": "cargo",
         "args": [
           "check",
-          "--manifest-path",
-          "antarmuka/shared/Cargo.toml"
+          "--workspace"
         ],
         "group": "build",
         "presentation": {
@@ -159,39 +189,236 @@
           "$rustc"
         ]
       },
-      // Backend build/check/test tasks
       {
-        "label": "⚙️ Build All Backend Services",
+        "label": "🏗️ Build Workspace",
         "type": "shell",
         "command": "cargo",
-        "args": ["build", "--all"],
+        "args": [
+          "build",
+          "--workspace"
+        ],
         "group": "build",
-        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
-        "problemMatcher": ["$rustc"]
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
       },
       {
-        "label": "🔍 Check All Backend Services",
+        "label": "🧪 Test Workspace",
         "type": "shell",
         "command": "cargo",
-        "args": ["check", "--all"],
-        "group": "build",
-        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
-        "problemMatcher": ["$rustc"]
-      },
-      {
-        "label": "🧪 Test All Backend Services",
-        "type": "shell",
-        "command": "cargo",
-        "args": ["test", "--all"],
+        "args": [
+          "test",
+          "--workspace"
+        ],
         "group": "test",
-        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
-        "problemMatcher": ["$rustc"]
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
       },
       {
-        "label": "🚀 Start Development Environment",
+        "label": "📋 Clippy Workspace",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "clippy",
+          "--workspace",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
+      },
+      {
+        "label": "✨ Format Workspace",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "fmt",
+          "--all"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔒 Security Audit",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "audit"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      // ========================================
+      // PRODUCTION SERVICES
+      // ========================================
+      {
+        "label": "🚀 Build Portal Backend",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "build",
+          "--package",
+          "layanan-portal"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
+      },
+      {
+        "label": "🚀 Build Perlengkapan Backend",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "build",
+          "--package",
+          "layanan-perlengkapan-api"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
+      },
+      {
+        "label": "🔐 Build Authenc",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "build",
+          "--package",
+          "authenc"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
+      },
+      {
+        "label": "🔒 Build Secreton",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "build",
+          "--package",
+          "secreton"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
+      },
+      // ========================================
+      // FRONTEND TASKS (requires trunk)
+      // ========================================
+      {
+        "label": "🌐 Build Portal Frontend",
+        "type": "shell",
+        "command": "trunk",
+        "args": [
+          "build",
+          "--release"
+        ],
+        "options": {
+          "cwd": "${workspaceFolder}/antarmuka/portal"
+        },
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "🌐 Build Perlengkapan Frontend",
+        "type": "shell",
+        "command": "trunk",
+        "args": [
+          "build",
+          "--release"
+        ],
+        "options": {
+          "cwd": "${workspaceFolder}/antarmuka/perlengkapan"
+        },
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      // ========================================
+      // DEVELOPMENT WORKFLOW
+      // ========================================
+      {
+        "label": "🚀 Full Workspace Check",
         "dependsOrder": "sequence",
         "dependsOn": [
-          "🔍 Check Shared Components"
+          "✨ Format Workspace",
+          "📋 Clippy Workspace",
+          "🔍 Check Workspace"
         ]
       }
     ]
@@ -200,17 +427,40 @@
     "version": "0.2.0",
     "configurations": [
       {
-        "name": "🎨 Debug Shared Components",
-        "type": "node",
+        "name": "🔐 Debug Authenc",
+        "type": "lldb",
         "request": "launch",
-        "program": "cargo",
-        "args": [
-          "test",
-          "--manifest-path",
-          "antarmuka/shared/Cargo.toml"
-        ],
-        "preLaunchTask": "🔍 Check Shared Components",
-        "cwd": "${workspaceFolder}/antarmuka/shared"
+        "program": "${workspaceFolder}/target/debug/authenc",
+        "args": [],
+        "cwd": "${workspaceFolder}/infra/authenc",
+        "preLaunchTask": "🔐 Build Authenc"
+      },
+      {
+        "name": "🔒 Debug Secreton",
+        "type": "lldb",
+        "request": "launch",
+        "program": "${workspaceFolder}/target/debug/secreton",
+        "args": [],
+        "cwd": "${workspaceFolder}/infra/secreton",
+        "preLaunchTask": "🔒 Build Secreton"
+      },
+      {
+        "name": "🚀 Debug Portal Backend",
+        "type": "lldb",
+        "request": "launch",
+        "program": "${workspaceFolder}/target/debug/layanan-portal",
+        "args": [],
+        "cwd": "${workspaceFolder}/layanan/portal",
+        "preLaunchTask": "🚀 Build Portal Backend"
+      },
+      {
+        "name": "🚀 Debug Perlengkapan Backend",
+        "type": "lldb",
+        "request": "launch",
+        "program": "${workspaceFolder}/target/debug/layanan-perlengkapan-api",
+        "args": [],
+        "cwd": "${workspaceFolder}/layanan/perlengkapan",
+        "preLaunchTask": "🚀 Build Perlengkapan Backend"
       }
     ]
   },
@@ -219,10 +469,12 @@
       "rust-lang.rust-analyzer",
       "vadimcn.vscode-lldb",
       "ms-azuretools.vscode-docker",
-      "ms-vscode.makefile-tools",
       "tamasfe.even-better-toml",
       "serayuzgur.crates",
-      "dustypomerleau.rust-syntax"
+      "dustypomerleau.rust-syntax",
+      "redhat.vscode-yaml",
+      "ms-kubernetes-tools.vscode-kubernetes-tools",
+      "yzhang.markdown-all-in-one"
     ]
   }
 }

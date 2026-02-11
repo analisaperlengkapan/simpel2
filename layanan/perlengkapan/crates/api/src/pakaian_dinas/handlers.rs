@@ -570,6 +570,87 @@ pub async fn get_laporan_daftar_pegawai(
     )))
 }
 
+// ============ Workflow Transition Handlers ============
+
+/// Submit pengajuan for approval
+pub async fn submit_pengajuan_handler(
+    State(service): State<PakaianDinasService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<serde_json::Value>,
+) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    let catatan = request.get("catatan").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+    let item = service
+        .submit_pengajuan(id, claims.user_id, catatan)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Pengajuan berhasil disubmit".to_string(),
+    )))
+}
+
+/// Approve pengajuan
+pub async fn approve_pengajuan_handler(
+    State(service): State<PakaianDinasService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<serde_json::Value>,
+) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    let catatan = request.get("catatan").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+    let item = service
+        .approve_pengajuan(id, claims.user_id, catatan)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Pengajuan berhasil diapprove".to_string(),
+    )))
+}
+
+/// Reject pengajuan
+pub async fn reject_pengajuan_handler(
+    State(service): State<PakaianDinasService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<serde_json::Value>,
+) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
+    let catatan = request.get("catatan").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+    let item = service
+        .reject_pengajuan(id, claims.user_id, catatan)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Pengajuan berhasil direject".to_string(),
+    )))
+}
+
+/// Download rekapitulasi document
+pub async fn download_rekapitulasi_handler(
+    State(service): State<PakaianDinasService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<serde_json::Value>>, AppError> {
+    // Get pengajuan to check document URL
+    let pengajuan = service.get_pengajuan_by_id(id).await?;
+
+    // Check if document exists
+    let document_url = pengajuan.aktivitas_label
+        .ok_or_else(|| bad_request("Rekapitulasi belum tersedia"))?;
+
+    Ok(Json(ApiResponse::success(
+        serde_json::json!({
+            "document_url": document_url,
+            "pengajuan_id": id,
+        }),
+        "URL rekapitulasi berhasil diambil".to_string(),
+    )))
+}
+
 // ============ Unit Tests ============
 
 #[cfg(test)]

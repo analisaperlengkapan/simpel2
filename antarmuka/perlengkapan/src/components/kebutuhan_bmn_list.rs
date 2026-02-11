@@ -1,11 +1,15 @@
 //! Kebutuhan BMN List Component
 //!
-//! Displays paginated list of BMN needs analysis requests with filtering.
+//! Displays paginated list of BMN needs analysis requests with filtering and batch operations.
 
 use crate::api::{
     KebutuhanBmnQuery, KebutuhanBmnStatus, KebutuhanBmnSummary, fetch_kebutuhan_bmn_list,
 };
+use crate::components::batch_operations_toolbar::{
+    BatchOperationsToolbar, BatchOperationResult, BatchResultSummary,
+};
 use leptos::prelude::*;
+use uuid::Uuid;
 
 #[component]
 pub fn KebutuhanBmnList() -> impl IntoView {
@@ -14,6 +18,11 @@ pub fn KebutuhanBmnList() -> impl IntoView {
     let (tahun_filter, set_tahun_filter) = signal::<Option<i32>>(None);
     let (status_filter, set_status_filter) = signal::<Option<i32>>(None);
     let (search_query, set_search_query) = signal(String::new());
+
+    // Batch operations state
+    let (selected_ids, set_selected_ids) = signal::<Vec<Uuid>>(Vec::new());
+    let (batch_result, set_batch_result) = signal::<Option<BatchOperationResult>>(None);
+    let (refresh_trigger, set_refresh_trigger) = signal(0);
 
     // Create query from filters
     let query = Memo::new(move |_| KebutuhanBmnQuery {
@@ -31,6 +40,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         let q = query.get();
         let p = page.get();
         let pp = per_page.get();
+        let _ = refresh_trigger.get(); // Trigger refresh
         async move {
             match fetch_kebutuhan_bmn_list(q, p, pp).await {
                 Ok(response) => Some(response),
@@ -48,12 +58,46 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         set_page.set(1);
     });
 
+    // Handle batch operation completion
+    let handle_operation_complete = Callback::new(move |result: BatchOperationResult| {
+        set_batch_result.set(Some(result));
+        set_selected_ids.set(Vec::new());
+        set_refresh_trigger.update(|v| *v += 1);
+    });
+
+    // Toggle selection for a single item
+    let toggle_selection = move |id: Uuid| {
+        set_selected_ids.update(|ids| {
+            if ids.contains(&id) {
+                ids.retain(|&x| x != id);
+            } else {
+                ids.push(id);
+            }
+        });
+    };
+
+    // Select all visible items
+    let select_all = move |items: Vec<Uuid>| {
+        set_selected_ids.set(items);
+    };
+
+    // Clear selection
+    let clear_selection = move |_| {
+        set_selected_ids.set(Vec::new());
+    };
+
     // Current year for filter dropdown
     let current_year = 2025;
     let years: Vec<i32> = (2020..=current_year + 1).rev().collect();
 
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+            // Batch result summary
+            <BatchResultSummary
+                result=batch_result
+                on_close=Callback::new(move |_| set_batch_result.set(None))
+            />
+
             // Header
             <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
                 <div>
@@ -118,6 +162,17 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                     <option value="2008">"Selesai"</option>
                     <option value="2009">"Dibatalkan"</option>
                 </select>
+
+                // Clear selection button (only show when items are selected)
+                <Show when=move || !selected_ids.get().is_empty()>
+                    <button
+                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center"
+                        on:click=clear_selection
+                    >
+                        <i class="fas fa-times mr-2"></i>
+                        "Batal Pilih"
+                    </button>
+                </Show>
             </div>
 
             // Data table
@@ -131,6 +186,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                     data_resource.get().flatten().map(|response| {
                         // Pre-clone data for multiple uses
                         let data_for_for = response.data.clone();
+                        let data_for_select_all = response.data.clone();
                         let data_len = response.data.len();
                         let total = response.total;
                         let total_pages = response.total_pages;
@@ -149,6 +205,33 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                     <table class="w-full text-left border-collapse">
                                         <thead>
                                             <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
+                                                <th class="p-3 font-semibold border-b w-12">
+                                                    <input
+                                                        type="checkbox"
+                                                        class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                                        prop:checked={
+                                                            let data_for_checked = data_for_select_all.clone();
+                                                            move || {
+                                                                let selected = selected_ids.get();
+                                                                let all_ids: Vec<Uuid> = data_for_checked.clone().iter()
+                                                                    .filter_map(|item| Uuid::parse_str(&item.id).ok())
+                                                                    .collect();
+                                                                !all_ids.is_empty() && all_ids.iter().all(|id| selected.contains(id))
+                                                            }
+                                                        }
+                                                        on:change=move |_| {
+                                                            let all_ids: Vec<Uuid> = data_for_select_all.clone().iter()
+                                                                .filter_map(|item| Uuid::parse_str(&item.id).ok())
+                                                                .collect();
+                                                            let selected = selected_ids.get();
+                                                            if all_ids.iter().all(|id| selected.contains(id)) {
+                                                                set_selected_ids.set(Vec::new());
+                                                            } else {
+                                                                select_all(all_ids);
+                                                            }
+                                                        }
+                                                    />
+                                                </th>
                                                 <th class="p-3 font-semibold border-b">"Nama Pengajuan"</th>
                                                 <th class="p-3 font-semibold border-b text-center">"Tahun"</th>
                                                 <th class="p-3 font-semibold border-b text-center">"Satker"</th>
@@ -168,9 +251,20 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                                     let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
                                                     let id_for_link = item.id.clone();
                                                     let id_for_edit = item.id.clone();
+                                                    let item_uuid = Uuid::parse_str(&item.id).ok();
 
                                                     view! {
                                                         <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
+                                                            <td class="p-3">
+                                                                {item_uuid.map(|uuid| view! {
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                                                        prop:checked=move || selected_ids.get().contains(&uuid)
+                                                                        on:change=move |_| toggle_selection(uuid)
+                                                                    />
+                                                                })}
+                                                            </td>
                                                             <td class="p-3">
                                                                 <a
                                                                     href=format!("/dashboard/kebutuhan-bmn/{}", id_for_link)
@@ -259,6 +353,12 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                     })
                 }}
             </Suspense>
+
+            // Batch operations toolbar (floating at bottom)
+            <BatchOperationsToolbar
+                selected_ids=selected_ids
+                on_operation_complete=handle_operation_complete
+            />
         </div>
     }
 }

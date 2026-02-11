@@ -25,7 +25,15 @@ pub mod types;
 pub mod traits;
 pub mod validation;
 pub mod utils;
+pub mod gap_analysis;
+pub mod prioritization;
+pub mod search;
+pub mod kode_barang;
 
 // Re-export commonly used types at crate root
 pub use models::*;
 pub use types::*;
+pub use gap_analysis::*;
+pub use prioritization::*;
+pub use search::*;
+pub use kode_barang::*;

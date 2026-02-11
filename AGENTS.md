@@ -109,7 +109,7 @@ flowchart LR
         end
 
         subgraph Antarmuka["antarmuka/ - Microfrontends"]
-            AP["daskrimti/portal/"]
+            AP["portal/"]
             APK["pembinaan/keuangan/"]
             APP["pembinaan/perlengkapan/"]
             APR["pembinaan/perencanaan/"]
@@ -117,9 +117,9 @@ flowchart LR
         end
 
         subgraph Layanan["layanan/ - Backend Services"]
-            SP["daskrimti/portal/"]
-            SI["daskrimti/integrasi/"]
-            SN["daskrimti/notifikasi/"]
+            SP["portal/"]
+            SI["integrasi/"]
+            SN["notifikasi/"]
             LPN["... other layanan"]
         end
 
@@ -147,8 +147,7 @@ flowchart LR
 │   ├── ui/             # UI components (lib-ui) - Leptos components
 │   └── common/         # Common utilities (lib-common) - shared types, config
 ├── antarmuka/          # FRONTEND MICROFRONTENDS (Leptos WASM)
-│   ├── daskrimti/      # Daskrimti domain
-│   │   └── portal/     # Main portal microfrontend
+│   ├── portal/         # Portal microfrontend (legacy: daskrimti)
 │   ├── pembinaan/      # Pembinaan domain
 │   │   ├── keuangan/   # Keuangan microfrontend
 │   │   ├── perencanaan/  # Perencanaan microfrontend
@@ -162,8 +161,7 @@ flowchart LR
 │   ├── pidsus/         # Pidsus microfrontend
 │   └── pidum/          # Pidum microfrontend
 ├── layanan/            # BACKEND MICROSERVICES (Axum + Tonic)
-│   ├── daskrimti/      # Daskrimti domain services
-│   │   ├── portal/     # Portal backend API
+│   ├── portal/         # Portal backend API (legacy: layanan-daskrimti-*)
 │   │   ├── integrasi/  # MonSAKTI/MySIMKARI/SIMAN integration
 │   │   ├── notifikasi/ # Notification service
 │   │   ├── ai/         # AI service
@@ -184,10 +182,12 @@ flowchart LR
 
 ### Naming Conventions
 
+> **Catatan migrasi:** Beberapa dokumentasi lama menggunakan namespace `daskrimti`. Di repositori ini nama domain telah disederhanakan — gunakan `portal/` (atau `layanan/portal`) saat menavigasi kode. Simpan referensi lama saat merujuk ke tugas migrasi.
+
 | Type | Directory Location | Package Name Schema | Example |
 |------|-------------------|---------------------|---------|
 | **Microfrontend** | `antarmuka/[domain]/[name]/` | `[name]-microfrontend` | `portal-microfrontend` |
-| **Microservice** | `layanan/[domain]/[name]/` | `layanan-[domain]-[name]` | `layanan-daskrimti-portal` |
+| **Microservice** | `layanan/[domain]/[name]/` | `layanan-[domain]-[name]` | `layanan-portal` |
 | **Shared Lib** | `lib/[name]/` | `lib-[name]` | `lib-ui`, `lib-common` |
 | **Infra Service** | `infra/[name]/` | `[name]` | `authenc`, `secreton` |
 

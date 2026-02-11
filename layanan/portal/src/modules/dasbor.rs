@@ -9,6 +9,7 @@ use crate::state::AppState;
 /// Create dashboard routes
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
+        .route("/metrics", get(dashboard::get_portal_dashboard_metrics))
         .route("/overview", get(dashboard::get_overview))
         .route("/widgets", get(dashboard::get_widgets))
         .route("/widgets/{id}", get(dashboard::get_widget))

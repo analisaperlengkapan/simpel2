@@ -6,7 +6,8 @@ use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get the proto directory path - relative to workspace root
-    let proto_dir = PathBuf::from("../../../infra/authenc/proto");
+    let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+    let proto_dir = manifest_dir.join("../../infra/authenc/proto");
 
     // Verify proto directory exists
     if !proto_dir.exists() {

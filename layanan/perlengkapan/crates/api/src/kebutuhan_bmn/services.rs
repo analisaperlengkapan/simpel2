@@ -15,6 +15,7 @@ use validator::Validate;
 
 use crate::errors::{AppError, AppResult};
 use crate::grpc_clients::AuthencClient;
+use crate::workflow::engine::{WorkflowEngine, TransitionRequest};
 
 use super::models::*;
 use super::repository::{KebutuhanBmnRepository, PgKebutuhanBmnRepository, UserInfo};
@@ -30,15 +31,21 @@ pub struct KebutuhanBmnService {
     repository: Arc<PgKebutuhanBmnRepository>,
     authenc_client: AuthencClient,
     siman: Option<Arc<SimanIntegration>>,
+    workflow_engine: Arc<WorkflowEngine>,
 }
 
 impl KebutuhanBmnService {
     /// Create a new service instance
-    pub fn new(repository: PgKebutuhanBmnRepository, authenc_client: AuthencClient) -> Self {
+    pub fn new(
+        repository: PgKebutuhanBmnRepository,
+        authenc_client: AuthencClient,
+        workflow_engine: WorkflowEngine,
+    ) -> Self {
         Self {
             repository: Arc::new(repository),
             authenc_client,
             siman: None,
+            workflow_engine: Arc::new(workflow_engine),
         }
     }
 
@@ -47,11 +54,13 @@ impl KebutuhanBmnService {
         repository: PgKebutuhanBmnRepository,
         authenc_client: AuthencClient,
         siman: SimanIntegration,
+        workflow_engine: WorkflowEngine,
     ) -> Self {
         Self {
             repository: Arc::new(repository),
             authenc_client,
             siman: Some(Arc::new(siman)),
+            workflow_engine: Arc::new(workflow_engine),
         }
     }
 
@@ -104,19 +113,8 @@ impl KebutuhanBmnService {
         let assets = self.repository.get_pengajuan_assets(id).await?;
         let satkers = self.repository.get_pengajuan_satkers(id).await?;
 
-        let allowed_transitions = pengajuan
-            .status
-            .allowed_transitions()
-            .into_iter()
-            .map(|s| WorkflowTransitionInfo {
-                status_kode: s.to_code(),
-                status_nama: s.label().to_string(),
-                requires_comment: matches!(
-                    s,
-                    KebutuhanBmnStatus::RevisiSatker | KebutuhanBmnStatus::Rejected
-                ),
-            })
-            .collect();
+        // Get allowed transitions from workflow engine
+        let allowed_transitions = self.get_allowed_transitions(pengajuan.status);
 
         Ok(PengajuanDetailResponse {
             pengajuan,
@@ -181,7 +179,15 @@ impl KebutuhanBmnService {
     // Workflow Operations
     // ========================================================================
 
-    /// Transition pengajuan to a new status
+    /// Transition pengajuan to a new status using workflow engine
+    ///
+    /// This method now uses the centralized workflow engine for:
+    /// - Transition validation
+    /// - Role-based authorization
+    /// - Audit logging
+    /// - Activity tracking
+    ///
+    /// Requirements: REQ-K004, REQ-W004, REQ-W005
     pub async fn transition_pengajuan_status(
         &self,
         id: Uuid,
@@ -193,8 +199,12 @@ impl KebutuhanBmnService {
         let target_status = KebutuhanBmnStatus::from_code(request.target_status)
             .ok_or_else(|| AppError::BadRequest("Invalid target status code".to_string()))?;
 
-        // Validate transition
-        if !current.status.can_transition_to(target_status) {
+        // Convert status codes to state names for workflow engine
+        let from_state = current.status.to_state_name();
+        let to_state = target_status.to_state_name();
+
+        // Validate transition using workflow engine
+        if !self.workflow_engine.config().is_valid_transition(from_state, to_state) {
             return Err(AppError::BadRequest(format!(
                 "Cannot transition from {} to {}",
                 current.status.label(),
@@ -215,17 +225,31 @@ impl KebutuhanBmnService {
         }
 
         info!(
-            "Transitioning pengajuan {} from {} to {}",
+            "Transitioning pengajuan {} from {} to {} via workflow engine",
             id,
             current.status.label(),
             target_status.label()
         );
 
-        // Update main pengajuan status
-        let updated = self
-            .repository
-            .update_pengajuan_status(id, target_status.to_code(), user_id)
-            .await?;
+        // Use workflow engine for transition
+        let transition_request = TransitionRequest {
+            entity_id: id,
+            from_state: from_state.to_string(),
+            to_state: to_state.to_string(),
+            user_id: user_id.unwrap_or_else(Uuid::nil),
+            catatan: request.komentar.clone(),
+            ip_address: "0.0.0.0".to_string(), // TODO: Get from request context
+        };
+
+        // Execute transition through workflow engine
+        let _transition_result = self
+            .workflow_engine
+            .transition(transition_request)
+            .await
+            .map_err(|e| AppError::Internal(format!("Workflow transition failed: {}", e)))?;
+
+        // Get updated pengajuan
+        let updated = self.repository.get_pengajuan_by_id(id).await?;
 
         // Update all satkers to new status and create activity logs
         let satkers = self.repository.get_pengajuan_satkers(id).await?;
@@ -251,7 +275,9 @@ impl KebutuhanBmnService {
         Ok(updated)
     }
 
-    /// Transition a single satker's status
+    /// Transition a single satker's status using workflow engine
+    ///
+    /// Requirements: REQ-K004, REQ-W004, REQ-W005
     pub async fn transition_satker_status(
         &self,
         satker_id: Uuid,
@@ -263,8 +289,12 @@ impl KebutuhanBmnService {
         let target_status = KebutuhanBmnStatus::from_code(request.target_status)
             .ok_or_else(|| AppError::BadRequest("Invalid target status code".to_string()))?;
 
-        // Validate transition
-        if !current.status.can_transition_to(target_status) {
+        // Convert status codes to state names for workflow engine
+        let from_state = current.status.to_state_name();
+        let to_state = target_status.to_state_name();
+
+        // Validate transition using workflow engine
+        if !self.workflow_engine.config().is_valid_transition(from_state, to_state) {
             return Err(AppError::BadRequest(format!(
                 "Cannot transition from {} to {}",
                 current.status.label(),
@@ -273,7 +303,7 @@ impl KebutuhanBmnService {
         }
 
         info!(
-            "Transitioning satker {} from {} to {}",
+            "Transitioning satker {} from {} to {} via workflow engine",
             satker_id,
             current.status.label(),
             target_status.label()
@@ -299,6 +329,30 @@ impl KebutuhanBmnService {
             .await?;
 
         Ok(updated)
+    }
+
+    /// Get allowed next states for a pengajuan using workflow engine
+    ///
+    /// Requirements: REQ-K004
+    pub fn get_allowed_transitions(&self, current_status: KebutuhanBmnStatus) -> Vec<WorkflowTransitionInfo> {
+        let current_state = current_status.to_state_name();
+        let next_states = self.workflow_engine.get_next_states(current_state);
+
+        next_states
+            .into_iter()
+            .filter_map(|state_name| {
+                KebutuhanBmnStatus::from_state_name(&state_name).map(|status| {
+                    WorkflowTransitionInfo {
+                        status_kode: status.to_code(),
+                        status_nama: status.label().to_string(),
+                        requires_comment: matches!(
+                            status,
+                            KebutuhanBmnStatus::RevisiSatker | KebutuhanBmnStatus::Rejected
+                        ),
+                    }
+                })
+            })
+            .collect()
     }
 
     // ========================================================================
@@ -592,6 +646,438 @@ impl KebutuhanBmnService {
         satker_id: Uuid,
     ) -> AppResult<Vec<PengajuanKebutuhanBmnAktivitas>> {
         self.repository.get_satker_aktivitas(satker_id).await
+    }
+
+    // ========================================================================
+    // Search Operations
+    // ========================================================================
+
+    /// Search kebutuhan BMN with full-text search and filters
+    ///
+    /// Uses PostgreSQL's Indonesian text search configuration for relevance ranking
+    /// Requirements: REQ-K005
+    pub async fn search_kebutuhan(
+        &self,
+        query: lib_perlengkapan::search::SearchQuery,
+    ) -> AppResult<lib_perlengkapan::search::SearchResults<KebutuhanBmnSummary>> {
+        use lib_perlengkapan::search::SearchEngineDb;
+
+        let search_engine = SearchEngineDb::new(self.repository.pool().clone());
+
+        search_engine
+            .search_kebutuhan(query)
+            .await
+            .map_err(|e| AppError::Internal(format!("Search failed: {}", e)))
+    }
+
+    /// Get search suggestions based on partial query
+    ///
+    /// Returns top N most relevant suggestions for autocomplete
+    /// Requirements: REQ-K005
+    pub async fn get_search_suggestions(
+        &self,
+        partial_query: &str,
+        limit: i32,
+    ) -> AppResult<Vec<String>> {
+        use lib_perlengkapan::search::SearchEngineDb;
+
+        let search_engine = SearchEngineDb::new(self.repository.pool().clone());
+
+        search_engine
+            .get_suggestions(partial_query, limit)
+            .await
+            .map_err(|e| AppError::Internal(format!("Suggestions failed: {}", e)))
+    }
+
+    // ========================================================================
+    // Batch Operations
+    // ========================================================================
+
+    /// Batch approve multiple kebutuhan
+    ///
+    /// Processes each item independently - failures don't affect other items
+    /// Requirements: REQ-K004
+    pub async fn batch_approve_kebutuhan(
+        &self,
+        request: super::models::BatchApproveRequest,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<super::models::BatchOperationResponse> {
+        use super::models::{BatchOperationItemResult, BatchOperationResponse};
+        use chrono::Utc;
+
+        // Validate batch size
+        if request.kebutuhan_ids.is_empty() {
+            return Err(AppError::BadRequest("Batch cannot be empty".to_string()));
+        }
+        if request.kebutuhan_ids.len() > 500 {
+            return Err(AppError::BadRequest(
+                "Batch size cannot exceed 500 items".to_string(),
+            ));
+        }
+
+        let batch_id = Uuid::new_v4();
+        let operation_type = "batch_approve".to_string();
+        let executed_at = Utc::now();
+
+        info!(
+            "Starting batch approve operation {} for {} items by user {:?}",
+            batch_id,
+            request.kebutuhan_ids.len(),
+            user_id
+        );
+
+        // Process each item independently
+        let mut results = Vec::new();
+        let mut successful_count = 0;
+        let mut failed_count = 0;
+
+        for kebutuhan_id in &request.kebutuhan_ids {
+            let result = match self.process_single_approval(*kebutuhan_id, &request.komentar, user_id, user_info.clone()).await {
+                Ok(_) => {
+                    successful_count += 1;
+                    BatchOperationItemResult {
+                        kebutuhan_id: *kebutuhan_id,
+                        success: true,
+                        error_message: None,
+                    }
+                }
+                Err(e) => {
+                    failed_count += 1;
+                    warn!("Failed to approve kebutuhan {}: {}", kebutuhan_id, e);
+                    BatchOperationItemResult {
+                        kebutuhan_id: *kebutuhan_id,
+                        success: false,
+                        error_message: Some(e.to_string()),
+                    }
+                }
+            };
+            results.push(result);
+        }
+
+        // Audit log the batch operation
+        self.log_batch_operation(
+            batch_id,
+            &operation_type,
+            request.kebutuhan_ids.len(),
+            successful_count,
+            failed_count,
+            user_id,
+        )
+        .await?;
+
+        info!(
+            "Batch approve operation {} completed: {}/{} successful",
+            batch_id, successful_count, request.kebutuhan_ids.len()
+        );
+
+        Ok(BatchOperationResponse {
+            batch_id,
+            total_items: request.kebutuhan_ids.len(),
+            successful_items: successful_count,
+            failed_items: failed_count,
+            results,
+            operation_type,
+            executed_at,
+            executed_by: user_id,
+        })
+    }
+
+    /// Batch reject multiple kebutuhan
+    ///
+    /// Processes each item independently - failures don't affect other items
+    /// Requirements: REQ-K004
+    pub async fn batch_reject_kebutuhan(
+        &self,
+        request: super::models::BatchRejectRequest,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<super::models::BatchOperationResponse> {
+        use super::models::{BatchOperationItemResult, BatchOperationResponse};
+        use chrono::Utc;
+
+        // Validate batch size
+        if request.kebutuhan_ids.is_empty() {
+            return Err(AppError::BadRequest("Batch cannot be empty".to_string()));
+        }
+        if request.kebutuhan_ids.len() > 500 {
+            return Err(AppError::BadRequest(
+                "Batch size cannot exceed 500 items".to_string(),
+            ));
+        }
+
+        let batch_id = Uuid::new_v4();
+        let operation_type = "batch_reject".to_string();
+        let executed_at = Utc::now();
+
+        info!(
+            "Starting batch reject operation {} for {} items by user {:?}",
+            batch_id,
+            request.kebutuhan_ids.len(),
+            user_id
+        );
+
+        // Process each item independently
+        let mut results = Vec::new();
+        let mut successful_count = 0;
+        let mut failed_count = 0;
+
+        for kebutuhan_id in &request.kebutuhan_ids {
+            let result = match self.process_single_rejection(*kebutuhan_id, &request.komentar, user_id, user_info.clone()).await {
+                Ok(_) => {
+                    successful_count += 1;
+                    BatchOperationItemResult {
+                        kebutuhan_id: *kebutuhan_id,
+                        success: true,
+                        error_message: None,
+                    }
+                }
+                Err(e) => {
+                    failed_count += 1;
+                    warn!("Failed to reject kebutuhan {}: {}", kebutuhan_id, e);
+                    BatchOperationItemResult {
+                        kebutuhan_id: *kebutuhan_id,
+                        success: false,
+                        error_message: Some(e.to_string()),
+                    }
+                }
+            };
+            results.push(result);
+        }
+
+        // Audit log the batch operation
+        self.log_batch_operation(
+            batch_id,
+            &operation_type,
+            request.kebutuhan_ids.len(),
+            successful_count,
+            failed_count,
+            user_id,
+        )
+        .await?;
+
+        info!(
+            "Batch reject operation {} completed: {}/{} successful",
+            batch_id, successful_count, request.kebutuhan_ids.len()
+        );
+
+        Ok(BatchOperationResponse {
+            batch_id,
+            total_items: request.kebutuhan_ids.len(),
+            successful_items: successful_count,
+            failed_items: failed_count,
+            results,
+            operation_type,
+            executed_at,
+            executed_by: user_id,
+        })
+    }
+
+    /// Batch update status for multiple kebutuhan
+    ///
+    /// Processes each item independently - failures don't affect other items
+    /// Requirements: REQ-K004
+    pub async fn batch_update_status(
+        &self,
+        request: super::models::BatchUpdateStatusRequest,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<super::models::BatchOperationResponse> {
+        use super::models::{BatchOperationItemResult, BatchOperationResponse};
+        use chrono::Utc;
+
+        // Validate batch size
+        if request.kebutuhan_ids.is_empty() {
+            return Err(AppError::BadRequest("Batch cannot be empty".to_string()));
+        }
+        if request.kebutuhan_ids.len() > 500 {
+            return Err(AppError::BadRequest(
+                "Batch size cannot exceed 500 items".to_string(),
+            ));
+        }
+
+        // Validate target status
+        let target_status = KebutuhanBmnStatus::from_code(request.target_status)
+            .ok_or_else(|| AppError::BadRequest("Invalid target status code".to_string()))?;
+
+        let batch_id = Uuid::new_v4();
+        let operation_type = format!("batch_update_status_{}", target_status.label());
+        let executed_at = Utc::now();
+
+        info!(
+            "Starting batch update status operation {} for {} items to {} by user {:?}",
+            batch_id,
+            request.kebutuhan_ids.len(),
+            target_status.label(),
+            user_id
+        );
+
+        // Process each item independently
+        let mut results = Vec::new();
+        let mut successful_count = 0;
+        let mut failed_count = 0;
+
+        for kebutuhan_id in &request.kebutuhan_ids {
+            let result = match self.process_single_status_update(
+                *kebutuhan_id,
+                request.target_status,
+                &request.komentar,
+                user_id,
+                user_info.clone(),
+            ).await {
+                Ok(_) => {
+                    successful_count += 1;
+                    BatchOperationItemResult {
+                        kebutuhan_id: *kebutuhan_id,
+                        success: true,
+                        error_message: None,
+                    }
+                }
+                Err(e) => {
+                    failed_count += 1;
+                    warn!("Failed to update status for kebutuhan {}: {}", kebutuhan_id, e);
+                    BatchOperationItemResult {
+                        kebutuhan_id: *kebutuhan_id,
+                        success: false,
+                        error_message: Some(e.to_string()),
+                    }
+                }
+            };
+            results.push(result);
+        }
+
+        // Audit log the batch operation
+        self.log_batch_operation(
+            batch_id,
+            &operation_type,
+            request.kebutuhan_ids.len(),
+            successful_count,
+            failed_count,
+            user_id,
+        )
+        .await?;
+
+        info!(
+            "Batch update status operation {} completed: {}/{} successful",
+            batch_id, successful_count, request.kebutuhan_ids.len()
+        );
+
+        Ok(BatchOperationResponse {
+            batch_id,
+            total_items: request.kebutuhan_ids.len(),
+            successful_items: successful_count,
+            failed_items: failed_count,
+            results,
+            operation_type,
+            executed_at,
+            executed_by: user_id,
+        })
+    }
+
+    // ========================================================================
+    // Batch Operation Helpers
+    // ========================================================================
+
+    /// Process approval for a single kebutuhan
+    async fn process_single_approval(
+        &self,
+        kebutuhan_id: Uuid,
+        komentar: &Option<String>,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<()> {
+        let transition_request = WorkflowTransitionRequest {
+            target_status: KebutuhanBmnStatus::Approved.to_code(),
+            komentar: komentar.clone(),
+        };
+
+        self.transition_pengajuan_status(kebutuhan_id, transition_request, user_id, user_info)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Process rejection for a single kebutuhan
+    async fn process_single_rejection(
+        &self,
+        kebutuhan_id: Uuid,
+        komentar: &str,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<()> {
+        let transition_request = WorkflowTransitionRequest {
+            target_status: KebutuhanBmnStatus::Rejected.to_code(),
+            komentar: Some(komentar.to_string()),
+        };
+
+        self.transition_pengajuan_status(kebutuhan_id, transition_request, user_id, user_info)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Process status update for a single kebutuhan
+    async fn process_single_status_update(
+        &self,
+        kebutuhan_id: Uuid,
+        target_status: i32,
+        komentar: &Option<String>,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<()> {
+        let transition_request = WorkflowTransitionRequest {
+            target_status,
+            komentar: komentar.clone(),
+        };
+
+        self.transition_pengajuan_status(kebutuhan_id, transition_request, user_id, user_info)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Log batch operation to audit trail
+    async fn log_batch_operation(
+        &self,
+        batch_id: Uuid,
+        operation_type: &str,
+        total_items: usize,
+        successful_items: usize,
+        failed_items: usize,
+        user_id: Option<Uuid>,
+    ) -> AppResult<()> {
+        let query = r#"
+            INSERT INTO perlengkapan.batch_operation_log (
+                batch_id,
+                operation_type,
+                total_items,
+                successful_items,
+                failed_items,
+                user_id,
+                created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        "#;
+
+        self.repository
+            .pool()
+            .get()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .execute(
+                query,
+                &[
+                    &batch_id,
+                    &operation_type,
+                    &(total_items as i32),
+                    &(successful_items as i32),
+                    &(failed_items as i32),
+                    &user_id,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(())
     }
 }
 

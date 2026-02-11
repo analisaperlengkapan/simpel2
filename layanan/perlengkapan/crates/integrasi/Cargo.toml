@@ -41,6 +41,7 @@ sha2 = "0.10"
 tokio-cron-scheduler = { workspace = true }
 futures = { workspace = true }
 bytes = "1.10"
+rand = { workspace = true }
 lib-common = { path = "../../../../lib/common", features = ["telemetry", "db"] }
 lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
 
@@ -48,6 +49,10 @@ lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend
 tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 tonic-prost = { workspace = true, optional = true }
+
+# HTTP server dependencies (for monitoring dashboard)
+axum = { workspace = true }
+tower-http = { workspace = true, features = ["cors"] }
 
 [dev-dependencies]
 wiremock = "0.6"
@@ -65,6 +70,11 @@ name = "layanan-integrasi-grpc"
 path = "src/bin/grpc_server.rs"
 required-features = ["grpc"]
 
+[[bin]]
+name = "layanan-integrasi-server"
+path = "src/bin/server.rs"
+required-features = ["grpc"]
+
 [[example]]
 name = "fetch_to_database"
 path = "examples/fetch_to_database.rs"
@@ -76,4 +86,3 @@ path = "examples/siman_example.rs"
 [[example]]
 name = "siman_database_sync"
 path = "examples/siman_database_sync.rs"
-

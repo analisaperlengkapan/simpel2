@@ -2,8 +2,6 @@ use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::DocumentTag;
 use reqwest::Client;
-use serde_json::json;
-use sqlx::PgPool;
 use uuid::Uuid;
 
 pub struct ClassifyService {
@@ -21,7 +19,7 @@ impl ClassifyService {
 
     pub async fn classify_document(
         &self,
-        document_id: Uuid,
+        _document_id: Uuid,
         file_bytes: Vec<u8>,
     ) -> Result<Vec<String>, AppError> {
         let url = format!("{}/classify", self.config.ai_service_url);
@@ -55,43 +53,52 @@ impl ClassifyService {
 
     pub async fn add_tags(
         &self,
-        pool: &PgPool,
+        pool: &deadpool_postgres::Pool,
         document_id: Uuid,
         tags: Vec<String>,
     ) -> Result<(), AppError> {
+        let client = pool.get().await?;
         for tag in tags {
-            sqlx::query!(
-                r#"INSERT INTO dokumen.document_tags (id, document_id, tag, created_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT DO NOTHING"#,
-                Uuid::new_v4(), document_id, tag
-            ).execute(pool).await?;
+            let id = Uuid::new_v4();
+            client
+                .execute(
+                    "INSERT INTO dokumen.document_tags (id, document_id, tag, created_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT DO NOTHING",
+                    &[&id, &document_id, &tag],
+                )
+                .await?;
         }
         Ok(())
     }
 
     pub async fn get_tags(
         &self,
-        pool: &PgPool,
+        pool: &deadpool_postgres::Pool,
         document_id: Uuid,
     ) -> Result<Vec<DocumentTag>, AppError> {
-        let tags = sqlx::query_as!(DocumentTag,
-            r#"SELECT * FROM dokumen.document_tags WHERE document_id = $1 ORDER BY created_at DESC"#,
-            document_id
-        ).fetch_all(pool).await?;
-        Ok(tags)
+        let client = pool.get().await?;
+        let rows = client
+            .query(
+                "SELECT * FROM dokumen.document_tags WHERE document_id = $1 ORDER BY created_at DESC",
+                &[&document_id],
+            )
+            .await?;
+        Ok(rows.iter().map(DocumentTag::from).collect())
     }
 
     pub async fn update_tags(
         &self,
-        pool: &PgPool,
+        pool: &deadpool_postgres::Pool,
         document_id: Uuid,
         tags: Vec<String>,
     ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"DELETE FROM dokumen.document_tags WHERE document_id = $1"#,
-            document_id
-        )
-        .execute(pool)
-        .await?;
+        let client = pool.get().await?;
+        client
+            .execute(
+                "DELETE FROM dokumen.document_tags WHERE document_id = $1",
+                &[&document_id],
+            )
+            .await?;
+        drop(client);
         self.add_tags(pool, document_id, tags).await
     }
 }

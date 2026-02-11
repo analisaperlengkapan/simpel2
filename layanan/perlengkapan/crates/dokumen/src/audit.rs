@@ -2,11 +2,10 @@ use crate::error::AppError;
 use crate::models::AuditLog;
 use chrono::Utc;
 use serde_json::Value;
-use sqlx::PgPool;
 use uuid::Uuid;
 
 pub async fn insert_audit_log(
-    pool: &PgPool,
+    pool: &deadpool_postgres::Pool,
     user_id: Option<Uuid>,
     document_id: Option<Uuid>,
     action: &str,
@@ -14,51 +13,47 @@ pub async fn insert_audit_log(
     ip_address: Option<&str>,
     user_agent: Option<&str>,
 ) -> Result<(), AppError> {
-    sqlx::query!(
-        r#"INSERT INTO dokumen.audit_logs (id, document_id, user_id, action, details, ip_address, user_agent, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
-        Uuid::new_v4(),
-        document_id,
-        user_id,
-        action,
-        details,
-        ip_address,
-        user_agent,
-        Utc::now()
-    )
-    .execute(pool)
-    .await?;
+    let client = pool.get().await?;
+    let id = Uuid::new_v4();
+    let now = Utc::now();
+    client
+        .execute(
+            "INSERT INTO dokumen.audit_logs (id, document_id, user_id, action, details, ip_address, user_agent, timestamp)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            &[&id, &document_id, &user_id, &action, &details, &ip_address, &user_agent, &now],
+        )
+        .await?;
     Ok(())
 }
 
 pub async fn query_audit_logs(
-    pool: &PgPool,
+    pool: &deadpool_postgres::Pool,
     document_id: Option<Uuid>,
     user_id: Option<Uuid>,
     limit: i64,
 ) -> Result<Vec<AuditLog>, AppError> {
-    let logs = if let Some(doc_id) = document_id {
-        sqlx::query_as!(AuditLog,
-            r#"SELECT * FROM dokumen.audit_logs WHERE document_id = $1 ORDER BY timestamp DESC LIMIT $2"#,
-            doc_id, limit
-        )
-        .fetch_all(pool)
-        .await?
+    let client = pool.get().await?;
+    let rows = if let Some(doc_id) = document_id {
+        client
+            .query(
+                "SELECT * FROM dokumen.audit_logs WHERE document_id = $1 ORDER BY timestamp DESC LIMIT $2",
+                &[&doc_id, &limit],
+            )
+            .await?
     } else if let Some(uid) = user_id {
-        sqlx::query_as!(AuditLog,
-            r#"SELECT * FROM dokumen.audit_logs WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2"#,
-            uid, limit
-        )
-        .fetch_all(pool)
-        .await?
+        client
+            .query(
+                "SELECT * FROM dokumen.audit_logs WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2",
+                &[&uid, &limit],
+            )
+            .await?
     } else {
-        sqlx::query_as!(
-            AuditLog,
-            r#"SELECT * FROM dokumen.audit_logs ORDER BY timestamp DESC LIMIT $1"#,
-            limit
-        )
-        .fetch_all(pool)
-        .await?
+        client
+            .query(
+                "SELECT * FROM dokumen.audit_logs ORDER BY timestamp DESC LIMIT $1",
+                &[&limit],
+            )
+            .await?
     };
-    Ok(logs)
+    Ok(rows.iter().map(AuditLog::from).collect())
 }

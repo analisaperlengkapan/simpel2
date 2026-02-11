@@ -183,7 +183,7 @@ mod tests {
         let response = ChallengeResponse {
             challenge_id: "test-id".to_string(),
             challenge_type: crate::components::captcha::types::ChallengeType::Visual,
-            challenge_data: r#"{"type":"math","question":"What is 7 + 3?","visual":"7 + 3","options":[10,8,11,9]}"#.to_string(),
+            challenge_data: r#"{"challenge_type":"math","instructions":"What is 7 + 3?","visual":"7 + 3","options":[10,8,11,9]}"#.to_string(),
             difficulty: 3,
             expires_at: 1234567890,
             metadata: None,
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn test_parse_missing_data() {
         let question = parse_challenge_question(None);
-        assert_eq!(question, "Loading...");
+        assert_eq!(question, "Complete the challenge");
 
         let visual = parse_challenge_visual(None);
         assert_eq!(visual, "...");

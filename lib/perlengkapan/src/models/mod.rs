@@ -12,6 +12,22 @@ use validator::Validate;
 #[cfg(feature = "backend")]
 use tokio_postgres::Row;
 
+// New domain models for SIMPEL completion
+pub mod kebutuhan_bmn;
+pub mod pakaian_dinas;
+pub mod roadmap_sarpras;
+pub mod riwayat_pemenuhan;
+pub mod mapping_kodefikasi;
+pub mod izin_pemakaian_bmn;
+
+// Re-export new models
+pub use kebutuhan_bmn::*;
+pub use pakaian_dinas::*;
+pub use roadmap_sarpras::*;
+pub use riwayat_pemenuhan::*;
+pub use mapping_kodefikasi::*;
+pub use izin_pemakaian_bmn::*;
+
 // ============ Aset Models ============
 
 /// Base asset representation shared across all perlengkapan services

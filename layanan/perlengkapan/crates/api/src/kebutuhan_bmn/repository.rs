@@ -152,6 +152,13 @@ impl PgKebutuhanBmnRepository {
         Self { pool }
     }
 
+    /// Get a reference to the database pool
+    ///
+    /// Used by search engine and other components that need direct pool access
+    pub fn pool(&self) -> &Pool {
+        &self.pool
+    }
+
     async fn get_client(&self) -> AppResult<deadpool_postgres::Client> {
         self.pool.get().await.map_err(|e| {
             error!("Failed to get database connection: {}", e);

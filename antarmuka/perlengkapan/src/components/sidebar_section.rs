@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use leptos::prelude::*;
+use lib_ui::utils::security::sanitize_html;
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
@@ -44,6 +45,9 @@ pub fn SidebarSection(
 
     let items = StoredValue::new(items);
 
+    // Sanitize icon HTML to prevent XSS
+    let sanitized_icon = sanitize_html(&icon);
+
     view! {
         <div class="space-y-1">
             <button
@@ -51,7 +55,7 @@ pub fn SidebarSection(
                 class="w-full text-gray-300 hover:text-white hover:bg-blue-800 px-4 py-3 rounded-lg flex items-center justify-between transition-all duration-200"
             >
                 <div class="flex items-center space-x-3">
-                    <div class="w-5 h-5" inner_html=icon></div>
+                    <div class="w-5 h-5" inner_html=sanitized_icon></div>
                     <span>{title}</span>
                 </div>
                 <svg class=move || format!("w-4 h-4 transition-transform duration-200 {}", chevron_class())

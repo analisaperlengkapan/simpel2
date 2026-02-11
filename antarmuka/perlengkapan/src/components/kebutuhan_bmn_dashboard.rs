@@ -2,11 +2,15 @@
 //!
 //! Displays overview statistics and quick actions for BMN needs analysis.
 
-use crate::api::{KebutuhanBmnDashboardStats, KebutuhanBmnStatus, fetch_kebutuhan_bmn_dashboard};
+use crate::api::{KebutuhanBmnStatus, fetch_kebutuhan_bmn_dashboard};
+use crate::components::dashboard_filters::{DashboardFilter, DashboardFilters};
 use leptos::prelude::*;
 
 #[component]
 pub fn KebutuhanBmnDashboard() -> impl IntoView {
+    // Dashboard filter state
+    let filter = RwSignal::new(DashboardFilter::default());
+
     // Fetch dashboard stats
     let stats_resource = LocalResource::new(|| async move {
         match fetch_kebutuhan_bmn_dashboard().await {
@@ -34,6 +38,9 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                     "Buat Pengajuan Baru"
                 </a>
             </div>
+
+            // Dashboard Filters
+            <DashboardFilters filter=filter />
 
             <Suspense fallback=move || view! {
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

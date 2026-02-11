@@ -1,0 +1,1 @@
+<button type="button" class="btn btn-danger waves-effect waves-light deleteRowDT {{$className ?? ''}}" data-target="{{ $url }}" data-table="{{$tableId}}" data-title="{{ $title }}"><i class="ri-delete-bin-5-fill"></i></button>

@@ -1130,8 +1130,20 @@ impl From<lib_common::error::CommonError> for AuthencError {
             lib_common::error::CommonError::Validation { message } => {
                 Self::ValidationError { message }
             }
+            lib_common::error::CommonError::ValidationErrors(e) => Self::ValidationError {
+                message: format!("Validation errors: {}", e),
+            },
             lib_common::error::CommonError::Cache(message) => Self::InternalError {
                 message: format!("Cache error: {}", message),
+            },
+            lib_common::error::CommonError::Database(message) => Self::InternalError {
+                message: format!("Database error: {}", message),
+            },
+            lib_common::error::CommonError::Serialization(message) => Self::InternalError {
+                message: format!("Serialization error: {}", message),
+            },
+            lib_common::error::CommonError::Deserialization(message) => Self::InternalError {
+                message: format!("Deserialization error: {}", message),
             },
             lib_common::error::CommonError::Internal(message) => Self::InternalError { message },
         }

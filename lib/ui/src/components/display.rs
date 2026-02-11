@@ -536,3 +536,240 @@ pub fn QrCodeDisplay(
         </div>
     }
 }
+
+// ============================================================================
+// SORTABLE TABLE COMPONENT
+// ============================================================================
+
+/// Sortable table with pagination and filtering
+/// Note: This is a simplified version that uses callbacks for sorting
+#[component]
+pub fn SortableTable<T>(
+    #[prop(into)] columns: Vec<TableColumn>,
+    #[prop(into)] data: Vec<T>,
+    #[prop(optional)] render_row: Option<Box<dyn Fn(&T) -> Vec<String>>>,
+    #[prop(default = false)] striped: bool,
+    #[prop(default = false)] hoverable: bool,
+    #[prop(optional, into)] class: Option<String>,
+) -> impl IntoView
+where
+    T: Clone + 'static,
+{
+    let class = class.unwrap_or_default();
+
+    view! {
+        <div class="overflow-x-auto">
+            <table class=format!("min-w-full divide-y divide-gray-200 dark:divide-gray-700 {}", class)>
+                <thead class="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                        {columns.iter().map(|col| {
+                            let align_class = match col.align {
+                                TableAlign::Left => "text-left",
+                                TableAlign::Center => "text-center",
+                                TableAlign::Right => "text-right",
+                            };
+
+                            view! {
+                                <th
+                                    scope="col"
+                                    class=format!(
+                                        "px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider {}",
+                                        align_class
+                                    )
+                                    style=col.width.as_ref().map(|w| format!("width: {}", w))
+                                >
+                                    {col.label.clone()}
+                                </th>
+                            }
+                        }).collect_view()}
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    {data.iter().enumerate().map(|(idx, row)| {
+                        let row_class = if striped && idx % 2 == 1 {
+                            "bg-gray-50 dark:bg-gray-800"
+                        } else {
+                            ""
+                        };
+                        let hover_class = if hoverable {
+                            "hover:bg-gray-100 dark:hover:bg-gray-700"
+                        } else {
+                            ""
+                        };
+
+                        let cells = if let Some(ref renderer) = render_row {
+                            renderer(row)
+                        } else {
+                            vec![]
+                        };
+
+                        view! {
+                            <tr class=format!("{} {}", row_class, hover_class)>
+                                {cells.into_iter().enumerate().map(|(col_idx, cell)| {
+                                    let align_class = match columns.get(col_idx).map(|c| &c.align) {
+                                        Some(TableAlign::Center) => "text-center",
+                                        Some(TableAlign::Right) => "text-right",
+                                        _ => "text-left",
+                                    };
+                                    view! {
+                                        <td class=format!(
+                                            "px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 {}",
+                                            align_class
+                                        )>
+                                            {cell}
+                                        </td>
+                                    }
+                                }).collect_view()}
+                            </tr>
+                        }
+                    }).collect_view()}
+                </tbody>
+            </table>
+
+            {data.is_empty().then(|| view! {
+                <div class="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <p>"Tidak ada data"</p>
+                </div>
+            })}
+        </div>
+    }
+}
+
+// ============================================================================
+// FILTER PANEL COMPONENT
+// ============================================================================
+
+/// Filter panel for tables
+#[component]
+pub fn FilterPanel(
+    #[prop(optional, into)] class: Option<String>,
+    #[prop(optional, into)] title: Option<String>,
+    #[prop(default = false)] collapsible: bool,
+    children: ChildrenFn,
+) -> impl IntoView {
+    let class = class.unwrap_or_default();
+    let (is_open, set_is_open) = signal(true);
+    let title_text = title.unwrap_or_else(|| "Filters".to_string());
+
+    view! {
+        <div class=format!("bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 {}", class)>
+            {if collapsible {
+                view! {
+                    <div
+                        class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                        on:click=move |_| set_is_open.update(|v| *v = !*v)
+                    >
+                        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {title_text.clone()}
+                        </h3>
+                        <svg
+                            class=format!(
+                                "w-5 h-5 text-gray-500 transition-transform {}",
+                                if is_open.get() { "rotate-180" } else { "" }
+                            )
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                }.into_any()
+            } else {
+                view! {
+                    <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {title_text}
+                        </h3>
+                    </div>
+                }.into_any()
+            }}
+
+            {move || (is_open.get() || !collapsible).then(|| children())}
+        </div>
+    }
+}
+
+// ============================================================================
+// EXPORT BUTTON COMPONENT
+// ============================================================================
+
+/// Export button with dropdown options
+#[component]
+pub fn ExportButton(
+    #[prop(optional, into)] class: Option<String>,
+    #[prop(optional, into)] on_csv_click: Option<Callback<()>>,
+    #[prop(optional, into)] on_excel_click: Option<Callback<()>>,
+    #[prop(optional, into)] on_pdf_click: Option<Callback<()>>,
+    #[prop(default = false)] disabled: bool,
+) -> impl IntoView {
+    let class = class.unwrap_or_default();
+    let (is_open, set_is_open) = signal(false);
+
+    view! {
+        <div class=format!("relative inline-block text-left {}", class)>
+            <button
+                type="button"
+                disabled=disabled
+                class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600"
+                on:click=move |_| set_is_open.update(|v| *v = !*v)
+            >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                "Export"
+                <svg class="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+
+            <Show when=move || is_open.get()>
+                <div class="absolute right-0 z-10 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
+                    <div class="py-1" role="menu">
+                        {on_csv_click.map(|callback| view! {
+                            <button
+                                type="button"
+                                class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                role="menuitem"
+                                on:click=move |_| {
+                                    callback.run(());
+                                    set_is_open.set(false);
+                                }
+                            >
+                                "Export as CSV"
+                            </button>
+                        })}
+
+                        {on_excel_click.map(|callback| view! {
+                            <button
+                                type="button"
+                                class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                role="menuitem"
+                                on:click=move |_| {
+                                    callback.run(());
+                                    set_is_open.set(false);
+                                }
+                            >
+                                "Export as Excel"
+                            </button>
+                        })}
+
+                        {on_pdf_click.map(|callback| view! {
+                            <button
+                                type="button"
+                                class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                role="menuitem"
+                                on:click=move |_| {
+                                    callback.run(());
+                                    set_is_open.set(false);
+                                }
+                            >
+                                "Export as PDF"
+                            </button>
+                        })}
+                    </div>
+                </div>
+            </Show>
+        </div>
+    }
+}

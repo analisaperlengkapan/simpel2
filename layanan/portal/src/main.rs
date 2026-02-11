@@ -34,6 +34,9 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting Daskrimti Portal Service");
 
+    // Initialize server start time for uptime tracking
+    handlers::dashboard::init_server_start_time();
+
     // Load configuration
     let config = AppConfig::from_env()?;
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;

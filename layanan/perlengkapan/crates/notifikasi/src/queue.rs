@@ -19,7 +19,8 @@ pub struct QueueService {
 impl QueueService {
     #[allow(dead_code)]
     pub fn new(redis_url: &str) -> Result<Self, AppError> {
-        let redis = redis::Client::open(redis_url).map_err(|_e| AppError::Internal)?;
+        let redis =
+            redis::Client::open(redis_url).map_err(|e| AppError::Internal(e.to_string().into()))?;
         Ok(Self { redis })
     }
 
@@ -29,11 +30,12 @@ impl QueueService {
             .redis
             .get_multiplexed_tokio_connection()
             .await
-            .map_err(|_e| AppError::Internal)?;
-        let data = serde_json::to_string(job).map_err(|_e| AppError::Internal)?;
+            .map_err(|e| AppError::Internal(e.to_string().into()))?;
+        let data =
+            serde_json::to_string(job).map_err(|e| AppError::Internal(e.to_string().into()))?;
         conn.rpush::<_, _, ()>(queue, data)
             .await
-            .map_err(|_e| AppError::Internal)?;
+            .map_err(|e| AppError::Internal(e.to_string().into()))?;
         Ok(())
     }
 
@@ -47,13 +49,15 @@ impl QueueService {
             .redis
             .get_multiplexed_tokio_connection()
             .await
-            .map_err(|_e| AppError::Internal)?;
+            .map_err(|e| AppError::Internal(e.to_string().into()))?;
         let res: Option<(String, String)> =
             timeout(Duration::from_secs(timeout_secs), conn.blpop(queue, 0.0))
                 .await
-                .map_err(|_| AppError::Internal)??;
+                .map_err(|e| AppError::Internal(e.to_string().into()))?
+                .map_err(|e| AppError::Internal(e.to_string().into()))?;
         if let Some((_, data)) = res {
-            let job: QueueJob = serde_json::from_str(&data).map_err(|_e| AppError::Internal)?;
+            let job: QueueJob =
+                serde_json::from_str(&data).map_err(|e| AppError::Internal(e.to_string().into()))?;
             Ok(Some(job))
         } else {
             Ok(None)

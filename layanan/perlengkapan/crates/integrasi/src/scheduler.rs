@@ -166,12 +166,13 @@ async fn fetch_monsakti_data(config: Config) -> Result<()> {
 /// Fetch all MySIMKARI data
 async fn fetch_mysimkari_data(config: Config) -> Result<()> {
     let mut client = MonsaktiClient::new(config.clone()).await?;
+    let circuit_breaker = mysimkari::api::MySIMKARICircuitBreaker::new();
 
     info!("📊 Fetching MySIMKARI data...");
 
     // Fetch satker data
     info!("  → Fetching satker data...");
-    let satker_response = mysimkari::api::get_satker(&mut client).await?;
+    let satker_response = mysimkari::api::get_satker(&mut client, &circuit_breaker).await?;
 
     // Handle response - could be array or single object
     if let Some(satker_array) = satker_response.as_array() {
@@ -182,7 +183,7 @@ async fn fetch_mysimkari_data(config: Config) -> Result<()> {
         info!("  → Fetching pegawai data for sample satker...");
         for satker in satker_array.iter().take(5) {
             if let Some(id) = satker.get("id").and_then(|v| v.as_str()) {
-                match mysimkari::api::pegawai_satker(&mut client, id).await {
+                match mysimkari::api::pegawai_satker(&mut client, id, &circuit_breaker).await {
                     Ok(pegawai_response) => {
                         if let Some(pegawai_array) = pegawai_response.as_array() {
                             info!(
@@ -232,7 +233,7 @@ async fn fetch_siman_data(config: Config) -> Result<()> {
     info!("  → Fetching data from {} categories...", categories.len());
 
     for category in categories {
-        match siman::endpoints::get_row_count(&mut client, category).await {
+        match siman::endpoints::get_row_count(&mut client, category, None).await {
             Ok(count) => {
                 info!("    ✓ {:?}: {} records", category, count);
             }

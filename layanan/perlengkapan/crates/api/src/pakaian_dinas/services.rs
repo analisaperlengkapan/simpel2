@@ -415,6 +415,137 @@ impl PakaianDinasService {
             .get_laporan_daftar_pegawai(pengajuan_id, &filter, page, per_page)
             .await
     }
+
+    // ============ Workflow Integration ============
+
+    /// Submit pengajuan for approval (DRAFT -> SUBMITTED)
+    pub async fn submit_pengajuan(
+        &self,
+        pengajuan_id: Uuid,
+        user_id: Uuid,
+        catatan: Option<String>,
+    ) -> AppResult<PengajuanPakaianDinas> {
+        // Get current pengajuan
+        let pengajuan = self.repository.get_pengajuan_by_id(pengajuan_id).await?;
+
+        // Verify current status is DRAFT
+        let current_status = AktivitasStatus::from_i32(pengajuan.aktivitas_id)
+            .ok_or_else(|| bad_request("Status aktivitas tidak valid"))?;
+
+        if current_status != AktivitasStatus::Input {
+            return Err(bad_request(&format!(
+                "Pengajuan harus dalam status DRAFT untuk disubmit, status saat ini: {}",
+                current_status.label()
+            )));
+        }
+
+        // Update status to SUBMITTED (1001)
+        let new_status = AktivitasStatus::SubmitToValidator;
+        self.repository
+            .update_pengajuan_status(pengajuan_id, new_status.to_i32(), user_id, catatan)
+            .await?;
+
+        // Return updated pengajuan
+        self.repository.get_pengajuan_by_id(pengajuan_id).await
+    }
+
+    /// Approve pengajuan (SUBMITTED -> APPROVED)
+    pub async fn approve_pengajuan(
+        &self,
+        pengajuan_id: Uuid,
+        user_id: Uuid,
+        catatan: Option<String>,
+    ) -> AppResult<PengajuanPakaianDinas> {
+        // Get current pengajuan
+        let pengajuan = self.repository.get_pengajuan_by_id(pengajuan_id).await?;
+
+        // Verify current status is SUBMITTED
+        let current_status = AktivitasStatus::from_i32(pengajuan.aktivitas_id)
+            .ok_or_else(|| bad_request("Status aktivitas tidak valid"))?;
+
+        if current_status != AktivitasStatus::SubmitToValidator {
+            return Err(bad_request(&format!(
+                "Pengajuan harus dalam status SUBMITTED untuk diapprove, status saat ini: {}",
+                current_status.label()
+            )));
+        }
+
+        // Update status to APPROVED (1008 - Selesai)
+        let new_status = AktivitasStatus::Selesai;
+        self.repository
+            .update_pengajuan_status(pengajuan_id, new_status.to_i32(), user_id, catatan)
+            .await?;
+
+        // Return updated pengajuan
+        self.repository.get_pengajuan_by_id(pengajuan_id).await
+    }
+
+    /// Reject pengajuan (SUBMITTED -> REJECTED)
+    pub async fn reject_pengajuan(
+        &self,
+        pengajuan_id: Uuid,
+        user_id: Uuid,
+        catatan: Option<String>,
+    ) -> AppResult<PengajuanPakaianDinas> {
+        // Get current pengajuan
+        let pengajuan = self.repository.get_pengajuan_by_id(pengajuan_id).await?;
+
+        // Verify current status is SUBMITTED
+        let current_status = AktivitasStatus::from_i32(pengajuan.aktivitas_id)
+            .ok_or_else(|| bad_request("Status aktivitas tidak valid"))?;
+
+        if current_status != AktivitasStatus::SubmitToValidator {
+            return Err(bad_request(&format!(
+                "Pengajuan harus dalam status SUBMITTED untuk direject, status saat ini: {}",
+                current_status.label()
+            )));
+        }
+
+        // Update status to REJECTED (1006 - Ditolak)
+        let new_status = AktivitasStatus::Ditolak;
+        self.repository
+            .update_pengajuan_status(pengajuan_id, new_status.to_i32(), user_id, catatan)
+            .await?;
+
+        // Return updated pengajuan
+        self.repository.get_pengajuan_by_id(pengajuan_id).await
+    }
+
+    /// Complete pengajuan and generate rekapitulasi (APPROVED -> COMPLETED)
+    /// This should be called after document generation
+    pub async fn complete_pengajuan(
+        &self,
+        pengajuan_id: Uuid,
+        user_id: Uuid,
+        document_id: Option<Uuid>,
+        document_url: Option<String>,
+    ) -> AppResult<PengajuanPakaianDinas> {
+        // Get current pengajuan
+        let pengajuan = self.repository.get_pengajuan_by_id(pengajuan_id).await?;
+
+        // Verify current status is APPROVED
+        let current_status = AktivitasStatus::from_i32(pengajuan.aktivitas_id)
+            .ok_or_else(|| bad_request("Status aktivitas tidak valid"))?;
+
+        if current_status != AktivitasStatus::Selesai {
+            return Err(bad_request(&format!(
+                "Pengajuan harus dalam status APPROVED untuk dicomplete, status saat ini: {}",
+                current_status.label()
+            )));
+        }
+
+        // Update status to COMPLETED (1008 - Selesai, but we'll keep it as is since it's already Selesai)
+        // In a real implementation, you might have a separate COMPLETED status
+        // For now, we'll just update the document metadata
+        if let (Some(doc_id), Some(doc_url)) = (document_id, document_url) {
+            self.repository
+                .update_pengajuan_document(pengajuan_id, doc_id, doc_url)
+                .await?;
+        }
+
+        // Return updated pengajuan
+        self.repository.get_pengajuan_by_id(pengajuan_id).await
+    }
 }
 
 // ============ Unit Tests ============

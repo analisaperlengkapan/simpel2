@@ -26,10 +26,11 @@ reqwest = { workspace = true }
 redis = { workspace = true }
 garde = { workspace = true, features = ["derive", "email"] }
 sea-query = { workspace = true }
-# sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros"], default-features = false }  # DISABLED: sqlx pulls sqlx-mysql which has RSA vulnerability
-# Using tokio-postgres directly instead
 chrono = { workspace = true }
-
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+tokio-cron-scheduler = { workspace = true }
 thiserror = { workspace = true }
 sentry = { workspace = true }
 sentry-tracing = { workspace = true }
@@ -55,9 +56,11 @@ assert-json-diff = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
 
+[build-dependencies]
+tonic-prost-build = { workspace = true }
+
 [features]
 integration-tests = []
 default = []
 whatsapp = []
 push = []
-

@@ -37,6 +37,7 @@ http-body = { workspace = true, optional = true }
 http-body-util = { workspace = true, optional = true }
 pin-project = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
 
 # Crypto dependencies
 curve25519-dalek = { workspace = true, optional = true }
@@ -54,6 +55,10 @@ pbkdf2 = { workspace = true, optional = true }
 # gRPC dependencies
 tonic = { workspace = true, optional = true }
 
+# AWS S3 dependencies
+aws-config = { workspace = true, optional = true }
+aws-sdk-s3 = { workspace = true, optional = true }
+
 [features]
 default = []
 integration-tests = []
@@ -61,7 +66,7 @@ integration-tests = []
 backend = ["dep:tokio", "dep:ipnetwork"]
 redis-cache = ["backend", "dep:redis"]
 validation = ["dep:garde"]
-axum = ["backend", "dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:http-body", "dep:http-body-util", "dep:pin-project", "dep:futures-util"]
+axum = ["backend", "dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:http-body", "dep:http-body-util", "dep:pin-project", "dep:futures-util", "dep:bytes"]
 telemetry = ["backend", "dep:tracing-subscriber"]
 db = ["backend", "dep:tokio-postgres", "dep:deadpool-postgres"]
 jwt = ["backend", "dep:jsonwebtoken"]
@@ -69,6 +74,6 @@ crypto = ["dep:curve25519-dalek", "dep:sha2", "dep:subtle", "dep:rand", "dep:arg
 vss = ["crypto"]
 encryption = ["crypto", "dep:aes-gcm", "dep:chacha20poly1305", "dep:hkdf", "dep:pbkdf2"]
 grpc = ["backend", "dep:tonic"]
+storage = ["backend", "crypto", "dep:aws-config", "dep:aws-sdk-s3"]
 # Full backend feature set
-full-backend = ["backend", "jwt", "axum", "db", "telemetry", "validation", "redis-cache", "grpc"]
-
+full-backend = ["backend", "jwt", "axum", "db", "telemetry", "validation", "redis-cache", "grpc", "storage"]

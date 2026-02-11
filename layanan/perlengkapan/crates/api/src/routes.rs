@@ -7,13 +7,17 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::{AppState, handlers::*, kebutuhan_bmn, pakaian_dinas};
+use crate::{AppState, dashboard, handlers::*, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas, pemakaian_bmn, roadmap_sarpras};
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_check))
         // Dashboard
         .route("/dashboard/stats", get(get_dashboard_stats))
+        .route("/dashboard/perlengkapan", get(dashboard::handlers::get_perlengkapan_dashboard_metrics))
+        .route("/dashboard/ws", get(dashboard::websocket::dashboard_websocket_handler))
+        .route("/dashboard/perlengkapan/export/excel", get(dashboard::handlers::export_dashboard_excel))
+        .route("/dashboard/perlengkapan/export/pdf", get(dashboard::handlers::export_dashboard_pdf))
         // Asset (Read-Only)
         .route("/assets", get(get_all_assets))
         .route("/assets/:id", get(get_asset_by_id))
@@ -67,6 +71,26 @@ pub fn create_routes(state: AppState) -> Router {
             get(get_all_penghapusan).post(create_penghapusan),
         )
         .route("/penghapusan/:id", get(get_penghapusan_by_id))
+        // Penghapusan BMN (Workflow-enabled)
+        .route(
+            "/penghapusan-bmn",
+            get(crate::penghapusan_bmn::list_penghapusan_bmn)
+                .post(crate::penghapusan_bmn::create_penghapusan_bmn),
+        )
+        .route(
+            "/penghapusan-bmn/:id",
+            get(crate::penghapusan_bmn::get_penghapusan_bmn)
+                .put(crate::penghapusan_bmn::update_penghapusan_bmn)
+                .delete(crate::penghapusan_bmn::delete_penghapusan_bmn),
+        )
+        .route(
+            "/penghapusan-bmn/:id/transition",
+            post(crate::penghapusan_bmn::transition_penghapusan_bmn),
+        )
+        .route(
+            "/penghapusan-bmn/:id/document",
+            get(crate::penghapusan_bmn::get_penghapusan_document),
+        )
         // Pengalihan
         .route(
             "/pengalihan",
@@ -162,6 +186,23 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/laporan/daftar-pegawai",
             get(pakaian_dinas::get_laporan_daftar_pegawai),
         )
+        // Workflow Transitions
+        .route(
+            "/pakaian-dinas/pengajuan/:id/submit",
+            post(pakaian_dinas::submit_pengajuan_handler),
+        )
+        .route(
+            "/pakaian-dinas/pengajuan/:id/approve",
+            post(pakaian_dinas::approve_pengajuan_handler),
+        )
+        .route(
+            "/pakaian-dinas/pengajuan/:id/reject",
+            post(pakaian_dinas::reject_pengajuan_handler),
+        )
+        .route(
+            "/pakaian-dinas/pengajuan/:id/rekapitulasi",
+            get(pakaian_dinas::download_rekapitulasi_handler),
+        )
         // ============ Kebutuhan BMN Routes ============
         // Dashboard
         .route(
@@ -236,6 +277,154 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/kebutuhan-bmn/siman/summary/:satker_id",
             get(kebutuhan_bmn::get_siman_satker_summary),
+        )
+        // Advanced Search
+        .route(
+            "/kebutuhan-bmn/search",
+            get(kebutuhan_bmn::search_kebutuhan),
+        )
+        .route(
+            "/kebutuhan-bmn/search/suggestions",
+            get(kebutuhan_bmn::get_search_suggestions),
+        )
+        // Batch Operations
+        .route(
+            "/kebutuhan-bmn/batch/approve",
+            post(kebutuhan_bmn::batch_approve_kebutuhan),
+        )
+        .route(
+            "/kebutuhan-bmn/batch/reject",
+            post(kebutuhan_bmn::batch_reject_kebutuhan),
+        )
+        .route(
+            "/kebutuhan-bmn/batch/update-status",
+            post(kebutuhan_bmn::batch_update_status),
+        )
+        // ============ Export Routes ============
+        .route("/export/excel", get(export_to_excel))
+        .route("/export/jobs/:id/status", get(get_export_job_status))
+        .route("/export/jobs/:id/download", get(download_export_job))
+        // ============ Mapping Kodefikasi Routes ============
+        .route(
+            "/mapping/detect",
+            get(mapping_kodefikasi::detect_non_standard_codes),
+        )
+        .route(
+            "/mapping/suggestions",
+            get(mapping_kodefikasi::get_mapping_suggestions),
+        )
+        .route(
+            "/mapping/proposals",
+            get(mapping_kodefikasi::get_all_mapping_proposals)
+                .post(mapping_kodefikasi::create_mapping_proposal),
+        )
+        .route(
+            "/mapping/proposals/:id",
+            get(mapping_kodefikasi::get_mapping_proposal_by_id),
+        )
+        .route(
+            "/mapping/proposals/:id/verify",
+            put(mapping_kodefikasi::verify_mapping_proposal),
+        )
+        .route(
+            "/mapping/progress",
+            get(mapping_kodefikasi::get_mapping_progress),
+        )
+        .route(
+            "/mapping/progress/satker",
+            get(mapping_kodefikasi::get_mapping_progress_by_satker),
+        )
+        .route(
+            "/mapping/progress/wilayah",
+            get(mapping_kodefikasi::get_mapping_progress_by_wilayah),
+        )
+        // ============ Roadmap Sarpras Routes ============
+        .route(
+            "/roadmap-sarpras",
+            get(roadmap_sarpras::list_roadmaps).post(roadmap_sarpras::create_roadmap),
+        )
+        .route(
+            "/roadmap-sarpras/batch",
+            post(roadmap_sarpras::create_roadmap_batch),
+        )
+        .route(
+            "/roadmap-sarpras/comparison",
+            get(roadmap_sarpras::get_comparison),
+        )
+        .route(
+            "/roadmap-sarpras/sync-realization",
+            post(roadmap_sarpras::sync_realization_increment),
+        )
+        .route(
+            "/roadmap-sarpras/:id",
+            get(roadmap_sarpras::get_roadmap).delete(roadmap_sarpras::delete_roadmap),
+        )
+        .route(
+            "/roadmap-sarpras/:id/realization",
+            put(roadmap_sarpras::update_realization),
+        )
+        // ============ Pemakaian BMN Routes ============
+        // Permit CRUD
+        .route(
+            "/pemakaian-bmn",
+            get(pemakaian_bmn::list_permits).post(pemakaian_bmn::create_permit),
+        )
+        .route(
+            "/pemakaian-bmn/:id",
+            get(pemakaian_bmn::get_permit_by_id).put(pemakaian_bmn::update_permit),
+        )
+        // Workflow Actions
+        .route(
+            "/pemakaian-bmn/:id/transition",
+            post(pemakaian_bmn::transition_permit_status),
+        )
+        .route(
+            "/pemakaian-bmn/:id/activate",
+            post(pemakaian_bmn::activate_permit),
+        )
+        .route(
+            "/pemakaian-bmn/:id/document",
+            get(pemakaian_bmn::get_permit_document),
+        )
+        .route(
+            "/pemakaian-bmn/:id/revoke",
+            post(pemakaian_bmn::revoke_permit),
+        )
+        .route(
+            "/pemakaian-bmn/:id/renew",
+            post(pemakaian_bmn::renew_permit),
+        )
+        // BMN Availability & History
+        .route(
+            "/pemakaian-bmn/bmn/:bmn_nup/availability",
+            get(pemakaian_bmn::check_bmn_availability),
+        )
+        .route(
+            "/pemakaian-bmn/bmn/:bmn_nup/history",
+            get(pemakaian_bmn::get_bmn_usage_history),
+        )
+        // Pegawai History
+        .route(
+            "/pemakaian-bmn/pegawai/:pegawai_nip/history",
+            get(pemakaian_bmn::get_pegawai_usage_history),
+        )
+        // Expiry Management
+        .route(
+            "/pemakaian-bmn/expiring",
+            get(pemakaian_bmn::get_expiring_permits),
+        )
+        .route(
+            "/pemakaian-bmn/auto-expire",
+            post(pemakaian_bmn::auto_expire_permits),
+        )
+        // Monitoring Dashboard
+        .route(
+            "/pemakaian-bmn/monitoring/active-usage",
+            get(pemakaian_bmn::get_active_usage_dashboard),
+        )
+        .route(
+            "/pemakaian-bmn/monitoring/utilization-report",
+            get(pemakaian_bmn::get_bmn_utilization_report),
         )
         .with_state(state)
 }

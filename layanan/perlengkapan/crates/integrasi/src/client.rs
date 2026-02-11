@@ -288,12 +288,32 @@ impl MonsaktiClient {
     }
 
     /// Fungsi fetch khusus untuk MySIMKARI API
+    /// Token dipilih berdasarkan endpoint:
+    /// - "get-satker" → menggunakan token MYSIMKARI (MYSIMKARI_TOKEN)
+    /// - "pegawai-satker", "pegawai", "pegawai-aktif", "pegawai-mutasi" → menggunakan token MYSIMKARI_PEGAWAI (MYSIMKARI_TOKEN_PEGAWAI)
     pub async fn fetch_mysimkari(
         &mut self,
         endpoint: &str,
         variables: Vec<String>,
     ) -> Result<MonsaktiResponse, MonsaktiError> {
-        let token = self.get_current_token("MYSIMKARI")?;
+        let token_key = Self::mysimkari_token_key(endpoint);
+        // Fallback ke token "MYSIMKARI" jika token spesifik (MYSIMKARI_PEGAWAI) belum dikonfigurasi
+        let token = self
+            .get_current_token(token_key)
+            .or_else(|_| {
+                if token_key != "MYSIMKARI" {
+                    warn!(
+                        "Token {} belum dikonfigurasi, fallback ke MYSIMKARI",
+                        token_key
+                    );
+                    self.get_current_token("MYSIMKARI")
+                } else {
+                    Err(MonsaktiError::ConfigError(format!(
+                        "No token for module: {}",
+                        token_key
+                    )))
+                }
+            })?;
         // Format URL: /base_url/endpoint/variable1/variable2/...
         let mut url = format!("{}/{}", self.config.mysimkari_base_url, endpoint);
         for var in &variables {
@@ -302,7 +322,10 @@ impl MonsaktiClient {
             }
         }
 
-        info!("Fetching MySIMKARI: {}", url);
+        info!(
+            "Fetching MySIMKARI: {} (token: {})",
+            url, token_key
+        );
 
         let response = self
             .client
@@ -612,6 +635,19 @@ impl MonsaktiClient {
             .cloned()
             .or_else(|| self.config.tokens.get(module).cloned())
             .ok_or_else(|| MonsaktiError::ConfigError(format!("No token for module: {}", module)))
+    }
+
+    /// Menentukan token key yang tepat berdasarkan endpoint MySIMKARI.
+    /// - Endpoint pegawai (`pegawai-satker`, `pegawai`, `pegawai-aktif`, `pegawai-mutasi`) → "MYSIMKARI_PEGAWAI"
+    /// - Endpoint lainnya (`get-satker`, dll) → "MYSIMKARI"
+    /// Jika token MYSIMKARI_PEGAWAI belum dikonfigurasi, fallback ke "MYSIMKARI".
+    fn mysimkari_token_key(endpoint: &str) -> &'static str {
+        match endpoint {
+            "pegawai-satker" | "pegawai" | "pegawai-aktif" | "pegawai-mutasi" => {
+                "MYSIMKARI_PEGAWAI"
+            }
+            _ => "MYSIMKARI",
+        }
     }
 
     // === SIMAN API Methods ===

@@ -2,6 +2,8 @@
 //!
 //! JWT token validation and user authentication using Authenc Service
 
+pub mod metrics;
+
 use axum::{
     extract::{FromRef, FromRequestParts},
     http::{header::AUTHORIZATION, request::Parts},

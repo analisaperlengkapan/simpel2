@@ -108,6 +108,39 @@ impl KebutuhanBmnStatus {
             Rejected | Completed | Cancelled => vec![],
         }
     }
+
+    /// Convert status to workflow engine state name
+    pub fn to_state_name(&self) -> &'static str {
+        match self {
+            Self::Draft => "DRAFT",
+            Self::InputBarang => "INPUT_BARANG",
+            Self::SubmitSatker => "SUBMIT_SATKER",
+            Self::RevisiSatker => "REVISI_SATKER",
+            Self::AnalisisKelayakan => "ANALISIS_KELAYAKAN",
+            Self::PenyusunanPrioritas => "PENYUSUNAN_PRIORITAS",
+            Self::Approved => "APPROVED",
+            Self::Rejected => "REJECTED",
+            Self::Completed => "COMPLETED",
+            Self::Cancelled => "CANCELLED",
+        }
+    }
+
+    /// Convert workflow engine state name to status
+    pub fn from_state_name(name: &str) -> Option<Self> {
+        match name {
+            "DRAFT" => Some(Self::Draft),
+            "INPUT_BARANG" => Some(Self::InputBarang),
+            "SUBMIT_SATKER" => Some(Self::SubmitSatker),
+            "REVISI_SATKER" => Some(Self::RevisiSatker),
+            "ANALISIS_KELAYAKAN" => Some(Self::AnalisisKelayakan),
+            "PENYUSUNAN_PRIORITAS" => Some(Self::PenyusunanPrioritas),
+            "APPROVED" => Some(Self::Approved),
+            "REJECTED" => Some(Self::Rejected),
+            "COMPLETED" => Some(Self::Completed),
+            "CANCELLED" => Some(Self::Cancelled),
+            _ => None,
+        }
+    }
 }
 
 impl Default for KebutuhanBmnStatus {
@@ -409,6 +442,14 @@ impl KebutuhanBmnSummary {
     }
 }
 
+impl<'a> TryFrom<&'a Row> for KebutuhanBmnSummary {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(row: &'a Row) -> Result<Self, Self::Error> {
+        Ok(Self::from_row(row))
+    }
+}
+
 // ============================================================================
 // Request DTOs
 // ============================================================================
@@ -625,6 +666,60 @@ pub struct BarangFilter {
     pub kode_barang: Option<String>,
     pub prioritas_min: Option<i32>,
     pub search: Option<String>,
+}
+
+// ============================================================================
+// Batch Operations
+// ============================================================================
+
+/// Request for batch approval of kebutuhan
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct BatchApproveRequest {
+    #[validate(length(min = 1, max = 500, message = "Batch size must be between 1 and 500"))]
+    pub kebutuhan_ids: Vec<Uuid>,
+
+    pub komentar: Option<String>,
+}
+
+/// Request for batch rejection of kebutuhan
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct BatchRejectRequest {
+    #[validate(length(min = 1, max = 500, message = "Batch size must be between 1 and 500"))]
+    pub kebutuhan_ids: Vec<Uuid>,
+
+    #[validate(length(min = 10, message = "Rejection reason must be at least 10 characters"))]
+    pub komentar: String,
+}
+
+/// Request for batch status update
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct BatchUpdateStatusRequest {
+    #[validate(length(min = 1, max = 500, message = "Batch size must be between 1 and 500"))]
+    pub kebutuhan_ids: Vec<Uuid>,
+
+    pub target_status: i32,
+    pub komentar: Option<String>,
+}
+
+/// Result of a single item in batch operation
+#[derive(Debug, Clone, Serialize)]
+pub struct BatchOperationItemResult {
+    pub kebutuhan_id: Uuid,
+    pub success: bool,
+    pub error_message: Option<String>,
+}
+
+/// Response for batch operations
+#[derive(Debug, Clone, Serialize)]
+pub struct BatchOperationResponse {
+    pub batch_id: Uuid,
+    pub total_items: usize,
+    pub successful_items: usize,
+    pub failed_items: usize,
+    pub results: Vec<BatchOperationItemResult>,
+    pub operation_type: String,
+    pub executed_at: DateTime<Utc>,
+    pub executed_by: Option<Uuid>,
 }
 
 // ============================================================================

@@ -116,12 +116,12 @@ backend = "http://localhost:3000/api"
 
 ```rust
 use leptos::prelude::*;
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
-    let (count, set_count) = create_signal(0);
-    
+    let (count, set_count) = signal(0);
+
     view! {
         <div class="dashboard">
             <h2>"Dashboard"</h2>
@@ -232,6 +232,6 @@ MIT License - See [LICENSE](../../LICENSE) for details.
 
 ---
 
-**Version**: 0.4.0  
-**Last Updated**: October 1, 2025  
+**Version**: 0.4.0
+**Last Updated**: October 1, 2025
 **Maintainer**: SIMPelv2 Team

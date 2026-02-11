@@ -24,6 +24,12 @@ pub mod scheduler;
 #[cfg(feature = "grpc")]
 pub mod grpc;
 
+// Monitoring module for dashboard and alerts
+pub mod monitoring;
+
+// Metrics module for Prometheus
+pub mod metrics;
+
 // Re-exports for convenience
 pub use audit::{
     ApiCallLog, BatchProcessingLog, DataSyncLog, TokenResetLog, get_api_stats_by_module,

@@ -120,7 +120,7 @@ backend = "http://localhost:3000/api"
 
 ```rust
 use leptos::prelude::*;
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 
 #[component]
 pub fn TrainingList() -> impl IntoView {
@@ -146,8 +146,8 @@ pub fn TrainingList() -> impl IntoView {
 ```rust
 #[component]
 pub fn EnrollmentForm() -> impl IntoView {
-    let (name, set_name) = create_signal(String::new());
-    let (email, set_email) = create_signal(String::new());
+    let (name, set_name) = signal(String::new());
+    let (email, set_email) = signal(String::new());
 
     let on_submit = move |_| {
         // Submit enrollment

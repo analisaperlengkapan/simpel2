@@ -21,7 +21,11 @@ async fn main() {
     // Standardized Database Pool
     let db_config = lib_common::db::DbConfig {
         url: config.database_url.clone(),
-        max_size: 10, // Default for small services
+        max_size: 10,
+        min_idle: None,
+        connection_timeout: None,
+        idle_timeout: None,
+        max_lifetime: None,
     };
     let pool =
         lib_common::db::create_postgres_pool(db_config).expect("Failed to create database pool");

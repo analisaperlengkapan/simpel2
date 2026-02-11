@@ -207,7 +207,7 @@ pub async fn create_authenc_client() -> Result<AuthServiceClient<Channel>, tonic
 
 ```rust
 use leptos::prelude::*;
-use shared_microfrontend::prelude::*;  // This is lib-ui!
+use lib_ui::prelude::*;  // This is lib-ui!
 
 // Signal creation (NOT create_signal!)
 #[component]

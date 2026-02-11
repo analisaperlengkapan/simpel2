@@ -119,8 +119,8 @@ Production-ready UI library dengan Leptos 0.8.x compatibility:
 - **60% Smaller**: Refactored dari 7,637 → ~2,800 lines
 
 ```rust
-use shared_microfrontend::prelude::*;
-use shared_microfrontend::components::auth::ProtectedRoute;
+use lib_ui::prelude::*;
+use lib_ui::components::auth::ProtectedRoute;
 ```
 
 ### Backend Microservices Architecture
@@ -500,8 +500,8 @@ cargo build --release
 
 ```rust
 // Microfrontend integration
-use shared_microfrontend::hooks::use_auth;
-use shared_microfrontend::components::auth::ProtectedRoute;
+use lib_ui::hooks::use_auth;
+use lib_ui::components::auth::ProtectedRoute;
 
 #[component]
 pub fn App() -> impl IntoView {

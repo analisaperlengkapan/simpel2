@@ -91,7 +91,7 @@ impl SimanIntegration {
     /// Get row count for a specific asset category
     pub async fn get_asset_count(&self, category: SimanAssetCategory) -> AppResult<i64> {
         let mut client = self.client.write().await;
-        get_row_count(&mut *client, category)
+        get_row_count(&mut *client, category, None)
             .await
             .map_err(|e| AppError::Internal(format!("SIMAN error: {}", e)))
     }
@@ -104,7 +104,7 @@ impl SimanIntegration {
         end_id: u32,
     ) -> AppResult<Vec<SimanAsset>> {
         let mut client = self.client.write().await;
-        let data = get_aset_by_category(&mut *client, category, start_id, end_id)
+        let data = get_aset_by_category(&mut *client, category, start_id, end_id, None)
             .await
             .map_err(|e| AppError::Internal(format!("SIMAN error: {}", e)))?;
 

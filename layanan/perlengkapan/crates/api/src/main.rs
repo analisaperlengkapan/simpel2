@@ -11,26 +11,45 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
+mod cache_strategy;
+mod connection_config;
 mod database;
+mod database_optimization;
+mod dashboard;
 mod errors;
 mod grpc_clients;
 mod handlers;
+mod health;
 mod kebutuhan_bmn;
+mod logging;
+mod mapping_kodefikasi;
+mod metrics;
 mod middleware;
 mod models;
 mod pakaian_dinas;
+mod pemakaian_bmn;
+mod penghapusan_bmn;
+mod rate_limiting;
 mod repository;
+mod roadmap_sarpras;
 mod routes;
 mod services;
+mod workflow;
 
 #[cfg(test)]
 mod tests;
 
+use cache_strategy::CacheManager;
 use database::Database;
+use dashboard::services::DashboardService;
 use grpc_clients::{AuthencClient, SecretonClient};
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
 use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
+use rate_limiting::{RateLimiter, RateLimitConfig};
+use roadmap_sarpras::{RoadmapRepository, RoadmapService};
 use services::PerlengkapanService;
+use pemakaian_bmn::PemakaianBmnService;
+use penghapusan_bmn::PenghapusanBmnService;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -38,6 +57,14 @@ pub struct AppState {
     pub authenc: AuthencClient,
     pub pakaian_dinas_service: PakaianDinasService,
     pub kebutuhan_bmn_service: KebutuhanBmnService,
+    pub pemakaian_bmn_service: PemakaianBmnService,
+    pub penghapusan_bmn_service: Arc<PenghapusanBmnService>,
+    pub roadmap_service: RoadmapService,
+    pub dashboard_service: DashboardService,
+    pub dashboard_updates: tokio::sync::broadcast::Sender<dashboard::DashboardUpdate>,
+    pub db_pool: deadpool_postgres::Pool,
+    pub cache_manager: Arc<CacheManager>,
+    pub rate_limiter: Arc<RateLimiter>,
 }
 
 impl FromRef<AppState> for PerlengkapanService {
@@ -64,15 +91,40 @@ impl FromRef<AppState> for KebutuhanBmnService {
     }
 }
 
+impl FromRef<AppState> for DashboardService {
+    fn from_ref(state: &AppState) -> Self {
+        state.dashboard_service.clone()
+    }
+}
+
+impl FromRef<AppState> for RoadmapService {
+    fn from_ref(state: &AppState) -> Self {
+        state.roadmap_service.clone()
+    }
+}
+
+impl FromRef<AppState> for PemakaianBmnService {
+    fn from_ref(state: &AppState) -> Self {
+        state.pemakaian_bmn_service.clone()
+    }
+}
+
+impl FromRef<AppState> for Arc<PenghapusanBmnService> {
+    fn from_ref(state: &AppState) -> Self {
+        state.penghapusan_bmn_service.clone()
+    }
+}
+
+impl FromRef<AppState> for deadpool_postgres::Pool {
+    fn from_ref(state: &AppState) -> Self {
+        state.db_pool.clone()
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,layanan_perlengkapan=debug".into()),
-        )
-        .init();
+    // Initialize structured logging
+    logging::init_structured_logging();
 
     info!("Starting Layanan Pembinaan Perlengkapan Service");
 
@@ -155,6 +207,10 @@ async fn main() -> anyhow::Result<()> {
     info!("Running database migrations...");
     db.migrate().await?;
 
+    // Add essential indexes for performance optimization
+    info!("Adding essential database indexes...");
+    database_optimization::add_essential_indexes(db.pool()).await?;
+
     // Create main service with repository wrapper
     let service = PerlengkapanService::new(Arc::new(db.clone()));
 
@@ -162,10 +218,57 @@ async fn main() -> anyhow::Result<()> {
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
     let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
 
-    // Create Kebutuhan BMN service
+    // Create Kebutuhan BMN service with workflow engine
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
+    let kebutuhan_bmn_workflow_engine = crate::workflow::engine::WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
     let kebutuhan_bmn_service =
-        KebutuhanBmnService::new(kebutuhan_bmn_repo, authenc_client.clone());
+        KebutuhanBmnService::new(kebutuhan_bmn_repo, authenc_client.clone(), kebutuhan_bmn_workflow_engine);
+
+    // Create Dashboard service
+    let dashboard_service = DashboardService::new(db.pool().clone());
+
+    // Create Roadmap Sarpras service
+    let roadmap_repo = RoadmapRepository::new(db.clone());
+    let roadmap_service = RoadmapService::new(roadmap_repo);
+
+    // Create Pemakaian BMN service
+    let pemakaian_bmn_repo = pemakaian_bmn::PemakaianBmnRepository::new(db.pool().clone());
+    let pemakaian_bmn_workflow_engine = crate::workflow::engine::WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
+    let pemakaian_bmn_service = PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow_engine);
+
+    // Start Pemakaian BMN scheduler for auto-expiry and notifications
+    let pemakaian_bmn_scheduler = pemakaian_bmn::PemakaianBmnScheduler::new(pemakaian_bmn_service.clone());
+    pemakaian_bmn_scheduler.start();
+    info!("Pemakaian BMN scheduler started");
+
+    // Create Penghapusan BMN service
+    let penghapusan_bmn_workflow_engine = crate::workflow::engine::WorkflowEngine::for_penghapusan_bmn(db.pool().clone());
+    let penghapusan_bmn_service = Arc::new(penghapusan_bmn::PenghapusanBmnService::new(
+        db.pool().clone(),
+        Arc::new(penghapusan_bmn_workflow_engine),
+    ));
+    info!("Penghapusan BMN service initialized");
+
+    // Create broadcast channel for dashboard updates (capacity: 100 messages)
+    let (dashboard_tx, _dashboard_rx) = tokio::sync::broadcast::channel(100);
+
+    // Create cache manager
+    let cache_manager = Arc::new(CacheManager::new());
+    info!("Cache manager initialized");
+
+    // Create rate limiter
+    let rate_limit_config = RateLimitConfig::from_env();
+    let rate_limiter = Arc::new(RateLimiter::new(rate_limit_config));
+    info!("Rate limiter initialized ({}  req/s per user, burst: {})",
+        rate_limiter.get_stats().await.config.requests_per_second,
+        rate_limiter.get_stats().await.config.burst_size
+    );
+
+    // Start rate limiter cleanup task
+    let rate_limiter_cleanup = Arc::clone(&rate_limiter);
+    tokio::spawn(async move {
+        rate_limiting::cleanup_task(rate_limiter_cleanup).await;
+    });
 
     // Create AppState
     let state = AppState {
@@ -173,6 +276,14 @@ async fn main() -> anyhow::Result<()> {
         authenc: authenc_client,
         pakaian_dinas_service,
         kebutuhan_bmn_service,
+        pemakaian_bmn_service,
+        penghapusan_bmn_service,
+        roadmap_service,
+        dashboard_service,
+        dashboard_updates: dashboard_tx,
+        db_pool: db.pool().clone(),
+        cache_manager,
+        rate_limiter,
     };
 
     // Build router
@@ -213,37 +324,26 @@ fn build_router(state: AppState) -> Router {
             .allow_headers(Any)
     };
 
-    // Health check routes (no auth required)
+    // Health check routes (no auth or rate limiting required)
     let health_routes = Router::new()
-        .route("/health", get(health_check))
-        .route("/health/ready", get(readiness_check))
-        .route("/health/live", get(liveness_check));
+        .route("/health", get(health::health_check))
+        .route("/health/ready", get(health::readiness_check))
+        .route("/health/live", get(health::liveness_check))
+        .route("/metrics", get(middleware::metrics::metrics_handler))
+        .with_state(Arc::new(state.clone()));
 
-    // API routes with authentication
-    // Note: create_routes expects PerlengkapanService, but we pass AppState
-    // We need to adjust routes.rs or pass state.service specifically if routes expects service directly.
-    // However, typical pattern is router.with_state(state).
-    // Let's check routes.rs
-
-    let api_routes = routes::create_routes(state.clone()); // Need to update routes.rs signature
+    // API routes with authentication and rate limiting
+    let api_routes = routes::create_routes(state.clone());
 
     // Combine all routes
     Router::new()
         .merge(health_routes)
         .nest("/api/pembinaan/perlengkapan", api_routes)
+        .layer(axum::middleware::from_fn(middleware::metrics::track_metrics))
+        .layer(axum::middleware::from_fn_with_state(
+            Arc::clone(&state.rate_limiter),
+            rate_limiting::rate_limit_middleware,
+        ))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
-}
-
-// Health check handlers
-async fn health_check() -> &'static str {
-    "OK"
-}
-
-async fn readiness_check() -> &'static str {
-    "Ready"
-}
-
-async fn liveness_check() -> &'static str {
-    "Alive"
 }

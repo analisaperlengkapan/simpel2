@@ -9,6 +9,10 @@ pub struct AppConfig {
     #[serde(flatten)]
     pub base: BaseServiceConfig,
 
+    /// gRPC port
+    #[serde(default = "default_grpc_port")]
+    pub grpc_port: u16,
+
     /// SMTP configuration
     #[serde(default)]
     pub smtp_host: String,
@@ -38,6 +42,10 @@ pub struct AppConfig {
     pub api_key: String,
 }
 
+fn default_grpc_port() -> u16 {
+    50053
+}
+
 fn default_smtp_port() -> u16 {
     587
 }
@@ -58,6 +66,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             base: BaseServiceConfig::default(),
+            grpc_port: default_grpc_port(),
             smtp_host: String::new(),
             smtp_port: default_smtp_port(),
             smtp_username: String::new(),
@@ -82,6 +91,10 @@ impl AppConfig {
 
         Self {
             base,
+            grpc_port: std::env::var("GRPC_PORT")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(default_grpc_port()),
             smtp_host: std::env::var("SMTP_HOST").unwrap_or_default(),
             smtp_port: std::env::var("SMTP_PORT")
                 .ok()

@@ -1,10 +1,104 @@
 //! Dashboard page - Main user dashboard after login
 
-use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
-use crate::features::auth::UserSession;
-use crate::utils::api::get_system_metrics;
+use crate::features::auth::{AuthService, UserSession};
 use leptos::prelude::*;
+use lib_ui::components::dashboard::{BarChart, MetricCard};
+use lib_ui::core::types::ChartDataPoint;
+use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+
+// ============================================================================
+// PORTAL DASHBOARD METRICS DATA STRUCTURES
+// ============================================================================
+
+/// Portal dashboard metrics response from backend
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PortalDashboardMetrics {
+    pub system: SystemDashboardMetrics,
+    pub cross_domain: CrossDomainMetrics,
+    pub auth: AuthMetrics,
+    pub integration_health: IntegrationHealth,
+    pub collected_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemDashboardMetrics {
+    pub total_users: i64,
+    pub active_sessions: i64,
+    pub uptime_seconds: i64,
+    pub server_started_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrossDomainMetrics {
+    pub total_documents: i64,
+    pub total_notifications: i64,
+    pub api_calls_24h: i64,
+    pub documents_by_status: Vec<StatusCount>,
+    pub notifications_by_channel: Vec<ChannelCount>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthMetrics {
+    pub login_attempts_24h: i64,
+    pub successful_logins_24h: i64,
+    pub failed_logins_24h: i64,
+    pub mfa_enabled_users: i64,
+    pub sessions_by_role: Vec<RoleCount>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrationHealth {
+    pub siman: ServiceStatus,
+    pub mysimkari: ServiceStatus,
+    pub monsakti: Option<ServiceStatus>,
+    pub overall_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceStatus {
+    pub name: String,
+    pub status: String,
+    pub last_sync: Option<DateTime<Utc>>,
+    pub last_sync_duration_ms: Option<i64>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatusCount {
+    pub status: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelCount {
+    pub channel: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoleCount {
+    pub role: String,
+    pub count: i64,
+}
+
+/// Fetch portal dashboard metrics from backend
+async fn get_portal_dashboard_metrics() -> Result<PortalDashboardMetrics, String> {
+    let token = AuthService::get_token().ok_or("Not authenticated")?;
+
+    let resp = gloo_net::http::Request::get("/api/v1/dashboard/metrics")
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !resp.ok() {
+        return Err(format!("API Error: {}", resp.status()));
+    }
+
+    resp.json().await.map_err(|e| e.to_string())
+}
 
 /// Dashboard page component - main user dashboard with statistics
 #[component]
@@ -14,8 +108,10 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    // Resource to fetch real system metrics
-    let metrics_resource = LocalResource::new(move || async move { get_system_metrics().await });
+    // Resource to fetch portal dashboard metrics
+    let portal_metrics = LocalResource::new(move || async move {
+        get_portal_dashboard_metrics().await
+    });
 
     // Get current time for greeting
     let greeting = {
@@ -41,9 +137,8 @@ pub fn DashboardPage(
     view! {
         <MainLayout user_session=user_session.clone() on_logout=on_logout>
             <div class="container mx-auto px-4 py-8">
-                // Welcome Section - Enhanced with gradient and animation
+                // Welcome Section
                 <div class="relative bg-gradient-to-r from-red-600 via-red-500 to-orange-500 dark:from-red-800 dark:to-red-900 rounded-2xl shadow-2xl p-8 mb-8 text-white overflow-hidden">
-                    // Background pattern
                     <div class="absolute inset-0 opacity-10">
                         <div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 40px 40px;"></div>
                     </div>
@@ -77,260 +172,367 @@ pub fn DashboardPage(
                             </div>
                         </div>
                         <div class="hidden md:block">
-                            <div class="text-8xl opacity-50">
-                                "🏛️"
-                            </div>
+                            <div class="text-8xl opacity-50">"🏛️"</div>
                         </div>
                     </div>
                 </div>
 
-                // Stats Grid - Enhanced with animations
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <Suspense fallback=move || view! {
-                        <div class="col-span-4 flex justify-center py-8">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        </div>
-                    }>
-                        {move || {
-                            let metrics = metrics_resource.get();
-                            let stats = match metrics {
-                                Some(Ok(m)) => vec![
-                                    StatCardData {
-                                        title: "Total Sistem".to_string(),
-                                        value: m.vault.total_secrets.to_string(), // Using secrets count as a proxy for "Sistem" complexity for now
-                                        icon: "🔐".to_string(),
-                                        color: StatColor::Blue,
-                                        trend: Some("Secrets count".to_string()),
-                                    },
-                                    StatCardData {
-                                        title: "Pengguna".to_string(),
-                                        value: "0".to_string(), // Placeholder until user count is exposed in SystemMetrics struct
-                                        icon: "👥".to_string(),
-                                        color: StatColor::Green,
-                                        trend: Some("Active users".to_string()),
-                                    },
-                                    StatCardData {
-                                        title: "Uptime".to_string(),
-                                        value: format!("{}h", m.uptime / 3600),
-                                        icon: "⏱️".to_string(),
-                                        color: StatColor::Yellow,
-                                        trend: Some("Sejak restart".to_string()),
-                                    },
-                                    StatCardData {
-                                        title: "Keys".to_string(),
-                                        value: m.vault.total_keys.to_string(),
-                                        icon: "🔑".to_string(),
-                                        color: StatColor::Red,
-                                        trend: Some("Encryption keys".to_string()),
-                                    },
-                                ],
-                                _ => vec![
-                                    // Default fallback data if fetch fails or loading
-                                    StatCardData {
-                                        title: "Status".to_string(),
-                                        value: "Online".to_string(),
-                                        icon: "🖥️".to_string(),
-                                        color: StatColor::Blue,
-                                        trend: Some("System active".to_string()),
-                                    },
-                                    StatCardData {
-                                        title: "Pengguna".to_string(),
-                                        value: "-".to_string(),
-                                        icon: "👥".to_string(),
-                                        color: StatColor::Green,
-                                        trend: None,
-                                    },
-                                    StatCardData {
-                                        title: "Uptime".to_string(),
-                                        value: "-".to_string(),
-                                        icon: "⏱️".to_string(),
-                                        color: StatColor::Yellow,
-                                        trend: None,
-                                    },
-                                    StatCardData {
-                                        title: "Security".to_string(),
-                                        value: "Active".to_string(),
-                                        icon: "🛡️".to_string(),
-                                        color: StatColor::Red,
-                                        trend: None,
-                                    },
-                                ],
-                            };
-
-                            stats.into_iter().map(|stat| view! {
-                                <div class="transform transition-all duration-300 hover:scale-105">
-                                    <StatCard data=stat />
-                                </div>
-                            }).collect_view()
-                        }}
-                    </Suspense>
-                </div>
-
-                // Main Content Grid
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                    // Quick Actions - Enhanced
-                    <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
-                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
-                                </svg>
-                            </div>
-                            "Aksi Cepat"
-                        </h3>
-                        <div class="space-y-3">
-                            <a
-                                href="/apps"
-                                class="block p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:shadow-md transition-all group border border-blue-200 dark:border-blue-800"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                                            <span class="text-xl">"📱"</span>
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-900 dark:text-white">"Buka Aplikasi"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Akses semua sistem"</p>
-                                        </div>
-                                    </div>
-                                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                </div>
-                            </a>
-
-                            <a
-                                href="/notifications"
-                                class="block p-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl hover:shadow-md transition-all group border border-purple-200 dark:border-purple-800"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-                                            <span class="text-xl">"🔔"</span>
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-900 dark:text-white">"Notifikasi"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Lihat pemberitahuan"</p>
-                                        </div>
-                                    </div>
-                                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                </div>
-                            </a>
-
-                            <a
-                                href="/monitoring"
-                                class="block p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-md transition-all group border border-green-200 dark:border-green-800"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                                            <span class="text-xl">"📊"</span>
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-900 dark:text-white">"Monitoring"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pantau performa sistem"</p>
-                                        </div>
-                                    </div>
-                                    <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                </div>
-                            </a>
-
-                            <a
-                                href="/settings"
-                                class="block p-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:shadow-md transition-all group border border-orange-200 dark:border-orange-800"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-                                            <span class="text-xl">"⚙️"</span>
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-900 dark:text-white">"Pengaturan"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kelola profil dan tema"</p>
-                                        </div>
-                                    </div>
-                                    <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                </div>
-                            </a>
-                        </div>
+                // Portal Dashboard Metrics
+                <Suspense fallback=move || view! {
+                    <div class="flex justify-center py-12">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
                     </div>
+                }>
+                    {move || {
+                        portal_metrics.get().map(|result| match result {
+                            Ok(metrics) => view! {
+                                <div class="space-y-8">
+                                    // System Metrics Cards
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                                            <span class="text-3xl mr-3">"📊"</span>
+                                            "Metrik Sistem"
+                                        </h2>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                            <MetricCard
+                                                title="Total Pengguna".to_string()
+                                                value=metrics.system.total_users.to_string()
+                                                icon="👥".to_string()
+                                                subtitle="Pengguna terdaftar".to_string()
+                                            />
+                                            <MetricCard
+                                                title="Sesi Aktif".to_string()
+                                                value=metrics.system.active_sessions.to_string()
+                                                icon="🔐".to_string()
+                                                subtitle="Pengguna online".to_string()
+                                            />
+                                            <MetricCard
+                                                title="Uptime".to_string()
+                                                value=format!("{}h", metrics.system.uptime_seconds / 3600)
+                                                icon="⏱️".to_string()
+                                                subtitle="Sejak restart".to_string()
+                                            />
+                                            <MetricCard
+                                                title="MFA Enabled".to_string()
+                                                value=metrics.auth.mfa_enabled_users.to_string()
+                                                icon="🛡️".to_string()
+                                                subtitle="Pengguna dengan MFA".to_string()
+                                            />
+                                        </div>
+                                    </div>
 
-                    // Activity Feed - Enhanced
-                    <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mr-3">
-                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
-                                </svg>
-                            </div>
-                            "Aktivitas Terbaru"
-                        </h3>
-                        <div class="space-y-3">
-                            <div class="flex items-start space-x-3 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                                <div class="bg-blue-500 p-2 rounded-lg flex-shrink-0">
-                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"/>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-white">"Login Berhasil"</p>
-                                    <p class="text-xs text-gray-600 dark:text-gray-400">"Anda berhasil masuk ke sistem"</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">"Baru saja"</p>
-                                </div>
-                            </div>
+                                    // Cross-Domain Metrics
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                                            <span class="text-3xl mr-3">"📁"</span>
+                                            "Metrik Lintas Domain"
+                                        </h2>
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <MetricCard
+                                                title="Total Dokumen".to_string()
+                                                value=metrics.cross_domain.total_documents.to_string()
+                                                icon="📄".to_string()
+                                                subtitle="Dokumen tersimpan".to_string()
+                                            />
+                                            <MetricCard
+                                                title="Notifikasi".to_string()
+                                                value=metrics.cross_domain.total_notifications.to_string()
+                                                icon="🔔".to_string()
+                                                subtitle="Total notifikasi".to_string()
+                                            />
+                                            <MetricCard
+                                                title="API Calls (24h)".to_string()
+                                                value=metrics.cross_domain.api_calls_24h.to_string()
+                                                icon="🔌".to_string()
+                                                subtitle="Panggilan API".to_string()
+                                            />
+                                        </div>
+                                    </div>
 
-                            <div class="flex items-start space-x-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                                <div class="bg-gray-400 p-2 rounded-lg flex-shrink-0">
-                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white">"Sistem Informasi"</p>
-                                    <p class="text-xs text-gray-600 dark:text-gray-400">"Selamat datang di Portal SIMPelv2"</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">"Hari ini"</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                    // Charts Section
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                        // Documents by Status Chart
+                                        {
+                                            let docs_data = metrics.cross_domain.documents_by_status.iter().map(|s| {
+                                                ChartDataPoint::new(s.status.clone(), s.count as f64)
+                                                    .with_color("bg-blue-500".to_string())
+                                            }).collect::<Vec<_>>();
 
-                // System Status
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-                        <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        "Status Sistem"
-                    </h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                        {[
-                            ("PIDUM", "🟢"),
-                            ("PIDSUS", "🟢"),
-                            ("PIDMIL", "🟢"),
-                            ("DATUN", "🟢"),
-                            ("BADIKLAT", "🟢"),
-                            ("Pemulihan Aset", "🟢"),
-                            ("Intel", "🟢"),
-                            ("Pengawasan", "🟢"),
-                            ("Pembinaan", "🟡"),
-                        ].iter().map(|(name, status)| view! {
-                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{*name}</span>
-                                <span class="text-lg">{*status}</span>
-                            </div>
-                        }).collect_view()}
-                    </div>
-                </div>
+                                            view! {
+                                                <BarChart
+                                                    title="Dokumen per Status".to_string()
+                                                    data=docs_data
+                                                    show_values=true
+                                                    height=250
+                                                />
+                                            }
+                                        }
+
+                                        // Notifications by Channel Chart
+                                        {
+                                            let notif_data = metrics.cross_domain.notifications_by_channel.iter().map(|c| {
+                                                ChartDataPoint::new(c.channel.clone(), c.count as f64)
+                                                    .with_color("bg-purple-500".to_string())
+                                            }).collect::<Vec<_>>();
+
+                                            view! {
+                                                <BarChart
+                                                    title="Notifikasi per Channel".to_string()
+                                                    data=notif_data
+                                                    show_values=true
+                                                    height=250
+                                                />
+                                            }
+                                        }
+                                    </div>
+
+                                    // Authentication Metrics
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                                            <span class="text-3xl mr-3">"🔐"</span>
+                                            "Metrik Autentikasi (24 Jam)"
+                                        </h2>
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                                            <MetricCard
+                                                title="Login Attempts".to_string()
+                                                value=metrics.auth.login_attempts_24h.to_string()
+                                                icon="🔑".to_string()
+                                                subtitle="Total percobaan".to_string()
+                                            />
+                                            {
+                                                if metrics.auth.login_attempts_24h > 0 {
+                                                    let change_val = (metrics.auth.successful_logins_24h as f64 / metrics.auth.login_attempts_24h as f64) * 100.0;
+                                                    view! {
+                                                        <MetricCard
+                                                            title="Successful Logins".to_string()
+                                                            value=metrics.auth.successful_logins_24h.to_string()
+                                                            icon="✅".to_string()
+                                                            subtitle="Login berhasil".to_string()
+                                                            change=change_val
+                                                        />
+                                                    }.into_any()
+                                                } else {
+                                                    view! {
+                                                        <MetricCard
+                                                            title="Successful Logins".to_string()
+                                                            value=metrics.auth.successful_logins_24h.to_string()
+                                                            icon="✅".to_string()
+                                                            subtitle="Login berhasil".to_string()
+                                                        />
+                                                    }.into_any()
+                                                }
+                                            }
+                                            {
+                                                if metrics.auth.login_attempts_24h > 0 {
+                                                    let change_val = -((metrics.auth.failed_logins_24h as f64 / metrics.auth.login_attempts_24h as f64) * 100.0);
+                                                    view! {
+                                                        <MetricCard
+                                                            title="Failed Logins".to_string()
+                                                            value=metrics.auth.failed_logins_24h.to_string()
+                                                            icon="❌".to_string()
+                                                            subtitle="Login gagal".to_string()
+                                                            change=change_val
+                                                        />
+                                                    }.into_any()
+                                                } else {
+                                                    view! {
+                                                        <MetricCard
+                                                            title="Failed Logins".to_string()
+                                                            value=metrics.auth.failed_logins_24h.to_string()
+                                                            icon="❌".to_string()
+                                                            subtitle="Login gagal".to_string()
+                                                        />
+                                                    }.into_any()
+                                                }
+                                            }
+                                        </div>
+
+                                        // Sessions by Role Chart
+                                        {
+                                            let role_data = metrics.auth.sessions_by_role.iter().map(|r| {
+                                                ChartDataPoint::new(r.role.clone(), r.count as f64)
+                                                    .with_color("bg-green-500".to_string())
+                                            }).collect::<Vec<_>>();
+
+                                            view! {
+                                                <BarChart
+                                                    title="Sesi Aktif per Role".to_string()
+                                                    data=role_data
+                                                    show_values=true
+                                                    height=250
+                                                />
+                                            }
+                                        }
+                                    </div>
+
+                                    // Integration Health Status
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                                            <span class="text-3xl mr-3">"🔗"</span>
+                                            "Status Integrasi"
+                                        </h2>
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            // SIMAN Status
+                                            <IntegrationStatusCard service=metrics.integration_health.siman.clone() />
+
+                                            // MySIMKARI Status
+                                            <IntegrationStatusCard service=metrics.integration_health.mysimkari.clone() />
+
+                                            // MonSAKTI Status (optional)
+                                            {metrics.integration_health.monsakti.as_ref().map(|service| view! {
+                                                <IntegrationStatusCard service=service.clone() />
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    // Quick Actions
+                                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+                                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
+                                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
+                                                </svg>
+                                            </div>
+                                            "Aksi Cepat"
+                                        </h3>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                                            <a href="/apps" class="block p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:shadow-md transition-all group border border-blue-200 dark:border-blue-800">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                                                            <span class="text-xl">"📱"</span>
+                                                        </div>
+                                                        <div>
+                                                            <p class="font-semibold text-gray-900 dark:text-white">"Aplikasi"</p>
+                                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Akses sistem"</p>
+                                                        </div>
+                                                    </div>
+                                                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                    </svg>
+                                                </div>
+                                            </a>
+
+                                            <a href="/notifications" class="block p-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl hover:shadow-md transition-all group border border-purple-200 dark:border-purple-800">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                                                            <span class="text-xl">"🔔"</span>
+                                                        </div>
+                                                        <div>
+                                                            <p class="font-semibold text-gray-900 dark:text-white">"Notifikasi"</p>
+                                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pemberitahuan"</p>
+                                                        </div>
+                                                    </div>
+                                                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                    </svg>
+                                                </div>
+                                            </a>
+
+                                            <a href="/monitoring" class="block p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-md transition-all group border border-green-200 dark:border-green-800">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                                                            <span class="text-xl">"📊"</span>
+                                                        </div>
+                                                        <div>
+                                                            <p class="font-semibold text-gray-900 dark:text-white">"Monitoring"</p>
+                                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pantau sistem"</p>
+                                                        </div>
+                                                    </div>
+                                                    <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                    </svg>
+                                                </div>
+                                            </a>
+
+                                            <a href="/settings" class="block p-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:shadow-md transition-all group border border-orange-200 dark:border-orange-800">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                                                            <span class="text-xl">"⚙️"</span>
+                                                        </div>
+                                                        <div>
+                                                            <p class="font-semibold text-gray-900 dark:text-white">"Pengaturan"</p>
+                                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kelola profil"</p>
+                                                        </div>
+                                                    </div>
+                                                    <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                    </svg>
+                                                </div>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            }.into_any(),
+                            Err(e) => view! {
+                                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+                                    <p class="text-red-800 dark:text-red-300 font-semibold mb-2">"Gagal memuat metrik dashboard"</p>
+                                    <p class="text-red-600 dark:text-red-400 text-sm">{e}</p>
+                                </div>
+                            }.into_any(),
+                        })
+                    }}
+                </Suspense>
             </div>
         </MainLayout>
+    }
+}
+
+/// Integration status card component
+#[component]
+fn IntegrationStatusCard(
+    /// Service status data
+    service: ServiceStatus,
+) -> impl IntoView {
+    let (status_color, status_icon, status_text) = match service.status.as_str() {
+        "healthy" => ("bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800", "✅", "Sehat"),
+        "degraded" => ("bg-yellow-100 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800", "⚠️", "Terdegradasi"),
+        "down" => ("bg-red-100 dark:bg-red-900/20 border-red-200 dark:border-red-800", "❌", "Mati"),
+        _ => ("bg-gray-100 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800", "❓", "Tidak Diketahui"),
+    };
+
+    view! {
+        <div class=format!("rounded-lg p-6 border {}", status_color)>
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {service.name}
+                </h4>
+                <span class="text-2xl">{status_icon}</span>
+            </div>
+
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">"Status:"</span>
+                    <span class="font-medium text-gray-900 dark:text-white">{status_text}</span>
+                </div>
+
+                {service.last_sync.map(|sync_time| view! {
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">"Last Sync:"</span>
+                        <span class="font-medium text-gray-900 dark:text-white">
+                            {sync_time.format("%H:%M:%S").to_string()}
+                        </span>
+                    </div>
+                })}
+
+                {service.last_sync_duration_ms.map(|duration| view! {
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">"Duration:"</span>
+                        <span class="font-medium text-gray-900 dark:text-white">
+                            {format!("{}ms", duration)}
+                        </span>
+                    </div>
+                })}
+
+                {service.error_message.map(|error| view! {
+                    <div class="mt-2 p-2 bg-red-50 dark:bg-red-900/30 rounded text-xs text-red-700 dark:text-red-300">
+                        {error}
+                    </div>
+                })}
+            </div>
+        </div>
     }
 }

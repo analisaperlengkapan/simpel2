@@ -43,7 +43,7 @@ shared/
 
 ```toml
 [dependencies]
-shared-microfrontend = { path = "../../shared" }
+lib-ui = { path = "lib/ui" }
 ```
 
 ## 📚 Documentation
@@ -65,7 +65,7 @@ shared-microfrontend = { path = "../../shared" }
 ## 🚀 Quick Start
 
 ```rust
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -165,7 +165,7 @@ let debounced = use_debounce(search, 300);
 Responsive images with automatic optimization:
 
 ```rust
-use shared_microfrontend::prelude::*;
+use lib_ui::prelude::*;
 
 // Basic usage with lazy loading
 <OptimizedImage
@@ -396,7 +396,7 @@ pub fn App() -> impl IntoView {
 Wrapper for routes that require authentication:
 
 ```rust
-use shared_microfrontend::components::auth::ProtectedRoute;
+use lib_ui::components::auth::ProtectedRoute;
 
 #[component]
 pub fn DashboardPage() -> impl IntoView {
@@ -421,7 +421,7 @@ pub fn DashboardPage() -> impl IntoView {
 Pre-built logout button:
 
 ```rust
-use shared_microfrontend::components::auth::LogoutButton;
+use lib_ui::components::auth::LogoutButton;
 
 #[component]
 pub fn Header() -> impl IntoView {
@@ -439,7 +439,7 @@ pub fn Header() -> impl IntoView {
 Display current user information:
 
 ```rust
-use shared_microfrontend::components::auth::UserProfile;
+use lib_ui::components::auth::UserProfile;
 
 #[component]
 pub fn Header() -> impl IntoView {
@@ -457,7 +457,7 @@ pub fn Header() -> impl IntoView {
 Show content based on permissions:
 
 ```rust
-use shared_microfrontend::components::auth::PermissionGuard;
+use lib_ui::components::auth::PermissionGuard;
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
@@ -487,8 +487,8 @@ pub fn Dashboard() -> impl IntoView {
 Make `LoginRedirectPage` the default route for unauthenticated users:
 
 ```rust
-use shared_microfrontend::prelude::*;
-use shared_microfrontend::components::auth::LoginRedirectPage;
+use lib_ui::prelude::*;
+use lib_ui::components::auth::LoginRedirectPage;
 
 #[component]
 pub fn App() -> impl IntoView {

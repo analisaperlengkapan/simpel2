@@ -1,0 +1,217 @@
+# Prometheus alert rules for SIMPelv2
+# Requirements: NFR-M004
+
+groups:
+  - name: http_alerts
+    interval: 30s
+    rules:
+      # High HTTP error rate
+      - alert: HighHTTPErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (instance)
+            /
+            sum(rate(http_requests_total[5m])) by (instance)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP error rate on {{ $labels.instance }}"
+          description: "{{ $labels.instance }} has {{ $value | humanizePercentage }} error rate (threshold: 5%)"
+
+      # Slow HTTP requests
+      - alert: SlowHTTPRequests
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, instance)
+          ) > 2.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow HTTP requests on {{ $labels.instance }}"
+          description: "95th percentile response time is {{ $value }}s (threshold: 2s)"
+
+  - name: workflow_alerts
+    interval: 30s
+    rules:
+      # High workflow failure rate
+      - alert: HighWorkflowFailureRate
+        expr: |
+          (
+            sum(rate(workflow_transitions_total{status="failed"}[10m])) by (entity_type)
+            /
+            sum(rate(workflow_transitions_total[10m])) by (entity_type)
+          ) > 0.10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High workflow failure rate for {{ $labels.entity_type }}"
+          description: "{{ $labels.entity_type }} has {{ $value | humanizePercentage }} failure rate (threshold: 10%)"
+
+      # SLA breaches
+      - alert: WorkflowSLABreaches
+        expr: |
+          increase(workflow_sla_breaches_total[1h]) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Multiple SLA breaches detected"
+          description: "{{ $value }} SLA breaches in the last hour for {{ $labels.entity_type }} in {{ $labels.state }}"
+
+      # Workflow items stuck in state
+      - alert: WorkflowItemsStuck
+        expr: |
+          workflow_items_by_state > 100
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Many workflow items stuck in {{ $labels.state }}"
+          description: "{{ $value }} items in {{ $labels.state }} state for {{ $labels.entity_type }}"
+
+  - name: integration_alerts
+    interval: 60s
+    rules:
+      # Integration sync failures
+      - alert: IntegrationSyncFailures
+        expr: |
+          (
+            sum(rate(integration_syncs_total{status="failed"}[30m])) by (service)
+            /
+            sum(rate(integration_syncs_total[30m])) by (service)
+          ) > 0.20
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High integration sync failure rate for {{ $labels.service }}"
+          description: "{{ $labels.service }} has {{ $value | humanizePercentage }} failure rate (threshold: 20%)"
+
+      # Slow integration syncs
+      - alert: SlowIntegrationSync
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(integration_sync_duration_seconds_bucket[30m])) by (le, service, sync_type)
+          ) > 3600
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow integration sync for {{ $labels.service }}"
+          description: "{{ $labels.service }} {{ $labels.sync_type }} sync taking {{ $value }}s (threshold: 1 hour)"
+
+      # No recent sync
+      - alert: IntegrationSyncStale
+        expr: |
+          time() - max(integration_syncs_total) by (service) > 86400
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "No recent sync for {{ $labels.service }}"
+          description: "{{ $labels.service }} has not synced in over 24 hours"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # High database connection usage
+      - alert: HighDatabaseConnectionUsage
+        expr: |
+          (
+            database_connections{state="active"}
+            /
+            (database_connections{state="active"} + database_connections{state="idle"})
+          ) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection usage"
+          description: "{{ $value | humanizePercentage }} of database connections are active (threshold: 80%)"
+
+      # Slow database queries
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(database_query_duration_seconds_bucket[5m])) by (le, operation)
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query time for {{ $labels.operation }} is {{ $value }}s (threshold: 1s)"
+
+  - name: cache_alerts
+    interval: 30s
+    rules:
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            sum(rate(cache_operations_total{operation="get",result="hit"}[10m]))
+            /
+            sum(rate(cache_operations_total{operation="get"}[10m]))
+          ) < 0.70
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (threshold: 70%)"
+
+  - name: service_health_alerts
+    interval: 30s
+    rules:
+      # Service down
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} has been down for more than 2 minutes"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes
+          ) / node_memory_MemTotal_bytes > 0.90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+
+      # Disk space low
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining (threshold: 10%)"

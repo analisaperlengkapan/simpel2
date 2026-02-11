@@ -270,9 +270,9 @@ localhost:32000/simpelv2/<image-name>:<tag>
 | Image | Port | Type | Purpose |
 |-------|------|------|---------|
 | `portal` | 8080 | Deployment | Main portal frontend |
-| `daskrimti-portal` | 8080 | Deployment | Daskrimti microfrontend |
+| `portal` | 8080 | Deployment | Portal microfrontend |
 | `pembinaan-perlengkapan` | 8080 | Deployment | Pembinaan microfrontend |
-| `layanan-daskrimti-portal` | 3010 | Deployment | Portal backend API |
+| `layanan-portal` | 3010 | Deployment | Portal backend API |
 | `layanan-daskrimti-integrasi` | - | CronJob | External API integration (MonSAKTI/MySIMKARI/SIMAN) |
 | `layanan-pembinaan-perlengkapan` | 3020 | Deployment | Perlengkapan backend API |
 | `authenc` | 8088/9088/9090 | Deployment | Identity Provider |

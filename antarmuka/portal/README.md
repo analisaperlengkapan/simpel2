@@ -288,7 +288,7 @@ npm run test:e2e
 - **leptos**: 0.8.x - Reactive web framework
 - **leptos_router**: 0.8.x - Client-side routing
 - **leptos_meta**: 0.8.x - Meta tags management
-- **shared-microfrontend**: 0.4.0 - Shared UI components
+- **lib-ui**: Shared UI components (gunakan `lib_ui::prelude::*` pada contoh kode)
 
 ### Utilities
 

@@ -9,7 +9,7 @@ description = "Shared library for Perlengkapan domain - models, types, and valid
 [features]
 default = ["serde"]
 serde = ["dep:serde", "dep:serde_json", "chrono/serde", "uuid/serde"]
-backend = ["dep:tokio-postgres", "dep:async-trait"]
+backend = ["dep:tokio-postgres", "dep:async-trait", "dep:deadpool-postgres", "dep:regex"]
 frontend = []
 wasm = ["dep:wasm-bindgen", "uuid/js"]
 
@@ -29,9 +29,12 @@ thiserror = { workspace = true }
 # Backend-only dependencies
 tokio-postgres = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
+deadpool-postgres = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
 
 # WASM support
 wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }

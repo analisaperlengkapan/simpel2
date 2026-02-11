@@ -67,7 +67,8 @@ impl IntoResponse for AppError {
 
         let api_error = lib_common::error::ApiError {
             message,
-            code: None, // We can add specific error codes later
+            code: None,
+            errors: None,
         };
 
         (status, axum::Json(api_error)).into_response()

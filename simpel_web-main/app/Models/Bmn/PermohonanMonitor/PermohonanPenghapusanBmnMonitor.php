@@ -1,0 +1,131 @@
+<?php
+
+namespace App\Models\Bmn\PermohonanMonitor;
+
+use App\Blameable;
+use App\Traits\LogTrait;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Query\Builder;
+
+class PermohonanPenghapusanBmnMonitor extends Model
+{
+    use HasFactory;
+    use Blameable;
+    use LogTrait;
+
+    protected $table = 'permohonan_penghapusan_bmn_monitor';
+
+    const tableKet = 'Monitoring Penghapusan BMN';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'id',
+        'jenis_barang',
+        'no_surat_permohonan',
+        'tgl_surat_permohonan',
+        'file_surat_permohonan',
+        'inst_satkerkd',
+        'ms_aktifitas_id',
+        'created_at',
+        'created_by',
+        'updated_at',
+        'updated_by',
+        'kategori',
+        'pengajuan_id',
+    ];
+
+    function getDataGrid($paging, $search = [], $kategori = [])
+    {
+        $query = DB::table($this->table.' as a');
+        $query->leftJoin('ms_satker as b', 'a.inst_satkerkd', '=', 'b.inst_satkerkd');
+        $query->leftJoin('ms_aktifitas_user as c', 'a.ms_aktifitas_id', '=', 'c.id');
+        $query->leftJoin('permohonan_penghapusan_bmn_sk as d', 'a.pengajuan_id', '=', 'd.id');
+        $query->select('a.id', 'd.kategori','d.no_surat_permohonan', 'd.tgl_surat_permohonan', 'b.inst_nama', 'c.nama as aktifitas');
+
+        $ms_satker_id = session('userData.current_role.ms_satker_id');
+        if(in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'))){
+            $query->where('a.inst_satkerkd', $ms_satker_id);
+        }
+        if(session('userData.current_role.ms_role_id')!=1){
+            $query->where('a.ms_aktifitas_id','!=',3000);
+        }
+        if(!empty($kategori)) $query->whereIn('kategori',$kategori);
+
+        if (!empty($search)) {
+            $searchVal = $search['columns'];
+            $query->where(function (Builder $q) use ($searchVal) {
+                foreach($searchVal as $k => $v){
+                    $value = $v['search']['value'];
+                    $columnName = $v['data']=='aktifitas'?'c.nama':$v['data'];
+                    $columnName = $v['data']=='nama'?'a.nama':$v['data'];
+                    if (strtotime($value)) {
+                        $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
+                    }else if($value){
+                        $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
+                    }
+                }
+            });
+        }
+        $query->orderByDesc('a.updated_at');
+        $total = $query->count();
+        $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+        return ['total' => $total, 'data' => $data];
+    }
+
+    function getDataGridDetail($paging, $search = [])
+    {
+        $query = DB::table($this->table.' as a');
+        $query->leftJoin('ms_satker as b', 'a.inst_satkerkd', '=', 'b.inst_satkerkd');
+        $query->leftJoin('ms_aktifitas_user as c', 'a.ms_aktifitas_id', '=', 'c.id');
+        $query->leftJoin('pengajuan_penghapusan_bmn_asset as d', 'a.id', '=', 'd.pengajuan_id');
+        $query->select('a.*', 'b.inst_nama', 'c.nama as aktifitas','d.kode_barang','d.nm_barang');
+
+        $ms_satker_id = session('userData.current_role.ms_satker_id');
+        if(in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'))){
+            $query->where('a.inst_satkerkd', $ms_satker_id);
+        }
+
+        if (!empty($search)) {
+            $searchVal = $search['columns'];
+            $query->where(function (Builder $q) use ($searchVal) {
+                foreach($searchVal as $k => $v){
+                    $value = $v['search']['value'];
+                    $columnName = $v['data']=='aktifitas'?'c.nama':$v['data'];
+                    $columnName = $v['data']=='nama'?'a.nama':$v['data'];
+                    if (strtotime($value)) {
+                        $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
+                    }else if($value){
+                        $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
+                    }
+                }
+            });
+        }
+        $query->orderByDesc('updated_at');
+        $total = $query->count();
+        $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+        return ['total' => $total, 'data' => $data];
+    }
+
+    public function getTglSuratPermohonanAttribute()
+    {
+        return Carbon::parse($this->attributes['tgl_surat_permohonan'])->translatedFormat('d-F-Y');
+    }
+
+    static function getDataPermohonan()
+    {
+        $ms_satker_id = session('userData.current_role.ms_satker_id');
+        $sql = "SELECT a.*
+        FROM permohonan_penghapusan_bmn_sk a
+        LEFT JOIN permohonan_penghapusan_bmn_monitor b on a.id = b.pengajuan_id
+        WHERE b.pengajuan_id is null and a.ms_aktifitas_id = 3006 and a.inst_satkerkd = '".$ms_satker_id."'";
+        $result = DB::select($sql);
+        return $result;
+    }
+}
