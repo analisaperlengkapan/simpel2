@@ -1,3 +1,4 @@
+use crate::audit::ApiCallLog;
 use crate::config::Config;
 use crate::error::MonsaktiError;
 use crate::response::MonsaktiResponse;
@@ -8,7 +9,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::AsyncWriteExt;
 use tokio_postgres::NoTls;
 use tracing::{error, info, warn};
@@ -72,6 +73,39 @@ impl MonsaktiClient {
         })
     }
 
+    /// Seed initial MonSAKTI tokens from .env config into monsakti_tokens table.
+    /// Called once at startup to ensure token table reflects current configuration.
+    /// Only seeds MonSAKTI module tokens (ADM, ANG, AST, BEN, GLP, KOM, PEM, PER).
+    pub async fn seed_monsakti_tokens(&self) -> Result<usize, MonsaktiError> {
+        let db = match &self.db_client {
+            Some(db) => db,
+            None => return Ok(0),
+        };
+
+        let monsakti_modules = ["ADM", "ANG", "AST", "BEN", "GLP", "KOM", "PEM", "PER"];
+        let mut seeded = 0usize;
+
+        for module in &monsakti_modules {
+            if let Some(token) = self.current_tokens.get(*module) {
+                if token.is_empty() {
+                    continue;
+                }
+                match self.save_token_to_db(db, module, token).await {
+                    Ok(()) => seeded += 1,
+                    Err(e) => warn!("⚠ Gagal seed token {} ke database: {:?}", module, e),
+                }
+            }
+        }
+
+        if seeded > 0 {
+            info!(
+                "✓ Seeded {} MonSAKTI tokens ke monsakti_tokens table",
+                seeded
+            );
+        }
+        Ok(seeded)
+    }
+
     /// Clone untuk parallel processing - Token tidak di-share
     pub fn clone(&self) -> Self {
         Self {
@@ -103,7 +137,7 @@ impl MonsaktiClient {
         self.fetch_with_retry(module, tipe_data, variables, 1).await
     }
 
-    /// Fungsi fetch dengan retry logic
+    /// Fungsi fetch dengan retry logic + audit logging ke api_log
     fn fetch_with_retry<'a>(
         &'a mut self,
         module: &'a str,
@@ -138,6 +172,8 @@ impl MonsaktiClient {
                 );
             }
 
+            let started = Instant::now();
+
             let response = self
                 .client
                 .get(&url)
@@ -145,10 +181,15 @@ impl MonsaktiClient {
                 .send()
                 .await?;
 
+            let elapsed_ms = started.elapsed().as_millis() as i32;
+
             if !response.status().is_success() {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
                 error!("Request gagal: {} - {}", status, body);
+
+                // Log gagal ke api_log
+                self.log_api_call(module, tipe_data, &url, "GET", Some(status.as_u16() as i32), elapsed_ms, None, false, Some(&body), retry_count as i32).await;
 
                 // Jika unauthorized atau forbidden, coba reset token
                 if (status == 401 || status == 403) && retry_count == 1 {
@@ -215,6 +256,10 @@ impl MonsaktiClient {
 
                 // Element 1: data array
                 let data_value = arr[1].clone();
+                let record_count = data_value.as_array().map(|a| a.len() as i32);
+
+                // Log sukses ke api_log
+                self.log_api_call(module, tipe_data, &url, "GET", Some(200), elapsed_ms, record_count, true, None, retry_count as i32).await;
 
                 return Ok(MonsaktiResponse {
                     new_token: new_token_opt,
@@ -240,6 +285,9 @@ impl MonsaktiClient {
                         "Token kadaluarsa untuk modul {} (attempt {})",
                         module, retry_count
                     );
+
+                    // Log token expired ke api_log
+                    self.log_api_call(module, tipe_data, &url, "GET", Some(200), elapsed_ms, None, false, Some(error_msg), retry_count as i32).await;
 
                     // Auto-retry dengan reset token
                     if retry_count == 1 {
@@ -268,8 +316,15 @@ impl MonsaktiClient {
 
                     return Err(MonsaktiError::TokenExpired);
                 }
+
+                // Log error dari response body ke api_log
+                self.log_api_call(module, tipe_data, &url, "GET", Some(200), elapsed_ms, None, false, Some(error_msg), retry_count as i32).await;
+
                 return Err(MonsaktiError::ApiError(error_msg.clone()));
             }
+
+            // Record count dari fallback response
+            let fallback_record_count = result.data.as_ref().and_then(|d| d.as_array().map(|a| a.len() as i32));
 
             if let Some(new_token) = &result.new_token {
                 info!("Memperbarui token untuk modul {}", module);
@@ -287,6 +342,9 @@ impl MonsaktiClient {
                     }
                 }
             }
+
+            // Log sukses ke api_log (fallback path)
+            self.log_api_call(module, tipe_data, &url, "GET", Some(200), elapsed_ms, fallback_record_count, true, None, retry_count as i32).await;
 
             Ok(result)
         })
@@ -332,6 +390,8 @@ impl MonsaktiClient {
             url, token_key
         );
 
+        let started = Instant::now();
+
         let response = self
             .client
             .get(&url)
@@ -339,10 +399,15 @@ impl MonsaktiClient {
             .send()
             .await?;
 
+        let elapsed_ms = started.elapsed().as_millis() as i32;
+
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             error!("MySIMKARI request gagal: {} - {}", status, body);
+
+            self.log_api_call("MYSIMKARI", endpoint, &url, "GET", Some(status.as_u16() as i32), elapsed_ms, None, false, Some(&body), 1).await;
+
             return Err(MonsaktiError::ApiError(format!(
                 "HTTP {}: {}",
                 status, body
@@ -352,8 +417,12 @@ impl MonsaktiClient {
         let result: MonsaktiResponse = response.json().await?;
 
         if let Some(error_msg) = &result.error {
+            self.log_api_call("MYSIMKARI", endpoint, &url, "GET", Some(200), elapsed_ms, None, false, Some(error_msg), 1).await;
             return Err(MonsaktiError::ApiError(error_msg.clone()));
         }
+
+        let record_count = result.data.as_ref().and_then(|d| d.as_array().map(|a| a.len() as i32));
+        self.log_api_call("MYSIMKARI", endpoint, &url, "GET", Some(200), elapsed_ms, record_count, true, None, 1).await;
 
         Ok(result)
     }
@@ -450,6 +519,36 @@ impl MonsaktiClient {
         self.reset_token(module, tipe_data, "KL006").await
     }
 
+    /// Helper: Log API call ke tabel api_log (fire-and-forget, tidak mengganggu flow utama)
+    async fn log_api_call(
+        &self,
+        module: &str,
+        endpoint: &str,
+        url: &str,
+        method: &str,
+        status: Option<i32>,
+        elapsed_ms: i32,
+        record_count: Option<i32>,
+        success: bool,
+        error_msg: Option<&str>,
+        retry_count: i32,
+    ) {
+        if let Some(db) = &self.db_client {
+            let mut log = ApiCallLog::new(module, endpoint, url);
+            log.request_method = Some(method.to_string());
+            log.response_status = status;
+            log.response_time_ms = Some(elapsed_ms);
+            log.record_count = record_count;
+            log.success = success;
+            log.error_message = error_msg.map(|s| s.to_string());
+            log.retry_count = retry_count;
+            match log.save(db).await {
+                Ok(id) => info!("📝 API call logged (id={}): {} {} → {}", id, method, url, if success { "OK" } else { "FAIL" }),
+                Err(e) => warn!("⚠ Gagal log API call ke api_log: {:?}", e),
+            }
+        }
+    }
+
     /// Simpan token baru ke database
     async fn save_token_to_db(
         &self,
@@ -463,9 +562,9 @@ impl MonsaktiClient {
         hasher.update(token.as_bytes());
         let token_hash = format!("{:x}", hasher.finalize());
 
-        // Upsert token ke tabel api_tokens
+        // Upsert token ke tabel monsakti_tokens
         let query = r#"
-            INSERT INTO api_tokens (
+            INSERT INTO monsakti_tokens (
                 module,
                 token_value,
                 token_hash,
@@ -749,6 +848,8 @@ impl MonsaktiClient {
 
         info!("Fetching SIMAN row count: {}", url);
 
+        let started = Instant::now();
+
         let response = self
             .client
             .get(&url)
@@ -756,10 +857,16 @@ impl MonsaktiClient {
             .send()
             .await?;
 
+        let elapsed_ms = started.elapsed().as_millis() as i32;
+        let endpoint_name = format!("getRowCount/{}", category.table_name());
+
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             error!("SIMAN getRowCount request failed: {} - {}", status, body);
+
+            self.log_api_call("SIMAN", &endpoint_name, &url, "GET", Some(status.as_u16() as i32), elapsed_ms, None, false, Some(&body), 1).await;
+
             return Err(MonsaktiError::ApiError(format!(
                 "HTTP {}: {}",
                 status, body
@@ -768,6 +875,8 @@ impl MonsaktiClient {
 
         // SIMAN mengembalikan structure yang berbeda, wrap dalam MonsaktiResponse
         let data: serde_json::Value = response.json().await?;
+
+        self.log_api_call("SIMAN", &endpoint_name, &url, "GET", Some(200), elapsed_ms, Some(1), true, None, 1).await;
 
         Ok(MonsaktiResponse {
             new_token: None,
@@ -809,6 +918,8 @@ impl MonsaktiClient {
             ("ID_2", &end_id.to_string()),
         ];
 
+        let started = Instant::now();
+
         let response = self
             .client
             .post(&url)
@@ -816,6 +927,9 @@ impl MonsaktiClient {
             .form(&params)
             .send()
             .await?;
+
+        let elapsed_ms = started.elapsed().as_millis() as i32;
+        let endpoint_name = category.endpoint().to_string();
 
         if !response.status().is_success() {
             let status = response.status();
@@ -826,6 +940,9 @@ impl MonsaktiClient {
                 status,
                 body
             );
+
+            self.log_api_call("SIMAN", &endpoint_name, &url, "POST", Some(status.as_u16() as i32), elapsed_ms, None, false, Some(&body), 1).await;
+
             return Err(MonsaktiError::ApiError(format!(
                 "HTTP {}: {}",
                 status, body
@@ -837,8 +954,12 @@ impl MonsaktiClient {
 
         // Cek apakah ada error dalam response
         if let Some(error_msg) = data.get("error").and_then(|e| e.as_str()) {
+            self.log_api_call("SIMAN", &endpoint_name, &url, "POST", Some(200), elapsed_ms, None, false, Some(error_msg), 1).await;
             return Err(MonsaktiError::ApiError(error_msg.to_string()));
         }
+
+        let record_count = data.as_array().map(|a| a.len() as i32);
+        self.log_api_call("SIMAN", &endpoint_name, &url, "POST", Some(200), elapsed_ms, record_count, true, None, 1).await;
 
         Ok(MonsaktiResponse {
             new_token: None,

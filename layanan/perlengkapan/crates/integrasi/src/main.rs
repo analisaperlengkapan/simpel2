@@ -8,7 +8,7 @@ use layanan_perlengkapan_integrasi::{
     fetch_satker_complete, fetch_satker_parallel, fetch_satker_with_modules, get_satker_list,
     storage_from_env,
 };
-use tracing::info;
+use tracing::{info, warn};
 
 #[derive(Debug, Clone, ValueEnum)]
 enum Source {
@@ -94,6 +94,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_env()?;
     let storage = storage_from_env();
     let mut client = MonsaktiClient::new(config).await?;
+
+    // Seed MonSAKTI tokens dari .env ke tabel monsakti_tokens (idempotent upsert)
+    if let Err(e) = client.seed_monsakti_tokens().await {
+        warn!("⚠ Gagal seed MonSAKTI tokens ke database: {:?}", e);
+    }
 
     info!("Storage strategy: {:?}", storage);
 

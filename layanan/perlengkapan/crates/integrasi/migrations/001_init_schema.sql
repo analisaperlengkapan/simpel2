@@ -4,7 +4,7 @@
 -- Purpose: Complete database schema for integration service
 -- Sources: MonSAKTI (8 modules: ADM/ANG/AST/BEN/GLP/KOM/PEM/PER),
 --          MySIMKARI, SIMAN v2.0 (15 jenis aset)
--- Tables : 34 total (2 audit + 1 SIMAN + 2 MySIMKARI + 29 MonSAKTI)
+-- Tables : 34 total (1 audit + 1 tokens + 1 SIMAN + 2 MySIMKARI + 29 MonSAKTI)
 -- ============================================================================
 
 -- Create schema for isolation
@@ -51,8 +51,8 @@ CREATE TABLE IF NOT EXISTS api_log (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- Active API tokens per module
-CREATE TABLE IF NOT EXISTS api_tokens (
+-- MonSAKTI rotating bearer tokens per module
+CREATE TABLE IF NOT EXISTS monsakti_tokens (
     id BIGSERIAL PRIMARY KEY,
     module VARCHAR(20) NOT NULL UNIQUE,
     token_value TEXT NOT NULL,
@@ -424,8 +424,8 @@ CREATE INDEX IF NOT EXISTS idx_api_log_created ON api_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_api_log_type ON api_log(log_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_api_log_success ON api_log(success) WHERE success = false;
 
--- API Tokens
-CREATE INDEX IF NOT EXISTS idx_api_tokens_module ON api_tokens(module) WHERE is_active = true;
+-- MonSAKTI Tokens
+CREATE INDEX IF NOT EXISTS idx_monsakti_tokens_active ON monsakti_tokens(module) WHERE is_active = true;
 
 -- SIMAN
 CREATE INDEX IF NOT EXISTS idx_siman_aset_jenis ON siman_aset(jenis_aset);
@@ -455,14 +455,15 @@ LIMIT 100;
 -- Token health
 CREATE OR REPLACE VIEW v_token_health AS
 SELECT
-    t.module, t.is_active, t.expires_at, t.last_refreshed_at, t.refresh_count,
+    t.module, t.is_active, t.is_expired, t.expires_at, t.refreshed_at, t.refresh_count,
     CASE
-        WHEN t.expires_at < CURRENT_TIMESTAMP THEN 'EXPIRED'
-        WHEN t.expires_at < CURRENT_TIMESTAMP + INTERVAL '1 day' THEN 'EXPIRING_SOON'
+        WHEN t.is_expired THEN 'EXPIRED'
+        WHEN t.expires_at IS NOT NULL AND t.expires_at < CURRENT_TIMESTAMP THEN 'EXPIRED'
+        WHEN t.expires_at IS NOT NULL AND t.expires_at < CURRENT_TIMESTAMP + INTERVAL '1 day' THEN 'EXPIRING_SOON'
         WHEN NOT t.is_active THEN 'INACTIVE'
         ELSE 'HEALTHY'
     END AS health_status
-FROM api_tokens t
+FROM monsakti_tokens t
 ORDER BY health_status;
 
 -- API stats by module (last 7 days)
