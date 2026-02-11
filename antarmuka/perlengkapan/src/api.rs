@@ -336,6 +336,137 @@ pub struct CreatePenghapusanRequest {
     pub nilai_residu: Option<f64>,
 }
 
+// ============================================================================
+// SK PENGHAPUSAN BMN WORKFLOW Types
+// ============================================================================
+
+/// Penghapusan BMN entity with full workflow fields
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PenghapusanBmnWorkflow {
+    pub id: String,
+    pub satker_id: String,
+    pub asset_id: String,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub nup: String,
+    pub tanggal_penghapusan: String,
+    pub alasan: String,
+    pub metode_penghapusan: String,
+    pub nilai_residu: Option<f64>,
+    pub status: String,
+    pub status_kode: i32,
+    // Lampiran
+    pub lampiran_persyaratan: Option<String>,
+    pub lampiran_pendukung: Option<Value>,
+    pub catatan_operator: Option<String>,
+    // Validator Wilayah
+    pub catatan_validator_wilayah: Option<String>,
+    pub validator_wilayah_id: Option<String>,
+    pub tanggal_submit_wilayah: Option<String>,
+    pub tanggal_verifikasi_wilayah: Option<String>,
+    // Validator Pusat
+    pub catatan_validator_pusat: Option<String>,
+    pub validator_pusat_id: Option<String>,
+    pub tanggal_submit_pusat: Option<String>,
+    pub tanggal_verifikasi_pusat: Option<String>,
+    // SK Document
+    pub konsep_sk_url: Option<String>,
+    pub konsep_sk_generated_at: Option<String>,
+    pub signed_sk_pdf_url: Option<String>,
+    pub signed_sk_pdf_uploaded_at: Option<String>,
+    pub is_completed: bool,
+    // Legacy
+    pub document_id: Option<String>,
+    pub document_url: Option<String>,
+    pub created_by: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Create SK Penghapusan BMN request (workflow)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreatePenghapusanBmnWorkflowRequest {
+    pub satker_id: String,
+    pub asset_id: String,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub nup: String,
+    pub tanggal_penghapusan: String,
+    pub alasan: String,
+    pub metode_penghapusan: String,
+    pub nilai_residu: Option<f64>,
+    pub lampiran_persyaratan: String,
+    pub catatan_operator: Option<String>,
+}
+
+/// Update SK Penghapusan BMN request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdatePenghapusanBmnWorkflowRequest {
+    pub tanggal_penghapusan: Option<String>,
+    pub alasan: Option<String>,
+    pub metode_penghapusan: Option<String>,
+    pub nilai_residu: Option<f64>,
+    pub lampiran_persyaratan: Option<String>,
+    pub catatan_operator: Option<String>,
+}
+
+/// Penghapusan BMN list filters
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PenghapusanBmnFilters {
+    pub satker_id: Option<String>,
+    pub status: Option<String>,
+    pub status_kode: Option<i32>,
+    pub metode_penghapusan: Option<String>,
+    pub tahun: Option<i32>,
+}
+
+/// Validator wilayah action request for penghapusan BMN
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenghapusanValidatorWilayahActionRequest {
+    /// "forward" or "return"
+    pub aksi: String,
+    pub catatan: Option<String>,
+}
+
+/// Validator pusat action request for penghapusan BMN
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenghapusanValidatorPusatActionRequest {
+    /// "verify" or "reject"
+    pub aksi: String,
+    pub catatan: Option<String>,
+}
+
+/// Upload signed SK PDF request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UploadSignedSKRequest {
+    pub signed_sk_pdf_url: String,
+}
+
+/// Penghapusan BMN workflow transition request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenghapusanWorkflowTransitionRequest {
+    pub target_status: i32,
+    pub catatan: Option<String>,
+}
+
+/// Penghapusan BMN detail response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenghapusanBmnDetailResponse {
+    #[serde(flatten)]
+    pub penghapusan: PenghapusanBmnWorkflow,
+    pub allowed_transitions: Vec<PenghapusanTransitionInfo>,
+    pub can_generate_sk: bool,
+    pub can_upload_signed_sk: bool,
+}
+
+/// Transition info for penghapusan BMN
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenghapusanTransitionInfo {
+    pub status_kode: i32,
+    pub status_nama: String,
+    pub requires_comment: bool,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Pengalihan {
     pub id: String,
@@ -2655,6 +2786,27 @@ pub struct PengajuanKebutuhanBmnSatker {
     pub nm_satker: Option<String>,
     pub status_kode: i32,
     pub prioritas: i32,
+    // Operator satker fields
+    pub catatan_satker: Option<String>,
+    pub lampiran_surat_permohonan: Option<String>,
+    pub lampiran_pendukung: Option<Value>,
+    // Validator Wilayah fields
+    pub catatan_validator_wilayah: Option<String>,
+    pub validator_wilayah_id: Option<String>,
+    pub tanggal_submit_wilayah: Option<String>,
+    // Validator Pusat fields
+    pub catatan_validator_pusat: Option<String>,
+    pub validator_pusat_id: Option<String>,
+    pub tanggal_submit_pusat: Option<String>,
+    // Analisis data (SIMAN + MySIMKARI)
+    pub data_eksisting_siman: Option<Value>,
+    pub data_pegawai_mysimkari: Option<Value>,
+    pub rekap_eselon: Option<Value>,
+    pub rekap_non_eselon: Option<Value>,
+    pub hasil_analisis: Option<Value>,
+    // Keputusan validator pusat
+    pub is_approved: Option<bool>,
+    pub alasan_keputusan: Option<String>,
     pub created_by: Option<String>,
     pub updated_by: Option<String>,
     pub created_at: String,
@@ -2751,7 +2903,30 @@ pub struct SatkerWithBarangResponse {
 pub struct AnalisisKelayakanResponse {
     pub satker: PengajuanKebutuhanBmnSatker,
     pub barang_list: Vec<BarangWithExistingInventory>,
+    pub data_pegawai: Option<DataPegawaiRekap>,
     pub summary: AnalisisSummary,
+}
+
+/// Rekap data pegawai from MySIMKARI
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DataPegawaiRekap {
+    pub total_pegawai: i64,
+    pub rekap_eselon: Vec<RekapEselonItem>,
+    pub rekap_non_eselon: Vec<RekapNonEselonItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RekapEselonItem {
+    pub tingkat_eselon: String,
+    pub jumlah: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RekapNonEselonItem {
+    pub golongan: String,
+    pub pangkat: String,
+    pub is_jaksa: bool,
+    pub jumlah: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -2916,6 +3091,38 @@ pub struct PrioritasItem {
 pub struct WorkflowTransitionRequest {
     pub target_status: i32,
     pub komentar: Option<String>,
+}
+
+/// Request for operator satker submitting to validator wilayah
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubmitKebutuhanSatkerRequest {
+    pub catatan_satker: Option<String>,
+    pub lampiran_surat_permohonan: String,
+    #[serde(default)]
+    pub lampiran_pendukung: Vec<LampiranItem>,
+}
+
+/// Lampiran item for file attachments
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LampiranItem {
+    pub nama: String,
+    pub url: String,
+    pub tipe: Option<String>,
+}
+
+/// Request for validator wilayah action (forward or return)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KebutuhanValidatorWilayahActionRequest {
+    /// "forward" or "return"
+    pub aksi: String,
+    pub catatan: Option<String>,
+}
+
+/// Request for validator pusat decision (approve or reject only)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidatorPusatKeputusanRequest {
+    pub is_approved: bool,
+    pub alasan: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3749,6 +3956,132 @@ pub async fn batch_update_status(
     Err("Server-side stub".to_string())
 }
 
+// --- Kebutuhan BMN Workflow: Submit Satker to Wilayah ---
+#[cfg(target_arch = "wasm32")]
+pub async fn submit_kebutuhan_satker_to_wilayah(
+    satker_id: &str,
+    request: SubmitKebutuhanSatkerRequest,
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!(
+        "{}/satker/{}/submit-wilayah",
+        KEBUTUHAN_BMN_BASE, satker_id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .header("Content-Type", "application/json")
+    .json(&request)?
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn submit_kebutuhan_satker_to_wilayah(
+    _satker_id: &str,
+    _request: SubmitKebutuhanSatkerRequest,
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Kebutuhan BMN Workflow: Validator Wilayah Action ---
+#[cfg(target_arch = "wasm32")]
+pub async fn kebutuhan_validator_wilayah_action(
+    satker_id: &str,
+    request: KebutuhanValidatorWilayahActionRequest,
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!(
+        "{}/satker/{}/validator-wilayah",
+        KEBUTUHAN_BMN_BASE, satker_id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .header("Content-Type", "application/json")
+    .json(&request)?
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn kebutuhan_validator_wilayah_action(
+    _satker_id: &str,
+    _request: KebutuhanValidatorWilayahActionRequest,
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Kebutuhan BMN Workflow: Validator Pusat Decision ---
+#[cfg(target_arch = "wasm32")]
+pub async fn kebutuhan_validator_pusat_keputusan(
+    satker_id: &str,
+    request: ValidatorPusatKeputusanRequest,
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!(
+        "{}/satker/{}/keputusan-pusat",
+        KEBUTUHAN_BMN_BASE, satker_id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .header("Content-Type", "application/json")
+    .json(&request)?
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn kebutuhan_validator_pusat_keputusan(
+    _satker_id: &str,
+    _request: ValidatorPusatKeputusanRequest,
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, String> {
+    Err("Server-side stub".to_string())
+}
+
 // ============================================================================
 // SIMAN Integration API
 // ============================================================================
@@ -3863,6 +4196,10 @@ pub struct IzinPemakaianBmn {
     pub pegawai_satker_id: String,
     pub pegawai_satker_nama: String,
     pub pegawai_jabatan: Option<String>,
+    pub pegawai_golongan: Option<String>,
+    pub pegawai_pangkat: Option<String>,
+    pub pegawai_unit_kerja: Option<String>,
+    pub foto_pegawai: Option<String>,
     pub jenis_bmn: String,
     pub bmn_nup: String,
     pub bmn_kode_barang: String,
@@ -3886,6 +4223,12 @@ pub struct IzinPemakaianBmn {
     pub is_renewal: bool,
     pub previous_permit_id: Option<String>,
     pub file_pendukung: Option<Value>,
+    // Document generation fields
+    pub konsep_surat_url: Option<String>,
+    pub konsep_surat_generated_at: Option<String>,
+    pub signed_pdf_url: Option<String>,
+    pub signed_pdf_uploaded_at: Option<String>,
+    pub is_completed: Option<bool>,
     pub status: String,
     pub catatan_approval: Option<String>,
     pub catatan_revocation: Option<String>,
@@ -3901,6 +4244,26 @@ pub struct IzinPemakaianBmn {
     pub updated_by_nama: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    /// Additional BMN items in this permit (multi-BMN per pegawai)
+    #[serde(default)]
+    pub bmn_items: Vec<PemakaianBmnItem>,
+}
+
+/// BMN item in a pemakaian permit (multi-BMN per pegawai)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PemakaianBmnItem {
+    pub id: String,
+    pub izin_pemakaian_id: String,
+    pub bmn_nup: String,
+    pub bmn_kode_barang: String,
+    pub bmn_nama_barang: String,
+    pub bmn_merk: Option<String>,
+    pub bmn_tahun_perolehan: Option<i32>,
+    pub bmn_kondisi: Option<String>,
+    pub detail_bmn: Option<Value>,
+    pub keterangan: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 /// Request to create a new BMN usage permit
@@ -3911,6 +4274,10 @@ pub struct CreateIzinPemakaianRequest {
     pub pegawai_satker_id: String,
     pub pegawai_satker_nama: String,
     pub pegawai_jabatan: Option<String>,
+    pub pegawai_golongan: Option<String>,
+    pub pegawai_pangkat: Option<String>,
+    pub pegawai_unit_kerja: Option<String>,
+    pub foto_pegawai: Option<String>,
     pub jenis_bmn: String,
     pub bmn_nup: String,
     pub bmn_kode_barang: String,
@@ -3934,6 +4301,34 @@ pub struct CreateIzinPemakaianRequest {
     pub file_pendukung: Option<Value>,
     pub is_renewal: Option<bool>,
     pub previous_permit_id: Option<String>,
+    /// Additional BMN items (multi-BMN per pegawai)
+    #[serde(default)]
+    pub additional_bmn_items: Vec<CreateBmnItemRequest>,
+}
+
+/// Request to add a BMN item to a permit
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateBmnItemRequest {
+    pub bmn_nup: String,
+    pub bmn_kode_barang: String,
+    pub bmn_nama_barang: String,
+    pub bmn_merk: Option<String>,
+    pub bmn_tahun_perolehan: Option<i32>,
+    pub bmn_kondisi: Option<String>,
+    pub detail_bmn: Option<Value>,
+    pub keterangan: Option<String>,
+}
+
+/// Request to upload signed PDF
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UploadSignedPdfRequest {
+    pub signed_pdf_url: String,
+}
+
+/// Request to generate konsep surat
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenerateKonsepSuratRequest {
+    pub format: Option<String>,
 }
 
 /// BMN availability check response
@@ -3962,6 +4357,8 @@ pub struct IzinPemakaianDetailResponse {
     pub allowed_transitions: Vec<PemakaianWorkflowTransitionInfo>,
     pub days_until_expiry: Option<i64>,
     pub is_expiring_soon: bool,
+    pub can_generate_konsep: Option<bool>,
+    pub can_upload_signed_pdf: Option<bool>,
 }
 
 /// Request to transition workflow status
@@ -4444,4 +4841,494 @@ pub async fn fetch_expiring_permits(
         data: vec![],
         message: "Server-side stub".to_string(),
     })
+}
+
+// --- Pemakaian BMN: Generate Konsep Surat ---
+#[cfg(target_arch = "wasm32")]
+pub async fn generate_pemakaian_konsep_surat(
+    id: &str,
+    request: GenerateKonsepSuratRequest,
+) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!(
+        "{}/{}/generate-konsep-surat",
+        PEMAKAIAN_BMN_BASE, id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .header("Content-Type", "application/json")
+    .json(&request)?
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn generate_pemakaian_konsep_surat(
+    _id: &str,
+    _request: GenerateKonsepSuratRequest,
+) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Pemakaian BMN: Upload Signed PDF ---
+#[cfg(target_arch = "wasm32")]
+pub async fn upload_pemakaian_signed_pdf(
+    id: &str,
+    request: UploadSignedPdfRequest,
+) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!(
+        "{}/{}/upload-signed-pdf",
+        PEMAKAIAN_BMN_BASE, id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .header("Content-Type", "application/json")
+    .json(&request)?
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn upload_pemakaian_signed_pdf(
+    _id: &str,
+    _request: UploadSignedPdfRequest,
+) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// ============================================================================
+// SK PENGHAPUSAN BMN WORKFLOW API FUNCTIONS
+// ============================================================================
+
+const PENGHAPUSAN_BMN_BASE: &str = "/api/pembinaan/perlengkapan/penghapusan-bmn";
+
+// --- List Penghapusan BMN ---
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_penghapusan_bmn_list(
+    page: i32,
+    per_page: i32,
+    filters: PenghapusanBmnFilters,
+) -> Result<PaginatedResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let mut url = format!("{}?page={}&per_page={}", PENGHAPUSAN_BMN_BASE, page, per_page);
+    if let Some(ref satker_id) = filters.satker_id {
+        url.push_str(&format!("&satker_id={}", satker_id));
+    }
+    if let Some(ref status) = filters.status {
+        url.push_str(&format!("&status={}", status));
+    }
+    if let Some(status_kode) = filters.status_kode {
+        url.push_str(&format!("&status_kode={}", status_kode));
+    }
+    if let Some(ref metode) = filters.metode_penghapusan {
+        url.push_str(&format!("&metode_penghapusan={}", metode));
+    }
+    if let Some(tahun) = filters.tahun {
+        url.push_str(&format!("&tahun={}", tahun));
+    }
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_penghapusan_bmn_list(
+    _page: i32,
+    _per_page: i32,
+    _filters: PenghapusanBmnFilters,
+) -> Result<PaginatedResponse<PenghapusanBmnWorkflow>, String> {
+    Ok(PaginatedResponse {
+        success: true,
+        data: vec![],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+// --- Get Penghapusan BMN Detail ---
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_penghapusan_bmn_detail(
+    id: &str,
+) -> Result<ApiResponse<PenghapusanBmnDetailResponse>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::get(&format!("{}/{}/detail", PENGHAPUSAN_BMN_BASE, id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_penghapusan_bmn_detail(
+    _id: &str,
+) -> Result<ApiResponse<PenghapusanBmnDetailResponse>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Create Penghapusan BMN ---
+#[cfg(target_arch = "wasm32")]
+pub async fn create_penghapusan_bmn_workflow(
+    request: CreatePenghapusanBmnWorkflowRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(PENGHAPUSAN_BMN_BASE)
+        .header("Authorization", &format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_penghapusan_bmn_workflow(
+    _request: CreatePenghapusanBmnWorkflowRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Update Penghapusan BMN ---
+#[cfg(target_arch = "wasm32")]
+pub async fn update_penghapusan_bmn_workflow(
+    id: &str,
+    request: UpdatePenghapusanBmnWorkflowRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::put(&format!("{}/{}", PENGHAPUSAN_BMN_BASE, id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&request)?
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn update_penghapusan_bmn_workflow(
+    _id: &str,
+    _request: UpdatePenghapusanBmnWorkflowRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Delete Penghapusan BMN ---
+#[cfg(target_arch = "wasm32")]
+pub async fn delete_penghapusan_bmn_workflow(
+    id: &str,
+) -> Result<ApiResponse<()>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::delete(&format!("{}/{}", PENGHAPUSAN_BMN_BASE, id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn delete_penghapusan_bmn_workflow(
+    _id: &str,
+) -> Result<ApiResponse<()>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Submit Penghapusan BMN to Validator Wilayah ---
+#[cfg(target_arch = "wasm32")]
+pub async fn submit_penghapusan_to_wilayah(
+    id: &str,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!("{}/{}/submit-wilayah", PENGHAPUSAN_BMN_BASE, id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn submit_penghapusan_to_wilayah(
+    _id: &str,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Validator Wilayah Action for Penghapusan BMN ---
+#[cfg(target_arch = "wasm32")]
+pub async fn penghapusan_validator_wilayah_action(
+    id: &str,
+    request: PenghapusanValidatorWilayahActionRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!(
+        "{}/{}/validator-wilayah",
+        PENGHAPUSAN_BMN_BASE, id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .header("Content-Type", "application/json")
+    .json(&request)?
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn penghapusan_validator_wilayah_action(
+    _id: &str,
+    _request: PenghapusanValidatorWilayahActionRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Generate Konsep SK Penghapusan BMN ---
+#[cfg(target_arch = "wasm32")]
+pub async fn generate_penghapusan_konsep_sk(
+    id: &str,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!("{}/{}/generate-sk", PENGHAPUSAN_BMN_BASE, id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn generate_penghapusan_konsep_sk(
+    _id: &str,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Upload Signed SK Penghapusan BMN ---
+#[cfg(target_arch = "wasm32")]
+pub async fn upload_penghapusan_signed_sk(
+    id: &str,
+    request: UploadSignedSKRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!(
+        "{}/{}/upload-signed-sk",
+        PENGHAPUSAN_BMN_BASE, id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .header("Content-Type", "application/json")
+    .json(&request)?
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn upload_penghapusan_signed_sk(
+    _id: &str,
+    _request: UploadSignedSKRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, String> {
+    Err("Server-side stub".to_string())
+}
+
+// --- Legacy Workflow Transition for Penghapusan BMN ---
+#[cfg(target_arch = "wasm32")]
+pub async fn transition_penghapusan_bmn_status(
+    id: &str,
+    request: PenghapusanWorkflowTransitionRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+    use crate::components::auth::get_auth_token;
+    use gloo_net::http::Request;
+
+    let token = get_auth_token()
+        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
+
+    let resp = Request::post(&format!(
+        "{}/{}/transition",
+        PENGHAPUSAN_BMN_BASE, id
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .header("Content-Type", "application/json")
+    .json(&request)?
+    .send()
+    .await?;
+
+    if !resp.ok() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(gloo_net::Error::GlooError(format!(
+            "API Error: {} - {}",
+            resp.status(),
+            err_text
+        )));
+    }
+
+    resp.json().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn transition_penghapusan_bmn_status(
+    _id: &str,
+    _request: PenghapusanWorkflowTransitionRequest,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, String> {
+    Err("Server-side stub".to_string())
 }

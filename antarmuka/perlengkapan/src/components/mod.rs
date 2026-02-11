@@ -44,6 +44,8 @@ pub mod pengalihan_form;
 pub mod pengalihan_list;
 pub mod penghapusan_form;
 pub mod penghapusan_list;
+// Penghapusan BMN workflow detail
+pub mod penghapusan_bmn_detail;
 // Perlengkapan Dashboard
 pub mod perlengkapan_dashboard;
 // Roadmap Sarpras components

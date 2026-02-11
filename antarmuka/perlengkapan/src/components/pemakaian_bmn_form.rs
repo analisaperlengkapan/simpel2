@@ -13,7 +13,7 @@
 use leptos::prelude::*;
 use crate::api::{
     check_bmn_availability, create_pemakaian_bmn,
-    CreateIzinPemakaianRequest, BmnAvailabilityResponse,
+    CreateIzinPemakaianRequest, BmnAvailabilityResponse, CreateBmnItemRequest,
 };
 
 #[component]
@@ -27,6 +27,13 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     // Pegawai info
     let (pegawai_nip, set_pegawai_nip) = signal("".to_string());
     let (pegawai_nama, set_pegawai_nama) = signal("".to_string());
+    let (pegawai_golongan, set_pegawai_golongan) = signal("".to_string());
+    let (pegawai_pangkat, set_pegawai_pangkat) = signal("".to_string());
+    let (pegawai_unit_kerja, set_pegawai_unit_kerja) = signal("".to_string());
+    let (foto_pegawai, set_foto_pegawai) = signal("".to_string());
+
+    // Additional BMN items (multi-BMN per pegawai)
+    let (additional_bmn_items, set_additional_bmn_items) = signal::<Vec<CreateBmnItemRequest>>(vec![]);
 
     // Common fields
     let (tanggal_mulai, set_tanggal_mulai) = signal("".to_string());
@@ -106,6 +113,10 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             pegawai_satker_id: "".to_string(), // TODO: Get from user context
             pegawai_satker_nama: "".to_string(), // TODO: Get from user context
             pegawai_jabatan: None,
+            pegawai_golongan: if pegawai_golongan.get().is_empty() { None } else { Some(pegawai_golongan.get()) },
+            pegawai_pangkat: if pegawai_pangkat.get().is_empty() { None } else { Some(pegawai_pangkat.get()) },
+            unit_kerja: if pegawai_unit_kerja.get().is_empty() { None } else { Some(pegawai_unit_kerja.get()) },
+            foto_pegawai: if foto_pegawai.get().is_empty() { None } else { Some(foto_pegawai.get()) },
             jenis_bmn: jenis_bmn.get(),
             bmn_nup: bmn_nup.get(),
             bmn_kode_barang: "".to_string(), // TODO: Get from BMN data when NUP is entered
@@ -165,6 +176,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             file_pendukung: None,
             is_renewal: None,
             previous_permit_id: None,
+            additional_bmn_items: if additional_bmn_items.get().is_empty() { None } else { Some(additional_bmn_items.get()) },
         };
 
         leptos::task::spawn_local(async move {
@@ -251,6 +263,46 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 prop:value=move || pegawai_nama.get()
                                 on:input=move |ev| set_pegawai_nama.set(event_target_value(&ev))
                                 required
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">"Golongan"</label>
+                            <input
+                                type="text"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                placeholder="Contoh: III/c"
+                                prop:value=move || pegawai_golongan.get()
+                                on:input=move |ev| set_pegawai_golongan.set(event_target_value(&ev))
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">"Pangkat"</label>
+                            <input
+                                type="text"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                placeholder="Contoh: Penata"
+                                prop:value=move || pegawai_pangkat.get()
+                                on:input=move |ev| set_pegawai_pangkat.set(event_target_value(&ev))
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">"Unit Kerja"</label>
+                            <input
+                                type="text"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                placeholder="Unit kerja pegawai"
+                                prop:value=move || pegawai_unit_kerja.get()
+                                on:input=move |ev| set_pegawai_unit_kerja.set(event_target_value(&ev))
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">"Foto Pegawai (URL)"</label>
+                            <input
+                                type="text"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                placeholder="URL foto pegawai"
+                                prop:value=move || foto_pegawai.get()
+                                on:input=move |ev| set_foto_pegawai.set(event_target_value(&ev))
                             />
                         </div>
                     </div>
@@ -478,6 +530,110 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                         prop:value=move || lokasi_pemakaian.get()
                         on:input=move |ev| set_lokasi_pemakaian.set(event_target_value(&ev))
                     />
+                </div>
+
+                // Additional BMN Items (multi-BMN per pegawai)
+                <div class="border-t pt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            "BMN Tambahan"
+                            <span class="text-sm font-normal text-gray-500 ml-2">"(Opsional, untuk pegawai yang menggunakan lebih dari 1 BMN)"</span>
+                        </h3>
+                        <button
+                            type="button"
+                            class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 flex items-center gap-1"
+                            on:click=move |_| {
+                                let mut items = additional_bmn_items.get();
+                                items.push(CreateBmnItemRequest {
+                                    kode_barang: String::new(),
+                                    nama_barang: String::new(),
+                                    nup: String::new(),
+                                    jumlah: 1,
+                                    satuan: "Unit".to_string(),
+                                    kondisi: None,
+                                });
+                                set_additional_bmn_items.set(items);
+                            }
+                        >
+                            <i class="fas fa-plus"></i>
+                            "Tambah BMN"
+                        </button>
+                    </div>
+
+                    <Show when=move || !additional_bmn_items.get().is_empty()>
+                        <div class="space-y-3">
+                            <For
+                                each=move || additional_bmn_items.get().into_iter().enumerate().collect::<Vec<_>>()
+                                key=|(idx, _)| *idx
+                                children=move |(idx, _item)| {
+                                    view! {
+                                        <div class="p-4 bg-gray-50 rounded-lg border relative">
+                                            <button
+                                                type="button"
+                                                class="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                                                on:click=move |_| {
+                                                    let mut items = additional_bmn_items.get();
+                                                    if idx < items.len() {
+                                                        items.remove(idx);
+                                                        set_additional_bmn_items.set(items);
+                                                    }
+                                                }
+                                            >
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                <div>
+                                                    <label class="block text-xs font-medium text-gray-600 mb-1">"Kode Barang"</label>
+                                                    <input
+                                                        type="text"
+                                                        class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                        placeholder="Kode barang"
+                                                        on:input=move |ev| {
+                                                            let mut items = additional_bmn_items.get();
+                                                            if let Some(item) = items.get_mut(idx) {
+                                                                item.kode_barang = event_target_value(&ev);
+                                                            }
+                                                            set_additional_bmn_items.set(items);
+                                                        }
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label class="block text-xs font-medium text-gray-600 mb-1">"Nama Barang"</label>
+                                                    <input
+                                                        type="text"
+                                                        class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                        placeholder="Nama barang"
+                                                        on:input=move |ev| {
+                                                            let mut items = additional_bmn_items.get();
+                                                            if let Some(item) = items.get_mut(idx) {
+                                                                item.nama_barang = event_target_value(&ev);
+                                                            }
+                                                            set_additional_bmn_items.set(items);
+                                                        }
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label class="block text-xs font-medium text-gray-600 mb-1">"NUP"</label>
+                                                    <input
+                                                        type="text"
+                                                        class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                        placeholder="NUP"
+                                                        on:input=move |ev| {
+                                                            let mut items = additional_bmn_items.get();
+                                                            if let Some(item) = items.get_mut(idx) {
+                                                                item.nup = event_target_value(&ev);
+                                                            }
+                                                            set_additional_bmn_items.set(items);
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            />
+                        </div>
+                    </Show>
                 </div>
 
                 // Submit buttons

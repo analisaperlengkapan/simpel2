@@ -15,24 +15,29 @@ use validator::Validate;
 // ============================================================================
 
 /// Workflow status codes for BMN needs requests
+///
+/// Flow:
+///   Draft(2000) → InputBarang(2001) → SubmitWilayah(2002) → SubmitPusat(2004) → AnalisisKelayakan(2005) → Approved(2006)/Rejected(2007) → Completed(2008)
+///   Validator Wilayah can return to RevisiSatker(2003)
+///   Validator Pusat approves or rejects (no revision back)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]
 pub enum KebutuhanBmnStatus {
-    /// New request in draft state
+    /// New request in draft state (Validator Pusat creates period)
     Draft = 2000,
-    /// Pelaksana Satker inputting goods
+    /// Operator Satker inputting goods + attachments
     InputBarang = 2001,
-    /// Satker submitted to Validator
-    SubmitSatker = 2002,
-    /// Returned to Satker for revision
+    /// Operator Satker submitted to Validator Wilayah
+    SubmitWilayah = 2002,
+    /// Returned to Operator Satker for revision (by Validator Wilayah)
     RevisiSatker = 2003,
-    /// Validator Pusat analyzing feasibility
-    AnalisisKelayakan = 2004,
-    /// Validator Pusat setting priorities
-    PenyusunanPrioritas = 2005,
-    /// Request approved
+    /// Validator Wilayah forwarded to Validator Pusat
+    SubmitPusat = 2004,
+    /// Validator Pusat analyzing feasibility (SIMAN + MySIMKARI data)
+    AnalisisKelayakan = 2005,
+    /// Request approved by Validator Pusat
     Approved = 2006,
-    /// Request rejected
+    /// Request rejected by Validator Pusat
     Rejected = 2007,
     /// Process completed
     Completed = 2008,
@@ -46,10 +51,10 @@ impl KebutuhanBmnStatus {
         match code {
             2000 => Some(Self::Draft),
             2001 => Some(Self::InputBarang),
-            2002 => Some(Self::SubmitSatker),
+            2002 => Some(Self::SubmitWilayah),
             2003 => Some(Self::RevisiSatker),
-            2004 => Some(Self::AnalisisKelayakan),
-            2005 => Some(Self::PenyusunanPrioritas),
+            2004 => Some(Self::SubmitPusat),
+            2005 => Some(Self::AnalisisKelayakan),
             2006 => Some(Self::Approved),
             2007 => Some(Self::Rejected),
             2008 => Some(Self::Completed),
@@ -68,10 +73,10 @@ impl KebutuhanBmnStatus {
         match self {
             Self::Draft => "Draft",
             Self::InputBarang => "Input Barang",
-            Self::SubmitSatker => "Diajukan ke Validator",
+            Self::SubmitWilayah => "Diajukan ke Validator Wilayah",
             Self::RevisiSatker => "Revisi Satker",
+            Self::SubmitPusat => "Diajukan ke Validator Pusat",
             Self::AnalisisKelayakan => "Analisis Kelayakan",
-            Self::PenyusunanPrioritas => "Penyusunan Prioritas",
             Self::Approved => "Disetujui",
             Self::Rejected => "Ditolak",
             Self::Completed => "Selesai",
@@ -80,15 +85,19 @@ impl KebutuhanBmnStatus {
     }
 
     /// Check if transition to target status is allowed
+    ///
+    /// Flow: Draft → InputBarang → SubmitWilayah → SubmitPusat → AnalisisKelayakan → Approved/Rejected
+    /// Validator Wilayah: SubmitWilayah → SubmitPusat (forward) or RevisiSatker (return)
+    /// Validator Pusat: AnalisisKelayakan → Approved or Rejected (NO revision back)
     pub fn can_transition_to(&self, target: Self) -> bool {
         use KebutuhanBmnStatus::*;
         match self {
             Draft => matches!(target, InputBarang | Cancelled),
-            InputBarang => matches!(target, SubmitSatker | Cancelled),
-            SubmitSatker => matches!(target, AnalisisKelayakan | RevisiSatker | Rejected),
-            RevisiSatker => matches!(target, SubmitSatker | Cancelled),
-            AnalisisKelayakan => matches!(target, PenyusunanPrioritas | RevisiSatker | Rejected),
-            PenyusunanPrioritas => matches!(target, Approved | Rejected),
+            InputBarang => matches!(target, SubmitWilayah | Cancelled),
+            SubmitWilayah => matches!(target, SubmitPusat | RevisiSatker),
+            RevisiSatker => matches!(target, SubmitWilayah | Cancelled),
+            SubmitPusat => matches!(target, AnalisisKelayakan),
+            AnalisisKelayakan => matches!(target, Approved | Rejected),
             Approved => matches!(target, Completed),
             Rejected | Completed | Cancelled => false,
         }
@@ -99,11 +108,11 @@ impl KebutuhanBmnStatus {
         use KebutuhanBmnStatus::*;
         match self {
             Draft => vec![InputBarang, Cancelled],
-            InputBarang => vec![SubmitSatker, Cancelled],
-            SubmitSatker => vec![AnalisisKelayakan, RevisiSatker, Rejected],
-            RevisiSatker => vec![SubmitSatker, Cancelled],
-            AnalisisKelayakan => vec![PenyusunanPrioritas, RevisiSatker, Rejected],
-            PenyusunanPrioritas => vec![Approved, Rejected],
+            InputBarang => vec![SubmitWilayah, Cancelled],
+            SubmitWilayah => vec![SubmitPusat, RevisiSatker],
+            RevisiSatker => vec![SubmitWilayah, Cancelled],
+            SubmitPusat => vec![AnalisisKelayakan],
+            AnalisisKelayakan => vec![Approved, Rejected],
             Approved => vec![Completed],
             Rejected | Completed | Cancelled => vec![],
         }
@@ -114,10 +123,10 @@ impl KebutuhanBmnStatus {
         match self {
             Self::Draft => "DRAFT",
             Self::InputBarang => "INPUT_BARANG",
-            Self::SubmitSatker => "SUBMIT_SATKER",
+            Self::SubmitWilayah => "SUBMIT_WILAYAH",
             Self::RevisiSatker => "REVISI_SATKER",
+            Self::SubmitPusat => "SUBMIT_PUSAT",
             Self::AnalisisKelayakan => "ANALISIS_KELAYAKAN",
-            Self::PenyusunanPrioritas => "PENYUSUNAN_PRIORITAS",
             Self::Approved => "APPROVED",
             Self::Rejected => "REJECTED",
             Self::Completed => "COMPLETED",
@@ -130,10 +139,12 @@ impl KebutuhanBmnStatus {
         match name {
             "DRAFT" => Some(Self::Draft),
             "INPUT_BARANG" => Some(Self::InputBarang),
-            "SUBMIT_SATKER" => Some(Self::SubmitSatker),
+            "SUBMIT_WILAYAH" => Some(Self::SubmitWilayah),
+            "SUBMIT_SATKER" => Some(Self::SubmitWilayah), // backward compat
             "REVISI_SATKER" => Some(Self::RevisiSatker),
+            "SUBMIT_PUSAT" => Some(Self::SubmitPusat),
             "ANALISIS_KELAYAKAN" => Some(Self::AnalisisKelayakan),
-            "PENYUSUNAN_PRIORITAS" => Some(Self::PenyusunanPrioritas),
+            "PENYUSUNAN_PRIORITAS" => Some(Self::AnalisisKelayakan), // backward compat
             "APPROVED" => Some(Self::Approved),
             "REJECTED" => Some(Self::Rejected),
             "COMPLETED" => Some(Self::Completed),
@@ -201,6 +212,11 @@ pub struct PengajuanKebutuhanBmn {
     pub is_appv_daskrimti: bool,
     pub status_kode: i32,
     pub status: KebutuhanBmnStatus,
+    // Report generation
+    pub laporan_url: Option<String>,
+    pub laporan_format: Option<String>,
+    pub laporan_generated_at: Option<DateTime<Utc>>,
+    // Audit
     pub created_by: Option<Uuid>,
     pub updated_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
@@ -226,6 +242,9 @@ impl PengajuanKebutuhanBmn {
             is_appv_daskrimti: row.get("is_appv_daskrimti"),
             status_kode,
             status: KebutuhanBmnStatus::from_code(status_kode).unwrap_or_default(),
+            laporan_url: row.try_get("laporan_url").ok().flatten(),
+            laporan_format: row.try_get("laporan_format").ok().flatten(),
+            laporan_generated_at: row.try_get("laporan_generated_at").ok().flatten(),
             created_by: row.get("created_by"),
             updated_by: row.get("updated_by"),
             created_at: row.get("created_at"),
@@ -282,6 +301,27 @@ pub struct PengajuanKebutuhanBmnSatker {
     pub status_kode: i32,
     pub status: KebutuhanBmnStatus,
     pub prioritas: i32,
+    // Lampiran & catatan operator satker
+    pub catatan_satker: Option<String>,
+    pub lampiran_surat_permohonan: Option<String>,
+    pub lampiran_pendukung: Value,
+    // Validator wilayah
+    pub catatan_validator_wilayah: Option<String>,
+    pub validator_wilayah_id: Option<Uuid>,
+    pub tanggal_submit_wilayah: Option<DateTime<Utc>>,
+    // Validator pusat
+    pub catatan_validator_pusat: Option<String>,
+    pub validator_pusat_id: Option<Uuid>,
+    pub tanggal_submit_pusat: Option<DateTime<Utc>>,
+    // Analysis data (from SIMAN & MySIMKARI)
+    pub data_eksisting_siman: Value,
+    pub data_pegawai_mysimkari: Value,
+    pub rekap_eselon: Value,
+    pub rekap_non_eselon: Value,
+    pub hasil_analisis: Value,
+    pub is_approved: Option<bool>,
+    pub alasan_keputusan: Option<String>,
+    // Audit
     pub created_by: Option<Uuid>,
     pub updated_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
@@ -300,6 +340,22 @@ impl PengajuanKebutuhanBmnSatker {
             status_kode,
             status: KebutuhanBmnStatus::from_code(status_kode).unwrap_or_default(),
             prioritas: row.get("prioritas"),
+            catatan_satker: row.try_get("catatan_satker").ok().flatten(),
+            lampiran_surat_permohonan: row.try_get("lampiran_surat_permohonan").ok().flatten(),
+            lampiran_pendukung: row.try_get("lampiran_pendukung").unwrap_or(serde_json::json!([])),
+            catatan_validator_wilayah: row.try_get("catatan_validator_wilayah").ok().flatten(),
+            validator_wilayah_id: row.try_get("validator_wilayah_id").ok().flatten(),
+            tanggal_submit_wilayah: row.try_get("tanggal_submit_wilayah").ok().flatten(),
+            catatan_validator_pusat: row.try_get("catatan_validator_pusat").ok().flatten(),
+            validator_pusat_id: row.try_get("validator_pusat_id").ok().flatten(),
+            tanggal_submit_pusat: row.try_get("tanggal_submit_pusat").ok().flatten(),
+            data_eksisting_siman: row.try_get("data_eksisting_siman").unwrap_or(serde_json::json!({})),
+            data_pegawai_mysimkari: row.try_get("data_pegawai_mysimkari").unwrap_or(serde_json::json!({})),
+            rekap_eselon: row.try_get("rekap_eselon").unwrap_or(serde_json::json!({})),
+            rekap_non_eselon: row.try_get("rekap_non_eselon").unwrap_or(serde_json::json!({})),
+            hasil_analisis: row.try_get("hasil_analisis").unwrap_or(serde_json::json!({})),
+            is_approved: row.try_get("is_approved").ok().flatten(),
+            alasan_keputusan: row.try_get("alasan_keputusan").ok().flatten(),
             created_by: row.get("created_by"),
             updated_by: row.get("updated_by"),
             created_at: row.get("created_at"),
@@ -554,6 +610,72 @@ pub struct WorkflowTransitionRequest {
     pub komentar: Option<String>,
 }
 
+/// Request for operator satker to submit kebutuhan with attachments
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct SubmitKebutuhanSatkerRequest {
+    pub catatan_satker: Option<String>,
+    #[validate(length(min = 1, message = "Surat permohonan wajib dilampirkan"))]
+    pub lampiran_surat_permohonan: String,
+    #[serde(default)]
+    pub lampiran_pendukung: Vec<LampiranItem>,
+}
+
+/// Lampiran/attachment item
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LampiranItem {
+    pub nama: String,
+    pub url: String,
+    pub tipe: Option<String>,
+}
+
+/// Request for validator wilayah action
+#[derive(Debug, Clone, Deserialize)]
+pub struct ValidatorWilayahActionRequest {
+    /// "forward" or "return"
+    pub aksi: String,
+    pub catatan: Option<String>,
+}
+
+/// Request for validator pusat decision
+#[derive(Debug, Clone, Deserialize)]
+pub struct ValidatorPusatKeputusanRequest {
+    /// true = approve, false = reject
+    pub is_approved: bool,
+    pub alasan: Option<String>,
+}
+
+/// Response with analysis data for validator pusat
+#[derive(Debug, Clone, Serialize)]
+pub struct AnalisisDataResponse {
+    pub satker: PengajuanKebutuhanBmnSatker,
+    pub barang_list: Vec<PengajuanKebutuhanBmnBarang>,
+    pub data_eksisting_siman: Value,
+    pub data_pegawai: DataPegawaiRekap,
+    pub summary: AnalisisSummary,
+}
+
+/// Rekap data pegawai from MySIMKARI
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DataPegawaiRekap {
+    pub total_pegawai: i64,
+    pub rekap_eselon: Vec<RekapEselonItem>,
+    pub rekap_non_eselon: Vec<RekapNonEselonItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RekapEselonItem {
+    pub tingkat_eselon: String,
+    pub jumlah: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RekapNonEselonItem {
+    pub golongan: String,
+    pub pangkat: String,
+    pub is_jaksa: bool,
+    pub jumlah: i64,
+}
+
 // ============================================================================
 // Response DTOs
 // ============================================================================
@@ -586,11 +708,12 @@ pub struct SatkerWithBarangResponse {
     pub total_jumlah: i64,
 }
 
-/// Response for feasibility analysis
+/// Response for feasibility analysis (enhanced with pegawai data)
 #[derive(Debug, Clone, Serialize)]
 pub struct AnalisisKelayakanResponse {
     pub satker: PengajuanKebutuhanBmnSatker,
     pub barang_list: Vec<BarangWithExistingInventory>,
+    pub data_pegawai: Option<DataPegawaiRekap>,
     pub summary: AnalisisSummary,
 }
 
@@ -755,6 +878,22 @@ mod tests {
         assert!(draft.can_transition_to(KebutuhanBmnStatus::InputBarang));
         assert!(draft.can_transition_to(KebutuhanBmnStatus::Cancelled));
         assert!(!draft.can_transition_to(KebutuhanBmnStatus::Approved));
+
+        // Operator satker submits to wilayah, not directly to pusat
+        let input = KebutuhanBmnStatus::InputBarang;
+        assert!(input.can_transition_to(KebutuhanBmnStatus::SubmitWilayah));
+        assert!(!input.can_transition_to(KebutuhanBmnStatus::SubmitPusat));
+
+        // Validator wilayah can forward or return
+        let submit_wil = KebutuhanBmnStatus::SubmitWilayah;
+        assert!(submit_wil.can_transition_to(KebutuhanBmnStatus::SubmitPusat));
+        assert!(submit_wil.can_transition_to(KebutuhanBmnStatus::RevisiSatker));
+
+        // Validator pusat approves or rejects only
+        let analisis = KebutuhanBmnStatus::AnalisisKelayakan;
+        assert!(analisis.can_transition_to(KebutuhanBmnStatus::Approved));
+        assert!(analisis.can_transition_to(KebutuhanBmnStatus::Rejected));
+        assert!(!analisis.can_transition_to(KebutuhanBmnStatus::RevisiSatker));
 
         let completed = KebutuhanBmnStatus::Completed;
         assert!(!completed.can_transition_to(KebutuhanBmnStatus::Draft));

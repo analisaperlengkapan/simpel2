@@ -8,16 +8,17 @@ This document defines the complete requirements for SIMPEL (Sistem Informasi Man
 
 ### 1.2 Scope
 
-SIMPEL consists of nine microservices handling:
+SIMPEL consists of ten microservices handling:
 1. Master data and reference management
 2. BMN requirements analysis (including pakaian dinas and roadmap)
 3. BMN usage permits (vehicles, housing, laptops)
-4. Workflow engine for approvals
-5. Document generation (SK Penghapusan, permits, reports)
-6. Dashboard and analytics
-7. Integration gateway (MonSAKTI, MySIMKARI)
-8. Multi-channel notifications
-9. Authentication and authorization
+4. SK Penghapusan BMN workflow and document generation
+5. Workflow engine for approvals
+6. Document generation (SK Penghapusan, permits, reports)
+7. Dashboard and analytics
+8. Integration gateway (SIMAN, MySIMKARI)
+9. Multi-channel notifications
+10. Authentication and authorization
 
 ### 1.3 Current Status
 
@@ -52,10 +53,11 @@ SIMPEL consists of nine microservices handling:
 | Master Data | master | 60% | Kodefikasi, standar spesifikasi, standar jumlah, mapping |
 | Kebutuhan BMN | kebutuhan | 70% | BMN requirements, pakaian dinas, roadmap sarpras |
 | Pemakaian BMN | pemakaian | 0% | Usage permits (vehicles, housing, laptops) |
+| Penghapusan BMN | penghapusan | 0% | SK Penghapusan BMN workflow and document generation |
 | Workflow | workflow | 0% | Centralized workflow engine |
 | Dokumen | dokumen | 0% | Document generation (SK, permits, reports) |
 | Dashboard | dashboard | 50% | Analytics and visualization |
-| Integrasi | integrasi | 30% | MonSAKTI/MySIMKARI adapter and cache |
+| Integrasi | integrasi | 30% | SIMAN/MySIMKARI adapter and cache |
 | Notifikasi | notifikasi | 0% | Multi-channel notifications |
 | Authenc | authenc | 100% | Authentication and authorization (existing) |
 
@@ -146,37 +148,64 @@ SIMPEL consists of nine microservices handling:
 
 #### Functional Requirements
 
+##### 5.2.1 Kebutuhan BMN General Workflow
+
 | ID | Priority | Requirement | Actor |
 |----|----------|-------------|-------|
-| REQ-K001 | High | System SHALL auto-calculate kebutuhan based on standar jumlah minus existing good condition BMN | System |
-| REQ-K002 | High | System SHALL provide period management for kebutuhan collection with deadlines | Admin Pusat |
-| REQ-K003 | High | System SHALL allow Operator to revise auto-calculation with justification | Operator |
-| REQ-K004 | High | System SHALL support multi-level approval workflow | All |
-| REQ-K005 | High | System SHALL provide kebutuhan data bank with filters | All |
-| REQ-K006 | High | System SHALL manage pakaian dinas pengajuan with Admin Pusat creating periods | Admin Pusat |
-| REQ-K007 | High | System SHALL support satker selection via hierarchical tree based on MonSAKTI wilayah codes (0100=Kejagung, 0200=Jabar, 3400=Sulbar, etc.) with multi-select | Admin Pusat |
-| REQ-K008 | High | System SHALL allow Pelaksana Satker to input pegawai ukuran per pakaian type with gender-specific options | Operator |
-| REQ-K009 | High | System SHALL implement 3-level hierarchical approval workflow (Kejari→Kejati→Kejagung) with state tracking | Verifikator, Pimpinan |
-| REQ-K010 | High | System SHALL generate Laporan Daftar (individual pegawai list) with columns: No, NIP, Nama, Pangkat, Jabatan, Eselon, Jenis Pegawai, Ukuran per Pakaian | Admin, Operator |
-| REQ-K011 | High | System SHALL generate Laporan Rekap (aggregated summary by ukuran) with L/P breakdown per satker | Admin Pusat |
-| REQ-K012 | High | System SHALL update pegawai_pakaian_dinas master data on workflow completion (COMPLETED state) | System |
-| REQ-K013 | High | System SHALL support revision workflow returning to appropriate level (Kejati revision→Kejari, Kejagung revision→Kejati/Kejari) | Verifikator |
-| REQ-K014 | High | System SHALL support filters for reports (jenis pegawai: TU/Jaksa, eselon, jenis_kelamin: L/P) | Admin, Operator |
-| REQ-K015 | High | System SHALL handle pusat satker (ms_satker_id='00') with unit_kerja mapping (ms_satker_pusat_id) | System |
-| REQ-K016 | High | System SHALL group ukuran by category (BAJU, CELANA, SEPATU) per pakaian specification | System |
-| REQ-K017 | High | System SHALL support hijab option (with_hijab flag) for female employees | Operator |
-| REQ-K018 | High | System SHALL snapshot pegawai data at submission time with eselon, pangkat, jabatan | System |
-| REQ-K019 | Medium | System SHALL cache satker tree (1 hour TTL) and pegawai list (30 minutes TTL) | System |
-| REQ-K020 | Medium | System SHALL use CTE-based SQL for report generation performance | System |
-| REQ-K008 | Medium | System SHALL provide 5-year roadmap sarpras feature | Admin, Pimpinan |
-| REQ-K009 | Medium | System SHALL sync fulfillment realization with MonSAKTI | System |
-| REQ-K010 | Medium | System SHALL provide gap analysis visualization | Admin, Pimpinan |
-| REQ-K011 | Medium | System SHALL provide trend analysis year-over-year | Admin, Pimpinan |
-| REQ-K012 | Medium | System SHALL lock data after period closure | Admin Pusat |
-| REQ-K013 | High | System SHALL snapshot pegawai data at submission time | System |
-| REQ-K014 | Medium | System SHALL support export to Excel | All |
-| REQ-K015 | Low | System SHALL provide benchmarking between similar satkers | Admin Pusat |
-| REQ-K016 | High | System SHALL differentiate new procurement vs replacement | Operator |
+| REQ-K001 | High | System SHALL allow Validator Pusat to initiate kebutuhan BMN period with start date, end date, and deadline | Validator Pusat |
+| REQ-K002 | High | System SHALL allow Validator Pusat to select eligible BMN items filtered by standar kodefikasi | Validator Pusat |
+| REQ-K003 | High | System SHALL allow Validator Pusat to select eligible satkers that can submit kebutuhan BMN | Validator Pusat |
+| REQ-K004 | High | System SHALL allow Operator Satker to submit kebutuhan BMN within period constraints set by Validator Pusat | Operator Satker |
+| REQ-K005 | High | System SHALL require Operator Satker to provide justification text for each kebutuhan BMN item | Operator Satker |
+| REQ-K006 | High | System SHALL allow Operator Satker to upload supporting documents (surat permohonan and other attachments) | Operator Satker |
+| REQ-K007 | High | System SHALL allow Operator Satker to submit kebutuhan BMN to Validator Wilayah | Operator Satker |
+| REQ-K008 | High | System SHALL allow Validator Wilayah to review and forward kebutuhan BMN to Validator Pusat | Validator Wilayah |
+| REQ-K009 | High | System SHALL allow Validator Wilayah to return kebutuhan BMN to Operator Satker with revision notes | Validator Wilayah |
+| REQ-K010 | High | System SHALL display existing BMN data from SIMAN integration to Validator Pusat during analysis | Validator Pusat |
+| REQ-K011 | High | System SHALL display pegawai summary from MySIMKARI (eselon count, non-eselon by golongan/pangkat, jaksa/non-jaksa breakdown) to Validator Pusat | Validator Pusat |
+| REQ-K012 | High | System SHALL allow Validator Pusat to approve or reject kebutuhan BMN (not return to Validator Wilayah) | Validator Pusat |
+| REQ-K013 | High | System SHALL mark approved kebutuhan BMN as priority for further processing | System |
+| REQ-K014 | High | System SHALL generate analysis report in PDF, DOCX, and XLSX formats | Validator Pusat |
+| REQ-K015 | High | System SHALL track workflow state transitions (DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → APPROVED/REJECTED) | System |
+| REQ-K016 | High | System SHALL send notifications at each workflow transition | System |
+| REQ-K017 | High | System SHALL prevent submission outside of period deadline | System |
+| REQ-K018 | High | System SHALL validate BMN items against eligible list set by Validator Pusat | System |
+| REQ-K019 | High | System SHALL validate satker eligibility against list set by Validator Pusat | System |
+| REQ-K020 | Medium | System SHALL provide dashboard showing kebutuhan BMN status by satker and wilayah | Validator Pusat, Validator Wilayah |
+
+##### 5.2.2 Pakaian Dinas Workflow
+
+| ID | Priority | Requirement | Actor |
+|----|----------|-------------|-------|
+| REQ-K021 | High | System SHALL allow Validator Pusat to create pakaian dinas period with start date, end date, and deadline | Validator Pusat |
+| REQ-K022 | High | System SHALL support satker selection via hierarchical tree based on MonSAKTI wilayah codes (0100=Kejagung, 0200=Jabar, 3400=Sulbar, etc.) with multi-select | Validator Pusat |
+| REQ-K023 | High | System SHALL allow Validator Pusat to select pakaian dinas types and specifications for the period | Validator Pusat |
+| REQ-K024 | High | System SHALL allow Operator Satker to input pegawai ukuran per pakaian type with gender-specific options | Operator Satker |
+| REQ-K025 | High | System SHALL support hijab option (with_hijab flag) for female employees | Operator Satker |
+| REQ-K026 | High | System SHALL group ukuran by category (BAJU, CELANA, SEPATU) per pakaian specification | System |
+| REQ-K027 | High | System SHALL implement 3-level hierarchical approval workflow (Kejari→Kejati→Kejagung) with state tracking | Validator Wilayah, Validator Pusat |
+| REQ-K028 | High | System SHALL support revision workflow returning to appropriate level (Kejati revision→Kejari, Kejagung revision→Kejati/Kejari) | Validator Wilayah, Validator Pusat |
+| REQ-K029 | High | System SHALL snapshot pegawai data at submission time with eselon, pangkat, jabatan, golongan | System |
+| REQ-K030 | High | System SHALL handle pusat satker (ms_satker_id='00') with unit_kerja mapping (ms_satker_pusat_id) | System |
+| REQ-K031 | High | System SHALL update pegawai_pakaian_dinas master data on workflow completion (COMPLETED state) | System |
+| REQ-K032 | High | System SHALL generate Laporan Daftar (individual pegawai list) with columns: No, NIP, Nama, Pangkat, Jabatan, Eselon, Jenis Pegawai, Ukuran per Pakaian | Validator Pusat, Operator Satker |
+| REQ-K033 | High | System SHALL generate Laporan Rekap (aggregated summary by ukuran) with L/P breakdown per satker | Validator Pusat |
+| REQ-K034 | High | System SHALL support filters for reports (jenis pegawai: TU/Jaksa, eselon, jenis_kelamin: L/P) | Validator Pusat, Operator Satker |
+| REQ-K035 | High | System SHALL generate reports in PDF and Excel formats matching simpel_web-main format | Validator Pusat |
+| REQ-K036 | Medium | System SHALL cache satker tree (1 hour TTL) and pegawai list (30 minutes TTL) | System |
+| REQ-K037 | Medium | System SHALL use CTE-based SQL for report generation performance | System |
+| REQ-K038 | Medium | System SHALL lock data after period closure | Validator Pusat |
+
+##### 5.2.3 Roadmap Sarpras
+
+| ID | Priority | Requirement | Actor |
+|----|----------|-------------|-------|
+| REQ-K039 | Medium | System SHALL provide 5-year roadmap sarpras feature | Validator Pusat, Pimpinan |
+| REQ-K040 | Medium | System SHALL sync fulfillment realization with SIMAN | System |
+| REQ-K041 | Medium | System SHALL provide gap analysis visualization | Validator Pusat, Pimpinan |
+| REQ-K042 | Medium | System SHALL provide trend analysis year-over-year | Validator Pusat, Pimpinan |
+| REQ-K043 | Low | System SHALL provide benchmarking between similar satkers | Validator Pusat |
+| REQ-K044 | High | System SHALL differentiate new procurement vs replacement | Operator Satker |
 
 ### 5.3 Pemakaian BMN Service (pemakaian)
 
@@ -184,26 +213,88 @@ SIMPEL consists of nine microservices handling:
 
 #### Functional Requirements
 
+##### 5.3.1 Pemakaian BMN Workflow
+
 | ID | Priority | Requirement | Actor |
 |----|----------|-------------|-------|
-| REQ-P001 | High | System SHALL provide dynamic forms for different BMN types | Pegawai, Operator |
-| REQ-P002 | High | System SHALL display available BMN (no active permit) | Pegawai, Operator |
-| REQ-P003 | High | System SHALL validate one BMN = one active permit | System |
-| REQ-P004 | High | System SHALL support configurable approval workflow | Verifikator, Pimpinan |
-| REQ-P005 | High | System SHALL auto-generate permit numbers | System |
-| REQ-P006 | High | System SHALL generate permit documents via dokumen service | System |
-| REQ-P007 | High | System SHALL send reminders at H-30, H-14, H-7 before expiry | System |
-| REQ-P008 | High | System SHALL support permit renewal with history tracking | Pegawai, Operator |
-| REQ-P009 | High | System SHALL support permit revocation with reason | Pimpinan |
-| REQ-P010 | High | System SHALL auto-expire permits after end date | System |
-| REQ-P011 | Medium | System SHALL provide active usage monitoring dashboard | Admin, Pimpinan |
-| REQ-P012 | Medium | System SHALL provide usage history per BMN and per pegawai | Admin, Pimpinan |
-| REQ-P013 | Medium | System SHALL provide BMN utilization report | Admin, Pimpinan |
-| REQ-P014 | Medium | System SHALL support document upload (SK, etc.) | Pegawai, Operator |
-| REQ-P015 | Low | System SHALL notify on pegawai mutation/retirement | System |
-| REQ-P016 | High | System SHALL audit log all permit status changes | System |
+| REQ-P001 | High | System SHALL allow Operator Satker to create izin pemakaian BMN with pegawai selection from MySIMKARI integration | Operator Satker |
+| REQ-P002 | High | System SHALL allow Operator Satker to select multiple BMN items (nama barang and NUP) from SIMAN integration for single pegawai | Operator Satker |
+| REQ-P003 | High | System SHALL validate BMN availability (not currently used by another pegawai with active permit) | System |
+| REQ-P004 | High | System SHALL validate one BMN = one active permit (prevent duplicate active permits) | System |
+| REQ-P005 | High | System SHALL allow Operator Satker to specify usage period (start date and end date) | Operator Satker |
+| REQ-P006 | High | System SHALL generate DOCX draft permit document with pegawai identity and photo on page 1 | System |
+| REQ-P007 | High | System SHALL generate DOCX draft permit with BMN details table (nama barang, NUP, etc.) on page 2+ | System |
+| REQ-P008 | High | System SHALL allow Operator Satker to upload signed PDF permit after Pimpinan signature | Operator Satker |
+| REQ-P009 | High | System SHALL mark workflow as COMPLETED after PDF upload | System |
+| REQ-P010 | High | System SHALL auto-generate permit numbers with format IZN/{YEAR}/{SATKER}/{SEQUENCE} | System |
+| REQ-P011 | High | System SHALL send reminders at H-30, H-14, H-7 before permit expiry | System |
+| REQ-P012 | High | System SHALL auto-expire permits after end date | System |
+| REQ-P013 | High | System SHALL support permit renewal with history tracking and link to previous permit | Operator Satker |
+| REQ-P014 | High | System SHALL support permit revocation by Admin with reason and approval | Admin |
+| REQ-P015 | High | System SHALL allow Validator Wilayah and Validator Pusat to view all active permits | Validator Wilayah, Validator Pusat |
+| REQ-P016 | High | System SHALL provide monitoring dashboard showing active permits by BMN, pegawai, and satker | Validator Wilayah, Validator Pusat |
+| REQ-P017 | High | System SHALL display permit usage period and expiry status | Validator Wilayah, Validator Pusat |
+| REQ-P018 | High | System SHALL audit log all permit status changes (created, uploaded, expired, revoked, renewed) | System |
+| REQ-P019 | Medium | System SHALL provide usage history per BMN showing all permits (past and present) | Admin, Validator Pusat |
+| REQ-P020 | Medium | System SHALL provide usage history per pegawai showing all permits | Admin, Validator Pusat |
+| REQ-P021 | Medium | System SHALL provide BMN utilization report (percentage of BMN with active permits) | Admin, Validator Pusat |
+| REQ-P022 | Low | System SHALL notify on pegawai mutation/retirement for permit review | System |
 
-### 5.4 Workflow Service (workflow)
+##### 5.3.2 Pemakaian BMN Document Format
+
+| ID | Priority | Requirement | Actor |
+|----|----------|-------------|-------|
+| REQ-P023 | High | System SHALL generate permit page 1 with pegawai identity (NIP, nama, jabatan, pangkat, golongan) | System |
+| REQ-P024 | High | System SHALL include pegawai photo from MySIMKARI on permit page 1 | System |
+| REQ-P025 | High | System SHALL generate permit page 2+ with BMN details table (columns: No, Nama Barang, NUP, Kondisi, Tahun Perolehan) | System |
+| REQ-P026 | High | System SHALL include usage period (start date and end date) in permit document | System |
+| REQ-P027 | High | System SHALL include permit number and generation date in document header | System |
+| REQ-P028 | High | System SHALL include signature placeholder for Pimpinan Satker | System |
+
+### 5.4 Penghapusan BMN Service (penghapusan)
+
+**Status:** 0% complete - new module (frontend exists, backend workflow missing)
+
+#### Functional Requirements
+
+##### 5.4.1 SK Penghapusan BMN Workflow
+
+| ID | Priority | Requirement | Actor |
+|----|----------|-------------|-------|
+| REQ-PH001 | High | System SHALL allow Operator Satker to initiate SK Penghapusan BMN request | Operator Satker |
+| REQ-PH002 | High | System SHALL allow Operator Satker to select BMN items for deletion from SIMAN integration | Operator Satker |
+| REQ-PH003 | High | System SHALL require Operator Satker to upload supporting documents (persyaratan penghapusan) | Operator Satker |
+| REQ-PH004 | High | System SHALL allow Operator Satker to submit SK Penghapusan request to Validator Wilayah | Operator Satker |
+| REQ-PH005 | High | System SHALL allow Validator Wilayah to review SK Penghapusan request | Validator Wilayah |
+| REQ-PH006 | High | System SHALL allow Validator Wilayah to forward request to Validator Pusat or return to Operator Satker with revision notes | Validator Wilayah |
+| REQ-PH007 | High | System SHALL allow Validator Pusat to review SK Penghapusan request | Validator Pusat |
+| REQ-PH008 | High | System SHALL allow Validator Pusat to generate DOCX draft SK Penghapusan BMN | Validator Pusat |
+| REQ-PH009 | High | System SHALL generate SK Penghapusan with official format including BMN details table | System |
+| REQ-PH010 | High | System SHALL allow Validator Pusat to upload signed PDF SK Penghapusan after Pimpinan signature | Validator Pusat |
+| REQ-PH011 | High | System SHALL mark workflow as COMPLETED after PDF upload | System |
+| REQ-PH012 | High | System SHALL allow Operator Satker and Validator Wilayah to view uploaded PDF SK Penghapusan | Operator Satker, Validator Wilayah |
+| REQ-PH013 | High | System SHALL track workflow state transitions (DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → DOCUMENT_GENERATED → COMPLETED) | System |
+| REQ-PH014 | High | System SHALL send notifications at each workflow transition | System |
+| REQ-PH015 | High | System SHALL auto-generate SK number with format SK/{YEAR}/{SEQUENCE} | System |
+| REQ-PH016 | High | System SHALL audit log all SK Penghapusan workflow actions | System |
+| REQ-PH017 | Medium | System SHALL provide dashboard showing SK Penghapusan status by satker and wilayah | Validator Pusat, Validator Wilayah |
+| REQ-PH018 | Medium | System SHALL store supporting documents in object storage with SHA-256 checksum | System |
+| REQ-PH019 | Medium | System SHALL validate BMN items are not currently in active use (no active izin pemakaian) | System |
+| REQ-PH020 | Low | System SHALL support multiple supporting document uploads per request | Operator Satker |
+
+##### 5.4.2 SK Penghapusan BMN Document Format
+
+| ID | Priority | Requirement | Actor |
+|----|----------|-------------|-------|
+| REQ-PH021 | High | System SHALL generate SK Penghapusan with official letterhead | System |
+| REQ-PH022 | High | System SHALL include SK number and date in document header | System |
+| REQ-PH023 | High | System SHALL include satker information (nama satker, kode satker) | System |
+| REQ-PH024 | High | System SHALL include BMN details table (columns: No, Nama Barang, NUP, Kondisi, Tahun Perolehan, Nilai Perolehan, Alasan Penghapusan) | System |
+| REQ-PH025 | High | System SHALL include legal basis for deletion (dasar hukum) | System |
+| REQ-PH026 | High | System SHALL include signature placeholder for authorized official | System |
+| REQ-PH027 | Medium | System SHALL include total value of BMN to be deleted | System |
+
+### 5.5 Workflow Service (workflow)
 
 **Status:** 0% complete - new module
 
@@ -223,8 +314,10 @@ SIMPEL consists of nine microservices handling:
 | REQ-W010 | Low | System SHALL support conditional branching | System |
 | REQ-W011 | High | System SHALL publish events on workflow status changes | System |
 | REQ-W012 | Medium | System SHALL provide inbox/task list for approvers | Approver |
+| REQ-W013 | High | System SHALL integrate with dokumen service for automatic document generation on workflow completion | System |
+| REQ-W014 | High | System SHALL integrate with notifikasi service for workflow transition notifications | System |
 
-### 5.5 Dokumen Service (dokumen)
+### 5.6 Dokumen Service (dokumen)
 
 **Status:** 0% complete - new module
 
@@ -233,20 +326,24 @@ SIMPEL consists of nine microservices handling:
 | ID | Priority | Requirement | Actor |
 |----|----------|-------------|-------|
 | REQ-D001 | High | System SHALL provide template-based document generation | System |
-| REQ-D002 | High | System SHALL generate SK Penghapusan BMN with official format | Admin Pusat |
-| REQ-D003 | High | System SHALL auto-generate permits after workflow completion | System |
-| REQ-D004 | High | System SHALL generate PDF with official letterhead | System |
-| REQ-D005 | High | System SHALL provide API for document generation requests | System |
-| REQ-D006 | Medium | System SHALL provide CRUD for document templates with preview | Admin Pusat |
-| REQ-D007 | Medium | System SHALL store documents in object storage with SHA-256 checksum | System |
-| REQ-D008 | Medium | System SHALL support document versioning | Admin Pusat |
-| REQ-D009 | Medium | System SHALL provide document search | All |
-| REQ-D010 | Medium | System SHALL auto-generate document numbers | System |
-| REQ-D011 | Low | System SHALL generate rekapitulasi in PDF and Excel | Admin Pusat |
-| REQ-D012 | Low | System SHALL support document retention policy | System |
-| REQ-D013 | High | System SHALL audit log document operations | System |
+| REQ-D002 | High | System SHALL generate SK Penghapusan BMN with official format | Validator Pusat |
+| REQ-D003 | High | System SHALL generate izin pemakaian BMN documents with pegawai photo and BMN table | System |
+| REQ-D004 | High | System SHALL generate kebutuhan BMN analysis reports in PDF, DOCX, and XLSX formats | Validator Pusat |
+| REQ-D005 | High | System SHALL generate PDF with official letterhead | System |
+| REQ-D006 | High | System SHALL provide API for document generation requests from workflow service | System |
+| REQ-D007 | Medium | System SHALL provide CRUD for document templates with preview | Admin Pusat |
+| REQ-D008 | Medium | System SHALL store documents in object storage with SHA-256 checksum | System |
+| REQ-D009 | Medium | System SHALL support document versioning | Admin Pusat |
+| REQ-D010 | Medium | System SHALL provide document search | All |
+| REQ-D011 | Medium | System SHALL auto-generate document numbers | System |
+| REQ-D012 | Low | System SHALL generate rekapitulasi in PDF and Excel | Admin Pusat |
+| REQ-D013 | Low | System SHALL support document retention policy | System |
+| REQ-D014 | High | System SHALL audit log document operations | System |
+| REQ-D015 | High | System SHALL integrate with kebutuhan service for analysis report generation | System |
+| REQ-D016 | High | System SHALL integrate with pemakaian service for permit document generation | System |
+| REQ-D017 | High | System SHALL integrate with penghapusan service for SK document generation | System |
 
-### 5.6 Dashboard Service (dashboard)
+### 5.7 Dashboard Service (dashboard)
 
 **Status:** 50% complete - needs separation and advanced features
 
@@ -268,7 +365,7 @@ SIMPEL consists of nine microservices handling:
 | REQ-DB012 | Low | System SHALL support auto-refresh | System |
 | REQ-DB013 | High | System SHALL display near real-time data (max 1 hour delay) | System |
 
-### 5.7 Integrasi Service (integrasi)
+### 5.8 Integrasi Service (integrasi)
 
 **Status:** 30% complete - schema exists, needs implementation
 
@@ -276,7 +373,7 @@ SIMPEL consists of nine microservices handling:
 
 | ID | Priority | Requirement | Actor |
 |----|----------|-------------|-------|
-| REQ-I001 | High | System SHALL sync BMN data from MonSAKTI daily | System |
+| REQ-I001 | High | System SHALL sync BMN data from SIMAN daily | System |
 | REQ-I002 | High | System SHALL sync pegawai data from MySIMKARI daily | System |
 | REQ-I003 | High | System SHALL provide consistent internal API for cached data | System |
 | REQ-I004 | High | System SHALL implement retry with exponential backoff | System |
@@ -290,8 +387,13 @@ SIMPEL consists of nine microservices handling:
 | REQ-I012 | Low | System SHALL store raw data for debugging | System |
 | REQ-I013 | High | System SHALL publish events on successful sync | System |
 | REQ-I014 | Medium | System SHALL handle API format changes via configuration | Admin Pusat |
+| REQ-I015 | High | System SHALL provide gRPC API for kebutuhan service to fetch BMN data | System |
+| REQ-I016 | High | System SHALL provide gRPC API for kebutuhan service to fetch pegawai summary | System |
+| REQ-I017 | High | System SHALL provide gRPC API for pemakaian service to fetch BMN details | System |
+| REQ-I018 | High | System SHALL provide gRPC API for pemakaian service to fetch pegawai details with photo | System |
+| REQ-I019 | High | System SHALL provide gRPC API for penghapusan service to fetch BMN details | System |
 
-### 5.8 Notifikasi Service (notifikasi)
+### 5.9 Notifikasi Service (notifikasi)
 
 **Status:** 0% complete - new module
 
@@ -309,8 +411,12 @@ SIMPEL consists of nine microservices handling:
 | REQ-N008 | Medium | System SHALL send auto-reminders based on events | System |
 | REQ-N009 | Low | System SHALL support digest mode | System |
 | REQ-N010 | Low | System SHALL log delivery status per channel | System |
+| REQ-N011 | High | System SHALL integrate with workflow service for workflow transition notifications | System |
+| REQ-N012 | High | System SHALL send notifications for kebutuhan BMN workflow transitions | System |
+| REQ-N013 | High | System SHALL send notifications for pemakaian BMN expiry reminders | System |
+| REQ-N014 | High | System SHALL send notifications for SK Penghapusan workflow transitions | System |
 
-### 5.9 Authenc Service (authenc)
+### 5.10 Authenc Service (authenc)
 
 **Status:** 100% complete - existing service
 
@@ -335,6 +441,82 @@ SIMPEL consists of nine microservices handling:
 | REQ-A015 | Low | System SHALL support SSO for future integration | System |
 | REQ-A016 | High | System SHALL make audit trail immutable | System |
 | REQ-A017 | Medium | System SHALL provide navigable satker hierarchy | Admin |
+
+### 5.10 Authenc Service (authenc)
+
+**Status:** 100% complete - existing service
+
+#### Functional Requirements
+
+| ID | Priority | Requirement | Actor |
+|----|----------|-------------|-------|
+| REQ-A001 | High | System SHALL authenticate with username/password using Argon2id | All |
+| REQ-A002 | High | System SHALL enforce password policy (12+ chars, complexity) | All |
+| REQ-A003 | High | System SHALL lock account after 5 failed login attempts | System |
+| REQ-A004 | High | System SHALL use JWT with 15min access token, 7day refresh token | System |
+| REQ-A005 | High | System SHALL implement RBAC with permission-based access | System |
+| REQ-A006 | High | System SHALL enforce hierarchical satker access scope | System |
+| REQ-A007 | High | System SHALL immutably audit log all significant actions | System |
+| REQ-A008 | High | System SHALL provide user CRUD with MySIMKARI NIP linking | Admin |
+| REQ-A009 | Medium | System SHALL support TOTP MFA | All |
+| REQ-A010 | Medium | System SHALL enforce 90-day password rotation | System |
+| REQ-A011 | Medium | System SHALL provide audit trail search and filter | Admin, Auditor |
+| REQ-A012 | Medium | System SHALL support audit trail export | Auditor |
+| REQ-A013 | Medium | System SHALL provide session management | All |
+| REQ-A014 | Medium | System SHALL rate-limit login endpoint | System |
+| REQ-A015 | Low | System SHALL support SSO for future integration | System |
+| REQ-A016 | High | System SHALL make audit trail immutable | System |
+| REQ-A017 | Medium | System SHALL provide navigable satker hierarchy | Admin |
+
+### 5.11 End-to-End Integration Requirements
+
+**Status:** 0% complete - critical for production deployment
+
+#### Cross-Module Integration
+
+| ID | Priority | Requirement | Modules Involved |
+|----|----------|-------------|------------------|
+| REQ-E001 | High | System SHALL integrate kebutuhan BMN workflow with dokumen service for analysis report generation | kebutuhan, dokumen, workflow |
+| REQ-E002 | High | System SHALL integrate kebutuhan BMN workflow with notifikasi service for state transition notifications | kebutuhan, notifikasi, workflow |
+| REQ-E003 | High | System SHALL integrate kebutuhan BMN analysis with integrasi service for SIMAN BMN data | kebutuhan, integrasi |
+| REQ-E004 | High | System SHALL integrate kebutuhan BMN analysis with integrasi service for MySIMKARI pegawai summary | kebutuhan, integrasi |
+| REQ-E005 | High | System SHALL integrate pemakaian BMN with integrasi service for BMN availability check | pemakaian, integrasi |
+| REQ-E006 | High | System SHALL integrate pemakaian BMN with integrasi service for pegawai data and photo | pemakaian, integrasi |
+| REQ-E007 | High | System SHALL integrate pemakaian BMN with dokumen service for permit document generation | pemakaian, dokumen |
+| REQ-E008 | High | System SHALL integrate pemakaian BMN with notifikasi service for expiry reminders | pemakaian, notifikasi |
+| REQ-E009 | High | System SHALL integrate penghapusan BMN workflow with dokumen service for SK generation | penghapusan, dokumen, workflow |
+| REQ-E010 | High | System SHALL integrate penghapusan BMN workflow with notifikasi service for state transition notifications | penghapusan, notifikasi, workflow |
+| REQ-E011 | High | System SHALL integrate penghapusan BMN with integrasi service for BMN details | penghapusan, integrasi |
+| REQ-E012 | High | System SHALL integrate penghapusan BMN with pemakaian service to validate BMN not in active use | penghapusan, pemakaian |
+| REQ-E013 | High | System SHALL integrate workflow service with dokumen service for automatic document generation on approval | workflow, dokumen |
+| REQ-E014 | High | System SHALL integrate workflow service with notifikasi service for workflow transition notifications | workflow, notifikasi |
+| REQ-E015 | High | System SHALL ensure frontend microfrontend calls backend REST API (never direct gRPC to infrastructure) | antarmuka/perlengkapan, layanan/perlengkapan |
+| REQ-E016 | High | System SHALL ensure backend services use gRPC for inter-service communication | layanan/perlengkapan crates |
+| REQ-E017 | High | System SHALL ensure all services authenticate via Authenc gRPC | All services, authenc |
+| REQ-E018 | High | System SHALL ensure all services fetch secrets via Secreton gRPC | All services, secreton |
+
+#### Frontend-Backend Integration
+
+| ID | Priority | Requirement | Components |
+|----|----------|-------------|------------|
+| REQ-E019 | High | System SHALL provide REST API endpoints for kebutuhan BMN workflow in layanan/perlengkapan | layanan/perlengkapan/crates/api |
+| REQ-E020 | High | System SHALL provide REST API endpoints for pemakaian BMN workflow in layanan/perlengkapan | layanan/perlengkapan/crates/api |
+| REQ-E021 | High | System SHALL provide REST API endpoints for penghapusan BMN workflow in layanan/perlengkapan | layanan/perlengkapan/crates/api |
+| REQ-E022 | High | System SHALL implement kebutuhan BMN UI components in antarmuka/perlengkapan using Leptos 0.8.x | antarmuka/pembinaan/perlengkapan |
+| REQ-E023 | High | System SHALL implement pemakaian BMN UI components in antarmuka/perlengkapan using Leptos 0.8.x | antarmuka/pembinaan/perlengkapan |
+| REQ-E024 | High | System SHALL implement penghapusan BMN UI components in antarmuka/perlengkapan using Leptos 0.8.x | antarmuka/pembinaan/perlengkapan |
+| REQ-E025 | High | System SHALL use lib-ui shared components for consistent UI across microfrontends | antarmuka/pembinaan/perlengkapan, lib/ui |
+| REQ-E026 | High | System SHALL use lib-common for shared types and utilities across backend services | layanan/perlengkapan crates, lib/common |
+
+#### Data Flow Integration
+
+| ID | Priority | Requirement | Flow |
+|----|----------|-------------|------|
+| REQ-E027 | High | System SHALL ensure kebutuhan BMN data flows: Frontend → REST API → Kebutuhan Service → Integrasi gRPC → SIMAN/MySIMKARI | Full stack |
+| REQ-E028 | High | System SHALL ensure pemakaian BMN data flows: Frontend → REST API → Pemakaian Service → Integrasi gRPC → SIMAN/MySIMKARI | Full stack |
+| REQ-E029 | High | System SHALL ensure penghapusan BMN data flows: Frontend → REST API → Penghapusan Service → Workflow gRPC → Dokumen gRPC | Full stack |
+| REQ-E030 | High | System SHALL ensure document generation flows: Workflow Service → Dokumen gRPC → Object Storage → Frontend download | Full stack |
+| REQ-E031 | High | System SHALL ensure notification flows: Workflow Service → Notifikasi gRPC → Email/In-app → Frontend display | Full stack |
 
 ## 6. Non-Functional Requirements
 
@@ -408,17 +590,18 @@ SIMPEL consists of nine microservices handling:
 
 ### 7.1 Dependency Matrix
 
-| Consumer ↓ / Provider → | master | kebutuhan | pemakaian | workflow | dokumen | dashboard | integrasi | notifikasi | authenc |
-|-------------------------|--------|-----------|-----------|----------|---------|-----------|-----------|------------|---------|
-| master | — | | | | | | ✓ | ✓ | ✓ |
-| kebutuhan | ✓ | — | | ✓ | ✓ | | ✓ | ✓ | ✓ |
-| pemakaian | ✓ | | — | ✓ | ✓ | | ✓ | ✓ | ✓ |
-| workflow | | | | — | | | | ✓ | ✓ |
-| dokumen | | | | | — | | | ✓ | ✓ |
-| dashboard | ✓ | ✓ | ✓ | ✓ | | — | ✓ | | ✓ |
-| integrasi | | | | | | | — | ✓ | ✓ |
-| notifikasi | | | | | | | | — | ✓ |
-| authenc | | | | | | | ✓ | | — |
+| Consumer ↓ / Provider → | master | kebutuhan | pemakaian | penghapusan | workflow | dokumen | dashboard | integrasi | notifikasi | authenc |
+|-------------------------|--------|-----------|-----------|-------------|----------|---------|-----------|-----------|------------|---------|
+| master | — | | | | | | | ✓ | ✓ | ✓ |
+| kebutuhan | ✓ | — | | | ✓ | ✓ | | ✓ | ✓ | ✓ |
+| pemakaian | ✓ | | — | | ✓ | ✓ | | ✓ | ✓ | ✓ |
+| penghapusan | ✓ | | ✓ | — | ✓ | ✓ | | ✓ | ✓ | ✓ |
+| workflow | | | | | — | ✓ | | | ✓ | ✓ |
+| dokumen | | | | | | — | | | ✓ | ✓ |
+| dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | | — | ✓ | | ✓ |
+| integrasi | | | | | | | | — | ✓ | ✓ |
+| notifikasi | | | | | | | | | — | ✓ |
+| authenc | | | | | | | | ✓ | | — |
 
 ### 7.2 Deployment Order
 
@@ -428,10 +611,11 @@ Based on dependencies:
 3. **integrasi** - depends on authenc, notifikasi
 4. **master** - depends on authenc, integrasi, notifikasi
 5. **workflow** - depends on authenc, notifikasi
-6. **dokumen** - depends on authenc, notifikasi
-7. **kebutuhan** - depends on many services
-8. **pemakaian** - depends on many services
-9. **dashboard** - depends on almost all services (deploy last)
+6. **dokumen** - depends on authenc, notifikasi, workflow
+7. **kebutuhan** - depends on master, workflow, dokumen, integrasi, notifikasi, authenc
+8. **pemakaian** - depends on master, workflow, dokumen, integrasi, notifikasi, authenc
+9. **penghapusan** - depends on master, pemakaian, workflow, dokumen, integrasi, notifikasi, authenc
+10. **dashboard** - depends on almost all services (deploy last)
 
 ## 8. Glossary
 
@@ -448,6 +632,7 @@ Based on dependencies:
 | Pakaian Dinas Harian | PDH | Daily uniform |
 | Pakaian Dinas Lapangan | PDL | Field uniform |
 | Pejabat Penatausahaan BMN | PPBMN | BMN administration officer |
+| Surat Keputusan Penghapusan | SK Penghapusan | Decree for BMN deletion/disposal |
 | Surat Perintah Pencairan Dana | SP2D | Payment order |
 | Service Level Agreement | SLA | Process completion time limit |
 | Konstruksi Dalam Pengerjaan | KDP | Construction in progress |
@@ -455,9 +640,11 @@ Based on dependencies:
 | Time-based One-Time Password | TOTP | Two-factor authentication method |
 | JSON Web Token | JWT | Authentication token standard |
 | Role-Based Access Control | RBAC | Role-based access control model |
+| Validator Pusat | — | Central validator at Kejaksaan Agung |
+| Validator Wilayah | — | Regional validator at Kejaksaan Tinggi |
 
 ---
 
-**Document Status:** DRAFT v2.0.0
-**Date:** February 9, 2026
+**Document Status:** DRAFT v3.0.0
+**Date:** February 11, 2026
 **Classification:** Internal - Kejaksaan Republik Indonesia

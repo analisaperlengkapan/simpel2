@@ -4847,3 +4847,2506 @@ pub fn MappingKodefikasiDashboard() -> impl IntoView {
 **Document Version:** 2.0.0
 **Last Updated:** February 9, 2026
 **Status:** Complete - Ready for Implementation
+
+
+## 21. Kebutuhan BMN Business Process Flow
+
+### 21.1 Overview
+
+This section provides detailed business process flows for the Kebutuhan BMN module, covering the complete workflow from period initiation by Validator Pusat through submission by Operator Satker, review by Validator Wilayah, and final analysis and approval by Validator Pusat.
+
+**Key Requirements Addressed:** REQ-K001 through REQ-K020
+
+### 21.2 Actors and Roles
+
+| Actor | Role | Responsibilities |
+|-------|------|------------------|
+| Validator Pusat | Central validator at Kejaksaan Agung | Initiate period, configure eligible BMN/satkers, analyze with SIMAN/MySIMKARI data, approve/reject |
+| Validator Wilayah | Regional validator at Kejaksaan Tinggi | Review submissions from satkers, forward to Pusat or return for revision |
+| Operator Satker | BMN manager at Kejari/Cabjari | Submit kebutuhan BMN with justification and supporting documents |
+
+### 21.3 Workflow States
+
+```
+DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → APPROVED/REJECTED
+```
+
+**State Definitions:**
+- `DRAFT`: Initial state, operator satker is preparing submission
+- `SUBMITTED`: Operator satker has submitted to validator wilayah
+- `REVIEWED_WILAYAH`: Validator wilayah has reviewed and forwarded to validator pusat
+- `REVIEWED_PUSAT`: Validator pusat is analyzing with integrated data
+- `APPROVED`: Validator pusat has approved (marked as priority)
+- `REJECTED`: Validator pusat has rejected
+
+### 21.4 Sequence Diagram: Complete Kebutuhan BMN Flow
+
+```mermaid
+sequenceDiagram
+    participant VP as Validator Pusat
+    participant VW as Validator Wilayah
+    participant OS as Operator Satker
+    participant API as layanan-perlengkapan API
+    participant WF as Workflow Service
+    participant INT as Integrasi Service
+    participant SIMAN as SIMAN API
+    participant MySIMKARI as MySIMKARI API
+    participant DOK as Dokumen Service
+    participant NOT as Notifikasi Service
+
+    Note over VP,NOT: Phase 1: Period Initiation by Validator Pusat
+    VP->>API: POST /api/v1/kebutuhan/periods
+    API->>API: Create period (start_date, end_date, deadline)
+    VP->>API: POST /api/v1/kebutuhan/periods/{id}/eligible-bmn
+    API->>API: Configure eligible BMN items (filtered by standar kodefikasi)
+    VP->>API: POST /api/v1/kebutuhan/periods/{id}/eligible-satkers
+    API->>API: Configure eligible satkers
+    API->>NOT: Send notification to eligible satkers
+    NOT-->>OS: Notification: "Kebutuhan BMN period opened"
+
+    Note over VP,NOT: Phase 2: Submission by Operator Satker
+    OS->>API: GET /api/v1/kebutuhan/periods/active
+    API-->>OS: Return active period with constraints
+    OS->>API: POST /api/v1/kebutuhan/submissions
+    API->>API: Validate: within deadline, eligible BMN, eligible satker
+    API->>WF: Create workflow instance (state: DRAFT)
+    OS->>API: POST /api/v1/kebutuhan/submissions/{id}/items
+    API->>API: Add BMN items with justification
+    OS->>API: POST /api/v1/kebutuhan/submissions/{id}/attachments
+    API->>API: Upload supporting documents (surat permohonan, etc.)
+    OS->>API: POST /api/v1/kebutuhan/submissions/{id}/submit
+    API->>WF: Transition: DRAFT → SUBMITTED
+    WF->>NOT: Send notification to Validator Wilayah
+    NOT-->>VW: Notification: "New kebutuhan BMN submission"
+
+    Note over VP,NOT: Phase 3: Review by Validator Wilayah
+    VW->>API: GET /api/v1/kebutuhan/submissions?status=SUBMITTED
+    API-->>VW: Return pending submissions
+    VW->>API: GET /api/v1/kebutuhan/submissions/{id}
+    API-->>VW: Return submission details
+
+    alt Forward to Validator Pusat
+        VW->>API: POST /api/v1/kebutuhan/submissions/{id}/forward
+        API->>WF: Transition: SUBMITTED → REVIEWED_WILAYAH
+        WF->>NOT: Send notification to Validator Pusat
+        NOT-->>VP: Notification: "Kebutuhan BMN ready for analysis"
+    else Return to Operator Satker for Revision
+        VW->>API: POST /api/v1/kebutuhan/submissions/{id}/return
+        API->>WF: Transition: SUBMITTED → DRAFT (with revision notes)
+        WF->>NOT: Send notification to Operator Satker
+        NOT-->>OS: Notification: "Revision required"
+        Note over OS: Operator revises and resubmits (back to Phase 2)
+    end
+
+    Note over VP,NOT: Phase 4: Analysis by Validator Pusat with Integrated Data
+    VP->>API: GET /api/v1/kebutuhan/submissions?status=REVIEWED_WILAYAH
+    API-->>VP: Return submissions ready for analysis
+    VP->>API: GET /api/v1/kebutuhan/submissions/{id}/analysis
+    API->>INT: gRPC: GetSimanAssets(satker_id, kode_barang)
+    INT->>SIMAN: GET /api/v2/assets?satker_code=...
+    SIMAN-->>INT: Return existing BMN data
+    INT-->>API: Return BMN data (kondisi, jumlah)
+    API->>INT: gRPC: GetMySIMKARIPegawaiSummary(satker_id)
+    INT->>MySIMKARI: GET /api/v1/pegawai/summary?satker_code=...
+    MySIMKARI-->>INT: Return pegawai summary (eselon count, golongan breakdown)
+    INT-->>API: Return pegawai summary
+    API-->>VP: Return analysis data (existing BMN + pegawai summary)
+
+    alt Approve
+        VP->>API: POST /api/v1/kebutuhan/submissions/{id}/approve
+        API->>WF: Transition: REVIEWED_WILAYAH → APPROVED
+        API->>API: Mark as priority for further processing
+        WF->>NOT: Send notification to Operator Satker
+        NOT-->>OS: Notification: "Kebutuhan BMN approved"
+    else Reject
+        VP->>API: POST /api/v1/kebutuhan/submissions/{id}/reject
+        API->>WF: Transition: REVIEWED_WILAYAH → REJECTED
+        WF->>NOT: Send notification to Operator Satker
+        NOT-->>OS: Notification: "Kebutuhan BMN rejected"
+    end
+
+    Note over VP,NOT: Phase 5: Analysis Report Generation
+    VP->>API: POST /api/v1/kebutuhan/reports/generate
+    API->>DOK: gRPC: GenerateDocument(type: analysis_report, format: PDF/DOCX/XLSX)
+    DOK->>DOK: Generate report with analysis data
+    DOK-->>API: Return document_id
+    API->>NOT: Send notification to Validator Pusat
+    NOT-->>VP: Notification: "Analysis report ready"
+    VP->>API: GET /api/v1/documents/{document_id}/download
+    API->>DOK: gRPC: GetDocument(document_id)
+    DOK-->>API: Return document binary
+    API-->>VP: Download PDF/DOCX/XLSX
+```
+
+### 21.5 REST API Endpoints
+
+**Period Management (Validator Pusat only):**
+```
+POST   /api/v1/kebutuhan/periods
+GET    /api/v1/kebutuhan/periods
+GET    /api/v1/kebutuhan/periods/{id}
+PUT    /api/v1/kebutuhan/periods/{id}
+POST   /api/v1/kebutuhan/periods/{id}/eligible-bmn
+POST   /api/v1/kebutuhan/periods/{id}/eligible-satkers
+GET    /api/v1/kebutuhan/periods/active
+```
+
+**Submission Management:**
+```
+POST   /api/v1/kebutuhan/submissions
+GET    /api/v1/kebutuhan/submissions
+GET    /api/v1/kebutuhan/submissions/{id}
+PUT    /api/v1/kebutuhan/submissions/{id}
+POST   /api/v1/kebutuhan/submissions/{id}/items
+POST   /api/v1/kebutuhan/submissions/{id}/attachments
+POST   /api/v1/kebutuhan/submissions/{id}/submit
+POST   /api/v1/kebutuhan/submissions/{id}/forward
+POST   /api/v1/kebutuhan/submissions/{id}/return
+POST   /api/v1/kebutuhan/submissions/{id}/approve
+POST   /api/v1/kebutuhan/submissions/{id}/reject
+GET    /api/v1/kebutuhan/submissions/{id}/analysis
+```
+
+**Report Generation:**
+```
+POST   /api/v1/kebutuhan/reports/generate
+GET    /api/v1/kebutuhan/reports
+```
+
+### 21.6 Database Schema
+
+**Period Configuration:**
+```sql
+CREATE TABLE perlengkapan.kebutuhan_bmn_period (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nama_period VARCHAR(255) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    deadline TIMESTAMPTZ NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, CLOSED
+    created_by UUID NOT NULL REFERENCES authenc.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE perlengkapan.kebutuhan_bmn_period_eligible_bmn (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    period_id UUID NOT NULL REFERENCES perlengkapan.kebutuhan_bmn_period(id),
+    kode_barang VARCHAR(50) NOT NULL,
+    nama_barang VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE perlengkapan.kebutuhan_bmn_period_eligible_satker (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    period_id UUID NOT NULL REFERENCES perlengkapan.kebutuhan_bmn_period(id),
+    satker_id UUID NOT NULL REFERENCES authenc.satkers(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**Submission Data:**
+```sql
+CREATE TABLE perlengkapan.kebutuhan_bmn_submission (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    period_id UUID NOT NULL REFERENCES perlengkapan.kebutuhan_bmn_period(id),
+    satker_id UUID NOT NULL REFERENCES authenc.satkers(id),
+    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
+    workflow_instance_id UUID,
+    submitted_at TIMESTAMPTZ,
+    reviewed_wilayah_at TIMESTAMPTZ,
+    reviewed_pusat_at TIMESTAMPTZ,
+    approved_at TIMESTAMPTZ,
+    is_priority BOOLEAN DEFAULT FALSE,
+    created_by UUID NOT NULL REFERENCES authenc.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE perlengkapan.kebutuhan_bmn_submission_item (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    submission_id UUID NOT NULL REFERENCES perlengkapan.kebutuhan_bmn_submission(id),
+    kode_barang VARCHAR(50) NOT NULL,
+    nama_barang VARCHAR(255) NOT NULL,
+    jumlah_kebutuhan INTEGER NOT NULL,
+    justification TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE perlengkapan.kebutuhan_bmn_submission_attachment (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    submission_id UUID NOT NULL REFERENCES perlengkapan.kebutuhan_bmn_submission(id),
+    filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    uploaded_by UUID NOT NULL REFERENCES authenc.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### 21.7 Integration Points
+
+**SIMAN Integration (via Integrasi Service gRPC):**
+```protobuf
+service IntegrasiService {
+    rpc GetSimanAssets(GetSimanAssetsRequest) returns (GetSimanAssetsResponse);
+}
+
+message GetSimanAssetsRequest {
+    string satker_id = 1;
+    string kode_barang = 2;
+}
+
+message GetSimanAssetsResponse {
+    repeated SimanAsset assets = 1;
+}
+
+message SimanAsset {
+    string nup = 1;
+    string kode_barang = 2;
+    string nama_barang = 3;
+    string kondisi = 4; // BAIK, RUSAK_RINGAN, RUSAK_BERAT
+    int32 tahun_perolehan = 5;
+    double nilai_perolehan = 6;
+}
+```
+
+**MySIMKARI Integration (via Integrasi Service gRPC):**
+```protobuf
+service IntegrasiService {
+    rpc GetMySIMKARIPegawaiSummary(GetPegawaiSummaryRequest) returns (GetPegawaiSummaryResponse);
+}
+
+message GetPegawaiSummaryRequest {
+    string satker_id = 1;
+}
+
+message GetPegawaiSummaryResponse {
+    int32 total_pegawai = 1;
+    int32 total_eselon = 2;
+    repeated GolonganBreakdown golongan_breakdown = 3;
+    int32 total_jaksa = 4;
+    int32 total_non_jaksa = 5;
+}
+
+message GolonganBreakdown {
+    string golongan = 1; // I, II, III, IV
+    int32 count = 2;
+}
+```
+
+### 21.8 Validation Rules
+
+**Period Validation:**
+- Start date must be before end date
+- Deadline must be after start date
+- Only one active period allowed at a time
+- Eligible BMN must exist in ms_barang
+- Eligible satkers must exist in authenc.satkers
+
+**Submission Validation:**
+- Must be within active period
+- Submission date must be before deadline
+- Satker must be in eligible satkers list
+- BMN items must be in eligible BMN list
+- Justification must be at least 50 characters
+- At least one supporting document required
+
+**Workflow Transition Validation:**
+- DRAFT → SUBMITTED: Requires at least one item and one attachment
+- SUBMITTED → REVIEWED_WILAYAH: Only Validator Wilayah can forward
+- SUBMITTED → DRAFT: Only Validator Wilayah can return with notes
+- REVIEWED_WILAYAH → APPROVED/REJECTED: Only Validator Pusat can approve/reject
+
+
+## 22. Pemakaian BMN Business Process Flow
+
+### 22.1 Overview
+
+This section provides detailed business process flows for the Pemakaian BMN (BMN Usage Permit) module, covering permit creation, document generation, expiry management, renewal, and revocation workflows.
+
+**Key Requirements Addressed:** REQ-P001 through REQ-P028
+
+### 22.2 Actors and Roles
+
+| Actor | Role | Responsibilities |
+|-------|------|------------------|
+| Operator Satker | BMN manager at Kejari/Cabjari | Create permit requests, upload signed permits |
+| Validator Wilayah | Regional validator at Kejaksaan Tinggi | Monitor permits in region |
+| Validator Pusat | Central validator at Kejaksaan Agung | Monitor all permits, view reports |
+| Pimpinan Satker | Head of Kejari/Cabjari | Sign permit documents |
+
+### 22.3 Workflow States
+
+```
+DRAFT → DOCUMENT_GENERATED → COMPLETED → EXPIRED/REVOKED
+```
+
+**State Definitions:**
+- `DRAFT`: Operator satker is preparing permit request
+- `DOCUMENT_GENERATED`: System has generated DOCX draft permit
+- `COMPLETED`: Operator satker has uploaded signed PDF permit
+- `EXPIRED`: Permit has passed end date (auto-transition)
+- `REVOKED`: Admin has revoked permit before expiry
+
+### 22.4 Sequence Diagram: Pemakaian BMN Permit Creation Flow
+
+```mermaid
+sequenceDiagram
+    participant OS as Operator Satker
+    participant API as layanan-perlengkapan API
+    participant INT as Integrasi Service
+    participant SIMAN as SIMAN API
+    participant MySIMKARI as MySIMKARI API
+    participant DOK as Dokumen Service
+    participant NOT as Notifikasi Service
+    participant PS as Pimpinan Satker
+
+    Note over OS,PS: Phase 1: Permit Request Creation
+    OS->>API: POST /api/v1/pemakaian/permits
+    API->>API: Create permit (state: DRAFT)
+    OS->>API: POST /api/v1/pemakaian/permits/{id}/pegawai
+    API->>INT: gRPC: GetMySIMKARIPegawai(nip)
+    INT->>MySIMKARI: GET /api/v1/pegawai/{nip}
+    MySIMKARI-->>INT: Return pegawai data (nama, jabatan, pangkat, golongan, photo)
+    INT-->>API: Return pegawai data
+    API->>API: Validate: pegawai exists, belongs to satker
+    API-->>OS: Pegawai added to permit
+
+    Note over OS,PS: Phase 2: BMN Selection with Availability Check
+    OS->>API: GET /api/v1/pemakaian/bmn/available?satker_id=...
+    API->>INT: gRPC: GetSimanAssets(satker_id)
+    INT->>SIMAN: GET /api/v2/assets?satker_code=...
+    SIMAN-->>INT: Return BMN list
+    INT-->>API: Return BMN list
+    API->>API: Check active permits (filter out BMN with active permits)
+    API-->>OS: Return available BMN list
+
+    OS->>API: POST /api/v1/pemakaian/permits/{id}/bmn
+    API->>API: Validate: BMN not in active permit (one BMN = one active permit)
+    API->>API: Add BMN to permit
+    Note over OS: Operator can add multiple BMN for single pegawai
+    OS->>API: POST /api/v1/pemakaian/permits/{id}/bmn (repeat for each BMN)
+
+    OS->>API: POST /api/v1/pemakaian/permits/{id}/period
+    API->>API: Set usage period (start_date, end_date)
+
+    Note over OS,PS: Phase 3: Document Generation
+    OS->>API: POST /api/v1/pemakaian/permits/{id}/generate-document
+    API->>DOK: gRPC: GenerateDocument(type: izin_pemakaian, format: DOCX)
+    DOK->>DOK: Generate DOCX with:
+    DOK->>DOK: - Page 1: Pegawai identity + photo
+    DOK->>DOK: - Page 2+: BMN details table
+    DOK->>DOK: - Auto-generate permit number: IZN/{YEAR}/{SATKER}/{SEQUENCE}
+    DOK-->>API: Return document_id
+    API->>API: Transition: DRAFT → DOCUMENT_GENERATED
+    API->>NOT: Send notification to Operator Satker
+    NOT-->>OS: Notification: "Draft permit document ready"
+    OS->>API: GET /api/v1/documents/{document_id}/download
+    API->>DOK: gRPC: GetDocument(document_id)
+    DOK-->>API: Return DOCX binary
+    API-->>OS: Download DOCX draft
+
+    Note over OS,PS: Phase 4: Signature and Upload
+    OS->>PS: Send DOCX for signature (offline process)
+    PS->>PS: Review and sign document
+    PS->>OS: Return signed PDF
+
+    OS->>API: POST /api/v1/pemakaian/permits/{id}/upload-signed
+    API->>API: Upload signed PDF to object storage
+    API->>API: Transition: DOCUMENT_GENERATED → COMPLETED
+    API->>NOT: Send notification to Validator Wilayah, Validator Pusat
+    NOT-->>OS: Notification: "Permit completed"
+
+    Note over OS,PS: Phase 5: Expiry Management (Automated)
+    loop Daily Cron Job
+        API->>API: Check permits expiring in 30 days
+        API->>NOT: Send reminder notification (H-30)
+        NOT-->>OS: Notification: "Permit expiring in 30 days"
+        API->>API: Check permits expiring in 14 days
+        API->>NOT: Send reminder notification (H-14)
+        NOT-->>OS: Notification: "Permit expiring in 14 days"
+        API->>API: Check permits expiring in 7 days
+        API->>NOT: Send reminder notification (H-7)
+        NOT-->>OS: Notification: "Permit expiring in 7 days"
+        API->>API: Check permits past end_date
+        API->>API: Transition: COMPLETED → EXPIRED
+        API->>NOT: Send notification
+        NOT-->>OS: Notification: "Permit expired"
+    end
+```
+
+### 22.5 Sequence Diagram: Permit Renewal Flow
+
+```mermaid
+sequenceDiagram
+    participant OS as Operator Satker
+    participant API as layanan-perlengkapan API
+    participant DOK as Dokumen Service
+    participant NOT as Notifikasi Service
+
+    Note over OS,NOT: Permit Renewal Process
+    OS->>API: POST /api/v1/pemakaian/permits/{old_permit_id}/renew
+    API->>API: Validate: old permit exists and is COMPLETED or EXPIRED
+    API->>API: Create new permit (copy pegawai, BMN from old permit)
+    API->>API: Link to previous permit (previous_permit_id)
+    API->>API: Set new usage period
+    API->>API: State: DRAFT
+    API-->>OS: Return new permit_id
+
+    OS->>API: POST /api/v1/pemakaian/permits/{new_permit_id}/generate-document
+    API->>DOK: gRPC: GenerateDocument(type: izin_pemakaian_renewal)
+    DOK->>DOK: Generate DOCX with renewal note
+    DOK-->>API: Return document_id
+    API->>API: Transition: DRAFT → DOCUMENT_GENERATED
+    API-->>OS: Download DOCX draft
+
+    Note over OS: Signature process (same as creation)
+    OS->>API: POST /api/v1/pemakaian/permits/{new_permit_id}/upload-signed
+    API->>API: Transition: DOCUMENT_GENERATED → COMPLETED
+    API->>NOT: Send notification
+    NOT-->>OS: Notification: "Permit renewed"
+```
+
+### 22.6 Sequence Diagram: Permit Revocation Flow
+
+```mermaid
+sequenceDiagram
+    participant Admin as Admin/Validator Pusat
+    participant API as layanan-perlengkapan API
+    participant NOT as Notifikasi Service
+    participant OS as Operator Satker
+
+    Note over Admin,OS: Permit Revocation Process
+    Admin->>API: POST /api/v1/pemakaian/permits/{permit_id}/revoke
+    API->>API: Validate: permit is COMPLETED (not already EXPIRED or REVOKED)
+    API->>API: Require revocation reason
+    API->>API: Transition: COMPLETED → REVOKED
+    API->>API: Record revocation metadata (revoked_by, revoked_at, reason)
+    API->>NOT: Send notification to Operator Satker
+    NOT-->>OS: Notification: "Permit revoked: {reason}"
+    API-->>Admin: Revocation successful
+```
+
+### 22.7 REST API Endpoints
+
+**Permit Management:**
+```
+POST   /api/v1/pemakaian/permits
+GET    /api/v1/pemakaian/permits
+GET    /api/v1/pemakaian/permits/{id}
+PUT    /api/v1/pemakaian/permits/{id}
+DELETE /api/v1/pemakaian/permits/{id}
+POST   /api/v1/pemakaian/permits/{id}/pegawai
+POST   /api/v1/pemakaian/permits/{id}/bmn
+POST   /api/v1/pemakaian/permits/{id}/period
+POST   /api/v1/pemakaian/permits/{id}/generate-document
+POST   /api/v1/pemakaian/permits/{id}/upload-signed
+POST   /api/v1/pemakaian/permits/{id}/renew
+POST   /api/v1/pemakaian/permits/{id}/revoke
+```
+
+**BMN Availability:**
+```
+GET    /api/v1/pemakaian/bmn/available
+GET    /api/v1/pemakaian/bmn/{nup}/status
+```
+
+**Monitoring and Reports:**
+```
+GET    /api/v1/pemakaian/permits/expiring
+GET    /api/v1/pemakaian/reports/active-permits
+GET    /api/v1/pemakaian/reports/utilization
+GET    /api/v1/pemakaian/reports/history/bmn/{nup}
+GET    /api/v1/pemakaian/reports/history/pegawai/{nip}
+```
+
+### 22.8 Database Schema
+
+**Permit Data:**
+```sql
+CREATE TABLE perlengkapan.izin_pemakaian_bmn (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    permit_number VARCHAR(100) UNIQUE NOT NULL, -- IZN/{YEAR}/{SATKER}/{SEQUENCE}
+    satker_id UUID NOT NULL REFERENCES authenc.satkers(id),
+    pegawai_nip VARCHAR(20) NOT NULL,
+    pegawai_nama VARCHAR(255) NOT NULL,
+    pegawai_jabatan VARCHAR(255),
+    pegawai_pangkat VARCHAR(50),
+    pegawai_golongan VARCHAR(10),
+    pegawai_photo_url VARCHAR(500),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT', -- DRAFT, DOCUMENT_GENERATED, COMPLETED, EXPIRED, REVOKED
+    draft_document_id UUID,
+    signed_document_id UUID,
+    previous_permit_id UUID REFERENCES perlengkapan.izin_pemakaian_bmn(id), -- For renewals
+    revoked_by UUID REFERENCES authenc.users(id),
+    revoked_at TIMESTAMPTZ,
+    revocation_reason TEXT,
+    created_by UUID NOT NULL REFERENCES authenc.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_end_after_start CHECK (end_date > start_date)
+);
+
+CREATE TABLE perlengkapan.izin_pemakaian_bmn_item (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    permit_id UUID NOT NULL REFERENCES perlengkapan.izin_pemakaian_bmn(id) ON DELETE CASCADE,
+    nup VARCHAR(50) NOT NULL,
+    kode_barang VARCHAR(50) NOT NULL,
+    nama_barang VARCHAR(255) NOT NULL,
+    kondisi VARCHAR(50),
+    tahun_perolehan INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(permit_id, nup)
+);
+
+-- Index for active permit check (one BMN = one active permit)
+CREATE INDEX idx_izin_pemakaian_active ON perlengkapan.izin_pemakaian_bmn(status)
+    WHERE status = 'COMPLETED';
+
+CREATE INDEX idx_izin_pemakaian_bmn_item_nup ON perlengkapan.izin_pemakaian_bmn_item(nup);
+CREATE INDEX idx_izin_pemakaian_pegawai ON perlengkapan.izin_pemakaian_bmn(pegawai_nip);
+CREATE INDEX idx_izin_pemakaian_satker ON perlengkapan.izin_pemakaian_bmn(satker_id);
+CREATE INDEX idx_izin_pemakaian_end_date ON perlengkapan.izin_pemakaian_bmn(end_date);
+```
+
+### 22.9 Validation Rules
+
+**Permit Creation Validation:**
+- Pegawai must exist in MySIMKARI
+- Pegawai must belong to the satker
+- BMN must exist in SIMAN
+- BMN must not have active permit (status = COMPLETED)
+- End date must be after start date
+- At least one BMN item required
+
+**BMN Availability Check:**
+```sql
+-- Check if BMN has active permit
+SELECT COUNT(*) FROM perlengkapan.izin_pemakaian_bmn p
+JOIN perlengkapan.izin_pemakaian_bmn_item i ON p.id = i.permit_id
+WHERE i.nup = $1
+  AND p.status = 'COMPLETED'
+  AND p.end_date >= CURRENT_DATE;
+```
+
+**Renewal Validation:**
+- Previous permit must exist
+- Previous permit must be COMPLETED or EXPIRED
+- Can create renewal before expiry (for continuity)
+
+**Revocation Validation:**
+- Permit must be COMPLETED (not already EXPIRED or REVOKED)
+- Revocation reason required (minimum 20 characters)
+- Only Admin or Validator Pusat can revoke
+
+### 22.10 Document Format Specification
+
+**Page 1: Pegawai Identity**
+```
+SURAT IZIN PEMAKAIAN BARANG MILIK NEGARA
+Nomor: {permit_number}
+
+Foto Pegawai: [Photo from MySIMKARI]
+
+Identitas Pegawai:
+NIP         : {pegawai_nip}
+Nama        : {pegawai_nama}
+Jabatan     : {pegawai_jabatan}
+Pangkat     : {pegawai_pangkat}
+Golongan    : {pegawai_golongan}
+Satuan Kerja: {satker_nama}
+
+Periode Pemakaian:
+Tanggal Mulai : {start_date}
+Tanggal Akhir : {end_date}
+```
+
+**Page 2+: BMN Details Table**
+```
+RINCIAN BARANG MILIK NEGARA
+
+| No | NUP | Nama Barang | Kode Barang | Kondisi | Tahun Perolehan |
+|----|-----|-------------|-------------|---------|-----------------|
+| 1  | ... | ...         | ...         | ...     | ...             |
+| 2  | ... | ...         | ...         | ...     | ...             |
+| n  | ... | ...         | ...         | ...     | ...             |
+
+Catatan:
+- Pegawai bertanggung jawab atas pemeliharaan BMN yang digunakan
+- Izin ini berlaku sampai dengan {end_date}
+- Perpanjangan izin harus diajukan sebelum masa berlaku berakhir
+
+                                        {Tempat}, {Tanggal}
+                                        Pimpinan Satuan Kerja,
+
+
+                                        {Nama Pimpinan}
+                                        NIP. {NIP Pimpinan}
+```
+
+### 22.11 Expiry Reminder Schedule
+
+**Automated Cron Job (Daily at 00:00 WIB):**
+```rust
+// layanan/perlengkapan/crates/api/src/cron/pemakaian_expiry.rs
+pub async fn check_expiring_permits() -> Result<()> {
+    let today = Utc::now().date_naive();
+
+    // H-30 reminder
+    let expiring_30 = get_permits_expiring_on(today + Duration::days(30)).await?;
+    for permit in expiring_30 {
+        send_expiry_reminder(permit, 30).await?;
+    }
+
+    // H-14 reminder
+    let expiring_14 = get_permits_expiring_on(today + Duration::days(14)).await?;
+    for permit in expiring_14 {
+        send_expiry_reminder(permit, 14).await?;
+    }
+
+    // H-7 reminder
+    let expiring_7 = get_permits_expiring_on(today + Duration::days(7)).await?;
+    for permit in expiring_7 {
+        send_expiry_reminder(permit, 7).await?;
+    }
+
+    // Auto-expire permits past end_date
+    let expired = get_permits_past_end_date(today).await?;
+    for permit in expired {
+        expire_permit(permit).await?;
+    }
+
+    Ok(())
+}
+```
+
+
+## 23. SK Penghapusan BMN Business Process Flow
+
+### 23.1 Overview
+
+This section provides detailed business process flows for the SK Penghapusan BMN (BMN Deletion Decree) module, covering the complete workflow from initiation by Operator Satker through review by Validator Wilayah and Validator Pusat, document generation, and final completion.
+
+**Key Requirements Addressed:** REQ-PH001 through REQ-PH027
+
+### 23.2 Actors and Roles
+
+| Actor | Role | Responsibilities |
+|-------|------|------------------|
+| Operator Satker | BMN manager at Kejari/Cabjari | Initiate SK Penghapusan request, select BMN, upload supporting documents |
+| Validator Wilayah | Regional validator at Kejaksaan Tinggi | Review requests, forward to Pusat or return for revision |
+| Validator Pusat | Central validator at Kejaksaan Agung | Final review, generate SK document, upload signed SK |
+| Pimpinan | Authorized official | Sign SK Penghapusan document |
+
+### 23.3 Workflow States
+
+```
+DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → DOCUMENT_GENERATED → COMPLETED
+```
+
+**State Definitions:**
+- `DRAFT`: Operator satker is preparing request
+- `SUBMITTED`: Operator satker has submitted to validator wilayah
+- `REVIEWED_WILAYAH`: Validator wilayah has reviewed and forwarded to validator pusat
+- `REVIEWED_PUSAT`: Validator pusat has reviewed and approved for SK generation
+- `DOCUMENT_GENERATED`: System has generated DOCX draft SK
+- `COMPLETED`: Validator pusat has uploaded signed PDF SK
+
+### 23.4 Sequence Diagram: Complete SK Penghapusan BMN Flow
+
+```mermaid
+sequenceDiagram
+    participant OS as Operator Satker
+    participant VW as Validator Wilayah
+    participant VP as Validator Pusat
+    participant API as layanan-perlengkapan API
+    participant WF as Workflow Service
+    participant INT as Integrasi Service
+    participant SIMAN as SIMAN API
+    participant PEM as Pemakaian Service
+    participant DOK as Dokumen Service
+    participant NOT as Notifikasi Service
+    participant PIM as Pimpinan
+
+    Note over OS,PIM: Phase 1: Request Initiation by Operator Satker
+    OS->>API: POST /api/v1/penghapusan/requests
+    API->>API: Create request (state: DRAFT)
+    API->>WF: Create workflow instance
+    OS->>API: GET /api/v1/penghapusan/bmn/available?satker_id=...
+    API->>INT: gRPC: GetSimanAssets(satker_id)
+    INT->>SIMAN: GET /api/v2/assets?satker_code=...
+    SIMAN-->>INT: Return BMN list
+    INT-->>API: Return BMN list
+    API-->>OS: Return available BMN for deletion
+
+    OS->>API: POST /api/v1/penghapusan/requests/{id}/bmn
+    API->>PEM: gRPC: CheckBMNActivePermit(nup)
+    PEM-->>API: Return active permit status
+    API->>API: Validate: BMN not in active use
+    API->>API: Add BMN to request
+    Note over OS: Operator can add multiple BMN items
+
+    OS->>API: POST /api/v1/penghapusan/requests/{id}/attachments
+    API->>API: Upload supporting documents (persyaratan penghapusan)
+    API->>API: Store in object storage with SHA-256 checksum
+    API-->>OS: Attachment uploaded
+
+    OS->>API: POST /api/v1/penghapusan/requests/{id}/submit
+    API->>API: Validate: at least one BMN, at least one attachment
+    API->>WF: Transition: DRAFT → SUBMITTED
+    WF->>NOT: Send notification to Validator Wilayah
+    NOT-->>VW: Notification: "New SK Penghapusan request"
+
+    Note over OS,PIM: Phase 2: Review by Validator Wilayah
+    VW->>API: GET /api/v1/penghapusan/requests?status=SUBMITTED
+    API-->>VW: Return pending requests
+    VW->>API: GET /api/v1/penghapusan/requests/{id}
+    API-->>VW: Return request details (BMN list, attachments)
+
+    alt Forward to Validator Pusat
+        VW->>API: POST /api/v1/penghapusan/requests/{id}/forward
+        API->>WF: Transition: SUBMITTED → REVIEWED_WILAYAH
+        WF->>NOT: Send notification to Validator Pusat
+        NOT-->>VP: Notification: "SK Penghapusan ready for review"
+    else Return to Operator Satker for Revision
+        VW->>API: POST /api/v1/penghapusan/requests/{id}/return
+        API->>WF: Transition: SUBMITTED → DRAFT (with revision notes)
+        WF->>NOT: Send notification to Operator Satker
+        NOT-->>OS: Notification: "Revision required"
+        Note over OS: Operator revises and resubmits (back to Phase 1)
+    end
+
+    Note over OS,PIM: Phase 3: Review by Validator Pusat
+    VP->>API: GET /api/v1/penghapusan/requests?status=REVIEWED_WILAYAH
+    API-->>VP: Return requests ready for review
+    VP->>API: GET /api/v1/penghapusan/requests/{id}
+    API-->>VP: Return request details
+    VP->>API: GET /api/v1/penghapusan/requests/{id}/bmn-details
+    API->>INT: gRPC: GetSimanAssetDetails(nup_list)
+    INT->>SIMAN: GET /api/v2/assets/details
+    SIMAN-->>INT: Return detailed BMN data
+    INT-->>API: Return BMN details
+    API-->>VP: Return BMN details for analysis
+
+    VP->>API: POST /api/v1/penghapusan/requests/{id}/approve
+    API->>WF: Transition: REVIEWED_WILAYAH → REVIEWED_PUSAT
+    WF->>NOT: Send notification
+    NOT-->>VP: Notification: "Request approved for SK generation"
+
+    Note over OS,PIM: Phase 4: SK Document Generation
+    VP->>API: POST /api/v1/penghapusan/requests/{id}/generate-sk
+    API->>DOK: gRPC: GenerateDocument(type: sk_penghapusan, format: DOCX)
+    DOK->>DOK: Generate DOCX with:
+    DOK->>DOK: - Official letterhead
+    DOK->>DOK: - SK number: SK/{YEAR}/{SEQUENCE}
+    DOK->>DOK: - Satker information
+    DOK->>DOK: - BMN details table
+    DOK->>DOK: - Legal basis (dasar hukum)
+    DOK->>DOK: - Total value of BMN to be deleted
+    DOK-->>API: Return document_id
+    API->>WF: Transition: REVIEWED_PUSAT → DOCUMENT_GENERATED
+    API->>NOT: Send notification to Validator Pusat
+    NOT-->>VP: Notification: "Draft SK document ready"
+    VP->>API: GET /api/v1/documents/{document_id}/download
+    API->>DOK: gRPC: GetDocument(document_id)
+    DOK-->>API: Return DOCX binary
+    API-->>VP: Download DOCX draft
+
+    Note over OS,PIM: Phase 5: Signature and Upload
+    VP->>PIM: Send DOCX for signature (offline process)
+    PIM->>PIM: Review and sign document
+    PIM->>VP: Return signed PDF
+
+    VP->>API: POST /api/v1/penghapusan/requests/{id}/upload-signed-sk
+    API->>API: Upload signed PDF to object storage
+    API->>API: Calculate SHA-256 checksum
+    API->>WF: Transition: DOCUMENT_GENERATED → COMPLETED
+    API->>NOT: Send notification to Operator Satker, Validator Wilayah
+    NOT-->>OS: Notification: "SK Penghapusan completed"
+    NOT-->>VW: Notification: "SK Penghapusan completed"
+
+    Note over OS,PIM: Phase 6: View Signed SK
+    OS->>API: GET /api/v1/penghapusan/requests/{id}/signed-sk
+    API->>DOK: gRPC: GetDocument(signed_document_id)
+    DOK-->>API: Return PDF binary
+    API-->>OS: Download signed PDF SK
+
+    VW->>API: GET /api/v1/penghapusan/requests/{id}/signed-sk
+    API->>DOK: gRPC: GetDocument(signed_document_id)
+    DOK-->>API: Return PDF binary
+    API-->>VW: Download signed PDF SK
+```
+
+### 23.5 REST API Endpoints
+
+**Request Management:**
+```
+POST   /api/v1/penghapusan/requests
+GET    /api/v1/penghapusan/requests
+GET    /api/v1/penghapusan/requests/{id}
+PUT    /api/v1/penghapusan/requests/{id}
+DELETE /api/v1/penghapusan/requests/{id}
+POST   /api/v1/penghapusan/requests/{id}/bmn
+POST   /api/v1/penghapusan/requests/{id}/attachments
+POST   /api/v1/penghapusan/requests/{id}/submit
+POST   /api/v1/penghapusan/requests/{id}/forward
+POST   /api/v1/penghapusan/requests/{id}/return
+POST   /api/v1/penghapusan/requests/{id}/approve
+POST   /api/v1/penghapusan/requests/{id}/generate-sk
+POST   /api/v1/penghapusan/requests/{id}/upload-signed-sk
+GET    /api/v1/penghapusan/requests/{id}/signed-sk
+GET    /api/v1/penghapusan/requests/{id}/bmn-details
+```
+
+**BMN Availability:**
+```
+GET    /api/v1/penghapusan/bmn/available
+GET    /api/v1/penghapusan/bmn/{nup}/eligibility
+```
+
+**Monitoring and Reports:**
+```
+GET    /api/v1/penghapusan/reports/by-satker
+GET    /api/v1/penghapusan/reports/by-wilayah
+GET    /api/v1/penghapusan/reports/summary
+```
+
+### 23.6 Database Schema
+
+**Request Data:**
+```sql
+CREATE TABLE perlengkapan.sk_penghapusan_bmn_request (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sk_number VARCHAR(100) UNIQUE, -- SK/{YEAR}/{SEQUENCE}
+    satker_id UUID NOT NULL REFERENCES authenc.satkers(id),
+    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
+    workflow_instance_id UUID,
+    submitted_at TIMESTAMPTZ,
+    reviewed_wilayah_at TIMESTAMPTZ,
+    reviewed_wilayah_by UUID REFERENCES authenc.users(id),
+    reviewed_pusat_at TIMESTAMPTZ,
+    reviewed_pusat_by UUID REFERENCES authenc.users(id),
+    document_generated_at TIMESTAMPTZ,
+    draft_document_id UUID,
+    signed_document_id UUID,
+    completed_at TIMESTAMPTZ,
+    revision_notes TEXT,
+    created_by UUID NOT NULL REFERENCES authenc.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE perlengkapan.sk_penghapusan_bmn_item (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_id UUID NOT NULL REFERENCES perlengkapan.sk_penghapusan_bmn_request(id) ON DELETE CASCADE,
+    nup VARCHAR(50) NOT NULL,
+    kode_barang VARCHAR(50) NOT NULL,
+    nama_barang VARCHAR(255) NOT NULL,
+    kondisi VARCHAR(50),
+    tahun_perolehan INTEGER,
+    nilai_perolehan DECIMAL(15,2),
+    alasan_penghapusan TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(request_id, nup)
+);
+
+CREATE TABLE perlengkapan.sk_penghapusan_bmn_attachment (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_id UUID NOT NULL REFERENCES perlengkapan.sk_penghapusan_bmn_request(id) ON DELETE CASCADE,
+    filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    checksum VARCHAR(64) NOT NULL, -- SHA-256
+    uploaded_by UUID NOT NULL REFERENCES authenc.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_sk_penghapusan_satker ON perlengkapan.sk_penghapusan_bmn_request(satker_id);
+CREATE INDEX idx_sk_penghapusan_status ON perlengkapan.sk_penghapusan_bmn_request(status);
+CREATE INDEX idx_sk_penghapusan_item_nup ON perlengkapan.sk_penghapusan_bmn_item(nup);
+```
+
+### 23.7 Validation Rules
+
+**Request Creation Validation:**
+- Satker must exist in authenc.satkers
+- At least one BMN item required
+- At least one supporting document required
+- BMN must exist in SIMAN
+- BMN must not have active izin pemakaian (status = COMPLETED)
+
+**BMN Eligibility Check:**
+```sql
+-- Check if BMN has active permit (should NOT be in active use)
+SELECT COUNT(*) FROM perlengkapan.izin_pemakaian_bmn p
+JOIN perlengkapan.izin_pemakaian_bmn_item i ON p.id = i.permit_id
+WHERE i.nup = $1
+  AND p.status = 'COMPLETED'
+  AND p.end_date >= CURRENT_DATE;
+
+-- If count > 0, BMN is in active use and cannot be deleted
+```
+
+**Workflow Transition Validation:**
+- DRAFT → SUBMITTED: Requires at least one BMN item and one attachment
+- SUBMITTED → REVIEWED_WILAYAH: Only Validator Wilayah can forward
+- SUBMITTED → DRAFT: Only Validator Wilayah can return with revision notes
+- REVIEWED_WILAYAH → REVIEWED_PUSAT: Only Validator Pusat can approve
+- REVIEWED_PUSAT → DOCUMENT_GENERATED: Only Validator Pusat can generate SK
+- DOCUMENT_GENERATED → COMPLETED: Only Validator Pusat can upload signed SK
+
+**Supporting Document Validation:**
+- File size limit: 10 MB per file
+- Allowed MIME types: application/pdf, image/jpeg, image/png
+- SHA-256 checksum calculated and stored for integrity verification
+
+### 23.8 Document Format Specification
+
+**SK Penghapusan BMN Format:**
+```
+[Official Letterhead - Kejaksaan Republik Indonesia]
+
+SURAT KEPUTUSAN PENGHAPUSAN BARANG MILIK NEGARA
+Nomor: {sk_number}
+
+KEPALA {SATKER_NAMA}
+
+Menimbang:
+a. bahwa berdasarkan hasil inventarisasi dan penilaian kondisi Barang Milik Negara...
+b. bahwa Barang Milik Negara sebagaimana dimaksud pada huruf a sudah tidak layak pakai...
+c. bahwa berdasarkan pertimbangan sebagaimana dimaksud pada huruf a dan b...
+
+Mengingat:
+1. Peraturan Pemerintah Nomor 27 Tahun 2014 tentang Pengelolaan Barang Milik Negara/Daerah
+2. Peraturan Menteri Keuangan tentang Tata Cara Pelaksanaan Penghapusan BMN
+3. [Additional legal basis]
+
+MEMUTUSKAN:
+
+Menetapkan:
+PERTAMA   : Menghapus Barang Milik Negara sebagaimana tercantum dalam lampiran
+            Surat Keputusan ini dari Daftar Barang Milik Negara.
+
+KEDUA     : Penghapusan sebagaimana dimaksud dalam Diktum PERTAMA dilakukan
+            dengan cara [pemusnahan/penjualan/hibah].
+
+KETIGA    : Surat Keputusan ini mulai berlaku pada tanggal ditetapkan.
+
+LAMPIRAN: DAFTAR BARANG MILIK NEGARA YANG DIHAPUS
+
+| No | NUP | Nama Barang | Kode Barang | Kondisi | Tahun Perolehan | Nilai Perolehan | Alasan Penghapusan |
+|----|-----|-------------|-------------|---------|-----------------|-----------------|-------------------|
+| 1  | ... | ...         | ...         | ...     | ...             | Rp ...          | ...               |
+| 2  | ... | ...         | ...         | ...     | ...             | Rp ...          | ...               |
+| n  | ... | ...         | ...         | ...     | ...             | Rp ...          | ...               |
+
+TOTAL NILAI PEROLEHAN: Rp {total_nilai_perolehan}
+
+                                        Ditetapkan di {Tempat}
+                                        pada tanggal {Tanggal}
+                                        {Jabatan Pimpinan},
+
+
+                                        {Nama Pimpinan}
+                                        NIP. {NIP Pimpinan}
+```
+
+### 23.9 Integration with Pemakaian Service
+
+**gRPC Service Definition:**
+```protobuf
+// layanan/perlengkapan/crates/pemakaian/proto/pemakaian.proto
+service PemakaianService {
+    rpc CheckBMNActivePermit(CheckBMNActivePermitRequest) returns (CheckBMNActivePermitResponse);
+}
+
+message CheckBMNActivePermitRequest {
+    string nup = 1;
+}
+
+message CheckBMNActivePermitResponse {
+    bool has_active_permit = 1;
+    string permit_id = 2;
+    string permit_number = 3;
+    string pegawai_nama = 4;
+    string end_date = 5;
+}
+```
+
+**Implementation:**
+```rust
+// layanan/perlengkapan/crates/pemakaian/src/grpc/service.rs
+#[tonic::async_trait]
+impl PemakaianService for PemakaianServiceImpl {
+    async fn check_bmn_active_permit(
+        &self,
+        request: Request<CheckBMNActivePermitRequest>,
+    ) -> Result<Response<CheckBMNActivePermitResponse>, Status> {
+        let nup = request.into_inner().nup;
+
+        let query = r#"
+            SELECT p.id, p.permit_number, p.pegawai_nama, p.end_date
+            FROM perlengkapan.izin_pemakaian_bmn p
+            JOIN perlengkapan.izin_pemakaian_bmn_item i ON p.id = i.permit_id
+            WHERE i.nup = $1
+              AND p.status = 'COMPLETED'
+              AND p.end_date >= CURRENT_DATE
+            LIMIT 1
+        "#;
+
+        let client = self.db_pool.get().await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        match client.query_opt(query, &[&nup]).await {
+            Ok(Some(row)) => {
+                Ok(Response::new(CheckBMNActivePermitResponse {
+                    has_active_permit: true,
+                    permit_id: row.get::<_, Uuid>("id").to_string(),
+                    permit_number: row.get("permit_number"),
+                    pegawai_nama: row.get("pegawai_nama"),
+                    end_date: row.get::<_, NaiveDate>("end_date").to_string(),
+                }))
+            }
+            Ok(None) => {
+                Ok(Response::new(CheckBMNActivePermitResponse {
+                    has_active_permit: false,
+                    permit_id: String::new(),
+                    permit_number: String::new(),
+                    pegawai_nama: String::new(),
+                    end_date: String::new(),
+                }))
+            }
+            Err(e) => Err(Status::internal(e.to_string())),
+        }
+    }
+}
+```
+
+### 23.10 Monitoring Dashboard
+
+**Dashboard Metrics:**
+- Total SK Penghapusan requests by status
+- Requests by satker and wilayah
+- Average processing time per workflow stage
+- Total value of BMN to be deleted
+- Pending requests requiring action
+
+**Dashboard Queries:**
+```sql
+-- Summary by status
+SELECT status, COUNT(*) as count
+FROM perlengkapan.sk_penghapusan_bmn_request
+GROUP BY status;
+
+-- Summary by wilayah
+SELECT s.wilayah_code, s.wilayah_nama, COUNT(r.id) as request_count
+FROM perlengkapan.sk_penghapusan_bmn_request r
+JOIN authenc.satkers s ON r.satker_id = s.id
+GROUP BY s.wilayah_code, s.wilayah_nama;
+
+-- Total value to be deleted
+SELECT SUM(i.nilai_perolehan) as total_nilai
+FROM perlengkapan.sk_penghapusan_bmn_item i
+JOIN perlengkapan.sk_penghapusan_bmn_request r ON i.request_id = r.id
+WHERE r.status IN ('REVIEWED_PUSAT', 'DOCUMENT_GENERATED', 'COMPLETED');
+
+-- Average processing time
+SELECT
+    AVG(EXTRACT(EPOCH FROM (reviewed_wilayah_at - submitted_at))/3600) as avg_hours_wilayah_review,
+    AVG(EXTRACT(EPOCH FROM (reviewed_pusat_at - reviewed_wilayah_at))/3600) as avg_hours_pusat_review,
+    AVG(EXTRACT(EPOCH FROM (completed_at - document_generated_at))/3600) as avg_hours_signature
+FROM perlengkapan.sk_penghapusan_bmn_request
+WHERE completed_at IS NOT NULL;
+```
+
+---
+
+**End of Business Process Flow Sections**
+**Document Version:** 3.0.0
+**Last Updated:** February 11, 2026
+**Status:** Complete with Detailed Business Process Flows
+
+
+## 24. End-to-End Testing Strategy with Playwright
+
+### 24.1 Overview
+
+This section defines comprehensive end-to-end testing strategy using Playwright to validate all business process flows across the entire system, from frontend microfrontend through backend services to database and external integrations.
+
+**Testing Scope:**
+1. Kebutuhan BMN complete workflow
+2. Kebutuhan Pakaian Dinas complete workflow
+3. Pemakaian BMN complete workflow (creation, renewal, revocation)
+4. SK Penghapusan BMN complete workflow
+5. Cross-module integration validation
+6. Role-based access control validation
+
+### 24.2 Test User Setup
+
+**Mock Users for Testing:**
+```typescript
+// tests/e2e/fixtures/users.ts
+export const testUsers = {
+  operatorSatker: {
+    username: 'operator.kejari.jakarta',
+    password: 'Test123!@#',
+    nip: '199001012020121001',
+    nama: 'Budi Santoso',
+    role: 'operator_satker',
+    satker_id: 'kejari-jakarta-pusat',
+    satker_nama: 'Kejaksaan Negeri Jakarta Pusat',
+    wilayah_code: '0200', // DKI Jakarta
+    permissions: [
+      'kebutuhan_bmn.create',
+      'kebutuhan_bmn.submit',
+      'pemakaian_bmn.create',
+      'penghapusan_bmn.create',
+    ]
+  },
+
+  validatorWilayah: {
+    username: 'validator.kejati.jakarta',
+    password: 'Test123!@#',
+    nip: '198501012015121001',
+    nama: 'Siti Aminah',
+    role: 'validator_wilayah',
+    satker_id: 'kejati-dki-jakarta',
+    satker_nama: 'Kejaksaan Tinggi DKI Jakarta',
+    wilayah_code: '0200',
+    permissions: [
+      'kebutuhan_bmn.review_wilayah',
+      'kebutuhan_bmn.forward',
+      'kebutuhan_bmn.return',
+      'pemakaian_bmn.view_wilayah',
+      'penghapusan_bmn.review_wilayah',
+    ]
+  },
+
+  validatorPusat: {
+    username: 'validator.kejagung',
+    password: 'Test123!@#',
+    nip: '198001012010121001',
+    nama: 'Ahmad Hidayat',
+    role: 'validator_pusat',
+    satker_id: 'kejaksaan-agung',
+    satker_nama: 'Kejaksaan Agung Republik Indonesia',
+    wilayah_code: '0100',
+    permissions: [
+      'kebutuhan_bmn.initiate_period',
+      'kebutuhan_bmn.configure_eligible',
+      'kebutuhan_bmn.review_pusat',
+      'kebutuhan_bmn.approve',
+      'kebutuhan_bmn.reject',
+      'kebutuhan_bmn.generate_report',
+      'pemakaian_bmn.view_all',
+      'penghapusan_bmn.review_pusat',
+      'penghapusan_bmn.generate_sk',
+    ]
+  },
+
+  admin: {
+    username: 'admin.simpel',
+    password: 'Admin123!@#',
+    nip: '197501012005121001',
+    nama: 'Super Admin',
+    role: 'admin',
+    satker_id: 'kejaksaan-agung',
+    satker_nama: 'Kejaksaan Agung Republik Indonesia',
+    wilayah_code: '0100',
+    permissions: ['*'] // All permissions
+  }
+};
+```
+
+### 24.3 Test Data Setup
+
+**Mock Integration Data:**
+```typescript
+// tests/e2e/fixtures/integration-data.ts
+export const mockSimanData = {
+  assets: [
+    {
+      nup: '0001.01.01.001',
+      kode_barang: '01.01.01.001',
+      nama_barang: 'Meja Kerja Kayu',
+      kondisi: 'BAIK',
+      tahun_perolehan: 2020,
+      nilai_perolehan: 2500000,
+      satker_code: 'kejari-jakarta-pusat'
+    },
+    {
+      nup: '0001.01.01.002',
+      kode_barang: '01.01.01.002',
+      nama_barang: 'Kursi Kerja Putar',
+      kondisi: 'RUSAK_RINGAN',
+      tahun_perolehan: 2019,
+      nilai_perolehan: 1500000,
+      satker_code: 'kejari-jakarta-pusat'
+    },
+    {
+      nup: '0002.03.01.001',
+      kode_barang: '02.03.01.001',
+      nama_barang: 'Laptop Dell Latitude',
+      kondisi: 'BAIK',
+      tahun_perolehan: 2022,
+      nilai_perolehan: 15000000,
+      satker_code: 'kejari-jakarta-pusat'
+    }
+  ]
+};
+
+export const mockMySIMKARIData = {
+  pegawai: [
+    {
+      nip: '199001012020121001',
+      nama: 'Budi Santoso',
+      satker_code: 'kejari-jakarta-pusat',
+      jabatan: 'Kepala Sub Bagian Umum',
+      pangkat: 'Penata Muda Tk.I',
+      golongan: 'III/b',
+      eselon: null,
+      jenis_pegawai: 'TU',
+      jenis_kelamin: 'L',
+      photo_url: 'https://mysimkari.test/photos/199001012020121001.jpg'
+    },
+    {
+      nip: '198501012015121002',
+      nama: 'Dewi Lestari',
+      satker_code: 'kejari-jakarta-pusat',
+      jabatan: 'Jaksa Penuntut Umum',
+      pangkat: 'Penata',
+      golongan: 'III/c',
+      eselon: null,
+      jenis_pegawai: 'Jaksa',
+      jenis_kelamin: 'P',
+      photo_url: 'https://mysimkari.test/photos/198501012015121002.jpg'
+    }
+  ],
+  summary: {
+    total_pegawai: 45,
+    total_eselon: 3,
+    golongan_breakdown: [
+      { golongan: 'I', count: 2 },
+      { golongan: 'II', count: 8 },
+      { golongan: 'III', count: 25 },
+      { golongan: 'IV', count: 10 }
+    ],
+    total_jaksa: 20,
+    total_non_jaksa: 25
+  }
+};
+```
+
+### 24.4 Test Suite 1: Kebutuhan BMN Complete Flow
+
+```typescript
+// tests/e2e/kebutuhan-bmn.spec.ts
+import { test, expect } from '@playwright/test';
+import { testUsers } from './fixtures/users';
+import { mockSimanData, mockMySIMKARIData } from './fixtures/integration-data';
+
+test.describe('Kebutuhan BMN - Complete Workflow', () => {
+
+  test.beforeEach(async ({ page }) => {
+    // Setup mock API responses for SIMAN and MySIMKARI
+    await page.route('**/api/integration/siman/**', route => {
+      route.fulfill({ json: mockSimanData });
+    });
+
+    await page.route('**/api/integration/mysimkari/**', route => {
+      route.fulfill({ json: mockMySIMKARIData });
+    });
+  });
+
+  test('Phase 1: Validator Pusat initiates period and configures eligibility', async ({ page }) => {
+    // Login as Validator Pusat
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorPusat.username);
+    await page.fill('input[name="password"]', testUsers.validatorPusat.password);
+    await page.click('button[type="submit"]');
+
+    // Wait for dashboard
+    await expect(page).toHaveURL('/dashboard');
+
+    // Navigate to Kebutuhan BMN Period Management
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Kelola Periode');
+
+    // Create new period
+    await page.click('button:has-text("Buat Periode Baru")');
+    await page.fill('input[name="nama_period"]', 'Kebutuhan BMN TA 2026');
+    await page.fill('input[name="start_date"]', '2026-03-01');
+    await page.fill('input[name="end_date"]', '2026-06-30');
+    await page.fill('input[name="deadline"]', '2026-06-30T23:59');
+    await page.click('button:has-text("Simpan")');
+
+    // Verify period created
+    await expect(page.locator('text=Kebutuhan BMN TA 2026')).toBeVisible();
+
+    // Configure eligible BMN
+    await page.click('button:has-text("Konfigurasi BMN")');
+    await page.click('input[type="checkbox"][value="01.01.01.001"]'); // Meja Kerja
+    await page.click('input[type="checkbox"][value="02.03.01.001"]'); // Laptop
+    await page.click('button:has-text("Simpan BMN Eligible")');
+
+    // Verify eligible BMN configured
+    await expect(page.locator('text=2 BMN dipilih')).toBeVisible();
+
+    // Configure eligible satkers
+    await page.click('button:has-text("Konfigurasi Satker")');
+    await page.click('text=DKI Jakarta'); // Expand wilayah
+    await page.click('input[type="checkbox"][value="kejari-jakarta-pusat"]');
+    await page.click('input[type="checkbox"][value="kejari-jakarta-selatan"]');
+    await page.click('button:has-text("Simpan Satker Eligible")');
+
+    // Verify eligible satkers configured
+    await expect(page.locator('text=2 Satker dipilih')).toBeVisible();
+
+    // Activate period
+    await page.click('button:has-text("Aktifkan Periode")');
+    await expect(page.locator('text=Status: ACTIVE')).toBeVisible();
+  });
+
+  test('Phase 2: Operator Satker submits kebutuhan BMN', async ({ page }) => {
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to Kebutuhan BMN Submission
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Ajukan Kebutuhan');
+
+    // Verify active period is shown
+    await expect(page.locator('text=Kebutuhan BMN TA 2026')).toBeVisible();
+    await expect(page.locator('text=Deadline: 30 Juni 2026')).toBeVisible();
+
+    // Create new submission
+    await page.click('button:has-text("Buat Pengajuan Baru")');
+
+    // Add BMN items
+    await page.click('button:has-text("Tambah BMN")');
+    await page.selectOption('select[name="kode_barang"]', '01.01.01.001'); // Meja Kerja
+    await page.fill('input[name="jumlah_kebutuhan"]', '10');
+    await page.fill('textarea[name="justification"]',
+      'Kebutuhan meja kerja untuk ruang kerja baru yang akan dibangun. ' +
+      'Saat ini hanya memiliki 5 meja dalam kondisi baik, sedangkan kebutuhan ' +
+      'standar untuk 15 pegawai adalah 15 meja. Gap: 10 meja.'
+    );
+    await page.click('button:has-text("Simpan Item")');
+
+    // Verify item added
+    await expect(page.locator('text=Meja Kerja Kayu')).toBeVisible();
+    await expect(page.locator('text=Jumlah: 10')).toBeVisible();
+
+    // Add another BMN item
+    await page.click('button:has-text("Tambah BMN")');
+    await page.selectOption('select[name="kode_barang"]', '02.03.01.001'); // Laptop
+    await page.fill('input[name="jumlah_kebutuhan"]', '5');
+    await page.fill('textarea[name="justification"]',
+      'Kebutuhan laptop untuk jaksa penuntut umum yang baru. ' +
+      'Saat ini hanya memiliki 15 laptop, kebutuhan untuk 20 jaksa adalah 20 laptop. Gap: 5 laptop.'
+    );
+    await page.click('button:has-text("Simpan Item")');
+
+    // Upload supporting documents
+    await page.click('button:has-text("Upload Lampiran")');
+    await page.setInputFiles('input[type="file"]', 'tests/fixtures/surat-permohonan.pdf');
+    await page.click('button:has-text("Upload")');
+
+    // Verify attachment uploaded
+    await expect(page.locator('text=surat-permohonan.pdf')).toBeVisible();
+
+    // Submit to Validator Wilayah
+    await page.click('button:has-text("Kirim ke Validator Wilayah")');
+    await page.click('button:has-text("Ya, Kirim")'); // Confirmation dialog
+
+    // Verify submission successful
+    await expect(page.locator('text=Status: SUBMITTED')).toBeVisible();
+    await expect(page.locator('text=Pengajuan berhasil dikirim')).toBeVisible();
+  });
+
+  test('Phase 3: Validator Wilayah reviews and forwards to Validator Pusat', async ({ page }) => {
+    // Login as Validator Wilayah
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorWilayah.username);
+    await page.fill('input[name="password"]', testUsers.validatorWilayah.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to pending submissions
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Review Pengajuan');
+
+    // Filter by status SUBMITTED
+    await page.selectOption('select[name="status"]', 'SUBMITTED');
+
+    // Open submission detail
+    await page.click('text=Kejaksaan Negeri Jakarta Pusat');
+
+    // Review submission details
+    await expect(page.locator('text=Meja Kerja Kayu')).toBeVisible();
+    await expect(page.locator('text=Laptop Dell Latitude')).toBeVisible();
+    await expect(page.locator('text=surat-permohonan.pdf')).toBeVisible();
+
+    // Forward to Validator Pusat
+    await page.click('button:has-text("Teruskan ke Validator Pusat")');
+    await page.fill('textarea[name="catatan"]', 'Pengajuan sudah sesuai dan lengkap.');
+    await page.click('button:has-text("Ya, Teruskan")');
+
+    // Verify forwarded
+    await expect(page.locator('text=Status: REVIEWED_WILAYAH')).toBeVisible();
+    await expect(page.locator('text=Berhasil diteruskan')).toBeVisible();
+  });
+
+  test('Phase 4: Validator Pusat analyzes with integrated data and approves', async ({ page }) => {
+    // Login as Validator Pusat
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorPusat.username);
+    await page.fill('input[name="password"]', testUsers.validatorPusat.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to analysis
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Analisis Kebutuhan');
+
+    // Filter by status REVIEWED_WILAYAH
+    await page.selectOption('select[name="status"]', 'REVIEWED_WILAYAH');
+
+    // Open submission for analysis
+    await page.click('text=Kejaksaan Negeri Jakarta Pusat');
+
+    // View integrated data
+    await page.click('button:has-text("Lihat Data Analisis")');
+
+    // Verify SIMAN data displayed
+    await expect(page.locator('text=Data BMN Existing (SIMAN)')).toBeVisible();
+    await expect(page.locator('text=Meja Kerja: 5 unit (Kondisi Baik)')).toBeVisible();
+    await expect(page.locator('text=Laptop: 15 unit (Kondisi Baik)')).toBeVisible();
+
+    // Verify MySIMKARI data displayed
+    await expect(page.locator('text=Data Pegawai (MySIMKARI)')).toBeVisible();
+    await expect(page.locator('text=Total Pegawai: 45')).toBeVisible();
+    await expect(page.locator('text=Eselon: 3')).toBeVisible();
+    await expect(page.locator('text=Jaksa: 20')).toBeVisible();
+    await expect(page.locator('text=Non-Jaksa: 25')).toBeVisible();
+
+    // Verify gap analysis
+    await expect(page.locator('text=Gap Meja Kerja: 10 unit')).toBeVisible();
+    await expect(page.locator('text=Gap Laptop: 5 unit')).toBeVisible();
+
+    // Approve submission
+    await page.click('button:has-text("Setujui")');
+    await page.fill('textarea[name="catatan_approval"]',
+      'Disetujui berdasarkan analisis gap dan data pegawai. ' +
+      'Kebutuhan sesuai dengan standar.'
+    );
+    await page.click('button:has-text("Ya, Setujui")');
+
+    // Verify approved and marked as priority
+    await expect(page.locator('text=Status: APPROVED')).toBeVisible();
+    await expect(page.locator('text=Prioritas: Ya')).toBeVisible();
+  });
+
+  test('Phase 5: Validator Pusat generates analysis report', async ({ page }) => {
+    // Login as Validator Pusat
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorPusat.username);
+    await page.fill('input[name="password"]', testUsers.validatorPusat.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to reports
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Laporan Analisis');
+
+    // Generate report
+    await page.click('button:has-text("Generate Laporan")');
+    await page.selectOption('select[name="format"]', 'PDF');
+    await page.selectOption('select[name="wilayah"]', '0200'); // DKI Jakarta
+    await page.click('button:has-text("Generate")');
+
+    // Wait for document generation
+    await expect(page.locator('text=Laporan sedang diproses')).toBeVisible();
+    await page.waitForSelector('text=Laporan siap diunduh', { timeout: 10000 });
+
+    // Download report
+    const downloadPromise = page.waitForEvent('download');
+    await page.click('button:has-text("Unduh PDF")');
+    const download = await downloadPromise;
+
+    // Verify download
+    expect(download.suggestedFilename()).toContain('laporan-analisis-kebutuhan');
+    expect(download.suggestedFilename()).toContain('.pdf');
+  });
+});
+```
+
+### 24.5 Test Suite 2: Pemakaian BMN Complete Flow
+
+```typescript
+// tests/e2e/pemakaian-bmn.spec.ts
+import { test, expect } from '@playwright/test';
+import { testUsers } from './fixtures/users';
+import { mockSimanData, mockMySIMKARIData } from './fixtures/integration-data';
+
+test.describe('Pemakaian BMN - Complete Workflow', () => {
+
+  test('Scenario 1: Create permit with multiple BMN items', async ({ page }) => {
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to Pemakaian BMN
+    await page.click('text=Pemakaian BMN');
+    await page.click('text=Buat Izin Baru');
+
+    // Select pegawai
+    await page.fill('input[name="nip"]', '199001012020121001');
+    await page.click('button:has-text("Cari Pegawai")');
+
+    // Verify pegawai data loaded from MySIMKARI
+    await expect(page.locator('text=Budi Santoso')).toBeVisible();
+    await expect(page.locator('text=Kepala Sub Bagian Umum')).toBeVisible();
+    await expect(page.locator('text=Penata Muda Tk.I')).toBeVisible();
+    await expect(page.locator('img[alt="Foto Pegawai"]')).toBeVisible();
+
+    // Add first BMN item
+    await page.click('button:has-text("Tambah BMN")');
+    await page.fill('input[name="nup_search"]', '0002.03.01.001');
+    await page.click('button:has-text("Cari BMN")');
+
+    // Verify BMN availability check
+    await expect(page.locator('text=Laptop Dell Latitude')).toBeVisible();
+    await expect(page.locator('text=Status: Tersedia')).toBeVisible();
+    await page.click('button:has-text("Pilih BMN")');
+
+    // Add second BMN item
+    await page.click('button:has-text("Tambah BMN")');
+    await page.fill('input[name="nup_search"]', '0001.01.01.001');
+    await page.click('button:has-text("Cari BMN")');
+    await expect(page.locator('text=Meja Kerja Kayu')).toBeVisible();
+    await page.click('button:has-text("Pilih BMN")');
+
+    // Verify multiple BMN added
+    await expect(page.locator('text=2 BMN dipilih')).toBeVisible();
+
+    // Set usage period
+    await page.fill('input[name="start_date"]', '2026-03-01');
+    await page.fill('input[name="end_date"]', '2027-02-28'); // 1 year
+
+    // Generate draft document
+    await page.click('button:has-text("Generate Dokumen")');
+
+    // Wait for document generation
+    await expect(page.locator('text=Dokumen sedang diproses')).toBeVisible();
+    await page.waitForSelector('text=Dokumen siap diunduh', { timeout: 10000 });
+
+    // Verify permit number generated
+    await expect(page.locator('text=IZN/2026/KEJARI-JAKARTA-PUSAT/')).toBeVisible();
+
+    // Download draft DOCX
+    const downloadPromise = page.waitForEvent('download');
+    await page.click('button:has-text("Unduh Draft DOCX")');
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toContain('.docx');
+
+    // Verify status changed to DOCUMENT_GENERATED
+    await expect(page.locator('text=Status: DOCUMENT_GENERATED')).toBeVisible();
+  });
+
+  test('Scenario 2: Upload signed permit and complete', async ({ page }) => {
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to pending permits
+    await page.click('text=Pemakaian BMN');
+    await page.click('text=Daftar Izin');
+    await page.selectOption('select[name="status"]', 'DOCUMENT_GENERATED');
+
+    // Open permit
+    await page.click('text=Budi Santoso');
+
+    // Upload signed PDF
+    await page.click('button:has-text("Upload PDF Bertanda Tangan")');
+    await page.setInputFiles('input[type="file"]', 'tests/fixtures/izin-pemakaian-signed.pdf');
+    await page.click('button:has-text("Upload")');
+
+    // Verify upload successful
+    await expect(page.locator('text=Status: COMPLETED')).toBeVisible();
+    await expect(page.locator('text=PDF berhasil diupload')).toBeVisible();
+
+    // Verify signed document can be downloaded
+    await expect(page.locator('button:has-text("Unduh PDF Bertanda Tangan")')).toBeVisible();
+  });
+
+  test('Scenario 3: Validator Wilayah monitors active permits', async ({ page }) => {
+    // Login as Validator Wilayah
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorWilayah.username);
+    await page.fill('input[name="password"]', testUsers.validatorWilayah.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to monitoring
+    await page.click('text=Pemakaian BMN');
+    await page.click('text=Monitoring Izin');
+
+    // Filter by wilayah
+    await page.selectOption('select[name="wilayah"]', '0200'); // DKI Jakarta
+    await page.selectOption('select[name="status"]', 'COMPLETED');
+
+    // Verify can see active permits
+    await expect(page.locator('text=Budi Santoso')).toBeVisible();
+    await expect(page.locator('text=Laptop Dell Latitude')).toBeVisible();
+    await expect(page.locator('text=Meja Kerja Kayu')).toBeVisible();
+
+    // View permit details
+    await page.click('text=Budi Santoso');
+    await expect(page.locator('text=Periode: 01 Mar 2026 - 28 Feb 2027')).toBeVisible();
+    await expect(page.locator('text=Sisa Waktu: 365 hari')).toBeVisible();
+  });
+
+  test('Scenario 4: Renew permit before expiry', async ({ page }) => {
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to permits
+    await page.click('text=Pemakaian BMN');
+    await page.click('text=Daftar Izin');
+
+    // Open permit
+    await page.click('text=Budi Santoso');
+
+    // Renew permit
+    await page.click('button:has-text("Perpanjang Izin")');
+
+    // Verify renewal form pre-filled
+    await expect(page.locator('text=Perpanjangan dari: IZN/2026/')).toBeVisible();
+    await expect(page.locator('text=Budi Santoso')).toBeVisible();
+    await expect(page.locator('text=2 BMN')).toBeVisible();
+
+    // Set new period
+    await page.fill('input[name="start_date"]', '2027-03-01');
+    await page.fill('input[name="end_date"]', '2028-02-29');
+
+    // Generate renewal document
+    await page.click('button:has-text("Generate Dokumen Perpanjangan")');
+    await page.waitForSelector('text=Dokumen siap diunduh', { timeout: 10000 });
+
+    // Verify new permit created
+    await expect(page.locator('text=IZN/2027/KEJARI-JAKARTA-PUSAT/')).toBeVisible();
+    await expect(page.locator('text=Status: DOCUMENT_GENERATED')).toBeVisible();
+  });
+
+  test('Scenario 5: Admin revokes permit', async ({ page }) => {
+    // Login as Admin
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.admin.username);
+    await page.fill('input[name="password"]', testUsers.admin.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to permits
+    await page.click('text=Pemakaian BMN');
+    await page.click('text=Daftar Izin');
+    await page.selectOption('select[name="status"]', 'COMPLETED');
+
+    // Open permit
+    await page.click('text=Budi Santoso');
+
+    // Revoke permit
+    await page.click('button:has-text("Cabut Izin")');
+    await page.fill('textarea[name="revocation_reason"]',
+      'Pegawai dimutasi ke satker lain. BMN dikembalikan ke pool.'
+    );
+    await page.click('button:has-text("Ya, Cabut Izin")');
+
+    // Verify revoked
+    await expect(page.locator('text=Status: REVOKED')).toBeVisible();
+    await expect(page.locator('text=Alasan: Pegawai dimutasi')).toBeVisible();
+
+    // Verify BMN now available for others
+    await page.goto('/pemakaian-bmn/buat-izin');
+    await page.fill('input[name="nip"]', '198501012015121002'); // Different pegawai
+    await page.click('button:has-text("Cari Pegawai")');
+    await page.click('button:has-text("Tambah BMN")');
+    await page.fill('input[name="nup_search"]', '0002.03.01.001'); // Previously used laptop
+    await page.click('button:has-text("Cari BMN")');
+
+    // Verify BMN is now available
+    await expect(page.locator('text=Status: Tersedia')).toBeVisible();
+  });
+
+  test('Scenario 6: Automated expiry reminders', async ({ page }) => {
+    // This test simulates the cron job behavior
+    // In real implementation, this would be tested via API or background job testing
+
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Check notifications
+    await page.click('button[aria-label="Notifications"]');
+
+    // Verify expiry reminder notifications
+    await expect(page.locator('text=Izin pemakaian akan berakhir dalam 30 hari')).toBeVisible();
+    await expect(page.locator('text=Laptop Dell Latitude')).toBeVisible();
+
+    // Navigate to expiring permits
+    await page.click('text=Pemakaian BMN');
+    await page.click('text=Izin Akan Berakhir');
+
+    // Verify expiring permits listed
+    await expect(page.locator('text=Berakhir dalam 30 hari')).toBeVisible();
+  });
+});
+```
+
+### 24.6 Test Suite 3: SK Penghapusan BMN Complete Flow
+
+```typescript
+// tests/e2e/sk-penghapusan-bmn.spec.ts
+import { test, expect } from '@playwright/test';
+import { testUsers } from './fixtures/users';
+import { mockSimanData } from './fixtures/integration-data';
+
+test.describe('SK Penghapusan BMN - Complete Workflow', () => {
+
+  test('Scenario 1: Operator Satker creates penghapusan request', async ({ page }) => {
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to SK Penghapusan
+    await page.click('text=SK Penghapusan BMN');
+    await page.click('text=Buat Pengajuan Baru');
+
+    // Add BMN for deletion
+    await page.click('button:has-text("Tambah BMN")');
+    await page.fill('input[name="nup_search"]', '0001.01.01.002'); // Kursi Rusak
+    await page.click('button:has-text("Cari BMN")');
+
+    // Verify BMN details from SIMAN
+    await expect(page.locator('text=Kursi Kerja Putar')).toBeVisible();
+    await expect(page.locator('text=Kondisi: RUSAK_RINGAN')).toBeVisible();
+    await expect(page.locator('text=Tahun: 2019')).toBeVisible();
+
+    // Verify BMN not in active use
+    await expect(page.locator('text=Status Pemakaian: Tidak Digunakan')).toBeVisible();
+
+    // Add alasan penghapusan
+    await page.fill('textarea[name="alasan_penghapusan"]',
+      'BMN dalam kondisi rusak berat dan tidak ekonomis untuk diperbaiki. ' +
+      'Sudah melewati masa manfaat dan mengganggu estetika ruangan.'
+    );
+    await page.click('button:has-text("Pilih BMN")');
+
+    // Verify BMN added
+    await expect(page.locator('text=1 BMN dipilih')).toBeVisible();
+
+    // Upload supporting documents
+    await page.click('button:has-text("Upload Persyaratan")');
+    await page.setInputFiles('input[type="file"]', 'tests/fixtures/berita-acara-penghapusan.pdf');
+    await page.click('button:has-text("Upload")');
+
+    // Verify attachment uploaded
+    await expect(page.locator('text=berita-acara-penghapusan.pdf')).toBeVisible();
+
+    // Submit to Validator Wilayah
+    await page.click('button:has-text("Kirim ke Validator Wilayah")');
+    await page.click('button:has-text("Ya, Kirim")');
+
+    // Verify submission successful
+    await expect(page.locator('text=Status: SUBMITTED')).toBeVisible();
+    await expect(page.locator('text=Pengajuan berhasil dikirim')).toBeVisible();
+  });
+
+  test('Scenario 2: Validator Wilayah reviews and forwards', async ({ page }) => {
+    // Login as Validator Wilayah
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorWilayah.username);
+    await page.fill('input[name="password"]', testUsers.validatorWilayah.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to pending requests
+    await page.click('text=SK Penghapusan BMN');
+    await page.click('text=Review Pengajuan');
+    await page.selectOption('select[name="status"]', 'SUBMITTED');
+
+    // Open request
+    await page.click('text=Kejaksaan Negeri Jakarta Pusat');
+
+    // Review details
+    await expect(page.locator('text=Kursi Kerja Putar')).toBeVisible();
+    await expect(page.locator('text=Kondisi: RUSAK_RINGAN')).toBeVisible();
+    await expect(page.locator('text=berita-acara-penghapusan.pdf')).toBeVisible();
+
+    // Download and verify attachment
+    const downloadPromise = page.waitForEvent('download');
+    await page.click('button:has-text("Unduh Lampiran")');
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('berita-acara-penghapusan.pdf');
+
+    // Forward to Validator Pusat
+    await page.click('button:has-text("Teruskan ke Validator Pusat")');
+    await page.fill('textarea[name="catatan"]',
+      'Dokumen lengkap dan alasan penghapusan valid. Direkomendasikan untuk disetujui.'
+    );
+    await page.click('button:has-text("Ya, Teruskan")');
+
+    // Verify forwarded
+    await expect(page.locator('text=Status: REVIEWED_WILAYAH')).toBeVisible();
+  });
+
+  test('Scenario 3: Validator Pusat reviews and generates SK', async ({ page }) => {
+    // Login as Validator Pusat
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorPusat.username);
+    await page.fill('input[name="password"]', testUsers.validatorPusat.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to pending requests
+    await page.click('text=SK Penghapusan BMN');
+    await page.click('text=Review Pengajuan');
+    await page.selectOption('select[name="status"]', 'REVIEWED_WILAYAH');
+
+    // Open request
+    await page.click('text=Kejaksaan Negeri Jakarta Pusat');
+
+    // View BMN details
+    await page.click('button:has-text("Lihat Detail BMN")');
+    await expect(page.locator('text=NUP: 0001.01.01.002')).toBeVisible();
+    await expect(page.locator('text=Nilai Perolehan: Rp 1.500.000')).toBeVisible();
+
+    // Approve for SK generation
+    await page.click('button:has-text("Setujui untuk SK")');
+    await page.click('button:has-text("Ya, Setujui")');
+
+    // Verify status changed
+    await expect(page.locator('text=Status: REVIEWED_PUSAT')).toBeVisible();
+
+    // Generate SK document
+    await page.click('button:has-text("Generate SK Penghapusan")');
+
+    // Wait for document generation
+    await expect(page.locator('text=SK sedang diproses')).toBeVisible();
+    await page.waitForSelector('text=SK siap diunduh', { timeout: 10000 });
+
+    // Verify SK number generated
+    await expect(page.locator('text=SK/2026/')).toBeVisible();
+
+    // Download draft SK DOCX
+    const downloadPromise = page.waitForEvent('download');
+    await page.click('button:has-text("Unduh Draft SK DOCX")');
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toContain('SK-Penghapusan');
+    expect(download.suggestedFilename()).toContain('.docx');
+
+    // Verify status changed
+    await expect(page.locator('text=Status: DOCUMENT_GENERATED')).toBeVisible();
+  });
+
+  test('Scenario 4: Validator Pusat uploads signed SK', async ({ page }) => {
+    // Login as Validator Pusat
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorPusat.username);
+    await page.fill('input[name="password"]', testUsers.validatorPusat.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to requests
+    await page.click('text=SK Penghapusan BMN');
+    await page.click('text=Daftar Pengajuan');
+    await page.selectOption('select[name="status"]', 'DOCUMENT_GENERATED');
+
+    // Open request
+    await page.click('text=Kejaksaan Negeri Jakarta Pusat');
+
+    // Upload signed SK PDF
+    await page.click('button:has-text("Upload SK Bertanda Tangan")');
+    await page.setInputFiles('input[type="file"]', 'tests/fixtures/sk-penghapusan-signed.pdf');
+    await page.click('button:has-text("Upload")');
+
+    // Verify upload successful
+    await expect(page.locator('text=Status: COMPLETED')).toBeVisible();
+    await expect(page.locator('text=SK berhasil diupload')).toBeVisible();
+
+    // Verify signed SK can be downloaded
+    await expect(page.locator('button:has-text("Unduh SK Bertanda Tangan")')).toBeVisible();
+  });
+
+  test('Scenario 5: Operator Satker and Validator Wilayah view signed SK', async ({ page }) => {
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to completed requests
+    await page.click('text=SK Penghapusan BMN');
+    await page.click('text=Daftar Pengajuan');
+    await page.selectOption('select[name="status"]', 'COMPLETED');
+
+    // Open request
+    await page.click('text=Kursi Kerja Putar');
+
+    // Verify can see SK details
+    await expect(page.locator('text=Status: COMPLETED')).toBeVisible();
+    await expect(page.locator('text=SK/2026/')).toBeVisible();
+
+    // Download signed SK
+    const downloadPromise = page.waitForEvent('download');
+    await page.click('button:has-text("Unduh SK Bertanda Tangan")');
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toContain('SK-Penghapusan');
+    expect(download.suggestedFilename()).toContain('.pdf');
+
+    // Logout and login as Validator Wilayah
+    await page.click('button[aria-label="User menu"]');
+    await page.click('text=Logout');
+
+    await page.fill('input[name="username"]', testUsers.validatorWilayah.username);
+    await page.fill('input[name="password"]', testUsers.validatorWilayah.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to completed requests
+    await page.click('text=SK Penghapusan BMN');
+    await page.click('text=Daftar Pengajuan');
+    await page.selectOption('select[name="status"]', 'COMPLETED');
+
+    // Verify can also see and download SK
+    await page.click('text=Kejaksaan Negeri Jakarta Pusat');
+    await expect(page.locator('button:has-text("Unduh SK Bertanda Tangan")')).toBeVisible();
+  });
+
+  test('Scenario 6: Validation - Cannot delete BMN in active use', async ({ page }) => {
+    // First, create an active permit for a BMN
+    // (This would be done in setup or previous test)
+
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Try to create penghapusan for BMN in active use
+    await page.click('text=SK Penghapusan BMN');
+    await page.click('text=Buat Pengajuan Baru');
+    await page.click('button:has-text("Tambah BMN")');
+    await page.fill('input[name="nup_search"]', '0002.03.01.001'); // Laptop with active permit
+    await page.click('button:has-text("Cari BMN")');
+
+    // Verify validation error
+    await expect(page.locator('text=BMN sedang digunakan')).toBeVisible();
+    await expect(page.locator('text=Izin Pemakaian: IZN/2026/')).toBeVisible();
+    await expect(page.locator('text=Pegawai: Budi Santoso')).toBeVisible();
+    await expect(page.locator('text=Berakhir: 28 Feb 2027')).toBeVisible();
+
+    // Verify cannot select BMN
+    await expect(page.locator('button:has-text("Pilih BMN")')).toBeDisabled();
+  });
+});
+```
+
+### 24.7 Test Suite 4: Kebutuhan Pakaian Dinas Complete Flow
+
+```typescript
+// tests/e2e/kebutuhan-pakaian-dinas.spec.ts
+import { test, expect } from '@playwright/test';
+import { testUsers } from './fixtures/users';
+import { mockMySIMKARIData } from './fixtures/integration-data';
+
+test.describe('Kebutuhan Pakaian Dinas - Complete Workflow', () => {
+
+  test('Scenario 1: Validator Pusat creates pakaian dinas period', async ({ page }) => {
+    // Login as Validator Pusat
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorPusat.username);
+    await page.fill('input[name="password"]', testUsers.validatorPusat.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to Pakaian Dinas Period Management
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Pakaian Dinas');
+    await page.click('text=Kelola Periode');
+
+    // Create new period
+    await page.click('button:has-text("Buat Periode Baru")');
+    await page.fill('input[name="nama_period"]', 'Pakaian Dinas TA 2026');
+    await page.fill('input[name="start_date"]', '2026-03-01');
+    await page.fill('input[name="end_date"]', '2026-06-30');
+    await page.fill('input[name="deadline"]', '2026-06-30T23:59');
+    await page.click('button:has-text("Simpan")');
+
+    // Configure eligible satkers using hierarchical tree
+    await page.click('button:has-text("Konfigurasi Satker")');
+
+    // Expand wilayah tree
+    await page.click('text=0200 - DKI Jakarta'); // Expand
+    await page.click('input[type="checkbox"][value="kejari-jakarta-pusat"]');
+    await page.click('input[type="checkbox"][value="kejari-jakarta-selatan"]');
+
+    await page.click('text=0300 - Jawa Barat'); // Expand
+    await page.click('input[type="checkbox"][value="kejari-bandung"]');
+
+    await page.click('button:has-text("Simpan Satker Eligible")');
+    await expect(page.locator('text=3 Satker dipilih')).toBeVisible();
+
+    // Configure pakaian types and specifications
+    await page.click('button:has-text("Konfigurasi Jenis Pakaian")');
+
+    // Add PDH (Pakaian Dinas Harian)
+    await page.click('button:has-text("Tambah Jenis")');
+    await page.fill('input[name="nama_pakaian"]', 'PDH (Pakaian Dinas Harian)');
+
+    // Add specifications with categories
+    await page.click('button:has-text("Tambah Spesifikasi")');
+    await page.fill('input[name="nama_spesifikasi"]', 'Kemeja PDH');
+    await page.selectOption('select[name="kategori"]', 'BAJU');
+    await page.fill('input[name="ukuran_options"]', 'S, M, L, XL, XXL, XXXL');
+    await page.click('button:has-text("Simpan Spesifikasi")');
+
+    await page.click('button:has-text("Tambah Spesifikasi")');
+    await page.fill('input[name="nama_spesifikasi"]', 'Celana PDH');
+    await page.selectOption('select[name="kategori"]', 'CELANA');
+    await page.fill('input[name="ukuran_options"]', '28, 30, 32, 34, 36, 38, 40');
+    await page.click('button:has-text("Simpan Spesifikasi")');
+
+    await page.click('button:has-text("Tambah Spesifikasi")');
+    await page.fill('input[name="nama_spesifikasi"]', 'Sepatu PDH');
+    await page.selectOption('select[name="kategori"]', 'SEPATU');
+    await page.fill('input[name="ukuran_options"]', '38, 39, 40, 41, 42, 43, 44');
+    await page.click('button:has-text("Simpan Spesifikasi")');
+
+    await page.click('button:has-text("Simpan Jenis Pakaian")');
+
+    // Activate period
+    await page.click('button:has-text("Aktifkan Periode")');
+    await expect(page.locator('text=Status: ACTIVE')).toBeVisible();
+  });
+
+  test('Scenario 2: Operator Satker inputs pegawai ukuran', async ({ page }) => {
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to Pakaian Dinas submission
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Pakaian Dinas');
+    await page.click('text=Input Ukuran');
+
+    // Verify active period shown
+    await expect(page.locator('text=Pakaian Dinas TA 2026')).toBeVisible();
+
+    // Load pegawai list from MySIMKARI
+    await page.click('button:has-text("Muat Data Pegawai")');
+    await expect(page.locator('text=45 pegawai dimuat')).toBeVisible();
+
+    // Filter pegawai
+    await page.selectOption('select[name="jenis_pegawai"]', 'Jaksa');
+    await page.selectOption('select[name="jenis_kelamin"]', 'L');
+
+    // Input ukuran for first pegawai (male)
+    await page.click('tr:has-text("Budi Santoso") button:has-text("Input Ukuran")');
+
+    // Verify pegawai data snapshot
+    await expect(page.locator('text=NIP: 199001012020121001')).toBeVisible();
+    await expect(page.locator('text=Jabatan: Kepala Sub Bagian Umum')).toBeVisible();
+    await expect(page.locator('text=Pangkat: Penata Muda Tk.I')).toBeVisible();
+    await expect(page.locator('text=Golongan: III/b')).toBeVisible();
+
+    // Input ukuran by category
+    await page.selectOption('select[name="ukuran_kemeja"]', 'L');
+    await page.selectOption('select[name="ukuran_celana"]', '32');
+    await page.selectOption('select[name="ukuran_sepatu"]', '42');
+
+    // No hijab option for male
+    await expect(page.locator('input[name="with_hijab"]')).not.toBeVisible();
+
+    await page.click('button:has-text("Simpan Ukuran")');
+    await expect(page.locator('text=Ukuran berhasil disimpan')).toBeVisible();
+
+    // Input ukuran for female pegawai
+    await page.selectOption('select[name="jenis_kelamin"]', 'P');
+    await page.click('tr:has-text("Dewi Lestari") button:has-text("Input Ukuran")');
+
+    // Input ukuran with hijab option
+    await page.selectOption('select[name="ukuran_kemeja"]', 'M');
+    await page.selectOption('select[name="ukuran_celana"]', '30');
+    await page.selectOption('select[name="ukuran_sepatu"]', '38');
+    await page.check('input[name="with_hijab"]'); // Hijab option for female
+
+    await page.click('button:has-text("Simpan Ukuran")');
+
+    // Verify progress
+    await expect(page.locator('text=2 dari 45 pegawai sudah diinput')).toBeVisible();
+  });
+
+  test('Scenario 3: Operator Satker submits to Validator Wilayah', async ({ page }) => {
+    // Login as Operator Satker
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to submission
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Pakaian Dinas');
+    await page.click('text=Input Ukuran');
+
+    // Verify all pegawai have ukuran
+    await expect(page.locator('text=45 dari 45 pegawai sudah diinput')).toBeVisible();
+
+    // Submit to Validator Wilayah (Kejati)
+    await page.click('button:has-text("Kirim ke Kejati")');
+    await page.click('button:has-text("Ya, Kirim")');
+
+    // Verify submission successful
+    await expect(page.locator('text=Status: SUBMITTED_TO_KEJATI')).toBeVisible();
+    await expect(page.locator('text=Berhasil dikirim ke Kejati')).toBeVisible();
+  });
+
+  test('Scenario 4: Validator Wilayah reviews and forwards to Validator Pusat', async ({ page }) => {
+    // Login as Validator Wilayah
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorWilayah.username);
+    await page.fill('input[name="password"]', testUsers.validatorWilayah.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to review
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Pakaian Dinas');
+    await page.click('text=Review Pengajuan');
+
+    // Filter by status
+    await page.selectOption('select[name="status"]', 'SUBMITTED_TO_KEJATI');
+
+    // Open submission
+    await page.click('text=Kejaksaan Negeri Jakarta Pusat');
+
+    // Review data
+    await expect(page.locator('text=45 pegawai')).toBeVisible();
+    await expect(page.locator('text=Jaksa: 20')).toBeVisible();
+    await expect(page.locator('text=TU: 25')).toBeVisible();
+
+    // View detailed list
+    await page.click('button:has-text("Lihat Daftar Pegawai")');
+    await expect(page.locator('text=Budi Santoso')).toBeVisible();
+    await expect(page.locator('text=Kemeja: L, Celana: 32, Sepatu: 42')).toBeVisible();
+
+    // Forward to Validator Pusat (Kejagung)
+    await page.click('button:has-text("Teruskan ke Kejagung")');
+    await page.fill('textarea[name="catatan"]', 'Data sudah lengkap dan sesuai.');
+    await page.click('button:has-text("Ya, Teruskan")');
+
+    // Verify forwarded
+    await expect(page.locator('text=Status: SUBMITTED_TO_KEJAGUNG')).toBeVisible();
+  });
+
+  test('Scenario 5: Validator Pusat approves and generates reports', async ({ page }) => {
+    // Login as Validator Pusat
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorPusat.username);
+    await page.fill('input[name="password"]', testUsers.validatorPusat.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to review
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Pakaian Dinas');
+    await page.click('text=Review Pengajuan');
+
+    // Filter by status
+    await page.selectOption('select[name="status"]', 'SUBMITTED_TO_KEJAGUNG');
+
+    // Open submission
+    await page.click('text=Kejaksaan Negeri Jakarta Pusat');
+
+    // Approve
+    await page.click('button:has-text("Setujui")');
+    await page.click('button:has-text("Ya, Setujui")');
+
+    // Verify approved and data updated to master
+    await expect(page.locator('text=Status: COMPLETED')).toBeVisible();
+    await expect(page.locator('text=Data berhasil diupdate ke master pegawai_pakaian_dinas')).toBeVisible();
+
+    // Generate Laporan Daftar (individual list)
+    await page.click('button:has-text("Generate Laporan")');
+    await page.selectOption('select[name="jenis_laporan"]', 'DAFTAR');
+    await page.selectOption('select[name="format"]', 'PDF');
+
+    // Apply filters
+    await page.selectOption('select[name="jenis_pegawai"]', 'Jaksa');
+    await page.selectOption('select[name="jenis_kelamin"]', 'L');
+
+    await page.click('button:has-text("Generate")');
+    await page.waitForSelector('text=Laporan siap diunduh', { timeout: 10000 });
+
+    // Download Laporan Daftar
+    const downloadDaftar = page.waitForEvent('download');
+    await page.click('button:has-text("Unduh PDF")');
+    const daftarPdf = await downloadDaftar;
+    expect(daftarPdf.suggestedFilename()).toContain('Laporan-Daftar');
+
+    // Generate Laporan Rekap (aggregated summary)
+    await page.click('button:has-text("Generate Laporan")');
+    await page.selectOption('select[name="jenis_laporan"]', 'REKAP');
+    await page.selectOption('select[name="format"]', 'EXCEL');
+    await page.click('button:has-text("Generate")');
+    await page.waitForSelector('text=Laporan siap diunduh', { timeout: 10000 });
+
+    // Download Laporan Rekap
+    const downloadRekap = page.waitForEvent('download');
+    await page.click('button:has-text("Unduh Excel")');
+    const rekapExcel = await downloadRekap;
+    expect(rekapExcel.suggestedFilename()).toContain('Laporan-Rekap');
+    expect(rekapExcel.suggestedFilename()).toContain('.xlsx');
+  });
+
+  test('Scenario 6: Validator Wilayah returns for revision', async ({ page }) => {
+    // Login as Validator Wilayah
+    await page.goto('/login');
+    await page.fill('input[name="username"]', testUsers.validatorWilayah.username);
+    await page.fill('input[name="password"]', testUsers.validatorWilayah.password);
+    await page.click('button[type="submit"]');
+
+    // Navigate to review
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Pakaian Dinas');
+    await page.click('text=Review Pengajuan');
+
+    // Open submission
+    await page.click('text=Kejaksaan Negeri Jakarta Selatan');
+
+    // Return for revision
+    await page.click('button:has-text("Kembalikan untuk Revisi")');
+    await page.fill('textarea[name="catatan_revisi"]',
+      'Masih ada 5 pegawai yang belum diinput ukurannya. ' +
+      'Mohon dilengkapi sebelum diajukan kembali.'
+    );
+    await page.click('button:has-text("Ya, Kembalikan")');
+
+    // Verify returned
+    await expect(page.locator('text=Status: REVISION_REQUIRED')).toBeVisible();
+
+    // Logout and login as Operator Satker
+    await page.click('button[aria-label="User menu"]');
+    await page.click('text=Logout');
+
+    await page.fill('input[name="username"]', testUsers.operatorSatker.username);
+    await page.fill('input[name="password"]', testUsers.operatorSatker.password);
+    await page.click('button[type="submit"]');
+
+    // Check notification
+    await page.click('button[aria-label="Notifications"]');
+    await expect(page.locator('text=Pengajuan pakaian dinas dikembalikan untuk revisi')).toBeVisible();
+
+    // Navigate to submission
+    await page.click('text=Kebutuhan BMN');
+    await page.click('text=Pakaian Dinas');
+    await page.click('text=Input Ukuran');
+
+    // View revision notes
+    await expect(page.locator('text=Catatan Revisi:')).toBeVisible();
+    await expect(page.locator('text=Masih ada 5 pegawai yang belum diinput')).toBeVisible();
+
+    // Complete missing data and resubmit
+    // (Implementation continues...)
+  });
+});
+```
+
+### 24.8 Test Configuration and Setup
+
+**Playwright Configuration:**
+```typescript
+// playwright.config.ts
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  fullyParallel: false, // Run sequentially for workflow tests
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : 1,
+  reporter: [
+    ['html'],
+    ['json', { outputFile: 'test-results/results.json' }],
+    ['junit', { outputFile: 'test-results/junit.xml' }]
+  ],
+
+  use: {
+    baseURL: 'http://localhost:8080',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
+
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+  ],
+
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:8080',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+  },
+});
+```
+
+**Test Database Setup:**
+```bash
+# tests/e2e/setup/database.sh
+#!/bin/bash
+
+# Create test database
+psql -U postgres -c "CREATE DATABASE simpelv2_test;"
+
+# Run migrations
+cd layanan/perlengkapan
+DATABASE_URL=postgres://postgres:password@localhost:5432/simpelv2_test cargo run --bin migrate
+
+# Seed test data
+psql -U postgres -d simpelv2_test -f tests/e2e/fixtures/seed-data.sql
+```
+
+**Test Data Seeding:**
+```sql
+-- tests/e2e/fixtures/seed-data.sql
+
+-- Insert test users
+INSERT INTO authenc.users (id, username, password_hash, nip, nama, role, satker_id, created_at)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'operator.kejari.jakarta', '$argon2id$...', '199001012020121001', 'Budi Santoso', 'operator_satker', 'kejari-jakarta-pusat', NOW()),
+  ('22222222-2222-2222-2222-222222222222', 'validator.kejati.jakarta', '$argon2id$...', '198501012015121001', 'Siti Aminah', 'validator_wilayah', 'kejati-dki-jakarta', NOW()),
+  ('33333333-3333-3333-3333-333333333333', 'validator.kejagung', '$argon2id$...', '198001012010121001', 'Ahmad Hidayat', 'validator_pusat', 'kejaksaan-agung', NOW()),
+  ('44444444-4444-4444-4444-444444444444', 'admin.simpel', '$argon2id$...', '197501012005121001', 'Super Admin', 'admin', 'kejaksaan-agung', NOW());
+
+-- Insert test satkers
+INSERT INTO authenc.satkers (id, kode, nama, wilayah_code, wilayah_nama, created_at)
+VALUES
+  ('kejari-jakarta-pusat', 'KEJARI-JKT-PST', 'Kejaksaan Negeri Jakarta Pusat', '0200', 'DKI Jakarta', NOW()),
+  ('kejari-jakarta-selatan', 'KEJARI-JKT-SEL', 'Kejaksaan Negeri Jakarta Selatan', '0200', 'DKI Jakarta', NOW()),
+  ('kejati-dki-jakarta', 'KEJATI-DKI', 'Kejaksaan Tinggi DKI Jakarta', '0200', 'DKI Jakarta', NOW()),
+  ('kejaksaan-agung', 'KEJAGUNG', 'Kejaksaan Agung Republik Indonesia', '0100', 'Pusat', NOW());
+
+-- Insert test BMN master data
+INSERT INTO perlengkapan.ms_barang (id, kode, nama, kategori, created_at)
+VALUES
+  (gen_random_uuid(), '01.01.01.001', 'Meja Kerja Kayu', 'Peralatan Kantor', NOW()),
+  (gen_random_uuid(), '01.01.01.002', 'Kursi Kerja Putar', 'Peralatan Kantor', NOW()),
+  (gen_random_uuid(), '02.03.01.001', 'Laptop Dell Latitude', 'Peralatan Komputer', NOW());
+```
+
+### 24.9 CI/CD Integration
+
+**GitHub Actions Workflow:**
+```yaml
+# .github/workflows/e2e-tests.yml
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          cargo build --release
+
+      - name: Setup test database
+        run: |
+          ./tests/e2e/setup/database.sh
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/simpelv2_test
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        run: npx playwright test
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/simpelv2_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+```
+
+---
+
+**End of End-to-End Testing Section**
+**Document Version:** 3.1.0
+**Last Updated:** February 11, 2026
+**Status:** Complete with Comprehensive E2E Testing Strategy

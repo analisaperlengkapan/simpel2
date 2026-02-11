@@ -356,6 +356,151 @@ impl KebutuhanBmnService {
     }
 
     // ========================================================================
+    // Satker Workflow Operations (Validator Wilayah & Pusat)
+    // ========================================================================
+
+    /// Operator Satker submits to Validator Wilayah
+    /// Updates satker with lampiran and catatan, transitions to SubmitWilayah
+    pub async fn submit_satker_to_wilayah(
+        &self,
+        satker_id: Uuid,
+        request: SubmitKebutuhanSatkerRequest,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<PengajuanKebutuhanBmnSatker> {
+        let current = self.repository.get_satker_by_id(satker_id).await?;
+
+        // Only allow from InputBarang or RevisiSatker
+        if !matches!(
+            current.status,
+            KebutuhanBmnStatus::InputBarang | KebutuhanBmnStatus::RevisiSatker
+        ) {
+            return Err(AppError::BadRequest(
+                "Pengajuan hanya bisa dikirim saat status Input Barang atau Revisi".to_string(),
+            ));
+        }
+
+        // Update satker with lampiran and catatan
+        self.repository
+            .update_satker_submit_data(
+                satker_id,
+                request.catatan_satker.clone(),
+                request.lampiran_surat_permohonan.clone(),
+                request.lampiran_pendukung.clone(),
+            )
+            .await?;
+
+        info!("Operator Satker submitting {} to Validator Wilayah", satker_id);
+
+        // Transition to SubmitWilayah
+        let transition_request = WorkflowTransitionRequest {
+            target_status: KebutuhanBmnStatus::SubmitWilayah.to_code(),
+            komentar: request.catatan_satker.clone(),
+        };
+
+        self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
+    }
+
+    /// Validator Wilayah action: forward to pusat or return to operator
+    pub async fn validator_wilayah_action(
+        &self,
+        satker_id: Uuid,
+        request: ValidatorWilayahActionRequest,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<PengajuanKebutuhanBmnSatker> {
+        let current = self.repository.get_satker_by_id(satker_id).await?;
+
+        if current.status != KebutuhanBmnStatus::SubmitWilayah {
+            return Err(AppError::BadRequest(
+                "Aksi Validator Wilayah hanya bisa dilakukan saat status Submit Wilayah".to_string(),
+            ));
+        }
+
+        // Update validator wilayah info
+        self.repository
+            .update_satker_validator_wilayah(
+                satker_id,
+                user_id,
+                request.catatan.clone(),
+            )
+            .await?;
+
+        match request.action.as_str() {
+            "forward" => {
+                info!("Validator Wilayah forwarding {} to Validator Pusat", satker_id);
+                let transition_request = WorkflowTransitionRequest {
+                    target_status: KebutuhanBmnStatus::SubmitPusat.to_code(),
+                    komentar: request.catatan,
+                };
+                self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
+            }
+            "return" => {
+                if request.catatan.is_none() {
+                    return Err(AppError::BadRequest(
+                        "Catatan diperlukan saat mengembalikan ke Operator Satker".to_string(),
+                    ));
+                }
+                info!("Validator Wilayah returning {} to Operator Satker", satker_id);
+                let transition_request = WorkflowTransitionRequest {
+                    target_status: KebutuhanBmnStatus::RevisiSatker.to_code(),
+                    komentar: request.catatan,
+                };
+                self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
+            }
+            _ => Err(AppError::BadRequest(
+                "Action harus 'forward' atau 'return'".to_string(),
+            )),
+        }
+    }
+
+    /// Validator Pusat makes final decision: approve or reject
+    /// NO revision/return - only approve or reject with alasan
+    pub async fn validator_pusat_keputusan(
+        &self,
+        satker_id: Uuid,
+        request: ValidatorPusatKeputusanRequest,
+        user_id: Option<Uuid>,
+        user_info: Option<UserInfo>,
+    ) -> AppResult<PengajuanKebutuhanBmnSatker> {
+        let current = self.repository.get_satker_by_id(satker_id).await?;
+
+        if !matches!(
+            current.status,
+            KebutuhanBmnStatus::SubmitPusat | KebutuhanBmnStatus::AnalisisKelayakan
+        ) {
+            return Err(AppError::BadRequest(
+                "Keputusan Validator Pusat hanya bisa dibuat saat status Submit Pusat atau Analisis Kelayakan".to_string(),
+            ));
+        }
+
+        // Update validator pusat info
+        self.repository
+            .update_satker_validator_pusat(
+                satker_id,
+                user_id,
+                Some(request.alasan_keputusan.clone()),
+                request.is_approved,
+            )
+            .await?;
+
+        let target_status = if request.is_approved {
+            info!("Validator Pusat approving kebutuhan BMN satker {}", satker_id);
+            KebutuhanBmnStatus::Approved
+        } else {
+            info!("Validator Pusat rejecting kebutuhan BMN satker {}", satker_id);
+            KebutuhanBmnStatus::Rejected
+        };
+
+        let transition_request = WorkflowTransitionRequest {
+            target_status: target_status.to_code(),
+            komentar: Some(request.alasan_keputusan),
+        };
+
+        self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
+    }
+
+    // ========================================================================
     // Satker Operations
     // ========================================================================
 
@@ -575,6 +720,9 @@ impl KebutuhanBmnService {
             100.0
         };
 
+        // Fetch pegawai data from MySIMKARI for final analysis by Validator Pusat
+        let data_pegawai = self.get_mysimkari_pegawai_data(&satker.satker_id).await.ok();
+
         Ok(AnalisisKelayakanResponse {
             satker,
             barang_list: barang_with_inventory,
@@ -584,6 +732,24 @@ impl KebutuhanBmnService {
                 total_gap,
                 kelayakan_persen,
             },
+            data_pegawai,
+        })
+    }
+
+    /// Fetch MySIMKARI pegawai data for satker analysis
+    async fn get_mysimkari_pegawai_data(
+        &self,
+        satker_id: &str,
+    ) -> AppResult<DataPegawaiRekap> {
+        // TODO: Integrate with actual MySIMKARI gRPC client via layanan-integrasi
+        // For now, return placeholder data structure
+        // In production: call integrasi_client.get_mysimkari_pegawai(satker_id)
+
+        Ok(DataPegawaiRekap {
+            satker_id: satker_id.to_string(),
+            total_pegawai: 0,
+            rekap_eselon: vec![],
+            rekap_non_eselon: vec![],
         })
     }
 

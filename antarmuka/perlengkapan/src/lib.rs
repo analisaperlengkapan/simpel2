@@ -67,6 +67,11 @@ use components::pengalihan_form::PengalihanForm;
 use components::pengalihan_list::PengalihanList;
 use components::penghapusan_form::PenghapusanForm;
 use components::penghapusan_list::PenghapusanList;
+use components::penghapusan_bmn_detail::PenghapusanBmnDetail;
+// Pemakaian BMN components
+use components::pemakaian_bmn_detail::PemakaianBmnDetail;
+use components::pemakaian_bmn_form::PemakaianBmnForm;
+use components::pemakaian_bmn_list::PemakaianBmnList;
 // Pakaian Dinas components
 use components::pakaian_dinas_jenis_list::PakaianDinasJenisList;
 use components::pakaian_dinas_laporan::PakaianDinasLaporan;
@@ -155,6 +160,9 @@ pub fn DashboardRoutes() -> impl IntoView {
 
                         // Pengelolaan BMN routes
                         <Route path=path!("/pengelolaan/*") view=PengelolaanRoutes />
+
+                        // Pemakaian BMN routes (workflow with konsep surat & signed PDF)
+                        <Route path=path!("/pemakaian-bmn/*") view=PemakaianBmnRoutes />
 
             // Pemeliharaan Routes (alias to Pengelolaan/Pemeliharaan for shortcut if needed, or stick to Pengelolaan)
             <Route path=path!("/pemeliharaan/*") view=PemeliharaanRoutes />
@@ -285,6 +293,20 @@ fn PengelolaanRoutes() -> impl IntoView {
             <Route path=path!("/penghapusan") view=PenghapusanList />
             <Route path=path!("/penghapusan/daftar") view=PenghapusanList />
             <Route path=path!("/penghapusan/baru") view=PenghapusanForm />
+            <Route path=path!("/penghapusan/:id") view=PenghapusanBmnDetail />
+        </Routes>
+    }
+}
+
+// Pemakaian BMN Routes (workflow with konsep surat & signed PDF)
+#[component]
+fn PemakaianBmnRoutes() -> impl IntoView {
+    view! {
+        <Routes fallback=|| view! { <NotFound /> }>
+            <Route path=path!("/") view=PemakaianBmnList />
+            <Route path=path!("/daftar") view=PemakaianBmnList />
+            <Route path=path!("/baru") view=PemakaianBmnForm />
+            <Route path=path!("/:id") view=PemakaianBmnDetail />
         </Routes>
     }
 }

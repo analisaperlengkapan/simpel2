@@ -8,6 +8,10 @@ use crate::api::{
     UpdateBarangApprovalRequest, WorkflowTransitionRequest, create_kebutuhan_bmn_barang,
     delete_kebutuhan_bmn_barang, fetch_satker_aktivitas, fetch_satker_analisis,
     fetch_satker_with_barang, transition_satker_status, update_kebutuhan_bmn_barang,
+    submit_kebutuhan_satker_to_wilayah, kebutuhan_validator_wilayah_action,
+    kebutuhan_validator_pusat_keputusan,
+    SubmitKebutuhanSatkerRequest, LampiranItem,
+    KebutuhanValidatorWilayahActionRequest, ValidatorPusatKeputusanRequest,
 };
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -154,6 +158,118 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
         });
     };
 
+    // Workflow action signals
+    let (show_return_modal, set_show_return_modal) = signal(false);
+    let (show_reject_modal, set_show_reject_modal) = signal(false);
+    let (return_catatan, set_return_catatan) = signal(String::new());
+    let (reject_alasan, set_reject_alasan) = signal(String::new());
+    let (action_loading, set_action_loading) = signal(false);
+
+    // Submit satker to wilayah
+    let handle_submit_to_wilayah = move |_| {
+        let sid = satker_id.get();
+        set_action_loading.set(true);
+        spawn_local(async move {
+            let request = SubmitKebutuhanSatkerRequest {
+                catatan_satker: None,
+                lampiran_surat_permohonan: None,
+                lampiran_pendukung: vec![],
+            };
+            match submit_kebutuhan_satker_to_wilayah(&sid, request).await {
+                Ok(_) => {
+                    load_data(sid.clone());
+                    load_aktivitas(sid);
+                }
+                Err(e) => set_error.set(Some(format!("Gagal submit: {:?}", e))),
+            }
+            set_action_loading.set(false);
+        });
+    };
+
+    // Validator wilayah: forward to pusat
+    let handle_forward_to_pusat = move |_| {
+        let sid = satker_id.get();
+        set_action_loading.set(true);
+        spawn_local(async move {
+            let request = KebutuhanValidatorWilayahActionRequest {
+                action: "forward".to_string(),
+                catatan: None,
+            };
+            match kebutuhan_validator_wilayah_action(&sid, request).await {
+                Ok(_) => {
+                    load_data(sid.clone());
+                    load_aktivitas(sid);
+                }
+                Err(e) => set_error.set(Some(format!("Gagal meneruskan: {:?}", e))),
+            }
+            set_action_loading.set(false);
+        });
+    };
+
+    // Validator wilayah: return to operator
+    let handle_return_to_operator = move |_: leptos::ev::SubmitEvent| {
+        let sid = satker_id.get();
+        set_action_loading.set(true);
+        spawn_local(async move {
+            let request = KebutuhanValidatorWilayahActionRequest {
+                action: "return".to_string(),
+                catatan: Some(return_catatan.get()),
+            };
+            match kebutuhan_validator_wilayah_action(&sid, request).await {
+                Ok(_) => {
+                    set_show_return_modal.set(false);
+                    set_return_catatan.set(String::new());
+                    load_data(sid.clone());
+                    load_aktivitas(sid);
+                }
+                Err(e) => set_error.set(Some(format!("Gagal mengembalikan: {:?}", e))),
+            }
+            set_action_loading.set(false);
+        });
+    };
+
+    // Validator pusat: approve
+    let handle_approve = move |_| {
+        let sid = satker_id.get();
+        set_action_loading.set(true);
+        spawn_local(async move {
+            let request = ValidatorPusatKeputusanRequest {
+                is_approved: true,
+                alasan: None,
+            };
+            match kebutuhan_validator_pusat_keputusan(&sid, request).await {
+                Ok(_) => {
+                    load_data(sid.clone());
+                    load_aktivitas(sid);
+                }
+                Err(e) => set_error.set(Some(format!("Gagal menyetujui: {:?}", e))),
+            }
+            set_action_loading.set(false);
+        });
+    };
+
+    // Validator pusat: reject
+    let handle_reject = move |_: leptos::ev::SubmitEvent| {
+        let sid = satker_id.get();
+        set_action_loading.set(true);
+        spawn_local(async move {
+            let request = ValidatorPusatKeputusanRequest {
+                is_approved: false,
+                alasan: Some(reject_alasan.get()),
+            };
+            match kebutuhan_validator_pusat_keputusan(&sid, request).await {
+                Ok(_) => {
+                    set_show_reject_modal.set(false);
+                    set_reject_alasan.set(String::new());
+                    load_data(sid.clone());
+                    load_aktivitas(sid);
+                }
+                Err(e) => set_error.set(Some(format!("Gagal menolak: {:?}", e))),
+            }
+            set_action_loading.set(false);
+        });
+    };
+
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
             // Back link
@@ -227,6 +343,100 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         <div class="text-2xl font-bold text-gray-800 mt-1">{satker.prioritas}</div>
                                     </div>
                                 </div>
+
+                                // Workflow Action Buttons
+                                {
+                                    let sk = satker.status_kode;
+                                    view! {
+                                        // Operator: Submit to Wilayah (InputBarang=2000 or RevisiSatker=2001)
+                                        <Show when=move || sk == 2000 || sk == 2001>
+                                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center justify-between">
+                                                <div>
+                                                    <p class="font-medium text-yellow-800">"Siap diajukan?"</p>
+                                                    <p class="text-sm text-yellow-600">"Kirim pengajuan ke Validator Wilayah untuk verifikasi."</p>
+                                                </div>
+                                                <button
+                                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                                                    on:click=handle_submit_to_wilayah
+                                                    prop:disabled=move || action_loading.get()
+                                                >
+                                                    <i class="fas fa-paper-plane"></i>
+                                                    "Submit ke Wilayah"
+                                                </button>
+                                            </div>
+                                        </Show>
+
+                                        // Validator Wilayah: Forward/Return (SubmitWilayah=2002)
+                                        <Show when=move || sk == 2002>
+                                            <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                                                <p class="font-medium text-indigo-800 mb-3">"Tindakan Validator Wilayah"</p>
+                                                <div class="flex gap-3">
+                                                    <button
+                                                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                                                        on:click=handle_forward_to_pusat
+                                                        prop:disabled=move || action_loading.get()
+                                                    >
+                                                        <i class="fas fa-forward"></i>
+                                                        "Teruskan ke Pusat"
+                                                    </button>
+                                                    <button
+                                                        class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2"
+                                                        on:click=move |_| set_show_return_modal.set(true)
+                                                        prop:disabled=move || action_loading.get()
+                                                    >
+                                                        <i class="fas fa-undo"></i>
+                                                        "Kembalikan ke Operator"
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </Show>
+
+                                        // Validator Pusat: Approve/Reject (AnalisisKelayakan=2005)
+                                        <Show when=move || sk == 2005>
+                                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                                <p class="font-medium text-purple-800 mb-3">"Keputusan Validator Pusat"</p>
+                                                <div class="flex gap-3">
+                                                    <button
+                                                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                                                        on:click=handle_approve
+                                                        prop:disabled=move || action_loading.get()
+                                                    >
+                                                        <i class="fas fa-check"></i>
+                                                        "Setujui"
+                                                    </button>
+                                                    <button
+                                                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                                                        on:click=move |_| set_show_reject_modal.set(true)
+                                                        prop:disabled=move || action_loading.get()
+                                                    >
+                                                        <i class="fas fa-times"></i>
+                                                        "Tolak"
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </Show>
+
+                                        // Completed/Rejected status info
+                                        <Show when=move || sk == 2006>
+                                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+                                                <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                                                <div>
+                                                    <p class="font-medium text-green-800">"Pengajuan Disetujui"</p>
+                                                    <p class="text-sm text-green-600">"Pengajuan kebutuhan BMN telah disetujui oleh Validator Pusat."</p>
+                                                </div>
+                                            </div>
+                                        </Show>
+                                        <Show when=move || sk == 2007>
+                                            <div class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+                                                <i class="fas fa-times-circle text-red-600 text-xl"></i>
+                                                <div>
+                                                    <p class="font-medium text-red-800">"Pengajuan Ditolak"</p>
+                                                    <p class="text-sm text-red-600">"Pengajuan kebutuhan BMN ditolak oleh Validator Pusat."</p>
+                                                </div>
+                                            </div>
+                                        </Show>
+                                    }
+                                }
 
                                 // Tabs
                                 <div class="border-b border-gray-200">
@@ -471,6 +681,87 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                             "Data aset existing diambil dari SIMAN (Sistem Informasi Manajemen Aset Negara). "
                                                             "Gap dihitung berdasarkan jumlah yang diminta dikurangi jumlah aset sejenis yang sudah ada."
                                                         </div>
+
+                                                        // Data Pegawai section (from MySIMKARI)
+                                                        {a.data_pegawai.clone().map(|dp| {
+                                                            view! {
+                                                                <div class="mt-6">
+                                                                    <h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                                                        <i class="fas fa-users text-green-500"></i>
+                                                                        "Rekap Data Pegawai (MySIMKARI)"
+                                                                    </h4>
+
+                                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                                        <div class="bg-green-50 rounded-lg p-4">
+                                                                            <div class="text-green-600 text-sm">"Total Pegawai"</div>
+                                                                            <div class="text-2xl font-bold">{dp.total_pegawai}</div>
+                                                                        </div>
+                                                                        <div class="bg-teal-50 rounded-lg p-4">
+                                                                            <div class="text-teal-600 text-sm">"Sumber Data"</div>
+                                                                            <div class="text-sm font-medium mt-1">"MySIMKARI - Sistem Informasi Manajemen Kepegawaian"</div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    // Eselon table
+                                                                    <Show when=move || !dp.rekap_eselon.is_empty()>
+                                                                        <div class="mb-4">
+                                                                            <h5 class="text-sm font-medium text-gray-700 mb-2">"Rekap per Eselon"</h5>
+                                                                            <div class="overflow-x-auto">
+                                                                                <table class="w-full text-left border-collapse text-sm">
+                                                                                    <thead>
+                                                                                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
+                                                                                            <th class="p-2 border-b">"Eselon"</th>
+                                                                                            <th class="p-2 border-b text-center">"Jumlah"</th>
+                                                                                        </tr>
+                                                                                    </thead>
+                                                                                    <tbody>
+                                                                                        <For
+                                                                                            each=move || dp.rekap_eselon.clone()
+                                                                                            key=|e| e.eselon.clone()
+                                                                                            children=move |item| view! {
+                                                                                                <tr class="border-b">
+                                                                                                    <td class="p-2">{item.eselon}</td>
+                                                                                                    <td class="p-2 text-center font-medium">{item.jumlah}</td>
+                                                                                                </tr>
+                                                                                            }
+                                                                                        />
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </div>
+                                                                    </Show>
+
+                                                                    // Non-eselon table
+                                                                    <Show when=move || !dp.rekap_non_eselon.is_empty()>
+                                                                        <div>
+                                                                            <h5 class="text-sm font-medium text-gray-700 mb-2">"Rekap per Golongan (Non-Eselon)"</h5>
+                                                                            <div class="overflow-x-auto">
+                                                                                <table class="w-full text-left border-collapse text-sm">
+                                                                                    <thead>
+                                                                                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
+                                                                                            <th class="p-2 border-b">"Golongan"</th>
+                                                                                            <th class="p-2 border-b text-center">"Jumlah"</th>
+                                                                                        </tr>
+                                                                                    </thead>
+                                                                                    <tbody>
+                                                                                        <For
+                                                                                            each=move || dp.rekap_non_eselon.clone()
+                                                                                            key=|e| e.golongan.clone()
+                                                                                            children=move |item| view! {
+                                                                                                <tr class="border-b">
+                                                                                                    <td class="p-2">{item.golongan}</td>
+                                                                                                    <td class="p-2 text-center font-medium">{item.jumlah}</td>
+                                                                                                </tr>
+                                                                                            }
+                                                                                        />
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </div>
+                                                                    </Show>
+                                                                </div>
+                                                            }.into_any()
+                                                        }).unwrap_or_else(|| view! { <div></div> }.into_any())}
                                                     </div>
                                                 }.into_any()
                                             }).unwrap_or_else(|| view! {
@@ -622,6 +913,74 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                 >
                                     {move || if submitting.get() { "Menyimpan..." } else { "Simpan" }}
                                 </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Show>
+
+            // Return to operator modal (validator wilayah)
+            <Show when=move || show_return_modal.get()>
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">"Kembalikan ke Operator"</h3>
+                        <form on:submit=handle_return_to_operator class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">"Catatan / Alasan Pengembalian *"</label>
+                                <textarea
+                                    rows="3"
+                                    required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                    placeholder="Jelaskan alasan pengembalian..."
+                                    on:input=move |ev| set_return_catatan.set(event_target_value(&ev))
+                                    prop:value=move || return_catatan.get()
+                                ></textarea>
+                            </div>
+                            <div class="flex justify-end gap-3 pt-4 border-t">
+                                <button
+                                    type="button"
+                                    class="px-4 py-2 border border-gray-300 rounded-lg"
+                                    on:click=move |_| set_show_return_modal.set(false)
+                                >"Batal"</button>
+                                <button
+                                    type="submit"
+                                    class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
+                                    disabled=move || action_loading.get()
+                                >"Kembalikan"</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Show>
+
+            // Reject modal (validator pusat)
+            <Show when=move || show_reject_modal.get()>
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">"Tolak Pengajuan"</h3>
+                        <form on:submit=handle_reject class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">"Alasan Penolakan *"</label>
+                                <textarea
+                                    rows="3"
+                                    required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                    placeholder="Jelaskan alasan penolakan..."
+                                    on:input=move |ev| set_reject_alasan.set(event_target_value(&ev))
+                                    prop:value=move || reject_alasan.get()
+                                ></textarea>
+                            </div>
+                            <div class="flex justify-end gap-3 pt-4 border-t">
+                                <button
+                                    type="button"
+                                    class="px-4 py-2 border border-gray-300 rounded-lg"
+                                    on:click=move |_| set_show_reject_modal.set(false)
+                                >"Batal"</button>
+                                <button
+                                    type="submit"
+                                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                                    disabled=move || action_loading.get()
+                                >"Tolak"</button>
                             </div>
                         </form>
                     </div>

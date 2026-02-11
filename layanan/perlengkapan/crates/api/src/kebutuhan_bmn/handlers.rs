@@ -484,6 +484,73 @@ pub async fn get_analisis_kelayakan(
 }
 
 // ============================================================================
+// Satker Workflow Handlers (Validator Wilayah & Pusat)
+// ============================================================================
+
+/// POST /kebutuhan-bmn/satker/:id/submit-wilayah
+/// Operator Satker submits pengajuan to Validator Wilayah
+pub async fn submit_satker_to_wilayah(
+    State(service): State<KebutuhanBmnService>,
+    Path(satker_id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<SubmitKebutuhanSatkerRequest>,
+) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    let user_info = extract_user_info(&claims);
+    let satker = service
+        .submit_satker_to_wilayah(satker_id, request, Some(claims.user_id), Some(user_info))
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        satker,
+        "Pengajuan berhasil dikirim ke Validator Wilayah".to_string(),
+    )))
+}
+
+/// POST /kebutuhan-bmn/satker/:id/validator-wilayah
+/// Validator Wilayah forwards to Pusat or returns to Operator
+pub async fn validator_wilayah_action(
+    State(service): State<KebutuhanBmnService>,
+    Path(satker_id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<ValidatorWilayahActionRequest>,
+) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    let user_info = extract_user_info(&claims);
+    let satker = service
+        .validator_wilayah_action(satker_id, request, Some(claims.user_id), Some(user_info))
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        satker,
+        "Aksi Validator Wilayah berhasil".to_string(),
+    )))
+}
+
+/// POST /kebutuhan-bmn/satker/:id/keputusan-pusat
+/// Validator Pusat makes final decision: approve or reject
+pub async fn validator_pusat_keputusan(
+    State(service): State<KebutuhanBmnService>,
+    Path(satker_id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<ValidatorPusatKeputusanRequest>,
+) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    let user_info = extract_user_info(&claims);
+    let satker = service
+        .validator_pusat_keputusan(satker_id, request, Some(claims.user_id), Some(user_info))
+        .await?;
+
+    let message = if satker.status == KebutuhanBmnStatus::Approved {
+        "Kebutuhan BMN disetujui oleh Validator Pusat"
+    } else {
+        "Kebutuhan BMN ditolak oleh Validator Pusat"
+    };
+
+    Ok(Json(ApiResponse::success(
+        satker,
+        message.to_string(),
+    )))
+}
+
+// ============================================================================
 // SIMAN Integration Handlers
 // ============================================================================
 

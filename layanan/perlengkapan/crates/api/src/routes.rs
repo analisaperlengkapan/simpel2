@@ -65,8 +65,28 @@ pub fn create_routes(state: AppState) -> Router {
                 .delete(crate::penghapusan_bmn::delete_penghapusan_bmn),
         )
         .route(
+            "/penghapusan-bmn/:id/detail",
+            get(crate::penghapusan_bmn::get_penghapusan_bmn_detail),
+        )
+        .route(
             "/penghapusan-bmn/:id/transition",
             post(crate::penghapusan_bmn::transition_penghapusan_bmn),
+        )
+        .route(
+            "/penghapusan-bmn/:id/submit-wilayah",
+            post(crate::penghapusan_bmn::submit_to_wilayah),
+        )
+        .route(
+            "/penghapusan-bmn/:id/validator-wilayah",
+            post(crate::penghapusan_bmn::validator_wilayah_action),
+        )
+        .route(
+            "/penghapusan-bmn/:id/generate-sk",
+            post(crate::penghapusan_bmn::generate_konsep_sk),
+        )
+        .route(
+            "/penghapusan-bmn/:id/upload-signed-sk",
+            post(crate::penghapusan_bmn::upload_signed_sk),
         )
         .route(
             "/penghapusan-bmn/:id/document",
@@ -236,6 +256,19 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/satker/:id/analisis",
             get(kebutuhan_bmn::get_analisis_kelayakan),
         )
+        // Satker Workflow Actions (Validator Wilayah & Pusat)
+        .route(
+            "/kebutuhan-bmn/satker/:id/submit-wilayah",
+            post(kebutuhan_bmn::submit_satker_to_wilayah),
+        )
+        .route(
+            "/kebutuhan-bmn/satker/:id/validator-wilayah",
+            post(kebutuhan_bmn::validator_wilayah_action),
+        )
+        .route(
+            "/kebutuhan-bmn/satker/:id/keputusan-pusat",
+            post(kebutuhan_bmn::validator_pusat_keputusan),
+        )
         // Barang Operations
         .route(
             "/kebutuhan-bmn/satker/:id/barang",
@@ -370,6 +403,15 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pemakaian-bmn/:id/document",
             get(pemakaian_bmn::get_permit_document),
+        )
+        // Document Generation & Upload
+        .route(
+            "/pemakaian-bmn/:id/generate-konsep-surat",
+            post(pemakaian_bmn::generate_konsep_surat),
+        )
+        .route(
+            "/pemakaian-bmn/:id/upload-signed-pdf",
+            post(pemakaian_bmn::upload_signed_pdf),
         )
         .route(
             "/pemakaian-bmn/:id/revoke",

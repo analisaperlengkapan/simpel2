@@ -146,12 +146,46 @@ pub async fn get_permit_document(
         // For now, allow all authenticated users
     }
 
-    // Check if document exists
-    let document_url = permit.izin.document_url
+    // Check if document exists - try new konsep_surat_url, then legacy document_url
+    let document_url = permit.izin.konsep_surat_url
+        .or(permit.izin.document_url)
         .ok_or_else(|| AppError::NotFound("Document not found for this permit".to_string()))?;
 
     // Redirect to document URL
     Ok(axum::response::Redirect::temporary(&document_url))
+}
+
+/// POST /pemakaian-bmn/:id/generate-konsep-surat
+/// Generate konsep surat izin pemakaian BMN (DOCX)
+pub async fn generate_konsep_surat(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+) -> Result<Json<crate::models::ApiResponse<IzinPemakaianBmn>>, AppError> {
+    let permit = service.generate_konsep_surat(id, claims.user_id).await?;
+
+    Ok(Json(crate::models::ApiResponse::success(
+        permit,
+        "Konsep surat izin pemakaian BMN berhasil digenerate".to_string(),
+    )))
+}
+
+/// POST /pemakaian-bmn/:id/upload-signed-pdf
+/// Upload signed PDF izin pemakaian and mark as completed
+pub async fn upload_signed_pdf(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(body): Json<UploadSignedPdfRequest>,
+) -> Result<Json<crate::models::ApiResponse<IzinPemakaianBmn>>, AppError> {
+    let permit = service
+        .upload_signed_pdf(id, body.signed_pdf_url, claims.user_id)
+        .await?;
+
+    Ok(Json(crate::models::ApiResponse::success(
+        permit,
+        "PDF izin pemakaian BMN yang ditandatangani berhasil diupload. Proses selesai.".to_string(),
+    )))
 }
 
 /// POST /pemakaian-bmn/:id/revoke

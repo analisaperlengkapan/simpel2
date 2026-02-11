@@ -240,9 +240,85 @@ impl PemakaianBmnService {
         );
 
         // Create permit
-        let permit = self.repository.create(request, user_id, user_nama).await?;
+        let mut permit = self.repository.create(request.clone(), user_id, user_nama).await?;
+
+        // Create additional BMN items if any (multi-BMN support)
+        if let Some(ref additional_items) = request.additional_bmn_items {
+            for item in additional_items {
+                // Check availability for each additional BMN
+                let avail = self.repository.check_bmn_availability(&item.bmn_nup).await?;
+                if !avail.is_available {
+                    return Err(AppError::BadRequest(format!(
+                        "BMN {} sedang digunakan oleh {} hingga {}",
+                        item.bmn_nup,
+                        avail.active_permit_holder.unwrap_or_default(),
+                        avail.active_permit_expires.map(|d| d.to_string()).unwrap_or_default()
+                    )));
+                }
+                self.repository.create_bmn_item(permit.id, item.clone()).await?;
+            }
+        }
+
+        // Reload permit with bmn_items
+        permit = self.repository.get_by_id(permit.id).await?;
 
         Ok(permit)
+    }
+
+    /// Generate konsep surat izin pemakaian BMN (DOCX)
+    ///
+    /// Requirements: REQ-P006
+    pub async fn generate_konsep_surat(
+        &self,
+        id: Uuid,
+        user_id: Uuid,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let current = self.repository.get_by_id(id).await?;
+        let status = PemakaianBmnStatus::from_state_name(&current.status)
+            .unwrap_or(PemakaianBmnStatus::Draft);
+
+        // Can generate surat from Draft, Submitted, or Approved status
+        if !matches!(status, PemakaianBmnStatus::Draft | PemakaianBmnStatus::Submitted | PemakaianBmnStatus::Approved) {
+            return Err(AppError::BadRequest(
+                "Konsep surat hanya bisa digenerate pada status Draft, Submitted, atau Approved".to_string(),
+            ));
+        }
+
+        // Generate DOCX URL
+        let konsep_url = format!(
+            "/api/pembinaan/perlengkapan/pemakaian-bmn/{}/konsep-surat.docx",
+            id
+        );
+
+        self.repository.update_konsep_surat(id, &konsep_url).await?;
+
+        info!("Generated konsep surat for permit {}", id);
+        self.repository.get_by_id(id).await
+    }
+
+    /// Upload signed PDF izin pemakaian BMN and mark as completed
+    ///
+    /// Requirements: REQ-P006
+    pub async fn upload_signed_pdf(
+        &self,
+        id: Uuid,
+        signed_pdf_url: String,
+        user_id: Uuid,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let current = self.repository.get_by_id(id).await?;
+
+        // Konsep surat must have been generated first
+        if current.konsep_surat_url.is_none() {
+            return Err(AppError::BadRequest(
+                "Konsep surat harus digenerate terlebih dahulu".to_string(),
+            ));
+        }
+
+        // Update signed PDF and mark as completed
+        self.repository.update_signed_pdf(id, &signed_pdf_url).await?;
+
+        info!("Uploaded signed PDF for permit {}, marking as completed", id);
+        self.repository.get_by_id(id).await
     }
 
     /// Update a permit (only in DRAFT status)

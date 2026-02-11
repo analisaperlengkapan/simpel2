@@ -126,6 +126,40 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         new_status: i32,
         user_id: Option<Uuid>,
     ) -> AppResult<PengajuanKebutuhanBmn>;
+
+    // Satker Submit Data (lampiran, catatan) for SubmitWilayah
+    async fn update_satker_submit_data(
+        &self,
+        satker_id: Uuid,
+        catatan_satker: Option<String>,
+        lampiran_surat_permohonan: Option<String>,
+        lampiran_pendukung: Option<Vec<LampiranItem>>,
+    ) -> AppResult<()>;
+
+    // Validator Wilayah info update
+    async fn update_satker_validator_wilayah(
+        &self,
+        satker_id: Uuid,
+        validator_id: Option<Uuid>,
+        catatan: Option<String>,
+    ) -> AppResult<()>;
+
+    // Validator Pusat info update
+    async fn update_satker_validator_pusat(
+        &self,
+        satker_id: Uuid,
+        validator_id: Option<Uuid>,
+        catatan: Option<String>,
+        is_approved: bool,
+    ) -> AppResult<()>;
+
+    // Update pengajuan laporan URL
+    async fn update_pengajuan_laporan(
+        &self,
+        id: Uuid,
+        laporan_url: &str,
+        laporan_format: &str,
+    ) -> AppResult<()>;
 }
 
 /// User information for audit trail
@@ -962,6 +996,117 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
 
         Ok(PengajuanKebutuhanBmn::from_row(&row))
+    }
+
+    async fn update_satker_submit_data(
+        &self,
+        satker_id: Uuid,
+        catatan_satker: Option<String>,
+        lampiran_surat_permohonan: Option<String>,
+        lampiran_pendukung: Option<Vec<LampiranItem>>,
+    ) -> AppResult<()> {
+        let client = self.get_client().await?;
+
+        let lampiran_json = lampiran_pendukung
+            .map(|v| serde_json::to_value(v).unwrap_or_default());
+
+        client
+            .execute(
+                r#"
+                UPDATE perlengkapan.pengajuan_kebutuhan_bmn_satker
+                SET catatan_satker = COALESCE($1, catatan_satker),
+                    lampiran_surat_permohonan = COALESCE($2, lampiran_surat_permohonan),
+                    lampiran_pendukung = COALESCE($3, lampiran_pendukung),
+                    updated_at = NOW()
+                WHERE id = $4
+                "#,
+                &[&catatan_satker, &lampiran_surat_permohonan, &lampiran_json, &satker_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn update_satker_validator_wilayah(
+        &self,
+        satker_id: Uuid,
+        validator_id: Option<Uuid>,
+        catatan: Option<String>,
+    ) -> AppResult<()> {
+        let client = self.get_client().await?;
+
+        client
+            .execute(
+                r#"
+                UPDATE perlengkapan.pengajuan_kebutuhan_bmn_satker
+                SET validator_wilayah_id = COALESCE($1, validator_wilayah_id),
+                    catatan_validator_wilayah = COALESCE($2, catatan_validator_wilayah),
+                    tanggal_submit_wilayah = NOW(),
+                    updated_at = NOW()
+                WHERE id = $3
+                "#,
+                &[&validator_id, &catatan, &satker_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn update_satker_validator_pusat(
+        &self,
+        satker_id: Uuid,
+        validator_id: Option<Uuid>,
+        catatan: Option<String>,
+        is_approved: bool,
+    ) -> AppResult<()> {
+        let client = self.get_client().await?;
+
+        client
+            .execute(
+                r#"
+                UPDATE perlengkapan.pengajuan_kebutuhan_bmn_satker
+                SET validator_pusat_id = COALESCE($1, validator_pusat_id),
+                    catatan_validator_pusat = COALESCE($2, catatan_validator_pusat),
+                    tanggal_submit_pusat = NOW(),
+                    is_approved = $3,
+                    alasan_keputusan = $2,
+                    updated_at = NOW()
+                WHERE id = $4
+                "#,
+                &[&validator_id, &catatan, &is_approved, &satker_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn update_pengajuan_laporan(
+        &self,
+        id: Uuid,
+        laporan_url: &str,
+        laporan_format: &str,
+    ) -> AppResult<()> {
+        let client = self.get_client().await?;
+
+        client
+            .execute(
+                r#"
+                UPDATE perlengkapan.pengajuan_kebutuhan_bmn
+                SET laporan_url = $1,
+                    laporan_format = $2,
+                    laporan_generated_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = $3
+                "#,
+                &[&laporan_url, &laporan_format, &id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(())
     }
 }
 

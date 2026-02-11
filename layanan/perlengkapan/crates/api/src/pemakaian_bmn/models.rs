@@ -181,8 +181,12 @@ pub struct IzinPemakaianBmn {
     pub pegawai_satker_id: Uuid,
     pub pegawai_satker_nama: String,
     pub pegawai_jabatan: Option<String>,
+    pub pegawai_golongan: Option<String>,
+    pub pegawai_pangkat: Option<String>,
+    pub pegawai_unit_kerja: Option<String>,
+    pub foto_pegawai: Option<String>,
 
-    // BMN Information
+    // BMN Information (primary, kept for backward compat)
     pub jenis_bmn: String,
     pub bmn_nup: String,
     pub bmn_kode_barang: String,
@@ -219,9 +223,14 @@ pub struct IzinPemakaianBmn {
     // Supporting Documents
     pub file_pendukung: Option<serde_json::Value>,
 
-    // Generated Permit Document
+    // Document Generation & Upload
     pub document_id: Option<Uuid>,
     pub document_url: Option<String>,
+    pub konsep_surat_url: Option<String>,          // Generated DOCX concept
+    pub konsep_surat_generated_at: Option<DateTime<Utc>>,
+    pub signed_pdf_url: Option<String>,            // Uploaded signed PDF
+    pub signed_pdf_uploaded_at: Option<DateTime<Utc>>,
+    pub is_completed: bool,
 
     // Workflow Status
     pub status: String,
@@ -245,6 +254,50 @@ pub struct IzinPemakaianBmn {
     pub updated_by_nama: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+
+    // Multi-BMN items (loaded separately)
+    #[serde(default)]
+    pub bmn_items: Vec<PemakaianBmnItem>,
+}
+
+// ============================================================================
+// Entity: Pemakaian BMN Item (Multi-BMN per permit)
+// ============================================================================
+
+/// Individual BMN item in a usage permit (supports multiple BMN per pegawai)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PemakaianBmnItem {
+    pub id: Uuid,
+    pub izin_pemakaian_id: Uuid,
+    pub bmn_nup: String,
+    pub bmn_kode_barang: String,
+    pub bmn_nama_barang: String,
+    pub bmn_merk: Option<String>,
+    pub bmn_tahun_perolehan: Option<i32>,
+    pub bmn_kondisi: Option<String>,
+    pub detail_bmn: serde_json::Value,  // Type-specific details
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl PemakaianBmnItem {
+    pub fn from_row(row: &tokio_postgres::Row) -> Self {
+        Self {
+            id: row.get("id"),
+            izin_pemakaian_id: row.get("izin_pemakaian_id"),
+            bmn_nup: row.get("bmn_nup"),
+            bmn_kode_barang: row.get("bmn_kode_barang"),
+            bmn_nama_barang: row.get("bmn_nama_barang"),
+            bmn_merk: row.try_get("bmn_merk").ok().flatten(),
+            bmn_tahun_perolehan: row.try_get("bmn_tahun_perolehan").ok().flatten(),
+            bmn_kondisi: row.try_get("bmn_kondisi").ok().flatten(),
+            detail_bmn: row.try_get("detail_bmn").unwrap_or(serde_json::json!({})),
+            keterangan: row.try_get("keterangan").ok().flatten(),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }
+    }
 }
 
 // ============================================================================
@@ -261,10 +314,15 @@ pub struct CreateIzinPemakaianRequest {
     pub pegawai_satker_id: Uuid,
     pub pegawai_satker_nama: String,
     pub pegawai_jabatan: Option<String>,
+    pub pegawai_golongan: Option<String>,
+    pub pegawai_pangkat: Option<String>,
+    pub pegawai_unit_kerja: Option<String>,
+    pub foto_pegawai: Option<String>,
 
     #[validate(length(min = 1, message = "Jenis BMN harus diisi"))]
     pub jenis_bmn: String,
 
+    // Primary BMN (kept for backward compat + single-BMN cases)
     #[validate(length(min = 1, message = "NUP BMN harus diisi"))]
     pub bmn_nup: String,
 
@@ -301,6 +359,36 @@ pub struct CreateIzinPemakaianRequest {
     // Renewal
     pub is_renewal: Option<bool>,
     pub previous_permit_id: Option<Uuid>,
+
+    // Additional BMN items (multi-BMN per pegawai)
+    #[serde(default)]
+    pub additional_bmn_items: Vec<CreateBmnItemRequest>,
+}
+
+/// Request to add a BMN item to a permit
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct CreateBmnItemRequest {
+    #[validate(length(min = 1, message = "NUP BMN harus diisi"))]
+    pub bmn_nup: String,
+    pub bmn_kode_barang: String,
+    pub bmn_nama_barang: String,
+    pub bmn_merk: Option<String>,
+    pub bmn_tahun_perolehan: Option<i32>,
+    pub bmn_kondisi: Option<String>,
+    pub detail_bmn: Option<serde_json::Value>,
+    pub keterangan: Option<String>,
+}
+
+/// Request to upload signed PDF
+#[derive(Debug, Clone, Deserialize)]
+pub struct UploadSignedPdfRequest {
+    pub signed_pdf_url: String,
+}
+
+/// Request to generate DOCX concept surat
+#[derive(Debug, Clone, Deserialize)]
+pub struct GenerateKonsepSuratRequest {
+    pub format: Option<String>, // "docx" default
 }
 
 /// Request to update an existing permit (only in DRAFT status)
@@ -370,6 +458,8 @@ pub struct IzinPemakaianDetailResponse {
     pub allowed_transitions: Vec<WorkflowTransitionInfo>,
     pub days_until_expiry: Option<i64>,
     pub is_expiring_soon: bool,
+    pub can_generate_konsep: bool,
+    pub can_upload_signed_pdf: bool,
 }
 
 /// Paginated list response

@@ -9,6 +9,8 @@ use crate::api::{
     fetch_pemakaian_bmn_detail, transition_pemakaian_bmn_status,
     revoke_pemakaian_bmn, IzinPemakaianDetailResponse,
     PemakaianWorkflowTransitionRequest, RevokePermitRequest,
+    generate_pemakaian_konsep_surat, upload_pemakaian_signed_pdf,
+    GenerateKonsepSuratRequest, UploadSignedPdfRequest,
 };
 
 #[component]
@@ -96,6 +98,64 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
         });
     };
 
+    // Konsep surat & signed PDF state
+    let (show_upload_modal, set_show_upload_modal) = signal(false);
+    let (signed_pdf_url, set_signed_pdf_url) = signal(String::new());
+    let (generating_konsep, set_generating_konsep) = signal(false);
+    let (uploading_pdf, set_uploading_pdf) = signal(false);
+
+    // Handle generate konsep surat
+    let handle_generate_konsep = move |_| {
+        set_generating_konsep.set(true);
+        set_error.set(None);
+        let permit_id = id();
+
+        leptos::task::spawn_local(async move {
+            let request = GenerateKonsepSuratRequest {
+                template_id: None,
+            };
+            match generate_pemakaian_konsep_surat(&permit_id, request).await {
+                Ok(_) => {
+                    permit_resource.refetch();
+                }
+                Err(e) => {
+                    set_error.set(Some(format!("Gagal generate konsep surat: {}", e)));
+                }
+            }
+            set_generating_konsep.set(false);
+        });
+    };
+
+    // Handle upload signed PDF
+    let handle_upload_signed_pdf = move |_| {
+        let url = signed_pdf_url.get();
+        if url.is_empty() {
+            set_error.set(Some("URL file PDF harus diisi".to_string()));
+            return;
+        }
+
+        set_uploading_pdf.set(true);
+        set_error.set(None);
+        let permit_id = id();
+
+        leptos::task::spawn_local(async move {
+            let request = UploadSignedPdfRequest {
+                signed_pdf_url: url,
+            };
+            match upload_pemakaian_signed_pdf(&permit_id, request).await {
+                Ok(_) => {
+                    set_show_upload_modal.set(false);
+                    set_signed_pdf_url.set(String::new());
+                    permit_resource.refetch();
+                }
+                Err(e) => {
+                    set_error.set(Some(format!("Gagal upload PDF: {}", e)));
+                }
+            }
+            set_uploading_pdf.set(false);
+        });
+    };
+
     view! {
         <div class="p-6 space-y-6">
             <Suspense fallback=move || view! {
@@ -173,6 +233,24 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                         <p class="font-medium">{izin.pegawai_jabatan.clone().unwrap_or_default()}</p>
                                                     </div>
                                                 </Show>
+                                                <Show when=move || izin.pegawai_golongan.is_some()>
+                                                    <div>
+                                                        <p class="text-sm text-gray-600">"Golongan"</p>
+                                                        <p class="font-medium">{izin.pegawai_golongan.clone().unwrap_or_default()}</p>
+                                                    </div>
+                                                </Show>
+                                                <Show when=move || izin.pegawai_pangkat.is_some()>
+                                                    <div>
+                                                        <p class="text-sm text-gray-600">"Pangkat"</p>
+                                                        <p class="font-medium">{izin.pegawai_pangkat.clone().unwrap_or_default()}</p>
+                                                    </div>
+                                                </Show>
+                                                <Show when=move || izin.unit_kerja.is_some()>
+                                                    <div>
+                                                        <p class="text-sm text-gray-600">"Unit Kerja"</p>
+                                                        <p class="font-medium">{izin.unit_kerja.clone().unwrap_or_default()}</p>
+                                                    </div>
+                                                </Show>
                                             </div>
                                         </div>
 
@@ -233,6 +311,146 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     <div>
                                                         <p class="text-sm text-gray-600">"Lokasi Pemakaian"</p>
                                                         <p class="font-medium">{izin.lokasi_pemakaian.clone().unwrap_or_default()}</p>
+                                                    </div>
+                                                </Show>
+                                            </div>
+                                        </div>
+
+                                        // BMN Items (multi-BMN per pegawai)
+                                        <Show when=move || !izin.bmn_items.is_empty()>
+                                            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                                                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                                    "Daftar BMN yang Dipakai"
+                                                    <span class="ml-2 text-sm font-normal text-gray-500">
+                                                        {format!("({} item)", izin.bmn_items.len())}
+                                                    </span>
+                                                </h3>
+                                                <div class="overflow-x-auto">
+                                                    <table class="w-full text-left border-collapse text-sm">
+                                                        <thead>
+                                                            <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
+                                                                <th class="p-3 border-b">"Kode Barang"</th>
+                                                                <th class="p-3 border-b">"Nama Barang"</th>
+                                                                <th class="p-3 border-b">"NUP"</th>
+                                                                <th class="p-3 border-b text-center">"Jumlah"</th>
+                                                                <th class="p-3 border-b">"Kondisi"</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <For
+                                                                each=move || izin.bmn_items.clone()
+                                                                key=|item| item.id.clone()
+                                                                children=move |item| view! {
+                                                                    <tr class="border-b hover:bg-gray-50">
+                                                                        <td class="p-3 font-mono text-xs">{item.kode_barang.clone()}</td>
+                                                                        <td class="p-3 font-medium">{item.nama_barang.clone()}</td>
+                                                                        <td class="p-3">{item.nup.clone()}</td>
+                                                                        <td class="p-3 text-center">{format!("{} {}", item.jumlah, item.satuan)}</td>
+                                                                        <td class="p-3">
+                                                                            <span class={
+                                                                                let c = match item.kondisi.as_deref() {
+                                                                                    Some("Baik") => "bg-green-100 text-green-800",
+                                                                                    Some("Rusak Ringan") => "bg-yellow-100 text-yellow-800",
+                                                                                    _ => "bg-gray-100 text-gray-700",
+                                                                                };
+                                                                                format!("px-2 py-0.5 rounded text-xs {}", c)
+                                                                            }>
+                                                                                {item.kondisi.clone().unwrap_or("-".to_string())}
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                }
+                                                            />
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </Show>
+
+                                        // Documents section (Konsep Surat & Signed PDF)
+                                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                                            <h3 class="text-lg font-semibold text-gray-800 mb-4">"Dokumen"</h3>
+                                            <div class="space-y-3">
+                                                // Konsep surat
+                                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                    <div class="flex items-center gap-3">
+                                                        <i class="fas fa-file-word text-blue-500 text-lg"></i>
+                                                        <div>
+                                                            <p class="font-medium text-sm">"Konsep Surat Izin"</p>
+                                                            <p class="text-xs text-gray-500">
+                                                                {move || izin.konsep_surat_generated_at.clone()
+                                                                    .map(|d| format!("Digenerate: {}", d))
+                                                                    .unwrap_or("Belum digenerate".to_string())}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {move || {
+                                                        if let Some(url) = izin.konsep_surat_url.clone() {
+                                                            view! {
+                                                                <a href=url target="_blank" class="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1">
+                                                                    <i class="fas fa-download"></i> "Download"
+                                                                </a>
+                                                            }.into_any()
+                                                        } else if detail.can_generate_konsep.unwrap_or(false) {
+                                                            view! {
+                                                                <button
+                                                                    class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                                                                    on:click=handle_generate_konsep
+                                                                    prop:disabled=move || generating_konsep.get()
+                                                                >
+                                                                    <Show when=move || generating_konsep.get() fallback=|| view! { <i class="fas fa-cog"></i> }>
+                                                                        <i class="fas fa-spinner fa-spin"></i>
+                                                                    </Show>
+                                                                    "Generate"
+                                                                </button>
+                                                            }.into_any()
+                                                        } else {
+                                                            view! { <span class="text-xs text-gray-400">"Tidak tersedia"</span> }.into_any()
+                                                        }
+                                                    }}
+                                                </div>
+
+                                                // Signed PDF
+                                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                    <div class="flex items-center gap-3">
+                                                        <i class="fas fa-file-pdf text-red-500 text-lg"></i>
+                                                        <div>
+                                                            <p class="font-medium text-sm">"Surat Izin Bertandatangan"</p>
+                                                            <p class="text-xs text-gray-500">
+                                                                {move || izin.signed_pdf_uploaded_at.clone()
+                                                                    .map(|d| format!("Diupload: {}", d))
+                                                                    .unwrap_or("Belum diupload".to_string())}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {move || {
+                                                        if let Some(url) = izin.signed_pdf_url.clone() {
+                                                            view! {
+                                                                <a href=url target="_blank" class="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1">
+                                                                    <i class="fas fa-download"></i> "Download"
+                                                                </a>
+                                                            }.into_any()
+                                                        } else if detail.can_upload_signed_pdf.unwrap_or(false) {
+                                                            view! {
+                                                                <button
+                                                                    class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 flex items-center gap-1"
+                                                                    on:click=move |_| set_show_upload_modal.set(true)
+                                                                >
+                                                                    <i class="fas fa-upload"></i>
+                                                                    "Upload"
+                                                                </button>
+                                                            }.into_any()
+                                                        } else {
+                                                            view! { <span class="text-xs text-gray-400">"Tidak tersedia"</span> }.into_any()
+                                                        }
+                                                    }}
+                                                </div>
+
+                                                // Completed indicator
+                                                <Show when=move || izin.is_completed.unwrap_or(false)>
+                                                    <div class="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700">
+                                                        <i class="fas fa-check-circle"></i>
+                                                        <span class="text-sm font-medium">"Proses pemakaian BMN telah selesai"</span>
                                                     </div>
                                                 </Show>
                                             </div>
@@ -367,6 +585,46 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     prop:disabled=move || loading.get() || revoke_reason.get().len() < 10
                                                 >
                                                     <Show when=move || loading.get() fallback=|| view! { "Cabut Izin" }>
+                                                        <i class="fas fa-spinner fa-spin"></i>
+                                                    </Show>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Show>
+
+                                // Upload Signed PDF Modal
+                                <Show when=move || show_upload_modal.get()>
+                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                                            <h3 class="text-lg font-semibold mb-4">"Upload Surat Izin Bertandatangan"</h3>
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "URL File PDF" <span class="text-red-500">"*"</span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                    placeholder="https://... URL file PDF yang telah ditandatangani"
+                                                    prop:value=move || signed_pdf_url.get()
+                                                    on:input=move |ev| set_signed_pdf_url.set(event_target_value(&ev))
+                                                />
+                                                <p class="text-xs text-gray-500 mt-1">"Upload file PDF terlebih dahulu, kemudian tempel URL-nya."</p>
+                                            </div>
+                                            <div class="flex gap-3">
+                                                <button
+                                                    class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                                    on:click=move |_| set_show_upload_modal.set(false)
+                                                    prop:disabled=move || uploading_pdf.get()
+                                                >
+                                                    "Batal"
+                                                </button>
+                                                <button
+                                                    class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                                                    on:click=handle_upload_signed_pdf
+                                                    prop:disabled=move || uploading_pdf.get() || signed_pdf_url.get().is_empty()
+                                                >
+                                                    <Show when=move || uploading_pdf.get() fallback=|| view! { "Upload" }>
                                                         <i class="fas fa-spinner fa-spin"></i>
                                                     </Show>
                                                 </button>
