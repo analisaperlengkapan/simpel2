@@ -1,6 +1,6 @@
 // ============================================================================
 // Penghapusan BMN Models
-// Description: Data models for SK Penghapusan BMN workflow
+// Description: Data models for Usulan SK Penghapusan BMN workflow
 // Requirements: REQ-W001
 //
 // Flow:
@@ -16,7 +16,7 @@ use serde_json::Value;
 use uuid::Uuid;
 use validator::Validate;
 
-/// Workflow status codes for SK Penghapusan BMN
+/// Workflow status codes for Usulan SK Penghapusan BMN
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]
 pub enum PenghapusanBmnStatus {

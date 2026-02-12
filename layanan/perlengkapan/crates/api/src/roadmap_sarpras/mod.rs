@@ -1,23 +1,22 @@
-//! # Roadmap Sarpras Module
+//! # Predictive Analytics Module (formerly Roadmap Sarpras)
 //!
-//! Module for managing 5-year infrastructure roadmap (Roadmap Sarana Prasarana).
+//! Forecasting engine for BMN needs based on historical kebutuhan_bmn data.
 //!
 //! ## Features
-//! - 5-year period planning with validation
-//! - Multi-year infrastructure planning per satker
-//! - Realization tracking against planned targets
-//! - Roadmap vs realization comparison and analysis
-//! - Progress monitoring and reporting
+//! - Forecast future BMN needs using SMA, WMA, or Exponential Smoothing
+//! - Confidence interval calculation
+//! - Historical data aggregation from kebutuhan_bmn table
+//! - Forecast snapshots for comparison over time
+//! - CSV export of historical + predicted data
 //!
-//! ## Workflow
-//! 1. Create Roadmap (Admin Pusat/Wilayah) → Define 5-year plan with yearly targets
-//! 2. Track Realization (System) → Sync fulfillment data from MonSAKTI
-//! 3. Compare Progress (Admin/Pimpinan) → Analyze roadmap vs actual realization
-//! 4. Generate Reports (Authorized users) → Export roadmap analysis
+//! ## Endpoints (all GET / read-only)
+//! - `GET /forecast`          — Generate forecast with configurable method & horizon
+//! - `GET /forecast/summary`  — Quick summary statistics
+//! - `GET /forecast/compare`  — Compare current forecast with previous snapshots
+//! - `GET /forecast/export`   — Download CSV export
 //!
 //! ## Requirements
-//! - REQ-K008: 5-year roadmap sarpras feature
-//! - REQ-DB003: Roadmap vs realization visualization
+//! - REQ-K008: Predictive analytics dashboard for sarpras planning
 
 pub mod handlers;
 pub mod models;

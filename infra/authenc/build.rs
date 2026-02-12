@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         proto_dir.join("authenc.proto"),
         proto_dir.join("common.proto"),
         proto_dir.join("secreton.proto"), // For Secreton client
+        proto_dir.join("integrasi.proto"), // For Integrasi gRPC client (MySIMKARI data)
     ];
 
     // Verify proto files exist

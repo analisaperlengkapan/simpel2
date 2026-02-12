@@ -53,7 +53,7 @@ pub fn PemakaianBmnList() -> impl IntoView {
         }
     };
 
-    let get_status_label = |status: &str| {
+    let get_status_label = |status: &str| -> &'static str {
         match status {
             "DRAFT" => "Draft",
             "SUBMITTED" => "Diajukan",
@@ -62,7 +62,7 @@ pub fn PemakaianBmnList() -> impl IntoView {
             "ACTIVE" => "Aktif",
             "EXPIRED" => "Kadaluarsa",
             "REVOKED" => "Dicabut",
-            _ => status,
+            _ => "Lainnya",
         }
     };
 

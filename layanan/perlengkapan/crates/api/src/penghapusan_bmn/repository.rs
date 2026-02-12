@@ -43,9 +43,7 @@ impl PenghapusanBmnRepository {
 
         let id = Uuid::new_v4();
         let status = PenghapusanBmnStatus::Draft;
-        let lampiran_pendukung = request.lampiran_pendukung
-            .as_ref()
-            .map(|v| serde_json::to_value(v).unwrap_or_default());
+        let lampiran_pendukung: Option<serde_json::Value> = None;
 
         let row = client
             .query_one(

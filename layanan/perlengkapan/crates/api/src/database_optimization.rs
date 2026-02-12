@@ -191,7 +191,7 @@ impl DatabaseOptimizer {
         None
     }
 
-    fn extract_table_name(&self, query: &str) -> Option<&str> {
+    fn extract_table_name<'a>(&self, query: &'a str) -> Option<&'a str> {
         // Simple extraction - in production, use a proper SQL parser
         if let Some(from_pos) = query.find("from ") {
             let after_from = &query[from_pos + 5..];
@@ -202,7 +202,7 @@ impl DatabaseOptimizer {
         None
     }
 
-    fn extract_where_column(&self, query: &str) -> Option<&str> {
+    fn extract_where_column<'a>(&self, query: &'a str) -> Option<&'a str> {
         // Simple extraction - in production, use a proper SQL parser
         if let Some(where_pos) = query.find("where ") {
             let after_where = &query[where_pos + 6..];

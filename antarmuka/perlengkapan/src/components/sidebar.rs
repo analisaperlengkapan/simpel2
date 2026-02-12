@@ -1,140 +1,197 @@
+use crate::components::role_switcher::get_active_role;
 use crate::components::sidebar_section::{MenuItem, SidebarSection};
 use leptos::prelude::*;
+
+/// All four perlengkapan roles as string slices for convenience
+const ALL_ROLES: &[&str] = &["operator_satker", "validator_wilayah", "validator_pusat", "admin"];
+
+fn roles(keys: &[&str]) -> Vec<String> {
+    keys.iter().map(|s| s.to_string()).collect()
+}
 
 #[component]
 pub fn Sidebar(
     /// Sidebar open state signal
-    _sidebar_open: RwSignal<bool>,
+    sidebar_open: RwSignal<bool>,
 ) -> impl IntoView {
+    let active_role = get_active_role();
+
     // Reactive signals for collapsible sections
     let dashboard_rw = RwSignal::new(false);
     let bank_aset_rw = RwSignal::new(false);
-    let analisis_rw = RwSignal::new(false);
-    let pengadaan_rw = RwSignal::new(false);
+    let kebutuhan_bmn_rw = RwSignal::new(false);
+    let pemakaian_bmn_rw = RwSignal::new(false);
     let pengelolaan_bmn_rw = RwSignal::new(false);
     let pakaian_dinas_rw = RwSignal::new(false);
-    let pengguna_rw = RwSignal::new(false);
+    let pemeliharaan_rw = RwSignal::new(false);
+    let admin_rw = RwSignal::new(false);
     let bantuan_rw = RwSignal::new(false);
 
     view! {
-        <div class="h-full bg-white border-r border-gray-200 w-64 overflow-y-auto">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-                        "S"
+        // Sidebar panel – fixed left on large screens, slide-over on mobile
+        <div
+            class=move || format!(
+                "fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-blue-900 via-blue-800 to-indigo-900 shadow-xl transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 flex flex-col {}",
+                if sidebar_open.get() { "translate-x-0" } else { "-translate-x-full" }
+            )
+        >
+            // Brand header
+            <div class="px-5 py-5 border-b border-white/10 flex-shrink-0">
+                <a href="/perlengkapan/dashboard" class="flex items-center gap-3 group">
+                    <div class="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="fas fa-boxes text-yellow-300 text-base"></i>
                     </div>
-                    <h1 class="text-xl font-bold text-gray-900">"SIMPEL PERLENGKAPAN"</h1>
-                </div>
-                <p class="text-sm text-gray-500 mt-1">"Kejaksaan Republik Indonesia"</p>
+                    <div>
+                        <h1 class="text-base font-bold text-white leading-none tracking-tight">"SIMPelv2"</h1>
+                        <p class="text-[10px] text-blue-300 leading-none mt-0.5">"Perlengkapan"</p>
+                    </div>
+                </a>
             </div>
 
-            <nav class="p-6 space-y-4">
+            // Scrollable nav
+            <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                // ── Dashboard ── all roles
                 <SidebarSection
                     title="Dashboard".to_string()
-                    icon="🏠".to_string()
+                    icon=r#"<i class="fas fa-home text-blue-300"></i>"#.to_string()
                     is_expanded=dashboard_rw
+                    allowed_roles=roles(ALL_ROLES)
+                    active_role=active_role.clone()
                     items=vec![
-                        MenuItem::new("/dashboard/overview", "Ringkasan"),
-                        MenuItem::new("/dashboard/analytics", "Analitik"),
-                        MenuItem::new("/dashboard/reports", "Laporan")
+                        MenuItem::new("/perlengkapan/dashboard", "Ringkasan"),
                     ]
                 />
 
+                // ── Bank Aset ── all roles
                 <SidebarSection
                     title="Bank Aset".to_string()
-                    icon="🏦".to_string()
+                    icon=r#"<i class="fas fa-boxes text-emerald-300"></i>"#.to_string()
                     is_expanded=bank_aset_rw
+                    allowed_roles=roles(ALL_ROLES)
+                    active_role=active_role.clone()
                     items=vec![
-                        MenuItem::new("/dashboard/bank-aset/daftar", "Daftar Aset"),
-                        MenuItem::new("/dashboard/bank-aset/kategori", "Kategori Aset"),
-                        MenuItem::new("/dashboard/bank-aset/lokasi", "Lokasi Aset"),
-                        MenuItem::new("/dashboard/bank-aset/status", "Status Aset"),
-                        MenuItem::new("/dashboard/bank-aset/penilaian", "Penilaian Aset"),
-                        MenuItem::new("/dashboard/bank-aset/mutasi", "Mutasi Aset")
+                        MenuItem::new("/perlengkapan/dashboard/bank-aset/daftar", "Daftar Aset"),
+                        MenuItem::new("/perlengkapan/dashboard/bank-aset/peta", "Peta Sebaran"),
+                        MenuItem::new("/perlengkapan/dashboard/bank-aset/qr-code", "Cetak QR Code"),
                     ]
                 />
 
+                // ── Kebutuhan BMN ── all roles
                 <SidebarSection
-                    title="Analisis Kebutuhan".to_string()
-                    icon="📊".to_string()
-                    is_expanded=analisis_rw
+                    title="Kebutuhan BMN".to_string()
+                    icon=r#"<i class="fas fa-clipboard-list text-sky-300"></i>"#.to_string()
+                    is_expanded=kebutuhan_bmn_rw
+                    allowed_roles=roles(ALL_ROLES)
+                    active_role=active_role.clone()
                     items=vec![
-                        MenuItem::new("/dashboard/analisis/perencanaan", "Perencanaan Kebutuhan"),
-                        MenuItem::new("/dashboard/analisis/evaluasi", "Evaluasi Kebutuhan"),
-                        MenuItem::new("/dashboard/analisis/rekomendasi", "Rekomendasi"),
-                        MenuItem::new("/dashboard/analisis/trend", "Analisis Trend"),
-                        MenuItem::new("/dashboard/analisis/prediksi", "Prediksi Kebutuhan")
+                        MenuItem::new("/perlengkapan/dashboard/kebutuhan-bmn/dashboard", "Dashboard"),
+                        MenuItem::new("/perlengkapan/dashboard/kebutuhan-bmn/daftar", "Daftar Kebutuhan"),
+                        MenuItem::new("/perlengkapan/dashboard/kebutuhan-bmn/baru", "Buat Baru"),
                     ]
                 />
 
+                // ── Pemakaian BMN ── all roles
                 <SidebarSection
-                    title="Pengadaan".to_string()
-                    icon="🛒".to_string()
-                    is_expanded=pengadaan_rw
+                    title="Pemakaian BMN".to_string()
+                    icon=r#"<i class="fas fa-file-signature text-indigo-300"></i>"#.to_string()
+                    is_expanded=pemakaian_bmn_rw
+                    allowed_roles=roles(ALL_ROLES)
+                    active_role=active_role.clone()
                     items=vec![
-                        MenuItem::new("/dashboard/pengadaan/rencana", "Rencana Pengadaan"),
-                        MenuItem::new("/dashboard/pengadaan/proses", "Proses Pengadaan"),
-                        MenuItem::new("/dashboard/pengadaan/monitoring", "Monitoring"),
-                        MenuItem::new("/dashboard/pengadaan/kontrak", "Kontrak"),
-                        MenuItem::new("/dashboard/pengadaan/vendor", "Vendor/Supplier"),
-                        MenuItem::new("/dashboard/pengadaan/evaluasi", "Evaluasi Pengadaan")
+                        MenuItem::new("/perlengkapan/dashboard/pemakaian-bmn/daftar", "Daftar Pemakaian"),
+                        MenuItem::new("/perlengkapan/dashboard/pemakaian-bmn/baru", "Buat Pengajuan"),
                     ]
                 />
 
+                // ── Pengelolaan BMN ── validator_wilayah, validator_pusat, admin
                 <SidebarSection
                     title="Pengelolaan BMN".to_string()
-                    icon="⚙️".to_string()
+                    icon=r#"<i class="fas fa-cogs text-amber-300"></i>"#.to_string()
                     is_expanded=pengelolaan_bmn_rw
+                    allowed_roles=roles(&["validator_wilayah", "validator_pusat", "admin"])
+                    active_role=active_role.clone()
                     items=vec![
-                        MenuItem::new("/dashboard/bmn/inventarisasi", "Inventarisasi"),
-                        MenuItem::new("/dashboard/bmn/pemeliharaan", "Pemeliharaan"),
-                        MenuItem::new("/dashboard/bmn/pemanfaatan", "Pemanfaatan"),
-                        MenuItem::new("/dashboard/bmn/pemusnahan", "Pemusnahan"),
-                        MenuItem::new("/dashboard/bmn/penghapusan", "Penghapusan"),
-                        MenuItem::new("/dashboard/bmn/pengamanan", "Pengamanan"),
-                        MenuItem::new("/dashboard/bmn/distribusi", "Distribusi"),
-                        MenuItem::new("/dashboard/bmn/pengembalian", "Pengembalian")
+                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/pemakaian", "Pemakaian"),
+                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/hibah", "Hibah"),
+                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/pengalihan", "Pengalihan"),
+                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/mutasi", "Mutasi"),
+                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/penghapusan", "Penghapusan"),
                     ]
                 />
 
+                // ── Pakaian Dinas ── all roles
                 <SidebarSection
                     title="Pakaian Dinas".to_string()
-                    icon="👔".to_string()
+                    icon=r#"<i class="fas fa-tshirt text-purple-300"></i>"#.to_string()
                     is_expanded=pakaian_dinas_rw
+                    allowed_roles=roles(ALL_ROLES)
+                    active_role=active_role.clone()
                     items=vec![
-                        MenuItem::new("/dashboard/pakaian-dinas/jenis", "Jenis Pakaian"),
-                        MenuItem::new("/dashboard/pakaian-dinas/pengajuan", "Pengajuan"),
-                        MenuItem::new("/dashboard/pakaian-dinas/ukuran-saya", "Ukuran Saya"),
-                        MenuItem::new("/dashboard/pakaian-dinas/laporan", "Laporan"),
+                        MenuItem::new("/perlengkapan/dashboard/pakaian-dinas/jenis", "Jenis Pakaian"),
+                        MenuItem::new("/perlengkapan/dashboard/pakaian-dinas/pengajuan", "Pengajuan"),
+                        MenuItem::new("/perlengkapan/dashboard/pakaian-dinas/laporan", "Laporan"),
                     ]
                 />
 
+                // ── Pemeliharaan ── operator_satker, admin
                 <SidebarSection
-                    title="Pengguna".to_string()
-                    icon="👥".to_string()
-                    is_expanded=pengguna_rw
+                    title="Pemeliharaan".to_string()
+                    icon=r#"<i class="fas fa-tools text-teal-300"></i>"#.to_string()
+                    is_expanded=pemeliharaan_rw
+                    allowed_roles=roles(&["operator_satker", "admin"])
+                    active_role=active_role.clone()
                     items=vec![
-                        MenuItem::new("/dashboard/pengguna/manajemen", "Manajemen User"),
-                        MenuItem::new("/dashboard/pengguna/akses", "Hak Akses"),
-                        MenuItem::new("/dashboard/pengguna/audit", "Audit Log"),
-                        MenuItem::new("/dashboard/pengguna/profil", "Profil Pengguna"),
-                        MenuItem::new("/dashboard/pengguna/aktivitas", "Log Aktivitas")
+                        MenuItem::new("/perlengkapan/dashboard/pemeliharaan/daftar", "Daftar Pemeliharaan"),
+                        MenuItem::new("/perlengkapan/dashboard/pemeliharaan/baru", "Buat Baru"),
                     ]
                 />
 
+                // ── Admin ── admin only
+                <SidebarSection
+                    title="Admin".to_string()
+                    icon=r#"<i class="fas fa-user-shield text-red-300"></i>"#.to_string()
+                    is_expanded=admin_rw
+                    allowed_roles=roles(&["admin"])
+                    active_role=active_role.clone()
+                    items=vec![
+                        MenuItem::new("/perlengkapan/dashboard/admin/users", "Manajemen User"),
+                        MenuItem::new("/perlengkapan/dashboard/admin/roles", "Manajemen Role"),
+                        MenuItem::new("/perlengkapan/dashboard/admin/audit", "Audit Log"),
+                        MenuItem::new("/perlengkapan/dashboard/admin/config", "Konfigurasi"),
+                        MenuItem::new("/perlengkapan/dashboard/admin/master", "Master Data"),
+                    ]
+                />
+
+                // ── Bantuan ── all roles
                 <SidebarSection
                     title="Bantuan".to_string()
-                    icon="❓".to_string()
+                    icon=r#"<i class="fas fa-question-circle text-gray-300"></i>"#.to_string()
                     is_expanded=bantuan_rw
+                    allowed_roles=roles(ALL_ROLES)
+                    active_role=active_role.clone()
                     items=vec![
-                        MenuItem::new("/dashboard/bantuan/panduan", "Panduan Pengguna"),
-                        MenuItem::new("/dashboard/bantuan/faq", "FAQ"),
-                        MenuItem::new("/dashboard/bantuan/helpdesk", "Helpdesk"),
-                        MenuItem::new("/dashboard/bantuan/kontak", "Kontak Support"),
-                        MenuItem::new("/dashboard/bantuan/tutorial", "Tutorial")
+                        MenuItem::new("/perlengkapan/dashboard/bantuan/panduan", "Panduan"),
+                        MenuItem::new("/perlengkapan/dashboard/bantuan/faq", "FAQ"),
+                        MenuItem::new("/perlengkapan/dashboard/bantuan/helpdesk", "Helpdesk"),
                     ]
                 />
             </nav>
+
+            // Footer inside sidebar
+            <div class="px-4 py-3 border-t border-white/10 flex-shrink-0">
+                <div class="flex items-center gap-2 text-[10px] text-blue-400">
+                    <div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                    <span>"SIMPelv2 v0.1.0"</span>
+                </div>
+            </div>
         </div>
+
+        // Mobile overlay backdrop
+        {move || sidebar_open.get().then(|| view! {
+            <div
+                class="fixed inset-0 bg-black/50 z-30 lg:hidden"
+                on:click=move |_| sidebar_open.set(false)
+            ></div>
+        })}
     }
 }

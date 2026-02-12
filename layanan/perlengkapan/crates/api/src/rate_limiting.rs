@@ -20,7 +20,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 /// Rate limit configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RateLimitConfig {
     /// Requests per second per user
     pub requests_per_second: u32,
@@ -32,6 +32,7 @@ pub struct RateLimitConfig {
     pub global_requests_per_second: Option<u32>,
 
     /// Window duration for rate limiting
+    #[serde(skip)]
     pub window_duration: Duration,
 }
 

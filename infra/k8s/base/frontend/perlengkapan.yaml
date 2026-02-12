@@ -3,9 +3,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pembinaan-perlengkapan
+  name: perlengkapan
   labels:
-    app.kubernetes.io/name: pembinaan-perlengkapan
+    app.kubernetes.io/name: perlengkapan
     app.kubernetes.io/component: frontend
 spec:
   replicas: 2
@@ -16,11 +16,11 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      app.kubernetes.io/name: pembinaan-perlengkapan
+      app.kubernetes.io/name: perlengkapan
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: pembinaan-perlengkapan
+        app.kubernetes.io/name: perlengkapan
         app.kubernetes.io/component: frontend
       annotations:
         sidecar.istio.io/inject: "true"
@@ -30,8 +30,8 @@ spec:
         runAsUser: 101
         fsGroup: 101
       containers:
-        - name: pembinaan-perlengkapan
-          image: localhost:32000/simpelv2/pembinaan-perlengkapan:latest
+        - name: perlengkapan
+          image: localhost:32000/simpelv2/perlengkapan:latest
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -77,9 +77,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: pembinaan-perlengkapan
+  name: perlengkapan
   labels:
-    app.kubernetes.io/name: pembinaan-perlengkapan
+    app.kubernetes.io/name: perlengkapan
 spec:
   type: ClusterIP
   ports:
@@ -87,4 +87,4 @@ spec:
       targetPort: 8080
       name: http
   selector:
-    app.kubernetes.io/name: pembinaan-perlengkapan
+    app.kubernetes.io/name: perlengkapan

@@ -161,7 +161,7 @@ flowchart LR
 │   ├── pidsus/         # Pidsus microfrontend
 │   └── pidum/          # Pidum microfrontend
 ├── layanan/            # BACKEND MICROSERVICES (Axum + Tonic)
-│   ├── portal/         # Portal backend API (legacy: layanan-daskrimti-*)
+│   ├── portal/         # Portal backend API (legacy: layanan-*)
 │   │   ├── integrasi/  # MonSAKTI/MySIMKARI/SIMAN integration
 │   │   ├── notifikasi/ # Notification service
 │   │   ├── ai/         # AI service
@@ -212,7 +212,7 @@ cargo check --workspace          # Quick compilation check
 cargo build --workspace          # Full workspace build
 cargo build --bin authenc        # Build Authenc specifically
 cargo build --bin secreton       # Build Secreton specifically
-cargo build --bin layanan-daskrimti-integrasi  # Build specific service
+cargo build --bin layanan-integrasi  # Build specific service
 
 # Code Quality
 cargo fmt --all                  # Format all code

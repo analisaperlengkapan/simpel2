@@ -385,8 +385,8 @@ impl KebutuhanBmnService {
             .update_satker_submit_data(
                 satker_id,
                 request.catatan_satker.clone(),
-                request.lampiran_surat_permohonan.clone(),
-                request.lampiran_pendukung.clone(),
+                Some(request.lampiran_surat_permohonan.clone()),
+                Some(request.lampiran_pendukung.clone()),
             )
             .await?;
 
@@ -426,7 +426,7 @@ impl KebutuhanBmnService {
             )
             .await?;
 
-        match request.action.as_str() {
+        match request.aksi.as_str() {
             "forward" => {
                 info!("Validator Wilayah forwarding {} to Validator Pusat", satker_id);
                 let transition_request = WorkflowTransitionRequest {
@@ -479,7 +479,7 @@ impl KebutuhanBmnService {
             .update_satker_validator_pusat(
                 satker_id,
                 user_id,
-                Some(request.alasan_keputusan.clone()),
+                request.alasan.clone(),
                 request.is_approved,
             )
             .await?;
@@ -494,7 +494,7 @@ impl KebutuhanBmnService {
 
         let transition_request = WorkflowTransitionRequest {
             target_status: target_status.to_code(),
-            komentar: Some(request.alasan_keputusan),
+            komentar: request.alasan,
         };
 
         self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
@@ -721,7 +721,7 @@ impl KebutuhanBmnService {
         };
 
         // Fetch pegawai data from MySIMKARI for final analysis by Validator Pusat
-        let data_pegawai = self.get_mysimkari_pegawai_data(&satker.satker_id).await.ok();
+        let data_pegawai = self.get_mysimkari_pegawai_data(&satker.ms_satker_id).await.ok();
 
         Ok(AnalisisKelayakanResponse {
             satker,
@@ -746,7 +746,6 @@ impl KebutuhanBmnService {
         // In production: call integrasi_client.get_mysimkari_pegawai(satker_id)
 
         Ok(DataPegawaiRekap {
-            satker_id: satker_id.to_string(),
             total_pegawai: 0,
             rekap_eselon: vec![],
             rekap_non_eselon: vec![],

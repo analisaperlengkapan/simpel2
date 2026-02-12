@@ -45,6 +45,7 @@ sha2 = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 argon2 = { workspace = true, optional = true }
+bcrypt = { workspace = true, optional = true }
 
 # Encryption dependencies
 aes-gcm = { workspace = true, optional = true }
@@ -70,7 +71,7 @@ axum = ["backend", "dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:h
 telemetry = ["backend", "dep:tracing-subscriber"]
 db = ["backend", "dep:tokio-postgres", "dep:deadpool-postgres"]
 jwt = ["backend", "dep:jsonwebtoken"]
-crypto = ["dep:curve25519-dalek", "dep:sha2", "dep:subtle", "dep:rand", "dep:argon2"]
+crypto = ["dep:curve25519-dalek", "dep:sha2", "dep:subtle", "dep:rand", "dep:argon2", "dep:bcrypt"]
 vss = ["crypto"]
 encryption = ["crypto", "dep:aes-gcm", "dep:chacha20poly1305", "dep:hkdf", "dep:pbkdf2"]
 grpc = ["backend", "dep:tonic"]

@@ -1,120 +1,74 @@
-//! Roadmap Sarpras API models
+//! Predictive Analytics API models
+//!
+//! API-level request/response types for the forecast endpoints.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use validator::Validate;
 
-// Re-export from lib-perlengkapan
+// Re-export domain models from lib-perlengkapan
 pub use lib_perlengkapan::models::{
-    CreateRoadmapSarprasRequest, RoadmapRealizationComparison, RoadmapSarpras,
-    UpdateRoadmapRealizationRequest,
+    ForecastMethod, ForecastRequest, ForecastResult, ForecastSnapshot, ForecastSummary,
+    PredictedYear, YearlyData,
 };
 
-/// Request to create multiple roadmap items for a 5-year period
-#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
-pub struct CreateRoadmapBatchRequest {
-    pub satker_id: Uuid,
-    #[validate(range(min = 2020, max = 2100))]
-    pub periode_mulai: i32,
-    #[validate(range(min = 2020, max = 2100))]
-    pub periode_akhir: i32,
-    #[validate(length(min = 1))]
-    pub items: Vec<RoadmapItemRequest>,
+/// Query parameters for GET /forecast
+#[derive(Debug, Clone, Deserialize)]
+pub struct ForecastQuery {
+    pub satker_id: Option<Uuid>,
+    pub kode_barang: Option<String>,
+    /// Number of years to predict (default: 5)
+    pub horizon: Option<i32>,
+    /// Forecasting method: sma | wma | exponential
+    pub method: Option<String>,
+    /// Confidence level 0.0–1.0 (default: 0.95)
+    pub confidence: Option<f64>,
 }
 
-impl CreateRoadmapBatchRequest {
-    /// Validate that periode is exactly 5 years
-    pub fn validate_periode_duration(&self) -> Result<(), String> {
-        let duration = self.periode_akhir - self.periode_mulai + 1;
-        if duration != 5 {
-            return Err(format!(
-                "Periode must be exactly 5 years, got {} years",
-                duration
-            ));
+impl ForecastQuery {
+    pub fn into_request(self) -> ForecastRequest {
+        let method = match self.method.as_deref() {
+            Some("wma") => Some(ForecastMethod::Wma),
+            Some("exponential") => Some(ForecastMethod::ExponentialSmoothing),
+            _ => Some(ForecastMethod::Sma),
+        };
+        ForecastRequest {
+            satker_id: self.satker_id,
+            kode_barang: self.kode_barang,
+            horizon_years: self.horizon,
+            method,
+            confidence_level: self.confidence,
         }
-        Ok(())
     }
 }
 
-/// Individual roadmap item in batch request
-#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
-pub struct RoadmapItemRequest {
-    #[validate(length(min = 1, max = 50))]
-    pub kode_barang: String,
-    #[validate(length(min = 1, max = 255))]
-    pub nama_barang: String,
-    #[validate(range(min = 2020, max = 2100))]
-    pub tahun_rencana: i32,
-    #[validate(range(min = 1))]
-    pub jumlah_kebutuhan: i32,
-    pub estimasi_anggaran: Option<f64>,
-    pub keterangan: Option<String>,
-}
-
-/// Response for roadmap creation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateRoadmapResponse {
-    pub roadmap_ids: Vec<Uuid>,
-    pub message: String,
-}
-
-/// Query parameters for listing roadmaps
-#[derive(Debug, Clone, Deserialize, Validate)]
-pub struct ListRoadmapQuery {
+/// Query parameters for GET /forecast/summary
+#[derive(Debug, Clone, Deserialize)]
+pub struct ForecastSummaryQuery {
     pub satker_id: Option<Uuid>,
-    pub periode_mulai: Option<i32>,
-    pub periode_akhir: Option<i32>,
-    pub tahun_rencana: Option<i32>,
     pub kode_barang: Option<String>,
-    #[validate(range(min = 1, max = 1000))]
+}
+
+/// Query parameters for GET /forecast/compare
+#[derive(Debug, Clone, Deserialize)]
+pub struct ForecastCompareQuery {
+    pub satker_id: Option<Uuid>,
+    pub kode_barang: Option<String>,
+    /// How many previous snapshots to compare (default: 2)
     pub limit: Option<i64>,
-    #[validate(range(min = 0))]
-    pub offset: Option<i64>,
 }
 
-/// Response for roadmap list
+/// Response for forecast comparison
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListRoadmapResponse {
-    pub roadmaps: Vec<RoadmapSarpras>,
-    pub total: i64,
-    pub limit: i64,
-    pub offset: i64,
+pub struct ForecastCompareResponse {
+    pub current: ForecastResult,
+    pub previous_snapshots: Vec<ForecastSnapshot>,
 }
 
-/// Query parameters for roadmap vs realization comparison
-#[derive(Debug, Clone, Deserialize, Validate)]
-pub struct RoadmapComparisonQuery {
-    pub satker_id: Uuid,
-    #[validate(range(min = 2020, max = 2100))]
-    pub periode_mulai: i32,
-    #[validate(range(min = 2020, max = 2100))]
-    pub periode_akhir: i32,
-}
-
-/// Response for roadmap vs realization comparison
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoadmapComparisonResponse {
-    pub comparisons: Vec<RoadmapRealizationComparison>,
-    pub summary: RoadmapSummary,
-}
-
-/// Summary statistics for roadmap
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoadmapSummary {
-    pub total_items: i64,
-    pub total_kebutuhan: i64,
-    pub total_terpenuhi: i64,
-    pub persentase_pemenuhan_rata_rata: f64,
-    pub total_estimasi_anggaran: f64,
-    pub total_realisasi_anggaran: f64,
-}
-
-/// Request to update roadmap realization (from MonSAKTI sync)
-#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
-pub struct SyncRealizationRequest {
-    pub roadmap_id: Uuid,
-    #[validate(range(min = 0))]
-    pub jumlah_terpenuhi_increment: i32,
-    pub realisasi_anggaran_increment: Option<f64>,
+/// Query parameters for GET /forecast/export
+#[derive(Debug, Clone, Deserialize)]
+pub struct ForecastExportQuery {
+    pub satker_id: Option<Uuid>,
+    pub kode_barang: Option<String>,
+    /// Export format: csv | xlsx (default: csv)
+    pub format: Option<String>,
 }

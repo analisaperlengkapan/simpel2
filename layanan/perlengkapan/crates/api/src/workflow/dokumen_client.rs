@@ -37,7 +37,7 @@ impl DokumenClient {
     /// Create a new dokumen client
     pub async fn new(endpoint: &str) -> Result<Self> {
         let channel = Channel::from_shared(endpoint.to_string())
-            .map_err(|e| DokumenClientError::TransportError(e.into()))?
+            .map_err(|e| DokumenClientError::InvalidResponse(format!("Invalid endpoint URI: {}", e)))?
             .connect()
             .await?;
 

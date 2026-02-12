@@ -1,6 +1,6 @@
 // ============================================================================
 // Penghapusan BMN Services
-// Description: Business logic for SK Penghapusan BMN workflow
+// Description: Business logic for Usulan SK Penghapusan BMN workflow
 // Requirements: REQ-W001, REQ-W004, REQ-D002, REQ-N001
 //
 // Flow:
@@ -34,13 +34,13 @@ impl PenghapusanBmnService {
         }
     }
 
-    /// Create a new SK Penghapusan BMN (by Operator Satker)
+    /// Create a new Usulan SK Penghapusan BMN (by Operator Satker)
     pub async fn create(
         &self,
         request: CreatePenghapusanBmnRequest,
         created_by: Uuid,
     ) -> AppResult<PenghapusanBmn> {
-        info!("Creating SK Penghapusan BMN for asset: {}", request.nama_barang);
+        info!("Creating Usulan SK Penghapusan BMN for asset: {}", request.nama_barang);
         self.repository.create(request, created_by).await
     }
 
@@ -201,7 +201,7 @@ impl PenghapusanBmnService {
             id,
             PenghapusanBmnStatus::KonsepSKGenerated.to_state_name().to_string(),
             validator_id,
-            Some("Konsep SK Penghapusan BMN berhasil digenerate".to_string()),
+            Some("Konsep Usulan SK Penghapusan BMN berhasil digenerate".to_string()),
             "generate_konsep_sk".to_string(),
         ).await
     }
@@ -231,7 +231,7 @@ impl PenghapusanBmnService {
             id,
             PenghapusanBmnStatus::SKSigned.to_state_name().to_string(),
             validator_id,
-            Some("SK Penghapusan BMN telah ditandatangani".to_string()),
+            Some("Usulan SK Penghapusan BMN telah ditandatangani".to_string()),
             "upload_signed_sk".to_string(),
         ).await?;
 
@@ -240,7 +240,7 @@ impl PenghapusanBmnService {
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
             validator_id,
-            Some("Proses SK Penghapusan BMN selesai".to_string()),
+            Some("Proses Usulan SK Penghapusan BMN selesai".to_string()),
             "complete".to_string(),
         ).await
     }

@@ -169,20 +169,20 @@ cargo test --features integration-tests
 
 ```bash
 # Build container image
-docker build -t simpelv2-pembinaan-perlengkapan:latest .
+docker build -t simpelv2-perlengkapan:latest .
 
 # Run container
-docker run -p 8092:8080 simpelv2-pembinaan-perlengkapan:latest
+docker run -p 8092:8080 simpelv2-perlengkapan:latest
 ```
 
 ### Kubernetes Deployment
 
 ```bash
 # Apply k8s manifests
-kubectl apply -f k8s/pembinaan-perlengkapan-deployment.yaml
+kubectl apply -f k8s/perlengkapan-deployment.yaml
 
 # Check status
-kubectl get pods -l app=pembinaan-perlengkapan
+kubectl get pods -l app=perlengkapan
 ```
 
 ## 🔒 Security

@@ -44,13 +44,24 @@ pub fn hash_password(password: &str) -> Result<String, argon2::password_hash::Er
 
 /// Verify a password against its hash
 ///
+/// Supports both Argon2id and bcrypt for backward compatibility.
 /// Uses constant-time comparison to prevent timing attacks.
 pub fn verify_password(hash: &str, password: &str) -> Result<bool, argon2::password_hash::Error> {
-    let parsed_hash = PasswordHash::new(hash)?;
-    let argon2 = Argon2::default();
-    Ok(argon2
-        .verify_password(password.as_bytes(), &parsed_hash)
-        .is_ok())
+    // Check if it's a bcrypt hash (starts with $2a$, $2b$, or $2y$)
+    if hash.starts_with("$2a$") || hash.starts_with("$2b$") || hash.starts_with("$2y$") {
+        // Use bcrypt verification
+        match bcrypt::verify(password, hash) {
+            Ok(valid) => Ok(valid),
+            Err(_) => Ok(false),
+        }
+    } else {
+        // Use Argon2id verification (default)
+        let parsed_hash = PasswordHash::new(hash)?;
+        let argon2 = Argon2::default();
+        Ok(argon2
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .is_ok())
+    }
 }
 
 /// Password strength validation result

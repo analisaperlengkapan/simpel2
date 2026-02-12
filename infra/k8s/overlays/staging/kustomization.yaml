@@ -112,6 +112,8 @@ configMapGenerator:
     literals:
       - AUTHENC_GRPC_URL=http://authenc.simpelv2-staging.svc.cluster.local:9088
       - SECRETON_GRPC_URL=http://secreton.simpelv2-staging.svc.cluster.local:9000
+      - SECRETON_ENDPOINT=http://secreton.simpelv2-staging.svc.cluster.local:8200
+      - INTEGRASI_GRPC_URL=http://layanan-integrasi-grpc.simpelv2-staging.svc.cluster.local:50051
       - MTLS_MODE=PERMISSIVE
 
 # Secret patches for staging
@@ -120,26 +122,30 @@ secretGenerator:
     behavior: merge
     literals:
       - url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/simpelv2
+      - authenc-url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/authenc
+      - secreton-url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/secreton
+      - perlengkapan-url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/perlengkapan
+      - integrasi-url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/integrasi
       - password=simpelv2_staging_password
       - username=simpelv2
 
 # Image tags for staging (use dev/latest tags available in registry)
 images:
-  - name: localhost:32000/simpelv2/layanan-daskrimti-portal
+  - name: localhost:32000/simpelv2/layanan-portal
     newTag: stag
-  - name: localhost:32000/simpelv2/layanan-daskrimti-integrasi
-    newTag: staging
-  - name: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan
+  - name: localhost:32000/simpelv2/layanan-integrasi
     newTag: stag
-  - name: localhost:32000/simpelv2/daskrimti-portal
+  - name: localhost:32000/simpelv2/layanan-integrasi-grpc
     newTag: stag
-  - name: localhost:32000/simpelv2/pembinaan-perlengkapan
-    newTag: stag
-  - name: localhost:32000/authenc
-    newTag: stag
-  - name: localhost:32000/simpelv2/secreton
+  - name: localhost:32000/simpelv2/layanan-perlengkapan
     newTag: stag
   - name: localhost:32000/simpelv2/portal
+    newTag: stag
+  - name: localhost:32000/simpelv2/perlengkapan
+    newTag: stag
+  - name: localhost:32000/simpelv2/authenc
+    newTag: stag
+  - name: localhost:32000/simpelv2/secreton
     newTag: stag
   # Standard images - use imagePullPolicy: IfNotPresent in base
   - name: postgres

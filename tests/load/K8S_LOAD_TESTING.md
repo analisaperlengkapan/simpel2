@@ -74,7 +74,7 @@ spec:
         command: ["k6", "run", "/scripts/dashboard-load-test.js"]
         env:
         - name: BASE_URL
-          value: "http://layanan-pembinaan-perlengkapan:3020"
+          value: "http://layanan-perlengkapan:3020"
         volumeMounts:
         - name: scripts
           mountPath: /scripts
@@ -136,7 +136,7 @@ Edit di `k8s-load-test-job.yaml`:
 ```yaml
 env:
 - name: BASE_URL
-  value: "http://layanan-pembinaan-perlengkapan:3020"  # Service URL
+  value: "http://layanan-perlengkapan:3020"  # Service URL
 - name: TEST_USERNAME
   value: "test_operator"
 - name: TEST_PASSWORD
@@ -247,21 +247,21 @@ kubectl get events -n simpelv2-staging --sort-by='.lastTimestamp'
 
 ```bash
 # Check if service exists
-kubectl get svc layanan-pembinaan-perlengkapan -n simpelv2-staging
+kubectl get svc layanan-perlengkapan -n simpelv2-staging
 
 # Check service endpoints
-kubectl get endpoints layanan-pembinaan-perlengkapan -n simpelv2-staging
+kubectl get endpoints layanan-perlengkapan -n simpelv2-staging
 
 # Test connectivity from another pod
 kubectl run test-curl --rm -it --restart=Never --image=curlimages/curl -- \
-  curl http://layanan-pembinaan-perlengkapan:3020/health
+  curl http://layanan-perlengkapan:3020/health
 ```
 
 ### High Error Rates
 
 1. **Check service logs**:
    ```bash
-   kubectl logs -l app.kubernetes.io/name=layanan-pembinaan-perlengkapan -n simpelv2-staging
+   kubectl logs -l app.kubernetes.io/name=layanan-perlengkapan -n simpelv2-staging
    ```
 
 2. **Check database**:

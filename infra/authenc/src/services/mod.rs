@@ -165,6 +165,12 @@ pub mod federation_provider;
 /// User synchronization service for LDAP/AD sync
 pub mod user_sync_service;
 
+// MySIMKARI integration services
+/// gRPC client for layanan-integrasi service (MySIMKARI data access)
+pub mod integrasi_client;
+/// MySIMKARI data synchronization and user auto-provisioning
+pub mod mysimkari_sync;
+
 // Authorization services
 /// Authorization policy engine and enforcement
 pub mod authorization;

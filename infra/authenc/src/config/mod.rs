@@ -510,6 +510,9 @@ pub struct AppConfig {
     /// Federation configuration for user federation
     pub federation: Option<FederationConfig>,
 
+    /// Integrasi configuration for MySIMKARI data synchronization
+    pub integrasi: Option<IntegrasiConfig>,
+
     /// Configuration loader settings (for hybrid config approach)
     #[serde(default)]
     pub config_loader: crate::config::hybrid_loader::ConfigLoaderConfig,
@@ -545,6 +548,58 @@ impl Default for FederationConfig {
 
 fn default_sync_batch_size() -> usize {
     100
+}
+
+/// Configuration for MySIMKARI integration via layanan-integrasi gRPC
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrasiConfig {
+    /// gRPC endpoint URL for layanan-integrasi
+    pub grpc_url: String,
+
+    /// Sync interval in minutes (0 = disabled)
+    #[serde(default = "default_integrasi_sync_interval")]
+    pub sync_interval_minutes: u64,
+
+    /// Whether to run sync on application startup
+    #[serde(default = "default_integrasi_sync_on_startup")]
+    pub sync_on_startup: bool,
+
+    /// Connection timeout in seconds
+    #[serde(default = "default_integrasi_connection_timeout")]
+    pub connection_timeout_secs: u64,
+
+    /// Request timeout in seconds
+    #[serde(default = "default_integrasi_request_timeout")]
+    pub request_timeout_secs: u64,
+}
+
+impl Default for IntegrasiConfig {
+    fn default() -> Self {
+        Self {
+            grpc_url: std::env::var("INTEGRASI_GRPC_URL")
+                .unwrap_or_else(|_| "http://layanan-integrasi-grpc:50051".to_string()),
+            sync_interval_minutes: default_integrasi_sync_interval(),
+            sync_on_startup: default_integrasi_sync_on_startup(),
+            connection_timeout_secs: default_integrasi_connection_timeout(),
+            request_timeout_secs: default_integrasi_request_timeout(),
+        }
+    }
+}
+
+fn default_integrasi_sync_interval() -> u64 {
+    60
+}
+
+fn default_integrasi_sync_on_startup() -> bool {
+    true
+}
+
+fn default_integrasi_connection_timeout() -> u64 {
+    10
+}
+
+fn default_integrasi_request_timeout() -> u64 {
+    30
 }
 
 // Re-export common config types
@@ -1125,6 +1180,11 @@ impl Default for AppConfig {
             clustering: ClusterConfig::default(),
             key_rotation: None,
             federation: None,
+            integrasi: if std::env::var("INTEGRASI_GRPC_URL").is_ok() {
+                Some(crate::config::IntegrasiConfig::default())
+            } else {
+                None
+            },
             config_loader: ConfigLoaderConfig::default(),
         }
     }

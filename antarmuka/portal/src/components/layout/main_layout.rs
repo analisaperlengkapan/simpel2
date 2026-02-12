@@ -32,7 +32,7 @@ pub fn MainLayout(
                                 "© 2025 Kejaksaan Agung Republik Indonesia"
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                "SIMPelv2 Portal - Sistem Pembinaan Terintegrasi"
+                                "SIMPEL Portal - Sistem Terintegrasi"
                             </p>
                         </div>
                         <div class="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">

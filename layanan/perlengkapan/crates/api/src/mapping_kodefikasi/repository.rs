@@ -1,13 +1,14 @@
 //! # Mapping Kodefikasi Repository
 //!
-//! Database operations for mapping kodefikasi
+//! Simplified read-only database operations for mapping kodefikasi.
+//! No proposal/verification CRUD — only queries for standard/non-standard codes.
 
 use crate::errors::AppError;
 use crate::mapping_kodefikasi::models::*;
 use deadpool_postgres::Pool;
 use uuid::Uuid;
 
-/// Repository for mapping kodefikasi operations
+/// Repository for mapping kodefikasi read-only operations
 pub struct MappingRepository {
     pool: Pool,
 }
@@ -17,9 +18,59 @@ impl MappingRepository {
         Self { pool }
     }
 
-    /// Detect non-standard codes from SIMAN data
-    pub async fn detect_non_standard_codes(&self) -> Result<Vec<NonStandardCode>, AppError> {
-        let query = r#"
+    /// List non-standard codes from SIMAN data with pagination and optional filters
+    pub async fn list_non_standard_codes(
+        &self,
+        search: Option<&str>,
+        satker_id: Option<Uuid>,
+        page: i32,
+        per_page: i32,
+    ) -> Result<(Vec<NonStandardCode>, i64), AppError> {
+        let offset = ((page - 1) * per_page) as i64;
+
+        let mut conditions = vec![String::from("mb.id IS NULL")];
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+        let mut param_idx = 1;
+
+        if let Some(search_term) = search {
+            conditions.push(format!(
+                "(sa.kode_barang ILIKE ${} OR sa.nama_barang ILIKE ${})",
+                param_idx,
+                param_idx + 1
+            ));
+            let like_term = format!("%{}%", search_term);
+            params.push(Box::new(like_term.clone()));
+            params.push(Box::new(like_term));
+            param_idx += 2;
+        }
+
+        if let Some(sid) = satker_id {
+            conditions.push(format!("sa.satker_id = ${}", param_idx));
+            params.push(Box::new(sid));
+            param_idx += 1;
+        }
+
+        let where_clause = conditions.join(" AND ");
+
+        let count_query = format!(
+            r#"
+            SELECT COUNT(DISTINCT (sa.kode_barang, sa.nama_barang, sa.satker_id))
+            FROM integrasi.siman_aset_tanah sa
+            LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
+            WHERE {}
+            "#,
+            where_clause
+        );
+
+        let client = self.pool.get().await?;
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+
+        let count_row = client.query_one(&count_query, &params_refs).await?;
+        let total: i64 = count_row.get(0);
+
+        let data_query = format!(
+            r#"
             SELECT DISTINCT
                 sa.kode_barang as kode_lama,
                 sa.nama_barang as nama_lama,
@@ -27,15 +78,22 @@ impl MappingRepository {
                 COUNT(*) as jumlah_aset
             FROM integrasi.siman_aset_tanah sa
             LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
-            WHERE mb.id IS NULL
+            WHERE {}
             GROUP BY sa.kode_barang, sa.nama_barang, sa.satker_id
             ORDER BY jumlah_aset DESC
-        "#;
+            LIMIT ${} OFFSET ${}
+            "#,
+            where_clause, param_idx, param_idx + 1
+        );
 
-        let client = self.pool.get().await?;
-        let rows = client.query(query, &[]).await?;
+        params.push(Box::new(per_page as i64));
+        params.push(Box::new(offset));
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
 
-        let non_standard = rows
+        let rows = client.query(&data_query, &params_refs).await?;
+
+        let codes = rows
             .into_iter()
             .map(|row| NonStandardCode {
                 kode_lama: row.get("kode_lama"),
@@ -46,7 +104,93 @@ impl MappingRepository {
             })
             .collect();
 
-        Ok(non_standard)
+        Ok((codes, total))
+    }
+
+    /// List standard BMN codes from master table
+    pub async fn list_standard_codes(
+        &self,
+        search: Option<&str>,
+        page: i32,
+        per_page: i32,
+    ) -> Result<(Vec<StandardBmnCode>, i64), AppError> {
+        let offset = ((page - 1) * per_page) as i64;
+        let client = self.pool.get().await?;
+
+        if let Some(search_term) = search {
+            let like_term = format!("%{}%", search_term);
+
+            let count_row = client
+                .query_one(
+                    r#"
+                    SELECT COUNT(*) FROM perlengkapan.ms_barang
+                    WHERE kode ILIKE $1 OR nama ILIKE $2
+                    "#,
+                    &[&like_term, &like_term],
+                )
+                .await?;
+            let total: i64 = count_row.get(0);
+
+            let rows = client
+                .query(
+                    r#"
+                    SELECT
+                        mb.id, mb.kode, mb.nama, mb.kategori,
+                        (SELECT COUNT(*) FROM integrasi.siman_aset_tanah sa WHERE sa.kode_barang = mb.kode) as jumlah_aset
+                    FROM perlengkapan.ms_barang mb
+                    WHERE mb.kode ILIKE $1 OR mb.nama ILIKE $2
+                    ORDER BY mb.kode
+                    LIMIT $3 OFFSET $4
+                    "#,
+                    &[&like_term, &like_term, &(per_page as i64), &offset],
+                )
+                .await?;
+
+            let codes = rows
+                .into_iter()
+                .map(|row| StandardBmnCode {
+                    id: row.get("id"),
+                    kode: row.get("kode"),
+                    nama: row.get("nama"),
+                    kategori: row.get("kategori"),
+                    jumlah_aset: row.get("jumlah_aset"),
+                })
+                .collect();
+
+            Ok((codes, total))
+        } else {
+            let count_row = client
+                .query_one("SELECT COUNT(*) FROM perlengkapan.ms_barang", &[])
+                .await?;
+            let total: i64 = count_row.get(0);
+
+            let rows = client
+                .query(
+                    r#"
+                    SELECT
+                        mb.id, mb.kode, mb.nama, mb.kategori,
+                        (SELECT COUNT(*) FROM integrasi.siman_aset_tanah sa WHERE sa.kode_barang = mb.kode) as jumlah_aset
+                    FROM perlengkapan.ms_barang mb
+                    ORDER BY mb.kode
+                    LIMIT $1 OFFSET $2
+                    "#,
+                    &[&(per_page as i64), &offset],
+                )
+                .await?;
+
+            let codes = rows
+                .into_iter()
+                .map(|row| StandardBmnCode {
+                    id: row.get("id"),
+                    kode: row.get("kode"),
+                    nama: row.get("nama"),
+                    kategori: row.get("kategori"),
+                    jumlah_aset: row.get("jumlah_aset"),
+                })
+                .collect();
+
+            Ok((codes, total))
+        }
     }
 
     /// Suggest mapping using fuzzy matching
@@ -82,224 +226,76 @@ impl MappingRepository {
         Ok(suggestions)
     }
 
-    /// Create a mapping proposal
-    pub async fn create_proposal(
-        &self,
-        request: &MappingProposalRequest,
-    ) -> Result<MappingProposal, AppError> {
-        let proposal_id = Uuid::new_v4();
-
-        let query = r#"
-            INSERT INTO perlengkapan.mapping_kodefikasi
-            (id, satker_id, kode_barang_lama, nama_barang_lama, kode_barang_baru_id,
-             status_mapping, catatan_mapping, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, 'PROPOSED', $6, NOW(), NOW())
-            RETURNING id, satker_id, kode_barang_lama, nama_barang_lama, kode_barang_baru_id,
-                      status_mapping, catatan_mapping, created_at, updated_at
-        "#;
-
-        let client = self.pool.get().await?;
-        let row = client
-            .query_one(
-                query,
-                &[
-                    &proposal_id,
-                    &request.satker_id,
-                    &request.kode_lama,
-                    &request.nama_lama,
-                    &request.kode_baru_id,
-                    &request.catatan,
-                ],
-            )
-            .await?;
-
-        Ok(MappingProposal {
-            id: row.get("id"),
-            satker_id: row.get("satker_id"),
-            kode_barang_lama: row.get("kode_barang_lama"),
-            nama_barang_lama: row.get("nama_barang_lama"),
-            kode_barang_baru_id: row.get("kode_barang_baru_id"),
-            status_mapping: row.get("status_mapping"),
-            catatan_mapping: row.get("catatan_mapping"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        })
-    }
-
-    /// Get all mapping proposals
-    pub async fn get_all_proposals(&self) -> Result<Vec<MappingProposal>, AppError> {
-        let query = r#"
-            SELECT id, satker_id, kode_barang_lama, nama_barang_lama, kode_barang_baru_id,
-                   status_mapping, catatan_mapping, created_at, updated_at
-            FROM perlengkapan.mapping_kodefikasi
-            ORDER BY created_at DESC
-        "#;
-
-        let client = self.pool.get().await?;
-        let rows = client.query(query, &[]).await?;
-
-        let proposals = rows
-            .into_iter()
-            .map(|row| MappingProposal {
-                id: row.get("id"),
-                satker_id: row.get("satker_id"),
-                kode_barang_lama: row.get("kode_barang_lama"),
-                nama_barang_lama: row.get("nama_barang_lama"),
-                kode_barang_baru_id: row.get("kode_barang_baru_id"),
-                status_mapping: row.get("status_mapping"),
-                catatan_mapping: row.get("catatan_mapping"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
-
-        Ok(proposals)
-    }
-
-    /// Get proposal by ID
-    pub async fn get_proposal_by_id(&self, id: Uuid) -> Result<MappingProposal, AppError> {
-        let query = r#"
-            SELECT id, satker_id, kode_barang_lama, nama_barang_lama, kode_barang_baru_id,
-                   status_mapping, catatan_mapping, created_at, updated_at
-            FROM perlengkapan.mapping_kodefikasi
-            WHERE id = $1
-        "#;
-
-        let client = self.pool.get().await?;
-        let row = client.query_one(query, &[&id]).await?;
-
-        Ok(MappingProposal {
-            id: row.get("id"),
-            satker_id: row.get("satker_id"),
-            kode_barang_lama: row.get("kode_barang_lama"),
-            nama_barang_lama: row.get("nama_barang_lama"),
-            kode_barang_baru_id: row.get("kode_barang_baru_id"),
-            status_mapping: row.get("status_mapping"),
-            catatan_mapping: row.get("catatan_mapping"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        })
-    }
-
-    /// Verify a mapping proposal
-    pub async fn verify_proposal(
-        &self,
-        proposal_id: Uuid,
-        approved: bool,
-        catatan_verifikasi: Option<String>,
-    ) -> Result<MappingProposal, AppError> {
-        let new_status = if approved { "VERIFIED" } else { "REJECTED" };
-
-        let query = r#"
-            UPDATE perlengkapan.mapping_kodefikasi
-            SET status_mapping = $1,
-                catatan_mapping = COALESCE($2, catatan_mapping),
-                updated_at = NOW()
-            WHERE id = $3
-            RETURNING id, satker_id, kode_barang_lama, nama_barang_lama, kode_barang_baru_id,
-                      status_mapping, catatan_mapping, created_at, updated_at
-        "#;
-
-        let client = self.pool.get().await?;
-        let row = client
-            .query_one(query, &[&new_status, &catatan_verifikasi, &proposal_id])
-            .await?;
-
-        Ok(MappingProposal {
-            id: row.get("id"),
-            satker_id: row.get("satker_id"),
-            kode_barang_lama: row.get("kode_barang_lama"),
-            nama_barang_lama: row.get("nama_barang_lama"),
-            kode_barang_baru_id: row.get("kode_barang_baru_id"),
-            status_mapping: row.get("status_mapping"),
-            catatan_mapping: row.get("catatan_mapping"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        })
-    }
-
-    /// Apply verified mapping to SIMAN assets
-    pub async fn apply_mapping(&self, proposal_id: Uuid) -> Result<u64, AppError> {
-        let query = r#"
-            UPDATE integrasi.siman_aset_tanah sa
-            SET kode_barang = mb.kode
-            FROM perlengkapan.mapping_kodefikasi mk
-            JOIN perlengkapan.ms_barang mb ON mk.kode_barang_baru_id = mb.id
-            WHERE mk.id = $1
-              AND sa.kode_barang = mk.kode_barang_lama
-              AND sa.satker_id = mk.satker_id
-        "#;
-
-        let client = self.pool.get().await?;
-        let rows_affected = client.execute(query, &[&proposal_id]).await?;
-
-        Ok(rows_affected)
-    }
-
     /// Get mapping progress statistics
     pub async fn get_mapping_progress(&self) -> Result<MappingProgress, AppError> {
-        let query = r#"
-            WITH non_standard AS (
-                SELECT COUNT(DISTINCT sa.kode_barang) as total
-                FROM integrasi.siman_aset_tanah sa
-                LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
-                WHERE mb.id IS NULL
-            ),
-            mapped AS (
-                SELECT COUNT(*) as total
-                FROM perlengkapan.mapping_kodefikasi
-                WHERE status_mapping = 'VERIFIED'
-            ),
-            pending AS (
-                SELECT COUNT(*) as total
-                FROM perlengkapan.mapping_kodefikasi
-                WHERE status_mapping = 'PROPOSED'
-            )
-            SELECT
-                (SELECT total FROM non_standard) as total_non_standard,
-                (SELECT total FROM mapped) as total_mapped,
-                (SELECT total FROM pending) as pending_verification
-        "#;
-
         let client = self.pool.get().await?;
-        let row = client.query_one(query, &[]).await?;
 
-        let total_non_standard: i64 = row.get("total_non_standard");
-        let total_mapped: i64 = row.get("total_mapped");
-        let pending_verification: i64 = row.get("pending_verification");
+        let stats_row = client
+            .query_one(
+                r#"
+                WITH non_standard AS (
+                    SELECT COUNT(DISTINCT sa.kode_barang) as total
+                    FROM integrasi.siman_aset_tanah sa
+                    LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
+                    WHERE mb.id IS NULL
+                ),
+                standard AS (
+                    SELECT COUNT(*) as total FROM perlengkapan.ms_barang
+                ),
+                mapped AS (
+                    SELECT COUNT(*) as total
+                    FROM perlengkapan.mapping_kodefikasi
+                    WHERE status_mapping = 'VERIFIED'
+                )
+                SELECT
+                    (SELECT total FROM non_standard) as total_non_standard,
+                    (SELECT total FROM standard) as total_standard,
+                    (SELECT total FROM mapped) as total_mapped
+                "#,
+                &[],
+            )
+            .await?;
+
+        let total_non_standard: i64 = stats_row.get("total_non_standard");
+        let total_standard: i64 = stats_row.get("total_standard");
+        let total_mapped: i64 = stats_row.get("total_mapped");
 
         let mapping_percentage = if total_non_standard > 0 {
             (total_mapped as f64 / total_non_standard as f64) * 100.0
         } else {
-            0.0
+            100.0
         };
 
-        // Get non-standard codes with status
-        let codes_query = r#"
-            SELECT DISTINCT
-                sa.kode_barang as kode_lama,
-                sa.nama_barang as nama_lama,
-                sa.satker_id,
-                s.nama as satker_nama,
-                COUNT(*) as jumlah_aset,
-                mk.status_mapping,
-                mb.kode as kode_baru,
-                mb.nama as nama_baru
-            FROM integrasi.siman_aset_tanah sa
-            LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
-            LEFT JOIN perlengkapan.mapping_kodefikasi mk ON sa.kode_barang = mk.kode_barang_lama
-                AND sa.satker_id = mk.satker_id
-            LEFT JOIN authenc.satkers s ON sa.satker_id = s.id
-            WHERE mb.id IS NULL
-            GROUP BY sa.kode_barang, sa.nama_barang, sa.satker_id, s.nama,
-                     mk.status_mapping, mb.kode, mb.nama
-            ORDER BY jumlah_aset DESC
-            LIMIT 100
-        "#;
+        // Top non-standard codes
+        let codes_rows = client
+            .query(
+                r#"
+                SELECT DISTINCT
+                    sa.kode_barang as kode_lama,
+                    sa.nama_barang as nama_lama,
+                    sa.satker_id,
+                    COALESCE(s.nama, 'Unknown') as satker_nama,
+                    COUNT(*) as jumlah_aset,
+                    mk.status_mapping,
+                    mb2.kode as kode_baru,
+                    mb2.nama as nama_baru
+                FROM integrasi.siman_aset_tanah sa
+                LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
+                LEFT JOIN perlengkapan.mapping_kodefikasi mk ON sa.kode_barang = mk.kode_barang_lama
+                    AND sa.satker_id = mk.satker_id
+                LEFT JOIN perlengkapan.ms_barang mb2 ON mk.kode_barang_baru_id = mb2.id
+                LEFT JOIN authenc.satkers s ON sa.satker_id = s.id
+                WHERE mb.id IS NULL
+                GROUP BY sa.kode_barang, sa.nama_barang, sa.satker_id, s.nama,
+                         mk.status_mapping, mb2.kode, mb2.nama
+                ORDER BY jumlah_aset DESC
+                LIMIT 100
+                "#,
+                &[],
+            )
+            .await?;
 
-        let rows = client.query(codes_query, &[]).await?;
-
-        let non_standard_codes = rows
+        let non_standard_codes = codes_rows
             .into_iter()
             .map(|row| NonStandardCodeWithStatus {
                 kode_lama: row.get("kode_lama"),
@@ -316,7 +312,7 @@ impl MappingRepository {
         Ok(MappingProgress {
             total_non_standard,
             total_mapped,
-            pending_verification,
+            total_standard,
             mapping_percentage,
             non_standard_codes,
         })
@@ -331,8 +327,7 @@ impl MappingRepository {
                 s.id as satker_id,
                 s.nama as satker_nama,
                 COUNT(DISTINCT CASE WHEN mb.id IS NULL THEN sa.kode_barang END) as total_non_standard,
-                COUNT(DISTINCT CASE WHEN mk.status_mapping = 'VERIFIED' THEN mk.id END) as total_mapped,
-                COUNT(DISTINCT CASE WHEN mk.status_mapping = 'PROPOSED' THEN mk.id END) as pending_verification
+                COUNT(DISTINCT CASE WHEN mk.status_mapping = 'VERIFIED' THEN mk.id END) as total_mapped
             FROM authenc.satkers s
             LEFT JOIN integrasi.siman_aset_tanah sa ON s.id = sa.satker_id
             LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
@@ -362,7 +357,6 @@ impl MappingRepository {
                     satker_nama: row.get("satker_nama"),
                     total_non_standard,
                     total_mapped,
-                    pending_verification: row.get("pending_verification"),
                     mapping_percentage,
                 }
             })

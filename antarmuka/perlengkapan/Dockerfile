@@ -34,7 +34,7 @@ RUN cargo install wasm-bindgen-cli --version 0.2.100
 COPY . .
 
 # Build perlengkapan
-WORKDIR /workspace/antarmuka/pembinaan/perlengkapan
+WORKDIR /workspace/antarmuka/perlengkapan
 
 # Ensure CSS file exists (handled by trunk)
 RUN mkdir -p dist
@@ -54,7 +54,7 @@ ENV PORTAL_URL=$PORTAL_URL
 ENV AUTHENC_URL=$AUTHENC_URL
 
 # Build with trunk (release mode)
-RUN trunk build --release --public-url "/"
+RUN trunk build --release --public-url "/perlengkapan/"
 
 # Stage 2: Nginx untuk serving hasil build - LISTEN ON PORT 8080
 FROM nginx:alpine
@@ -66,7 +66,7 @@ COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
 RUN sed -i 's|}|    application/wasm wasm;\n}|' /etc/nginx/mime.types
 
 # Copy build output ke Nginx html dir
-COPY --from=builder /workspace/antarmuka/pembinaan/perlengkapan/dist /usr/share/nginx/html
+COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html
 
 EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

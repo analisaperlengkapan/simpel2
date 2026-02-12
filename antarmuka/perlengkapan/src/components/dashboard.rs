@@ -146,7 +146,7 @@ pub fn DashboardLayout(
 
             <div class="flex min-h-[calc(100vh-80px)]">
                 // Sidebar with smooth transitions
-                <Sidebar _sidebar_open=sidebar_open />
+                <Sidebar sidebar_open=sidebar_open />
 
                 // Main Content Area with gradient background
                 <main class="flex-1 bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30 p-4 md:p-6 lg:p-8 overflow-auto">

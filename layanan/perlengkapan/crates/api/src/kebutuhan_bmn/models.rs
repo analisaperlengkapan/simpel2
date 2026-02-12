@@ -43,6 +43,8 @@ pub enum KebutuhanBmnStatus {
     Completed = 2008,
     /// Request cancelled
     Cancelled = 2009,
+    /// Returned to Validator Wilayah by Validator Pusat for corrections
+    RevisiWilayah = 2010,
 }
 
 impl KebutuhanBmnStatus {
@@ -59,6 +61,7 @@ impl KebutuhanBmnStatus {
             2007 => Some(Self::Rejected),
             2008 => Some(Self::Completed),
             2009 => Some(Self::Cancelled),
+            2010 => Some(Self::RevisiWilayah),
             _ => None,
         }
     }
@@ -81,6 +84,7 @@ impl KebutuhanBmnStatus {
             Self::Rejected => "Ditolak",
             Self::Completed => "Selesai",
             Self::Cancelled => "Dibatalkan",
+            Self::RevisiWilayah => "Revisi Wilayah",
         }
     }
 
@@ -97,7 +101,8 @@ impl KebutuhanBmnStatus {
             SubmitWilayah => matches!(target, SubmitPusat | RevisiSatker),
             RevisiSatker => matches!(target, SubmitWilayah | Cancelled),
             SubmitPusat => matches!(target, AnalisisKelayakan),
-            AnalisisKelayakan => matches!(target, Approved | Rejected),
+            AnalisisKelayakan => matches!(target, Approved | Rejected | RevisiWilayah),
+            RevisiWilayah => matches!(target, SubmitPusat),
             Approved => matches!(target, Completed),
             Rejected | Completed | Cancelled => false,
         }
@@ -112,7 +117,8 @@ impl KebutuhanBmnStatus {
             SubmitWilayah => vec![SubmitPusat, RevisiSatker],
             RevisiSatker => vec![SubmitWilayah, Cancelled],
             SubmitPusat => vec![AnalisisKelayakan],
-            AnalisisKelayakan => vec![Approved, Rejected],
+            AnalisisKelayakan => vec![Approved, Rejected, RevisiWilayah],
+            RevisiWilayah => vec![SubmitPusat],
             Approved => vec![Completed],
             Rejected | Completed | Cancelled => vec![],
         }
@@ -131,6 +137,7 @@ impl KebutuhanBmnStatus {
             Self::Rejected => "REJECTED",
             Self::Completed => "COMPLETED",
             Self::Cancelled => "CANCELLED",
+            Self::RevisiWilayah => "REVISI_WILAYAH",
         }
     }
 
@@ -149,6 +156,7 @@ impl KebutuhanBmnStatus {
             "REJECTED" => Some(Self::Rejected),
             "COMPLETED" => Some(Self::Completed),
             "CANCELLED" => Some(Self::Cancelled),
+            "REVISI_WILAYAH" => Some(Self::RevisiWilayah),
             _ => None,
         }
     }

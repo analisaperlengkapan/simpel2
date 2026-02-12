@@ -14,18 +14,18 @@ COPY Cargo.toml Cargo.lock ./
 
 # Patch Cargo.toml to only include required packages
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/daskrimti/integrasi", "layanan/pembinaan/perlengkapan"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/common", "lib/perlengkapan", "layanan/perlengkapan/crates/api", "layanan/perlengkapan/crates/integrasi"]' Cargo.toml || true
 
 COPY lib/common ./lib/common
-COPY layanan/daskrimti/integrasi ./layanan/daskrimti/integrasi
-COPY layanan/pembinaan/perlengkapan ./layanan/pembinaan/perlengkapan
+COPY lib/perlengkapan ./lib/perlengkapan
+COPY layanan/perlengkapan ./layanan/perlengkapan
 
 # Copy proto files needed by build.rs
 COPY infra/authenc/proto ./infra/authenc/proto
 COPY infra/secreton/proto ./infra/secreton/proto
 
 # Build release
-RUN cargo build --release -p layanan-perlengkapan
+RUN cargo build --release -p layanan-perlengkapan-api
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 appuser
 
 # Copy binary
-COPY --from=builder /workspace/target/release/layanan-perlengkapan /app/perlengkapan
+COPY --from=builder /workspace/target/release/layanan-perlengkapan-api /app/perlengkapan
 
 # Set ownership
 RUN chown -R appuser:appuser /app

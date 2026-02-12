@@ -34,7 +34,7 @@ pub fn BatchOperationsToolbar(
     let selected_count = Memo::new(move |_| selected_ids.get().len());
 
     // Handle batch approve
-    let handle_approve = Action::new(move |_: &()| {
+    let handle_approve = Action::new_local(move |_: &()| {
         let ids = selected_ids.get();
         async move {
             set_is_processing.set(true);
@@ -61,7 +61,7 @@ pub fn BatchOperationsToolbar(
     });
 
     // Handle batch reject
-    let handle_reject = Action::new(move |_: &()| {
+    let handle_reject = Action::new_local(move |_: &()| {
         let ids = selected_ids.get();
         let reason = reject_reason.get();
         async move {

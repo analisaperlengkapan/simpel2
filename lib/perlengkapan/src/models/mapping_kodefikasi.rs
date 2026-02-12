@@ -1,10 +1,12 @@
 //! Mapping Kodefikasi domain models
+//!
+//! Simplified read-only models for standard/non-standard BMN code classification.
+//! No proposal/verification workflow — admin inputs reference codes, system detects mismatches.
 
 use chrono::{DateTime, Utc};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use validator::Validate;
 
 #[cfg(feature = "backend")]
 use tokio_postgres::Row;
@@ -20,10 +22,8 @@ pub struct MappingKodefikasi {
     pub kode_barang_baru_id: Option<Uuid>,
     pub kode_barang_baru: Option<String>,
     pub nama_barang_baru: Option<String>,
-    pub status_mapping: String, // PROPOSED, VERIFIED, REJECTED
+    pub status_mapping: String,
     pub catatan_mapping: Option<String>,
-    pub proposed_by: Option<Uuid>,
-    pub verified_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -41,69 +41,28 @@ impl MappingKodefikasi {
             nama_barang_baru: row.get("nama_barang_baru"),
             status_mapping: row.get("status_mapping"),
             catatan_mapping: row.get("catatan_mapping"),
-            proposed_by: row.get("proposed_by"),
-            verified_by: row.get("verified_by"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         }
     }
 }
 
-/// Request to propose a kode barang mapping
-#[derive(Debug, Clone, Validate)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ProposeMappingRequest {
-    pub satker_id: Uuid,
-    #[validate(length(min = 1, max = 50))]
-    pub kode_barang_lama: String,
-    #[validate(length(min = 1, max = 255))]
-    pub nama_barang_lama: String,
-    pub kode_barang_baru_id: Uuid,
-    pub catatan_mapping: Option<String>,
-}
-
-/// Request to verify a mapping
-#[derive(Debug, Clone, Validate)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct VerifyMappingRequest {
-    pub mapping_id: Uuid,
-    #[validate(length(min = 1, max = 50))]
-    pub status_mapping: String, // VERIFIED or REJECTED
-    pub catatan_mapping: Option<String>,
-}
-
-/// Mapping progress statistics
+/// Result of checking whether a BMN code is standard or non-standard
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct MappingProgress {
-    pub satker_id: Option<Uuid>,
-    pub total_non_standard: i64,
-    pub total_proposed: i64,
-    pub total_verified: i64,
-    pub total_rejected: i64,
-    pub persentase_mapped: f64,
-}
-
-#[cfg(feature = "backend")]
-impl MappingProgress {
-    pub fn from_row(row: &Row) -> Self {
-        let total_non_standard: i64 = row.get("total_non_standard");
-        let total_verified: i64 = row.get("total_verified");
-        let persentase_mapped = if total_non_standard > 0 {
-            (total_verified as f64 / total_non_standard as f64) * 100.0
-        } else {
-            0.0
-        };
-
-        Self {
-            satker_id: row.get("satker_id"),
-            total_non_standard,
-            total_proposed: row.get("total_proposed"),
-            total_verified,
-            total_rejected: row.get("total_rejected"),
-            persentase_mapped,
-        }
-    }
+pub struct BmnStandardCheckResult {
+    /// NUP (Nomor Urut Pendaftaran) of the asset
+    pub nup: Option<String>,
+    /// The kode barang currently assigned to this asset
+    pub kode_barang: String,
+    /// Nama barang from asset data
+    pub nama_barang: String,
+    /// Whether this code exists in the ms_barang reference table
+    pub is_standard: bool,
+    /// If non-standard, the suggested standard code (from fuzzy match)
+    pub kode_standar_rujukan: Option<String>,
+    /// Nama of the suggested standard code
+    pub nama_standar_rujukan: Option<String>,
 }
 
 /// Auto-detected non-standard kode barang

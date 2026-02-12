@@ -2,18 +2,7 @@
 target = "index.html"
 dist = "dist"
 release = false
-
-# Disable wasm-opt completely (causes issues in Docker containers)
-# [[build.wasm_opt]]
-# args = [
-#     "-Oz",
-#     "--enable-bulk-memory",
-#     "--enable-nontrapping-float-to-int",
-#     "--enable-sign-ext",
-#     "--enable-mutable-globals",
-#     "--enable-reference-types",
-#     "--strip-debug",
-# ]
+no_wasm_opt = true
 
 # Simplified wasm-bindgen configuration for development
 [[build.wasm-bindgen]]

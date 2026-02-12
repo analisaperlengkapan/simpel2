@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - simpelv2-config.yaml
   - backend-config.yaml
+  - postgres-init-config.yaml
 
 generatorOptions:
   disableNameSuffixHash: true

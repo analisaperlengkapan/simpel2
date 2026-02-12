@@ -14,11 +14,11 @@ COPY Cargo.toml Cargo.lock ./
 
 # Patch Cargo.toml to only include lib-common and this service
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/daskrimti/portal"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/portal"]' Cargo.toml || true
 
 COPY lib/common ./lib/common
 COPY infra/authenc/proto ./infra/authenc/proto
-COPY layanan/daskrimti/portal ./layanan/daskrimti/portal
+COPY layanan/portal ./layanan/portal
 
 # Build release
 RUN cargo build --release -p layanan-portal

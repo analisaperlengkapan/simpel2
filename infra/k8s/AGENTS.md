@@ -40,13 +40,13 @@ This directory contains **Kustomize-based** Kubernetes manifests for deploying S
 infra/k8s/
 ├── base/                           # Shared base resources
 │   ├── backend/                    # Backend microservices (Axum)
-│   │   ├── layanan-daskrimti-portal.yaml
-│   │   ├── layanan-pembinaan-perlengkapan.yaml
+│   │   ├── layanan-portal.yaml
+│   │   ├── layanan-perlengkapan.yaml
 │   │   └── kustomization.yaml
 │   ├── frontend/                   # Frontend microfrontends (Leptos WASM)
 │   │   ├── portal.yaml
-│   │   ├── daskrimti-portal.yaml
-│   │   ├── pembinaan-perlengkapan.yaml
+│   │   ├── portal.yaml
+│   │   ├── perlengkapan.yaml
 │   │   └── kustomization.yaml
 │   ├── infrastructure/             # Core infrastructure
 │   │   ├── postgres.yaml           # PostgreSQL with Patroni HA
@@ -271,10 +271,10 @@ localhost:32000/simpelv2/<image-name>:<tag>
 |-------|------|------|---------|
 | `portal` | 8080 | Deployment | Main portal frontend |
 | `portal` | 8080 | Deployment | Portal microfrontend |
-| `pembinaan-perlengkapan` | 8080 | Deployment | Pembinaan microfrontend |
+| `perlengkapan` | 8080 | Deployment | Pembinaan microfrontend |
 | `layanan-portal` | 3010 | Deployment | Portal backend API |
-| `layanan-daskrimti-integrasi` | - | CronJob | External API integration (MonSAKTI/MySIMKARI/SIMAN) |
-| `layanan-pembinaan-perlengkapan` | 3020 | Deployment | Perlengkapan backend API |
+| `layanan-integrasi` | - | CronJob | External API integration (MonSAKTI/MySIMKARI/SIMAN) |
+| `layanan-perlengkapan` | 3020 | Deployment | Perlengkapan backend API |
 | `authenc` | 8088/9088/9090 | Deployment | Identity Provider |
 | `secreton` | 8200/9000/9090 | StatefulSet | Secrets Vault |
 
@@ -597,7 +597,7 @@ curl -s http://172.15.10.200/ -H "Host: simpel.kejaksaan.go.id"
 
 ```bash
 # Promote a specific image from staging to production
-IMAGE=layanan-daskrimti-portal
+IMAGE=layanan-portal
 
 # Tag staging as production
 docker pull localhost:32000/simpelv2/${IMAGE}:stag

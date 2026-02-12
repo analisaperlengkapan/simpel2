@@ -27,10 +27,25 @@ pub fn SidebarSection(
     #[allow(unused)] icon: String,
     #[allow(unused)] is_expanded: RwSignal<bool>,
     #[allow(unused)] items: Vec<MenuItem>,
+    /// Roles allowed to see this section. Empty = visible to all.
+    #[prop(optional)]
+    #[allow(unused)]
+    allowed_roles: Option<Vec<String>>,
+    /// The current user's active role key.
+    #[prop(optional)]
+    #[allow(unused)]
+    active_role: Option<String>,
 ) -> impl IntoView {
-    let _ = title;
-    let _ = icon;
-    let _ = items;
+    // Role-based visibility: if allowed_roles is set & non-empty, check membership
+    let visible = match (&allowed_roles, &active_role) {
+        (Some(roles), Some(role)) if !roles.is_empty() => roles.contains(role),
+        _ => true, // no restriction or no role info → show
+    };
+
+    if !visible {
+        return view! { <div class="hidden"></div> }.into_any();
+    }
+
     let toggle_expand = move |_| {
         is_expanded.update(|v| *v = !*v);
     };
@@ -55,7 +70,7 @@ pub fn SidebarSection(
                 class="w-full text-gray-300 hover:text-white hover:bg-blue-800 px-4 py-3 rounded-lg flex items-center justify-between transition-all duration-200"
             >
                 <div class="flex items-center space-x-3">
-                    <div class="w-5 h-5" inner_html=sanitized_icon></div>
+                    <div class="w-5 h-5 flex items-center justify-center" inner_html=sanitized_icon></div>
                     <span>{title}</span>
                 </div>
                 <svg class=move || format!("w-4 h-4 transition-transform duration-200 {}", chevron_class())
@@ -84,5 +99,5 @@ pub fn SidebarSection(
                 </div>
             </Show>
         </div>
-    }
+    }.into_any()
 }

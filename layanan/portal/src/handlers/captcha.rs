@@ -52,6 +52,21 @@ pub struct ErrorResponse {
     pub error: String,
 }
 
+/// Strip sensitive fields (e.g., answer) from challenge_data before sending to the client.
+/// This prevents the CAPTCHA answer from being leaked to the frontend.
+fn sanitize_challenge_data(raw: &str) -> String {
+    match serde_json::from_str::<serde_json::Value>(raw) {
+        Ok(mut obj) => {
+            if let Some(map) = obj.as_object_mut() {
+                map.remove("answer");
+            }
+            // Re-serialize without the answer field
+            serde_json::to_string(&obj).unwrap_or_else(|_| raw.to_string())
+        }
+        Err(_) => raw.to_string(), // Not valid JSON — return as-is
+    }
+}
+
 /// POST /api/captcha/challenge - Generate CAPTCHA challenge
 pub async fn generate_challenge(
     State(state): State<Arc<AppState>>,
@@ -70,8 +85,10 @@ pub async fn generate_challenge(
         .generate_captcha(&request.challenge_type, request.difficulty, &session_id)
         .await
     {
-        Ok(challenge) => {
+        Ok(mut challenge) => {
             info!("CAPTCHA challenge generated: {}", challenge.challenge_id);
+            // SECURITY: Strip the answer from challenge_data before sending to client
+            challenge.challenge_data = sanitize_challenge_data(&challenge.challenge_data);
             (StatusCode::OK, Json(challenge)).into_response()
         }
         Err(err) => {

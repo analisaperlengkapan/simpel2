@@ -495,7 +495,7 @@ DROP INDEX IF EXISTS perlengkapan.idx_kebutuhan_bmn_satker;
 
 ```bash
 # Revert to previous deployment
-kubectl rollout undo deployment/layanan-pembinaan-perlengkapan -n simpelv2-staging
+kubectl rollout undo deployment/layanan-perlengkapan -n simpelv2-staging
 ```
 
 ## Next Steps

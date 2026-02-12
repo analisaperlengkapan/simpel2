@@ -70,11 +70,17 @@ impl WorkflowConfig {
             "INPUT_BARANG".to_string(),
         ]);
 
-        // ANALISIS_KELAYAKAN can transition to PENYUSUNAN_PRIORITAS, REVISI_SATKER, or REJECTED
+        // ANALISIS_KELAYAKAN can transition to PENYUSUNAN_PRIORITAS, REVISI_SATKER, REVISI_WILAYAH, or REJECTED
         transitions.insert("ANALISIS_KELAYAKAN".to_string(), vec![
             "PENYUSUNAN_PRIORITAS".to_string(),
             "REVISI_SATKER".to_string(),
+            "REVISI_WILAYAH".to_string(),
             "REJECTED".to_string(),
+        ]);
+
+        // REVISI_WILAYAH returns to SUBMIT_PUSAT (Validator Wilayah re-submits after fixing)
+        transitions.insert("REVISI_WILAYAH".to_string(), vec![
+            "SUBMIT_PUSAT".to_string(),
         ]);
 
         // PENYUSUNAN_PRIORITAS can transition to APPROVED or REJECTED
@@ -116,6 +122,7 @@ impl WorkflowConfig {
         required_roles.insert("APPROVED".to_string(), "admin_pusat".to_string());
         required_roles.insert("REJECTED".to_string(), "admin_pusat".to_string());
         required_roles.insert("REVISI_SATKER".to_string(), "validator_pusat".to_string());
+        required_roles.insert("REVISI_WILAYAH".to_string(), "validator_pusat".to_string());
         required_roles.insert("COMPLETED".to_string(), "admin_pusat".to_string());
 
         Self {
@@ -253,49 +260,66 @@ impl WorkflowConfig {
     /// Default workflow configuration for Pakaian Dinas (Official Uniforms)
     ///
     /// States:
-    /// - DRAFT: Initial draft
-    /// - SUBMITTED: Submitted for approval
-    /// - APPROVED: Approved
-    /// - REJECTED: Rejected
-    /// - COMPLETED: Rekapitulasi generated and distributed
+    /// - DRAFT (1000): Initial draft
+    /// - SUBMIT_WILAYAH (1001): Submitted to Validator Wilayah
+    /// - REVISI_PELAKSANA (1003): Returned to operator for revision
+    /// - SUBMIT_PUSAT (1004): Submitted to Validator Pusat
+    /// - REVISI_WILAYAH (1007): Returned to Validator Wilayah by Validator Pusat
+    /// - SELESAI (1008): Completed
+    /// - DITOLAK (1006): Rejected
     /// - CANCELLED: Cancelled
     pub fn default_pakaian_dinas() -> Self {
         let mut transitions = HashMap::new();
 
-        // DRAFT can transition to SUBMITTED or CANCELLED
+        // DRAFT can transition to SUBMIT_WILAYAH or CANCELLED
         transitions.insert("DRAFT".to_string(), vec![
-            "SUBMITTED".to_string(),
+            "SUBMIT_WILAYAH".to_string(),
             "CANCELLED".to_string(),
         ]);
 
-        // SUBMITTED can transition to APPROVED or REJECTED
-        transitions.insert("SUBMITTED".to_string(), vec![
-            "APPROVED".to_string(),
-            "REJECTED".to_string(),
+        // SUBMIT_WILAYAH can transition to SUBMIT_PUSAT or REVISI_PELAKSANA
+        transitions.insert("SUBMIT_WILAYAH".to_string(), vec![
+            "SUBMIT_PUSAT".to_string(),
+            "REVISI_PELAKSANA".to_string(),
         ]);
 
-        // APPROVED can transition to COMPLETED
-        transitions.insert("APPROVED".to_string(), vec![
-            "COMPLETED".to_string(),
+        // REVISI_PELAKSANA returns to SUBMIT_WILAYAH
+        transitions.insert("REVISI_PELAKSANA".to_string(), vec![
+            "SUBMIT_WILAYAH".to_string(),
+        ]);
+
+        // SUBMIT_PUSAT can transition to SELESAI, REVISI_WILAYAH, or DITOLAK
+        transitions.insert("SUBMIT_PUSAT".to_string(), vec![
+            "SELESAI".to_string(),
+            "REVISI_WILAYAH".to_string(),
+            "DITOLAK".to_string(),
+        ]);
+
+        // REVISI_WILAYAH returns to SUBMIT_PUSAT
+        transitions.insert("REVISI_WILAYAH".to_string(), vec![
+            "SUBMIT_PUSAT".to_string(),
         ]);
 
         // Terminal states
-        transitions.insert("COMPLETED".to_string(), vec![]);
-        transitions.insert("REJECTED".to_string(), vec![]);
+        transitions.insert("SELESAI".to_string(), vec![]);
+        transitions.insert("DITOLAK".to_string(), vec![]);
         transitions.insert("CANCELLED".to_string(), vec![]);
 
         // SLA configuration (in minutes)
         let mut sla_minutes = HashMap::new();
-        sla_minutes.insert("SUBMITTED".to_string(), 2880);  // 2 days (48 hours)
-        sla_minutes.insert("APPROVED".to_string(), 1440);   // 1 day (24 hours)
+        sla_minutes.insert("SUBMIT_WILAYAH".to_string(), 2880);   // 2 days
+        sla_minutes.insert("SUBMIT_PUSAT".to_string(), 4320);     // 3 days
+        sla_minutes.insert("REVISI_WILAYAH".to_string(), 2880);   // 2 days
 
         // Required roles
         let mut required_roles = HashMap::new();
         required_roles.insert("DRAFT".to_string(), "operator_satker".to_string());
-        required_roles.insert("SUBMITTED".to_string(), "operator_satker".to_string());
-        required_roles.insert("APPROVED".to_string(), "validator_pusat".to_string());
-        required_roles.insert("REJECTED".to_string(), "validator_pusat".to_string());
-        required_roles.insert("COMPLETED".to_string(), "admin_pusat".to_string());
+        required_roles.insert("SUBMIT_WILAYAH".to_string(), "operator_satker".to_string());
+        required_roles.insert("REVISI_PELAKSANA".to_string(), "validator_wilayah".to_string());
+        required_roles.insert("SUBMIT_PUSAT".to_string(), "validator_wilayah".to_string());
+        required_roles.insert("REVISI_WILAYAH".to_string(), "validator_pusat".to_string());
+        required_roles.insert("SELESAI".to_string(), "validator_pusat".to_string());
+        required_roles.insert("DITOLAK".to_string(), "validator_pusat".to_string());
 
         Self {
             name: "pakaian_dinas".to_string(),
@@ -379,6 +403,7 @@ pub enum WorkflowStateCode {
     Rejected = 2007,
     Completed = 2008,
     Cancelled = 2009,
+    RevisiWilayah = 2010,
 }
 
 impl WorkflowStateCode {
@@ -395,6 +420,7 @@ impl WorkflowStateCode {
             WorkflowStateCode::Rejected => "REJECTED",
             WorkflowStateCode::Completed => "COMPLETED",
             WorkflowStateCode::Cancelled => "CANCELLED",
+            WorkflowStateCode::RevisiWilayah => "REVISI_WILAYAH",
         }
     }
 
@@ -411,6 +437,7 @@ impl WorkflowStateCode {
             "REJECTED" => Some(WorkflowStateCode::Rejected),
             "COMPLETED" => Some(WorkflowStateCode::Completed),
             "CANCELLED" => Some(WorkflowStateCode::Cancelled),
+            "REVISI_WILAYAH" => Some(WorkflowStateCode::RevisiWilayah),
             _ => None,
         }
     }

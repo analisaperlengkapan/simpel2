@@ -266,7 +266,7 @@ kubectl top pods -n simpelv2-staging
 
 # Test connectivity
 kubectl run test-curl --rm -it --restart=Never --image=curlimages/curl -- \
-  curl http://layanan-pembinaan-perlengkapan:3020/health
+  curl http://layanan-perlengkapan:3020/health
 ```
 
 ## 📚 Documentation

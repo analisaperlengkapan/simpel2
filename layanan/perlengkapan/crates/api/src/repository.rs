@@ -18,61 +18,6 @@ pub trait PerlengkapanRepository: Send + Sync {
     ) -> AppResult<(Vec<Asset>, i64)>;
     async fn get_asset_by_id(&self, id: Uuid) -> AppResult<Asset>;
 
-    // Pengadaan (Local)
-    async fn get_all_pengadaan(&self, page: i32, per_page: i32)
-    -> AppResult<(Vec<Pengadaan>, i64)>;
-    async fn get_pengadaan_by_id(&self, id: Uuid) -> AppResult<Pengadaan>;
-    async fn create_pengadaan(
-        &self,
-        request: CreatePengadaanRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Pengadaan>;
-
-    // Pengadaan Sub-Documents
-    async fn create_pengadaan_hps(
-        &self,
-        request: CreatePengadaanHpsRequest,
-    ) -> AppResult<PengadaanHps>;
-    async fn get_pengadaan_hps(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanHps>>;
-
-    async fn create_pengadaan_skppbj(
-        &self,
-        request: CreatePengadaanSkppbjRequest,
-    ) -> AppResult<PengadaanSkppbj>;
-    async fn get_pengadaan_skppbj(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSkppbj>>;
-
-    async fn create_pengadaan_spk(
-        &self,
-        request: CreatePengadaanSpkRequest,
-    ) -> AppResult<PengadaanSpk>;
-    async fn get_pengadaan_spk(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanSpk>>;
-
-    async fn create_pengadaan_ringkasan(
-        &self,
-        request: CreatePengadaanRingkasanRequest,
-    ) -> AppResult<PengadaanRingkasan>;
-    async fn get_pengadaan_ringkasan(
-        &self,
-        pengadaan_id: Uuid,
-    ) -> AppResult<Vec<PengadaanRingkasan>>;
-
-    async fn create_pengadaan_kontrak(
-        &self,
-        request: CreatePengadaanKontrakRequest,
-    ) -> AppResult<PengadaanKontrak>;
-    async fn get_pengadaan_kontrak(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanKontrak>>;
-
-    async fn create_pengadaan_bast(
-        &self,
-        request: CreatePengadaanBastRequest,
-    ) -> AppResult<PengadaanBast>;
-    async fn get_pengadaan_bast(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanBast>>;
-
-    async fn create_pengadaan_nodis(
-        &self,
-        request: CreatePengadaanNodisRequest,
-    ) -> AppResult<PengadaanNodis>;
-    async fn get_pengadaan_nodis(&self, pengadaan_id: Uuid) -> AppResult<Vec<PengadaanNodis>>;
 
     // Analisis (Local)
     async fn get_all_analisis(
@@ -97,23 +42,6 @@ pub trait PerlengkapanRepository: Send + Sync {
         user_id: Option<Uuid>,
     ) -> AppResult<Pemakaian>;
 
-    // Hibah (Local)
-    async fn get_all_hibah(&self, page: i32, per_page: i32) -> AppResult<(Vec<Hibah>, i64)>;
-    async fn get_hibah_by_id(&self, id: Uuid) -> AppResult<Hibah>;
-    async fn create_hibah(
-        &self,
-        request: CreateHibahRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Hibah>;
-
-    // Mutasi (Local)
-    async fn get_all_mutasi(&self, page: i32, per_page: i32) -> AppResult<(Vec<Mutasi>, i64)>;
-    async fn get_mutasi_by_id(&self, id: Uuid) -> AppResult<Mutasi>;
-    async fn create_mutasi(
-        &self,
-        request: CreateMutasiRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Mutasi>;
 
     // Penghapusan (Local)
     async fn get_all_penghapusan(
@@ -128,31 +56,6 @@ pub trait PerlengkapanRepository: Send + Sync {
         user_id: Option<Uuid>,
     ) -> AppResult<Penghapusan>;
 
-    // Pengalihan (Local)
-    async fn get_all_pengalihan(
-        &self,
-        page: i32,
-        per_page: i32,
-    ) -> AppResult<(Vec<Pengalihan>, i64)>;
-    async fn get_pengalihan_by_id(&self, id: Uuid) -> AppResult<Pengalihan>;
-    async fn create_pengalihan(
-        &self,
-        request: CreatePengalihanRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Pengalihan>;
-
-    // Pemeliharaan (Local)
-    async fn get_all_pemeliharaan(
-        &self,
-        page: i32,
-        per_page: i32,
-    ) -> AppResult<(Vec<Pemeliharaan>, i64)>;
-    async fn get_pemeliharaan_by_id(&self, id: Uuid) -> AppResult<Pemeliharaan>;
-    async fn create_pemeliharaan(
-        &self,
-        request: CreatePemeliharaanRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Pemeliharaan>;
 
     // Export (Local)
     async fn queue_export_job(&self, query: crate::handlers::ExportQuery) -> AppResult<Uuid>;

@@ -64,24 +64,40 @@ impl SecretonClient {
 
 #[derive(Clone)]
 pub struct AuthencClient {
-    client: AuthencServiceClient<Channel>,
+    client: Option<AuthencServiceClient<Channel>>,
 }
 
 impl AuthencClient {
     pub async fn connect(addr: String) -> Result<Self> {
         let client = AuthencServiceClient::connect(addr).await?;
-        Ok(Self { client })
+        Ok(Self { client: Some(client) })
+    }
+
+    /// Create a dummy/mock client for development without Authenc
+    pub fn dummy() -> Self {
+        Self { client: None }
     }
 
     pub async fn validate_token(&self, token: &str) -> Result<authenc::v1::ValidateTokenResponse> {
-        let mut client = self.client.clone();
-        let request = tonic::Request::new(ValidateTokenRequest {
-            token: token.to_string(),
-            required_scopes: vec![],
-        });
-
-        let response = client.validate_token(request).await?;
-        Ok(response.into_inner())
+        if let Some(ref client) = self.client {
+            let mut client = client.clone();
+            let request = tonic::Request::new(ValidateTokenRequest {
+                token: token.to_string(),
+                required_scopes: vec![],
+            });
+            let response = client.validate_token(request).await?;
+            Ok(response.into_inner())
+        } else {
+            // In dev mode without Authenc, accept all tokens
+            tracing::warn!("Authenc not connected - accepting token in dev mode");
+            Ok(authenc::v1::ValidateTokenResponse {
+                valid: true,
+                user_id: None,
+                scopes: vec![],
+                expires_at: None,
+                error: None,
+            })
+        }
     }
 }
 

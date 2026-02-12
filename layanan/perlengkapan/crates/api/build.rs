@@ -79,11 +79,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compile_protos(
             &proto_files,
             &[
-                authenc_proto_dir.clone(),
-                secreton_proto_dir,
+                // integrasi_proto_dir must come before authenc to avoid
+                // shadowing (both contain integrasi.proto)
                 integrasi_proto_dir,
                 dokumen_proto_dir,
                 notifikasi_proto_dir,
+                authenc_proto_dir.clone(),
+                secreton_proto_dir,
             ],
         )?;
 

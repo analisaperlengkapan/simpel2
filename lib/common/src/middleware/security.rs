@@ -256,8 +256,8 @@ pub async fn input_validation_middleware(
 /// Combine all security middleware
 pub fn security_middleware_stack() -> impl tower::Layer<tower::util::BoxService<Request, Response, axum::Error>> {
     tower::ServiceBuilder::new()
-        .layer(axum::middleware::from_fn(security_headers_middleware))
-        .layer(axum::middleware::from_fn(input_validation_middleware))
+        .layer(axum::middleware::from_fn::<_, axum::body::Body>(security_headers_middleware))
+        .layer(axum::middleware::from_fn::<_, axum::body::Body>(input_validation_middleware))
 }
 
 #[cfg(test)]

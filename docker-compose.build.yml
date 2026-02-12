@@ -25,47 +25,47 @@ services:
   # Backend Services (Layanan)
   # =====================================================
 
-  layanan-daskrimti-portal:
+  layanan-portal:
     build:
       context: .
       dockerfile: layanan/daskrimti/portal/Dockerfile
-    image: localhost:32000/simpelv2/layanan-daskrimti-portal:latest
+    image: localhost:32000/simpelv2/layanan-portal:latest
 
-  layanan-daskrimti-integrasi:
+  layanan-integrasi:
     build:
       context: .
       dockerfile: layanan/daskrimti/integrasi/Dockerfile
       target: cli
-    image: localhost:32000/simpelv2/layanan-daskrimti-integrasi:latest
+    image: localhost:32000/simpelv2/layanan-integrasi:latest
 
-  layanan-daskrimti-integrasi-grpc:
+  layanan-integrasi-grpc:
     build:
       context: .
       dockerfile: layanan/daskrimti/integrasi/Dockerfile
       target: grpc
-    image: localhost:32000/simpelv2/layanan-daskrimti-integrasi-grpc:latest
+    image: localhost:32000/simpelv2/layanan-integrasi-grpc:latest
 
-  layanan-pembinaan-perlengkapan:
+  layanan-perlengkapan:
     build:
       context: .
       dockerfile: layanan/pembinaan/perlengkapan/Dockerfile
-    image: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan:latest
+    image: localhost:32000/simpelv2/layanan-perlengkapan:latest
 
   # =====================================================
   # Frontend Microfrontends (Antarmuka)
   # =====================================================
 
-  daskrimti-portal:
+  portal:
     build:
       context: .
       dockerfile: antarmuka/daskrimti/portal/Dockerfile
-    image: localhost:32000/simpelv2/daskrimti-portal:latest
+    image: localhost:32000/simpelv2/portal:latest
 
-  pembinaan-perlengkapan:
+  perlengkapan:
     build:
       context: .
       dockerfile: antarmuka/pembinaan/perlengkapan/Dockerfile
-    image: localhost:32000/simpelv2/pembinaan-perlengkapan:latest
+    image: localhost:32000/simpelv2/perlengkapan:latest
 
 # Build Commands:
 # ---------------
@@ -76,5 +76,5 @@ services:
 #
 # Build order (if dependencies matter):
 # 1. docker compose -f docker-compose.build.yml build secreton authenc
-# 2. docker compose -f docker-compose.build.yml build layanan-daskrimti-portal layanan-pembinaan-perlengkapan
-# 3. docker compose -f docker-compose.build.yml build daskrimti-portal pembinaan-perlengkapan
+# 2. docker compose -f docker-compose.build.yml build layanan-portal layanan-perlengkapan
+# 3. docker compose -f docker-compose.build.yml build portal perlengkapan

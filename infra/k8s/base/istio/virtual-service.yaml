@@ -21,7 +21,7 @@ spec:
             prefix: /api/portal
       route:
         - destination:
-            host: layanan-daskrimti-portal
+            host: layanan-portal
             port:
               number: 3010
     - match:
@@ -29,7 +29,7 @@ spec:
             prefix: /api/perlengkapan
       route:
         - destination:
-            host: layanan-pembinaan-perlengkapan
+            host: layanan-perlengkapan
             port:
               number: 3020
 
@@ -42,7 +42,7 @@ spec:
             prefix: /pembinaan/perlengkapan
       route:
         - destination:
-            host: pembinaan-perlengkapan
+            host: perlengkapan
             port:
               number: 8080
     # Daskrimti Portal
@@ -51,7 +51,7 @@ spec:
             prefix: /daskrimti
       route:
         - destination:
-            host: daskrimti-portal
+            host: portal
             port:
               number: 8080
 

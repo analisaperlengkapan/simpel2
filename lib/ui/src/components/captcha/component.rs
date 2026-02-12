@@ -708,25 +708,24 @@ pub fn ChallengeDisplay(
                             </div>
                         </div>
                     }.into_any(),
-                    ChallengeType::Logical => view! {
+                    ChallengeType::Logical => {
+                        let logical_parsed = challenge_parser::parse_challenge(challenge_data.clone());
+                        view! {
                         <div class="logical-challenge">
                             <div class="puzzle-container bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 rounded-lg p-6">
                                 <div class="puzzle-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                                    {challenge_data.as_ref().map(|c| c.challenge_data.clone()).unwrap_or_else(|| "What comes next in the sequence: 2, 4, 6, ?".to_string())}
+                                    {logical_parsed.instructions.clone()}
                                 </div>
                                 <div class="sequence-display flex items-center justify-center space-x-4 text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                                    <span>"2"</span>
-                                    <span>"→"</span>
-                                    <span>"4"</span>
-                                    <span>"→"</span>
-                                    <span>"6"</span>
-                                    <span>"→"</span>
-                                    <span class="text-gray-400">"?"</span>
+                                    <span>{logical_parsed.display_data.clone()}</span>
                                 </div>
                             </div>
                         </div>
-                    }.into_any(),
-                    ChallengeType::Hybrid => view! {
+                    }.into_any()
+                    },
+                    ChallengeType::Hybrid => {
+                        let hybrid_parsed = challenge_parser::parse_challenge(challenge_data.clone());
+                        view! {
                         <div class="hybrid-challenge">
                             <div class="multi-step-challenge space-y-4">
                                 <div class="step-indicator flex items-center justify-center space-x-2 mb-4">
@@ -736,12 +735,13 @@ pub fn ChallengeDisplay(
                                 </div>
                                 <div class="current-step bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900 dark:to-orange-900 rounded-lg p-4">
                                     <p class="text-center text-gray-700 dark:text-gray-300">
-                                        "Step 1: " {challenge_data.as_ref().map(|c| c.challenge_data.clone()).unwrap_or_else(|| "Complete the visual challenge first".to_string())}
+                                        "Step 1: " {hybrid_parsed.instructions.clone()}
                                     </p>
                                 </div>
                             </div>
                         </div>
-                    }.into_any(),
+                    }.into_any()
+                    },
                 }}}
             </div>
         </div>

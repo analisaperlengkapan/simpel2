@@ -31,7 +31,7 @@ spec:
         fsGroup: 101
       containers:
         - name: portal
-          image: localhost:32000/simpelv2/daskrimti-portal:latest
+          image: localhost:32000/simpelv2/portal:latest
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -47,6 +47,9 @@ spec:
             - name: APP_NAME
               value: "SIMPelv2 Portal"
           volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
             - name: nginx-cache
               mountPath: /var/cache/nginx
             - name: nginx-run
@@ -71,6 +74,9 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
+        - name: nginx-config
+          configMap:
+            name: portal-nginx-config
         - name: nginx-cache
           emptyDir: {}
         - name: nginx-run

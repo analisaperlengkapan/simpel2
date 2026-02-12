@@ -120,9 +120,15 @@ impl AuthencService for AuthencGrpcService {
     ) -> Result<Response<AuthenticateResponse>, Status> {
         let req = request.into_inner();
         info!("gRPC Authenticate request for user: {}", req.username);
+        debug!("CAPTCHA token present: {}, value: {:?}", req.captcha_token.is_some(), req.captcha_token);
 
         // CAPTCHA Validation
         if let Some(token) = &req.captcha_token {
+            if token.is_empty() {
+                warn!("Empty CAPTCHA token for user: {}", req.username);
+                return Err(Status::unauthenticated("CAPTCHA verification required"));
+            }
+
             let parts: Vec<&str> = token.split(':').collect();
             if parts.len() != 3 {
                 return Err(Status::invalid_argument("Invalid CAPTCHA token format"));
@@ -179,6 +185,7 @@ impl AuthencService for AuthencGrpcService {
         }
 
         // OPTIMIZATION: Parallel DB + cache checks using tokio::join!
+        debug!("Fetching user from database: {}", req.username);
         let (user_result, cache_result) = tokio::join!(
             // DB query for user
             self.state.user_store.get_user_by_username(&req.username),
@@ -193,10 +200,14 @@ impl AuthencService for AuthencGrpcService {
             }
         );
 
+        debug!("User query result: {:?}", user_result.as_ref().map(|u| u.is_some()));
+
         // Check rate limiting from cache
         let current_attempts = if let Some(ref cached_attempts) = cache_result {
             if let Ok(attempts) = serde_json::from_value::<i32>(cached_attempts.clone()) {
+                debug!("Current failed attempts for {}: {}", req.username, attempts);
                 if attempts >= 5 {
+                    warn!("Rate limit exceeded for user: {}", req.username);
                     return Err(Status::resource_exhausted(
                         "Too many failed login attempts. Please try again later.",
                     ));
@@ -210,15 +221,38 @@ impl AuthencService for AuthencGrpcService {
         };
 
         let user = user_result
-            .map_err(Self::map_error)?
-            .ok_or_else(|| Status::unauthenticated("Invalid credentials"))?;
+            .map_err(|e| {
+                error!("Database error fetching user {}: {}", req.username, e);
+                Self::map_error(e)
+            })?
+            .ok_or_else(|| {
+                warn!("User not found: {}", req.username);
+                Status::unauthenticated("Invalid credentials")
+            })?;
+
+        info!("User found: {}, enabled: {}, mfa_enabled: {}", user.username, user.enabled, user.mfa_enabled);
+        debug!("User has password_hash: {}, hash prefix: {}",
+            user.password_hash.is_some(),
+            user.password_hash.as_ref().map(|h| &h[..20]).unwrap_or("none")
+        );
 
         // Verify password using crypto utils
+        debug!("Verifying password for user: {}", user.username);
+        let password_hash = user.password_hash.as_ref().ok_or_else(|| {
+            error!("No password hash for user: {}", user.username);
+            Status::internal("User has no password hash")
+        })?;
+
         let password_valid = crate::utils::crypto::verify_password(
+            password_hash,
             &req.password,
-            &user.password_hash.unwrap_or_default(),
         )
-        .map_err(|_| Status::internal("Password verification failed"))?;
+        .map_err(|e| {
+            error!("Password verification error for user {}: {}", user.username, e);
+            Status::internal("Password verification failed")
+        })?;
+
+        info!("Password verification result for user {}: {}", user.username, password_valid);
 
         if !password_valid {
             // Increment failed attempts in cache (non-blocking)

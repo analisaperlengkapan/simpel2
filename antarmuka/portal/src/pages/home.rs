@@ -24,13 +24,13 @@ pub fn HomePage() -> impl IntoView {
                     </div>
 
                     <h1 class="text-6xl md:text-7xl font-extrabold mb-6 bg-gradient-to-r from-red-600 via-red-500 to-orange-500 bg-clip-text text-transparent">
-                        "Portal SIMPelv2"
+                        "Portal SIMPEL"
                     </h1>
                     <p class="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                        "Sistem Informasi Manajemen Pengelolaan"
+                        "Sistem Informasi Manajemen Perlengkapan"
                     </p>
                     <p class="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-3xl mx-auto">
-                        "Barang Milik Negara - Kejaksaan Agung Republik Indonesia"
+                        "Kejaksaan Republik Indonesia"
                     </p>
                     <p class="text-sm italic text-gray-500 dark:text-gray-500 mb-10">
                         "\"Demi Keadilan Berdasarkan Ketuhanan Yang Maha Esa\""

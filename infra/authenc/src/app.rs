@@ -118,6 +118,12 @@ pub struct AppState {
     pub jwt_key_manager: Arc<crate::utils::jwt_key_manager::JwtKeyManager>,
     /// Capability-based authorization checker
     pub capability_checker: Arc<crate::services::authorization::CapabilityChecker>,
+    /// Satker authorization service for hierarchy-aware access control
+    pub satker_auth_service: Arc<crate::services::satker_authorization::SatkerAuthorizationService>,
+    /// Integrasi gRPC client for MySIMKARI data access (optional)
+    pub integrasi_client: Option<Arc<crate::services::integrasi_client::IntegrasiClient>>,
+    /// MySIMKARI synchronization service (optional)
+    pub mysimkari_sync: Option<Arc<crate::services::mysimkari_sync::MysimkariSyncService>>,
 }
 
 impl AppState {
@@ -157,7 +163,9 @@ impl AppState {
         }
 
         // Initialize UMA 2.0 tables
-        crate::app_init::database::init_uma_tables(&database).await?;
+        if let Err(e) = crate::app_init::database::init_uma_tables(&database).await {
+            tracing::warn!("⚠️ Failed to initialize UMA tables (may already exist): {}", e);
+        }
 
         // Initialize audit log store
         let audit_log_store = crate::app_init::database::initialize_audit_store(&config).await?;
@@ -304,9 +312,9 @@ impl AppState {
         let event_store = Arc::new(crate::services::pg_event_store::PgEventStoreProvider::new(
             database.clone(),
         ));
-        event_store.init_tables().await.map_err(|e| {
-            AuthencError::database(format!("Failed to initialize event store tables: {}", e))
-        })?;
+        if let Err(e) = event_store.init_tables().await {
+            tracing::warn!("⚠️ Failed to initialize event store tables (may already exist): {}", e);
+        }
 
         // Set event store provider
         {
@@ -689,6 +697,86 @@ impl AppState {
             database.clone(),
         ));
 
+        // Initialize Satker Authorization Service (starts with empty hierarchy, populated during sync)
+        let satker_auth_service = Arc::new(
+            crate::services::satker_authorization::SatkerAuthorizationService::new(vec![]),
+        );
+
+        // Initialize Integrasi client and MySIMKARI sync service (if configured)
+        let (integrasi_client, mysimkari_sync) =
+            if let Some(ref integrasi_config) = config.integrasi {
+                match crate::services::integrasi_client::IntegrasiClient::connect(
+                    crate::services::integrasi_client::IntegrasiClientConfig {
+                        grpc_url: integrasi_config.grpc_url.clone(),
+                        connection_timeout: std::time::Duration::from_secs(
+                            integrasi_config.connection_timeout_secs,
+                        ),
+                        request_timeout: std::time::Duration::from_secs(
+                            integrasi_config.request_timeout_secs,
+                        ),
+                        max_retries: 3,
+                    },
+                )
+                .await
+                {
+                    Ok(client) => {
+                        let client = Arc::new(client);
+                        tracing::info!(
+                            "Connected to Integrasi gRPC service at {}",
+                            integrasi_config.grpc_url
+                        );
+
+                        let sync_service = Arc::new(
+                            crate::services::mysimkari_sync::MysimkariSyncService::new(
+                                client.clone(),
+                                user_store.clone(),
+                                satker_auth_service.clone(),
+                                database.clone(),
+                            ),
+                        );
+
+                        // Start periodic sync scheduler if interval is configured
+                        if integrasi_config.sync_interval_minutes > 0 {
+                            sync_service
+                                .start_scheduler(integrasi_config.sync_interval_minutes);
+                            tracing::info!(
+                                "MySIMKARI sync scheduler started (interval: {} min)",
+                                integrasi_config.sync_interval_minutes
+                            );
+                        }
+
+                        // Run initial sync on startup if configured
+                        if integrasi_config.sync_on_startup {
+                            let sync_clone = sync_service.clone();
+                            tokio::spawn(async move {
+                                tracing::info!("Running initial MySIMKARI sync...");
+                                match sync_clone.sync_all().await {
+                                    Ok(result) => tracing::info!(
+                                        "Initial MySIMKARI sync completed: satker={}, pegawai created={}, updated={}",
+                                        result.satker.total(),
+                                        result.pegawai.created,
+                                        result.pegawai.updated,
+                                    ),
+                                    Err(e) => tracing::error!("Initial MySIMKARI sync failed: {}", e),
+                                }
+                            });
+                        }
+
+                        (Some(client), Some(sync_service))
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to connect to Integrasi gRPC service: {}. MySIMKARI sync disabled.",
+                            e
+                        );
+                        (None, None)
+                    }
+                }
+            } else {
+                tracing::info!("Integrasi service not configured, MySIMKARI sync disabled");
+                (None, None)
+            };
+
         // Clone Arc references needed for later field initializers before moving
         let config_ref = config.clone();
         let database_ref = database.clone();
@@ -808,6 +896,9 @@ impl AppState {
             risk_engine,
             jwt_key_manager,
             capability_checker,
+            satker_auth_service,
+            integrasi_client,
+            mysimkari_sync,
         })
     }
 

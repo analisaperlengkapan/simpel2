@@ -1,7 +1,13 @@
 //! Middleware modules for Axum backend services
 
 #[cfg(feature = "axum")]
+pub mod cors;
+#[cfg(feature = "axum")]
+pub mod logging;
+#[cfg(feature = "axum")]
 pub mod security;
+#[cfg(feature = "axum")]
+pub mod timeout;
 
 #[cfg(feature = "axum")]
 pub use security::{

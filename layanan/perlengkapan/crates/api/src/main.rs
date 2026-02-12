@@ -172,9 +172,13 @@ async fn main() -> anyhow::Result<()> {
 
     let database_url = database_url.expect("DATABASE_URL must be set (env or secreton)");
 
-    // Initialize Authenc Client with Retry Logic
-    info!("Connecting to Authenc at {}", authenc_url);
-    let authenc_client = {
+    // Initialize Authenc Client with Retry Logic (optional for dev)
+    let skip_authenc = std::env::var("SKIP_AUTHENC").unwrap_or_default() == "true";
+    let authenc_client = if skip_authenc {
+        info!("SKIP_AUTHENC=true, using dummy Authenc client (dev mode)");
+        AuthencClient::dummy()
+    } else {
+        info!("Connecting to Authenc at {}", authenc_url);
         let mut retries = 5;
         let mut client = None;
         let mut delay = tokio::time::Duration::from_secs(1);
@@ -196,7 +200,13 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         }
-        client.expect("Failed to connect to Authenc service after retries")
+        match client {
+            Some(c) => c,
+            None => {
+                error!("Could not connect to Authenc after retries, starting with dummy client");
+                AuthencClient::dummy()
+            }
+        }
     };
 
     // Initialize database connection

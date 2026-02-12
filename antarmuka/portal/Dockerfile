@@ -34,7 +34,7 @@ RUN cargo install wasm-bindgen-cli --version 0.2.100
 COPY . .
 
 # Build portal
-WORKDIR /workspace/antarmuka/daskrimti/portal
+WORKDIR /workspace/antarmuka/portal
 
 # Ensure CSS file exists (handled by trunk)
 RUN mkdir -p dist
@@ -60,14 +60,11 @@ RUN trunk build --release
 # Stage 2: Nginx untuk serving hasil build - LISTEN ON PORT 8080
 FROM nginx:alpine
 
-# Copy main nginx config
-COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
-
-# Inject WASM MIME type to standard mime.types (ensure it exists)
-RUN sed -i 's|}|    application/wasm wasm;\n}|' /etc/nginx/mime.types
+# Copy portal-specific nginx config
+COPY antarmuka/portal/nginx.conf /etc/nginx/nginx.conf
 
 # Copy build output ke Nginx html dir
-COPY --from=builder /workspace/antarmuka/daskrimti/portal/dist /usr/share/nginx/html
+COPY --from=builder /workspace/antarmuka/portal/dist /usr/share/nginx/html
 
 # Expose port 8080 (match K8s deployment)
 EXPOSE 8080

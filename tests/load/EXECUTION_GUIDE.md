@@ -20,7 +20,7 @@ Panduan step-by-step untuk menjalankan load testing SIMPEL.
 kubectl get pods -n simpelv2-staging | grep perlengkapan
 
 # Expected output:
-# layanan-pembinaan-perlengkapan-xxxxx   1/1   Running   0   7d
+# layanan-perlengkapan-xxxxx   1/1   Running   0   7d
 ```
 
 #### 1.2 Check Service Health
@@ -28,7 +28,7 @@ kubectl get pods -n simpelv2-staging | grep perlengkapan
 ```bash
 # Port forward to service
 kubectl port-forward -n simpelv2-staging \
-  svc/layanan-pembinaan-perlengkapan 3020:3020 &
+  svc/layanan-perlengkapan 3020:3020 &
 
 # Test health endpoint
 curl http://localhost:3020/health
@@ -98,7 +98,7 @@ watch kubectl get pods -n simpelv2-staging -l app=k6-load-test
 watch kubectl top pods -n simpelv2-staging
 
 # Terminal 3: Watch service logs
-kubectl logs -f -l app.kubernetes.io/name=layanan-pembinaan-perlengkapan \
+kubectl logs -f -l app.kubernetes.io/name=layanan-perlengkapan \
   -n simpelv2-staging
 ```
 
@@ -281,7 +281,7 @@ kubectl logs k6-dashboard-load-test-xxx -n simpelv2-staging
 **Solution:**
 ```bash
 # Check service logs
-kubectl logs -l app.kubernetes.io/name=layanan-pembinaan-perlengkapan \
+kubectl logs -l app.kubernetes.io/name=layanan-perlengkapan \
   -n simpelv2-staging --tail=100
 
 # Check database connections

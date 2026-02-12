@@ -139,7 +139,7 @@ identify_bottlenecks() {
         if (( $(echo "$error_rate > 0.01" | bc -l 2>/dev/null || echo 0) )); then
             echo "- ⚠️ **High error rate detected** ($error_rate%)" >> "$REPORT_FILE"
             echo "  - Recommendation: Check service logs for errors" >> "$REPORT_FILE"
-            echo "  - Action: kubectl logs -l app=layanan-pembinaan-perlengkapan" >> "$REPORT_FILE"
+            echo "  - Action: kubectl logs -l app=layanan-perlengkapan" >> "$REPORT_FILE"
             echo "" >> "$REPORT_FILE"
             has_issues=true
         fi

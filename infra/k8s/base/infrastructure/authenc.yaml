@@ -26,7 +26,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: authenc
-          image: localhost:32000/authenc:latest
+          image: localhost:32000/simpelv2/authenc:latest
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -43,11 +43,47 @@ spec:
                 configMapKeyRef:
                   name: simpelv2-config
                   key: RUST_LOG
+            - name: APP_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: APP_ENVIRONMENT
+                  optional: true
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: postgres-credentials
-                  key: url
+                  key: authenc-url
+            - name: SECRETON_GRPC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: SECRETON_GRPC_URL
+                  optional: true
+            - name: INTEGRASI_GRPC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: INTEGRASI_GRPC_URL
+                  optional: true
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: REDIS_URL
+                  optional: true
+            - name: SECRETON_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: SECRETON_ENDPOINT
+                  optional: true
+            - name: SERVER_HOST
+              value: "0.0.0.0"
+            - name: SERVER_PORT
+              value: "8088"
+            - name: GRPC_PORT
+              value: "9088"
           resources:
             requests:
               cpu: "100m"

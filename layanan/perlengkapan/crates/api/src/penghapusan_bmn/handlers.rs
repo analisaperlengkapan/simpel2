@@ -1,10 +1,10 @@
 // ============================================================================
 // Penghapusan BMN Handlers
-// Description: HTTP request handlers for SK Penghapusan BMN workflow
+// Description: HTTP request handlers for Usulan SK Penghapusan BMN workflow
 // Requirements: REQ-W001, REQ-W004
 //
 // Endpoints:
-//   POST   /penghapusan-bmn               - Create new SK Penghapusan
+//   POST   /penghapusan-bmn               - Create new Usulan SK Penghapusan BMN
 //   GET    /penghapusan-bmn               - List with filters
 //   GET    /penghapusan-bmn/:id           - Get by ID
 //   GET    /penghapusan-bmn/:id/detail    - Get detail with transitions
@@ -97,7 +97,7 @@ pub async fn create_penghapusan_bmn(
         StatusCode::CREATED,
         Json(ApiResponse::success(
             penghapusan,
-            "Penghapusan BMN berhasil dibuat".to_string(),
+            "Usulan SK Penghapusan BMN berhasil dibuat".to_string(),
         )),
     ))
 }
@@ -112,7 +112,7 @@ pub async fn get_penghapusan_bmn(
 
     Ok(Json(ApiResponse::success(
         penghapusan,
-        "Penghapusan BMN retrieved successfully".to_string(),
+        "Usulan SK Penghapusan BMN retrieved successfully".to_string(),
     )))
 }
 
@@ -126,7 +126,7 @@ pub async fn get_penghapusan_bmn_detail(
 
     Ok(Json(ApiResponse::success(
         detail,
-        "Detail Penghapusan BMN berhasil diambil".to_string(),
+        "Detail Usulan SK Penghapusan BMN berhasil diambil".to_string(),
     )))
 }
 
@@ -149,6 +149,7 @@ pub async fn list_penghapusan_bmn(
     let filters = PenghapusanBmnFilters {
         satker_id: query.satker_id,
         status: query.status,
+        status_kode: None,
         metode_penghapusan: query.metode_penghapusan,
         tahun: query.tahun,
     };
@@ -163,7 +164,7 @@ pub async fn list_penghapusan_bmn(
         total,
         page,
         per_page,
-        "Daftar Penghapusan BMN berhasil diambil".to_string(),
+        "Daftar Usulan SK Penghapusan BMN berhasil diambil".to_string(),
     )))
 }
 
@@ -180,7 +181,7 @@ pub async fn update_penghapusan_bmn(
 
     Ok(Json(ApiResponse::success(
         penghapusan,
-        "Penghapusan BMN berhasil diperbarui".to_string(),
+        "Usulan SK Penghapusan BMN berhasil diperbarui".to_string(),
     )))
 }
 
@@ -196,7 +197,7 @@ pub async fn delete_penghapusan_bmn(
         StatusCode::OK,
         Json(ApiResponse::success(
             (),
-            "Penghapusan BMN berhasil dihapus".to_string(),
+            "Usulan SK Penghapusan BMN berhasil dihapus".to_string(),
         )),
     ))
 }
@@ -233,11 +234,11 @@ pub async fn forward_to_pusat(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    if body.action != "forward" {
+    if body.aksi != "forward" {
         return Err(AppError::BadRequest("Action harus 'forward'".to_string()));
     }
 
-    let penghapusan = service.forward_to_pusat(id, claims.user_id, body.catatan).await?;
+    let penghapusan = service.forward_to_pusat(id, claims.user_id, body.catatan).await?;;
 
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -252,7 +253,7 @@ pub async fn return_to_operator(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    if body.action != "return" {
+    if body.aksi != "return" {
         return Err(AppError::BadRequest("Action harus 'return'".to_string()));
     }
 
@@ -277,7 +278,7 @@ pub async fn validator_wilayah_action(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    match body.action.as_str() {
+    match body.aksi.as_str() {
         "forward" => {
             let penghapusan = service.forward_to_pusat(id, claims.user_id, body.catatan).await?;
             Ok(Json(ApiResponse::success(
@@ -313,7 +314,7 @@ pub async fn generate_konsep_sk(
 
     Ok(Json(ApiResponse::success(
         penghapusan,
-        "Konsep SK Penghapusan BMN berhasil digenerate".to_string(),
+        "Konsep Usulan SK Penghapusan BMN berhasil digenerate".to_string(),
     )))
 }
 
@@ -330,7 +331,7 @@ pub async fn upload_signed_sk(
 
     Ok(Json(ApiResponse::success(
         penghapusan,
-        "SK Penghapusan BMN yang ditandatangani berhasil diupload. Proses selesai.".to_string(),
+        "Usulan SK Penghapusan BMN yang ditandatangani berhasil diupload. Proses selesai.".to_string(),
     )))
 }
 

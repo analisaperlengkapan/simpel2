@@ -115,7 +115,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             pegawai_jabatan: None,
             pegawai_golongan: if pegawai_golongan.get().is_empty() { None } else { Some(pegawai_golongan.get()) },
             pegawai_pangkat: if pegawai_pangkat.get().is_empty() { None } else { Some(pegawai_pangkat.get()) },
-            unit_kerja: if pegawai_unit_kerja.get().is_empty() { None } else { Some(pegawai_unit_kerja.get()) },
+            pegawai_unit_kerja: if pegawai_unit_kerja.get().is_empty() { None } else { Some(pegawai_unit_kerja.get()) },
             foto_pegawai: if foto_pegawai.get().is_empty() { None } else { Some(foto_pegawai.get()) },
             jenis_bmn: jenis_bmn.get(),
             bmn_nup: bmn_nup.get(),
@@ -176,7 +176,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             file_pendukung: None,
             is_renewal: None,
             previous_permit_id: None,
-            additional_bmn_items: if additional_bmn_items.get().is_empty() { None } else { Some(additional_bmn_items.get()) },
+            additional_bmn_items: additional_bmn_items.get(),
         };
 
         leptos::task::spawn_local(async move {
@@ -545,12 +545,14 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             on:click=move |_| {
                                 let mut items = additional_bmn_items.get();
                                 items.push(CreateBmnItemRequest {
-                                    kode_barang: String::new(),
-                                    nama_barang: String::new(),
-                                    nup: String::new(),
-                                    jumlah: 1,
-                                    satuan: "Unit".to_string(),
-                                    kondisi: None,
+                                    bmn_nup: String::new(),
+                                    bmn_kode_barang: String::new(),
+                                    bmn_nama_barang: String::new(),
+                                    bmn_merk: None,
+                                    bmn_tahun_perolehan: None,
+                                    bmn_kondisi: None,
+                                    detail_bmn: None,
+                                    keterangan: None,
                                 });
                                 set_additional_bmn_items.set(items);
                             }
@@ -560,80 +562,83 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                         </button>
                     </div>
 
-                    <Show when=move || !additional_bmn_items.get().is_empty()>
-                        <div class="space-y-3">
-                            <For
-                                each=move || additional_bmn_items.get().into_iter().enumerate().collect::<Vec<_>>()
-                                key=|(idx, _)| *idx
-                                children=move |(idx, _item)| {
-                                    view! {
-                                        <div class="p-4 bg-gray-50 rounded-lg border relative">
-                                            <button
-                                                type="button"
-                                                class="absolute top-2 right-2 text-red-500 hover:text-red-700"
-                                                on:click=move |_| {
-                                                    let mut items = additional_bmn_items.get();
-                                                    if idx < items.len() {
-                                                        items.remove(idx);
-                                                        set_additional_bmn_items.set(items);
+                    {move || {
+                        let items = additional_bmn_items.get();
+                        if items.is_empty() {
+                            view! { <div></div> }.into_any()
+                        } else {
+                            view! {
+                                <div class="space-y-3">
+                                    {items.into_iter().enumerate().map(|(idx, _item)| {
+                                        view! {
+                                            <div class="p-4 bg-gray-50 rounded-lg border relative">
+                                                <button
+                                                    type="button"
+                                                    class="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                                                    on:click=move |_| {
+                                                        let mut items = additional_bmn_items.get();
+                                                        if idx < items.len() {
+                                                            items.remove(idx);
+                                                            set_additional_bmn_items.set(items);
+                                                        }
                                                     }
-                                                }
-                                            >
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                                <div>
-                                                    <label class="block text-xs font-medium text-gray-600 mb-1">"Kode Barang"</label>
-                                                    <input
-                                                        type="text"
-                                                        class="w-full px-3 py-1.5 text-sm border rounded-lg"
-                                                        placeholder="Kode barang"
-                                                        on:input=move |ev| {
-                                                            let mut items = additional_bmn_items.get();
-                                                            if let Some(item) = items.get_mut(idx) {
-                                                                item.kode_barang = event_target_value(&ev);
+                                                >
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-600 mb-1">"Kode Barang"</label>
+                                                        <input
+                                                            type="text"
+                                                            class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                            placeholder="Kode barang"
+                                                            on:input=move |ev| {
+                                                                let mut items = additional_bmn_items.get();
+                                                                if let Some(item) = items.get_mut(idx) {
+                                                                    item.bmn_kode_barang = event_target_value(&ev);
+                                                                }
+                                                                set_additional_bmn_items.set(items);
                                                             }
-                                                            set_additional_bmn_items.set(items);
-                                                        }
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label class="block text-xs font-medium text-gray-600 mb-1">"Nama Barang"</label>
-                                                    <input
-                                                        type="text"
-                                                        class="w-full px-3 py-1.5 text-sm border rounded-lg"
-                                                        placeholder="Nama barang"
-                                                        on:input=move |ev| {
-                                                            let mut items = additional_bmn_items.get();
-                                                            if let Some(item) = items.get_mut(idx) {
-                                                                item.nama_barang = event_target_value(&ev);
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-600 mb-1">"Nama Barang"</label>
+                                                        <input
+                                                            type="text"
+                                                            class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                            placeholder="Nama barang"
+                                                            on:input=move |ev| {
+                                                                let mut items = additional_bmn_items.get();
+                                                                if let Some(item) = items.get_mut(idx) {
+                                                                    item.bmn_nama_barang = event_target_value(&ev);
+                                                                }
+                                                                set_additional_bmn_items.set(items);
                                                             }
-                                                            set_additional_bmn_items.set(items);
-                                                        }
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label class="block text-xs font-medium text-gray-600 mb-1">"NUP"</label>
-                                                    <input
-                                                        type="text"
-                                                        class="w-full px-3 py-1.5 text-sm border rounded-lg"
-                                                        placeholder="NUP"
-                                                        on:input=move |ev| {
-                                                            let mut items = additional_bmn_items.get();
-                                                            if let Some(item) = items.get_mut(idx) {
-                                                                item.nup = event_target_value(&ev);
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-600 mb-1">"NUP"</label>
+                                                        <input
+                                                            type="text"
+                                                            class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                            placeholder="NUP"
+                                                            on:input=move |ev| {
+                                                                let mut items = additional_bmn_items.get();
+                                                                if let Some(item) = items.get_mut(idx) {
+                                                                    item.bmn_nup = event_target_value(&ev);
+                                                                }
+                                                                set_additional_bmn_items.set(items);
                                                             }
-                                                            set_additional_bmn_items.set(items);
-                                                        }
-                                                    />
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    }
-                                }
-                            />
-                        </div>
-                    </Show>
+                                        }
+                                    }).collect::<Vec<_>>()}
+                                </div>
+                            }.into_any()
+                        }
+                    }}
                 </div>
 
                 // Submit buttons

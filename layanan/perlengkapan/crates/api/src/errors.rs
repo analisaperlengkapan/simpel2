@@ -51,6 +51,9 @@ pub enum AppError {
 
     #[error("Excel error: {0}")]
     Excel(String),
+
+    #[error("Workflow error: {0}")]
+    WorkflowError(String),
 }
 
 // Implement From for common error types
@@ -157,6 +160,15 @@ impl IntoResponse for AppError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "EXCEL_ERROR",
+                    msg.clone(),
+                    None,
+                )
+            }
+            AppError::WorkflowError(msg) => {
+                tracing::error!("Workflow error: {}", msg);
+                (
+                    StatusCode::BAD_REQUEST,
+                    "WORKFLOW_ERROR",
                     msg.clone(),
                     None,
                 )

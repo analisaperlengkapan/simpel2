@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS captcha_behavioral_metrics (
     keystroke_dynamics JSONB,
     timing_patterns JSONB NOT NULL,
     browser_fingerprint JSONB NOT NULL,
-    risk_score NUMERIC(3,2) NOT NULL CHECK (risk_score >= 0.0 AND risk_score <= 1.0),
+    risk_score DOUBLE PRECISION NOT NULL CHECK (risk_score >= 0.0 AND risk_score <= 1.0),
     classification VARCHAR(20) NOT NULL CHECK (classification IN ('Human', 'Suspicious', 'Bot', 'Unknown')),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS captcha_validation_attempts (
     user_agent TEXT,
     answer_provided TEXT NOT NULL,
     success BOOLEAN NOT NULL,
-    confidence_score NUMERIC(3,2) CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
+    confidence_score DOUBLE PRECISION CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
     risk_assessment VARCHAR(20) NOT NULL CHECK (risk_assessment IN ('Low', 'Medium', 'High', 'Critical')),
     behavioral_metrics_id UUID REFERENCES captcha_behavioral_metrics(id),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -121,12 +121,12 @@ CREATE TABLE IF NOT EXISTS captcha_performance_metrics (
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     challenge_generation_latency_ms BIGINT NOT NULL,
     validation_latency_ms BIGINT NOT NULL,
-    success_rate NUMERIC(5,4) NOT NULL CHECK (success_rate >= 0.0 AND success_rate <= 1.0),
-    failure_rate NUMERIC(5,4) NOT NULL CHECK (failure_rate >= 0.0 AND failure_rate <= 1.0),
-    average_difficulty NUMERIC(4,2) NOT NULL,
+    success_rate DOUBLE PRECISION NOT NULL CHECK (success_rate >= 0.0 AND success_rate <= 1.0),
+    failure_rate DOUBLE PRECISION NOT NULL CHECK (failure_rate >= 0.0 AND failure_rate <= 1.0),
+    average_difficulty DOUBLE PRECISION NOT NULL,
     concurrent_challenges BIGINT NOT NULL,
-    memory_usage_mb NUMERIC(10,2) NOT NULL,
-    cpu_usage_percent NUMERIC(5,2) NOT NULL CHECK (cpu_usage_percent >= 0.0 AND cpu_usage_percent <= 100.0)
+    memory_usage_mb DOUBLE PRECISION NOT NULL,
+    cpu_usage_percent DOUBLE PRECISION NOT NULL CHECK (cpu_usage_percent >= 0.0 AND cpu_usage_percent <= 100.0)
 );
 
 -- Create indexes for performance metrics
@@ -142,10 +142,10 @@ CREATE TABLE IF NOT EXISTS captcha_bot_detection_metrics (
     false_positives BIGINT NOT NULL,
     true_negatives BIGINT NOT NULL,
     false_negatives BIGINT NOT NULL,
-    accuracy_rate NUMERIC(5,4) NOT NULL CHECK (accuracy_rate >= 0.0 AND accuracy_rate <= 1.0),
-    precision_rate NUMERIC(5,4) NOT NULL CHECK (precision_rate >= 0.0 AND precision_rate <= 1.0),
-    recall_rate NUMERIC(5,4) NOT NULL CHECK (recall_rate >= 0.0 AND recall_rate <= 1.0),
-    f1_score NUMERIC(5,4) NOT NULL CHECK (f1_score >= 0.0 AND f1_score <= 1.0),
+    accuracy_rate DOUBLE PRECISION NOT NULL CHECK (accuracy_rate >= 0.0 AND accuracy_rate <= 1.0),
+    precision_rate DOUBLE PRECISION NOT NULL CHECK (precision_rate >= 0.0 AND precision_rate <= 1.0),
+    recall_rate DOUBLE PRECISION NOT NULL CHECK (recall_rate >= 0.0 AND recall_rate <= 1.0),
+    f1_score DOUBLE PRECISION NOT NULL CHECK (f1_score >= 0.0 AND f1_score <= 1.0),
     risk_distribution JSONB NOT NULL
 );
 
@@ -158,10 +158,10 @@ CREATE TABLE IF NOT EXISTS captcha_user_experience_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     average_completion_time_ms BIGINT NOT NULL,
-    abandonment_rate NUMERIC(5,4) NOT NULL CHECK (abandonment_rate >= 0.0 AND abandonment_rate <= 1.0),
-    retry_rate NUMERIC(5,4) NOT NULL CHECK (retry_rate >= 0.0 AND retry_rate <= 1.0),
-    accessibility_usage_rate NUMERIC(5,4) NOT NULL CHECK (accessibility_usage_rate >= 0.0 AND accessibility_usage_rate <= 1.0),
-    user_satisfaction_score NUMERIC(3,2) NOT NULL CHECK (user_satisfaction_score >= 0.0 AND user_satisfaction_score <= 1.0),
+    abandonment_rate DOUBLE PRECISION NOT NULL CHECK (abandonment_rate >= 0.0 AND abandonment_rate <= 1.0),
+    retry_rate DOUBLE PRECISION NOT NULL CHECK (retry_rate >= 0.0 AND retry_rate <= 1.0),
+    accessibility_usage_rate DOUBLE PRECISION NOT NULL CHECK (accessibility_usage_rate >= 0.0 AND accessibility_usage_rate <= 1.0),
+    user_satisfaction_score DOUBLE PRECISION NOT NULL CHECK (user_satisfaction_score >= 0.0 AND user_satisfaction_score <= 1.0),
     challenge_type_preferences JSONB NOT NULL,
     difficulty_distribution JSONB NOT NULL
 );
@@ -278,7 +278,7 @@ CREATE OR REPLACE FUNCTION record_captcha_validation(
     p_user_agent TEXT,
     p_answer_provided TEXT,
     p_success BOOLEAN,
-    p_confidence_score NUMERIC DEFAULT NULL,
+    p_confidence_score DOUBLE PRECISION DEFAULT NULL,
     p_risk_assessment VARCHAR(20) DEFAULT 'Medium',
     p_behavioral_metrics_id UUID DEFAULT NULL
 )

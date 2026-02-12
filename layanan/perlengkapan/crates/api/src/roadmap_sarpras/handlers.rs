@@ -1,148 +1,95 @@
-//! Roadmap Sarpras HTTP handlers
+//! Predictive Analytics HTTP handlers
+//!
+//! All endpoints are GET-only (read-only forecast dashboard).
 
 use axum::{
-    extract::{Path, Query, State},
-    http::StatusCode,
+    extract::{Query, State},
+    http::{StatusCode, header},
     response::IntoResponse,
     Json,
 };
-use lib_perlengkapan::models::{
-    CreateRoadmapSarprasRequest, UpdateRoadmapRealizationRequest,
-};
-use serde_json::json;
-use uuid::Uuid;
 
 use crate::errors::AppError;
 
 use super::models::{
-    CreateRoadmapBatchRequest, ListRoadmapQuery, RoadmapComparisonQuery, SyncRealizationRequest,
+    ForecastCompareQuery, ForecastCompareResponse, ForecastExportQuery, ForecastQuery,
+    ForecastSummaryQuery,
 };
 use super::services::RoadmapService;
 
-/// Create a single roadmap item
+/// Generate a forecast from historical kebutuhan BMN data.
 ///
-/// POST /api/v1/roadmap-sarpras
-pub async fn create_roadmap(
+/// GET /api/pembinaan/perlengkapan/forecast
+pub async fn get_forecast(
     State(service): State<RoadmapService>,
-    Json(request): Json<CreateRoadmapSarprasRequest>,
+    Query(query): Query<ForecastQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    // TODO: Extract user_id from JWT token
-    let created_by = Uuid::nil(); // Placeholder
-
-    let roadmap = service.create_roadmap(request, created_by).await?;
-
-    Ok((StatusCode::CREATED, Json(roadmap)))
+    let request = query.into_request();
+    let result = service.generate_forecast(request).await?;
+    Ok(Json(result))
 }
 
-/// Create multiple roadmap items in a batch
+/// Get forecast summary statistics (quick overview).
 ///
-/// POST /api/v1/roadmap-sarpras/batch
-pub async fn create_roadmap_batch(
+/// GET /api/pembinaan/perlengkapan/forecast/summary
+pub async fn get_forecast_summary(
     State(service): State<RoadmapService>,
-    Json(request): Json<CreateRoadmapBatchRequest>,
+    Query(query): Query<ForecastSummaryQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    // TODO: Extract user_id from JWT token
-    let created_by = Uuid::nil(); // Placeholder
-
-    let response = service.create_roadmap_batch(request, created_by).await?;
-
-    Ok((StatusCode::CREATED, Json(response)))
+    let summary = service
+        .get_summary(query.satker_id, query.kode_barang.as_deref())
+        .await?;
+    Ok(Json(summary))
 }
 
-/// Get roadmap by ID
+/// Compare current forecast with previous snapshots.
 ///
-/// GET /api/v1/roadmap-sarpras/:id
-pub async fn get_roadmap(
+/// GET /api/pembinaan/perlengkapan/forecast/compare
+pub async fn get_forecast_compare(
     State(service): State<RoadmapService>,
-    Path(roadmap_id): Path<Uuid>,
+    Query(query): Query<ForecastCompareQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let roadmap = service.get_roadmap(roadmap_id).await?;
+    let current_request = lib_perlengkapan::models::ForecastRequest {
+        satker_id: query.satker_id,
+        kode_barang: query.kode_barang.clone(),
+        horizon_years: Some(5),
+        method: None,
+        confidence_level: None,
+    };
 
-    Ok(Json(roadmap))
-}
-
-/// List roadmaps with filters and pagination
-///
-/// GET /api/v1/roadmap-sarpras
-pub async fn list_roadmaps(
-    State(service): State<RoadmapService>,
-    Query(query): Query<ListRoadmapQuery>,
-) -> Result<impl IntoResponse, AppError> {
-    let response = service.list_roadmaps(query).await?;
-
-    Ok(Json(response))
-}
-
-/// Update roadmap realization
-///
-/// PUT /api/v1/roadmap-sarpras/:id/realization
-pub async fn update_realization(
-    State(service): State<RoadmapService>,
-    Path(roadmap_id): Path<Uuid>,
-    Json(request): Json<UpdateRoadmapRealizationRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    // TODO: Extract user_id from JWT token
-    let updated_by = Uuid::nil(); // Placeholder
-
-    let roadmap = service
-        .update_realization(roadmap_id, request, updated_by)
+    let current = service.generate_forecast(current_request).await?;
+    let previous_snapshots = service
+        .compare_forecasts(
+            query.satker_id,
+            query.kode_barang.as_deref(),
+            query.limit.unwrap_or(2),
+        )
         .await?;
 
-    Ok(Json(roadmap))
+    Ok(Json(ForecastCompareResponse {
+        current,
+        previous_snapshots,
+    }))
 }
 
-/// Sync realization increment (internal endpoint for MonSAKTI integration)
+/// Export forecast data as CSV.
 ///
-/// POST /api/v1/roadmap-sarpras/sync-realization
-pub async fn sync_realization_increment(
+/// GET /api/pembinaan/perlengkapan/forecast/export
+pub async fn export_forecast(
     State(service): State<RoadmapService>,
-    Json(request): Json<SyncRealizationRequest>,
+    Query(query): Query<ForecastExportQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let roadmap = service.sync_realization_increment(request).await?;
+    let csv_bytes = service
+        .export_csv(query.satker_id, query.kode_barang.as_deref())
+        .await?;
 
-    Ok(Json(roadmap))
-}
+    let headers = [
+        (header::CONTENT_TYPE, "text/csv; charset=utf-8"),
+        (
+            header::CONTENT_DISPOSITION,
+            "attachment; filename=\"forecast_sarpras.csv\"",
+        ),
+    ];
 
-/// Get roadmap vs realization comparison
-///
-/// GET /api/v1/roadmap-sarpras/comparison
-pub async fn get_comparison(
-    State(service): State<RoadmapService>,
-    Query(query): Query<RoadmapComparisonQuery>,
-) -> Result<impl IntoResponse, AppError> {
-    let response = service.get_comparison(query).await?;
-
-    Ok(Json(response))
-}
-
-/// Delete roadmap
-///
-/// DELETE /api/v1/roadmap-sarpras/:id
-pub async fn delete_roadmap(
-    State(service): State<RoadmapService>,
-    Path(roadmap_id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    service.delete_roadmap(roadmap_id).await?;
-
-    Ok((
-        StatusCode::OK,
-        Json(json!({
-            "message": "Roadmap deleted successfully"
-        })),
-    ))
-}
-
-/// Register roadmap routes
-pub fn roadmap_routes() -> axum::Router<RoadmapService> {
-    use axum::routing::{delete, get, post, put};
-
-    axum::Router::new()
-        .route("/", post(create_roadmap))
-        .route("/", get(list_roadmaps))
-        .route("/batch", post(create_roadmap_batch))
-        .route("/comparison", get(get_comparison))
-        .route("/sync-realization", post(sync_realization_increment))
-        .route("/:id", get(get_roadmap))
-        .route("/:id", delete(delete_roadmap))
-        .route("/:id/realization", put(update_realization))
+    Ok((StatusCode::OK, headers, csv_bytes))
 }

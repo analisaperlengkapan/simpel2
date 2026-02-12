@@ -1,6 +1,7 @@
 //! Mapping Kodefikasi Dashboard Component
 //!
-//! Displays mapping progress statistics and non-standard codes
+//! Read-only dashboard showing standard and non-standard BMN codes
+//! with export capabilities (PDF/XLSX). No proposal/verification.
 
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ use uuid::Uuid;
 pub struct MappingProgress {
     pub total_non_standard: i64,
     pub total_mapped: i64,
-    pub pending_verification: i64,
+    pub total_standard: i64,
     pub mapping_percentage: f64,
     pub non_standard_codes: Vec<NonStandardCodeWithStatus>,
 }
@@ -43,6 +44,13 @@ async fn fetch_mapping_progress() -> Result<MappingProgress, String> {
         .map_err(|e| format!("JSON parse error: {}", e))
 }
 
+fn download_export(format: &str) {
+    if let Some(window) = web_sys::window() {
+        let url = format!("/api/pembinaan/perlengkapan/mapping/export?format={}", format);
+        let _ = window.open_with_url(&url);
+    }
+}
+
 #[component]
 pub fn MappingKodefikasiDashboard() -> impl IntoView {
     let progress = LocalResource::new(|| async move {
@@ -57,7 +65,23 @@ pub fn MappingKodefikasiDashboard() -> impl IntoView {
 
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h1 class="text-2xl font-bold mb-6 text-gray-800">"Mapping Kodefikasi Progress"</h1>
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">"Mapping Kodefikasi BMN"</h1>
+                <div class="flex gap-2">
+                    <button
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                        on:click=move |_| download_export("xlsx")
+                    >
+                        "📥 Export XLSX"
+                    </button>
+                    <button
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+                        on:click=move |_| download_export("pdf")
+                    >
+                        "📥 Export PDF"
+                    </button>
+                </div>
+            </div>
 
             <Suspense fallback=move || view! {
                 <div class="flex justify-center items-center py-12">
@@ -69,36 +93,30 @@ pub fn MappingKodefikasiDashboard() -> impl IntoView {
                         view! {
                             <div>
                                 // Metrics Cards
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                                     <MetricCard
-                                        title="Total Non-Standard Codes"
+                                        title="Kode Standar"
+                                        value=progress.total_standard.to_string()
+                                        icon="✅"
+                                        color="green"
+                                    />
+                                    <MetricCard
+                                        title="Kode Non-Standar"
                                         value=progress.total_non_standard.to_string()
                                         icon="⚠️"
                                         color="yellow"
                                     />
                                     <MetricCard
-                                        title="Mapped"
-                                        value=progress.total_mapped.to_string()
-                                        icon="✅"
-                                        color="green"
-                                    />
-                                    <MetricCard
-                                        title="Pending Verification"
-                                        value=progress.pending_verification.to_string()
-                                        icon="⏳"
-                                        color="blue"
-                                    />
-                                    <MetricCard
-                                        title="Progress"
-                                        value=format!("{:.1}%", progress.mapping_percentage)
+                                        title="Sudah Dipetakan"
+                                        value=format!("{} ({:.1}%)", progress.total_mapped, progress.mapping_percentage)
                                         icon="📊"
-                                        color="purple"
+                                        color="blue"
                                     />
                                 </div>
 
                                 // Non-Standard Codes Table
                                 <div class="mt-8">
-                                    <h2 class="text-xl font-bold mb-4 text-gray-800">"Non-Standard Codes"</h2>
+                                    <h2 class="text-xl font-bold mb-4 text-gray-800">"Daftar BMN Non-Standar"</h2>
                                     <MappingTable items=progress.non_standard_codes />
                                 </div>
                             </div>
@@ -169,10 +187,7 @@ fn MappingTable(items: Vec<NonStandardCodeWithStatus>) -> impl IntoView {
                             "Status"
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Kode Baru"
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Actions"
+                            "Kode Standar Rujukan"
                         </th>
                     </tr>
                 </thead>
@@ -184,28 +199,18 @@ fn MappingTable(items: Vec<NonStandardCodeWithStatus>) -> impl IntoView {
                             let status_badge = match item.status_mapping.as_deref() {
                                 Some("VERIFIED") => view! {
                                     <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                        "Verified"
-                                    </span>
-                                },
-                                Some("PROPOSED") => view! {
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                        "Pending"
-                                    </span>
-                                },
-                                Some("REJECTED") => view! {
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                        "Rejected"
+                                        "Standar"
                                     </span>
                                 },
                                 _ => view! {
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                                        "Not Mapped"
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        "Non-Standar"
                                     </span>
                                 },
                             };
 
                             view! {
-                                <tr>
+                                <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         {item.kode_lama.clone()}
                                     </td>
@@ -222,24 +227,8 @@ fn MappingTable(items: Vec<NonStandardCodeWithStatus>) -> impl IntoView {
                                         {status_badge}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {item.kode_baru.clone().unwrap_or_else(|| "-".to_string())}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        {if item.status_mapping.is_none() {
-                                            view! {
-                                                <a
-                                                    href=format!("/mapping/propose?kode={}&nama={}&satker={}",
-                                                        item.kode_lama, item.nama_lama, item.satker_id)
-                                                    class="text-blue-600 hover:text-blue-900"
-                                                >
-                                                    "Propose Mapping"
-                                                </a>
-                                            }.into_any()
-                                        } else {
-                                            view! {
-                                                <span class="text-gray-400">"—"</span>
-                                            }.into_any()
-                                        }}
+                                        {item.kode_baru.clone().unwrap_or_else(|| "—".to_string())}
+                                        {item.nama_baru.as_ref().map(|n| format!(" ({})", n)).unwrap_or_default()}
                                     </td>
                                 </tr>
                             }

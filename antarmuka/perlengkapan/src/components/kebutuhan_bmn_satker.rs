@@ -172,7 +172,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
         spawn_local(async move {
             let request = SubmitKebutuhanSatkerRequest {
                 catatan_satker: None,
-                lampiran_surat_permohonan: None,
+                lampiran_surat_permohonan: String::new(),
                 lampiran_pendukung: vec![],
             };
             match submit_kebutuhan_satker_to_wilayah(&sid, request).await {
@@ -192,7 +192,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
         set_action_loading.set(true);
         spawn_local(async move {
             let request = KebutuhanValidatorWilayahActionRequest {
-                action: "forward".to_string(),
+                aksi: "forward".to_string(),
                 catatan: None,
             };
             match kebutuhan_validator_wilayah_action(&sid, request).await {
@@ -212,7 +212,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
         set_action_loading.set(true);
         spawn_local(async move {
             let request = KebutuhanValidatorWilayahActionRequest {
-                action: "return".to_string(),
+                aksi: "return".to_string(),
                 catatan: Some(return_catatan.get()),
             };
             match kebutuhan_validator_wilayah_action(&sid, request).await {
@@ -684,6 +684,11 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
 
                                                         // Data Pegawai section (from MySIMKARI)
                                                         {a.data_pegawai.clone().map(|dp| {
+                                                            let total_pegawai = dp.total_pegawai;
+                                                            let rekap_eselon_empty = dp.rekap_eselon.is_empty();
+                                                            let rekap_eselon_data = StoredValue::new(dp.rekap_eselon);
+                                                            let rekap_non_eselon_empty = dp.rekap_non_eselon.is_empty();
+                                                            let rekap_non_eselon_data = StoredValue::new(dp.rekap_non_eselon);
                                                             view! {
                                                                 <div class="mt-6">
                                                                     <h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -694,7 +699,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                                                         <div class="bg-green-50 rounded-lg p-4">
                                                                             <div class="text-green-600 text-sm">"Total Pegawai"</div>
-                                                                            <div class="text-2xl font-bold">{dp.total_pegawai}</div>
+                                                                            <div class="text-2xl font-bold">{total_pegawai}</div>
                                                                         </div>
                                                                         <div class="bg-teal-50 rounded-lg p-4">
                                                                             <div class="text-teal-600 text-sm">"Sumber Data"</div>
@@ -703,7 +708,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                     </div>
 
                                                                     // Eselon table
-                                                                    <Show when=move || !dp.rekap_eselon.is_empty()>
+                                                                    <Show when=move || !rekap_eselon_empty>
                                                                         <div class="mb-4">
                                                                             <h5 class="text-sm font-medium text-gray-700 mb-2">"Rekap per Eselon"</h5>
                                                                             <div class="overflow-x-auto">
@@ -716,11 +721,11 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                     </thead>
                                                                                     <tbody>
                                                                                         <For
-                                                                                            each=move || dp.rekap_eselon.clone()
-                                                                                            key=|e| e.eselon.clone()
+                                                                                            each=move || rekap_eselon_data.get_value()
+                                                                                            key=|e| e.tingkat_eselon.clone()
                                                                                             children=move |item| view! {
                                                                                                 <tr class="border-b">
-                                                                                                    <td class="p-2">{item.eselon}</td>
+                                                                                                    <td class="p-2">{item.tingkat_eselon}</td>
                                                                                                     <td class="p-2 text-center font-medium">{item.jumlah}</td>
                                                                                                 </tr>
                                                                                             }
@@ -732,7 +737,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                     </Show>
 
                                                                     // Non-eselon table
-                                                                    <Show when=move || !dp.rekap_non_eselon.is_empty()>
+                                                                    <Show when=move || !rekap_non_eselon_empty>
                                                                         <div>
                                                                             <h5 class="text-sm font-medium text-gray-700 mb-2">"Rekap per Golongan (Non-Eselon)"</h5>
                                                                             <div class="overflow-x-auto">
@@ -745,7 +750,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                     </thead>
                                                                                     <tbody>
                                                                                         <For
-                                                                                            each=move || dp.rekap_non_eselon.clone()
+                                                                                            each=move || rekap_non_eselon_data.get_value()
                                                                                             key=|e| e.golongan.clone()
                                                                                             children=move |item| view! {
                                                                                                 <tr class="border-b">

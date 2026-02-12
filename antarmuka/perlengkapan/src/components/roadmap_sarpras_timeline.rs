@@ -1,293 +1,313 @@
-//! Roadmap Sarpras Timeline Visualization Component
+//! Predictive Analytics Dashboard Component
 //!
-//! Displays 5-year roadmap with timeline visualization and realization tracking.
+//! Displays historical kebutuhan BMN data alongside forecasted predictions
+//! with confidence intervals, trend indicators, and export capabilities.
 
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+
+// ── API response types ───────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoadmapRealizationComparison {
-    pub roadmap_id: Uuid,
-    pub satker_id: Uuid,
-    pub kode_barang: String,
-    pub nama_barang: String,
-    pub tahun_rencana: i32,
-    pub jumlah_kebutuhan: i32,
-    pub jumlah_terpenuhi: i32,
-    pub persentase_pemenuhan: f64,
-    pub estimasi_anggaran: Option<f64>,
-    pub realisasi_anggaran: Option<f64>,
-    pub status_pemenuhan: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoadmapSummary {
-    pub total_items: i64,
+pub struct YearlyData {
+    pub tahun: i32,
     pub total_kebutuhan: i64,
-    pub total_terpenuhi: i64,
-    pub persentase_pemenuhan_rata_rata: f64,
-    pub total_estimasi_anggaran: f64,
-    pub total_realisasi_anggaran: f64,
+    pub total_existing: i64,
+    pub total_gap: i64,
+    pub jumlah_satker: i64,
+    pub estimasi_total_biaya: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoadmapComparisonResponse {
-    pub comparisons: Vec<RoadmapRealizationComparison>,
-    pub summary: RoadmapSummary,
+pub struct PredictedYear {
+    pub tahun: i32,
+    pub predicted_kebutuhan: f64,
+    pub predicted_gap: f64,
+    pub predicted_biaya: f64,
+    pub confidence_lower: f64,
+    pub confidence_upper: f64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForecastResult {
+    pub method: String,
+    pub confidence_level: f64,
+    pub historical: Vec<YearlyData>,
+    pub predictions: Vec<PredictedYear>,
+    pub generated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForecastSummary {
+    pub total_historical_years: i32,
+    pub total_predicted_years: i32,
+    pub avg_yearly_growth_pct: f64,
+    pub total_predicted_kebutuhan: f64,
+    pub total_predicted_biaya: f64,
+    pub trend_direction: String,
+}
+
+// ── API calls ────────────────────────────────────────────────────
+
+async fn fetch_forecast(method: &str) -> Result<ForecastResult, String> {
+    let url = format!(
+        "/api/pembinaan/perlengkapan/forecast?method={}&horizon=5&confidence=0.95",
+        method
+    );
+    let resp = gloo_net::http::Request::get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+    resp.json::<ForecastResult>()
+        .await
+        .map_err(|e| format!("JSON error: {}", e))
+}
+
+async fn fetch_summary() -> Result<ForecastSummary, String> {
+    let resp = gloo_net::http::Request::get("/api/pembinaan/perlengkapan/forecast/summary")
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+    resp.json::<ForecastSummary>()
+        .await
+        .map_err(|e| format!("JSON error: {}", e))
+}
+
+fn download_export() {
+    if let Some(window) = web_sys::window() {
+        let _ = window.open_with_url("/api/pembinaan/perlengkapan/forecast/export?format=csv");
+    }
+}
+
+// ── Main Dashboard Component ─────────────────────────────────────
 
 #[component]
-pub fn RoadmapSarprasTimeline(
-    satker_id: Uuid,
-    periode_mulai: i32,
-    periode_akhir: i32,
-) -> impl IntoView {
-    // Fetch roadmap comparison data
-    let data_resource = LocalResource::new(move || async move {
-        fetch_roadmap_comparison(satker_id, periode_mulai, periode_akhir).await
+pub fn RoadmapSarprasTimeline() -> impl IntoView {
+    let (method, set_method) = signal("sma".to_string());
+
+    let forecast = LocalResource::new(move || {
+        let m = method.get();
+        async move { fetch_forecast(&m).await }
     });
 
-    view! {
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">
-                {format!("Roadmap Sarpras {} - {}", periode_mulai, periode_akhir)}
-            </h2>
+    let summary = LocalResource::new(|| async move { fetch_summary().await });
 
+    view! {
+        <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+            // Header
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">"Predictive Analytics — Sarpras"</h1>
+                    <p class="text-sm text-gray-500 mt-1">
+                        "Prediksi kebutuhan BMN berdasarkan data historis"
+                    </p>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <select
+                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        on:change=move |ev| {
+                            let val = event_target_value(&ev);
+                            set_method.set(val);
+                        }
+                    >
+                        <option value="sma" selected>"Simple Moving Average"</option>
+                        <option value="wma">"Weighted Moving Average"</option>
+                        <option value="exponential">"Exponential Smoothing"</option>
+                    </select>
+                    <button
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                        on:click=move |_| download_export()
+                    >
+                        "📥 Export CSV"
+                    </button>
+                </div>
+            </div>
+
+            // Summary Cards
+            <Suspense fallback=move || view! { <div class="h-24 animate-pulse bg-gray-100 rounded-lg"></div> }>
+                {move || summary.get().map(|res| match res {
+                    Ok(s) => view! { <SummaryCards summary=s /> }.into_any(),
+                    Err(_) => view! { <div></div> }.into_any(),
+                })}
+            </Suspense>
+
+            // Forecast Data
             <Suspense fallback=move || view! {
-                <div class="flex justify-center items-center py-12">
+                <div class="flex justify-center items-center py-16">
                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                 </div>
             }>
-                {move || {
-                    data_resource.get().map(|result| {
-                        match result {
-                            Ok(data) => view! {
-                                <div>
-                                    // Summary Cards
-                                    <div class="grid grid-cols-4 gap-4 mb-8">
-                                        <div class="p-4 bg-blue-50 rounded-lg">
-                                            <div class="text-sm text-gray-600">"Total Item"</div>
-                                            <div class="text-2xl font-bold text-blue-600">
-                                                {data.summary.total_items}
-                                            </div>
-                                        </div>
-                                        <div class="p-4 bg-green-50 rounded-lg">
-                                            <div class="text-sm text-gray-600">"Total Kebutuhan"</div>
-                                            <div class="text-2xl font-bold text-green-600">
-                                                {data.summary.total_kebutuhan}
-                                            </div>
-                                        </div>
-                                        <div class="p-4 bg-purple-50 rounded-lg">
-                                            <div class="text-sm text-gray-600">"Total Terpenuhi"</div>
-                                            <div class="text-2xl font-bold text-purple-600">
-                                                {data.summary.total_terpenuhi}
-                                            </div>
-                                        </div>
-                                        <div class="p-4 bg-orange-50 rounded-lg">
-                                            <div class="text-sm text-gray-600">"Rata-rata Pemenuhan"</div>
-                                            <div class="text-2xl font-bold text-orange-600">
-                                                {format!("{:.1}%", data.summary.persentase_pemenuhan_rata_rata)}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    // Timeline Visualization
-                                    <div class="mb-8">
-                                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                                            "Timeline Roadmap"
-                                        </h3>
-                                        <RoadmapTimelineChart
-                                            comparisons=data.comparisons.clone()
-                                            periode_mulai=periode_mulai
-                                            periode_akhir=periode_akhir
-                                        />
-                                    </div>
-
-                                    // Detailed Table
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                                            "Detail Roadmap vs Realisasi"
-                                        </h3>
-                                        <RoadmapComparisonTable comparisons=data.comparisons />
-                                    </div>
-                                </div>
-                            }.into_any(),
-                            Err(e) => view! {
-                                <div class="text-center py-12 text-red-600">
-                                    {format!("Error: {}", e)}
-                                </div>
-                            }.into_any(),
-                        }
-                    })
-                }}
+                {move || forecast.get().map(|res| match res {
+                    Ok(data) => view! {
+                        <div>
+                            <HistoricalTable data=data.historical.clone() />
+                            <PredictionTable
+                                predictions=data.predictions.clone()
+                                method=data.method.clone()
+                                confidence=data.confidence_level
+                            />
+                        </div>
+                    }.into_any(),
+                    Err(e) => view! {
+                        <div class="text-center py-12 text-red-600">
+                            {format!("Gagal memuat data: {}", e)}
+                        </div>
+                    }.into_any(),
+                })}
             </Suspense>
         </div>
     }
 }
 
+// ── Sub-components ───────────────────────────────────────────────
+
 #[component]
-fn RoadmapTimelineChart(
-    comparisons: Vec<RoadmapRealizationComparison>,
-    periode_mulai: i32,
-    periode_akhir: i32,
-) -> impl IntoView {
-    // Group by year
-    let years: Vec<i32> = (periode_mulai..=periode_akhir).collect();
+fn SummaryCards(summary: ForecastSummary) -> impl IntoView {
+    let trend_icon = match summary.trend_direction.as_str() {
+        "increasing" => "📈",
+        "decreasing" => "📉",
+        _ => "➡️",
+    };
+    let trend_color = match summary.trend_direction.as_str() {
+        "increasing" => "text-red-600",
+        "decreasing" => "text-green-600",
+        _ => "text-gray-600",
+    };
 
     view! {
-        <div class="overflow-x-auto">
-            <div class="min-w-full">
-                {years.into_iter().map(|year| {
-                    let year_items: Vec<_> = comparisons.iter()
-                        .filter(|c| c.tahun_rencana == year)
-                        .collect();
-
-                    let total_kebutuhan: i32 = year_items.iter().map(|c| c.jumlah_kebutuhan).sum();
-                    let total_terpenuhi: i32 = year_items.iter().map(|c| c.jumlah_terpenuhi).sum();
-                    let persentase = if total_kebutuhan > 0 {
-                        (total_terpenuhi as f64 / total_kebutuhan as f64) * 100.0
-                    } else {
-                        0.0
-                    };
-
-                    view! {
-                        <div class="mb-4 p-4 border border-gray-200 rounded-lg">
-                            <div class="flex justify-between items-center mb-2">
-                                <h4 class="font-semibold text-gray-900">{year}</h4>
-                                <span class="text-sm text-gray-600">
-                                    {format!("{} / {} item ({:.1}%)", total_terpenuhi, total_kebutuhan, persentase)}
-                                </span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-4">
-                                <div
-                                    class="bg-blue-600 h-4 rounded-full transition-all duration-300"
-                                    style=format!("width: {}%", persentase.min(100.0))
-                                ></div>
-                            </div>
-                            <div class="mt-2 text-xs text-gray-500">
-                                {format!("{} item direncanakan", year_items.len())}
-                            </div>
-                        </div>
-                    }
-                }).collect_view()}
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="p-4 bg-blue-50 rounded-lg">
+                <p class="text-sm text-gray-600">"Data Historis"</p>
+                <p class="text-2xl font-bold text-blue-600">
+                    {format!("{} tahun", summary.total_historical_years)}
+                </p>
+            </div>
+            <div class="p-4 bg-purple-50 rounded-lg">
+                <p class="text-sm text-gray-600">"Prediksi"</p>
+                <p class="text-2xl font-bold text-purple-600">
+                    {format!("{} tahun", summary.total_predicted_years)}
+                </p>
+            </div>
+            <div class="p-4 bg-orange-50 rounded-lg">
+                <p class="text-sm text-gray-600">"Rata-rata Pertumbuhan"</p>
+                <p class=format!("text-2xl font-bold {}", trend_color)>
+                    {format!("{} {:.1}%", trend_icon, summary.avg_yearly_growth_pct)}
+                </p>
+            </div>
+            <div class="p-4 bg-green-50 rounded-lg">
+                <p class="text-sm text-gray-600">"Total Prediksi Biaya"</p>
+                <p class="text-2xl font-bold text-green-600">
+                    {format!("Rp {:.0}", summary.total_predicted_biaya)}
+                </p>
             </div>
         </div>
     }
 }
 
 #[component]
-fn RoadmapComparisonTable(
-    comparisons: Vec<RoadmapRealizationComparison>,
-) -> impl IntoView {
+fn HistoricalTable(data: Vec<YearlyData>) -> impl IntoView {
     view! {
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Tahun"
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Kode Barang"
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Nama Barang"
-                        </th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Kebutuhan"
-                        </th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Terpenuhi"
-                        </th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Pemenuhan"
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            "Status"
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {comparisons.into_iter().map(|item| {
-                        let status_class = match item.status_pemenuhan.as_str() {
-                            "COMPLETED" => "bg-green-100 text-green-800",
-                            "IN_PROGRESS" => "bg-yellow-100 text-yellow-800",
-                            _ => "bg-gray-100 text-gray-800",
-                        };
-
-                        view! {
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {item.tahun_rencana}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {item.kode_barang}
-                                </td>
-                                <td class="px-6 py-4 text-sm text-gray-900">
-                                    {item.nama_barang}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                                    {item.jumlah_kebutuhan}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                                    {item.jumlah_terpenuhi}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <div class="w-16 bg-gray-200 rounded-full h-2">
-                                            <div
-                                                class="bg-blue-600 h-2 rounded-full"
-                                                style=format!("width: {}%", item.persentase_pemenuhan.min(100.0))
-                                            ></div>
-                                        </div>
-                                        <span class="text-gray-900">
-                                            {format!("{:.1}%", item.persentase_pemenuhan)}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class=format!("px-2 py-1 text-xs font-medium rounded-full {}", status_class)>
-                                        {item.status_pemenuhan}
-                                    </span>
-                                </td>
-                            </tr>
-                        }
-                    }).collect_view()}
-                </tbody>
-            </table>
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">"Data Historis Kebutuhan BMN"</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Tahun"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Kebutuhan"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Existing"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Gap"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Satker"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Estimasi Biaya"</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <For
+                            each=move || data.clone()
+                            key=|d| d.tahun
+                            children=move |d| view! {
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-sm font-medium text-gray-900">{d.tahun}</td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-700">{d.total_kebutuhan}</td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-700">{d.total_existing}</td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-700">{d.total_gap}</td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-700">{d.jumlah_satker}</td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-700">
+                                        {format!("Rp {:.0}", d.estimasi_total_biaya)}
+                                    </td>
+                                </tr>
+                            }
+                        />
+                    </tbody>
+                </table>
+            </div>
         </div>
     }
 }
 
-// API function
-async fn fetch_roadmap_comparison(
-    satker_id: Uuid,
-    periode_mulai: i32,
-    periode_akhir: i32,
-) -> Result<RoadmapComparisonResponse, String> {
-    use gloo_net::http::Request;
-
-    let url = format!(
-        "/api/v1/roadmap-sarpras/comparison?satker_id={}&periode_mulai={}&periode_akhir={}",
-        satker_id, periode_mulai, periode_akhir
-    );
-
-    let response = Request::get(&url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to send request: {}", e))?;
-
-    if response.ok() {
-        response
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse response: {}", e))
-    } else {
-        let error_text = response
-            .text()
-            .await
-            .unwrap_or_else(|_| "Unknown error".to_string());
-        Err(error_text)
+#[component]
+fn PredictionTable(
+    predictions: Vec<PredictedYear>,
+    method: String,
+    confidence: f64,
+) -> impl IntoView {
+    view! {
+        <div>
+            <div class="flex items-center gap-3 mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">"Prediksi Kebutuhan BMN"</h2>
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                    {method}
+                </span>
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                    {format!("CI {:.0}%", confidence * 100.0)}
+                </span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-indigo-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-indigo-600 uppercase">"Tahun"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-indigo-600 uppercase">"Prediksi Kebutuhan"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-indigo-600 uppercase">"Prediksi Gap"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-indigo-600 uppercase">"Prediksi Biaya"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-indigo-600 uppercase">"CI Bawah"</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-indigo-600 uppercase">"CI Atas"</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <For
+                            each=move || predictions.clone()
+                            key=|p| p.tahun
+                            children=move |p| view! {
+                                <tr class="hover:bg-indigo-50/50">
+                                    <td class="px-4 py-3 text-sm font-medium text-indigo-900">{p.tahun}</td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-700">
+                                        {format!("{:.0}", p.predicted_kebutuhan)}
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-700">
+                                        {format!("{:.0}", p.predicted_gap)}
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-700">
+                                        {format!("Rp {:.0}", p.predicted_biaya)}
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-500">
+                                        {format!("{:.0}", p.confidence_lower)}
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-right text-gray-500">
+                                        {format!("{:.0}", p.confidence_upper)}
+                                    </td>
+                                </tr>
+                            }
+                        />
+                    </tbody>
+                </table>
+            </div>
+        </div>
     }
 }

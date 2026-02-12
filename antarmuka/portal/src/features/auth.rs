@@ -141,12 +141,6 @@ impl AuthService {
             return LoginResult::Error("Password tidak boleh kosong".to_string());
         }
 
-        // Check for demo/mock mode
-        let api_url = Self::get_api_url();
-        if api_url == "demo" || api_url == "mock" || api_url.is_empty() {
-            return Self::create_mock_session(credentials);
-        }
-
         // Call authenc login endpoint with MFA support
         #[cfg(target_arch = "wasm32")]
         {
@@ -248,7 +242,8 @@ impl AuthService {
         }
     }
 
-    /// Create mock session for demo/testing
+    /// Create mock session for testing (non-WASM only)
+    #[cfg(not(target_arch = "wasm32"))]
     fn create_mock_session(credentials: LoginCredentials) -> LoginResult {
         // Mock MFA flow based on username patterns for testing
         // - username ending with "_nomfa": Skip MFA (direct login)

@@ -1,3 +1,5 @@
+// Admin panel components
+pub mod admin_panel;
 pub mod analisis_form;
 pub mod analisis_list;
 pub mod aset_list;
@@ -16,10 +18,8 @@ pub mod kebutuhan_bmn_list;
 pub mod kebutuhan_bmn_satker;
 pub mod kebutuhan_bmn_search;
 pub mod login;
-// Mapping Kodefikasi components
+// Mapping Kodefikasi components (read-only dashboard with export)
 pub mod mapping_kodefikasi_dashboard;
-pub mod mapping_kodefikasi_form;
-pub mod mapping_kodefikasi_verification;
 pub mod mutasi_form;
 pub mod mutasi_list;
 pub mod navbar;
@@ -48,10 +48,10 @@ pub mod penghapusan_list;
 pub mod penghapusan_bmn_detail;
 // Perlengkapan Dashboard
 pub mod perlengkapan_dashboard;
-// Roadmap Sarpras components
-pub mod roadmap_sarpras_form;
-pub mod roadmap_sarpras_list;
+// Predictive Analytics Dashboard (formerly Roadmap Sarpras)
 pub mod roadmap_sarpras_timeline;
+// Role switcher
+pub mod role_switcher;
 pub mod sidebar;
 pub mod sidebar_section;
 // SIMAN integration components

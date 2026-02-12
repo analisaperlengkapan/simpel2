@@ -66,7 +66,7 @@ pub fn PenghapusanForm() -> impl IntoView {
 
     view! {
         <div class="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h2 class="text-xl font-bold text-gray-800 mb-6">"Usul Penghapusan BMN"</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-6">"Usulan SK Penghapusan BMN"</h2>
 
             <Show when=move || success.get()>
                 <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">

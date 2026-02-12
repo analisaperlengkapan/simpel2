@@ -100,7 +100,7 @@ impl AxumApp {
             )))
             // Add security middleware layers (order matters!)
             .layer(axum::middleware::from_fn(
-                lib_common::middleware::security::security_headers,
+                lib_common::middleware::security::security_headers_middleware,
             ))
             .layer(axum::middleware::from_fn(move |req, next| {
                 let csrf_state = csrf_state.clone();

@@ -1,13 +1,14 @@
 //! # Mapping Kodefikasi Module
 //!
-//! This module handles the mapping of non-standard kode barang from MonSAKTI
-//! to standard codes in SIMPEL.
+//! Simplified read-only module for BMN code classification.
+//! Lists standard and non-standard kode barang with CSV export.
 //!
 //! ## Features
-//! - Auto-detection of non-standard codes
-//! - Mapping proposal submission
-//! - Mapping verification workflow
-//! - Progress dashboard
+//! - Read-only standard BMN code listing
+//! - Non-standard code detection from SIMAN integration
+//! - Fuzzy matching suggestions
+//! - CSV export
+//! - Progress statistics by satker
 
 pub mod handlers;
 pub mod models;

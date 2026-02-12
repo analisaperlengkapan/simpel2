@@ -112,7 +112,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
 
         leptos::task::spawn_local(async move {
             let request = GenerateKonsepSuratRequest {
-                template_id: None,
+                format: None,
             };
             match generate_pemakaian_konsep_surat(&permit_id, request).await {
                 Ok(_) => {
@@ -168,6 +168,14 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                     permit_resource.get().flatten().map(|detail: IzinPemakaianDetailResponse| {
                         let izin = detail.izin.clone();
                         let transitions = detail.allowed_transitions.clone();
+                        let bmn_items_empty = izin.bmn_items.is_empty();
+                        let bmn_items_len = izin.bmn_items.len();
+                        let bmn_items_data = StoredValue::new(izin.bmn_items.clone());
+                        let transitions_empty = transitions.is_empty();
+                        let transitions_data = StoredValue::new(transitions.clone());
+                        let izin_status_is_active = izin.status == "ACTIVE";
+                        let izin_id_for_renew = StoredValue::new(izin.id.clone());
+                        let is_expiring_soon = detail.is_expiring_soon;
 
                         view! {
                             <div>
@@ -227,30 +235,30 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     <p class="text-sm text-gray-600">"Satker"</p>
                                                     <p class="font-medium">{izin.pegawai_satker_nama.clone()}</p>
                                                 </div>
-                                                <Show when=move || izin.pegawai_jabatan.is_some()>
+                                                {izin.pegawai_jabatan.clone().map(|v| view! {
                                                     <div>
                                                         <p class="text-sm text-gray-600">"Jabatan"</p>
-                                                        <p class="font-medium">{izin.pegawai_jabatan.clone().unwrap_or_default()}</p>
+                                                        <p class="font-medium">{v}</p>
                                                     </div>
-                                                </Show>
-                                                <Show when=move || izin.pegawai_golongan.is_some()>
+                                                })}
+                                                {izin.pegawai_golongan.clone().map(|v| view! {
                                                     <div>
                                                         <p class="text-sm text-gray-600">"Golongan"</p>
-                                                        <p class="font-medium">{izin.pegawai_golongan.clone().unwrap_or_default()}</p>
+                                                        <p class="font-medium">{v}</p>
                                                     </div>
-                                                </Show>
-                                                <Show when=move || izin.pegawai_pangkat.is_some()>
+                                                })}
+                                                {izin.pegawai_pangkat.clone().map(|v| view! {
                                                     <div>
                                                         <p class="text-sm text-gray-600">"Pangkat"</p>
-                                                        <p class="font-medium">{izin.pegawai_pangkat.clone().unwrap_or_default()}</p>
+                                                        <p class="font-medium">{v}</p>
                                                     </div>
-                                                </Show>
-                                                <Show when=move || izin.unit_kerja.is_some()>
+                                                })}
+                                                {izin.pegawai_unit_kerja.clone().map(|v| view! {
                                                     <div>
                                                         <p class="text-sm text-gray-600">"Unit Kerja"</p>
-                                                        <p class="font-medium">{izin.unit_kerja.clone().unwrap_or_default()}</p>
+                                                        <p class="font-medium">{v}</p>
                                                     </div>
-                                                </Show>
+                                                })}
                                             </div>
                                         </div>
 
@@ -272,20 +280,20 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                 </div>
 
                                                 // Vehicle-specific fields
-                                                <Show when=move || izin.no_polisi.is_some()>
+                                                {izin.no_polisi.clone().map(|v| view! {
                                                     <div>
                                                         <p class="text-sm text-gray-600">"Nomor Polisi"</p>
-                                                        <p class="font-medium">{izin.no_polisi.clone().unwrap_or_default()}</p>
+                                                        <p class="font-medium">{v}</p>
                                                     </div>
-                                                </Show>
+                                                })}
 
                                                 // Housing-specific fields
-                                                <Show when=move || izin.alamat.is_some()>
+                                                {izin.alamat.clone().map(|v| view! {
                                                     <div class="col-span-2">
                                                         <p class="text-sm text-gray-600">"Alamat"</p>
-                                                        <p class="font-medium">{izin.alamat.clone().unwrap_or_default()}</p>
+                                                        <p class="font-medium">{v}</p>
                                                     </div>
-                                                </Show>
+                                                })}
                                             </div>
                                         </div>
 
@@ -307,22 +315,22 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     <p class="text-sm text-gray-600">"Keperluan"</p>
                                                     <p class="font-medium">{izin.keperluan.clone()}</p>
                                                 </div>
-                                                <Show when=move || izin.lokasi_pemakaian.is_some()>
+                                                {izin.lokasi_pemakaian.clone().map(|v| view! {
                                                     <div>
                                                         <p class="text-sm text-gray-600">"Lokasi Pemakaian"</p>
-                                                        <p class="font-medium">{izin.lokasi_pemakaian.clone().unwrap_or_default()}</p>
+                                                        <p class="font-medium">{v}</p>
                                                     </div>
-                                                </Show>
+                                                })}
                                             </div>
                                         </div>
 
                                         // BMN Items (multi-BMN per pegawai)
-                                        <Show when=move || !izin.bmn_items.is_empty()>
+                                        <Show when=move || !bmn_items_empty>
                                             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                                                 <h3 class="text-lg font-semibold text-gray-800 mb-4">
                                                     "Daftar BMN yang Dipakai"
                                                     <span class="ml-2 text-sm font-normal text-gray-500">
-                                                        {format!("({} item)", izin.bmn_items.len())}
+                                                        {format!("({} item)", bmn_items_len)}
                                                     </span>
                                                 </h3>
                                                 <div class="overflow-x-auto">
@@ -332,30 +340,30 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                                 <th class="p-3 border-b">"Kode Barang"</th>
                                                                 <th class="p-3 border-b">"Nama Barang"</th>
                                                                 <th class="p-3 border-b">"NUP"</th>
-                                                                <th class="p-3 border-b text-center">"Jumlah"</th>
+                                                                <th class="p-3 border-b text-center">"Merk"</th>
                                                                 <th class="p-3 border-b">"Kondisi"</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             <For
-                                                                each=move || izin.bmn_items.clone()
+                                                                each=move || bmn_items_data.get_value()
                                                                 key=|item| item.id.clone()
                                                                 children=move |item| view! {
                                                                     <tr class="border-b hover:bg-gray-50">
-                                                                        <td class="p-3 font-mono text-xs">{item.kode_barang.clone()}</td>
-                                                                        <td class="p-3 font-medium">{item.nama_barang.clone()}</td>
-                                                                        <td class="p-3">{item.nup.clone()}</td>
-                                                                        <td class="p-3 text-center">{format!("{} {}", item.jumlah, item.satuan)}</td>
+                                                                        <td class="p-3 font-mono text-xs">{item.bmn_kode_barang.clone()}</td>
+                                                                        <td class="p-3 font-medium">{item.bmn_nama_barang.clone()}</td>
+                                                                        <td class="p-3">{item.bmn_nup.clone()}</td>
+                                                                        <td class="p-3 text-center">{item.bmn_merk.clone().unwrap_or_default()}</td>
                                                                         <td class="p-3">
                                                                             <span class={
-                                                                                let c = match item.kondisi.as_deref() {
+                                                                                let c = match item.bmn_kondisi.as_deref() {
                                                                                     Some("Baik") => "bg-green-100 text-green-800",
                                                                                     Some("Rusak Ringan") => "bg-yellow-100 text-yellow-800",
                                                                                     _ => "bg-gray-100 text-gray-700",
                                                                                 };
                                                                                 format!("px-2 py-0.5 rounded text-xs {}", c)
                                                                             }>
-                                                                                {item.kondisi.clone().unwrap_or("-".to_string())}
+                                                                                {item.bmn_kondisi.clone().unwrap_or("-".to_string())}
                                                                             </span>
                                                                         </td>
                                                                     </tr>
@@ -470,12 +478,12 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                         </div>
 
                                         // Actions card
-                                        <Show when=move || !transitions.is_empty()>
+                                        <Show when=move || !transitions_empty>
                                             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                                                 <h3 class="text-lg font-semibold text-gray-800 mb-4">"Aksi"</h3>
                                                 <div class="space-y-2">
                                                     <For
-                                                        each=move || transitions.clone()
+                                                        each=move || transitions_data.get_value()
                                                         key=|t| t.status.clone()
                                                         children=move |transition| {
                                                             view! {
@@ -493,7 +501,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     />
 
                                                     // Revoke button (if active)
-                                                    <Show when=move || izin.status == "ACTIVE">
+                                                    <Show when=move || izin_status_is_active>
                                                         <button
                                                             class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                                                             on:click=move |_| set_show_revoke_modal.set(true)
@@ -504,9 +512,9 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     </Show>
 
                                                     // Renew button (if active and expiring soon)
-                                                    <Show when=move || izin.status == "ACTIVE" && detail.is_expiring_soon>
+                                                    <Show when=move || izin_status_is_active && is_expiring_soon>
                                                         <a
-                                                            href={format!("/dashboard/pemakaian-bmn/{}/renew", izin.id)}
+                                                            href={format!("/dashboard/pemakaian-bmn/{}/renew", izin_id_for_renew.get_value())}
                                                             class="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-center"
                                                         >
                                                             <i class="fas fa-redo mr-2"></i>

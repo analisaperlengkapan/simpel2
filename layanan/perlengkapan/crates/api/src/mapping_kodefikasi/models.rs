@@ -1,6 +1,7 @@
 //! # Mapping Kodefikasi Models
 //!
-//! Data models for mapping kodefikasi functionality
+//! Data models for simplified mapping kodefikasi — read-only standard/non-standard
+//! BMN code listing with export capabilities (no proposal/verification workflow)
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -25,48 +26,17 @@ pub struct MappingSuggestion {
     pub similarity_score: f64,
 }
 
-/// Mapping proposal
+/// Standard BMN code from master table
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MappingProposal {
+pub struct StandardBmnCode {
     pub id: Uuid,
-    pub satker_id: Uuid,
-    pub kode_barang_lama: String,
-    pub nama_barang_lama: String,
-    pub kode_barang_baru_id: Option<Uuid>,
-    pub status_mapping: String,
-    pub catatan_mapping: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub kode: String,
+    pub nama: String,
+    pub kategori: Option<String>,
+    pub jumlah_aset: i64,
 }
 
-/// Request to create a mapping proposal
-#[derive(Debug, Clone, Deserialize)]
-pub struct MappingProposalRequest {
-    pub satker_id: Uuid,
-    pub kode_lama: String,
-    pub nama_lama: String,
-    pub kode_baru_id: Uuid,
-    pub catatan: Option<String>,
-}
-
-/// Request to verify a mapping proposal
-#[derive(Debug, Clone, Deserialize)]
-pub struct VerifyMappingRequest {
-    pub approved: bool,
-    pub catatan_verifikasi: Option<String>,
-}
-
-/// Mapping progress statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MappingProgress {
-    pub total_non_standard: i64,
-    pub total_mapped: i64,
-    pub pending_verification: i64,
-    pub mapping_percentage: f64,
-    pub non_standard_codes: Vec<NonStandardCodeWithStatus>,
-}
-
-/// Non-standard code with mapping status
+/// Non-standard code with mapping status (read-only view)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NonStandardCodeWithStatus {
     pub kode_lama: String,
@@ -79,6 +49,16 @@ pub struct NonStandardCodeWithStatus {
     pub nama_baru: Option<String>,
 }
 
+/// Mapping progress statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MappingProgress {
+    pub total_non_standard: i64,
+    pub total_mapped: i64,
+    pub total_standard: i64,
+    pub mapping_percentage: f64,
+    pub non_standard_codes: Vec<NonStandardCodeWithStatus>,
+}
+
 /// Mapping progress by satker
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MappingProgressBySatker {
@@ -86,18 +66,31 @@ pub struct MappingProgressBySatker {
     pub satker_nama: String,
     pub total_non_standard: i64,
     pub total_mapped: i64,
-    pub pending_verification: i64,
     pub mapping_percentage: f64,
 }
 
-/// Mapping progress by wilayah
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MappingProgressByWilayah {
-    pub wilayah_id: Uuid,
-    pub wilayah_nama: String,
-    pub total_non_standard: i64,
-    pub total_mapped: i64,
-    pub pending_verification: i64,
-    pub mapping_percentage: f64,
-    pub satkers: Vec<MappingProgressBySatker>,
+/// Query parameters for listing
+#[derive(Debug, Deserialize)]
+pub struct MappingListQuery {
+    pub search: Option<String>,
+    pub satker_id: Option<Uuid>,
+    pub page: Option<i32>,
+    pub per_page: Option<i32>,
+}
+
+/// Export format
+#[derive(Debug, Deserialize)]
+pub struct ExportQuery {
+    pub format: Option<String>, // "xlsx" or "csv"
+    pub satker_id: Option<Uuid>,
+}
+
+/// Paginated response for mapping list
+#[derive(Debug, Serialize)]
+pub struct MappingListResponse<T> {
+    pub success: bool,
+    pub data: Vec<T>,
+    pub total: i64,
+    pub page: i32,
+    pub per_page: i32,
 }

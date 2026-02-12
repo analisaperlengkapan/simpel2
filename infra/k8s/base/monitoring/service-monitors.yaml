@@ -10,14 +10,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: layanan-daskrimti-portal
+  name: layanan-portal
   labels:
-    app.kubernetes.io/name: layanan-daskrimti-portal
+    app.kubernetes.io/name: layanan-portal
     app.kubernetes.io/component: backend
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: layanan-daskrimti-portal
+      app.kubernetes.io/name: layanan-portal
   endpoints:
     - port: http
       path: /metrics
@@ -28,14 +28,14 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: layanan-pembinaan-perlengkapan
+  name: layanan-perlengkapan
   labels:
-    app.kubernetes.io/name: layanan-pembinaan-perlengkapan
+    app.kubernetes.io/name: layanan-perlengkapan
     app.kubernetes.io/component: backend
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: layanan-pembinaan-perlengkapan
+      app.kubernetes.io/name: layanan-perlengkapan
   endpoints:
     - port: http
       path: /metrics

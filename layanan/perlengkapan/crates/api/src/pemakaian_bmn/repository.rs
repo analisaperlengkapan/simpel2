@@ -1037,6 +1037,10 @@ impl PemakaianBmnRepository {
             pegawai_satker_id: row.get("pegawai_satker_id"),
             pegawai_satker_nama: row.get("pegawai_satker_nama"),
             pegawai_jabatan: row.get("pegawai_jabatan"),
+            pegawai_golongan: row.try_get("pegawai_golongan").ok().flatten(),
+            pegawai_pangkat: row.try_get("pegawai_pangkat").ok().flatten(),
+            pegawai_unit_kerja: row.try_get("pegawai_unit_kerja").ok().flatten(),
+            foto_pegawai: row.try_get("foto_pegawai").ok().flatten(),
             jenis_bmn: row.get("jenis_bmn"),
             bmn_nup: row.get("bmn_nup"),
             bmn_kode_barang: row.get("bmn_kode_barang"),
@@ -1062,6 +1066,11 @@ impl PemakaianBmnRepository {
             file_pendukung: row.get("file_pendukung"),
             document_id: row.get("document_id"),
             document_url: row.get("document_url"),
+            konsep_surat_url: row.try_get("konsep_surat_url").ok().flatten(),
+            konsep_surat_generated_at: row.try_get("konsep_surat_generated_at").ok().flatten(),
+            signed_pdf_url: row.try_get("signed_pdf_url").ok().flatten(),
+            signed_pdf_uploaded_at: row.try_get("signed_pdf_uploaded_at").ok().flatten(),
+            is_completed: row.try_get("is_completed").unwrap_or(false),
             status: row.get("status"),
             catatan_approval: row.get("catatan_approval"),
             catatan_revocation: row.get("catatan_revocation"),
@@ -1077,6 +1086,7 @@ impl PemakaianBmnRepository {
             updated_by_nama: row.get("updated_by_nama"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
+            bmn_items: vec![],
         }
     }
 }

@@ -113,6 +113,7 @@ pub enum WorkflowNotificationType {
 }
 
 /// Notifikasi service gRPC client wrapper
+#[derive(Clone)]
 pub struct NotifikasiClient {
     client: NotificationServiceClient<Channel>,
 }
@@ -121,7 +122,7 @@ impl NotifikasiClient {
     /// Create a new notifikasi client
     pub async fn new(endpoint: &str) -> Result<Self> {
         let channel = Channel::from_shared(endpoint.to_string())
-            .map_err(|e| NotifikasiClientError::TransportError(e.into()))?
+            .map_err(|e| NotifikasiClientError::InvalidResponse(format!("Invalid endpoint URI: {}", e)))?
             .connect()
             .await?;
 
@@ -142,8 +143,10 @@ impl NotifikasiClient {
 
         let request = SendNotificationRequest {
             user_id: user_id.to_string(),
+            notification_type: "workflow".to_string(),
             notification_data,
             priority: priority.as_str().to_string(),
+            channels: vec!["in_app".to_string()],
         };
 
         let response = self.client.send_notification(request).await?;

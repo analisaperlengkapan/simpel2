@@ -31,14 +31,11 @@ patches:
   # Security Context Patch (using path reference)
   - path: security-context-patch.yaml
 
-  # Global: All deployments run on simple02 (worker node) with local images
+  # Global: All deployments use local images
+  # Production is flexible — pods can be scheduled on any available node
   - target:
       kind: Deployment
     patch: |-
-      - op: add
-        path: /spec/template/spec/nodeSelector
-        value:
-          kubernetes.io/hostname: simple02
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
         value: Never
@@ -71,7 +68,7 @@ patches:
         value: 3
 
   # PostgreSQL: 3 replicas for HA with Patroni
-  # Schedule on worker node where containerd can extract images
+  # Flexible scheduling — can run on any available node
   - target:
       kind: StatefulSet
       name: postgres
@@ -82,13 +79,9 @@ patches:
       - op: replace
         path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
         value: 100Gi
-      - op: add
-        path: /spec/template/spec/nodeSelector
-        value:
-          kubernetes.io/hostname: simple02
 
   # Secreton: 3 replicas for HA
-  # Schedule on worker node where containerd can extract images
+  # Flexible scheduling — can run on any available node
   - target:
       kind: StatefulSet
       name: secreton
@@ -96,10 +89,6 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 3
-      - op: add
-        path: /spec/template/spec/nodeSelector
-        value:
-          kubernetes.io/hostname: simple02
 
   # Production resources for backend
   - target:
@@ -178,23 +167,21 @@ configMapGenerator:
 
 # Image tags for production (use prod version tags)
 images:
-  - name: localhost:32000/simpelv2/layanan-daskrimti-portal
+  - name: localhost:32000/simpelv2/layanan-portal
     newTag: prod
-  - name: localhost:32000/simpelv2/layanan-daskrimti-integrasi
+  - name: localhost:32000/simpelv2/layanan-integrasi
     newTag: prod
-  - name: localhost:32000/simpelv2/layanan-daskrimti-integrasi-grpc
+  - name: localhost:32000/simpelv2/layanan-integrasi-grpc
     newTag: prod
-  - name: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan
-    newTag: prod
-  - name: localhost:32000/simpelv2/daskrimti-portal
-    newTag: prod
-  - name: localhost:32000/simpelv2/pembinaan-perlengkapan
-    newTag: prod
-  - name: localhost:32000/authenc
-    newTag: prod
-  - name: localhost:32000/simpelv2/secreton
+  - name: localhost:32000/simpelv2/layanan-perlengkapan
     newTag: prod
   - name: localhost:32000/simpelv2/portal
+    newTag: prod
+  - name: localhost:32000/simpelv2/perlengkapan
+    newTag: prod
+  - name: localhost:32000/simpelv2/authenc
+    newTag: prod
+  - name: localhost:32000/simpelv2/secreton
     newTag: prod
   - name: postgres
     newTag: 16-alpine

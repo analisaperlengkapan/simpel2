@@ -30,10 +30,11 @@ pub fn PenghapusanList() -> impl IntoView {
             let filters = PenghapusanBmnFilters {
                 status_kode: status,
                 satker_id: None,
-                page: Some(p),
-                per_page: Some(20),
+                status: None,
+                metode_penghapusan: None,
+                tahun: None,
             };
-            match fetch_penghapusan_bmn_list(filters).await {
+            match fetch_penghapusan_bmn_list(p, 20, filters).await {
                 Ok(response) => Some(response),
                 Err(e) => {
                     leptos::logging::error!("Failed to fetch penghapusan: {:?}", e);
@@ -46,7 +47,7 @@ pub fn PenghapusanList() -> impl IntoView {
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-bold text-gray-800">"SK Penghapusan BMN"</h2>
+                <h2 class="text-xl font-bold text-gray-800">"Usulan SK Penghapusan BMN"</h2>
                 <a
                     href="/dashboard/pengelolaan/penghapusan/baru"
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
@@ -90,7 +91,7 @@ pub fn PenghapusanList() -> impl IntoView {
                             view! {
                                 <div class="text-center py-12 text-gray-500">
                                     <i class="fas fa-clipboard-list text-4xl mb-3 text-gray-300"></i>
-                                    <p>"Belum ada data penghapusan BMN."</p>
+                                    <p>"Belum ada data Usulan SK Penghapusan BMN."</p>
                                 </div>
                             }.into_any()
                         } else {

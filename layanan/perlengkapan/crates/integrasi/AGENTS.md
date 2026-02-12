@@ -100,7 +100,7 @@ cargo run -p layanan-integrasi --features grpc --bin layanan-integrasi-grpc
 use crate::grpc_clients::IntegrasiClient;
 
 // In AppState creation
-let integrasi_client = IntegrasiClient::connect("http://layanan-daskrimti-integrasi-grpc:50051".to_string()).await?;
+let integrasi_client = IntegrasiClient::connect("http://layanan-integrasi-grpc:50051".to_string()).await?;
 
 // Usage
 let satker = integrasi_client.get_mysimkari_satker(None, 1, 100).await?;
@@ -114,13 +114,13 @@ This service has **two deployments**:
 ### 1. CronJob (Batch Sync)
 - **Schedule:** Every 6 hours (`0 */6 * * *`)
 - **Purpose:** Sync data from external APIs to database
-- **Image:** `layanan-daskrimti-integrasi:staging`
+- **Image:** `layanan-integrasi:staging`
 
 ### 2. Deployment (gRPC Server)
 - **Replicas:** 2
 - **Port:** 50051 (gRPC)
 - **Purpose:** Serve data to other backend services
-- **Image:** `layanan-daskrimti-integrasi-grpc:staging`
+- **Image:** `layanan-integrasi-grpc:staging`
 
 ## 📏 Critical Conventions
 

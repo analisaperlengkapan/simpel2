@@ -30,7 +30,7 @@ spec:
         uri: /api/captcha/
       route:
         - destination:
-            host: layanan-daskrimti-portal.simpelv2-staging.svc.cluster.local
+            host: layanan-portal.simpelv2-staging.svc.cluster.local
             port:
               number: 3010
       timeout: 30s
@@ -42,7 +42,7 @@ spec:
         uri: /api/captcha/
       route:
         - destination:
-            host: layanan-daskrimti-portal.simpelv2-staging.svc.cluster.local
+            host: layanan-portal.simpelv2-staging.svc.cluster.local
             port:
               number: 3010
       timeout: 30s
@@ -52,7 +52,7 @@ spec:
             prefix: /api/captcha/
       route:
         - destination:
-            host: layanan-daskrimti-portal.simpelv2-staging.svc.cluster.local
+            host: layanan-portal.simpelv2-staging.svc.cluster.local
             port:
               number: 3010
       timeout: 30s
@@ -67,7 +67,7 @@ spec:
         uri: /
       route:
         - destination:
-            host: pembinaan-perlengkapan.simpelv2-staging.svc.cluster.local
+            host: perlengkapan.simpelv2-staging.svc.cluster.local
             port:
               number: 8080
 
@@ -76,7 +76,7 @@ spec:
             prefix: /pembinaan/perlengkapan
       route:
         - destination:
-            host: pembinaan-perlengkapan.simpelv2-staging.svc.cluster.local
+            host: perlengkapan.simpelv2-staging.svc.cluster.local
             port:
               number: 8080
 
@@ -90,7 +90,7 @@ spec:
         uri: /api
       route:
         - destination:
-            host: layanan-daskrimti-portal.simpelv2-staging.svc.cluster.local
+            host: layanan-portal.simpelv2-staging.svc.cluster.local
             port:
               number: 3010
       timeout: 30s
@@ -105,35 +105,23 @@ spec:
         uri: /api
       route:
         - destination:
-            host: layanan-pembinaan-perlengkapan.simpelv2-staging.svc.cluster.local
+            host: layanan-perlengkapan.simpelv2-staging.svc.cluster.local
             port:
               number: 3020
       timeout: 30s
 
     # ============================================
-    # Infrastructure Routes
+    # Authentication Routes (via layanan-portal)
+    # Frontend → layanan-portal → authenc (gRPC)
     # ============================================
     - match:
         - uri:
-            exact: /api/auth/health
-      rewrite:
-        uri: /health
-      route:
-        - destination:
-            host: authenc.simpelv2-staging.svc.cluster.local
-            port:
-              number: 8088
-
-    - match:
-        - uri:
             prefix: /api/auth
-      rewrite:
-        uri: /api/v1/auth
       route:
         - destination:
-            host: authenc.simpelv2-staging.svc.cluster.local
+            host: layanan-portal.simpelv2-staging.svc.cluster.local
             port:
-              number: 8088
+              number: 3010
       timeout: 30s
 
     - match:
@@ -156,19 +144,19 @@ spec:
             exact: /health
       route:
         - destination:
-            host: pembinaan-perlengkapan.simpelv2-staging.svc.cluster.local
+            host: perlengkapan.simpelv2-staging.svc.cluster.local
             port:
               number: 8080
 
     # ============================================
-    # Daskrimti Portal
+    # Portal (Legacy /daskrimti path)
     # ============================================
     - match:
         - uri:
             prefix: /daskrimti
       route:
         - destination:
-            host: daskrimti-portal.simpelv2-staging.svc.cluster.local
+            host: portal.simpelv2-staging.svc.cluster.local
             port:
               number: 8080
 

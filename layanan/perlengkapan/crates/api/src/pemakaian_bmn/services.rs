@@ -80,6 +80,8 @@ impl PemakaianBmnService {
             allowed_transitions,
             days_until_expiry,
             is_expiring_soon,
+            can_generate_konsep: false,
+            can_upload_signed_pdf: false,
         })
     }
 
@@ -243,8 +245,8 @@ impl PemakaianBmnService {
         let mut permit = self.repository.create(request.clone(), user_id, user_nama).await?;
 
         // Create additional BMN items if any (multi-BMN support)
-        if let Some(ref additional_items) = request.additional_bmn_items {
-            for item in additional_items {
+        if !request.additional_bmn_items.is_empty() {
+            for item in &request.additional_bmn_items {
                 // Check availability for each additional BMN
                 let avail = self.repository.check_bmn_availability(&item.bmn_nup).await?;
                 if !avail.is_available {
@@ -584,6 +586,10 @@ impl PemakaianBmnService {
             pegawai_satker_id: current.pegawai_satker_id,
             pegawai_satker_nama: current.pegawai_satker_nama.clone(),
             pegawai_jabatan: current.pegawai_jabatan.clone(),
+            pegawai_golongan: current.pegawai_golongan.clone(),
+            pegawai_pangkat: current.pegawai_pangkat.clone(),
+            pegawai_unit_kerja: current.pegawai_unit_kerja.clone(),
+            foto_pegawai: current.foto_pegawai.clone(),
             jenis_bmn: current.jenis_bmn.clone(),
             bmn_nup: current.bmn_nup.clone(),
             bmn_kode_barang: current.bmn_kode_barang.clone(),
@@ -607,6 +613,7 @@ impl PemakaianBmnService {
             file_pendukung: current.file_pendukung.clone(),
             is_renewal: Some(true),
             previous_permit_id: Some(id),
+            additional_bmn_items: vec![],
         };
 
         let new_permit = self.repository.create(create_request, user_id, user_nama).await?;
@@ -696,8 +703,9 @@ impl PemakaianBmnService {
                         days_remaining, permit.id, permit.created_by
                     );
                     // Record success metric
+                    let days_label = days_remaining.to_string();
                     crate::metrics::permit_expiry_reminders_sent_total()
-                        .with_label_values(&[&days_remaining.to_string(), "success"])
+                        .with_label_values(&[days_label.as_str(), "success"])
                         .inc();
                 }
                 Err(e) => {
@@ -706,8 +714,9 @@ impl PemakaianBmnService {
                         permit.id, e
                     );
                     // Record error metric
+                    let days_label = days_remaining.to_string();
                     crate::metrics::permit_expiry_reminders_sent_total()
-                        .with_label_values(&[&days_remaining.to_string(), "error"])
+                        .with_label_values(&[days_label.as_str(), "error"])
                         .inc();
                     crate::metrics::permit_expiry_reminder_errors_total()
                         .with_label_values(&["notification_failed"])

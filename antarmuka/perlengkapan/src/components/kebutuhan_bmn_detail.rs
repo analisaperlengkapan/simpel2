@@ -91,7 +91,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
             match delete_kebutuhan_bmn(&current_id).await {
                 Ok(_) => {
                     if let Some(window) = web_sys::window() {
-                        let _ = window.location().set_href("/dashboard/kebutuhan-bmn");
+                        let _ = window.location().set_href("/perlengkapan/dashboard/kebutuhan-bmn");
                     }
                 }
                 Err(e) => {

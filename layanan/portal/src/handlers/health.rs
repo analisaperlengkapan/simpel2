@@ -24,7 +24,7 @@ pub struct ReadinessResponse {
 pub async fn health_check() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "healthy".to_string(),
-        service: "daskrimti-portal".to_string(),
+        service: "portal".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     })
 }
@@ -55,7 +55,7 @@ pub async fn readiness_check(State(state): State<Arc<AppState>>) -> Json<Readine
 pub async fn liveness_check() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "alive".to_string(),
-        service: "daskrimti-portal".to_string(),
+        service: "portal".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     })
 }

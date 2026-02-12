@@ -1,6 +1,6 @@
-//! SK Penghapusan BMN Detail Component
+//! Usulan SK Penghapusan BMN Detail Component
 //!
-//! Displays full detail of a Penghapusan BMN workflow item with action buttons
+//! Displays full detail of an Usulan SK Penghapusan BMN workflow item with action buttons
 //! based on the current workflow status.
 
 use leptos::prelude::*;
@@ -55,16 +55,18 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     let (show_return_modal, set_show_return_modal) = signal(false);
     let (show_upload_modal, set_show_upload_modal) = signal(false);
 
-    let detail_resource = Resource::new(
-        move || params.get().get("id").unwrap_or_default(),
-        |id| async move {
-            if id.is_empty() {
-                return Err("ID tidak ditemukan".to_string());
+    let detail_resource = LocalResource::new(
+        move || {
+            let id = params.get().get("id").unwrap_or_default();
+            async move {
+                if id.is_empty() {
+                    return Err("ID tidak ditemukan".to_string());
+                }
+                fetch_penghapusan_bmn_detail(&id)
+                    .await
+                    .map(|r| r.data)
+                    .map_err(|e| format!("{:?}", e))
             }
-            fetch_penghapusan_bmn_detail(&id)
-                .await
-                .map(|r| r.data)
-                .map_err(|e| format!("{:?}", e))
         },
     );
 
@@ -176,7 +178,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             match upload_penghapusan_signed_sk(&id, req).await {
                 Ok(_) => {
                     set_success_msg
-                        .set(Some("SK Penghapusan BMN berhasil diupload. Proses selesai.".to_string()));
+                        .set(Some("Usulan SK Penghapusan BMN berhasil diupload. Proses selesai.".to_string()));
                     set_signed_sk_url.set(String::new());
                     set_show_upload_modal.set(false);
                     detail_resource.refetch();
@@ -223,7 +225,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <h2 class="text-2xl font-bold text-gray-900">
-                                            "SK Penghapusan BMN"
+                                            "Usulan SK Penghapusan BMN"
                                         </h2>
                                         <p class="text-gray-500">
                                             {format!("{} - {}", d.penghapusan.nama_barang, d.penghapusan.nup)}
@@ -423,7 +425,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                                 </svg>
-                                                <span class="font-medium">"Proses Penghapusan BMN Telah Selesai"</span>
+                                                <span class="font-medium">"Proses Usulan SK Penghapusan BMN Telah Selesai"</span>
                                             </div>
                                         })}
 

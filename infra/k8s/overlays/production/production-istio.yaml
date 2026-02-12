@@ -28,7 +28,7 @@ spec:
             prefix: /api/portal
       route:
         - destination:
-            host: layanan-daskrimti-portal.simpelv2-production.svc.cluster.local
+            host: layanan-portal.simpelv2-production.svc.cluster.local
             port:
               number: 3010
       timeout: 30s
@@ -41,7 +41,7 @@ spec:
             prefix: /api/perlengkapan
       route:
         - destination:
-            host: layanan-pembinaan-perlengkapan.simpelv2-production.svc.cluster.local
+            host: layanan-perlengkapan.simpelv2-production.svc.cluster.local
             port:
               number: 3020
       timeout: 30s
@@ -58,7 +58,7 @@ spec:
             prefix: /pembinaan/perlengkapan
       route:
         - destination:
-            host: pembinaan-perlengkapan.simpelv2-production.svc.cluster.local
+            host: perlengkapan.simpelv2-production.svc.cluster.local
             port:
               number: 8080
 
@@ -68,7 +68,7 @@ spec:
             prefix: /daskrimti
       route:
         - destination:
-            host: daskrimti-portal.simpelv2-production.svc.cluster.local
+            host: portal.simpelv2-production.svc.cluster.local
             port:
               number: 8080
 
