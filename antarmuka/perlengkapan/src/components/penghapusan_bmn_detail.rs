@@ -441,7 +441,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
 
                                         // Back button
                                         <a
-                                            href="/dashboard/pengelolaan/penghapusan/daftar"
+                                            href="/perlengkapan/dashboard/pengelolaan/penghapusan/daftar"
                                             class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                                         >
                                             "Kembali ke Daftar"

@@ -67,7 +67,8 @@ pub fn SidebarSection(
         <div class="space-y-1">
             <button
                 on:click=toggle_expand
-                class="w-full text-gray-300 hover:text-white hover:bg-blue-800 px-4 py-3 rounded-lg flex items-center justify-between transition-all duration-200"
+                class="w-full text-gray-300 hover:text-white hover:bg-white/10 px-4 py-2.5 rounded-lg flex items-center justify-between transition-all duration-200 text-sm"
+                aria-expanded=move || if is_expanded.get() { "true" } else { "false" }
             >
                 <div class="flex items-center space-x-3">
                     <div class="w-5 h-5 flex items-center justify-center" inner_html=sanitized_icon></div>
@@ -89,7 +90,7 @@ pub fn SidebarSection(
                             view! {
                                 <a
                                     href=href
-                                    class="block w-full text-left text-gray-400 hover:text-white hover:bg-blue-700 px-3 py-2 rounded text-sm transition-all duration-200"
+                                    class="block w-full text-left text-gray-400 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition-all duration-200"
                                 >
                                     {label}
                                 </a>

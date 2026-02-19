@@ -33,7 +33,7 @@ web-sys = { workspace = true }
 js-sys = { workspace = true }
 gloo = { workspace = true, features = ["futures", "timers", "events"] }
 gloo-timers = { workspace = true, features = ["futures"] }
-getrandom = { version = "0.3.3", features = ["wasm_js"] }
+getrandom = { workspace = true }
 gloo-utils = { workspace = true }
 gloo-net = { workspace = true, features = ["http"] }
 

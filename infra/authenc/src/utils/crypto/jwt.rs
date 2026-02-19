@@ -13,6 +13,8 @@ use ed25519_dalek::{Signature, Verifier};
 /// # Fields
 /// * `sub` - Subject identifier (typically user ID)
 /// * `exp` - Expiration timestamp (Unix timestamp)
+/// * `iat` - Issued at timestamp (Unix timestamp)
+/// * `iss` - Issuer (who issued the token)
 /// # Security Considerations
 /// - The `exp` claim should always be validated to prevent token reuse
 /// - The `sub` claim should be validated against authenticated user identity
@@ -23,6 +25,10 @@ pub struct Claims {
     pub sub: String,
     /// Token expiration timestamp as Unix timestamp
     pub exp: usize,
+    /// Issued at timestamp as Unix timestamp
+    pub iat: usize,
+    /// Issuer (who issued the token)
+    pub iss: String,
     /// Token purpose (access, mfa_verification, etc.)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<String>,
@@ -45,6 +51,10 @@ pub struct RefreshTokenClaims {
     pub sub: String,
     /// Token expiration timestamp as Unix timestamp
     pub exp: usize,
+    /// Issued at timestamp as Unix timestamp
+    pub iat: usize,
+    /// Issuer (who issued the token)
+    pub iss: String,
     /// JWT ID - unique identifier for this token (enables token rotation)
     pub jti: String,
     /// Token purpose
@@ -110,6 +120,11 @@ fn get_jwt_secret() -> Result<Vec<u8>, String> {
 /// let temp_token = generate_temp_jwt("user123").expect("Failed to generate temp token");
 /// ```
 pub fn generate_temp_jwt(user_id: &str) -> Result<String, String> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
+
     let expiration = SystemTime::now()
         .checked_add(Duration::from_secs(10 * 60)) // 10 minutes for MFA verification
         .unwrap()
@@ -120,6 +135,8 @@ pub fn generate_temp_jwt(user_id: &str) -> Result<String, String> {
     let claims = Claims {
         sub: user_id.to_owned(),
         exp: expiration,
+        iat: now,
+        iss: "authenc".to_string(),
         purpose: Some("mfa_verification".to_string()),
         email: None,
         roles: None,
@@ -168,6 +185,11 @@ pub fn generate_jwt(
     email: Option<String>,
     roles: Option<Vec<String>>,
 ) -> Result<String, String> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
+
     let expiration = SystemTime::now()
         .checked_add(Duration::from_secs(60 * 60))
         .unwrap()
@@ -178,6 +200,8 @@ pub fn generate_jwt(
     let claims = Claims {
         sub: user_id.to_owned(),
         exp: expiration,
+        iat: now,
+        iss: "authenc".to_string(),
         purpose: Some("access".to_string()),
         email,
         roles,
@@ -310,6 +334,11 @@ pub fn hash_token(token: &str) -> String {
 /// - Should be rotated on each use (enabled by unique jti)
 /// - Uses Ed25519 for cryptographic signing
 pub fn generate_refresh_token(user_id: &str) -> Result<String, String> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
+
     let expiration = SystemTime::now()
         .checked_add(Duration::from_secs(30 * 24 * 60 * 60)) // 30 days
         .unwrap()
@@ -323,6 +352,8 @@ pub fn generate_refresh_token(user_id: &str) -> Result<String, String> {
     let claims = RefreshTokenClaims {
         sub: user_id.to_owned(),
         exp: expiration,
+        iat: now,
+        iss: "authenc".to_string(),
         jti,
         purpose: "refresh".to_string(),
     };

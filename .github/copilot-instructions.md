@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**SIMPelv2** (Sistem Informasi Manajemen Pengelolaan BMN) is an **enterprise-grade asset management system** for Indonesia's Attorney General's Office (Kejaksaan RI), built with a **microfrontend + microservices architecture** in Rust.
+**SIMPEL** (Sistem Informasi Manajemen Perlengkapan) is an **enterprise-grade asset management system** for Indonesia's Attorney General's Office (Kejaksaan RI), built with a **microfrontend + microservices architecture** in Rust.
 
 - **Production URL:** https://simpel.kejaksaan.go.id/
 - **Language:** Rust (Edition 2024, MSRV 1.90+)

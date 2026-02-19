@@ -23,6 +23,7 @@ secreton-core = { path = "crates/core" }
 secreton-crypto = { path = "crates/crypto" }
 secreton-storage = { path = "crates/storage" }
 secreton-api = { path = "crates/api" }
+secreton-backup = { path = "crates/backup" }
 
 # Core dependencies (from workspace)
 tokio.workspace = true

@@ -120,9 +120,12 @@ pub fn RoleSwitcher() -> impl IntoView {
         set_active_role(&role_key);
         set_active_role_sig.set(role_key);
         set_is_open.set(false);
-        // Reload to apply role-based UI changes
+        // Dispatch a custom event so other components can react to the role change
+        // without a full page reload (preserves SPA state)
         if let Some(window) = web_sys::window() {
-            let _ = window.location().reload();
+            if let Ok(event) = web_sys::CustomEvent::new("role-changed") {
+                let _ = window.dispatch_event(&event);
+            }
         }
     };
 
@@ -152,7 +155,14 @@ pub fn RoleSwitcher() -> impl IntoView {
             <button
                 class=move || format!("flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-200 hover:shadow-md {}", role_color_class(&current_role().color))
                 on:click=move |_| set_is_open.update(|o| *o = !*o)
+                on:keydown=move |ev: web_sys::KeyboardEvent| {
+                    if ev.key() == "Escape" {
+                        set_is_open.set(false);
+                    }
+                }
                 title="Ganti Role"
+                aria-haspopup="true"
+                aria-expanded=move || if is_open.get() { "true" } else { "false" }
             >
                 <i class=move || current_role().icon.clone()></i>
                 <span class="text-xs font-semibold hidden md:inline">{move || current_role().label.clone()}</span>
@@ -163,10 +173,14 @@ pub fn RoleSwitcher() -> impl IntoView {
             </button>
 
             // Dropdown
-            <div class=move || format!(
-                "absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 transition-all duration-200 overflow-hidden {}",
-                if is_open.get() { "opacity-100 visible scale-100" } else { "opacity-0 invisible scale-95" }
-            )>
+            <div
+                class=move || format!(
+                    "absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 transition-all duration-200 overflow-hidden {}",
+                    if is_open.get() { "opacity-100 visible scale-100" } else { "opacity-0 invisible scale-95" }
+                )
+                role="menu"
+                aria-label="Pilih role aktif"
+            >
                 // Header
                 <div class="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-b">
                     <div class="flex items-center gap-2">

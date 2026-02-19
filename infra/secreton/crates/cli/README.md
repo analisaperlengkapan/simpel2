@@ -199,6 +199,95 @@ secreton backup verify --file backup.bak --verbose
 #### List Backups
 
 ```bash
+# List all backups in directory
+secreton backup list --directory /backups
+
+# List with detailed information
+secreton backup list --directory /backups --verbose
+```
+
+### Replication Management
+
+Secreton supports performance and disaster recovery (DR) replication for high availability.
+
+#### Enable Replication
+
+```bash
+# Enable as primary with secondaries
+secreton replication enable \
+  --mode performance \
+  --secondaries https://secondary1:8200 \
+  --secondaries https://secondary2:8200
+
+# Enable as secondary
+secreton replication enable \
+  --mode performance \
+  --primary https://primary:8200
+
+# Enable DR replication
+secreton replication enable \
+  --mode dr \
+  --primary https://primary:8200
+```
+
+#### Check Replication Status
+
+```bash
+# Show status in table format
+secreton replication status
+
+# Show status in JSON format
+secreton replication status --format json
+
+# Show status in YAML format
+secreton replication status --format yaml
+```
+
+#### Monitor Replication Lag
+
+```bash
+# Show lag metrics
+secreton replication lag
+
+# Show lag in JSON format
+secreton replication lag --format json
+```
+
+#### Promote Secondary to Primary
+
+```bash
+# Promote with confirmation
+secreton replication promote
+
+# Promote without confirmation
+secreton replication promote --yes
+```
+
+#### Manage Secondary Nodes
+
+```bash
+# Add a secondary node
+secreton replication add-secondary https://secondary3:8200
+
+# Remove a secondary node
+secreton replication remove-secondary node-abc123
+```
+
+#### Disable Replication
+
+```bash
+# Disable replication
+secreton replication disable
+
+# Force disable
+secreton replication disable --force
+```
+
+For detailed replication documentation, see [Replication CLI Guide](docs/REPLICATION_CLI.md).
+
+#### List Backups
+
+```bash
 # List backups in current directory
 secreton backup list
 

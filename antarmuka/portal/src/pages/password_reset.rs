@@ -387,7 +387,7 @@ pub fn PasswordResetPage() -> impl IntoView {
 
                 // Back to login link
                 <div class="mt-6 text-center">
-                    <a href="/login" class="text-sm text-blue-600 hover:text-blue-500 font-medium">
+                    <a href="/portal/login" class="text-sm text-blue-600 hover:text-blue-500 font-medium">
                         "← Back to Login"
                     </a>
                 </div>

@@ -39,7 +39,7 @@ fn main() {
     if proto_files.iter().all(|p| p.exists()) {
         tonic_prost_build::configure()
             .build_server(true)
-            .build_client(false)
+            .build_client(true)  // Enable client generation for auto-unseal
             .compile_protos(
                 &proto_files
                     .iter()

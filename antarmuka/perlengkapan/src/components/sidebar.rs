@@ -31,29 +31,29 @@ pub fn Sidebar(
         // Sidebar panel – fixed left on large screens, slide-over on mobile
         <div
             class=move || format!(
-                "fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-blue-900 via-blue-800 to-indigo-900 shadow-xl transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 flex flex-col {}",
+                "fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 shadow-xl transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 flex flex-col {}",
                 if sidebar_open.get() { "translate-x-0" } else { "-translate-x-full" }
             )
         >
             // Brand header
-            <div class="px-5 py-5 border-b border-white/10 flex-shrink-0">
+            <div class="px-5 py-4 border-b border-white/10 flex-shrink-0">
                 <a href="/perlengkapan/dashboard" class="flex items-center gap-3 group">
-                    <div class="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-boxes text-yellow-300 text-base"></i>
+                    <div class="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <span class="text-white text-sm">"⚖️"</span>
                     </div>
                     <div>
-                        <h1 class="text-base font-bold text-white leading-none tracking-tight">"SIMPelv2"</h1>
-                        <p class="text-[10px] text-blue-300 leading-none mt-0.5">"Perlengkapan"</p>
+                        <h1 class="text-sm font-bold text-white leading-none tracking-tight">"SIMPEL"</h1>
+                        <p class="text-[10px] text-gray-400 leading-none mt-0.5">"Perlengkapan"</p>
                     </div>
                 </a>
             </div>
 
             // Scrollable nav
-            <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+            <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Menu utama perlengkapan">
                 // ── Dashboard ── all roles
                 <SidebarSection
                     title="Dashboard".to_string()
-                    icon=r#"<i class="fas fa-home text-blue-300"></i>"#.to_string()
+                    icon=r#"<i class="fas fa-home text-gray-400"></i>"#.to_string()
                     is_expanded=dashboard_rw
                     allowed_roles=roles(ALL_ROLES)
                     active_role=active_role.clone()
@@ -65,7 +65,7 @@ pub fn Sidebar(
                 // ── Bank Aset ── all roles
                 <SidebarSection
                     title="Bank Aset".to_string()
-                    icon=r#"<i class="fas fa-boxes text-emerald-300"></i>"#.to_string()
+                    icon=r#"<i class="fas fa-boxes text-red-400"></i>"#.to_string()
                     is_expanded=bank_aset_rw
                     allowed_roles=roles(ALL_ROLES)
                     active_role=active_role.clone()
@@ -79,7 +79,7 @@ pub fn Sidebar(
                 // ── Kebutuhan BMN ── all roles
                 <SidebarSection
                     title="Kebutuhan BMN".to_string()
-                    icon=r#"<i class="fas fa-clipboard-list text-sky-300"></i>"#.to_string()
+                    icon=r#"<i class="fas fa-clipboard-list text-orange-400"></i>"#.to_string()
                     is_expanded=kebutuhan_bmn_rw
                     allowed_roles=roles(ALL_ROLES)
                     active_role=active_role.clone()
@@ -93,7 +93,7 @@ pub fn Sidebar(
                 // ── Pemakaian BMN ── all roles
                 <SidebarSection
                     title="Pemakaian BMN".to_string()
-                    icon=r#"<i class="fas fa-file-signature text-indigo-300"></i>"#.to_string()
+                    icon=r#"<i class="fas fa-file-signature text-blue-400"></i>"#.to_string()
                     is_expanded=pemakaian_bmn_rw
                     allowed_roles=roles(ALL_ROLES)
                     active_role=active_role.clone()
@@ -179,9 +179,9 @@ pub fn Sidebar(
 
             // Footer inside sidebar
             <div class="px-4 py-3 border-t border-white/10 flex-shrink-0">
-                <div class="flex items-center gap-2 text-[10px] text-blue-400">
-                    <div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                    <span>"SIMPelv2 v0.1.0"</span>
+                <div class="flex items-center gap-2 text-[10px] text-gray-500">
+                    <div class="w-1.5 h-1.5 bg-green-400 rounded-full" aria-hidden="true"></div>
+                    <span>"SIMPelv2 v2.0"</span>
                 </div>
             </div>
         </div>

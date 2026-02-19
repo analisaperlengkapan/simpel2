@@ -41,7 +41,7 @@ pub fn LoginPage(
 
         // CAPTCHA is always required
         if captcha_token.get().is_none() {
-            set_error_message.set("Please complete the security verification first.".to_string());
+            set_error_message.set("Silakan selesaikan verifikasi keamanan terlebih dahulu.".to_string());
             return;
         }
 
@@ -54,8 +54,14 @@ pub fn LoginPage(
             captcha_token: captcha_token.get(),
         };
 
+        // Resolve redirect target here (synchronous, in reactive context) before entering async
+        let redirect_to_perlengkapan = {
+            let query_map = leptos_router::hooks::use_query_map();
+            query_map.with(|params| params.get("redirect").map(|s| s.to_string()))
+                == Some("perlengkapan".to_string())
+        };
+
         let nav = navigate.clone();
-        let _currentcaptcha_token = captcha_token.get();
 
         spawn_local(async move {
             match AuthService::login(credentials).await {
@@ -67,14 +73,10 @@ pub fn LoginPage(
                     AuthService::save_session(&session);
                     on_login_success.set(Some(*session));
 
-                    // Check for redirect param
-                    let query_map = leptos_router::hooks::use_query_map();
-                    let redirect_target =
-                        query_map.with(|params| params.get("redirect").map(|s| s.to_string()));
+                    // Hide loading spinner before navigating
+                    set_is_loading.set(false);
 
-                    if let Some(target) = redirect_target
-                        && target == "perlengkapan"
-                    {
+                    if redirect_to_perlengkapan {
                         // Hard redirect to Perlengkapan root
                         if let Some(window) = web_sys::window() {
                             let _ = window.location().set_href("/");
@@ -91,6 +93,9 @@ pub fn LoginPage(
                     // Store temp token for MFA setup
                     AuthService::save_temp_token(&temp_token);
 
+                    // Hide loading spinner before navigating
+                    set_is_loading.set(false);
+
                     // Redirect to MFA setup
                     nav("/mfa/setup", Default::default());
                 }
@@ -100,6 +105,9 @@ pub fn LoginPage(
 
                     // Store temp token for MFA verification
                     AuthService::save_temp_token(&temp_token);
+
+                    // Hide loading spinner before navigating
+                    set_is_loading.set(false);
 
                     // Redirect to MFA verification
                     nav("/mfa/verify", Default::default());
@@ -119,37 +127,37 @@ pub fn LoginPage(
 
     view! {
         <AuthLayout>
-            <div class="w-full max-w-md">
+            <div class="max-w-md mx-auto">
                 // Logo dan Header
-                <div class="text-center mb-8 animate-fade-in">
-                    <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-600 to-red-700 rounded-full shadow-lg mb-4">
-                        <span class="text-4xl">"⚖️"</span>
+                <div class="text-center mb-6">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-red-600 to-red-700 rounded-full shadow-lg mb-3">
+                        <span class="text-3xl">"⚖️"</span>
                     </div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        "Portal SIMPEL"
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        "Portal SIMPelv2"
                     </h1>
-                    <p class="text-gray-600 dark:text-gray-400">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
                         "Kejaksaan Republik Indonesia"
                     </p>
                 </div>
 
                 // Login Card
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md">
-                    <h2 class="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">
-                        "🔐 Masuk ke Sistem"
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-6 sm:p-8">
+                    <h2 class="text-xl font-bold text-center text-gray-900 dark:text-white mb-6">
+                        "Masuk ke Sistem"
                     </h2>
 
-                    <form on:submit=handle_submit class="space-y-6">
-                        // Username Input
+                    <form on:submit=handle_submit class="space-y-4">
+                        // Username
                         <div>
-                            <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                                 "Username"
                             </label>
                             <input
                                 type="text"
                                 id="username"
                                 name="username"
-                                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                class="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white transition-colors"
                                 placeholder="Masukkan username"
                                 prop:value=move || username.get()
                                 on:input=move |ev| set_username.set(event_target_value(&ev))
@@ -158,16 +166,16 @@ pub fn LoginPage(
                             />
                         </div>
 
-                        // Password Input
+                        // Password
                         <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                                 "Password"
                             </label>
                             <input
                                 type="password"
                                 id="password"
                                 name="password"
-                                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                class="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white transition-colors"
                                 placeholder="Masukkan password"
                                 prop:value=move || password.get()
                                 on:input=move |ev| set_password.set(event_target_value(&ev))
@@ -176,29 +184,25 @@ pub fn LoginPage(
                             />
                         </div>
 
-                        // CAPTCHA Component (always shown)
-                        <div class="captcha-section">
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                <Captcha
-                                    on_success=Callback::new(handle_captcha_success)
-                                    on_failure=Callback::new(handle_captcha_failure)
-                                    difficulty=3u8
-                                    accessibility_enabled=true
-                                    behavioral_analysis=true
-                                    class="captcha-login"
-                                />
-                            </div>
+                        // CAPTCHA — compact wrapper
+                        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
+                            <Captcha
+                                on_success=Callback::new(handle_captcha_success)
+                                on_failure=Callback::new(handle_captcha_failure)
+                                difficulty=3u8
+                                accessibility_enabled=true
+                                behavioral_analysis=true
+                                class="captcha-login"
+                            />
                         </div>
 
-                        // Error Message
+                        // Error
                         {move || (!error_message.get().is_empty()).then(|| view! {
-                            <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-400 px-4 py-3 rounded">
-                                <div class="flex items-center">
-                                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                    </svg>
-                                    <span class="font-medium">{error_message.get()}</span>
-                                </div>
+                            <div class="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                                <span>{error_message.get()}</span>
                             </div>
                         })}
 
@@ -206,11 +210,11 @@ pub fn LoginPage(
                         <button
                             type="submit"
                             class=move || format!(
-                                "inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 text-lg rounded-lg w-full {}",
+                                "w-full py-3 px-6 text-sm font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed {}",
                                 if captcha_token.get().is_none() {
-                                    "bg-gray-400 hover:bg-gray-400 text-gray-700 focus:ring-gray-400 cursor-not-allowed"
+                                    "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                                 } else {
-                                    "bg-emerald-700 hover:bg-emerald-800 text-white focus:ring-emerald-500"
+                                    "bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl focus:ring-red-500"
                                 }
                             )
                             disabled=move || is_loading.get() || captcha_token.get().is_none()
@@ -219,28 +223,29 @@ pub fn LoginPage(
                                 when=move || is_loading.get()
                                 fallback=move || {
                                     if captcha_token.get().is_none() {
-                                        view! { "Complete Security Verification" }
+                                        view! { "Selesaikan Verifikasi Keamanan" }
                                     } else {
                                         view! { "Masuk ke Portal" }
                                     }
                                 }
                             >
-                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                "Memverifikasi..."
+                                <span class="inline-flex items-center gap-2">
+                                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    "Memverifikasi..."
+                                </span>
                             </Show>
                         </button>
 
-                        // Forgot Password Link
-                        <div class="text-center">
-                            <a href="/password-reset" class="text-sm text-emerald-600 hover:text-emerald-500 font-medium">
+                        // Forgot Password
+                        <div class="text-center pt-2">
+                            <a href="/portal/password-reset" class="text-sm text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 font-medium transition-colors">
                                 "Lupa Password?"
                             </a>
                         </div>
                     </form>
-
                 </div>
             </div>
         </AuthLayout>

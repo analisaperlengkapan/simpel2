@@ -27,8 +27,15 @@ pub fn LoginRedirectPage(
     Effect::new(move || {
         if auth.is_authenticated() {
             // Already authenticated, redirect to dashboard
+            // Use the current pathname base to determine the correct dashboard URL
             if let Some(window) = web_sys::window() {
-                let _ = window.location().set_href("/dashboard");
+                let current_path = window.location().pathname().unwrap_or_default();
+                let dashboard_path = if current_path.starts_with("/perlengkapan") {
+                    "/perlengkapan/dashboard"
+                } else {
+                    "/portal/dashboard"
+                };
+                let _ = window.location().set_href(dashboard_path);
             }
         }
     });

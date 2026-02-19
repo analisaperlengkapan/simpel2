@@ -4,7 +4,7 @@
 
 ## 🌍 Project Context
 
-**SIMPelv2** is a mission-critical **Rust Monorepo** for the Indonesian Attorney General's Office (Kejaksaan RI). It uses a microservices architecture for the backend (`layanan/`) and a microfrontend architecture for the frontend (`antarmuka/`).
+**SIMPEL** is a mission-critical **Rust Monorepo** for the Indonesian Attorney General's Office (Kejaksaan RI). It uses a microservices architecture for the backend (`layanan/`) and a microfrontend architecture for the frontend (`antarmuka/`).
 
 ### 🔑 Key Tech Stack
 

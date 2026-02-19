@@ -30,6 +30,12 @@ commonAnnotations:
 
 # Patches for staging-specific values
 patches:
+  # Portal nginx patch: mount nginx.conf dan index.html dari ConfigMap
+  - path: portal-nginx-patch.yaml
+    target:
+      kind: Deployment
+      name: portal
+
   # Reduce replicas for staging
   - target:
       kind: Deployment

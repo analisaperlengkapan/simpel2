@@ -55,7 +55,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 ## Phase 2: Integration Services (32 hours)
 
 ### 3. Integrasi Service Implementation
-\- [ ] 3.1 Create SIMAN API client (8h) 🔴
+- [ ] 3.1 Create SIMAN API client (8h) 🔴
   - [ ] 3.1.1 Implement SimanClient with authentication (Secreton integration)
   - [ ] 3.1.2 Implement get_assets_by_satker endpoint
   - [ ] 3.1.3 Implement get_assets_incremental endpoint

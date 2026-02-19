@@ -188,7 +188,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                         </p>
                                     </div>
                                     <a
-                                        href="/dashboard/pemakaian-bmn"
+                                        href="/perlengkapan/dashboard/pemakaian-bmn"
                                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                                     >
                                         <i class="fas fa-arrow-left mr-2"></i>

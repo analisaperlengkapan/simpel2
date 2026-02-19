@@ -23,7 +23,7 @@ pub fn PengalihanList() -> impl IntoView {
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold text-gray-800">"Daftar Pengalihan Aset"</h2>
                 <a
-                    href="/dashboard/pengelolaan/pengalihan/baru"
+                    href="/perlengkapan/dashboard/pengelolaan/pengalihan/baru"
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
                 >
                     <i class="fas fa-plus mr-2"></i>

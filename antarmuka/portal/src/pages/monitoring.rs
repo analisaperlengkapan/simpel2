@@ -29,7 +29,7 @@ pub fn MonitoringPage(
                         </div>
                         <div class="flex items-center gap-3">
                             <a
-                                href="/dashboard"
+                                href="/portal/dashboard"
                                 class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                             >
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +76,7 @@ pub fn MonitoringPage(
                 // Quick Links Section
                 <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
                     <a
-                        href="/dashboard"
+                        href="/portal/dashboard"
                         class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group"
                     >
                         <div class="flex items-center gap-4">
@@ -100,7 +100,7 @@ pub fn MonitoringPage(
                     </a>
 
                     <a
-                        href="/apps"
+                        href="/portal/apps"
                         class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group"
                     >
                         <div class="flex items-center gap-4">
@@ -124,7 +124,7 @@ pub fn MonitoringPage(
                     </a>
 
                     <a
-                        href="/notifications"
+                        href="/portal/notifications"
                         class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group"
                     >
                         <div class="flex items-center gap-4">

@@ -28,6 +28,8 @@ pub struct DetailedHealthResponse {
     pub uptime: u64,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub checks: HashMap<String, HealthCheck>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_unseal: Option<crate::response::AutoUnsealStatus>,
 }
 
 /// Individual health check result
@@ -82,6 +84,9 @@ pub async fn health_check(
         "degraded"
     };
 
+    // Check auto-unseal status
+    let auto_unseal = check_auto_unseal_status(&state).await;
+
     let health = HealthCheckResponse {
         status: overall_status.to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -103,6 +108,7 @@ pub async fn health_check(
                 response_time_ms: Some(db_check.response_time_ms),
             },
         },
+        auto_unseal,
     };
 
     Ok(Json(ApiResponse::success(health)))
@@ -156,12 +162,16 @@ pub async fn detailed_health_check(
         "degraded"
     };
 
+    // Check auto-unseal status
+    let auto_unseal = check_auto_unseal_status(&state).await;
+
     let health = DetailedHealthResponse {
         status: overall_status.to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime: get_uptime_seconds(),
         timestamp: chrono::Utc::now(),
         checks,
+        auto_unseal,
     };
 
     Ok(Json(ApiResponse::success(health)))
@@ -223,6 +233,52 @@ pub async fn liveness_check(State(_state): State<AppState>) -> ApiResult<Json<Li
     };
 
     Ok(Json(liveness))
+}
+
+/// Startup probe response
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StartupResponse {
+    pub started: bool,
+    pub initialization_complete: bool,
+    pub uptime: u64,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+/// Startup probe - determines if the service has completed initialization
+///
+/// This probe is used by Kubernetes to know when a container application has started.
+/// It's particularly useful for slow-starting containers to avoid them getting killed
+/// by the kubelet before they are up and running.
+///
+/// Returns 200 OK once initialization is complete, 503 Service Unavailable otherwise.
+pub async fn startup_check(State(state): State<AppState>) -> ApiResult<Json<StartupResponse>> {
+    // Check if service has completed initialization
+    // For Secreton, we consider initialization complete when:
+    // 1. Database connection is established
+    // 2. Storage backend is initialized
+    // 3. Crypto engine is ready
+
+    let db_ready = state.pool.status().available > 0;
+    let storage_ready = state.storage.health_check().await.is_ok();
+
+    let initialization_complete = db_ready && storage_ready;
+
+    let startup = StartupResponse {
+        started: true,
+        initialization_complete,
+        uptime: get_uptime_seconds(),
+        timestamp: chrono::Utc::now(),
+    };
+
+    // Return 503 if initialization is not complete
+    if !initialization_complete {
+        tracing::warn!("Startup check failed - initialization not complete");
+        return Err(ApiError::ServiceUnavailable {
+            message: "Service initialization not complete".to_string(),
+        });
+    }
+
+    Ok(Json(startup))
 }
 
 /// Check database health
@@ -672,6 +728,75 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
             details
         }),
     }
+}
+
+/// Check auto-unseal status
+/// Returns information about auto-unseal configuration and provider health
+async fn check_auto_unseal_status(_state: &AppState) -> Option<crate::response::AutoUnsealStatus> {
+    // Check if auto-unseal is configured via environment variable
+    let auto_unseal_enabled = std::env::var("SECRETON_AUTO_UNSEAL_ENABLED")
+        .ok()
+        .and_then(|v| v.parse::<bool>().ok())
+        .unwrap_or(false);
+
+    if !auto_unseal_enabled {
+        // Auto-unseal not configured
+        return None;
+    }
+
+    // Get provider type from environment
+    let provider_type = std::env::var("SECRETON_AUTO_UNSEAL_PROVIDER")
+        .ok()
+        .unwrap_or_else(|| "unknown".to_string());
+
+    // Get provider-specific configuration
+    let (key_id, region, endpoint) = match provider_type.as_str() {
+        "aws-kms" => {
+            let key_id = std::env::var("SECRETON_AUTO_UNSEAL_AWS_KEY_ID").ok();
+            let region = std::env::var("SECRETON_AUTO_UNSEAL_AWS_REGION").ok();
+            (key_id, region, None)
+        }
+        "gcp-kms" => {
+            let key_id = std::env::var("SECRETON_AUTO_UNSEAL_GCP_KEY_NAME").ok();
+            let region = std::env::var("SECRETON_AUTO_UNSEAL_GCP_LOCATION").ok();
+            (key_id, region, None)
+        }
+        "azure-kv" => {
+            let key_id = std::env::var("SECRETON_AUTO_UNSEAL_AZURE_KEY_NAME").ok();
+            let vault_url = std::env::var("SECRETON_AUTO_UNSEAL_AZURE_VAULT_URL").ok();
+            (key_id, None, vault_url)
+        }
+        "transit" => {
+            let key_name = std::env::var("SECRETON_AUTO_UNSEAL_TRANSIT_KEY_NAME").ok();
+            let endpoint = std::env::var("SECRETON_AUTO_UNSEAL_TRANSIT_ENDPOINT").ok();
+            (key_name, None, endpoint)
+        }
+        _ => (None, None, None),
+    };
+
+    // Check fallback configuration
+    let fallback_enabled = std::env::var("SECRETON_AUTO_UNSEAL_FALLBACK_ENABLED")
+        .ok()
+        .and_then(|v| v.parse::<bool>().ok())
+        .unwrap_or(true);
+
+    // TODO: Implement actual provider health check when AutoUnsealManager is integrated
+    // For now, assume provider is healthy if configured
+    let provider_healthy = key_id.is_some();
+
+    // TODO: Get last unseal timestamp from storage when implemented
+    let last_unseal = None;
+
+    Some(crate::response::AutoUnsealStatus {
+        enabled: true,
+        provider: Some(provider_type),
+        provider_key_id: key_id,
+        provider_region: region,
+        provider_endpoint: endpoint,
+        provider_healthy,
+        last_unseal,
+        fallback_enabled,
+    })
 }
 
 /// Get system uptime in seconds

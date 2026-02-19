@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::app::AppState;
 use crate::error::AuthencError;

@@ -75,7 +75,7 @@ pub fn PemakaianBmnList() -> impl IntoView {
                     <p class="text-sm text-gray-600 mt-1">"Kelola izin pemakaian Barang Milik Negara"</p>
                 </div>
                 <a
-                    href="/dashboard/pemakaian-bmn/baru"
+                    href="/perlengkapan/dashboard/pemakaian-bmn/baru"
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
                 >
                     <i class="fas fa-plus"></i>

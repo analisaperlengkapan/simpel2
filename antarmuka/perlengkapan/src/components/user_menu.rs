@@ -96,7 +96,14 @@ pub fn UserMenu(
             <button
                 class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
                 on:click=move |_| set_is_open.update(|open| *open = !*open)
+                on:keydown=move |ev: web_sys::KeyboardEvent| {
+                    if ev.key() == "Escape" {
+                        set_is_open.set(false);
+                    }
+                }
                 aria-label="Menu pengguna"
+                aria-haspopup="true"
+                aria-expanded=move || if is_open.get() { "true" } else { "false" }
             >
                 // User Avatar
                 <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium text-sm relative overflow-hidden">
@@ -143,6 +150,8 @@ pub fn UserMenu(
                     if is_open.get() { "opacity-100 visible" } else { "opacity-0 invisible" },
                     if is_open.get() { "transform scale-100" } else { "transform scale-95" }
                 )
+                role="menu"
+                aria-label="Menu pengguna"
             >
                 // User Info Header
                 <div class="px-4 py-3 border-b border-gray-200">
@@ -182,29 +191,38 @@ pub fn UserMenu(
                             let label_clone = label.clone();
                             let icon_clone = icon.clone();
 
-                            view! {
-                                <div
-                                    class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200 cursor-pointer"
-                                    on:click=move |_| {
-                                        set_is_open.set(false);
-                                        if let Some(href_val) = href_val.clone() {
-                                            if let Some(window) = web_sys::window() {
-                                                let _ = window.location().set_href(&href_val);
-                                            }
-                                        } else {
-                                            // Logout action
+                            if let Some(href_target) = href_val {
+                                // Render as a proper anchor link for navigation items
+                                view! {
+                                    <a
+                                        href=href_target
+                                        class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200"
+                                        role="menuitem"
+                                        on:click=move |_| set_is_open.set(false)
+                                    >
+                                        <i class=format!("{} w-4 h-4 mr-3", icon_clone)></i>
+                                        {label_clone}
+                                    </a>
+                                }.into_any()
+                            } else {
+                                // Render as a button for logout action
+                                view! {
+                                    <button
+                                        class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors duration-200 border-t border-gray-100"
+                                        role="menuitem"
+                                        on:click=move |_| {
+                                            set_is_open.set(false);
                                             if let Some(logout_fn) = on_logout {
                                                 logout_fn.run(());
                                             } else if let Some(window) = web_sys::window() {
-                                                // Fallback to direct redirect if no handler
                                                 let _ = window.location().set_href("/portal/logout");
                                             }
                                         }
-                                    }
-                                >
-                                    <i class=format!("{} w-4 h-4 mr-3", icon_clone)></i>
-                                    {label_clone}
-                                </div>
+                                    >
+                                        <i class=format!("{} w-4 h-4 mr-3", icon_clone)></i>
+                                        {label_clone}
+                                    </button>
+                                }.into_any()
                             }
                         }}
                     }).collect::<Vec<_>>()}

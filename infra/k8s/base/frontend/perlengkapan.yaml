@@ -45,6 +45,9 @@ spec:
                   name: simpelv2-config
                   key: RUST_LOG
           volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
             - name: nginx-cache
               mountPath: /var/cache/nginx
             - name: nginx-run
@@ -69,10 +72,79 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
+        - name: nginx-config
+          configMap:
+            name: perlengkapan-nginx-config
         - name: nginx-cache
           emptyDir: {}
         - name: nginx-run
           emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: perlengkapan-nginx-config
+  labels:
+    app.kubernetes.io/name: perlengkapan
+    app.kubernetes.io/component: frontend
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        sendfile        on;
+        keepalive_timeout  65;
+        merge_slashes on;
+
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json application/wasm;
+
+        server {
+            listen 8080;
+            listen [::]:8080;
+            server_name _;
+            root /usr/share/nginx/html/perlengkapan;
+            index index.html;
+
+            # Security headers
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-XSS-Protection "1; mode=block" always;
+
+            # SPA Routing - serves index.html for all unknown paths
+            location / {
+                try_files $uri $uri/ /index.html;
+            }
+
+            # No-cache for index.html so browser always gets latest WASM version
+            location = /index.html {
+                try_files $uri =404;
+                add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+                add_header Pragma "no-cache" always;
+                expires 0;
+            }
+
+            # Static assets caching (immutable hashed filenames)
+            location ~* \.(wasm|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+            }
+
+            # Health check
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+        }
+    }
 ---
 apiVersion: v1
 kind: Service

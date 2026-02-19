@@ -83,11 +83,17 @@ pub mod audit;
 /// Authentication commands (login/logout)
 pub mod auth;
 
+/// Auto-unseal configuration and management commands
+pub mod auto_unseal;
+
 /// Backup and restore operations
 pub mod backup;
 
 /// Configuration management
 pub mod config;
+
+/// HTTP client wrapper with automatic token injection
+pub mod http_client;
 
 /// Pre-operation middleware (seal status checks)
 pub mod middleware;
@@ -100,6 +106,9 @@ pub mod policy;
 
 /// Policy file parsing (TOML format support)
 pub mod policy_parser;
+
+/// Replication management commands
+pub mod replication;
 
 /// Seal/unseal operations
 pub mod seal;

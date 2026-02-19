@@ -169,7 +169,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
             // Header
             <div class="mb-6">
                 <a
-                    href="/dashboard/kebutuhan-bmn"
+                    href="/perlengkapan/dashboard/kebutuhan-bmn"
                     class="text-blue-600 hover:text-blue-800 inline-flex items-center mb-4"
                 >
                     <i class="fas fa-arrow-left mr-2"></i>
@@ -332,7 +332,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                     // Action buttons
                     <div class="flex justify-end gap-3 pt-6 border-t">
                         <a
-                            href="/dashboard/kebutuhan-bmn"
+                            href="/perlengkapan/dashboard/kebutuhan-bmn"
                             class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                             "Batal"

@@ -122,7 +122,7 @@ pub fn PemakaianForm() -> impl IntoView {
 
                 <div class="pt-4 flex justify-end gap-3">
                     <a
-                        href="/dashboard/pengelolaan/pemakaian/daftar"
+                        href="/perlengkapan/dashboard/pengelolaan/pemakaian/daftar"
                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

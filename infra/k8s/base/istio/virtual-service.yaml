@@ -14,8 +14,27 @@ spec:
     - simpelv2-gateway
   http:
     # ============================================
+    # Root redirect: / → /portal
+    # ============================================
+    - match:
+        - uri:
+            exact: /
+      redirect:
+        uri: /portal
+        redirectCode: 302
+
+    # ============================================
     # Backend API routes (most specific - /api/*)
     # ============================================
+    # Authentication routes (frontend → layanan-portal → authenc gRPC)
+    - match:
+        - uri:
+            prefix: /api/auth
+      route:
+        - destination:
+            host: layanan-portal
+            port:
+              number: 3010
     - match:
         - uri:
             prefix: /api/portal
@@ -36,19 +55,23 @@ spec:
     # ============================================
     # Microfrontend routes (specific paths)
     # ============================================
-    # Pembinaan Perlengkapan (most specific path)
+    # Perlengkapan frontend at /perlengkapan (Istio strips prefix, nginx serves SPA)
     - match:
         - uri:
-            prefix: /pembinaan/perlengkapan
+            prefix: /perlengkapan
+      rewrite:
+        uri: /
       route:
         - destination:
             host: perlengkapan
             port:
               number: 8080
-    # Daskrimti Portal
+    # Portal frontend at /portal (Istio strips prefix, nginx serves SPA)
     - match:
         - uri:
-            prefix: /daskrimti
+            prefix: /portal
+      rewrite:
+        uri: /
       route:
         - destination:
             host: portal
@@ -58,11 +81,6 @@ spec:
     # ============================================
     # Default catch-all route (MUST BE LAST)
     # ============================================
-    - match:
-        - uri:
-            prefix: /
-      route:
-        - destination:
-            host: portal
-            port:
-              number: 8080
+    - redirect:
+        uri: /portal
+        redirectCode: 302

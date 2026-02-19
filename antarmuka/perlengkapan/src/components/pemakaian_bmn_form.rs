@@ -644,7 +644,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 // Submit buttons
                 <div class="pt-6 flex justify-end gap-3 border-t">
                     <a
-                        href="/dashboard/pemakaian-bmn"
+                        href="/perlengkapan/dashboard/pemakaian-bmn"
                         class="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

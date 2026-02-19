@@ -84,6 +84,7 @@ pub mod key_hierarchy;
 pub mod kmip;
 pub mod ldap;
 pub mod lease;
+pub mod metrics;
 pub mod namespace;
 pub mod pki;
 pub mod policy;
@@ -199,8 +200,21 @@ async fn get_version() -> ApiResult<Json<ApiResponse<VersionInfo>>> {
 
 /// Get Prometheus metrics
 async fn get_metrics(State(_state): State<AppState>) -> Result<String, StatusCode> {
-    // TODO: Implement metrics collection
-    Ok("# Secreton API Metrics\n".to_string())
+    // Use the metrics handler from the metrics module
+    let response = metrics::metrics_handler().await;
+
+    // Extract the body from the response
+    match response.status() {
+        StatusCode::OK => {
+            // Extract body as string
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            String::from_utf8(body.to_vec()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 /// Version information

@@ -212,7 +212,7 @@ pub fn SettingsPage(
 
                             // Backup Codes Link
                             <a
-                                href="/mfa/backup-codes"
+                                href="/portal/mfa/backup-codes"
                                 class="block p-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:shadow-md transition-all group border border-orange-200 dark:border-orange-800"
                             >
                                 <div class="flex items-center justify-between">

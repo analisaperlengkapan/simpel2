@@ -138,7 +138,7 @@ pub fn App() -> impl IntoView {
         <BrandingProvider unit="portal".to_string()>
             // Router untuk halaman
             // Base path disesuaikan dengan serving endpoint
-            <Router>
+            <Router base="/portal">
                 <Routes fallback=|| view! { <NotFoundPage /> }>
                 // Public routes
                 <Route path=StaticSegment("") view=HomePage />
@@ -377,7 +377,7 @@ fn setup_search_providers() {
             title: "Dashboard".to_string(),
             description: "Dashboard utama dengan statistik dan aktivitas terbaru".to_string(),
             category: SearchCategory::Page,
-            url: "/dashboard".to_string(),
+            url: "/portal/dashboard".to_string(),
             icon: "📊".to_string(),
             module: Some("Portal".to_string()),
         },
@@ -386,7 +386,7 @@ fn setup_search_providers() {
             title: "Aplikasi".to_string(),
             description: "Daftar semua aplikasi SIMPelv2 yang tersedia".to_string(),
             category: SearchCategory::Page,
-            url: "/apps".to_string(),
+            url: "/portal/apps".to_string(),
             icon: "🚀".to_string(),
             module: Some("Portal".to_string()),
         },
@@ -395,7 +395,7 @@ fn setup_search_providers() {
             title: "Notifikasi".to_string(),
             description: "Semua notifikasi dan pemberitahuan sistem".to_string(),
             category: SearchCategory::Page,
-            url: "/notifications".to_string(),
+            url: "/portal/notifications".to_string(),
             icon: "🔔".to_string(),
             module: Some("Portal".to_string()),
         },
@@ -406,7 +406,7 @@ fn setup_search_providers() {
                 "Dashboard monitoring dengan metrik performa, error tracking, dan analytics"
                     .to_string(),
             category: SearchCategory::Page,
-            url: "/monitoring".to_string(),
+            url: "/portal/monitoring".to_string(),
             icon: "📈".to_string(),
             module: Some("Portal".to_string()),
         },
@@ -415,7 +415,7 @@ fn setup_search_providers() {
             title: "Pembinaan".to_string(),
             description: "Sistem pembinaan dan pengembangan SDM".to_string(),
             category: SearchCategory::Page,
-            url: "/pembinaan".to_string(),
+            url: "/portal/pembinaan".to_string(),
             icon: "🌱".to_string(),
             module: Some("Portal".to_string()),
         },
@@ -424,7 +424,7 @@ fn setup_search_providers() {
             title: "Pengaturan".to_string(),
             description: "Kelola preferensi, tema, dan kustomisasi tampilan".to_string(),
             category: SearchCategory::Page,
-            url: "/settings".to_string(),
+            url: "/portal/settings".to_string(),
             icon: "⚙️".to_string(),
             module: Some("Portal".to_string()),
         },

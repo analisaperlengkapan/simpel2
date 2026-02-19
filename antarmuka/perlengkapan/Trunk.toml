@@ -2,7 +2,7 @@
 target = "index.html"
 dist = "dist"
 release = false
-no_wasm_opt = true
+wasm_opt = false
 
 # Simplified wasm-bindgen configuration for development
 [[build.wasm-bindgen]]

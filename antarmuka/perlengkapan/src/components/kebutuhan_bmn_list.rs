@@ -105,7 +105,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                     <p class="text-sm text-gray-500 mt-1">"Kelola pengajuan kebutuhan barang milik negara"</p>
                 </div>
                 <a
-                    href="/dashboard/kebutuhan-bmn/baru"
+                    href="/perlengkapan/dashboard/kebutuhan-bmn/baru"
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
                 >
                     <i class="fas fa-plus mr-2"></i>

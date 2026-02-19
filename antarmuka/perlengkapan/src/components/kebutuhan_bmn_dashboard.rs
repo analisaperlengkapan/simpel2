@@ -31,7 +31,7 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                     <p class="text-gray-500 mt-1">"Ringkasan data dan statistik pengajuan kebutuhan BMN"</p>
                 </div>
                 <a
-                    href="/dashboard/kebutuhan-bmn/baru"
+                    href="/perlengkapan/dashboard/kebutuhan-bmn/baru"
                     class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center shadow-sm"
                 >
                     <i class="fas fa-plus mr-2"></i>
@@ -234,28 +234,28 @@ pub fn KebutuhanBmnDashboard() -> impl IntoView {
                                     <h3 class="text-lg font-semibold text-gray-800 mb-4">"Akses Cepat"</h3>
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         <a
-                                            href="/dashboard/kebutuhan-bmn"
+                                            href="/perlengkapan/dashboard/kebutuhan-bmn"
                                             class="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
                                         >
                                             <i class="fas fa-list text-2xl text-blue-600 mb-2"></i>
                                             <span class="text-sm font-medium text-gray-700">"Daftar Pengajuan"</span>
                                         </a>
                                         <a
-                                            href="/dashboard/kebutuhan-bmn/baru"
+                                            href="/perlengkapan/dashboard/kebutuhan-bmn/baru"
                                             class="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-colors"
                                         >
                                             <i class="fas fa-plus-circle text-2xl text-green-600 mb-2"></i>
                                             <span class="text-sm font-medium text-gray-700">"Pengajuan Baru"</span>
                                         </a>
                                         <a
-                                            href="/dashboard/analisis"
+                                            href="/perlengkapan/dashboard/analisis"
                                             class="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-colors"
                                         >
                                             <i class="fas fa-chart-bar text-2xl text-purple-600 mb-2"></i>
                                             <span class="text-sm font-medium text-gray-700">"Laporan Analisis"</span>
                                         </a>
                                         <a
-                                            href="/dashboard/aset"
+                                            href="/perlengkapan/dashboard/bank-aset/daftar"
                                             class="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-colors"
                                         >
                                             <i class="fas fa-box-open text-2xl text-orange-600 mb-2"></i>

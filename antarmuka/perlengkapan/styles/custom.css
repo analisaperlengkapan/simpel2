@@ -288,9 +288,38 @@ body {
 }
 
 /* ============================================================================
-   Dark Mode Support (Future)
+   Dark Mode Support
    ============================================================================ */
 
 @media (prefers-color-scheme: dark) {
-  /* Dark mode akan diimplementasikan di future update */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #374151 0px,
+      #4b5563 40px,
+      #374151 80px
+    );
+    background-size: 1000px 100%;
+  }
+
+  .glass {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .scrollbar-custom {
+    scrollbar-color: #4b5563 #1f2937;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: #1f2937;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: #4b5563;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
 }

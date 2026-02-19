@@ -181,7 +181,7 @@ pub fn PengalihanForm() -> impl IntoView {
                         {move || if loading.get() { "Menyimpan..." } else { "Simpan" }}
                     </button>
                     <a
-                        href="/dashboard/pengelolaan/pengalihan"
+                        href="/perlengkapan/dashboard/pengelolaan/pengalihan"
                         class="inline-block align-baseline font-bold text-sm text-blue-600 hover:text-blue-800"
                     >
                         "Batal"

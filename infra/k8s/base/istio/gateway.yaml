@@ -15,8 +15,9 @@ spec:
         protocol: HTTP
       hosts:
         - "*"
-      tls:
-        httpsRedirect: false  # Set to true in production overlay
+      # httpsRedirect removed: 301 redirects get cached by browsers causing
+      # ERR_TOO_MANY_REDIRECTS on internal IP deployments. Handle at VirtualService
+      # level with 302 if needed.
     - port:
         number: 443
         name: https

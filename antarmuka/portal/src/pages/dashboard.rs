@@ -87,7 +87,7 @@ pub struct RoleCount {
 async fn get_portal_dashboard_metrics() -> Result<PortalDashboardMetrics, String> {
     let token = AuthService::get_token().ok_or("Not authenticated")?;
 
-    let resp = gloo_net::http::Request::get("/api/v1/dashboard/metrics")
+    let resp = gloo_net::http::Request::get("/api/portal/dashboard/metrics")
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
@@ -97,7 +97,7 @@ async fn get_portal_dashboard_metrics() -> Result<PortalDashboardMetrics, String
         return Err(format!("API Error: {}", resp.status()));
     }
 
-    resp.json().await.map_err(|e| e.to_string())
+    resp.json::<PortalDashboardMetrics>().await.map_err(|e| e.to_string())
 }
 
 /// Dashboard page component - main user dashboard with statistics
@@ -179,8 +179,9 @@ pub fn DashboardPage(
 
                 // Portal Dashboard Metrics
                 <Suspense fallback=move || view! {
-                    <div class="flex justify-center py-12">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                    <div class="flex items-center justify-center py-8 text-gray-400 dark:text-gray-500 gap-3">
+                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-red-500"></div>
+                        <span class="text-sm">"Memuat metrik..."</span>
                     </div>
                 }>
                     {move || {
@@ -385,7 +386,7 @@ pub fn DashboardPage(
                                         </div>
                                     </div>
 
-                                    // Quick Actions
+                                    // Quick Actions (inside metrics for layout consistency)
                                     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
                                         <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
                                             <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
@@ -395,82 +396,31 @@ pub fn DashboardPage(
                                             </div>
                                             "Aksi Cepat"
                                         </h3>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                                            <a href="/apps" class="block p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:shadow-md transition-all group border border-blue-200 dark:border-blue-800">
-                                                <div class="flex items-center justify-between">
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                                                            <span class="text-xl">"📱"</span>
-                                                        </div>
-                                                        <div>
-                                                            <p class="font-semibold text-gray-900 dark:text-white">"Aplikasi"</p>
-                                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Akses sistem"</p>
-                                                        </div>
-                                                    </div>
-                                                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                                    </svg>
-                                                </div>
-                                            </a>
-
-                                            <a href="/notifications" class="block p-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl hover:shadow-md transition-all group border border-purple-200 dark:border-purple-800">
-                                                <div class="flex items-center justify-between">
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-                                                            <span class="text-xl">"🔔"</span>
-                                                        </div>
-                                                        <div>
-                                                            <p class="font-semibold text-gray-900 dark:text-white">"Notifikasi"</p>
-                                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pemberitahuan"</p>
-                                                        </div>
-                                                    </div>
-                                                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                                    </svg>
-                                                </div>
-                                            </a>
-
-                                            <a href="/monitoring" class="block p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-md transition-all group border border-green-200 dark:border-green-800">
-                                                <div class="flex items-center justify-between">
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                                                            <span class="text-xl">"📊"</span>
-                                                        </div>
-                                                        <div>
-                                                            <p class="font-semibold text-gray-900 dark:text-white">"Monitoring"</p>
-                                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pantau sistem"</p>
-                                                        </div>
-                                                    </div>
-                                                    <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                                    </svg>
-                                                </div>
-                                            </a>
-
-                                            <a href="/settings" class="block p-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:shadow-md transition-all group border border-orange-200 dark:border-orange-800">
-                                                <div class="flex items-center justify-between">
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-                                                            <span class="text-xl">"⚙️"</span>
-                                                        </div>
-                                                        <div>
-                                                            <p class="font-semibold text-gray-900 dark:text-white">"Pengaturan"</p>
-                                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kelola profil"</p>
-                                                        </div>
-                                                    </div>
-                                                    <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                                    </svg>
-                                                </div>
-                                            </a>
-                                        </div>
+                                        <QuickActions />
                                     </div>
                                 </div>
                             }.into_any(),
                             Err(e) => view! {
-                                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
-                                    <p class="text-red-800 dark:text-red-300 font-semibold mb-2">"Gagal memuat metrik dashboard"</p>
-                                    <p class="text-red-600 dark:text-red-400 text-sm">{e}</p>
+                                // Show Quick Actions even when metrics fail
+                                <div class="space-y-6">
+                                    <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-start gap-3">
+                                        <span class="text-xl mt-0.5">"⚠️"</span>
+                                        <div>
+                                            <p class="text-amber-800 dark:text-amber-300 font-semibold text-sm">"Metrik tidak tersedia"</p>
+                                            <p class="text-amber-600 dark:text-amber-400 text-xs mt-1">{e}</p>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+                                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
+                                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
+                                                </svg>
+                                            </div>
+                                            "Aksi Cepat"
+                                        </h3>
+                                        <QuickActions />
+                                    </div>
                                 </div>
                             }.into_any(),
                         })
@@ -478,6 +428,79 @@ pub fn DashboardPage(
                 </Suspense>
             </div>
         </MainLayout>
+    }
+}
+
+/// Quick action navigation buttons (always visible, no API dependency)
+#[component]
+fn QuickActions() -> impl IntoView {
+    view! {
+        <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <a href="/portal/apps" class="block p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:shadow-md transition-all group border border-blue-200 dark:border-blue-800">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                            <span class="text-xl">"📱"</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-900 dark:text-white">"Aplikasi"</p>
+                            <p class="text-xs text-gray-600 dark:text-gray-400">"Akses sistem"</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </a>
+            <a href="/portal/notifications" class="block p-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl hover:shadow-md transition-all group border border-purple-200 dark:border-purple-800">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                            <span class="text-xl">"🔔"</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-900 dark:text-white">"Notifikasi"</p>
+                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pemberitahuan"</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </a>
+            <a href="/portal/monitoring" class="block p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-md transition-all group border border-green-200 dark:border-green-800">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                            <span class="text-xl">"📊"</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-900 dark:text-white">"Monitoring"</p>
+                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pantau sistem"</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </a>
+            <a href="/portal/settings" class="block p-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:shadow-md transition-all group border border-orange-200 dark:border-orange-800">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                            <span class="text-xl">"⚙️"</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-900 dark:text-white">"Pengaturan"</p>
+                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kelola profil"</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </a>
+        </div>
     }
 }
 

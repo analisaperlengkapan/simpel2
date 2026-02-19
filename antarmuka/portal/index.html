@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="/" />
+    <base href="/portal/" />
     <title>SIMPELv2 Portal</title>
     <meta name="description" content="Portal Utama SIMPEL - Kejaksaan Agung Republik Indonesia">
     <meta name="theme-color" content="#1e40af">
@@ -24,9 +24,9 @@
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-    <!-- Tailwind CSS CDN untuk development -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind config MUST be set before CDN loads -->
     <script>
+        tailwind = window.tailwind || {};
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -49,9 +49,15 @@
             },
         }
     </script>
+    <!-- Tailwind CSS CDN (no defer — must apply styles before WASM mounts) -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Font Awesome Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"></noscript>
+
+    <!-- Custom CSS (focus, accessibility, print) -->
+    <link data-trunk rel="css" href="styles/main.css" />
 
     <!-- Trunk WASM configuration -->
     <link data-trunk rel="rust" data-bin="portal-microfrontend" data-wasm-opt="1"
@@ -110,6 +116,16 @@
         /* Portal loading animation */
         .portal-loading {
             animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Ensure spinner works even without Tailwind CDN */
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
         @keyframes pulse {
@@ -308,19 +324,25 @@
         style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999;">
         <div class="max-w-md w-full p-8 text-center">
             <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full portal-brand shadow-lg">
-                <i class="fas fa-spinner fa-spin text-2xl text-white"></i>
+                <svg class="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
             </div>
             <h2 class="mt-6 text-3xl font-bold text-gray-900">Portal SIMPelv2</h2>
             <p class="mt-2 text-sm text-gray-600">Kejaksaan Agung Republik Indonesia</p>
             <p class="mt-1 text-xs text-gray-500">"Demi Keadilan Berdasarkan Ketuhanan Yang Maha Esa"</p>
             <div class="mt-6">
-                <div class="inline-flex items-center px-4 py-2 portal-brand text-white rounded-md shadow">
-                    <i class="fas fa-spinner fa-spin mr-2"></i>
-                    Memuat aplikasi...
+                <div id="loading-status" class="inline-flex items-center px-4 py-2 portal-brand text-white rounded-md shadow">
+                    <svg class="animate-spin h-4 w-4 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span id="loading-text">Memuat aplikasi...</span>
                 </div>
             </div>
             <div class="mt-4 text-xs text-gray-400">
-                SIMPelv2 Portal v2.1.0
+                SIMPelv2 Portal v2.0.0
             </div>
         </div>
     </div>
@@ -332,18 +354,42 @@
 
     <!-- Script untuk menyembunyikan loading screen setelah WASM loaded -->
     <script>
-        // Hide loading screen setelah WASM loaded
-        window.addEventListener('load', function () {
-            setTimeout(function () {
-                const loadingScreen = document.getElementById('loading-screen');
-                if (loadingScreen) {
-                    loadingScreen.style.transition = 'opacity 0.3s ease-out';
-                    loadingScreen.style.opacity = '0';
-                    setTimeout(function () {
-                        loadingScreen.style.display = 'none';
-                    }, 300);
+        function hideLoadingScreen() {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen && loadingScreen.style.display !== 'none') {
+                loadingScreen.style.transition = 'opacity 0.3s ease-out';
+                loadingScreen.style.opacity = '0';
+                setTimeout(function () {
+                    loadingScreen.style.display = 'none';
+                }, 300);
+            }
+        }
+
+        // Sembunyikan loading screen saat Leptos/WASM sudah selesai inisialisasi
+        window.addEventListener('TrunkApplicationStarted', function () {
+            hideLoadingScreen();
+        });
+
+        // Fallback: jika TrunkApplicationStarted tidak terpicu dalam 15 detik, hide loading screen
+        // Ini bisa terjadi jika WASM gagal load atau browser cache
+        var loadingFallbackTimer = setTimeout(function () {
+            const mainDiv = document.getElementById('main');
+            if (mainDiv && mainDiv.children.length > 0) {
+                // App sudah mount, aman untuk hide
+                hideLoadingScreen();
+            } else {
+                // App gagal mount, tampilkan error
+                const loadingStatus = document.getElementById('loading-status');
+                if (loadingStatus) {
+                    loadingStatus.style.background = '#991b1b';
+                    loadingStatus.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>Gagal memuat aplikasi. Coba muat ulang halaman.';
                 }
-            }, 500); // Delay 500ms untuk memastikan app sudah render
+            }
+        }, 15000);
+
+        // Jika app berhasil mount lebih cepat dari fallback timer, batalkan timer
+        window.addEventListener('TrunkApplicationStarted', function () {
+            clearTimeout(loadingFallbackTimer);
         });
     </script>
 

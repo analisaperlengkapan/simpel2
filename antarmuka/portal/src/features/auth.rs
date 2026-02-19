@@ -318,9 +318,10 @@ impl AuthService {
             return Err("Invalid JWT format".to_string());
         }
 
-        use lib_common::encoding::base64_decode;
+        // JWT uses URL-safe Base64 encoding without padding
+        use lib_common::encoding::base64_decode_url;
         let payload_bytes =
-            base64_decode(parts[1]).map_err(|e| format!("Base64 decode error: {}", e))?;
+            base64_decode_url(parts[1]).map_err(|e| format!("Base64 decode error: {}", e))?;
 
         let payload_str =
             String::from_utf8(payload_bytes).map_err(|e| format!("UTF-8 decode error: {}", e))?;

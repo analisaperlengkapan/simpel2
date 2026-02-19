@@ -1,4 +1,4 @@
-# 🏛️ SIMPelv2 - Sistem Informasi Manajemen Pengelolaan BMN
+# 🏛️ SIMPEL - Sistem Informasi Manajemen Perlengkapan
 
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
 [![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://rustlang.org)
@@ -6,11 +6,11 @@
 [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**SIMPelv2** adalah platform enterprise-grade untuk pengelolaan Barang Milik Negara (BMN) Kejaksaan Agung Republik Indonesia, dibangun dengan arsitektur **microfrontend + microservices** menggunakan **Rust** untuk performa, keamanan, dan skalabilitas maksimal.
+**SIMPEL** adalah platform enterprise-grade untuk manajemen Barang Milik Negara (BMN) Kejaksaan Republik Indonesia, dibangun dengan arsitektur **microfrontend + microservices** menggunakan **Rust** untuk performa, keamanan, dan skalabilitas maksimal.
 
 ## 🎯 Overview
 
-SIMPelv2 menyediakan solusi terintegrasi untuk pengelolaan BMN, mulai dari perencanaan, pengadaan, distribusi, hingga pelaporan. Platform ini menggunakan:
+SIMPEL menyediakan solusi terintegrasi untuk manajemen BMN, mulai dari perencanaan, pengadaan, distribusi, hingga pelaporan. Platform ini menggunakan:
 
 - **Zero-Trust Security Architecture** dengan custom IAM (Authenc) dan secrets management (Secreton)
 - **12 Microfrontend Independen** + shared component library
@@ -24,7 +24,7 @@ SIMPelv2 menyediakan solusi terintegrasi untuk pengelolaan BMN, mulai dari peren
 | `antarmuka/contoh/*` | Mockup microfrontend (placeholder untuk modul yang belum diimplementasi) |
 | `layanan/contoh/*` | Mockup backend service (placeholder untuk layanan yang belum diimplementasi) |
 
-> **Superapps Ready**: SIMPelv2 dirancang dengan arsitektur modular yang siap diintegrasikan menjadi SIMKARI Superapps jika diperlukan. Lihat [AGENTS.md](AGENTS.md) untuk detail.
+> **Superapps Ready**: SIMPEL dirancang dengan arsitektur modular yang siap diintegrasikan menjadi SIMKARI Superapps jika diperlukan. Lihat [AGENTS.md](AGENTS.md) untuk detail.
 
 ## 🌐 Production Deployment
 
@@ -68,7 +68,7 @@ SIMPelv2 menyediakan solusi terintegrasi untuk pengelolaan BMN, mulai dari peren
 
 ### Microfrontend Architecture
 
-SIMPelv2 menggunakan **12 microfrontend independen** yang didukung shared component library:
+SIMPEL menggunakan **12 microfrontend independen** yang didukung shared component library:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

@@ -199,7 +199,7 @@ pub fn MfaBackupInput(
             <div class="text-center">
                 <p class="text-xs text-gray-500">
                     "Lost your backup codes? "
-                    <a href="/mfa/backup-codes" class="text-blue-600 hover:text-blue-500">
+                    <a href="/portal/mfa/backup-codes" class="text-blue-600 hover:text-blue-500">
                         "Generate new ones"
                     </a>
                 </p>

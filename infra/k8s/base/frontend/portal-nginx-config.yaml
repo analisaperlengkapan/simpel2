@@ -18,6 +18,9 @@ data:
         sendfile        on;
         keepalive_timeout  65;
 
+        # Fix double-slash paths (Istio strips /portal prefix leaving // in requests)
+        merge_slashes on;
+
         gzip on;
         gzip_vary on;
         gzip_min_length 1024;
@@ -35,12 +38,19 @@ data:
             add_header X-Content-Type-Options "nosniff" always;
             add_header X-XSS-Protection "1; mode=block" always;
 
-            # SPA Routing - serves index.html for unknown paths
+            # SPA Routing - Istio strips /portal prefix, nginx serves from root
             location / {
                 try_files $uri $uri/ /index.html;
             }
 
-            # Static assets caching
+            # index.html must NOT be cached so browsers always get the latest version
+            location = /index.html {
+                add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+                add_header Pragma "no-cache" always;
+                expires 0;
+            }
+
+            # Static assets caching (content-hashed filenames are safe to cache forever)
             location ~* \.(wasm|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
                 expires 1y;
                 add_header Cache-Control "public, immutable";

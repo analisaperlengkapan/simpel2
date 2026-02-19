@@ -21,6 +21,16 @@ spec:
     - simpelv2-dev-gateway
   http:
     # ============================================
+    # Root redirect: / → /portal
+    # ============================================
+    - match:
+        - uri:
+            exact: /
+      redirect:
+        uri: /portal
+        redirectCode: 302
+
+    # ============================================
     # Legacy CAPTCHA Routes (backwards compatibility)
     # ============================================
     - match:
@@ -149,11 +159,14 @@ spec:
               number: 8080
 
     # ============================================
-    # Portal (Legacy /daskrimti path)
+    # Portal Frontend at /portal
+    # Istio strips /portal prefix, nginx serves SPA from root
     # ============================================
     - match:
         - uri:
-            prefix: /daskrimti
+            prefix: /portal
+      rewrite:
+        uri: /
       route:
         - destination:
             host: portal.simpelv2-staging.svc.cluster.local
@@ -161,11 +174,23 @@ spec:
               number: 8080
 
     # ============================================
-    # Default: Route to Portal (Main Landing)
-    # All unmatched routes go to main portal including WASM assets
+    # Portal (Legacy /daskrimti path)
     # ============================================
-    - route:
+    - match:
+        - uri:
+            prefix: /daskrimti
+      rewrite:
+        uri: /
+      route:
         - destination:
             host: portal.simpelv2-staging.svc.cluster.local
             port:
               number: 8080
+
+    # ============================================
+    # Default: Redirect to /portal
+    # Any unmatched route redirects to portal
+    # ============================================
+    - redirect:
+        uri: /portal
+        redirectCode: 302

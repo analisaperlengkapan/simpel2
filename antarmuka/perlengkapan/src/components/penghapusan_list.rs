@@ -49,7 +49,7 @@ pub fn PenghapusanList() -> impl IntoView {
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold text-gray-800">"Usulan SK Penghapusan BMN"</h2>
                 <a
-                    href="/dashboard/pengelolaan/penghapusan/baru"
+                    href="/perlengkapan/dashboard/pengelolaan/penghapusan/baru"
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
                 >
                     <i class="fas fa-plus mr-2"></i>

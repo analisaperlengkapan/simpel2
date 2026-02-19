@@ -241,7 +241,7 @@ pub fn PenghapusanForm() -> impl IntoView {
 
                 <div class="pt-4 flex justify-end gap-3">
                     <a
-                        href="/dashboard/pengelolaan/penghapusan/daftar"
+                        href="/perlengkapan/dashboard/pengelolaan/penghapusan/daftar"
                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

@@ -61,7 +61,7 @@ pub fn PembinaanPage(
                 // Page Header
                 <div class="mb-8">
                     <nav class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        <a href="/apps" class="hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                        <a href="/portal/apps" class="hover:text-red-600 dark:hover:text-red-400 transition-colors">
                             "← Kembali ke Aplikasi"
                         </a>
                     </nav>

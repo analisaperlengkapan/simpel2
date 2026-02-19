@@ -321,7 +321,7 @@ pub fn UkuranPegawaiSatker(
                     </p>
                 </div>
                 <a
-                    href="/dashboard/pakaian-dinas/laporan/rekap"
+                    href="/perlengkapan/dashboard/pakaian-dinas/laporan/rekap"
                     class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors inline-flex items-center"
                 >
                     <i class="fas fa-chart-bar mr-2"></i>

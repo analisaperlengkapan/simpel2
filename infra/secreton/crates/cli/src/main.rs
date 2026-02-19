@@ -5,6 +5,7 @@ use tracing::info;
 
 mod audit;
 mod auth;
+mod auto_unseal;
 mod backup;
 mod config;
 mod http_client;
@@ -12,18 +13,21 @@ mod middleware;
 mod operator;
 mod policy;
 mod policy_parser;
+mod replication;
 mod seal;
 mod token;
 mod token_store;
 
 use audit::{AuditCommand, execute_audit_command};
 use auth::{login_command, logout_command};
+use auto_unseal::{AutoUnsealCommand, execute_auto_unseal_command};
 use backup::{BackupCommand, execute_backup_command};
 use config::CliConfig;
 use http_client::AuthenticatedClient;
 use middleware::SealChecker;
 use operator::{OperatorCommand, execute_operator_command};
 use policy::{PolicyCommand, execute_policy_command};
+use replication::{ReplicationCommand, execute_replication_command};
 use seal::{SealCommand, execute_seal_command};
 use token::{TokenCommand, execute_token_command};
 
@@ -83,6 +87,9 @@ enum Commands {
     /// Seal/unseal operations
     #[command(subcommand)]
     Seal(SealCommand),
+    /// Auto-unseal configuration and management
+    #[command(subcommand)]
+    AutoUnseal(AutoUnsealCommand),
     /// Backup and restore operations
     #[command(subcommand)]
     Backup(BackupCommand),
@@ -92,6 +99,9 @@ enum Commands {
     /// Audit log commands
     #[command(subcommand)]
     Audit(AuditCommand),
+    /// Replication management operations
+    #[command(subcommand)]
+    Replication(ReplicationCommand),
     /// Transit engine operations (encryption/decryption)
     Transit {
         #[command(subcommand)]
@@ -203,9 +213,11 @@ async fn main() -> Result<()> {
         }
         Commands::Token(cmd) => execute_token_command(cmd, &config, cli.namespace.as_deref()).await,
         Commands::Seal(cmd) => execute_seal_command(cmd, &config).await,
+        Commands::AutoUnseal(cmd) => execute_auto_unseal_command(cmd, &config).await,
         Commands::Backup(cmd) => execute_backup_command(cmd, &config).await,
         Commands::Operator(cmd) => execute_operator_command(cmd, &config).await,
         Commands::Audit(cmd) => execute_audit_command(cmd, &config).await,
+        Commands::Replication(cmd) => execute_replication_command(cmd, &config).await,
         Commands::Transit { cmd } => transit_command(cmd, &config, cli.namespace.as_deref()).await,
         Commands::Secret { cmd } => secret_command(cmd, &config, cli.namespace.as_deref()).await,
     }

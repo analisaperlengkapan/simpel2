@@ -14,7 +14,6 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
-use lib_ui::prelude::*;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
@@ -134,154 +133,118 @@ pub fn LoginPage() -> impl IntoView {
     };
 
     view! {
-        <div class="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center p-4 relative overflow-hidden">
-            // Animated background elements
-            <div class="absolute inset-0 overflow-hidden pointer-events-none">
-                <div class="absolute w-96 h-96 bg-blue-400 rounded-full opacity-10 blur-3xl -top-20 -left-20 animate-pulse"></div>
-                <div class="absolute w-96 h-96 bg-indigo-400 rounded-full opacity-10 blur-3xl -bottom-20 -right-20 animate-pulse" style="animation-delay: 2s"></div>
-            </div>
+        <div class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex flex-col overflow-hidden">
+            // Top accent bar
+            <div class="h-1 w-full bg-gradient-to-r from-red-700 via-red-600 to-red-700 flex-shrink-0"></div>
 
-            // Main card container dengan animasi entrance
-            <div class="relative w-full max-w-md p-8 text-center bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl transform transition-all duration-500 hover:shadow-3xl hover:scale-[1.02]">
-
-                // Header menggunakan Logo dari shared-microfrontend
-                <div class="mb-8">
-                    <div class="flex justify-center mb-6 animate-bounce-slow">
-                        <div class="p-4 bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl shadow-lg">
-                            <Logo
-                                show_text=false
-                                size="large"
-                            />
+            <main class="flex-1 flex items-center justify-center px-4 py-12">
+                <div class="w-full max-w-md">
+                    // Header
+                    <div class="text-center mb-8">
+                        <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-600 to-red-700 rounded-full shadow-xl mb-4">
+                            <span class="text-4xl">"⚖️"</span>
                         </div>
-                    </div>
-
-                    <h1 class="text-4xl font-bold bg-gradient-to-r from-emerald-700 to-blue-700 bg-clip-text text-transparent mb-3 tracking-tight" id="app-title">
-                        "SIMPelv2"
-                    </h1>
-
-                    <div class="inline-block px-4 py-1 bg-gradient-to-r from-emerald-100 to-blue-100 rounded-full mb-3">
-                        <p class="text-sm font-bold text-emerald-800">
-                            "KEJAKSAAN REPUBLIK INDONESIA"
+                        <h1 class="text-3xl font-bold text-gray-900 mb-1">
+                            "SIMPEL Perlengkapan"
+                        </h1>
+                        <p class="text-sm text-gray-500">
+                            "Sistem Informasi Manajemen Perlengkapan"
+                        </p>
+                        <p class="text-xs text-gray-400 mt-1">
+                            "Kejaksaan Republik Indonesia"
                         </p>
                     </div>
 
-                    <div class="flex items-center justify-center gap-2 text-gray-600">
-                        <i class="fas fa-boxes text-emerald-600"></i>
-                        <p class="text-sm font-medium">
-                            "Manajemen Aset & BMN"
-                        </p>
-                    </div>
-                </div>
-
-                // Divider dengan gradient
-                <div class="relative my-8">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-200"></div>
-                    </div>
-                    <div class="relative flex justify-center">
-                        <span class="px-4 text-xs text-gray-500 bg-white">AKSES SISTEM</span>
-                    </div>
-                </div>
-
-                // Login Description dengan icon
-                <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                    <div class="flex items-start gap-3">
-                        <i class="fas fa-info-circle text-blue-600 mt-1"></i>
-                        <p class="text-sm text-gray-700 text-left leading-relaxed">
-                            {move || if is_dev_mode {
-                                "Mode Development: Klik tombol di bawah untuk simulasi login dan akses dashboard perlengkapan"
-                            } else {
-                                "Untuk mengakses sistem perlengkapan, Anda akan diarahkan ke portal login utama Kejaksaan RI dengan Single Sign-On (SSO)"
-                            }}
-                        </p>
-                    </div>
-                </div>
-
-                // Error Message dengan animasi
-                {move || error.get().map(|err| view! {
-                    <div
-                        class="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg text-sm text-red-700 animate-shake"
-                        role="alert"
-                        aria-live="polite"
-                    >
-                        <div class="flex items-center">
-                            <i class="fas fa-exclamation-triangle text-red-500 mr-3 text-lg"></i>
-                            <div>
-                                <p class="font-semibold">"Gagal Autentikasi"</p>
-                                <p class="mt-1">{err}</p>
+                    // Login card
+                    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                        // Divider
+                        <div class="relative mb-6">
+                            <div class="absolute inset-0 flex items-center">
+                                <div class="w-full border-t border-gray-200"></div>
+                            </div>
+                            <div class="relative flex justify-center">
+                                <span class="px-3 text-xs font-medium text-gray-400 bg-white uppercase tracking-wider">"Akses Sistem"</span>
                             </div>
                         </div>
-                    </div>
-                })}
 
-                // Login Button dengan Loading State dan animasi
-                <div class="space-y-4">
-                    {move || {
-                        if loading.get() {
-                            view! {
-                                <div
-                                    class="flex flex-col items-center justify-center py-6 gap-3"
-                                    role="status"
-                                    aria-live="polite"
-                                >
-                                    <div class="relative">
-                                        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200"></div>
-                                        <div class="absolute inset-0 animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-blue-600"></div>
-                                    </div>
-                                    <span class="text-blue-700 font-medium animate-pulse">
-                                        {if is_dev_mode { "🔐 Memproses autentikasi..." } else { "🔄 Mengarahkan ke Portal SSO..." }}
-                                    </span>
-                                </div>
-                            }.into_any()
-                        } else {
-                            view! {
-                                <button
-                                    class="group relative w-full py-4 px-6 text-lg font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 text-white overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/50 focus:outline-none focus:ring-4 focus:ring-blue-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    on:click=handle_login
-                                    aria-label="Masuk ke sistem perlengkapan"
-                                    aria-describedby="app-title"
-                                    disabled=false
-                                    type="button"
-                                >
-                                    // Animated shine effect
-                                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-
-                                    <span class="relative flex items-center justify-center gap-2">
-                                        <i class="fas fa-sign-in-alt" aria-hidden="true"></i>
-                                        "Masuk ke Sistem"
-                                        <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform" aria-hidden="true"></i>
-                                    </span>
-                                </button>
-                            }.into_any()
-                        }
-                    }}
-                </div>
-
-                // Footer Info dengan badges
-                <div class="mt-8 pt-6 border-t border-gray-100 space-y-3">
-                    <div class="flex items-center justify-center gap-2 text-gray-600">
-                        <i class="fas fa-shield-alt text-emerald-600" aria-hidden="true"></i>
-                        <p class="text-xs font-medium">
-                            "Gunakan akun SSO Kejaksaan RI Anda"
-                        </p>
-                    </div>
-
-                    {move || if is_dev_mode {
-                        view! {
-                            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 border border-amber-300 rounded-full">
-                                <div class="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                                <p class="text-xs font-semibold text-amber-700">
-                                    <i class="fas fa-code mr-1" aria-hidden="true"></i>
-                                    "Development Mode"
+                        // Info box
+                        <div class="mb-6 p-4 bg-red-50 rounded-xl border border-red-100">
+                            <div class="flex items-start gap-3">
+                                <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                </svg>
+                                <p class="text-sm text-gray-700 leading-relaxed">
+                                    {move || if is_dev_mode {
+                                        "Mode Development — Klik tombol untuk simulasi login dan akses dashboard perlengkapan."
+                                    } else {
+                                        "Anda akan diarahkan ke Portal Login Kejaksaan RI untuk autentikasi SSO."
+                                    }}
                                 </p>
                             </div>
-                        }.into_any()
-                    } else {
-                        let _: () = view! { <></> };
-                        ().into_any()
-                    }}
+                        </div>
+
+                        // Error
+                        {move || error.get().map(|err| view! {
+                            <div class="mb-4 flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700" role="alert">
+                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                                <span>{err}</span>
+                            </div>
+                        })}
+
+                        // Login button
+                        <div>
+                            {move || {
+                                if loading.get() {
+                                    view! {
+                                        <div class="flex flex-col items-center justify-center py-8 gap-3" role="status">
+                                            <svg class="animate-spin h-10 w-10 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span class="text-sm font-medium text-gray-600">
+                                                {if is_dev_mode { "Memproses autentikasi..." } else { "Mengarahkan ke Portal SSO..." }}
+                                            </span>
+                                        </div>
+                                    }.into_any()
+                                } else {
+                                    view! {
+                                        <button
+                                            class="w-full py-3.5 px-6 text-base font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white transition-all duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-[0.98]"
+                                            on:click=handle_login
+                                            type="button"
+                                        >
+                                            <span class="inline-flex items-center justify-center gap-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                                                </svg>
+                                                "Masuk ke Sistem"
+                                            </span>
+                                        </button>
+                                    }.into_any()
+                                }
+                            }}
+                        </div>
+
+                        // SSO note
+                        <div class="mt-6 pt-4 border-t border-gray-100 text-center">
+                            <div class="inline-flex items-center gap-2 text-xs text-gray-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                                "Gunakan akun SSO Kejaksaan RI"
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </main>
+
+            <footer class="flex-shrink-0 bg-white/80 border-t border-gray-200 py-4">
+                <p class="text-center text-xs text-gray-400">
+                    "© 2026 Kejaksaan Republik Indonesia — SIMPelv2 Perlengkapan"
+                </p>
+            </footer>
         </div>
     }
 }

@@ -81,6 +81,26 @@ pub struct HealthCheckResponse {
     pub version: String,
     pub uptime_seconds: u64,
     pub dependencies: HealthCheckDependencies,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_unseal: Option<AutoUnsealStatus>,
+}
+
+/// Auto-unseal status information
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AutoUnsealStatus {
+    pub enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_key_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_region: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_endpoint: Option<String>,
+    pub provider_healthy: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_unseal: Option<chrono::DateTime<chrono::Utc>>,
+    pub fallback_enabled: bool,
 }
 
 /// Health check dependencies status

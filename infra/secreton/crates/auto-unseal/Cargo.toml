@@ -1,0 +1,58 @@
+[package]
+name = "secreton-auto-unseal"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# Error handling
+thiserror = "2.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Logging
+tracing = "0.1"
+
+# UUID for correlation IDs
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Timestamps for audit logging
+chrono = "0.4"
+
+# Internal dependencies
+secreton-core = { path = "../core" }
+secreton-grpc = { path = "../grpc", optional = true }
+
+# Optional cloud provider dependencies
+aws-config = { version = "1.5", optional = true }
+aws-sdk-kms = { version = "1.45", optional = true }
+google-cloudkms1 = { version = "5.0", optional = true }
+azure_security_keyvault = { version = "0.20", optional = true }
+azure_identity = { version = "0.20", optional = true }
+azure_core = { version = "0.20", optional = true }
+
+# gRPC for Transit provider
+tonic = { version = "0.14", optional = true }
+prost = { version = "0.14", optional = true }
+
+# Base64 encoding for Transit
+base64 = { version = "0.22", optional = true }
+
+[features]
+default = ["transit"]
+aws-kms = ["dep:aws-config", "dep:aws-sdk-kms"]
+gcp-kms = ["dep:google-cloudkms1"]
+azure-kv = ["dep:azure_security_keyvault", "dep:azure_identity", "dep:azure_core"]
+transit = ["dep:tonic", "dep:prost", "dep:base64", "dep:secreton-grpc"]
+all-providers = ["aws-kms", "gcp-kms", "azure-kv", "transit"]
+
+[dev-dependencies]
+tokio-test = "0.4"
+proptest.workspace = true
+toml = "0.8"

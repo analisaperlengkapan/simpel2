@@ -108,7 +108,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
             // Header with back button
             <div class="mb-6">
                 <a
-                    href="/dashboard/kebutuhan-bmn"
+                    href="/perlengkapan/dashboard/kebutuhan-bmn"
                     class="text-blue-600 hover:text-blue-800 inline-flex items-center mb-4"
                 >
                     <i class="fas fa-arrow-left mr-2"></i>
