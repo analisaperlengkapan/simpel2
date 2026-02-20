@@ -13,22 +13,12 @@ pub use client_scopes_ops::{
     client_scope_assignments, client_scopes, scope_validation, user_consent_scopes,
 };
 
-// Legacy operations now modularized into separate files
-// Previously in operations_legacy.rs (11,263 lines), now split into 29 modules
-// for better maintainability and navigation
-pub mod legacy;
-
-// Re-export all legacy modules for backward compatibility
-// This allows existing code to use `operations::groups` instead of `operations::legacy::groups`
-pub use legacy::{
-    admin_console, audit, auth_flows, authenticators, devices, events, federated_identities,
-    federated_identity, groups, identity_providers, oauth2, oauth2_providers, organizations,
-    permission_tickets, protocol_mappers, realms, resource_servers, resources, roles, saml, scopes,
-    service_accounts, sessions, social_accounts, themes, user_consents, users, webauthn,
-};
-
-// Re-export top-level functions from legacy for backward compatibility
-pub use legacy::{
-    clear_old_admin_events, clear_old_events, query_admin_events, query_events, store_admin_event,
-    store_event,
-};
+// ⚠️ LEGACY OPERATIONS REMOVED
+// All legacy operations have been migrated to crates/storage/src/operations/legacy/
+// This directory (src/database/operations/legacy/) has been deleted.
+//
+// If you need legacy operations, import from:
+//   use authenc_storage::operations::legacy::*;
+//
+// Or better yet, use the new store traits from authenc-storage:
+//   use authenc_storage::stores::{UserStore, SessionStore, RealmStore, ClientStore, CredentialStore};

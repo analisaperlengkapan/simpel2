@@ -1,6 +1,6 @@
 #![no_main]
 
-use authenc::crypto::ecdsa_keys::{EcdsaJwk, EcdsaJwkSet};
+use authenc_crypto::keys::{EcdsaJwk, EcdsaJwkSet};
 use libfuzzer_sys::fuzz_target;
 use serde_json;
 

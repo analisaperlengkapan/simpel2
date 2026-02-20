@@ -1,48 +1,39 @@
-// Modern cryptographic implementations
-/// AES-GCM encryption and decryption utilities
-pub mod aes_gcm;
-/// DPoP (Demonstrated Proof of Possession) token handling
-pub mod dpop;
-/// ECDSA P-256 key operations and utilities
-pub mod ecdsa_keys;
-/// ECDSA P-384 key operations and utilities
-pub mod ecdsa_p384_keys;
-/// ECDSA P-521 key operations and utilities
-pub mod ecdsa_p521_keys;
-/// Ed25519 key operations and utilities
-pub mod ed25519_keys;
-/// EdDSA Ed448 key operations and utilities
-pub mod eddsa_ed448_keys;
-/// Enhanced cryptographic engine for SIMKARI operations
-pub mod enhanced;
-/// Mutual TLS authentication utilities
-pub mod mtls;
-/// Post-Quantum Cryptography (PQC) wrappers for quantum-resistant algorithms
-pub mod pqc;
-/// SD-JWT (Selective Disclosure JWT) implementation
-pub mod sdjwt;
-/// Shamir Secret Sharing for distributed key management
-pub mod shamir;
-/// XML Digital Signature (XMLDSig) implementation for SAML
-pub mod xmldsig;
+//! Cryptographic operations - Re-export from authenc-crypto crate
+//!
+//! This module provides backward compatibility by re-exporting
+//! all cryptographic functionality from the authenc-crypto crate.
 
-// Re-exports for convenience
-pub use aes_gcm::*;
-pub use ecdsa_keys::*;
-pub use ecdsa_p384_keys::*;
-pub use ecdsa_p521_keys::*;
-pub use eddsa_ed448_keys::{
-    EddsaJwk, EddsaJwkSet, get_eddsa_jwk_set, sign_jwt_eddsa, verify_jwt_eddsa,
-};
-pub use enhanced::{
-    AuditSignature, BatchValidationRequest, BatchValidationResponse, CryptoMetrics,
-    EncryptedSessionData, EnhancedCryptoEngine, OperationMetrics, PegawaiClaims, PostQuantumMode,
-    SecretonPermissions,
-};
-pub use mtls::*;
-pub use pqc::{falcon, hybrid, mldsa, mlkem};
-pub use sdjwt::*;
-pub use shamir::{
-    Commitment, ShamirConfig, ShamirError, Share, generate_shares_with_commitments,
-    reconstruct_secret, reconstruct_secret_verified, verify_share_with_commitment,
+// Re-export everything from authenc-crypto
+pub use authenc_crypto::*;
+
+// Additional re-exports for convenience (if needed)
+pub use authenc_crypto::{
+    // JWT
+    jwt::{JwtService, TokenClaims},
+    jwt_key_manager::{JwtKey, JwtKeyManager, SecretonClient as JwtSecretonClient},
+    jwt_validator::{JwtValidator, ValidationResult, ValidationCache},
+
+    // Password
+    password::Argon2PasswordHasher,
+
+    // Encryption
+    encryption::{EncryptionService, EncryptedData, EncryptionError},
+    aes_gcm::{AesGcmService, EncryptedData as AesEncryptedData},
+
+    // Enhanced crypto
+    enhanced::{
+        EnhancedCryptoEngine, PegawaiClaims, SecretonPermissions, UserClaims,
+        EncryptedSessionData, SessionMetadata, AuditSignature, SignerInfo,
+        BatchValidationRequest, BatchValidationResponse, TokenValidationResult,
+        CryptoMetrics, OperationMetrics, PostQuantumMode,
+    },
+
+    // Keys
+    keys::{
+        ED25519_KEYPAIR, Ed25519Jwk, Ed25519JwkSet,
+        ECDSA_KEYPAIR, EcdsaJwk, EcdsaJwkSet,
+        ECDSA_P384_KEYPAIR, EcdsaP384Jwk, EcdsaP384JwkSet,
+        ECDSA_P521_KEYPAIR, EcdsaP521Jwk, EcdsaP521JwkSet,
+        EDDSA_KEYPAIR, EddsaJwk, EddsaJwkSet,
+    },
 };

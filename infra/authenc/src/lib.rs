@@ -18,12 +18,8 @@
 // Core modules
 /// Application state and initialization
 pub mod app;
-/// Initialization helpers (extracted from app for better organization)
-pub mod app_init;
 /// Logging initialization (extracted from app for better organization)
 pub mod app_logging;
-/// Configuration management
-pub mod config;
 /// Cryptographic operations and utilities
 pub mod crypto;
 /// Error types and handling
@@ -105,8 +101,11 @@ pub mod grpc;
 pub mod server;
 
 // Re-export commonly used items
-pub use config::AppConfig;
 pub use error::{AuthencError, Result};
+
+// Re-export config and init from authenc-core
+pub use authenc_core::config;
+pub use authenc_core::init as app_init;
 
 // Re-export async_trait for handler traits
 pub use async_trait::async_trait;

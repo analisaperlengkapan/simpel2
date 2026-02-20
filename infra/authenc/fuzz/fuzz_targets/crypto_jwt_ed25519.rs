@@ -1,6 +1,6 @@
 #![no_main]
 
-use authenc::crypto::ed25519_keys::{sign_ed25519, verify_ed25519};
+use authenc_crypto::keys::{sign_ed25519, verify_ed25519};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

@@ -11,10 +11,8 @@ pub mod auth_flow;
 pub mod brute_force_protector;
 /// Client policy enforcement and validation
 pub mod client_policy;
-/// OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
+/// OAuth 2.0 Dynamic Client Registration (RFC 7591/7592) - Production-ready implementation
 pub mod client_registration;
-/// Production-ready Dynamic Client Registration with database backing
-pub mod client_registration_v2;
 /// Service managers for coordinating complex operations
 pub mod managers;
 /// Pushed Authorization Requests (PAR) implementation
@@ -174,8 +172,6 @@ pub mod mysimkari_sync;
 // Authorization services
 /// Authorization policy engine and enforcement
 pub mod authorization;
-/// Satker-aware authorization with hierarchy support
-pub mod satker_authorization;
 /// UMA 2.0 (User-Managed Access) fine-grained authorization
 pub mod uma;
 /// UMA 2.0 policy store for database operations
@@ -198,14 +194,6 @@ pub mod delegated_admin;
 // WebAuthn services
 /// WebAuthn/FIDO2 authentication services with full attestation support
 pub mod webauthn;
-
-// Organization services
-/// Organization management and multi-tenancy
-pub mod organization;
-
-/// Realm services
-/// Multi-tenant realm management and isolation
-pub mod realm;
 
 // SAML services
 /// SAML 2.0 protocol implementation
@@ -251,9 +239,8 @@ pub mod observability;
 pub use anomaly_detector::AnomalyDetector;
 pub use auth_flow::AuthenticationManager;
 pub use brute_force_protector::BruteForceProtector;
-pub use client_registration::{DefaultClientRegistrationService, LegacyClientRegistrationService};
-// New DCR trait and implementation
-pub use client_registration_v2::{ClientRegistrationService, ProductionClientRegistrationService};
+// Dynamic Client Registration (production-ready implementation)
+pub use client_registration::{ClientRegistrationService, ProductionClientRegistrationService};
 pub use group_store::GroupStore;
 pub use session_store::SessionStore;
 pub use totp_store::TotpStore;

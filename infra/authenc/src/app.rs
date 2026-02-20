@@ -137,7 +137,7 @@ impl AppState {
         // Run database migrations before initializing other services
         tracing::info!("🔄 Running database migrations...");
         let db_pool = database.get_pool();
-        match crate::database::migrations::run_migrations_with_schema(db_pool.clone()).await {
+        match authenc_storage::migrations::run_migrations_with_schema(db_pool.clone()).await {
             Ok(result) => {
                 if result.is_success() {
                     tracing::info!(

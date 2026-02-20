@@ -21,7 +21,7 @@ use once_cell::sync::Lazy;
 /// - Legacy RSA is vulnerable to timing attacks
 /// - This will panic if accessed
 /// # Migration
-/// Migrate to: `authenc::crypto::ed25519_keys`
+/// Migrate to: `authenc_crypto::keys`
 #[deprecated(since = "1.0.0", note = "Use Ed25519 keys instead - RSA is insecure")]
 pub static RSA_KEYPAIR: Lazy<()> = Lazy::new(|| {
     log::error!("SECURITY: Attempted to use legacy RSA keys - use Ed25519 implementation");
@@ -35,9 +35,9 @@ pub static RSA_KEYPAIR: Lazy<()> = Lazy::new(|| {
 /// - Legacy RSA is vulnerable to timing attacks (RUSTSEC-2023-0071)
 /// - This function will panic to prevent accidental use
 /// # Migration
-/// Use Ed25519 public key functions from `crypto/ed25519_keys.rs` instead:
+/// Use Ed25519 public key functions from `authenc_crypto::keys` instead:
 /// ```rust
-/// use authenc::crypto::ed25519_keys::get_ed25519_public_pem;
+/// use authenc_crypto::keys::get_ed25519_public_pem;
 /// ```
 #[deprecated(
     since = "1.0.0",
@@ -60,9 +60,9 @@ pub fn get_public_pem() -> Result<String, String> {
 /// - Private keys should never be exposed in PEM format
 /// - This function will panic to prevent accidental use
 /// # Migration
-/// Use Ed25519 signing functions from `crypto/ed25519_keys.rs` instead:
+/// Use Ed25519 signing functions from `authenc_crypto::keys` instead:
 /// ```rust
-/// use authenc::crypto::ed25519_keys::sign_ed25519;
+/// use authenc_crypto::keys::sign_ed25519;
 /// ```
 #[deprecated(
     since = "1.0.0",

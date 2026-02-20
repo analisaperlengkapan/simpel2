@@ -716,13 +716,6 @@ impl Database {
     }
 }
 
-/// Database migration utilities and schema management
-/// This module contains database migration scripts and utilities for managing
-/// schema changes, version control, and database upgrades. Migrations ensure
-/// that the database schema remains consistent across different deployments
-/// and versions of the authentication platform.
-pub mod migrations;
-
 /// Database operation utilities and transaction management
 /// This module provides high-level database operations and transaction management
 /// utilities for common database tasks. It includes connection pooling, query

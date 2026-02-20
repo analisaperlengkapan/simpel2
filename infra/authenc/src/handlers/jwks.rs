@@ -1,5 +1,5 @@
 use crate::app::AppState;
-use crate::crypto::ed25519_keys::{Ed25519Jwk, get_ed25519_jwk};
+use authenc_crypto::keys::{Ed25519Jwk, get_ed25519_jwk};
 use crate::error::AuthencError;
 use crate::services::cache::Cache;
 use axum::{extract::State, response::Json};

@@ -360,7 +360,7 @@ async fn test_jwt_expiry_bypass_attempts() {
 
     // Sign the expired token
     let message = format!("{}.{}", header_b64, payload_b64);
-    let signature = authenc::crypto::ed25519_keys::sign_ed25519(message.as_bytes());
+    let signature = authenc_crypto::keys::sign_ed25519(message.as_bytes());
     let signature_b64 = Base64UrlUnpadded::encode_string(&signature.to_bytes());
 
     let expired_token = format!("{}.{}.{}", header_b64, payload_b64, signature_b64);

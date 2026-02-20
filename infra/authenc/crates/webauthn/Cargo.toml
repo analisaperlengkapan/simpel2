@@ -1,0 +1,27 @@
+[package]
+name = "authenc-webauthn"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+
+[dependencies]
+# Workspace dependencies
+authenc-types = { path = "../types" }
+
+# External dependencies (from workspace)
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+
+# WebAuthn dependencies
+webauthn-rs = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+proptest = { workspace = true }

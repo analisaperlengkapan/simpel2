@@ -4,14 +4,14 @@
 
 #[cfg(test)]
 mod jwks_tests {
-    use authenc::crypto::ed25519_keys::Ed25519Jwk;
+    use authenc_crypto::keys::Ed25519Jwk;
 
     #[test]
     fn test_jwks_response_structure() {
         // This test verifies the JWKS response structure
         // without requiring a running server
 
-        let jwk = authenc::crypto::ed25519_keys::get_ed25519_jwk();
+        let jwk = authenc_crypto::keys::get_ed25519_jwk();
 
         // Verify JWK structure
         assert_eq!(jwk.kty, "OKP");
@@ -37,7 +37,7 @@ mod jwks_tests {
     #[test]
     fn test_jwks_set_structure() {
         // Test the JWKS set structure with multiple keys
-        let jwk = authenc::crypto::ed25519_keys::get_ed25519_jwk();
+        let jwk = authenc_crypto::keys::get_ed25519_jwk();
 
         let jwks = serde_json::json!({
             "keys": [jwk]

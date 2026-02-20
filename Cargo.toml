@@ -60,6 +60,18 @@ members = [
     "infra/authenc",
     "infra/secreton",
 
+    # Authenc sub-crates (9 crates total)
+    "infra/authenc/crates/types",
+    "infra/authenc/crates/core",
+    "infra/authenc/crates/crypto",
+    "infra/authenc/crates/storage",
+    "infra/authenc/crates/api",
+    "infra/authenc/crates/iam-api",
+    "infra/authenc/crates/grpc",
+    "infra/authenc/crates/mfa",
+    "infra/authenc/crates/federation",
+    "infra/authenc/crates/webauthn",
+
     # Secreton sub-crates
     "infra/secreton/crates/core",
     "infra/secreton/crates/api",
@@ -162,6 +174,10 @@ x25519-dalek = { version = "2.0.1", features = [
     "static_secrets",
 ] } # Key exchange
 
+# WebAuthn/Passkeys (MANDATORY - PRIMARY authentication method)
+webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
+webauthn-rs-proto = "0.5"
+
 # Note: No external vault dependencies (using internal Secreton system)
 # vaultrs removed - we use our own Secreton implementation
 
@@ -259,6 +275,18 @@ secreton-types = { path = "infra/secreton/crates/types" }
 secreton-grpc = { path = "infra/secreton/crates/grpc" }
 secreton-hsm = { path = "infra/secreton/crates/hsm" }
 secreton-auto-unseal = { path = "infra/secreton/crates/auto-unseal" }
+
+# Authenc Internal Dependencies (for sub-crates)
+authenc-types = { path = "infra/authenc/crates/types" }
+authenc-core = { path = "infra/authenc/crates/core" }
+authenc-crypto = { path = "infra/authenc/crates/crypto" }
+authenc-storage = { path = "infra/authenc/crates/storage" }
+authenc-api = { path = "infra/authenc/crates/api" }
+authenc-iam-api = { path = "infra/authenc/crates/iam-api" }
+authenc-grpc = { path = "infra/authenc/crates/grpc" }
+authenc-mfa = { path = "infra/authenc/crates/mfa" }
+authenc-federation = { path = "infra/authenc/crates/federation" }
+authenc-webauthn = { path = "infra/authenc/crates/webauthn" }
 lazy_static = "1.4"
 futures-util = { version = "0.3", features = ["std"] }
 pin-project = "1.0"
@@ -475,6 +503,8 @@ tonic-build = "0.14"
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 prost = "0.14"
+prost-types = "0.14"
+openidconnect = "3.5"
 data-encoding = "2.6"
 fpe = "0.6.1"
 ssh-key = { version = "0.6", features = ["ed25519", "rsa", "ecdsa", "std"] }

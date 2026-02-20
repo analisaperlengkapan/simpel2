@@ -14,8 +14,8 @@ use crate::models::client_registration::{
     ClientRegistrationError, ClientRegistrationRequest, ClientRegistrationResponse,
     ClientUpdateRequest,
 };
-// Use v2 trait which supports initial_access_token parameter
-use crate::services::client_registration_v2::ClientRegistrationService;
+// Production-ready Dynamic Client Registration service
+use crate::services::client_registration::ClientRegistrationService;
 
 /// Extract realm_id from request headers or context
 /// In production, this should be extracted from JWT token claims or URL path
@@ -64,7 +64,7 @@ async fn register_client(
     (StatusCode, Json<ClientRegistrationError>),
 > {
     // Create client registration service
-    use crate::services::client_registration_v2::ProductionClientRegistrationService;
+    use crate::services::client_registration::ProductionClientRegistrationService;
 
     let realm_id = extract_realm_id(&headers);
     let registration_service = ProductionClientRegistrationService::new(
@@ -150,7 +150,7 @@ async fn get_client_configuration(
     };
 
     // Create client registration service
-    use crate::services::client_registration_v2::ProductionClientRegistrationService;
+    use crate::services::client_registration::ProductionClientRegistrationService;
 
     let realm_id = extract_realm_id(&headers);
     let registration_service = ProductionClientRegistrationService::new(
@@ -209,7 +209,7 @@ async fn update_client_configuration(
     };
 
     // Create client registration service
-    use crate::services::client_registration_v2::ProductionClientRegistrationService;
+    use crate::services::client_registration::ProductionClientRegistrationService;
 
     let realm_id = extract_realm_id(&headers);
     let registration_service = ProductionClientRegistrationService::new(
@@ -271,7 +271,7 @@ async fn delete_client_registration(
     };
 
     // Create client registration service
-    use crate::services::client_registration_v2::ProductionClientRegistrationService;
+    use crate::services::client_registration::ProductionClientRegistrationService;
 
     let realm_id = extract_realm_id(&headers);
     let registration_service = ProductionClientRegistrationService::new(

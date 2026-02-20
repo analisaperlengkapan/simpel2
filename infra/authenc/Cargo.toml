@@ -277,6 +277,10 @@ axum-test = "18.2.1"
 # Common library
 lib-common = { path = "../../lib/common", features = ["validation", "redis-cache", "telemetry", "db", "axum", "crypto", "encryption"] }
 
+# Internal crates
+authenc-types = { path = "crates/types" }
+authenc-crypto = { path = "crates/crypto" }
+
 [dev-dependencies]
 tempfile = "3"
 tokio-test = "0.4"

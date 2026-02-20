@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-// Import Ed25519 functions
-use crate::crypto::ed25519_keys::{ED25519_KEYPAIR, sign_ed25519};
+// Import Ed25519 functions from authenc-crypto
+use authenc_crypto::keys::{ED25519_KEYPAIR, sign_ed25519};
 use ed25519_dalek::{Signature, Verifier};
 
 /// JWT claims structure for token payload
