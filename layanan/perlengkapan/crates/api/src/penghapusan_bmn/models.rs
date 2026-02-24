@@ -301,7 +301,9 @@ impl PenghapusanBmn {
             status: status_str,
             status_kode,
             lampiran_persyaratan: row.try_get("lampiran_persyaratan").ok().flatten(),
-            lampiran_pendukung: row.try_get("lampiran_pendukung").unwrap_or(serde_json::json!([])),
+            lampiran_pendukung: row
+                .try_get("lampiran_pendukung")
+                .unwrap_or(serde_json::json!([])),
             catatan_operator: row.try_get("catatan_operator").ok().flatten(),
             catatan_validator_wilayah: row.try_get("catatan_validator_wilayah").ok().flatten(),
             validator_wilayah_id: row.try_get("validator_wilayah_id").ok().flatten(),

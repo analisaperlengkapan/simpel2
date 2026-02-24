@@ -9,14 +9,14 @@
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{header, HeaderMap, HeaderValue, StatusCode},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::Next,
     response::{IntoResponse, Response},
 };
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
-use std::collections::HashMap;
 
 /// Security headers middleware
 /// Adds essential security headers to all responses
@@ -34,10 +34,7 @@ pub async fn security_headers_middleware(
     );
 
     // X-Frame-Options (prevent clickjacking)
-    headers.insert(
-        header::X_FRAME_OPTIONS,
-        HeaderValue::from_static("DENY"),
-    );
+    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
 
     // X-Content-Type-Options (prevent MIME sniffing)
     headers.insert(
@@ -254,10 +251,15 @@ pub async fn input_validation_middleware(
 }
 
 /// Combine all security middleware
-pub fn security_middleware_stack() -> impl tower::Layer<tower::util::BoxService<Request, Response, axum::Error>> {
+pub fn security_middleware_stack()
+-> impl tower::Layer<tower::util::BoxService<Request, Response, axum::Error>> {
     tower::ServiceBuilder::new()
-        .layer(axum::middleware::from_fn::<_, axum::body::Body>(security_headers_middleware))
-        .layer(axum::middleware::from_fn::<_, axum::body::Body>(input_validation_middleware))
+        .layer(axum::middleware::from_fn::<_, axum::body::Body>(
+            security_headers_middleware,
+        ))
+        .layer(axum::middleware::from_fn::<_, axum::body::Body>(
+            input_validation_middleware,
+        ))
 }
 
 #[cfg(test)]

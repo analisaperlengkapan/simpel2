@@ -31,7 +31,10 @@ mod tests {
         // 9. Verify final state is APPROVED
 
         // For now, this is a placeholder
-        assert!(true, "Penghapusan BMN workflow integration test placeholder");
+        assert!(
+            true,
+            "Penghapusan BMN workflow integration test placeholder"
+        );
     }
 
     /// Test penghapusan BMN rejection workflow

@@ -1,6 +1,5 @@
 // Metrics middleware for HTTP request tracking
 use axum::{
-    body::Body,
     extract::Request,
     http::StatusCode,
     middleware::Next,
@@ -49,11 +48,11 @@ pub async fn metrics_handler() -> impl IntoResponse {
 mod tests {
     use super::*;
     use axum::{
+        Router,
         body::Body,
         http::{Request, StatusCode},
         middleware,
         routing::get,
-        Router,
     };
     use tower::ServiceExt;
 
@@ -67,10 +66,7 @@ mod tests {
             .route("/test", get(test_handler))
             .layer(middleware::from_fn(track_metrics));
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);

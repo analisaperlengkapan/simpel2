@@ -5,13 +5,12 @@
 
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
         State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     response::Response,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -240,7 +239,10 @@ pub fn broadcast_dashboard_update(
 ) {
     match tx.send(update.clone()) {
         Ok(receiver_count) => {
-            debug!("Broadcast update to {} receivers: {:?}", receiver_count, update);
+            debug!(
+                "Broadcast update to {} receivers: {:?}",
+                receiver_count, update
+            );
         }
         Err(e) => {
             // No receivers connected - this is not an error

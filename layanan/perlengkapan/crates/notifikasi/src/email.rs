@@ -3,9 +3,9 @@ use crate::error::AppError;
 use crate::models::{Notification, NotificationRecipient};
 use deadpool_postgres::Pool;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::Mailbox};
-use uuid::Uuid;
 use std::time::Duration;
 use tokio::time::sleep;
+use uuid::Uuid;
 
 /// Email service for sending notifications via SMTP
 ///
@@ -73,20 +73,24 @@ impl EmailService {
         let smtp_username = secreton_client
             .get_secret("smtp/username")
             .await
-            .map_err(|e| AppError::Config(format!("Failed to fetch SMTP username: {}", e).into_boxed_str()))?;
+            .map_err(|e| {
+                AppError::Config(format!("Failed to fetch SMTP username: {}", e).into_boxed_str())
+            })?;
 
         let smtp_password = secreton_client
             .get_secret("smtp/password")
             .await
-            .map_err(|e| AppError::Config(format!("Failed to fetch SMTP password: {}", e).into_boxed_str()))?;
+            .map_err(|e| {
+                AppError::Config(format!("Failed to fetch SMTP password: {}", e).into_boxed_str())
+            })?;
 
-        let creds = lettre::transport::smtp::authentication::Credentials::new(
-            smtp_username,
-            smtp_password,
-        );
+        let creds =
+            lettre::transport::smtp::authentication::Credentials::new(smtp_username, smtp_password);
 
         let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&config.smtp_host)
-            .map_err(|e| AppError::Email(format!("Failed to create SMTP transport: {}", e).into_boxed_str()))?
+            .map_err(|e| {
+                AppError::Email(format!("Failed to create SMTP transport: {}", e).into_boxed_str())
+            })?
             .port(config.smtp_port)
             .credentials(creds)
             .build();
@@ -247,7 +251,11 @@ impl EmailService {
             .await?
             .query_one(sql_template, &[&template_name])
             .await
-            .map_err(|e| AppError::Email(format!("Template '{}' not found: {}", template_name, e).into_boxed_str()))?;
+            .map_err(|e| {
+                AppError::Email(
+                    format!("Template '{}' not found: {}", template_name, e).into_boxed_str(),
+                )
+            })?;
 
         let subject: String = row.get("subject");
         let body_template: String = row.get("body_template");
@@ -262,7 +270,11 @@ impl EmailService {
 
     /// Simple template rendering function
     /// Replaces {{key}} placeholders with values from template_data
-    fn render_template(&self, template: &str, data: &serde_json::Value) -> Result<String, AppError> {
+    fn render_template(
+        &self,
+        template: &str,
+        data: &serde_json::Value,
+    ) -> Result<String, AppError> {
         let mut rendered = template.to_string();
 
         if let Some(obj) = data.as_object() {
@@ -351,7 +363,9 @@ impl EmailService {
     ) -> Result<Vec<NotificationRecipient>, AppError> {
         let mut results = Vec::new();
         for recipient in recipients {
-            let _ = self.send_email_with_template(&recipient, template_name, template_data.clone()).await;
+            let _ = self
+                .send_email_with_template(&recipient, template_name, template_data.clone())
+                .await;
             let sql_recipient_status = r#"SELECT id, notification_id, recipient, recipient_type, status, sent_at, error_message FROM notifikasi.notification_recipients WHERE recipient = $1 ORDER BY sent_at DESC LIMIT 1"#;
             let row = self
                 .pool
@@ -394,7 +408,10 @@ impl EmailService {
     /// # Returns
     /// * `Vec<NotificationRecipient>` - List of recipients with their delivery status
     #[allow(dead_code)]
-    pub async fn get_recipients(&self, notification_id: Uuid) -> Result<Vec<NotificationRecipient>, AppError> {
+    pub async fn get_recipients(
+        &self,
+        notification_id: Uuid,
+    ) -> Result<Vec<NotificationRecipient>, AppError> {
         let sql = r#"SELECT id, notification_id, recipient, recipient_type, status, sent_at, error_message
                      FROM notifikasi.notification_recipients
                      WHERE notification_id = $1
@@ -406,9 +423,7 @@ impl EmailService {
             .query(sql, &[&notification_id])
             .await?;
 
-        let recipients = rows.into_iter()
-            .map(|row| row.into())
-            .collect();
+        let recipients = rows.into_iter().map(|row| row.into()).collect();
 
         Ok(recipients)
     }
@@ -424,22 +439,18 @@ impl EmailService {
     /// # Use Case
     /// This can be used by a background job to retry failed email sends
     #[allow(dead_code)]
-    pub async fn get_failed_notifications(&self, limit: i64) -> Result<Vec<Notification>, AppError> {
+    pub async fn get_failed_notifications(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<Notification>, AppError> {
         let sql = r#"SELECT id, channel, status, subject, body, created_at, sent_at, error_message
                      FROM notifikasi.notifications
                      WHERE status = 'failed' AND channel = 'email'
                      ORDER BY created_at DESC
                      LIMIT $1"#;
-        let rows = self
-            .pool
-            .get()
-            .await?
-            .query(sql, &[&limit])
-            .await?;
+        let rows = self.pool.get().await?.query(sql, &[&limit]).await?;
 
-        let notifications = rows.into_iter()
-            .map(|row| row.into())
-            .collect();
+        let notifications = rows.into_iter().map(|row| row.into()).collect();
 
         Ok(notifications)
     }
@@ -482,18 +493,15 @@ impl EmailService {
             "body": body,
         });
 
-        let mut req = client
-            .post(&format!("{}/send", api_url))
-            .json(&payload);
+        let mut req = client.post(&format!("{}/send", api_url)).json(&payload);
 
         if let Some(key) = api_key {
             req = req.header("x-api-key", key);
         }
 
-        let resp = req
-            .send()
-            .await
-            .map_err(|e| AppError::Email(format!("Failed to send email via API: {}", e).into_boxed_str()))?;
+        let resp = req.send().await.map_err(|e| {
+            AppError::Email(format!("Failed to send email via API: {}", e).into_boxed_str())
+        })?;
 
         if !resp.status().is_success() {
             return Err(AppError::Email(
@@ -542,6 +550,9 @@ mod tests {
         });
 
         let rendered = service.render_template(template, &data).unwrap();
-        assert_eq!(rendered, "Hello John Doe, your document Report.pdf is ready!");
+        assert_eq!(
+            rendered,
+            "Hello John Doe, your document Report.pdf is ready!"
+        );
     }
 }

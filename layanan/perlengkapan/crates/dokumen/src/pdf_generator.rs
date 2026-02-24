@@ -22,7 +22,9 @@ impl PdfGenerator {
         output_path: &str,
     ) -> Result<Vec<u8>, AppError> {
         // 1. Render HTML from template
-        let html = self.template_service.render_template(&template.content, data)?;
+        let html = self
+            .template_service
+            .render_template(&template.content, data)?;
 
         // 2. Apply letterhead if configured
         let html_with_letterhead = if let Some(letterhead_config) = &template.letterhead_config {
@@ -51,9 +53,7 @@ impl PdfGenerator {
             .as_str()
             .unwrap_or("KEJAKSAAN REPUBLIK INDONESIA");
 
-        let footer_text = letterhead_config["footer_text"]
-            .as_str()
-            .unwrap_or("");
+        let footer_text = letterhead_config["footer_text"].as_str().unwrap_or("");
 
         let letterhead_html = format!(
             r#"
@@ -158,20 +158,15 @@ impl PdfGenerator {
         let text_content = self.extract_text_from_html(html);
 
         // Add text to PDF
-        let font = doc.add_builtin_font(BuiltinFont::TimesRoman)
+        let font = doc
+            .add_builtin_font(BuiltinFont::TimesRoman)
             .map_err(|_| AppError::Internal)?;
 
         let mut y_position = Mm(280.0); // Start from top
         let line_height = Mm(5.0);
 
         for line in text_content.lines() {
-            current_layer.use_text(
-                line,
-                12.0,
-                Mm(20.0),
-                y_position,
-                &font,
-            );
+            current_layer.use_text(line, 12.0, Mm(20.0), y_position, &font);
             y_position = y_position - line_height;
 
             // Create new page if needed
@@ -183,15 +178,12 @@ impl PdfGenerator {
         }
 
         // Save to file
-        let file = File::create(output_path)
-            .map_err(|_| AppError::Internal)?;
+        let file = File::create(output_path).map_err(|_| AppError::Internal)?;
         let mut writer = BufWriter::new(file);
-        doc.save(&mut writer)
-            .map_err(|_| AppError::Internal)?;
+        doc.save(&mut writer).map_err(|_| AppError::Internal)?;
 
         // Read file back as bytes
-        let pdf_bytes = std::fs::read(output_path)
-            .map_err(|_| AppError::Internal)?;
+        let pdf_bytes = std::fs::read(output_path).map_err(|_| AppError::Internal)?;
 
         Ok(pdf_bytes)
     }
@@ -249,7 +241,9 @@ mod tests {
         };
 
         let data = serde_json::json!({});
-        let result = generator.generate_pdf(&template, &data, "/tmp/test.pdf").await;
+        let result = generator
+            .generate_pdf(&template, &data, "/tmp/test.pdf")
+            .await;
 
         assert!(result.is_ok());
     }

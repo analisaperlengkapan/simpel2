@@ -63,8 +63,10 @@ impl RoadmapRepository {
             where_clause
         );
 
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = self.db.query(&query, &param_refs).await?;
 
@@ -159,8 +161,10 @@ impl RoadmapRepository {
 
         params.push(Box::new(limit));
 
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = self.db.query(&query, &param_refs).await?;
 
@@ -181,9 +185,10 @@ impl RoadmapRepository {
             )
         "#;
         let client = self.db.get_connection().await?;
-        client.execute(ddl, &[]).await.map_err(|e| {
-            AppError::Database(format!("Failed to ensure snapshot table: {}", e))
-        })?;
+        client
+            .execute(ddl, &[])
+            .await
+            .map_err(|e| AppError::Database(format!("Failed to ensure snapshot table: {}", e)))?;
         Ok(())
     }
 }

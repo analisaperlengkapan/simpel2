@@ -26,24 +26,37 @@ pub enum ValidationError {
 /// Validate that a string field is not empty
 pub fn validate_required(value: &str, field: &str) -> Result<(), ValidationError> {
     if value.trim().is_empty() {
-        return Err(ValidationError::Required { field: field.to_string() });
+        return Err(ValidationError::Required {
+            field: field.to_string(),
+        });
     }
     Ok(())
 }
 
 /// Validate string length
-pub fn validate_length(value: &str, field: &str, min: Option<usize>, max: Option<usize>) -> Result<(), ValidationError> {
+pub fn validate_length(
+    value: &str,
+    field: &str,
+    min: Option<usize>,
+    max: Option<usize>,
+) -> Result<(), ValidationError> {
     let len = value.len();
 
     if let Some(min_len) = min {
         if len < min_len {
-            return Err(ValidationError::MinLength { field: field.to_string(), min: min_len });
+            return Err(ValidationError::MinLength {
+                field: field.to_string(),
+                min: min_len,
+            });
         }
     }
 
     if let Some(max_len) = max {
         if len > max_len {
-            return Err(ValidationError::MaxLength { field: field.to_string(), max: max_len });
+            return Err(ValidationError::MaxLength {
+                field: field.to_string(),
+                max: max_len,
+            });
         }
     }
 
@@ -53,7 +66,9 @@ pub fn validate_length(value: &str, field: &str, min: Option<usize>, max: Option
 /// Validate that a number is positive
 pub fn validate_positive(value: f64, field: &str) -> Result<(), ValidationError> {
     if value <= 0.0 {
-        return Err(ValidationError::MustBePositive { field: field.to_string() });
+        return Err(ValidationError::MustBePositive {
+            field: field.to_string(),
+        });
     }
     Ok(())
 }

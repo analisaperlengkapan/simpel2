@@ -13,9 +13,9 @@ use tracing::{error, info};
 
 mod cache_strategy;
 mod connection_config;
+mod dashboard;
 mod database;
 mod database_optimization;
-mod dashboard;
 mod errors;
 mod grpc_clients;
 mod handlers;
@@ -40,16 +40,16 @@ mod workflow;
 mod tests;
 
 use cache_strategy::CacheManager;
-use database::Database;
 use dashboard::services::DashboardService;
+use database::Database;
 use grpc_clients::{AuthencClient, SecretonClient};
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
 use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
-use rate_limiting::{RateLimiter, RateLimitConfig};
-use roadmap_sarpras::{RoadmapRepository, RoadmapService};
-use services::PerlengkapanService;
 use pemakaian_bmn::PemakaianBmnService;
 use penghapusan_bmn::PenghapusanBmnService;
+use rate_limiting::{RateLimitConfig, RateLimiter};
+use roadmap_sarpras::{RoadmapRepository, RoadmapService};
+use services::PerlengkapanService;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -230,9 +230,13 @@ async fn main() -> anyhow::Result<()> {
 
     // Create Kebutuhan BMN service with workflow engine
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
-    let kebutuhan_bmn_workflow_engine = crate::workflow::engine::WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
-    let kebutuhan_bmn_service =
-        KebutuhanBmnService::new(kebutuhan_bmn_repo, authenc_client.clone(), kebutuhan_bmn_workflow_engine);
+    let kebutuhan_bmn_workflow_engine =
+        crate::workflow::engine::WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
+    let kebutuhan_bmn_service = KebutuhanBmnService::new(
+        kebutuhan_bmn_repo,
+        authenc_client.clone(),
+        kebutuhan_bmn_workflow_engine,
+    );
 
     // Create Dashboard service
     let dashboard_service = DashboardService::new(db.pool().clone());
@@ -243,16 +247,20 @@ async fn main() -> anyhow::Result<()> {
 
     // Create Pemakaian BMN service
     let pemakaian_bmn_repo = pemakaian_bmn::PemakaianBmnRepository::new(db.pool().clone());
-    let pemakaian_bmn_workflow_engine = crate::workflow::engine::WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
-    let pemakaian_bmn_service = PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow_engine);
+    let pemakaian_bmn_workflow_engine =
+        crate::workflow::engine::WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
+    let pemakaian_bmn_service =
+        PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow_engine);
 
     // Start Pemakaian BMN scheduler for auto-expiry and notifications
-    let pemakaian_bmn_scheduler = pemakaian_bmn::PemakaianBmnScheduler::new(pemakaian_bmn_service.clone());
+    let pemakaian_bmn_scheduler =
+        pemakaian_bmn::PemakaianBmnScheduler::new(pemakaian_bmn_service.clone());
     pemakaian_bmn_scheduler.start();
     info!("Pemakaian BMN scheduler started");
 
     // Create Penghapusan BMN service
-    let penghapusan_bmn_workflow_engine = crate::workflow::engine::WorkflowEngine::for_penghapusan_bmn(db.pool().clone());
+    let penghapusan_bmn_workflow_engine =
+        crate::workflow::engine::WorkflowEngine::for_penghapusan_bmn(db.pool().clone());
     let penghapusan_bmn_service = Arc::new(penghapusan_bmn::PenghapusanBmnService::new(
         db.pool().clone(),
         Arc::new(penghapusan_bmn_workflow_engine),
@@ -269,7 +277,8 @@ async fn main() -> anyhow::Result<()> {
     // Create rate limiter
     let rate_limit_config = RateLimitConfig::from_env();
     let rate_limiter = Arc::new(RateLimiter::new(rate_limit_config));
-    info!("Rate limiter initialized ({}  req/s per user, burst: {})",
+    info!(
+        "Rate limiter initialized ({}  req/s per user, burst: {})",
         rate_limiter.get_stats().await.config.requests_per_second,
         rate_limiter.get_stats().await.config.burst_size
     );
@@ -349,7 +358,9 @@ fn build_router(state: AppState) -> Router {
     Router::new()
         .merge(health_routes)
         .nest("/api/pembinaan/perlengkapan", api_routes)
-        .layer(axum::middleware::from_fn(middleware::metrics::track_metrics))
+        .layer(axum::middleware::from_fn(
+            middleware::metrics::track_metrics,
+        ))
         .layer(axum::middleware::from_fn_with_state(
             Arc::clone(&state.rate_limiter),
             rate_limiting::rate_limit_middleware,

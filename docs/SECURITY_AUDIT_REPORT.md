@@ -24,7 +24,7 @@ The codebase demonstrates strong security practices with comprehensive protectio
    - Multi-factor authentication (TOTP, SMS, Email, WebAuthn/FIDO2)
    - Brute force protection with automatic lockout
    - AI-resistant CAPTCHA system
-   - Location: `infra/authenc/`
+   - Location: `layanan/authenc/`
 
 2. **JWT Token Management**
    - Ed25519 signing (quantum-resistant ready)
@@ -235,7 +235,7 @@ The codebase consistently uses parameterized queries throughout. No instances of
    - ChaCha20-Poly1305 encryption
    - Shamir's Secret Sharing for master key
    - HSM integration support
-   - Location: `infra/secreton/`
+   - Location: `layanan/secreton/`
 
 2. **Sensitive Data Redaction**
    - Automatic redaction of passwords, tokens, secrets in logs

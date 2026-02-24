@@ -101,10 +101,6 @@ pub async fn get_asset_by_id(
     )))
 }
 
-
-
-
-
 // Penghapusan handlers
 pub async fn get_all_penghapusan(
     State(service): State<PerlengkapanService>,
@@ -144,10 +140,6 @@ pub async fn create_penghapusan(
         )),
     ))
 }
-
-
-
-
 
 // Pemakaian handlers
 pub async fn get_all_pemakaian(
@@ -234,8 +226,6 @@ pub async fn get_all_analisis(
         "Analisis kebutuhan retrieved successfully".to_string(),
     )))
 }
-
-
 
 pub async fn get_analisis_by_id(
     State(service): State<PerlengkapanService>,

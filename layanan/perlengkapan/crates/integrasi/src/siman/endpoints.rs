@@ -65,12 +65,12 @@ impl CircuitBreaker {
                         Ok(())
                     } else {
                         Err(MonsaktiError::ApiError(
-                            "Circuit breaker is OPEN - too many failures".to_string()
+                            "Circuit breaker is OPEN - too many failures".to_string(),
                         ))
                     }
                 } else {
                     Err(MonsaktiError::ApiError(
-                        "Circuit breaker is OPEN".to_string()
+                        "Circuit breaker is OPEN".to_string(),
                     ))
                 }
             }
@@ -124,7 +124,9 @@ impl CircuitBreaker {
             CircuitState::HalfOpen => {
                 // Failure in half-open state - reopen the circuit
                 *state = CircuitState::Open;
-                warn!("Circuit breaker transitioning back to OPEN state after failure in HALF-OPEN");
+                warn!(
+                    "Circuit breaker transitioning back to OPEN state after failure in HALF-OPEN"
+                );
             }
             CircuitState::Open => {
                 // Already open, just update the timestamp
@@ -182,9 +184,7 @@ where
                 // Add jitter (±25%)
                 let jitter = (delay.as_millis() as f64 * 0.25) as u64;
                 let jitter_range = rand::random::<u64>() % (jitter * 2);
-                delay = Duration::from_millis(
-                    delay.as_millis() as u64 + jitter_range - jitter
-                );
+                delay = Duration::from_millis(delay.as_millis() as u64 + jitter_range - jitter);
             }
         }
     }
@@ -359,7 +359,7 @@ pub async fn fetch_all_aset_paginated(
 
     // Create circuit breaker for this fetch operation
     let circuit_breaker = CircuitBreaker::new(
-        5, // failure threshold
+        5,                       // failure threshold
         Duration::from_secs(60), // timeout duration
     );
 
@@ -397,18 +397,24 @@ pub async fn fetch_all_aset_paginated(
                     total_count
                 );
 
-                get_aset_by_category(&mut client_clone, category_clone, start_id, end_id, Some(&circuit_breaker_clone))
-                    .await
-                    .map_err(|e| {
-                        warn!(
-                            "Error fetching {}-{} for {}: {}",
-                            start_id,
-                            end_id,
-                            category_clone.description(),
-                            e
-                        );
+                get_aset_by_category(
+                    &mut client_clone,
+                    category_clone,
+                    start_id,
+                    end_id,
+                    Some(&circuit_breaker_clone),
+                )
+                .await
+                .map_err(|e| {
+                    warn!(
+                        "Error fetching {}-{} for {}: {}",
+                        start_id,
+                        end_id,
+                        category_clone.description(),
                         e
-                    })
+                    );
+                    e
+                })
             }
         })
         .buffered(10) // Concurrent limit
@@ -445,7 +451,14 @@ pub async fn get_aset_alat_besar(
     start_id: u32,
     end_id: u32,
 ) -> Result<Vec<Value>, MonsaktiError> {
-    get_aset_by_category(client, SimanAssetCategory::AlatBesar, start_id, end_id, None).await
+    get_aset_by_category(
+        client,
+        SimanAssetCategory::AlatBesar,
+        start_id,
+        end_id,
+        None,
+    )
+    .await
 }
 
 /// Mengambil data Aset Angkutan Bermotor
@@ -486,7 +499,14 @@ pub async fn get_aset_tak_berwujud(
     start_id: u32,
     end_id: u32,
 ) -> Result<Vec<Value>, MonsaktiError> {
-    get_aset_by_category(client, SimanAssetCategory::TakBerwujud, start_id, end_id, None).await
+    get_aset_by_category(
+        client,
+        SimanAssetCategory::TakBerwujud,
+        start_id,
+        end_id,
+        None,
+    )
+    .await
 }
 
 /// Mengambil data Aset Bangunan Air
@@ -495,7 +515,14 @@ pub async fn get_aset_bangunan_air(
     start_id: u32,
     end_id: u32,
 ) -> Result<Vec<Value>, MonsaktiError> {
-    get_aset_by_category(client, SimanAssetCategory::BangunanAir, start_id, end_id, None).await
+    get_aset_by_category(
+        client,
+        SimanAssetCategory::BangunanAir,
+        start_id,
+        end_id,
+        None,
+    )
+    .await
 }
 
 /// Mengambil data Aset Gedung dan Bangunan
@@ -504,7 +531,14 @@ pub async fn get_aset_gedung_bangunan(
     start_id: u32,
     end_id: u32,
 ) -> Result<Vec<Value>, MonsaktiError> {
-    get_aset_by_category(client, SimanAssetCategory::GedungBangunan, start_id, end_id, None).await
+    get_aset_by_category(
+        client,
+        SimanAssetCategory::GedungBangunan,
+        start_id,
+        end_id,
+        None,
+    )
+    .await
 }
 
 /// Mengambil data Aset Instalasi dan Jaringan
@@ -572,7 +606,14 @@ pub async fn get_aset_tetap_lainnya(
     start_id: u32,
     end_id: u32,
 ) -> Result<Vec<Value>, MonsaktiError> {
-    get_aset_by_category(client, SimanAssetCategory::TetapLainnya, start_id, end_id, None).await
+    get_aset_by_category(
+        client,
+        SimanAssetCategory::TetapLainnya,
+        start_id,
+        end_id,
+        None,
+    )
+    .await
 }
 
 /// Mengambil data Konstruksi Dalam Pengerjaan (KDP)
@@ -590,7 +631,14 @@ pub async fn get_aset_khusus_tik(
     start_id: u32,
     end_id: u32,
 ) -> Result<Vec<Value>, MonsaktiError> {
-    get_aset_by_category(client, SimanAssetCategory::KhususTIK, start_id, end_id, None).await
+    get_aset_by_category(
+        client,
+        SimanAssetCategory::KhususTIK,
+        start_id,
+        end_id,
+        None,
+    )
+    .await
 }
 
 /// Mengambil data Aset Tetap Renovasi
@@ -599,7 +647,14 @@ pub async fn get_aset_tetap_renovasi(
     start_id: u32,
     end_id: u32,
 ) -> Result<Vec<Value>, MonsaktiError> {
-    get_aset_by_category(client, SimanAssetCategory::TetapRenovasi, start_id, end_id, None).await
+    get_aset_by_category(
+        client,
+        SimanAssetCategory::TetapRenovasi,
+        start_id,
+        end_id,
+        None,
+    )
+    .await
 }
 
 /// Fetch all assets with pagination and save to storage

@@ -439,12 +439,14 @@ impl AuditLogger {
             RETURNING id
         "#;
 
-        let event_data = serde_json::to_value(&entry.event).map_err(|e| {
-            CommonError::Serialization(format!("Failed to serialize event: {}", e))
-        })?;
+        let event_data = serde_json::to_value(&entry.event)
+            .map_err(|e| CommonError::Serialization(format!("Failed to serialize event: {}", e)))?;
 
         let actor_id = entry.event.actor_id();
-        let request_id = entry.context.as_ref().map(|c| c.request_id.as_str().to_string());
+        let request_id = entry
+            .context
+            .as_ref()
+            .map(|c| c.request_id.as_str().to_string());
         let ip_address = entry.context.as_ref().and_then(|c| c.ip_address.clone());
         let user_agent = entry.context.as_ref().and_then(|c| c.user_agent.clone());
 

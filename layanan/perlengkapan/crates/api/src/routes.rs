@@ -7,28 +7,41 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::{AppState, dashboard, handlers::*, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas, pemakaian_bmn, roadmap_sarpras};
+use crate::{
+    AppState, dashboard, handlers::*, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas,
+    pemakaian_bmn, roadmap_sarpras,
+};
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_check))
         // Dashboard
         .route("/dashboard/stats", get(get_dashboard_stats))
-        .route("/dashboard/perlengkapan", get(dashboard::handlers::get_perlengkapan_dashboard_metrics))
-        .route("/dashboard/ws", get(dashboard::websocket::dashboard_websocket_handler))
-        .route("/dashboard/perlengkapan/export/excel", get(dashboard::handlers::export_dashboard_excel))
-        .route("/dashboard/perlengkapan/export/pdf", get(dashboard::handlers::export_dashboard_pdf))
+        .route(
+            "/dashboard/perlengkapan",
+            get(dashboard::handlers::get_perlengkapan_dashboard_metrics),
+        )
+        .route(
+            "/dashboard/ws",
+            get(dashboard::websocket::dashboard_websocket_handler),
+        )
+        .route(
+            "/dashboard/perlengkapan/export/excel",
+            get(dashboard::handlers::export_dashboard_excel),
+        )
+        .route(
+            "/dashboard/perlengkapan/export/pdf",
+            get(dashboard::handlers::export_dashboard_pdf),
+        )
         // Asset (Read-Only)
         .route("/assets", get(get_all_assets))
         .route("/assets/{id}", get(get_asset_by_id))
-
         // Analisis Kebutuhan
         .route("/analisis", get(get_all_analisis).post(create_analisis))
         .route("/analisis/{id}", get(get_analisis_by_id))
         // Pemakaian
         .route("/pemakaian", get(get_all_pemakaian).post(create_pemakaian))
         .route("/pemakaian/{id}", get(get_pemakaian_by_id))
-
         // Penghapusan
         .route(
             "/penghapusan",
@@ -75,7 +88,6 @@ pub fn create_routes(state: AppState) -> Router {
             "/penghapusan-bmn/{id}/document",
             get(crate::penghapusan_bmn::get_penghapusan_document),
         )
-
         // ============ Pakaian Dinas Routes ============
         // Master: Jenis Pakaian Dinas
         .route(
@@ -315,15 +327,9 @@ pub fn create_routes(state: AppState) -> Router {
             "/mapping/progress/satker",
             get(mapping_kodefikasi::get_mapping_progress_by_satker),
         )
-        .route(
-            "/mapping/export",
-            get(mapping_kodefikasi::export_mapping),
-        )
+        .route("/mapping/export", get(mapping_kodefikasi::export_mapping))
         // ============ Predictive Analytics (Forecast) Routes ============
-        .route(
-            "/forecast",
-            get(roadmap_sarpras::get_forecast),
-        )
+        .route("/forecast", get(roadmap_sarpras::get_forecast))
         .route(
             "/forecast/summary",
             get(roadmap_sarpras::get_forecast_summary),
@@ -332,10 +338,7 @@ pub fn create_routes(state: AppState) -> Router {
             "/forecast/compare",
             get(roadmap_sarpras::get_forecast_compare),
         )
-        .route(
-            "/forecast/export",
-            get(roadmap_sarpras::export_forecast),
-        )
+        .route("/forecast/export", get(roadmap_sarpras::export_forecast))
         // ============ Pemakaian BMN Routes ============
         // Permit CRUD
         .route(

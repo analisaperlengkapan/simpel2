@@ -1,6 +1,6 @@
-use serde_json::Value;
 #[allow(unused_imports)]
 use super::common::*;
+use serde_json::Value;
 
 use serde::{Deserialize, Serialize};
 
@@ -390,10 +390,13 @@ pub async fn check_bmn_availability(
     let token = get_auth_token()
         .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
 
-    let resp = Request::get(&format!("{}/bmn/{}/availability", PEMAKAIAN_BMN_BASE, bmn_nup))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
+    let resp = Request::get(&format!(
+        "{}/bmn/{}/availability",
+        PEMAKAIAN_BMN_BASE, bmn_nup
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .send()
+    .await?;
 
     if !resp.ok() {
         return Err(gloo_net::Error::GlooError(format!(
@@ -478,9 +481,7 @@ pub async fn activate_pemakaian_bmn(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn activate_pemakaian_bmn(
-    _id: &str,
-) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
+pub async fn activate_pemakaian_bmn(_id: &str) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
     Err("Server-side stub".to_string())
 }
 
@@ -589,9 +590,7 @@ pub async fn fetch_bmn_usage_history(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_bmn_usage_history(
-    _bmn_nup: &str,
-) -> Result<ApiResponse<BmnUsageStats>, String> {
+pub async fn fetch_bmn_usage_history(_bmn_nup: &str) -> Result<ApiResponse<BmnUsageStats>, String> {
     Err("Server-side stub".to_string())
 }
 
@@ -606,10 +605,13 @@ pub async fn fetch_pegawai_usage_history(
     let token = get_auth_token()
         .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
 
-    let resp = Request::get(&format!("{}/pegawai/{}/history", PEMAKAIAN_BMN_BASE, pegawai_nip))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
+    let resp = Request::get(&format!(
+        "{}/pegawai/{}/history",
+        PEMAKAIAN_BMN_BASE, pegawai_nip
+    ))
+    .header("Authorization", &format!("Bearer {}", token))
+    .send()
+    .await?;
 
     if !resp.ok() {
         return Err(gloo_net::Error::GlooError(format!(
@@ -719,15 +721,12 @@ pub async fn upload_pemakaian_signed_pdf(
     let token = get_auth_token()
         .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
 
-    let resp = Request::post(&format!(
-        "{}/{}/upload-signed-pdf",
-        PEMAKAIAN_BMN_BASE, id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
+    let resp = Request::post(&format!("{}/{}/upload-signed-pdf", PEMAKAIAN_BMN_BASE, id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&request)?
+        .send()
+        .await?;
 
     if !resp.ok() {
         let err_text = resp.text().await.unwrap_or_default();
@@ -748,4 +747,3 @@ pub async fn upload_pemakaian_signed_pdf(
 ) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
     Err("Server-side stub".to_string())
 }
-

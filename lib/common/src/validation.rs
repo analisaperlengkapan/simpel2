@@ -55,8 +55,7 @@ impl ValidationErrors {
     }
 
     pub fn add_field_error(&mut self, field: impl Into<String>, message: impl Into<String>) {
-        self.errors
-            .push(ValidationError::new(field, message));
+        self.errors.push(ValidationError::new(field, message));
     }
 
     pub fn is_empty(&self) -> bool {

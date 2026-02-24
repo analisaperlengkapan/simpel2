@@ -1,14 +1,14 @@
 # Code Analysis and Cleanup Report
 
 ## Overview
-Analysis of cryptographic implementations and code duplication between infra/authenc and infra/secreton projects.
+Analysis of cryptographic implementations and code duplication between layanan/authenc and layanan/secreton projects.
 
 ## Findings
 
 ### 1. Duplicate AES-GCM Implementations
 
 #### Authenc AES-GCM Implementation
-- **Location**: `infra/authenc/src/crypto/aes_gcm.rs`
+- **Location**: `layanan/authenc/src/crypto/aes_gcm.rs`
 - **Features**:
   - Comprehensive AES-256-GCM service with key rotation
   - JSON encryption/decryption
@@ -18,7 +18,7 @@ Analysis of cryptographic implementations and code duplication between infra/aut
   - **Size**: ~500+ lines with extensive features
 
 #### Secreton AES-GCM Implementation
-- **Location**: `infra/secreton/crates/crypto/src/encryption.rs`
+- **Location**: `layanan/secreton/crates/crypto/src/encryption.rs`
 - **Features**:
   - Basic AES-256-GCM cipher implementation
   - Unified crypto engine interface
@@ -30,12 +30,12 @@ Analysis of cryptographic implementations and code duplication between infra/aut
 ### 2. Duplicate Shamir Secret Sharing Implementations
 
 #### Authenc Shamir Implementation
-- **Location**: `infra/authenc/src/crypto/shamir.rs`
+- **Location**: `layanan/authenc/src/crypto/shamir.rs`
 - **Features**: Production-ready with Feldman VSS, 1210+ lines
 - **Security**: Ristretto255 group, constant-time operations, comprehensive validation
 
 #### Secreton Shamir Implementation
-- **Location**: `infra/secreton/crates/crypto/src/shamir.rs`
+- **Location**: `layanan/secreton/crates/crypto/src/shamir.rs`
 - **Features**: Nearly identical implementation, 1214+ lines
 - **Security**: Same Ristretto255 group, constant-time operations
 
@@ -55,12 +55,12 @@ Analysis of cryptographic implementations and code duplication between infra/aut
 ### 4. Error Handling Consolidation
 
 #### Authenc Errors
-- **Location**: `infra/authenc/src/error.rs`
+- **Location**: `layanan/authenc/src/error.rs`
 - **Features**: Comprehensive HTTP-aware error handling with status codes
 - **Size**: ~400 lines
 
 #### Secreton Crypto Errors
-- **Location**: `infra/secreton/crates/crypto/src/error.rs`
+- **Location**: `layanan/secreton/crates/crypto/src/error.rs`
 - **Features**: Detailed crypto-specific errors with severity levels and categories
 - **Size**: ~400+ lines
 
@@ -69,16 +69,16 @@ Analysis of cryptographic implementations and code duplication between infra/aut
 ### 5. Redundant Storage Backends in Secreton
 
 #### Current Storage Implementations
-- Multiple storage backends in `infra/secreton/crates/core/src/storage/`
-- Many unused service implementations in `infra/secreton/crates/core/src/services/`
+- Multiple storage backends in `layanan/secreton/crates/core/src/storage/`
+- Many unused service implementations in `layanan/secreton/crates/core/src/services/`
 
 **Recommendation**: Remove unused storage backends and consolidate service implementations.
 
 ### 6. Duplicate Audit Modules
 
 #### Secreton Audit Implementations
-- `infra/secreton/crates/core/src/audit/` - Multiple backends
-- `infra/secreton/crates/audit_log/` - Separate audit crate
+- `layanan/secreton/crates/core/src/audit/` - Multiple backends
+- `layanan/secreton/crates/audit_log/` - Separate audit crate
 - Various audit services in services directory
 
 **Recommendation**: Consolidate audit implementations into single optimized module.
@@ -106,10 +106,10 @@ Analysis of cryptographic implementations and code duplication between infra/aut
 ## Files to Remove/Consolidate
 
 ### Authenc
-- `infra/authenc/src/vault/file_vault.rs` - REMOVE
-- `infra/authenc/src/vault/hashicorp_vault.rs` - REMOVE
-- `infra/authenc/src/vault/keystore_vault.rs` - REMOVE
-- `infra/authenc/src/vault/kms_vault.rs` - REMOVE
+- `layanan/authenc/src/vault/file_vault.rs` - REMOVE
+- `layanan/authenc/src/vault/hashicorp_vault.rs` - REMOVE
+- `layanan/authenc/src/vault/keystore_vault.rs` - REMOVE
+- `layanan/authenc/src/vault/kms_vault.rs` - REMOVE
 - Unused authentication handlers (TBD after further analysis)
 
 ### Secreton

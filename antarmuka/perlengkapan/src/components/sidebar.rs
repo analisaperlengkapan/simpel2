@@ -3,7 +3,12 @@ use crate::components::sidebar_section::{MenuItem, SidebarSection};
 use leptos::prelude::*;
 
 /// All four perlengkapan roles as string slices for convenience
-const ALL_ROLES: &[&str] = &["operator_satker", "validator_wilayah", "validator_pusat", "admin"];
+const ALL_ROLES: &[&str] = &[
+    "operator_satker",
+    "validator_wilayah",
+    "validator_pusat",
+    "admin",
+];
 
 fn roles(keys: &[&str]) -> Vec<String> {
     keys.iter().map(|s| s.to_string()).collect()

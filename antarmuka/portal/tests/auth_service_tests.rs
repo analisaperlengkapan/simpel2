@@ -34,7 +34,7 @@ mod auth_service_tests {
 
     #[test]
     fn test_user_role_display_names() {
-        assert_eq!(UserRole::Admin.display_name(), "Administrator");
+        assert_eq!(UserRole::Admin.display_name(), "Administrator Global");
         assert_eq!(UserRole::User.display_name(), "Pengguna");
         assert_eq!(UserRole::Supervisor.display_name(), "Supervisor");
         assert_eq!(UserRole::Guest.display_name(), "Tamu");

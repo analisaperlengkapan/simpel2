@@ -2,7 +2,6 @@
 
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tokio_postgres::Row;
 use uuid::Uuid;
 use validator::Validate;
@@ -67,7 +66,6 @@ pub struct CategoryStat {
     pub count: i64,
     pub value: f64,
 }
-
 
 // ============ Analisis Kebutuhan Models (Local) ============
 
@@ -164,7 +162,6 @@ pub struct CreatePemakaianRequest {
     pub keperluan: Option<String>,
 }
 
-
 // ============ Penghapusan Models (Local) ============
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -210,7 +207,6 @@ pub struct CreatePenghapusanRequest {
     pub metode_penghapusan: String,
     pub nilai_residu: Option<f64>,
 }
-
 
 // ============ Response Models ============
 

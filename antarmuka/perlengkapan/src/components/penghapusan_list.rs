@@ -1,4 +1,4 @@
-use crate::api::{PenghapusanBmnWorkflow, fetch_penghapusan_bmn_list, PenghapusanBmnFilters};
+use crate::api::{PenghapusanBmnFilters, PenghapusanBmnWorkflow, fetch_penghapusan_bmn_list};
 use leptos::prelude::*;
 
 /// Returns (bg_class, text_class, label) for a given status_kode

@@ -132,8 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = app.merge(metrics_route);
 
     // gRPC server
-    let grpc_addr = format!("{}:{}", config.server_host, config.grpc_port)
-        .parse::<SocketAddr>()?;
+    let grpc_addr = format!("{}:{}", config.server_host, config.grpc_port).parse::<SocketAddr>()?;
 
     let grpc_service = NotificationServiceImpl::new(pool.clone());
     let grpc_server = grpc_service.into_server();

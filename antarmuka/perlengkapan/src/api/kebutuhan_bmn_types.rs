@@ -1,6 +1,6 @@
-use serde_json::Value;
 #[allow(unused_imports)]
 use super::common::*;
+use serde_json::Value;
 
 use serde::{Deserialize, Serialize};
 
@@ -480,4 +480,3 @@ pub struct KebutuhanBmnQuery {
     pub satker_id: Option<String>,
     pub search: Option<String>,
 }
-

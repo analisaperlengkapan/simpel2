@@ -2,27 +2,32 @@
 
 use crate::components::layout::MainLayout;
 use crate::features::auth::{AuthService, UserSession};
+use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use lib_ui::components::dashboard::{BarChart, MetricCard};
 use lib_ui::core::types::ChartDataPoint;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 // ============================================================================
 // PORTAL DASHBOARD METRICS DATA STRUCTURES
 // ============================================================================
 
 /// Portal dashboard metrics response from backend
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PortalDashboardMetrics {
+    #[serde(default)]
     pub system: SystemDashboardMetrics,
+    #[serde(default)]
     pub cross_domain: CrossDomainMetrics,
+    #[serde(default)]
     pub auth: AuthMetrics,
+    #[serde(default)]
     pub integration_health: IntegrationHealth,
+    #[serde(default)]
     pub collected_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SystemDashboardMetrics {
     pub total_users: i64,
     pub active_sessions: i64,
@@ -30,7 +35,7 @@ pub struct SystemDashboardMetrics {
     pub server_started_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CrossDomainMetrics {
     pub total_documents: i64,
     pub total_notifications: i64,
@@ -39,7 +44,7 @@ pub struct CrossDomainMetrics {
     pub notifications_by_channel: Vec<ChannelCount>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AuthMetrics {
     pub login_attempts_24h: i64,
     pub successful_logins_24h: i64,
@@ -48,7 +53,7 @@ pub struct AuthMetrics {
     pub sessions_by_role: Vec<RoleCount>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct IntegrationHealth {
     pub siman: ServiceStatus,
     pub mysimkari: ServiceStatus,
@@ -56,7 +61,7 @@ pub struct IntegrationHealth {
     pub overall_status: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ServiceStatus {
     pub name: String,
     pub status: String,
@@ -65,39 +70,43 @@ pub struct ServiceStatus {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StatusCount {
     pub status: String,
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ChannelCount {
     pub channel: String,
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RoleCount {
     pub role: String,
     pub count: i64,
 }
 
 /// Fetch portal dashboard metrics from backend
+/// Uses IAM admin stats endpoint for dashboard data
 async fn get_portal_dashboard_metrics() -> Result<PortalDashboardMetrics, String> {
     let token = AuthService::get_token().ok_or("Not authenticated")?;
 
-    let resp = gloo_net::http::Request::get("/api/portal/dashboard/metrics")
+    let resp = gloo_net::http::Request::get("/api/v1/iam/admin/stats")
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
         .map_err(|e| e.to_string())?;
 
     if !resp.ok() {
-        return Err(format!("API Error: {}", resp.status()));
+        // Fallback: return empty metrics if admin endpoint not accessible
+        return Ok(PortalDashboardMetrics::default());
     }
 
-    resp.json::<PortalDashboardMetrics>().await.map_err(|e| e.to_string())
+    resp.json::<PortalDashboardMetrics>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Dashboard page component - main user dashboard with statistics
@@ -109,9 +118,8 @@ pub fn DashboardPage(
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
     // Resource to fetch portal dashboard metrics
-    let portal_metrics = LocalResource::new(move || async move {
-        get_portal_dashboard_metrics().await
-    });
+    let portal_metrics =
+        LocalResource::new(move || async move { get_portal_dashboard_metrics().await });
 
     // Get current time for greeting
     let greeting = {
@@ -511,10 +519,26 @@ fn IntegrationStatusCard(
     service: ServiceStatus,
 ) -> impl IntoView {
     let (status_color, status_icon, status_text) = match service.status.as_str() {
-        "healthy" => ("bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800", "✅", "Sehat"),
-        "degraded" => ("bg-yellow-100 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800", "⚠️", "Terdegradasi"),
-        "down" => ("bg-red-100 dark:bg-red-900/20 border-red-200 dark:border-red-800", "❌", "Mati"),
-        _ => ("bg-gray-100 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800", "❓", "Tidak Diketahui"),
+        "healthy" => (
+            "bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800",
+            "✅",
+            "Sehat",
+        ),
+        "degraded" => (
+            "bg-yellow-100 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800",
+            "⚠️",
+            "Terdegradasi",
+        ),
+        "down" => (
+            "bg-red-100 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+            "❌",
+            "Mati",
+        ),
+        _ => (
+            "bg-gray-100 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800",
+            "❓",
+            "Tidak Diketahui",
+        ),
     };
 
     view! {

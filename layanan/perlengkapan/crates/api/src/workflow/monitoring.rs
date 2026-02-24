@@ -4,7 +4,7 @@
 // Requirements: REQ-W008
 // ============================================================================
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

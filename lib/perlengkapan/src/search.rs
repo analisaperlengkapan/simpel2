@@ -341,12 +341,7 @@ impl SearchEngine {
         // Add relevance score calculation
         let relevance_parts: Vec<String> = search_fields
             .iter()
-            .map(|field| {
-                format!(
-                    "similarity({}, $1)",
-                    field
-                )
-            })
+            .map(|field| format!("similarity({}, $1)", field))
             .collect();
 
         sql.push_str(&format!(
@@ -514,7 +509,10 @@ mod tests {
     #[test]
     fn test_sort_field_parsing() {
         assert_eq!(SortField::from_str("relevance"), Some(SortField::Relevance));
-        assert_eq!(SortField::from_str("created_at"), Some(SortField::CreatedAt));
+        assert_eq!(
+            SortField::from_str("created_at"),
+            Some(SortField::CreatedAt)
+        );
         assert_eq!(SortField::from_str("priority"), Some(SortField::Priority));
         assert_eq!(SortField::from_str("invalid"), None);
     }
@@ -567,7 +565,6 @@ mod tests {
         assert!(score < 0.5);
     }
 }
-
 
 // ============================================================================
 // BACKEND IMPLEMENTATION (with database operations)
@@ -679,8 +676,10 @@ impl SearchEngineDb {
         ));
 
         // Execute query
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client.query(&sql, &param_refs).await?;
 
@@ -769,8 +768,10 @@ impl SearchEngineDb {
         ));
 
         // Execute query
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client.query(&sql, &param_refs).await?;
 

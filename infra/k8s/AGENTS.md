@@ -327,8 +327,8 @@ kubectl apply -k overlays/production
 ## 🔗 Related Documentation
 
 - [Main AGENTS.md](/home/anbud02/simpel2/AGENTS.md) - Project overview
-- [Authenc AGENTS.md](/home/anbud02/simpel2/infra/authenc/AGENTS.md) - Identity Provider
-- [Secreton AGENTS.md](/home/anbud02/simpel2/infra/secreton/AGENTS.md) - Secrets Vault
+- [Authenc AGENTS.md](/home/anbud02/simpel2/layanan/authenc/AGENTS.md) - Identity Provider
+- [Secreton AGENTS.md](/home/anbud02/simpel2/layanan/secreton/AGENTS.md) - Secrets Vault
 - [README.md](./README.md) - User documentation
 
 ## 📞 Troubleshooting
@@ -538,8 +538,8 @@ kubectl get networkpolicies -n <namespace>
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | **Root Project** | [`/AGENTS.md`](../../AGENTS.md) | Main codebase conventions, Rust patterns |
-| **Authenc** | [`/infra/authenc/AGENTS.md`](../authenc/AGENTS.md) | Identity Provider service |
-| **Secreton** | [`/infra/secreton/AGENTS.md`](../secreton/AGENTS.md) | Secrets Management service |
+| **Authenc** | [`/layanan/authenc/AGENTS.md`](../authenc/AGENTS.md) | Identity Provider service |
+| **Secreton** | [`/layanan/secreton/AGENTS.md`](../secreton/AGENTS.md) | Secrets Management service |
 | **Layanan Integrasi** | [`/layanan/daskrimti/integrasi/AGENTS.md`](../../layanan/daskrimti/integrasi/AGENTS.md) | Government API integration |
 
 ---

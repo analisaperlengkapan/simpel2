@@ -5,7 +5,6 @@ use crate::dashboard::repository;
 use crate::errors::AppError;
 use deadpool_postgres::Pool;
 use rust_xlsxwriter::*;
-use serde_json::json;
 
 /// Service to aggregate all dashboard metrics
 #[derive(Clone)]
@@ -118,13 +117,9 @@ impl DashboardService {
         tahun_anggaran: i32,
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet
-            .set_name("Summary")
-            ?;
+        worksheet.set_name("Summary")?;
 
-        let title_format = Format::new()
-            .set_bold()
-            .set_font_size(16.0);
+        let title_format = Format::new().set_bold().set_font_size(16.0);
 
         let header_format = Format::new()
             .set_bold()
@@ -132,63 +127,52 @@ impl DashboardService {
             .set_font_color(Color::White);
 
         // Title
-        worksheet
-            .write_string_with_format(0, 0, "DASHBOARD PERLENGKAPAN", &title_format)
-            ?;
+        worksheet.write_string_with_format(0, 0, "DASHBOARD PERLENGKAPAN", &title_format)?;
 
-        worksheet
-            .write_string(1, 0, &format!("Tahun Anggaran: {}", tahun_anggaran))
-            ?;
+        worksheet.write_string(1, 0, &format!("Tahun Anggaran: {}", tahun_anggaran))?;
 
-        worksheet
-            .write_string(2, 0, &format!("Generated: {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")))
-            ?;
+        worksheet.write_string(
+            2,
+            0,
+            &format!(
+                "Generated: {}",
+                chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
+            ),
+        )?;
 
         // Summary metrics
         let mut row = 4;
 
-        worksheet
-            .write_string_with_format(row, 0, "Metric", &header_format)
-            ?;
-        worksheet
-            .write_string_with_format(row, 1, "Value", &header_format)
-            ?;
+        worksheet.write_string_with_format(row, 0, "Metric", &header_format)?;
+        worksheet.write_string_with_format(row, 1, "Value", &header_format)?;
 
         row += 1;
 
         // Kebutuhan metrics
         let total_kebutuhan: i64 = metrics.kebutuhan_metrics.total_by_status.values().sum();
-        worksheet
-            .write_string(row, 0, "Total Kebutuhan")
-            ?;
-        worksheet
-            .write_number(row, 1, total_kebutuhan as f64)
-            ?;
+        worksheet.write_string(row, 0, "Total Kebutuhan")?;
+        worksheet.write_number(row, 1, total_kebutuhan as f64)?;
         row += 1;
 
-        worksheet
-            .write_string(row, 0, "Kebutuhan Approved")
-            ?;
-        worksheet
-            .write_number(row, 1, *metrics.kebutuhan_metrics.total_by_status.get("APPROVED").unwrap_or(&0) as f64)
-            ?;
+        worksheet.write_string(row, 0, "Kebutuhan Approved")?;
+        worksheet.write_number(
+            row,
+            1,
+            *metrics
+                .kebutuhan_metrics
+                .total_by_status
+                .get("APPROVED")
+                .unwrap_or(&0) as f64,
+        )?;
         row += 1;
 
-        worksheet
-            .write_string(row, 0, "Total Gap Analysis Items")
-            ?;
-        worksheet
-            .write_number(row, 1, metrics.gap_analysis.len() as f64)
-            ?;
+        worksheet.write_string(row, 0, "Total Gap Analysis Items")?;
+        worksheet.write_number(row, 1, metrics.gap_analysis.len() as f64)?;
         row += 1;
 
         let total_pakaian: i64 = metrics.pakaian_dinas_metrics.total_by_jenis.values().sum();
-        worksheet
-            .write_string(row, 0, "Total Pakaian Dinas")
-            ?;
-        worksheet
-            .write_number(row, 1, total_pakaian as f64)
-            ?;
+        worksheet.write_string(row, 0, "Total Pakaian Dinas")?;
+        worksheet.write_number(row, 1, total_pakaian as f64)?;
 
         worksheet.autofit();
 
@@ -201,9 +185,7 @@ impl DashboardService {
         metrics: &KebutuhanMetrics,
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet
-            .set_name("Kebutuhan")
-            ?;
+        worksheet.set_name("Kebutuhan")?;
 
         let header_format = Format::new()
             .set_bold()
@@ -211,22 +193,14 @@ impl DashboardService {
             .set_font_color(Color::White);
 
         // Headers
-        worksheet
-            .write_string_with_format(0, 0, "Status", &header_format)
-            ?;
-        worksheet
-            .write_string_with_format(0, 1, "Count", &header_format)
-            ?;
+        worksheet.write_string_with_format(0, 0, "Status", &header_format)?;
+        worksheet.write_string_with_format(0, 1, "Count", &header_format)?;
 
         // Data
         let mut row = 1;
         for (status, count) in &metrics.total_by_status {
-            worksheet
-                .write_string(row, 0, status)
-                ?;
-            worksheet
-                .write_number(row, 1, *count as f64)
-                ?;
+            worksheet.write_string(row, 0, status)?;
+            worksheet.write_number(row, 1, *count as f64)?;
             row += 1;
         }
 
@@ -241,9 +215,7 @@ impl DashboardService {
         gap_items: &[GapAnalysisResult],
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet
-            .set_name("Gap Analysis")
-            ?;
+        worksheet.set_name("Gap Analysis")?;
 
         let header_format = Format::new()
             .set_bold()
@@ -260,30 +232,18 @@ impl DashboardService {
         ];
 
         for (col, header) in headers.iter().enumerate() {
-            worksheet
-                .write_string_with_format(0, col as u16, *header, &header_format)
-                ?;
+            worksheet.write_string_with_format(0, col as u16, *header, &header_format)?;
         }
 
         // Data
         for (row_idx, item) in gap_items.iter().enumerate() {
             let row = (row_idx + 1) as u32;
 
-            worksheet
-                .write_string(row, 0, &item.kode_barang)
-                ?;
-            worksheet
-                .write_string(row, 1, &item.nama_barang)
-                ?;
-            worksheet
-                .write_number(row, 2, item.standard_quantity as f64)
-                ?;
-            worksheet
-                .write_number(row, 3, item.existing_good_quantity as f64)
-                ?;
-            worksheet
-                .write_number(row, 4, item.gap as f64)
-                ?;
+            worksheet.write_string(row, 0, &item.kode_barang)?;
+            worksheet.write_string(row, 1, &item.nama_barang)?;
+            worksheet.write_number(row, 2, item.standard_quantity as f64)?;
+            worksheet.write_number(row, 3, item.existing_good_quantity as f64)?;
+            worksheet.write_number(row, 4, item.gap as f64)?;
         }
 
         worksheet.autofit();
@@ -297,9 +257,7 @@ impl DashboardService {
         metrics: &PakaianDinasMetrics,
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet
-            .set_name("Pakaian Dinas")
-            ?;
+        worksheet.set_name("Pakaian Dinas")?;
 
         let header_format = Format::new()
             .set_bold()
@@ -307,22 +265,14 @@ impl DashboardService {
             .set_font_color(Color::White);
 
         // Headers
-        worksheet
-            .write_string_with_format(0, 0, "Jenis", &header_format)
-            ?;
-        worksheet
-            .write_string_with_format(0, 1, "Count", &header_format)
-            ?;
+        worksheet.write_string_with_format(0, 0, "Jenis", &header_format)?;
+        worksheet.write_string_with_format(0, 1, "Count", &header_format)?;
 
         // Data
         let mut row = 1;
         for (jenis, count) in &metrics.total_by_jenis {
-            worksheet
-                .write_string(row, 0, jenis)
-                ?;
-            worksheet
-                .write_number(row, 1, *count as f64)
-                ?;
+            worksheet.write_string(row, 0, jenis)?;
+            worksheet.write_number(row, 1, *count as f64)?;
             row += 1;
         }
 
@@ -337,9 +287,7 @@ impl DashboardService {
         metrics: &WorkflowMetrics,
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet
-            .set_name("Workflow")
-            ?;
+        worksheet.set_name("Workflow")?;
 
         let header_format = Format::new()
             .set_bold()
@@ -349,28 +297,16 @@ impl DashboardService {
         // Metrics
         let mut row = 0;
 
-        worksheet
-            .write_string_with_format(row, 0, "Metric", &header_format)
-            ?;
-        worksheet
-            .write_string_with_format(row, 1, "Value", &header_format)
-            ?;
+        worksheet.write_string_with_format(row, 0, "Metric", &header_format)?;
+        worksheet.write_string_with_format(row, 1, "Value", &header_format)?;
         row += 1;
 
-        worksheet
-            .write_string(row, 0, "Avg Processing Time (hours)")
-            ?;
-        worksheet
-            .write_number(row, 1, metrics.average_processing_time_hours)
-            ?;
+        worksheet.write_string(row, 0, "Avg Processing Time (hours)")?;
+        worksheet.write_number(row, 1, metrics.average_processing_time_hours)?;
         row += 1;
 
-        worksheet
-            .write_string(row, 0, "SLA Breaches Today")
-            ?;
-        worksheet
-            .write_number(row, 1, metrics.sla_breaches_today as f64)
-            ?;
+        worksheet.write_string(row, 0, "SLA Breaches Today")?;
+        worksheet.write_number(row, 1, metrics.sla_breaches_today as f64)?;
 
         worksheet.autofit();
 

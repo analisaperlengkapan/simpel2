@@ -1,9 +1,12 @@
 //! Login page component
 //!
-//! Authentication page for user login with CAPTCHA integration
+//! Authentication page with WebAuthn/Passkey as PRIMARY login method (MANDATORY),
+//! plus traditional username+password with CAPTCHA as fallback.
 
 use crate::components::layout::AuthLayout;
 use crate::features::auth::{AuthService, LoginCredentials, LoginResult, UserSession};
+use crate::utils::app_state::use_api_client;
+use crate::utils::webauthn;
 use leptos::prelude::*;
 use lib_ui::components::captcha::Captcha;
 use wasm_bindgen_futures::spawn_local;
@@ -23,7 +26,87 @@ pub fn LoginPage(
     let (_show_captcha, _set_show_captcha) = signal(true); // Always show CAPTCHA from start
     let (failed_attempts, set_failed_attempts) = signal(0u32);
 
+    // WebAuthn / Passkey state
+    let (passkey_loading, set_passkey_loading) = signal(false);
+    let (show_password_form, set_show_password_form) = signal(false);
+    let webauthn_supported = webauthn::is_webauthn_supported();
+
     let navigate = leptos_router::hooks::use_navigate();
+    let api = use_api_client();
+
+    // ── Passkey authentication trigger ────────────────────────────────────
+    let (passkey_trigger, set_passkey_trigger) = signal(0u32);
+
+    {
+        let api = api.clone();
+        let nav = navigate.clone();
+        Effect::new(move || {
+            let count = passkey_trigger.get();
+            if count == 0 {
+                return;
+            }
+            let api = api.clone();
+            let nav = nav.clone();
+            set_passkey_loading.set(true);
+            set_error_message.set(String::new());
+
+            spawn_local(async move {
+                match api.webauthn_authenticate_start().await {
+                    Ok(start_resp) => {
+                        match webauthn::get_credential(&start_resp.challenge).await {
+                            Ok(assertion) => {
+                                match api
+                                    .webauthn_authenticate_finish(
+                                        &start_resp.session_id,
+                                        &assertion,
+                                    )
+                                    .await
+                                {
+                                    Ok(token_resp) => {
+                                        // Store tokens
+                                        AuthService::save_token(&token_resp.access_token);
+                                        if let Some(refresh) = &token_resp.refresh_token {
+                                            AuthService::save_refresh_token(refresh);
+                                        }
+
+                                        // Decode JWT and create session
+                                        match AuthService::decode_jwt_claims(
+                                            &token_resp.access_token,
+                                        ) {
+                                            Ok(session) => {
+                                                AuthService::save_session(&session);
+                                                on_login_success.set(Some(session));
+                                                set_passkey_loading.set(false);
+                                                nav("/dashboard", Default::default());
+                                            }
+                                            Err(e) => {
+                                                set_error_message
+                                                    .set(format!("Token tidak valid: {}", e));
+                                                set_passkey_loading.set(false);
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        set_error_message
+                                            .set(format!("Autentikasi passkey gagal: {}", e));
+                                        set_passkey_loading.set(false);
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                set_error_message.set(format!("Verifikasi dibatalkan: {}", e));
+                                set_passkey_loading.set(false);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        set_error_message.set(format!("Gagal memulai autentikasi: {}", e));
+                        set_passkey_loading.set(false);
+                    }
+                }
+            });
+        });
+    }
 
     // Handle CAPTCHA completion
     let handle_captcha_success = move |token: String| {
@@ -41,7 +124,8 @@ pub fn LoginPage(
 
         // CAPTCHA is always required
         if captcha_token.get().is_none() {
-            set_error_message.set("Silakan selesaikan verifikasi keamanan terlebih dahulu.".to_string());
+            set_error_message
+                .set("Silakan selesaikan verifikasi keamanan terlebih dahulu.".to_string());
             return;
         }
 
@@ -147,6 +231,65 @@ pub fn LoginPage(
                         "Masuk ke Sistem"
                     </h2>
 
+                    // ═══ PRIMARY: Passkey / WebAuthn ═══
+                    <Show when=move || webauthn_supported>
+                        <div class="mb-6">
+                            <button
+                                type="button"
+                                on:click=move |_| set_passkey_trigger.set(passkey_trigger.get() + 1)
+                                class="w-full flex items-center justify-center gap-3 py-3 px-6 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled=move || passkey_loading.get() || is_loading.get()
+                            >
+                                <Show
+                                    when=move || passkey_loading.get()
+                                    fallback=|| view! {
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                        </svg>
+                                        "Masuk dengan Passkey"
+                                    }
+                                >
+                                    <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    "Memverifikasi Passkey..."
+                                </Show>
+                            </button>
+                            <p class="text-xs text-center text-gray-400 dark:text-gray-500 mt-2">
+                                "Gunakan sidik jari, wajah, atau kunci keamanan"
+                            </p>
+                        </div>
+
+                        // Divider
+                        <div class="relative my-5">
+                            <div class="absolute inset-0 flex items-center">
+                                <div class="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                            </div>
+                            <div class="relative flex justify-center text-xs">
+                                <button
+                                    type="button"
+                                    on:click=move |_| set_show_password_form.set(!show_password_form.get())
+                                    class="bg-white dark:bg-gray-800 px-3 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                                >
+                                    {move || if show_password_form.get() {
+                                        "Sembunyikan login password"
+                                    } else {
+                                        "Atau masuk dengan password"
+                                    }}
+                                </button>
+                            </div>
+                        </div>
+                    </Show>
+
+                    // ═══ SECONDARY: Username + Password + CAPTCHA ═══
+                    <div class=move || {
+                        if !webauthn_supported || show_password_form.get() {
+                            "space-y-4"
+                        } else {
+                            "hidden"
+                        }
+                    }>
                     <form on:submit=handle_submit class="space-y-4">
                         // Username
                         <div>
@@ -196,16 +339,6 @@ pub fn LoginPage(
                             />
                         </div>
 
-                        // Error
-                        {move || (!error_message.get().is_empty()).then(|| view! {
-                            <div class="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
-                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                </svg>
-                                <span>{error_message.get()}</span>
-                            </div>
-                        })}
-
                         // Submit Button
                         <button
                             type="submit"
@@ -246,6 +379,17 @@ pub fn LoginPage(
                             </a>
                         </div>
                     </form>
+                    </div> // end password form wrapper
+
+                    // ═══ Error messages (shared between passkey and password) ═══
+                    {move || (!error_message.get().is_empty()).then(|| view! {
+                        <div class="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+                            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>{error_message.get()}</span>
+                        </div>
+                    })}
                 </div>
             </div>
         </AuthLayout>

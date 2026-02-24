@@ -70,7 +70,9 @@ pub struct AuthencClient {
 impl AuthencClient {
     pub async fn connect(addr: String) -> Result<Self> {
         let client = AuthencServiceClient::connect(addr).await?;
-        Ok(Self { client: Some(client) })
+        Ok(Self {
+            client: Some(client),
+        })
     }
 
     /// Create a dummy/mock client for development without Authenc
@@ -281,8 +283,3 @@ impl IntegrasiClient {
 }
 
 // Re-export commonly used types from integrasi proto
-pub use integrasi::v1::{
-    DataSource as IntegrasiDataSource, MonsaktiAsetTetap, MonsaktiPersediaan, MonsaktiReference,
-    MysimkariPegawai, MysimkariSatker, SimanAsset,
-    SimanAssetCategory as IntegrasiSimanAssetCategory, SyncState as IntegrasiSyncState,
-};

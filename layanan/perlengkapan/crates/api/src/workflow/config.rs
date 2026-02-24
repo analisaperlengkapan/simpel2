@@ -4,8 +4,8 @@
 // Requirements: REQ-W001, REQ-W002
 // ============================================================================
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Workflow configuration defining state transitions and SLA requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,57 +47,61 @@ impl WorkflowConfig {
         let mut transitions = HashMap::new();
 
         // DRAFT can transition to INPUT_BARANG or CANCELLED
-        transitions.insert("DRAFT".to_string(), vec![
-            "INPUT_BARANG".to_string(),
-            "CANCELLED".to_string(),
-        ]);
+        transitions.insert(
+            "DRAFT".to_string(),
+            vec!["INPUT_BARANG".to_string(), "CANCELLED".to_string()],
+        );
 
         // INPUT_BARANG can transition to SUBMIT_SATKER or back to DRAFT
-        transitions.insert("INPUT_BARANG".to_string(), vec![
-            "SUBMIT_SATKER".to_string(),
-            "DRAFT".to_string(),
-        ]);
+        transitions.insert(
+            "INPUT_BARANG".to_string(),
+            vec!["SUBMIT_SATKER".to_string(), "DRAFT".to_string()],
+        );
 
         // SUBMIT_SATKER can transition to ANALISIS_KELAYAKAN or REVISI_SATKER
-        transitions.insert("SUBMIT_SATKER".to_string(), vec![
-            "ANALISIS_KELAYAKAN".to_string(),
-            "REVISI_SATKER".to_string(),
-            "REJECTED".to_string(),
-        ]);
+        transitions.insert(
+            "SUBMIT_SATKER".to_string(),
+            vec![
+                "ANALISIS_KELAYAKAN".to_string(),
+                "REVISI_SATKER".to_string(),
+                "REJECTED".to_string(),
+            ],
+        );
 
         // REVISI_SATKER can transition back to INPUT_BARANG
-        transitions.insert("REVISI_SATKER".to_string(), vec![
-            "INPUT_BARANG".to_string(),
-        ]);
+        transitions.insert(
+            "REVISI_SATKER".to_string(),
+            vec!["INPUT_BARANG".to_string()],
+        );
 
         // ANALISIS_KELAYAKAN can transition to PENYUSUNAN_PRIORITAS, REVISI_SATKER, REVISI_WILAYAH, or REJECTED
-        transitions.insert("ANALISIS_KELAYAKAN".to_string(), vec![
-            "PENYUSUNAN_PRIORITAS".to_string(),
-            "REVISI_SATKER".to_string(),
-            "REVISI_WILAYAH".to_string(),
-            "REJECTED".to_string(),
-        ]);
+        transitions.insert(
+            "ANALISIS_KELAYAKAN".to_string(),
+            vec![
+                "PENYUSUNAN_PRIORITAS".to_string(),
+                "REVISI_SATKER".to_string(),
+                "REVISI_WILAYAH".to_string(),
+                "REJECTED".to_string(),
+            ],
+        );
 
         // REVISI_WILAYAH returns to SUBMIT_PUSAT (Validator Wilayah re-submits after fixing)
-        transitions.insert("REVISI_WILAYAH".to_string(), vec![
-            "SUBMIT_PUSAT".to_string(),
-        ]);
+        transitions.insert(
+            "REVISI_WILAYAH".to_string(),
+            vec!["SUBMIT_PUSAT".to_string()],
+        );
 
         // PENYUSUNAN_PRIORITAS can transition to APPROVED or REJECTED
-        transitions.insert("PENYUSUNAN_PRIORITAS".to_string(), vec![
-            "APPROVED".to_string(),
-            "REJECTED".to_string(),
-        ]);
+        transitions.insert(
+            "PENYUSUNAN_PRIORITAS".to_string(),
+            vec!["APPROVED".to_string(), "REJECTED".to_string()],
+        );
 
         // APPROVED can transition to COMPLETED
-        transitions.insert("APPROVED".to_string(), vec![
-            "COMPLETED".to_string(),
-        ]);
+        transitions.insert("APPROVED".to_string(), vec!["COMPLETED".to_string()]);
 
         // COMPLETED can transition to CANCELLED (for rollback scenarios)
-        transitions.insert("COMPLETED".to_string(), vec![
-            "CANCELLED".to_string(),
-        ]);
+        transitions.insert("COMPLETED".to_string(), vec!["CANCELLED".to_string()]);
 
         // REJECTED is terminal (no transitions)
         transitions.insert("REJECTED".to_string(), vec![]);
@@ -107,18 +111,24 @@ impl WorkflowConfig {
 
         // SLA configuration (in minutes)
         let mut sla_minutes = HashMap::new();
-        sla_minutes.insert("SUBMIT_SATKER".to_string(), 2880);           // 2 days (48 hours)
-        sla_minutes.insert("ANALISIS_KELAYAKAN".to_string(), 4320);      // 3 days (72 hours)
-        sla_minutes.insert("PENYUSUNAN_PRIORITAS".to_string(), 1440);    // 1 day (24 hours)
-        sla_minutes.insert("APPROVED".to_string(), 4320);                 // 3 days (72 hours)
+        sla_minutes.insert("SUBMIT_SATKER".to_string(), 2880); // 2 days (48 hours)
+        sla_minutes.insert("ANALISIS_KELAYAKAN".to_string(), 4320); // 3 days (72 hours)
+        sla_minutes.insert("PENYUSUNAN_PRIORITAS".to_string(), 1440); // 1 day (24 hours)
+        sla_minutes.insert("APPROVED".to_string(), 4320); // 3 days (72 hours)
 
         // Required roles for state transitions
         let mut required_roles = HashMap::new();
         required_roles.insert("DRAFT".to_string(), "operator_satker".to_string());
         required_roles.insert("INPUT_BARANG".to_string(), "operator_satker".to_string());
         required_roles.insert("SUBMIT_SATKER".to_string(), "operator_satker".to_string());
-        required_roles.insert("ANALISIS_KELAYAKAN".to_string(), "validator_pusat".to_string());
-        required_roles.insert("PENYUSUNAN_PRIORITAS".to_string(), "validator_pusat".to_string());
+        required_roles.insert(
+            "ANALISIS_KELAYAKAN".to_string(),
+            "validator_pusat".to_string(),
+        );
+        required_roles.insert(
+            "PENYUSUNAN_PRIORITAS".to_string(),
+            "validator_pusat".to_string(),
+        );
         required_roles.insert("APPROVED".to_string(), "admin_pusat".to_string());
         required_roles.insert("REJECTED".to_string(), "admin_pusat".to_string());
         required_roles.insert("REVISI_SATKER".to_string(), "validator_pusat".to_string());
@@ -149,27 +159,25 @@ impl WorkflowConfig {
         let mut transitions = HashMap::new();
 
         // DRAFT can transition to SUBMITTED or CANCELLED
-        transitions.insert("DRAFT".to_string(), vec![
-            "SUBMITTED".to_string(),
-            "CANCELLED".to_string(),
-        ]);
+        transitions.insert(
+            "DRAFT".to_string(),
+            vec!["SUBMITTED".to_string(), "CANCELLED".to_string()],
+        );
 
         // SUBMITTED can transition to APPROVED or REJECTED
-        transitions.insert("SUBMITTED".to_string(), vec![
-            "APPROVED".to_string(),
-            "REJECTED".to_string(),
-        ]);
+        transitions.insert(
+            "SUBMITTED".to_string(),
+            vec!["APPROVED".to_string(), "REJECTED".to_string()],
+        );
 
         // APPROVED can transition to ACTIVE
-        transitions.insert("APPROVED".to_string(), vec![
-            "ACTIVE".to_string(),
-        ]);
+        transitions.insert("APPROVED".to_string(), vec!["ACTIVE".to_string()]);
 
         // ACTIVE can transition to EXPIRED or REVOKED
-        transitions.insert("ACTIVE".to_string(), vec![
-            "EXPIRED".to_string(),
-            "REVOKED".to_string(),
-        ]);
+        transitions.insert(
+            "ACTIVE".to_string(),
+            vec!["EXPIRED".to_string(), "REVOKED".to_string()],
+        );
 
         // Terminal states
         transitions.insert("REJECTED".to_string(), vec![]);
@@ -179,8 +187,8 @@ impl WorkflowConfig {
 
         // SLA configuration (in minutes)
         let mut sla_minutes = HashMap::new();
-        sla_minutes.insert("SUBMITTED".to_string(), 1440);  // 1 day
-        sla_minutes.insert("APPROVED".to_string(), 480);    // 8 hours
+        sla_minutes.insert("SUBMITTED".to_string(), 1440); // 1 day
+        sla_minutes.insert("APPROVED".to_string(), 480); // 8 hours
 
         // Required roles
         let mut required_roles = HashMap::new();
@@ -212,22 +220,22 @@ impl WorkflowConfig {
         let mut transitions = HashMap::new();
 
         // DRAFT can transition to SUBMITTED or CANCELLED
-        transitions.insert("DRAFT".to_string(), vec![
-            "SUBMITTED".to_string(),
-            "CANCELLED".to_string(),
-        ]);
+        transitions.insert(
+            "DRAFT".to_string(),
+            vec!["SUBMITTED".to_string(), "CANCELLED".to_string()],
+        );
 
         // SUBMITTED can transition to REVIEWED or REJECTED
-        transitions.insert("SUBMITTED".to_string(), vec![
-            "REVIEWED".to_string(),
-            "REJECTED".to_string(),
-        ]);
+        transitions.insert(
+            "SUBMITTED".to_string(),
+            vec!["REVIEWED".to_string(), "REJECTED".to_string()],
+        );
 
         // REVIEWED can transition to APPROVED or REJECTED
-        transitions.insert("REVIEWED".to_string(), vec![
-            "APPROVED".to_string(),
-            "REJECTED".to_string(),
-        ]);
+        transitions.insert(
+            "REVIEWED".to_string(),
+            vec!["APPROVED".to_string(), "REJECTED".to_string()],
+        );
 
         // Terminal states
         transitions.insert("APPROVED".to_string(), vec![]);
@@ -236,8 +244,8 @@ impl WorkflowConfig {
 
         // SLA configuration (in minutes)
         let mut sla_minutes = HashMap::new();
-        sla_minutes.insert("SUBMITTED".to_string(), 2880);  // 2 days (48 hours)
-        sla_minutes.insert("REVIEWED".to_string(), 4320);   // 3 days (72 hours)
+        sla_minutes.insert("SUBMITTED".to_string(), 2880); // 2 days (48 hours)
+        sla_minutes.insert("REVIEWED".to_string(), 4320); // 3 days (72 hours)
 
         // Required roles
         let mut required_roles = HashMap::new();
@@ -272,33 +280,38 @@ impl WorkflowConfig {
         let mut transitions = HashMap::new();
 
         // DRAFT can transition to SUBMIT_WILAYAH or CANCELLED
-        transitions.insert("DRAFT".to_string(), vec![
-            "SUBMIT_WILAYAH".to_string(),
-            "CANCELLED".to_string(),
-        ]);
+        transitions.insert(
+            "DRAFT".to_string(),
+            vec!["SUBMIT_WILAYAH".to_string(), "CANCELLED".to_string()],
+        );
 
         // SUBMIT_WILAYAH can transition to SUBMIT_PUSAT or REVISI_PELAKSANA
-        transitions.insert("SUBMIT_WILAYAH".to_string(), vec![
-            "SUBMIT_PUSAT".to_string(),
-            "REVISI_PELAKSANA".to_string(),
-        ]);
+        transitions.insert(
+            "SUBMIT_WILAYAH".to_string(),
+            vec!["SUBMIT_PUSAT".to_string(), "REVISI_PELAKSANA".to_string()],
+        );
 
         // REVISI_PELAKSANA returns to SUBMIT_WILAYAH
-        transitions.insert("REVISI_PELAKSANA".to_string(), vec![
-            "SUBMIT_WILAYAH".to_string(),
-        ]);
+        transitions.insert(
+            "REVISI_PELAKSANA".to_string(),
+            vec!["SUBMIT_WILAYAH".to_string()],
+        );
 
         // SUBMIT_PUSAT can transition to SELESAI, REVISI_WILAYAH, or DITOLAK
-        transitions.insert("SUBMIT_PUSAT".to_string(), vec![
-            "SELESAI".to_string(),
-            "REVISI_WILAYAH".to_string(),
-            "DITOLAK".to_string(),
-        ]);
+        transitions.insert(
+            "SUBMIT_PUSAT".to_string(),
+            vec![
+                "SELESAI".to_string(),
+                "REVISI_WILAYAH".to_string(),
+                "DITOLAK".to_string(),
+            ],
+        );
 
         // REVISI_WILAYAH returns to SUBMIT_PUSAT
-        transitions.insert("REVISI_WILAYAH".to_string(), vec![
-            "SUBMIT_PUSAT".to_string(),
-        ]);
+        transitions.insert(
+            "REVISI_WILAYAH".to_string(),
+            vec!["SUBMIT_PUSAT".to_string()],
+        );
 
         // Terminal states
         transitions.insert("SELESAI".to_string(), vec![]);
@@ -307,15 +320,18 @@ impl WorkflowConfig {
 
         // SLA configuration (in minutes)
         let mut sla_minutes = HashMap::new();
-        sla_minutes.insert("SUBMIT_WILAYAH".to_string(), 2880);   // 2 days
-        sla_minutes.insert("SUBMIT_PUSAT".to_string(), 4320);     // 3 days
-        sla_minutes.insert("REVISI_WILAYAH".to_string(), 2880);   // 2 days
+        sla_minutes.insert("SUBMIT_WILAYAH".to_string(), 2880); // 2 days
+        sla_minutes.insert("SUBMIT_PUSAT".to_string(), 4320); // 3 days
+        sla_minutes.insert("REVISI_WILAYAH".to_string(), 2880); // 2 days
 
         // Required roles
         let mut required_roles = HashMap::new();
         required_roles.insert("DRAFT".to_string(), "operator_satker".to_string());
         required_roles.insert("SUBMIT_WILAYAH".to_string(), "operator_satker".to_string());
-        required_roles.insert("REVISI_PELAKSANA".to_string(), "validator_wilayah".to_string());
+        required_roles.insert(
+            "REVISI_PELAKSANA".to_string(),
+            "validator_wilayah".to_string(),
+        );
         required_roles.insert("SUBMIT_PUSAT".to_string(), "validator_wilayah".to_string());
         required_roles.insert("REVISI_WILAYAH".to_string(), "validator_pusat".to_string());
         required_roles.insert("SELESAI".to_string(), "validator_pusat".to_string());
@@ -470,7 +486,10 @@ mod tests {
         assert_eq!(config.get_sla_minutes("ANALISIS_KELAYAKAN"), Some(4320));
 
         // Test required roles
-        assert_eq!(config.get_required_role("SUBMIT_SATKER"), Some("operator_satker"));
+        assert_eq!(
+            config.get_required_role("SUBMIT_SATKER"),
+            Some("operator_satker")
+        );
         assert_eq!(config.get_required_role("APPROVED"), Some("admin_pusat"));
 
         // Test terminal states
@@ -505,10 +524,7 @@ mod tests {
             WorkflowStateCode::from_state_name("DRAFT"),
             Some(WorkflowStateCode::Draft)
         );
-        assert_eq!(
-            WorkflowStateCode::from_state_name("INVALID"),
-            None
-        );
+        assert_eq!(WorkflowStateCode::from_state_name("INVALID"), None);
     }
 
     #[test]

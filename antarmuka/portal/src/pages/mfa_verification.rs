@@ -184,7 +184,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let navigate = leptos_router::hooks::use_navigate();
+                                    let _navigate = leptos_router::hooks::use_navigate();
 
                                     spawn_local(async move {
                                         match verify_mfa_code(&temp_token, &code).await {
@@ -340,7 +340,7 @@ async fn verify_mfa_code(
         use gloo_net::http::Request;
 
         let api_url = get_api_url();
-        let verify_url = format!("{}/api/auth/mfa/verify", api_url);
+        let verify_url = format!("{}/api/v1/auth/mfa/verify", api_url);
 
         // Prepare request body
         let request_body = MfaVerificationRequest {

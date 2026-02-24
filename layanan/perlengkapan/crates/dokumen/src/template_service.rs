@@ -56,8 +56,14 @@ impl TemplateService {
         let template = DocumentTemplate::from(&row);
 
         // Create initial version
-        self.create_version(pool, template.id, &template, created_by, Some("Initial version"))
-            .await?;
+        self.create_version(
+            pool,
+            template.id,
+            &template,
+            created_by,
+            Some("Initial version"),
+        )
+        .await?;
 
         Ok(template)
     }
@@ -222,8 +228,14 @@ impl TemplateService {
 
         let updated = DocumentTemplate::from(&row);
 
-        self.create_version(pool, template_id, &updated, updated_by, request.change_notes.as_deref())
-            .await?;
+        self.create_version(
+            pool,
+            template_id,
+            &updated,
+            updated_by,
+            request.change_notes.as_deref(),
+        )
+        .await?;
 
         Ok(updated)
     }

@@ -23,9 +23,9 @@ use super::services::PenghapusanBmnService;
 use crate::errors::AppError;
 use crate::middleware::Claims;
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -219,7 +219,9 @@ pub async fn submit_to_wilayah(
     claims: Claims,
     Json(body): Json<SubmitWilayahBody>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    let penghapusan = service.submit_to_wilayah(id, claims.user_id, body.catatan).await?;
+    let penghapusan = service
+        .submit_to_wilayah(id, claims.user_id, body.catatan)
+        .await?;
 
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -238,7 +240,9 @@ pub async fn forward_to_pusat(
         return Err(AppError::BadRequest("Action harus 'forward'".to_string()));
     }
 
-    let penghapusan = service.forward_to_pusat(id, claims.user_id, body.catatan).await?;;
+    let penghapusan = service
+        .forward_to_pusat(id, claims.user_id, body.catatan)
+        .await?;
 
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -263,7 +267,9 @@ pub async fn return_to_operator(
         ));
     }
 
-    let penghapusan = service.return_to_operator(id, claims.user_id, body.catatan).await?;
+    let penghapusan = service
+        .return_to_operator(id, claims.user_id, body.catatan)
+        .await?;
 
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -280,7 +286,9 @@ pub async fn validator_wilayah_action(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     match body.aksi.as_str() {
         "forward" => {
-            let penghapusan = service.forward_to_pusat(id, claims.user_id, body.catatan).await?;
+            let penghapusan = service
+                .forward_to_pusat(id, claims.user_id, body.catatan)
+                .await?;
             Ok(Json(ApiResponse::success(
                 penghapusan,
                 "Pengajuan berhasil diteruskan ke Validator Pusat".to_string(),
@@ -292,7 +300,9 @@ pub async fn validator_wilayah_action(
                     "Catatan diperlukan saat mengembalikan ke Operator".to_string(),
                 ));
             }
-            let penghapusan = service.return_to_operator(id, claims.user_id, body.catatan).await?;
+            let penghapusan = service
+                .return_to_operator(id, claims.user_id, body.catatan)
+                .await?;
             Ok(Json(ApiResponse::success(
                 penghapusan,
                 "Pengajuan dikembalikan ke Operator Satker".to_string(),
@@ -331,7 +341,8 @@ pub async fn upload_signed_sk(
 
     Ok(Json(ApiResponse::success(
         penghapusan,
-        "Usulan SK Penghapusan BMN yang ditandatangani berhasil diupload. Proses selesai.".to_string(),
+        "Usulan SK Penghapusan BMN yang ditandatangani berhasil diupload. Proses selesai."
+            .to_string(),
     )))
 }
 
@@ -354,7 +365,13 @@ pub async fn transition_penghapusan_bmn(
     let ip_address = "127.0.0.1".to_string();
 
     let penghapusan = service
-        .transition(id, request.to_state, claims.user_id, request.catatan, ip_address)
+        .transition(
+            id,
+            request.to_state,
+            claims.user_id,
+            request.catatan,
+            ip_address,
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(

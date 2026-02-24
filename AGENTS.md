@@ -202,7 +202,7 @@ flowchart LR
 - **NEVER specify versions** in member `Cargo.toml` files
 - **lib-ui**: Use `lib-ui` directly (no alias), contains Leptos UI components
 - **lib-common**: Use `lib-common` for shared types, database config, utilities
-- **Unified Workspace**: `infra/authenc` and `infra/secreton` are PART of the main workspace
+- **Unified Workspace**: `layanan/authenc` and `layanan/secreton` are PART of the main workspace
 
 ### 2. 🧹 Code Quality Commands
 
@@ -548,8 +548,8 @@ sequenceDiagram
 | Component | AGENTS.md Location | Purpose |
 |-----------|-------------------|---------|
 | **Kubernetes Infrastructure** | [`infra/k8s/AGENTS.md`](infra/k8s/AGENTS.md) | Kustomize-based K8s deployment, overlays, MetalLB, Istio configuration |
-| **Authenc (Identity Provider)** | [`infra/authenc/AGENTS.md`](infra/authenc/AGENTS.md) | OAuth2/OIDC, MFA, RBAC/ABAC, SSO/Federation, Admin Console |
-| **Secreton (Secrets Vault)** | [`infra/secreton/AGENTS.md`](infra/secreton/AGENTS.md) | Secret storage, Transit engine, PKI, HSM integration, Raft HA |
+| **Authenc (Identity Provider)** | [`layanan/authenc/AGENTS.md`](layanan/authenc/AGENTS.md) | OAuth2/OIDC, MFA, RBAC/ABAC, SSO/Federation, Admin Console |
+| **Secreton (Secrets Vault)** | [`layanan/secreton/AGENTS.md`](layanan/secreton/AGENTS.md) | Secret storage, Transit engine, PKI, HSM integration, Raft HA |
 | **Layanan Integrasi** | [`layanan/daskrimti/integrasi/AGENTS.md`](layanan/daskrimti/integrasi/AGENTS.md) | MonSAKTI, MySIMKARI, SIMAN API integration |
 
 ### Quick Navigation by Task
@@ -558,8 +558,8 @@ sequenceDiagram
 |------------------|---------------------|
 | Deploy to Kubernetes | `infra/k8s/AGENTS.md` |
 | Configure MetalLB/Istio | `infra/k8s/AGENTS.md` |
-| Work on authentication/authorization | `infra/authenc/AGENTS.md` |
-| Manage secrets/encryption | `infra/secreton/AGENTS.md` |
+| Work on authentication/authorization | `layanan/authenc/AGENTS.md` |
+| Manage secrets/encryption | `layanan/secreton/AGENTS.md` |
 | Integrate with government APIs | `layanan/daskrimti/integrasi/AGENTS.md` |
 | Work on backend services | This file (root `AGENTS.md`) |
 | Work on frontend microfrontends | This file (root `AGENTS.md`) |
@@ -573,8 +573,8 @@ Setiap layanan memiliki database terpisah untuk isolasi:
 | Database | Service | Description |
 |----------|---------|-------------|
 | `perlengkapan` | layanan/perlengkapan/* | Core BMN management |
-| `authenc` | infra/authenc | Authentication & SSO |
-| `secreton` | infra/secreton | Secrets management |
+| `authenc` | layanan/authenc | Authentication & SSO |
+| `secreton` | layanan/secreton | Secrets management |
 
 ---
 

@@ -102,12 +102,12 @@ podman push localhost:32000/gerbang:latest
 
 # Authenc
 podman build -t localhost:32000/authenc:latest \
-  -f infra/authenc/Dockerfile infra/authenc
+  -f layanan/authenc/Dockerfile layanan/authenc
 podman push localhost:32000/authenc:latest
 
 # Secreton
 podman build -t localhost:32000/secreton:latest \
-  -f infra/secreton/Dockerfile infra/secreton
+  -f layanan/secreton/Dockerfile layanan/secreton
 podman push localhost:32000/secreton:latest
 ```
 

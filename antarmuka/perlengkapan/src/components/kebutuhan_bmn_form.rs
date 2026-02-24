@@ -147,7 +147,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                     // Redirect after short delay
                     gloo_timers::callback::Timeout::new(1500, || {
                         if let Some(window) = web_sys::window() {
-                            let _ = window.location().set_href("/perlengkapan/dashboard/kebutuhan-bmn");
+                            let _ = window
+                                .location()
+                                .set_href("/perlengkapan/dashboard/kebutuhan-bmn");
                         }
                     })
                     .forget();

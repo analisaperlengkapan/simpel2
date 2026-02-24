@@ -1,8 +1,8 @@
 use crate::error::AppError;
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// In-app notification types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -197,7 +197,11 @@ impl InAppNotificationChannel {
 
         let count = self.pool.get().await?.execute(query, &[&user_id]).await?;
 
-        tracing::info!("Marked {} notifications as read for user {}", count, user_id);
+        tracing::info!(
+            "Marked {} notifications as read for user {}",
+            count,
+            user_id
+        );
 
         Ok(count)
     }

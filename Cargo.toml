@@ -1,54 +1,20 @@
 [workspace]
 resolver = "2"
 
-# Note: infra/secreton is a separate workspace for architectural independence
+# Note: layanan/secreton is a separate workspace for architectural independence
 # It manages its own dependencies and has its own Cargo.lock
 
 members = [
-    # CLI Tool (temporarily disabled - directory missing)
-    # "scripts/cli",
-
     # Shared Libraries
     "lib/ui",
     "lib/common",
     "lib/perlengkapan",
 
-    # Frontend Microfrontends (Leptos) - Contoh/Example implementations
-    "antarmuka/contoh/badiklat",
-    "antarmuka/contoh/datun",
-    "antarmuka/contoh/intel",
-    "antarmuka/contoh/pemulihan_aset",
-    "antarmuka/contoh/pengawasan",
-    "antarmuka/contoh/pidmil",
-    "antarmuka/contoh/pidsus",
-    "antarmuka/contoh/pidum",
-
-    # Pembinaan Microfrontends - Contoh
-    "antarmuka/contoh/pembinaan/keuangan",
-    "antarmuka/contoh/pembinaan/perencanaan",
-
-    # Active Production Microfrontends
+    # Production Microfrontends (Leptos WASM)
     "antarmuka/portal",
     "antarmuka/perlengkapan",
 
-    # Backend Layanan - Contoh/Example implementations
-    "layanan/contoh/badiklat",
-    "layanan/contoh/datun",
-    "layanan/contoh/intel",
-    "layanan/contoh/pemulihan_aset",
-    "layanan/contoh/pengawasan",
-    "layanan/contoh/pidmil",
-    "layanan/contoh/pidsus",
-    "layanan/contoh/pidum",
-
-    # Backend Layanan Pembinaan - Contoh
-    "layanan/contoh/pembinaan/keuangan",
-    "layanan/contoh/pembinaan/perencanaan",
-
-    # Active Production Backend Services
-    "layanan/portal",
-
-    # Perlengkapan sub-crates (following infra/secreton pattern)
+    # Perlengkapan Backend sub-crates
     "layanan/perlengkapan/crates/api",
     "layanan/perlengkapan/crates/integrasi",
     "layanan/perlengkapan/crates/ai",
@@ -56,40 +22,42 @@ members = [
     "layanan/perlengkapan/crates/notifikasi",
     "layanan/perlengkapan/crates/bantuan",
 
-    # Infrastructure Services (Part of main workspace for dependency management)
-    "infra/authenc",
-    "infra/secreton",
+    # Infrastructure Services
+    # "layanan/authenc",  # Legacy - migrated to crates/
+    "layanan/secreton",
 
-    # Authenc sub-crates (9 crates total)
-    "infra/authenc/crates/types",
-    "infra/authenc/crates/core",
-    "infra/authenc/crates/crypto",
-    "infra/authenc/crates/storage",
-    "infra/authenc/crates/api",
-    "infra/authenc/crates/iam-api",
-    "infra/authenc/crates/grpc",
-    "infra/authenc/crates/mfa",
-    "infra/authenc/crates/federation",
-    "infra/authenc/crates/webauthn",
+    # Authenc sub-crates (10 crates)
+    "layanan/authenc/crates/types",
+    "layanan/authenc/crates/core",
+    "layanan/authenc/crates/crypto",
+    "layanan/authenc/crates/storage",
+    "layanan/authenc/crates/api",
+    "layanan/authenc/crates/iam-api",
+    "layanan/authenc/crates/grpc",
+    "layanan/authenc/crates/mfa",
+    "layanan/authenc/crates/federation",
+    "layanan/authenc/crates/webauthn",
 
     # Secreton sub-crates
-    "infra/secreton/crates/core",
-    "infra/secreton/crates/api",
-    "infra/secreton/crates/storage",
-    "infra/secreton/crates/crypto",
-    "infra/secreton/crates/types",
-    "infra/secreton/crates/agent",
-    "infra/secreton/crates/cli",
-    "infra/secreton/crates/grpc",
-    "infra/secreton/crates/hsm",
-    "infra/secreton/crates/k8s-operator",
-    "infra/secreton/crates/auto-unseal",
+    "layanan/secreton/crates/core",
+    "layanan/secreton/crates/api",
+    "layanan/secreton/crates/storage",
+    "layanan/secreton/crates/crypto",
+    "layanan/secreton/crates/types",
+    "layanan/secreton/crates/agent",
+    "layanan/secreton/crates/cli",
+    "layanan/secreton/crates/grpc",
+    "layanan/secreton/crates/hsm",
+    "layanan/secreton/crates/k8s-operator",
+    "layanan/secreton/crates/auto-unseal",
+    "layanan/secreton/crates/health",
+    "layanan/secreton/crates/backup",
+    "layanan/secreton/crates/replication",
 ]
 
 default-members = [
     "antarmuka/portal",
     "antarmuka/perlengkapan",
-    "layanan/portal",
     "layanan/perlengkapan/crates/api",
 ]
 
@@ -267,26 +235,26 @@ temp-env = "0.3.6"
 bcrypt = "0.17.1"
 
 # Secreton Internal Dependencies (for sub-crates)
-secreton-core = { path = "infra/secreton/crates/core" }
-secreton-api = { path = "infra/secreton/crates/api" }
-secreton-storage = { path = "infra/secreton/crates/storage" }
-secreton-crypto = { path = "infra/secreton/crates/crypto" }
-secreton-types = { path = "infra/secreton/crates/types" }
-secreton-grpc = { path = "infra/secreton/crates/grpc" }
-secreton-hsm = { path = "infra/secreton/crates/hsm" }
-secreton-auto-unseal = { path = "infra/secreton/crates/auto-unseal" }
+secreton-core = { path = "layanan/secreton/crates/core" }
+secreton-api = { path = "layanan/secreton/crates/api" }
+secreton-storage = { path = "layanan/secreton/crates/storage" }
+secreton-crypto = { path = "layanan/secreton/crates/crypto" }
+secreton-types = { path = "layanan/secreton/crates/types" }
+secreton-grpc = { path = "layanan/secreton/crates/grpc" }
+secreton-hsm = { path = "layanan/secreton/crates/hsm" }
+secreton-auto-unseal = { path = "layanan/secreton/crates/auto-unseal" }
 
 # Authenc Internal Dependencies (for sub-crates)
-authenc-types = { path = "infra/authenc/crates/types" }
-authenc-core = { path = "infra/authenc/crates/core" }
-authenc-crypto = { path = "infra/authenc/crates/crypto" }
-authenc-storage = { path = "infra/authenc/crates/storage" }
-authenc-api = { path = "infra/authenc/crates/api" }
-authenc-iam-api = { path = "infra/authenc/crates/iam-api" }
-authenc-grpc = { path = "infra/authenc/crates/grpc" }
-authenc-mfa = { path = "infra/authenc/crates/mfa" }
-authenc-federation = { path = "infra/authenc/crates/federation" }
-authenc-webauthn = { path = "infra/authenc/crates/webauthn" }
+authenc-types = { path = "layanan/authenc/crates/types" }
+authenc-core = { path = "layanan/authenc/crates/core" }
+authenc-crypto = { path = "layanan/authenc/crates/crypto" }
+authenc-storage = { path = "layanan/authenc/crates/storage" }
+authenc-api = { path = "layanan/authenc/crates/api" }
+authenc-iam-api = { path = "layanan/authenc/crates/iam-api" }
+authenc-grpc = { path = "layanan/authenc/crates/grpc" }
+authenc-mfa = { path = "layanan/authenc/crates/mfa" }
+authenc-federation = { path = "layanan/authenc/crates/federation" }
+authenc-webauthn = { path = "layanan/authenc/crates/webauthn" }
 lazy_static = "1.4"
 futures-util = { version = "0.3", features = ["std"] }
 pin-project = "1.0"

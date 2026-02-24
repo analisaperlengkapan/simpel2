@@ -226,9 +226,9 @@ pub struct IzinPemakaianBmn {
     // Document Generation & Upload
     pub document_id: Option<Uuid>,
     pub document_url: Option<String>,
-    pub konsep_surat_url: Option<String>,          // Generated DOCX concept
+    pub konsep_surat_url: Option<String>, // Generated DOCX concept
     pub konsep_surat_generated_at: Option<DateTime<Utc>>,
-    pub signed_pdf_url: Option<String>,            // Uploaded signed PDF
+    pub signed_pdf_url: Option<String>, // Uploaded signed PDF
     pub signed_pdf_uploaded_at: Option<DateTime<Utc>>,
     pub is_completed: bool,
 
@@ -275,7 +275,7 @@ pub struct PemakaianBmnItem {
     pub bmn_merk: Option<String>,
     pub bmn_tahun_perolehan: Option<i32>,
     pub bmn_kondisi: Option<String>,
-    pub detail_bmn: serde_json::Value,  // Type-specific details
+    pub detail_bmn: serde_json::Value, // Type-specific details
     pub keterangan: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

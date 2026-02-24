@@ -11,7 +11,7 @@ use crate::errors::AppError;
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tracing::{debug, info, warn};
 
 /// Query performance metrics
@@ -59,17 +59,16 @@ impl DatabaseOptimizer {
         let start = Instant::now();
 
         // Execute query
-        let result = executor().await.map_err(|e| AppError::Database(e.to_string()))?;
+        let result = executor()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
         let execution_time = start.elapsed();
         let execution_time_ms = execution_time.as_millis() as u64;
 
         // Log slow queries
         if execution_time_ms > SLOW_QUERY_THRESHOLD_MS {
-            warn!(
-                "Slow query detected ({}ms): {}",
-                execution_time_ms, query
-            );
+            warn!("Slow query detected ({}ms): {}", execution_time_ms, query);
 
             // Analyze query plan
             if let Ok(plan) = self.analyze_query_plan(query, params).await {
@@ -179,10 +178,7 @@ impl DatabaseOptimizer {
                         table: table.to_string(),
                         columns: vec![column.to_string()],
                         index_type: IndexType::BTree,
-                        reason: format!(
-                            "Frequent WHERE clause on {}.{}",
-                            table, column
-                        ),
+                        reason: format!("Frequent WHERE clause on {}.{}", table, column),
                     });
                 }
             }
@@ -261,7 +257,7 @@ impl DatabaseOptimizer {
 
     /// Optimize complex queries by rewriting them
     pub fn optimize_query(&self, query: &str) -> String {
-        let mut optimized = query.to_string();
+        let optimized = query.to_string();
 
         // Replace SELECT * with specific columns (when possible)
         // This is a simplified example - in production, use proper SQL parsing
@@ -352,46 +348,42 @@ pub async fn add_essential_indexes(pool: &Pool) -> Result<(), AppError> {
         "CREATE INDEX IF NOT EXISTS idx_kebutuhan_bmn_status ON perlengkapan.kebutuhan_bmn(status)",
         "CREATE INDEX IF NOT EXISTS idx_kebutuhan_bmn_kode ON perlengkapan.kebutuhan_bmn(kode_barang)",
         "CREATE INDEX IF NOT EXISTS idx_kebutuhan_bmn_composite ON perlengkapan.kebutuhan_bmn(satker_id, tahun_anggaran, status)",
-
         // Pakaian Dinas indexes
         "CREATE INDEX IF NOT EXISTS idx_pakaian_dinas_nip ON perlengkapan.pakaian_dinas(pegawai_nip)",
         "CREATE INDEX IF NOT EXISTS idx_pakaian_dinas_tahun ON perlengkapan.pakaian_dinas(tahun_anggaran)",
         "CREATE INDEX IF NOT EXISTS idx_pakaian_dinas_status ON perlengkapan.pakaian_dinas(status)",
-
         // Roadmap indexes
         "CREATE INDEX IF NOT EXISTS idx_roadmap_satker ON perlengkapan.roadmap_sarpras(satker_id)",
         "CREATE INDEX IF NOT EXISTS idx_roadmap_periode ON perlengkapan.roadmap_sarpras(periode_mulai, periode_akhir)",
         "CREATE INDEX IF NOT EXISTS idx_roadmap_tahun ON perlengkapan.roadmap_sarpras(tahun_rencana)",
-
         // Pemakaian BMN indexes
         "CREATE INDEX IF NOT EXISTS idx_pemakaian_bmn_pegawai ON perlengkapan.izin_pemakaian_bmn(pegawai_nip)",
         "CREATE INDEX IF NOT EXISTS idx_pemakaian_bmn_status ON perlengkapan.izin_pemakaian_bmn(status)",
         "CREATE INDEX IF NOT EXISTS idx_pemakaian_bmn_tanggal ON perlengkapan.izin_pemakaian_bmn(tanggal_mulai, tanggal_selesai)",
         "CREATE INDEX IF NOT EXISTS idx_pemakaian_bmn_bmn_id ON perlengkapan.izin_pemakaian_bmn(bmn_id)",
-
         // Workflow indexes
         "CREATE INDEX IF NOT EXISTS idx_workflow_aktivitas_pengajuan ON perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas(pengajuan_id)",
         "CREATE INDEX IF NOT EXISTS idx_workflow_aktivitas_user ON perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_workflow_aktivitas_created ON perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas(created_at)",
-
         // Integration schema indexes
         "CREATE INDEX IF NOT EXISTS idx_siman_aset_satker ON integrasi.siman_aset_tanah(satker_id)",
         "CREATE INDEX IF NOT EXISTS idx_siman_aset_kode ON integrasi.siman_aset_tanah(kode_barang)",
         "CREATE INDEX IF NOT EXISTS idx_siman_aset_kondisi ON integrasi.siman_aset_tanah(kondisi)",
         "CREATE INDEX IF NOT EXISTS idx_siman_aset_synced ON integrasi.siman_aset_tanah(synced_at)",
-
         // Full-text search indexes using pg_trgm
         "CREATE EXTENSION IF NOT EXISTS pg_trgm",
         "CREATE INDEX IF NOT EXISTS idx_kebutuhan_bmn_nama_trgm ON perlengkapan.kebutuhan_bmn USING gin(nama_barang gin_trgm_ops)",
         "CREATE INDEX IF NOT EXISTS idx_pakaian_dinas_nama_trgm ON perlengkapan.pakaian_dinas USING gin(pegawai_nama gin_trgm_ops)",
-
         // JSONB indexes for raw_data
         "CREATE INDEX IF NOT EXISTS idx_siman_aset_raw_data ON integrasi.siman_aset_tanah USING gin(raw_data)",
     ];
 
     for index_sql in indexes {
         match client.execute(index_sql, &[]).await {
-            Ok(_) => info!("Index created/verified: {}", index_sql.split("idx_").nth(1).unwrap_or("unknown")),
+            Ok(_) => info!(
+                "Index created/verified: {}",
+                index_sql.split("idx_").nth(1).unwrap_or("unknown")
+            ),
             Err(e) => warn!("Failed to create index: {} - Error: {}", index_sql, e),
         }
     }

@@ -1,7 +1,7 @@
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::mysimkari::api::{
-    get_pegawai_aktif, get_pegawai_mutasi, get_satker, MySIMKARICircuitBreaker,
+    MySIMKARICircuitBreaker, get_pegawai_aktif, get_pegawai_mutasi, get_satker,
 };
 use crate::storage::SyncStatusStorage;
 use chrono::{DateTime, Duration, Utc};
@@ -46,10 +46,7 @@ pub struct MySIMKARISyncService {
 }
 
 impl MySIMKARISyncService {
-    pub fn new(
-        client: MonsaktiClient,
-        storage: SyncStatusStorage,
-    ) -> Self {
+    pub fn new(client: MonsaktiClient, storage: SyncStatusStorage) -> Self {
         Self {
             client: Arc::new(Mutex::new(client)),
             circuit_breaker: MySIMKARICircuitBreaker::new(),
@@ -60,23 +57,21 @@ impl MySIMKARISyncService {
 
     /// Start the scheduler for automatic syncs
     pub async fn start_scheduler(&self) -> Result<(), MonsaktiError> {
-        let scheduler = JobScheduler::new()
-            .await
-            .map_err(|e| MonsaktiError::ConfigError(format!("Failed to create scheduler: {}", e)))?;
+        let scheduler = JobScheduler::new().await.map_err(|e| {
+            MonsaktiError::ConfigError(format!("Failed to create scheduler: {}", e))
+        })?;
 
         // Full sync daily at 03:00 WIB (UTC+7 = 20:00 UTC previous day)
         let full_sync_job = self.create_full_sync_job();
-        scheduler
-            .add(full_sync_job)
-            .await
-            .map_err(|e| MonsaktiError::ConfigError(format!("Failed to add full sync job: {}", e)))?;
+        scheduler.add(full_sync_job).await.map_err(|e| {
+            MonsaktiError::ConfigError(format!("Failed to add full sync job: {}", e))
+        })?;
 
         // Incremental sync every 4 hours
         let incremental_sync_job = self.create_incremental_sync_job();
-        scheduler
-            .add(incremental_sync_job)
-            .await
-            .map_err(|e| MonsaktiError::ConfigError(format!("Failed to add incremental sync job: {}", e)))?;
+        scheduler.add(incremental_sync_job).await.map_err(|e| {
+            MonsaktiError::ConfigError(format!("Failed to add incremental sync job: {}", e))
+        })?;
 
         scheduler
             .start()
@@ -161,8 +156,13 @@ impl MySIMKARISyncService {
         let mut client = self.client.lock().await;
         let mut status = self.status.lock().await;
 
-        Self::execute_full_sync(&mut *client, &self.circuit_breaker, &self.storage, &mut *status)
-            .await
+        Self::execute_full_sync(
+            &mut *client,
+            &self.circuit_breaker,
+            &self.storage,
+            &mut *status,
+        )
+        .await
     }
 
     /// Execute incremental sync manually
@@ -275,14 +275,8 @@ impl MySIMKARISyncService {
         let start_date = last_sync.format("%Y-%m-%d").to_string();
         let end_date = Utc::now().format("%Y-%m-%d").to_string();
 
-        match Self::sync_pegawai_mutations(
-            client,
-            circuit_breaker,
-            storage,
-            &start_date,
-            &end_date,
-        )
-        .await
+        match Self::sync_pegawai_mutations(client, circuit_breaker, storage, &start_date, &end_date)
+            .await
         {
             Ok(count) => {
                 info!("Synced {} pegawai mutations", count);
@@ -327,9 +321,7 @@ impl MySIMKARISyncService {
         let data = get_satker(client, circuit_breaker).await?;
 
         // Save to database
-        let count = storage
-            .save_mysimkari_data("satker", &data)
-            .await?;
+        let count = storage.save_mysimkari_data("satker", &data).await?;
 
         Ok(count)
     }
@@ -344,9 +336,7 @@ impl MySIMKARISyncService {
         let data = get_pegawai_aktif(client, circuit_breaker).await?;
 
         // Save to database
-        let count = storage
-            .save_mysimkari_data("pegawai", &data)
-            .await?;
+        let count = storage.save_mysimkari_data("pegawai", &data).await?;
 
         Ok(count)
     }

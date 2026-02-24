@@ -11,7 +11,7 @@ Dokumen ini membandingkan implementasi SSO cookie di backend dan frontend untuk 
 
 ### Backend: `SsoSession`
 ```rust
-// infra/authenc/src/utils/sso_cookie.rs
+// layanan/authenc/src/utils/sso_cookie.rs
 pub struct SsoSession {
     pub session_id: String,
     pub user_id: String,

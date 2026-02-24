@@ -3,12 +3,9 @@
 //! Form for renewing BMN usage permits.
 //! Requirements: REQ-P008
 
+use crate::api::{RenewPermitRequest, fetch_pemakaian_bmn_detail, renew_pemakaian_bmn};
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use crate::api::{
-    fetch_pemakaian_bmn_detail, renew_pemakaian_bmn,
-    RenewPermitRequest,
-};
 
 #[component]
 pub fn PemakaianBmnRenew() -> impl IntoView {

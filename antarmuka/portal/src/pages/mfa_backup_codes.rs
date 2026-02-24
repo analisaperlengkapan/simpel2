@@ -374,7 +374,7 @@ async fn generate_backup_codes() -> Result<BackupCodesResponse, Box<dyn std::err
         };
 
         // Make API request
-        let response = gloo_net::http::Request::post("/api/auth/mfa/backup-codes")
+        let response = gloo_net::http::Request::post("/api/v1/auth/mfa/backup-codes")
             .json(&request_body)?
             .send()
             .await?;
@@ -426,7 +426,7 @@ async fn get_backup_code_status() -> Result<BackupCodeStatusResponse, Box<dyn st
         };
 
         // Make API request
-        let response = gloo_net::http::Request::post("/api/auth/mfa/backup-codes")
+        let response = gloo_net::http::Request::post("/api/v1/auth/mfa/backup-codes")
             .json(&request_body)?
             .send()
             .await?;

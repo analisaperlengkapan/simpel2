@@ -1895,9 +1895,9 @@ criterion_main!(benches);
 **Goals**: Set up multi-crate structure, define interfaces
 
 **Tasks**:
-1. Create new crate directories under `infra/authenc/crates/`
+1. Create new crate directories under `layanan/authenc/crates/`
 2. Define `authenc-types` with core traits and types
-3. Set up workspace in `infra/authenc/Cargo.toml`
+3. Set up workspace in `layanan/authenc/Cargo.toml`
 4. Create CI/CD pipeline for multi-crate builds
 5. Document migration plan and communicate to team
 
@@ -1986,7 +1986,7 @@ criterion_main!(benches);
 **Goals**: Remove old code, optimize performance
 
 **Tasks**:
-1. Remove old monolithic code from `infra/authenc/src/`
+1. Remove old monolithic code from `layanan/authenc/src/`
 2. Update documentation
 3. Performance testing and optimization
 4. Security audit
@@ -2308,7 +2308,7 @@ graph TD
 ## Workspace Structure
 
 ```
-infra/authenc/
+layanan/authenc/
 ├── Cargo.toml                    # Workspace manifest
 ├── crates/
 │   ├── types/                    # authenc-types

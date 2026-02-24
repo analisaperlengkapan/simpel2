@@ -416,7 +416,7 @@ async fn request_password_reset(
         use gloo_net::http::Request;
 
         let api_url = get_authenc_api_url();
-        let reset_url = format!("{}/api/auth/password-reset/request", api_url);
+        let reset_url = format!("{}/api/v1/auth/password/reset", api_url);
 
         let body = serde_json::json!({
             "email": email,
@@ -455,7 +455,7 @@ async fn reset_password(token: &str, new_password: &str) -> Result<(), Box<dyn s
         use gloo_net::http::Request;
 
         let api_url = get_authenc_api_url();
-        let reset_url = format!("{}/api/auth/password-reset/confirm", api_url);
+        let reset_url = format!("{}/api/v1/auth/password/reset/confirm", api_url);
 
         let body = serde_json::json!({
             "token": token,

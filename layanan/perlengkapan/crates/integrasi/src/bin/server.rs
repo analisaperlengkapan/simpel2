@@ -19,7 +19,7 @@ use std::sync::Arc;
 use axum::Router;
 use layanan_perlengkapan_integrasi::{
     grpc::{server::GrpcServerConfig, start_grpc_server},
-    monitoring::{create_monitoring_router, MonitoringState},
+    monitoring::{MonitoringState, create_monitoring_router},
 };
 use tokio::net::TcpListener;
 use tokio_postgres::NoTls;
@@ -79,14 +79,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let monitoring_router = create_monitoring_router(monitoring_state);
 
     // Add CORS middleware for dashboard access
-    let app = Router::new()
-        .merge(monitoring_router)
-        .layer(
-            tower_http::cors::CorsLayer::new()
-                .allow_origin(tower_http::cors::Any)
-                .allow_methods(tower_http::cors::Any)
-                .allow_headers(tower_http::cors::Any),
-        );
+    let app = Router::new().merge(monitoring_router).layer(
+        tower_http::cors::CorsLayer::new()
+            .allow_origin(tower_http::cors::Any)
+            .allow_methods(tower_http::cors::Any)
+            .allow_headers(tower_http::cors::Any),
+    );
 
     // Start HTTP server in background
     let http_addr = format!("{}:{}", http_host, http_port);
@@ -101,7 +99,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("HTTP monitoring server started successfully");
     info!("Monitoring endpoints:");
-    info!("  - GET  http://{}:{}/api/monitoring/health", http_host, http_port);
+    info!(
+        "  - GET  http://{}:{}/api/monitoring/health",
+        http_host, http_port
+    );
     info!(
         "  - GET  http://{}:{}/api/monitoring/sync-status",
         http_host, http_port

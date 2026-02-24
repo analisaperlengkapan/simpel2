@@ -111,11 +111,11 @@ impl AuthService {
     /// Get authenc API base URL from environment or default
     fn get_api_url() -> String {
         // In production, this comes from environment variable or config
-        // For development, use current origin/api/auth
+        // For development, use current origin/api/v1/auth (aligns with Authenc REST API)
         std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| {
             if let Some(window) = web_sys::window() {
                 format!(
-                    "{}/api/auth",
+                    "{}/api/v1/auth",
                     window
                         .location()
                         .origin()
@@ -359,13 +359,19 @@ impl AuthService {
     }
 
     /// Save authentication token to localStorage
-    #[cfg(target_arch = "wasm32")]
     pub fn save_token(token: &str) {
-        if let Some(storage) = web_sys::window()
-            .and_then(|w| w.local_storage().ok())
-            .flatten()
+        #[cfg(target_arch = "wasm32")]
         {
-            let _ = storage.set_item("auth_token", token);
+            if let Some(storage) = web_sys::window()
+                .and_then(|w| w.local_storage().ok())
+                .flatten()
+            {
+                let _ = storage.set_item("auth_token", token);
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = token; // Suppress unused warning
         }
     }
 
@@ -382,6 +388,23 @@ impl AuthService {
         #[cfg(not(target_arch = "wasm32"))]
         {
             None
+        }
+    }
+
+    /// Save refresh token to localStorage
+    pub fn save_refresh_token(token: &str) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(storage) = web_sys::window()
+                .and_then(|w| w.local_storage().ok())
+                .flatten()
+            {
+                let _ = storage.set_item("refresh_token", token);
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = token;
         }
     }
 
@@ -581,15 +604,12 @@ impl AuthService {
                 });
             }
 
-            let token_url = format!("{}/realms/simpel/protocol/openid-connect/token", api_url);
+            let token_url = format!("{}/refresh", api_url);
 
-            let form_data = format!(
-                "grant_type=refresh_token&client_id=portal&refresh_token={}",
-                urlencoding::encode(_refresh_token)
-            );
+            let form_data = format!("{{\"refresh_token\":\"{}\"}}", _refresh_token);
 
             let request = Request::post(&token_url)
-                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("Content-Type", "application/json")
                 .body(form_data)
                 .map_err(|e| format!("Failed to build request: {}", e))?;
 

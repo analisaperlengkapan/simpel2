@@ -9,13 +9,13 @@
 
 use chrono::Datelike;
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 use validator::Validate;
 
 use crate::errors::{AppError, AppResult};
 use crate::grpc_clients::AuthencClient;
-use crate::workflow::engine::{WorkflowEngine, TransitionRequest};
+use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 
 use super::models::*;
 use super::repository::{KebutuhanBmnRepository, PgKebutuhanBmnRepository, UserInfo};
@@ -204,7 +204,11 @@ impl KebutuhanBmnService {
         let to_state = target_status.to_state_name();
 
         // Validate transition using workflow engine
-        if !self.workflow_engine.config().is_valid_transition(from_state, to_state) {
+        if !self
+            .workflow_engine
+            .config()
+            .is_valid_transition(from_state, to_state)
+        {
             return Err(AppError::BadRequest(format!(
                 "Cannot transition from {} to {}",
                 current.status.label(),
@@ -294,7 +298,11 @@ impl KebutuhanBmnService {
         let to_state = target_status.to_state_name();
 
         // Validate transition using workflow engine
-        if !self.workflow_engine.config().is_valid_transition(from_state, to_state) {
+        if !self
+            .workflow_engine
+            .config()
+            .is_valid_transition(from_state, to_state)
+        {
             return Err(AppError::BadRequest(format!(
                 "Cannot transition from {} to {}",
                 current.status.label(),
@@ -334,7 +342,10 @@ impl KebutuhanBmnService {
     /// Get allowed next states for a pengajuan using workflow engine
     ///
     /// Requirements: REQ-K004
-    pub fn get_allowed_transitions(&self, current_status: KebutuhanBmnStatus) -> Vec<WorkflowTransitionInfo> {
+    pub fn get_allowed_transitions(
+        &self,
+        current_status: KebutuhanBmnStatus,
+    ) -> Vec<WorkflowTransitionInfo> {
         let current_state = current_status.to_state_name();
         let next_states = self.workflow_engine.get_next_states(current_state);
 
@@ -390,7 +401,10 @@ impl KebutuhanBmnService {
             )
             .await?;
 
-        info!("Operator Satker submitting {} to Validator Wilayah", satker_id);
+        info!(
+            "Operator Satker submitting {} to Validator Wilayah",
+            satker_id
+        );
 
         // Transition to SubmitWilayah
         let transition_request = WorkflowTransitionRequest {
@@ -398,7 +412,8 @@ impl KebutuhanBmnService {
             komentar: request.catatan_satker.clone(),
         };
 
-        self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
+        self.transition_satker_status(satker_id, transition_request, user_id, user_info)
+            .await
     }
 
     /// Validator Wilayah action: forward to pusat or return to operator
@@ -413,27 +428,28 @@ impl KebutuhanBmnService {
 
         if current.status != KebutuhanBmnStatus::SubmitWilayah {
             return Err(AppError::BadRequest(
-                "Aksi Validator Wilayah hanya bisa dilakukan saat status Submit Wilayah".to_string(),
+                "Aksi Validator Wilayah hanya bisa dilakukan saat status Submit Wilayah"
+                    .to_string(),
             ));
         }
 
         // Update validator wilayah info
         self.repository
-            .update_satker_validator_wilayah(
-                satker_id,
-                user_id,
-                request.catatan.clone(),
-            )
+            .update_satker_validator_wilayah(satker_id, user_id, request.catatan.clone())
             .await?;
 
         match request.aksi.as_str() {
             "forward" => {
-                info!("Validator Wilayah forwarding {} to Validator Pusat", satker_id);
+                info!(
+                    "Validator Wilayah forwarding {} to Validator Pusat",
+                    satker_id
+                );
                 let transition_request = WorkflowTransitionRequest {
                     target_status: KebutuhanBmnStatus::SubmitPusat.to_code(),
                     komentar: request.catatan,
                 };
-                self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
+                self.transition_satker_status(satker_id, transition_request, user_id, user_info)
+                    .await
             }
             "return" => {
                 if request.catatan.is_none() {
@@ -441,12 +457,16 @@ impl KebutuhanBmnService {
                         "Catatan diperlukan saat mengembalikan ke Operator Satker".to_string(),
                     ));
                 }
-                info!("Validator Wilayah returning {} to Operator Satker", satker_id);
+                info!(
+                    "Validator Wilayah returning {} to Operator Satker",
+                    satker_id
+                );
                 let transition_request = WorkflowTransitionRequest {
                     target_status: KebutuhanBmnStatus::RevisiSatker.to_code(),
                     komentar: request.catatan,
                 };
-                self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
+                self.transition_satker_status(satker_id, transition_request, user_id, user_info)
+                    .await
             }
             _ => Err(AppError::BadRequest(
                 "Action harus 'forward' atau 'return'".to_string(),
@@ -485,10 +505,16 @@ impl KebutuhanBmnService {
             .await?;
 
         let target_status = if request.is_approved {
-            info!("Validator Pusat approving kebutuhan BMN satker {}", satker_id);
+            info!(
+                "Validator Pusat approving kebutuhan BMN satker {}",
+                satker_id
+            );
             KebutuhanBmnStatus::Approved
         } else {
-            info!("Validator Pusat rejecting kebutuhan BMN satker {}", satker_id);
+            info!(
+                "Validator Pusat rejecting kebutuhan BMN satker {}",
+                satker_id
+            );
             KebutuhanBmnStatus::Rejected
         };
 
@@ -497,7 +523,8 @@ impl KebutuhanBmnService {
             komentar: request.alasan,
         };
 
-        self.transition_satker_status(satker_id, transition_request, user_id, user_info).await
+        self.transition_satker_status(satker_id, transition_request, user_id, user_info)
+            .await
     }
 
     // ========================================================================
@@ -721,7 +748,10 @@ impl KebutuhanBmnService {
         };
 
         // Fetch pegawai data from MySIMKARI for final analysis by Validator Pusat
-        let data_pegawai = self.get_mysimkari_pegawai_data(&satker.ms_satker_id).await.ok();
+        let data_pegawai = self
+            .get_mysimkari_pegawai_data(&satker.ms_satker_id)
+            .await
+            .ok();
 
         Ok(AnalisisKelayakanResponse {
             satker,
@@ -737,10 +767,7 @@ impl KebutuhanBmnService {
     }
 
     /// Fetch MySIMKARI pegawai data for satker analysis
-    async fn get_mysimkari_pegawai_data(
-        &self,
-        satker_id: &str,
-    ) -> AppResult<DataPegawaiRekap> {
+    async fn get_mysimkari_pegawai_data(&self, _satker_id: &str) -> AppResult<DataPegawaiRekap> {
         // TODO: Integrate with actual MySIMKARI gRPC client via layanan-integrasi
         // For now, return placeholder data structure
         // In production: call integrasi_client.get_mysimkari_pegawai(satker_id)
@@ -898,7 +925,15 @@ impl KebutuhanBmnService {
         let mut failed_count = 0;
 
         for kebutuhan_id in &request.kebutuhan_ids {
-            let result = match self.process_single_approval(*kebutuhan_id, &request.komentar, user_id, user_info.clone()).await {
+            let result = match self
+                .process_single_approval(
+                    *kebutuhan_id,
+                    &request.komentar,
+                    user_id,
+                    user_info.clone(),
+                )
+                .await
+            {
                 Ok(_) => {
                     successful_count += 1;
                     BatchOperationItemResult {
@@ -933,7 +968,9 @@ impl KebutuhanBmnService {
 
         info!(
             "Batch approve operation {} completed: {}/{} successful",
-            batch_id, successful_count, request.kebutuhan_ids.len()
+            batch_id,
+            successful_count,
+            request.kebutuhan_ids.len()
         );
 
         Ok(BatchOperationResponse {
@@ -988,7 +1025,15 @@ impl KebutuhanBmnService {
         let mut failed_count = 0;
 
         for kebutuhan_id in &request.kebutuhan_ids {
-            let result = match self.process_single_rejection(*kebutuhan_id, &request.komentar, user_id, user_info.clone()).await {
+            let result = match self
+                .process_single_rejection(
+                    *kebutuhan_id,
+                    &request.komentar,
+                    user_id,
+                    user_info.clone(),
+                )
+                .await
+            {
                 Ok(_) => {
                     successful_count += 1;
                     BatchOperationItemResult {
@@ -1023,7 +1068,9 @@ impl KebutuhanBmnService {
 
         info!(
             "Batch reject operation {} completed: {}/{} successful",
-            batch_id, successful_count, request.kebutuhan_ids.len()
+            batch_id,
+            successful_count,
+            request.kebutuhan_ids.len()
         );
 
         Ok(BatchOperationResponse {
@@ -1083,13 +1130,16 @@ impl KebutuhanBmnService {
         let mut failed_count = 0;
 
         for kebutuhan_id in &request.kebutuhan_ids {
-            let result = match self.process_single_status_update(
-                *kebutuhan_id,
-                request.target_status,
-                &request.komentar,
-                user_id,
-                user_info.clone(),
-            ).await {
+            let result = match self
+                .process_single_status_update(
+                    *kebutuhan_id,
+                    request.target_status,
+                    &request.komentar,
+                    user_id,
+                    user_info.clone(),
+                )
+                .await
+            {
                 Ok(_) => {
                     successful_count += 1;
                     BatchOperationItemResult {
@@ -1100,7 +1150,10 @@ impl KebutuhanBmnService {
                 }
                 Err(e) => {
                     failed_count += 1;
-                    warn!("Failed to update status for kebutuhan {}: {}", kebutuhan_id, e);
+                    warn!(
+                        "Failed to update status for kebutuhan {}: {}",
+                        kebutuhan_id, e
+                    );
                     BatchOperationItemResult {
                         kebutuhan_id: *kebutuhan_id,
                         success: false,
@@ -1124,7 +1177,9 @@ impl KebutuhanBmnService {
 
         info!(
             "Batch update status operation {} completed: {}/{} successful",
-            batch_id, successful_count, request.kebutuhan_ids.len()
+            batch_id,
+            successful_count,
+            request.kebutuhan_ids.len()
         );
 
         Ok(BatchOperationResponse {

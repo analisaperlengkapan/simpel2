@@ -10,7 +10,7 @@ use crate::error::{CommonError, Result};
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{header, HeaderValue, StatusCode},
+    http::{HeaderValue, StatusCode, header},
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -208,9 +208,7 @@ fn should_cache_header(name: &str) -> bool {
 }
 
 #[cfg(feature = "axum")]
-fn extract_sensitivity_from_headers(
-    headers: &axum::http::HeaderMap,
-) -> Option<SensitivityLevel> {
+fn extract_sensitivity_from_headers(headers: &axum::http::HeaderMap) -> Option<SensitivityLevel> {
     headers
         .get("X-Cache-Sensitivity")
         .and_then(|v| v.to_str().ok())

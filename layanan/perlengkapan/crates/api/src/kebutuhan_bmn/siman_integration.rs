@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::warn;
 
 use crate::errors::{AppError, AppResult};
 
@@ -420,9 +420,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_infer_category_tik() {
-        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(layanan_perlengkapan_integrasi::Config::default())
-            .await
-            .unwrap();
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(
+            layanan_perlengkapan_integrasi::Config::default(),
+        )
+        .await
+        .unwrap();
         let integration = SimanIntegration::new(client);
 
         assert_eq!(
@@ -441,9 +443,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_infer_category_vehicle() {
-        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(layanan_perlengkapan_integrasi::Config::default())
-            .await
-            .unwrap();
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(
+            layanan_perlengkapan_integrasi::Config::default(),
+        )
+        .await
+        .unwrap();
         let integration = SimanIntegration::new(client);
 
         assert_eq!(
@@ -458,9 +462,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_infer_category_non_tik() {
-        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(layanan_perlengkapan_integrasi::Config::default())
-            .await
-            .unwrap();
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(
+            layanan_perlengkapan_integrasi::Config::default(),
+        )
+        .await
+        .unwrap();
         let integration = SimanIntegration::new(client);
 
         assert_eq!(

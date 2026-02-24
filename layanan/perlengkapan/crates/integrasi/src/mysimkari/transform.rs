@@ -157,10 +157,7 @@ impl MySIMKARITransformer {
     }
 
     /// Transform pegawai data from MySIMKARI format to internal format
-    pub fn transform_pegawai(
-        &self,
-        raw_data: &Value,
-    ) -> Result<TransformedPegawai, MonsaktiError> {
+    pub fn transform_pegawai(&self, raw_data: &Value) -> Result<TransformedPegawai, MonsaktiError> {
         // Validate required fields
         let nip = raw_data
             .get("nip")
@@ -243,9 +240,9 @@ impl MySIMKARITransformer {
         &self,
         raw_data_array: &Value,
     ) -> Result<Vec<TransformedSatker>, MonsaktiError> {
-        let array = raw_data_array.as_array().ok_or_else(|| {
-            MonsaktiError::ApiError("Expected array of satker data".to_string())
-        })?;
+        let array = raw_data_array
+            .as_array()
+            .ok_or_else(|| MonsaktiError::ApiError("Expected array of satker data".to_string()))?;
 
         let mut results = Vec::new();
         let mut errors = 0;
@@ -276,9 +273,9 @@ impl MySIMKARITransformer {
         &self,
         raw_data_array: &Value,
     ) -> Result<Vec<TransformedPegawai>, MonsaktiError> {
-        let array = raw_data_array.as_array().ok_or_else(|| {
-            MonsaktiError::ApiError("Expected array of pegawai data".to_string())
-        })?;
+        let array = raw_data_array
+            .as_array()
+            .ok_or_else(|| MonsaktiError::ApiError("Expected array of pegawai data".to_string()))?;
 
         let mut results = Vec::new();
         let mut errors = 0;

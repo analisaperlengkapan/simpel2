@@ -3,10 +3,10 @@
 //! All endpoints are GET-only (read-only forecast dashboard).
 
 use axum::{
+    Json,
     extract::{Query, State},
     http::{StatusCode, header},
     response::IntoResponse,
-    Json,
 };
 
 use crate::errors::AppError;

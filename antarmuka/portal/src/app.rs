@@ -14,7 +14,7 @@ use leptos::task::spawn_local;
 use lib_ui::components::BrandingProvider;
 
 use leptos_router::{
-    StaticSegment,
+    ParamSegment, StaticSegment,
     components::{Route, Router, Routes},
 };
 
@@ -273,6 +273,133 @@ pub fn App() -> impl IntoView {
                         }.into_any(),
                     }
                 } />
+
+                // Self-service account management routes
+                <Route path=StaticSegment("profile") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::profile::ProfilePage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("passkeys") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::passkeys::PasskeysPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("password") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::password_change::PasswordChangePage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("sessions") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::sessions::SessionsPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                // Admin IAM routes
+                <Route path=StaticSegment("admin") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::AdminOverviewPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/users") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::UsersManagementPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=(StaticSegment("admin/users"), ParamSegment("id")) view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::UserDetailPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/realms") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::RealmsManagementPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/clients") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::ClientsManagementPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=(StaticSegment("admin/clients"), ParamSegment("id")) view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::ClientDetailPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/roles") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::RolesManagementPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/federation") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::FederationManagementPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/permissions") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::PermissionsManagementPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/audit") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::AuditLogsPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+                <Route path=StaticSegment("admin/groups") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::GroupsManagementPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/realm-settings") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::RealmSettingsPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/auth-flows") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::AuthFlowsPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("admin/linked-accounts") view=move || {
+                    match user_session.get() {
+                        Some(_session) => view! { <crate::pages::admin::LinkedAccountsPage /> }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
+                    }
+                } />
             </Routes>
         </Router>
 
@@ -427,6 +554,51 @@ fn setup_search_providers() {
             url: "/portal/settings".to_string(),
             icon: "⚙️".to_string(),
             module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "profile".to_string(),
+            title: "Profil Saya".to_string(),
+            description: "Kelola informasi profil dan data pribadi".to_string(),
+            category: SearchCategory::Page,
+            url: "/portal/profile".to_string(),
+            icon: "👤".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "passkeys".to_string(),
+            title: "Passkey".to_string(),
+            description: "Kelola kunci keamanan dan autentikasi biometrik".to_string(),
+            category: SearchCategory::Page,
+            url: "/portal/passkeys".to_string(),
+            icon: "🔐".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "password".to_string(),
+            title: "Ubah Kata Sandi".to_string(),
+            description: "Perbarui kata sandi akun Anda".to_string(),
+            category: SearchCategory::Page,
+            url: "/portal/password".to_string(),
+            icon: "🔒".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "sessions".to_string(),
+            title: "Sesi Aktif".to_string(),
+            description: "Kelola sesi login dan perangkat aktif".to_string(),
+            category: SearchCategory::Page,
+            url: "/portal/sessions".to_string(),
+            icon: "📱".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "admin".to_string(),
+            title: "Admin Panel".to_string(),
+            description: "Administrasi Identity & Access Management".to_string(),
+            category: SearchCategory::Page,
+            url: "/portal/admin".to_string(),
+            icon: "🛡️".to_string(),
+            module: Some("Admin".to_string()),
         },
     ];
 

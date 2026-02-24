@@ -1,7 +1,7 @@
 # Perlengkapan Workspace
 #
 # This is the workspace manifest for all perlengkapan-related crates.
-# Each service is organized under crates/ following the infra/secreton pattern.
+# Each service is organized under crates/ following the layanan/secreton pattern.
 
 [workspace]
 resolver = "2"

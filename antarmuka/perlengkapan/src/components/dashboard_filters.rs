@@ -61,7 +61,10 @@ pub fn DashboardFilters(
             id: uuid::Uuid::new_v4().to_string(),
             name: name.clone(),
             filter: filter.get(),
-            created_at: js_sys::Date::new_0().to_iso_string().as_string().unwrap_or_default(),
+            created_at: js_sys::Date::new_0()
+                .to_iso_string()
+                .as_string()
+                .unwrap_or_default(),
         };
 
         let mut filters = saved_filters.get();

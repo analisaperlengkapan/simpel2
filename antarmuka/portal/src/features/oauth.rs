@@ -74,18 +74,12 @@ impl OAuthClient {
 
     /// Get authorization endpoint URL
     pub fn authorization_endpoint(&self) -> String {
-        format!(
-            "{}/realms/{}/protocol/openid-connect/auth",
-            self.base_url, self.realm
-        )
+        format!("{}/api/v1/oauth2/authorize", self.base_url)
     }
 
     /// Get token endpoint URL
     pub fn token_endpoint(&self) -> String {
-        format!(
-            "{}/realms/{}/protocol/openid-connect/token",
-            self.base_url, self.realm
-        )
+        format!("{}/api/v1/oauth2/token", self.base_url)
     }
 
     /// Generate authorization URL
@@ -256,7 +250,7 @@ mod tests {
 
         assert_eq!(
             client.authorization_endpoint(),
-            "http://localhost:8088/realms/simpel/protocol/openid-connect/auth"
+            "http://localhost:8088/api/v1/oauth2/authorize"
         );
     }
 
@@ -271,7 +265,7 @@ mod tests {
 
         assert_eq!(
             client.token_endpoint(),
-            "http://localhost:8088/realms/simpel/protocol/openid-connect/token"
+            "http://localhost:8088/api/v1/oauth2/token"
         );
     }
 

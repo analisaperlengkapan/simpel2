@@ -25,7 +25,6 @@ pub mod scheduler;
 pub mod services;
 
 pub use handlers::*;
-pub use models::*;
 pub use repository::*;
 pub use scheduler::*;
 pub use services::*;

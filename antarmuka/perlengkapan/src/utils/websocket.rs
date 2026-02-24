@@ -3,8 +3,8 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 use web_sys::{CloseEvent, ErrorEvent, MessageEvent, WebSocket as WebSocketSys};
 
 /// Dashboard update message types (matches backend DashboardUpdate enum)
@@ -31,9 +31,7 @@ pub enum DashboardUpdate {
         data: serde_json::Value,
     },
     /// Heartbeat/ping message
-    Ping {
-        timestamp: String,
-    },
+    Ping { timestamp: String },
     /// Connection confirmation
     Connected {
         client_id: String,
@@ -45,13 +43,9 @@ pub enum DashboardUpdate {
         timestamp: String,
     },
     /// Subscription acknowledgment
-    Subscribed {
-        timestamp: String,
-    },
+    Subscribed { timestamp: String },
     /// Pong response
-    Pong {
-        timestamp: String,
-    },
+    Pong { timestamp: String },
 }
 
 /// WebSocket connection state

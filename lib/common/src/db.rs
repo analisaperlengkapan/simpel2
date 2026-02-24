@@ -299,14 +299,16 @@ impl QueryBuilder {
 
     pub fn add_limit(&mut self, limit: i64) -> &mut Self {
         self.param_count += 1;
-        self.query.push_str(&format!(" LIMIT ${}", self.param_count));
+        self.query
+            .push_str(&format!(" LIMIT ${}", self.param_count));
         self.params.push(limit.to_string());
         self
     }
 
     pub fn add_offset(&mut self, offset: i64) -> &mut Self {
         self.param_count += 1;
-        self.query.push_str(&format!(" OFFSET ${}", self.param_count));
+        self.query
+            .push_str(&format!(" OFFSET ${}", self.param_count));
         self.params.push(offset.to_string());
         self
     }

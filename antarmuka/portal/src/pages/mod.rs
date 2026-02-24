@@ -1,5 +1,6 @@
 //! Pages module - All page components
 
+pub mod admin;
 pub mod apps;
 pub mod callback;
 pub mod dashboard;
@@ -13,11 +14,16 @@ pub mod mfa_verification;
 pub mod monitoring;
 pub mod not_found;
 pub mod notifications;
+pub mod passkeys;
+pub mod password_change;
 pub mod password_reset;
 pub mod pembinaan;
+pub mod profile;
 pub mod secrets;
+pub mod sessions;
 pub mod settings;
 
+pub use admin::*;
 pub use apps::*;
 pub use callback::*;
 pub use dashboard::*;
@@ -31,7 +37,11 @@ pub use mfa_verification::MfaVerificationPage;
 pub use monitoring::*;
 pub use not_found::*;
 pub use notifications::*;
+pub use passkeys::*;
+pub use password_change::*;
 // Explicitly export types from password_reset to avoid conflicts if needed
 pub use password_reset::*;
 pub use pembinaan::*;
+pub use profile::*;
+pub use sessions::*;
 pub use settings::*;

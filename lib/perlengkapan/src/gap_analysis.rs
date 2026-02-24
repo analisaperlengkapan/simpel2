@@ -129,10 +129,7 @@ impl GapAnalyzer {
     }
 
     /// Calculate gaps for multiple kode barang
-    pub fn calculate_gaps_batch(
-        &mut self,
-        items: Vec<GapAnalysisInput>,
-    ) -> Vec<GapAnalysisResult> {
+    pub fn calculate_gaps_batch(&mut self, items: Vec<GapAnalysisInput>) -> Vec<GapAnalysisResult> {
         items
             .into_iter()
             .map(|input| {
@@ -155,8 +152,7 @@ impl GapAnalyzer {
     /// Invalidate cache for a specific satker
     pub fn invalidate_satker_cache(&mut self, satker_id: Uuid) {
         let satker_prefix = format!("{}:", satker_id);
-        self.cache
-            .retain(|key, _| !key.starts_with(&satker_prefix));
+        self.cache.retain(|key, _| !key.starts_with(&satker_prefix));
     }
 
     /// Get cache statistics

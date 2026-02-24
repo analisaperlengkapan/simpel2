@@ -39,10 +39,10 @@ impl PriorityScore {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ScoreBreakdown {
-    pub gap_magnitude_score: f64,      // 40% weight
-    pub asset_criticality_score: f64,  // 30% weight
-    pub satker_type_score: f64,        // 20% weight
-    pub justification_score: f64,      // 10% weight
+    pub gap_magnitude_score: f64,     // 40% weight
+    pub asset_criticality_score: f64, // 30% weight
+    pub satker_type_score: f64,       // 20% weight
+    pub justification_score: f64,     // 10% weight
 }
 
 impl ScoreBreakdown {
@@ -59,10 +59,10 @@ impl ScoreBreakdown {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum PriorityLevel {
-    Critical,  // 80-100
-    High,      // 60-79
-    Medium,    // 40-59
-    Low,       // 0-39
+    Critical, // 80-100
+    High,     // 60-79
+    Medium,   // 40-59
+    Low,      // 0-39
 }
 
 impl PriorityLevel {
@@ -94,12 +94,12 @@ impl PriorityLevel {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum SatkerType {
-    Cabjari,    // Cabang Kejaksaan Negeri (highest priority)
-    KejariC,    // Kejaksaan Negeri Kelas C
-    KejariB,    // Kejaksaan Negeri Kelas B
-    KejariA,    // Kejaksaan Negeri Kelas A
-    Kejati,     // Kejaksaan Tinggi
-    Kejagung,   // Kejaksaan Agung
+    Cabjari,  // Cabang Kejaksaan Negeri (highest priority)
+    KejariC,  // Kejaksaan Negeri Kelas C
+    KejariB,  // Kejaksaan Negeri Kelas B
+    KejariA,  // Kejaksaan Negeri Kelas A
+    Kejati,   // Kejaksaan Tinggi
+    Kejagung, // Kejaksaan Agung
 }
 
 impl SatkerType {
@@ -166,7 +166,11 @@ impl PrioritizationEngine {
 
         // Justification quality (10%) - based on length
         // Good justification: >200 characters
-        let justification_score = if justification_length > 200 { 10.0 } else { 0.0 };
+        let justification_score = if justification_length > 200 {
+            10.0
+        } else {
+            0.0
+        };
 
         let breakdown = ScoreBreakdown {
             gap_magnitude_score,
@@ -179,9 +183,7 @@ impl PrioritizationEngine {
     }
 
     /// Calculate priority scores for multiple requirements
-    pub fn calculate_priorities_batch(
-        items: Vec<PrioritizationInput>,
-    ) -> Vec<PriorityScore> {
+    pub fn calculate_priorities_batch(items: Vec<PrioritizationInput>) -> Vec<PriorityScore> {
         items
             .into_iter()
             .map(|input| {
@@ -203,10 +205,7 @@ impl PrioritizationEngine {
     }
 
     /// Filter requirements by priority level
-    pub fn filter_by_level(
-        scores: Vec<PriorityScore>,
-        level: PriorityLevel,
-    ) -> Vec<PriorityScore> {
+    pub fn filter_by_level(scores: Vec<PriorityScore>, level: PriorityLevel) -> Vec<PriorityScore> {
         scores
             .into_iter()
             .filter(|s| s.priority_level == level)
@@ -239,14 +238,8 @@ mod tests {
 
     #[test]
     fn test_satker_type_parsing() {
-        assert_eq!(
-            SatkerType::from_str("CABJARI"),
-            Some(SatkerType::Cabjari)
-        );
-        assert_eq!(
-            SatkerType::from_str("KEJARI_C"),
-            Some(SatkerType::KejariC)
-        );
+        assert_eq!(SatkerType::from_str("CABJARI"), Some(SatkerType::Cabjari));
+        assert_eq!(SatkerType::from_str("KEJARI_C"), Some(SatkerType::KejariC));
         assert_eq!(SatkerType::from_str("KEJATI"), Some(SatkerType::Kejati));
         assert_eq!(SatkerType::from_str("INVALID"), None);
     }
@@ -266,10 +259,10 @@ mod tests {
         let kebutuhan_id = Uuid::new_v4();
         let score = PrioritizationEngine::calculate_priority(
             kebutuhan_id,
-            80,           // Large gap
-            true,         // Critical infrastructure
+            80,                  // Large gap
+            true,                // Critical infrastructure
             SatkerType::Cabjari, // High priority satker
-            250,          // Good justification
+            250,                 // Good justification
         );
 
         // Gap: 80/100 * 40 = 32
@@ -286,10 +279,10 @@ mod tests {
         let kebutuhan_id = Uuid::new_v4();
         let score = PrioritizationEngine::calculate_priority(
             kebutuhan_id,
-            10,           // Small gap
-            false,        // Not critical
+            10,                   // Small gap
+            false,                // Not critical
             SatkerType::Kejagung, // Low priority satker
-            50,           // Poor justification
+            50,                   // Poor justification
         );
 
         // Gap: 10/100 * 40 = 4
@@ -306,10 +299,10 @@ mod tests {
         let kebutuhan_id = Uuid::new_v4();
         let score = PrioritizationEngine::calculate_priority(
             kebutuhan_id,
-            50,           // Medium gap
-            false,        // Not critical
+            50,                  // Medium gap
+            false,               // Not critical
             SatkerType::KejariB, // Medium priority satker
-            250,          // Good justification
+            250,                 // Good justification
         );
 
         // Gap: 50/100 * 40 = 20
@@ -397,7 +390,8 @@ mod tests {
             ),
         ];
 
-        let critical = PrioritizationEngine::filter_by_level(scores.clone(), PriorityLevel::Critical);
+        let critical =
+            PrioritizationEngine::filter_by_level(scores.clone(), PriorityLevel::Critical);
         assert_eq!(critical.len(), 1);
         assert_eq!(critical[0].score, 92.0);
 

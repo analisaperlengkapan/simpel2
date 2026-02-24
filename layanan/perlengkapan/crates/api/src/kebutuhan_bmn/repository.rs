@@ -6,8 +6,7 @@
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
 use serde_json::{Value, json};
-use tokio_postgres::Row;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use uuid::Uuid;
 
 use super::models::*;
@@ -1007,8 +1006,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
     ) -> AppResult<()> {
         let client = self.get_client().await?;
 
-        let lampiran_json = lampiran_pendukung
-            .map(|v| serde_json::to_value(v).unwrap_or_default());
+        let lampiran_json = lampiran_pendukung.map(|v| serde_json::to_value(v).unwrap_or_default());
 
         client
             .execute(
@@ -1020,7 +1018,12 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                     updated_at = NOW()
                 WHERE id = $4
                 "#,
-                &[&catatan_satker, &lampiran_surat_permohonan, &lampiran_json, &satker_id],
+                &[
+                    &catatan_satker,
+                    &lampiran_surat_permohonan,
+                    &lampiran_json,
+                    &satker_id,
+                ],
             )
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;

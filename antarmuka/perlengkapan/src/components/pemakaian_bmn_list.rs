@@ -3,8 +3,8 @@
 //! List view for BMN usage permits with filtering and history.
 //! Requirements: REQ-P001, REQ-P011, REQ-P012
 
+use crate::api::{IzinPemakaianBmn, fetch_pemakaian_bmn_list};
 use leptos::prelude::*;
-use crate::api::{fetch_pemakaian_bmn_list, IzinPemakaianBmn};
 
 #[component]
 pub fn PemakaianBmnList() -> impl IntoView {
@@ -21,36 +21,40 @@ pub fn PemakaianBmnList() -> impl IntoView {
         let search_term = search.get();
 
         async move {
-            let status_opt = if status.is_empty() { None } else { Some(status) };
+            let status_opt = if status.is_empty() {
+                None
+            } else {
+                Some(status)
+            };
             let jenis_opt = if jenis.is_empty() { None } else { Some(jenis) };
-            let search_opt = if search_term.is_empty() { None } else { Some(search_term) };
+            let search_opt = if search_term.is_empty() {
+                None
+            } else {
+                Some(search_term)
+            };
 
             match fetch_pemakaian_bmn_list(
-                p as i32,
-                20,
-                status_opt,
-                jenis_opt,
-                None, // pegawai_nip
+                p as i32, 20, status_opt, jenis_opt, None, // pegawai_nip
                 None, // satker_id
                 search_opt,
-            ).await {
+            )
+            .await
+            {
                 Ok(response) => Some(response),
                 Err(_) => None,
             }
         }
     });
 
-    let get_status_badge_class = |status: &str| {
-        match status {
-            "DRAFT" => "bg-gray-100 text-gray-700",
-            "SUBMITTED" => "bg-blue-100 text-blue-700",
-            "APPROVED" => "bg-green-100 text-green-700",
-            "REJECTED" => "bg-red-100 text-red-700",
-            "ACTIVE" => "bg-emerald-100 text-emerald-700",
-            "EXPIRED" => "bg-orange-100 text-orange-700",
-            "REVOKED" => "bg-red-100 text-red-700",
-            _ => "bg-gray-100 text-gray-700",
-        }
+    let get_status_badge_class = |status: &str| match status {
+        "DRAFT" => "bg-gray-100 text-gray-700",
+        "SUBMITTED" => "bg-blue-100 text-blue-700",
+        "APPROVED" => "bg-green-100 text-green-700",
+        "REJECTED" => "bg-red-100 text-red-700",
+        "ACTIVE" => "bg-emerald-100 text-emerald-700",
+        "EXPIRED" => "bg-orange-100 text-orange-700",
+        "REVOKED" => "bg-red-100 text-red-700",
+        _ => "bg-gray-100 text-gray-700",
     };
 
     let get_status_label = |status: &str| -> &'static str {

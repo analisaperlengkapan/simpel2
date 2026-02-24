@@ -22,7 +22,10 @@ pub enum CacheKey {
 
     /// Gap analysis results
     /// Format: "gap:{satker_id}:{kode_barang}"
-    GapAnalysis { satker_id: Uuid, kode_barang: String },
+    GapAnalysis {
+        satker_id: Uuid,
+        kode_barang: String,
+    },
 
     /// Dashboard metrics
     /// Format: "dashboard:{type}:{tahun}:{filter}"
@@ -157,12 +160,12 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
-            reference_data_ttl: Duration::from_secs(3600),      // 1 hour
-            gap_analysis_ttl: Duration::from_secs(3600),        // 1 hour
-            dashboard_metrics_ttl: Duration::from_secs(300),    // 5 minutes
-            list_queries_ttl: Duration::from_secs(900),         // 15 minutes
-            integration_data_ttl: Duration::from_secs(1800),    // 30 minutes
-            capacity: 10000,                                     // 10k entries
+            reference_data_ttl: Duration::from_secs(3600), // 1 hour
+            gap_analysis_ttl: Duration::from_secs(3600),   // 1 hour
+            dashboard_metrics_ttl: Duration::from_secs(300), // 5 minutes
+            list_queries_ttl: Duration::from_secs(900),    // 15 minutes
+            integration_data_ttl: Duration::from_secs(1800), // 30 minutes
+            capacity: 10000,                               // 10k entries
         }
     }
 }
@@ -220,7 +223,11 @@ impl CacheManager {
             match serde_json::from_slice::<T>(&bytes) {
                 Ok(value) => Ok(Some(value)),
                 Err(e) => {
-                    tracing::warn!("Failed to deserialize cached value for key {}: {}", key_str, e);
+                    tracing::warn!(
+                        "Failed to deserialize cached value for key {}: {}",
+                        key_str,
+                        e
+                    );
                     Ok(None)
                 }
             }
@@ -450,10 +457,7 @@ mod tests {
             satker_id: Uuid::nil(),
             kode_barang: "1.2.3.4".to_string(),
         };
-        assert_eq!(
-            key.to_string(),
-            format!("gap:{}:1.2.3.4", Uuid::nil())
-        );
+        assert_eq!(key.to_string(), format!("gap:{}:1.2.3.4", Uuid::nil()));
     }
 
     #[tokio::test]

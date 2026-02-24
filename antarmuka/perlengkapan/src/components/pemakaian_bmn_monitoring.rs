@@ -3,12 +3,11 @@
 //! Monitoring dashboard for BMN usage statistics.
 //! Requirements: REQ-P011, REQ-P012, REQ-P013
 
-use leptos::prelude::*;
 use crate::api::{
-    fetch_bmn_usage_history, fetch_pegawai_usage_history,
-    fetch_expiring_permits, BmnUsageStats, PegawaiUsageStats,
-    IzinPemakaianBmn,
+    BmnUsageStats, IzinPemakaianBmn, PegawaiUsageStats, fetch_bmn_usage_history,
+    fetch_expiring_permits, fetch_pegawai_usage_history,
 };
+use leptos::prelude::*;
 
 #[component]
 pub fn PemakaianBmnMonitoring() -> impl IntoView {
@@ -45,7 +44,9 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         set_search_result.set(Some(SearchResult::Bmn(response.data)));
                     }
                     Err(_) => {
-                        set_search_result.set(Some(SearchResult::Error("Data tidak ditemukan".to_string())));
+                        set_search_result.set(Some(SearchResult::Error(
+                            "Data tidak ditemukan".to_string(),
+                        )));
                     }
                 }
             } else {
@@ -54,7 +55,9 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         set_search_result.set(Some(SearchResult::Pegawai(response.data)));
                     }
                     Err(_) => {
-                        set_search_result.set(Some(SearchResult::Error("Data tidak ditemukan".to_string())));
+                        set_search_result.set(Some(SearchResult::Error(
+                            "Data tidak ditemukan".to_string(),
+                        )));
                     }
                 }
             }

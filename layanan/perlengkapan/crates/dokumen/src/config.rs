@@ -123,8 +123,7 @@ impl AppConfig {
             log_level: std::env::var("LOG_LEVEL").unwrap_or_else(|_| default_log_level()),
             encryption_key: std::env::var("ENCRYPTION_KEY")
                 .unwrap_or_else(|_| default_encryption_key()),
-            storage_path: std::env::var("STORAGE_PATH")
-                .unwrap_or_else(|_| default_storage_path()),
+            storage_path: std::env::var("STORAGE_PATH").unwrap_or_else(|_| default_storage_path()),
             archive_storage_path: std::env::var("ARCHIVE_STORAGE_PATH")
                 .unwrap_or_else(|_| default_archive_storage_path()),
             allowed_extensions: std::env::var("ALLOWED_EXTENSIONS")

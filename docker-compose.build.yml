@@ -12,13 +12,13 @@ services:
   secreton:
     build:
       context: .
-      dockerfile: infra/secreton/Dockerfile
+      dockerfile: layanan/secreton/Dockerfile
     image: localhost:32000/simpelv2/secreton:latest
 
   authenc:
     build:
       context: .
-      dockerfile: infra/authenc/Dockerfile
+      dockerfile: layanan/authenc/Dockerfile
     image: localhost:32000/simpelv2/authenc:latest
 
   # =====================================================

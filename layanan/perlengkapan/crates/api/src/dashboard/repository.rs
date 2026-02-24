@@ -20,7 +20,9 @@ pub async fn fetch_kebutuhan_metrics(
         GROUP BY status
     "#;
 
-    let rows = client.query(status_query, &[&params.tahun_anggaran]).await?;
+    let rows = client
+        .query(status_query, &[&params.tahun_anggaran])
+        .await?;
 
     let total_by_status: HashMap<String, i64> = rows
         .into_iter()
@@ -38,7 +40,9 @@ pub async fn fetch_kebutuhan_metrics(
         LIMIT 10
     "#;
 
-    let rows = client.query(satker_query, &[&params.tahun_anggaran]).await?;
+    let rows = client
+        .query(satker_query, &[&params.tahun_anggaran])
+        .await?;
 
     let total_by_satker: Vec<SatkerCount> = rows
         .into_iter()
@@ -150,7 +154,9 @@ pub async fn fetch_pakaian_dinas_metrics(
         GROUP BY ukuran
     "#;
 
-    let rows = client.query(ukuran_query, &[&params.tahun_anggaran]).await?;
+    let rows = client
+        .query(ukuran_query, &[&params.tahun_anggaran])
+        .await?;
 
     let total_by_ukuran: HashMap<String, i64> = rows
         .into_iter()

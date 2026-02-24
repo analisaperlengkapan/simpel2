@@ -30,11 +30,11 @@ pub struct DatabasePoolConfig {
 impl Default for DatabasePoolConfig {
     fn default() -> Self {
         Self {
-            max_size: 50,                                  // Max 50 connections
-            min_idle: 10,                                  // Min 10 idle connections
-            connection_timeout: Duration::from_secs(30),   // 30 seconds
-            idle_timeout: Duration::from_secs(600),        // 10 minutes
-            max_lifetime: Duration::from_secs(1800),       // 30 minutes
+            max_size: 50,                                // Max 50 connections
+            min_idle: 10,                                // Min 10 idle connections
+            connection_timeout: Duration::from_secs(30), // 30 seconds
+            idle_timeout: Duration::from_secs(600),      // 10 minutes
+            max_lifetime: Duration::from_secs(1800),     // 30 minutes
         }
     }
 }
@@ -112,12 +112,12 @@ pub struct RedisPoolConfig {
 impl Default for RedisPoolConfig {
     fn default() -> Self {
         Self {
-            max_size: 20,                                  // Max 20 connections
-            min_idle: 5,                                   // Min 5 idle connections
-            connection_timeout: Duration::from_secs(10),   // 10 seconds
-            response_timeout: Duration::from_secs(5),      // 5 seconds
-            max_retries: 3,                                // 3 retries
-            retry_delay: Duration::from_millis(100),       // 100ms between retries
+            max_size: 20,                                // Max 20 connections
+            min_idle: 5,                                 // Min 5 idle connections
+            connection_timeout: Duration::from_secs(10), // 10 seconds
+            response_timeout: Duration::from_secs(5),    // 5 seconds
+            max_retries: 3,                              // 3 retries
+            retry_delay: Duration::from_millis(100),     // 100ms between retries
         }
     }
 }
@@ -193,7 +193,7 @@ impl PoolHealthMonitor {
             available: status.available,
             max_size: status.max_size,
             utilization_percent: if status.max_size > 0 {
-                ((status.size - status.available) as f64 / status.max_size as f64 * 100.0)
+                (status.size - status.available) as f64 / status.max_size as f64 * 100.0
             } else {
                 0.0
             },

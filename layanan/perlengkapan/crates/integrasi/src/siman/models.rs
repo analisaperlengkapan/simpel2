@@ -276,8 +276,14 @@ mod tests {
             SimanAssetCategory::GedungBangunan.description(),
             "Gedung dan Bangunan"
         );
-        assert_eq!(SimanAssetCategory::NonTIK.description(), "Peralatan Mesin Non TIK");
-        assert_eq!(SimanAssetCategory::KDP.description(), "Konstruksi Dalam Pengerjaan");
+        assert_eq!(
+            SimanAssetCategory::NonTIK.description(),
+            "Peralatan Mesin Non TIK"
+        );
+        assert_eq!(
+            SimanAssetCategory::KDP.description(),
+            "Konstruksi Dalam Pengerjaan"
+        );
     }
 
     #[test]

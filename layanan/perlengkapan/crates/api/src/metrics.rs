@@ -1,7 +1,7 @@
 // Prometheus metrics for monitoring and observability
 use prometheus::{
-    register_histogram_vec, register_int_counter_vec, register_int_gauge_vec, HistogramVec,
-    IntCounterVec, IntGaugeVec, TextEncoder, Encoder,
+    Encoder, HistogramVec, IntCounterVec, IntGaugeVec, TextEncoder, register_histogram_vec,
+    register_int_counter_vec, register_int_gauge_vec,
 };
 use std::sync::OnceLock;
 
@@ -13,7 +13,9 @@ pub fn http_request_duration() -> &'static HistogramVec {
             "http_request_duration_seconds",
             "HTTP request duration in seconds",
             &["method", "path", "status"],
-            vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+            vec![
+                0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0
+            ]
         )
         .expect("Failed to register http_request_duration_seconds metric")
     })
@@ -93,7 +95,9 @@ pub fn workflow_sla_breach_duration() -> &'static HistogramVec {
             "workflow_sla_breach_duration_minutes",
             "SLA breach duration in minutes",
             &["entity_type", "state"],
-            vec![10.0, 30.0, 60.0, 120.0, 240.0, 480.0, 720.0, 1440.0, 2880.0, 4320.0]
+            vec![
+                10.0, 30.0, 60.0, 120.0, 240.0, 480.0, 720.0, 1440.0, 2880.0, 4320.0
+            ]
         )
         .expect("Failed to register workflow_sla_breach_duration_minutes metric")
     })
@@ -120,7 +124,9 @@ pub fn integration_sync_duration() -> &'static HistogramVec {
             "integration_sync_duration_seconds",
             "Integration sync duration in seconds",
             &["service", "sync_type"],
-            vec![1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0, 3600.0]
+            vec![
+                1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0, 3600.0
+            ]
         )
         .expect("Failed to register integration_sync_duration_seconds metric")
     })
@@ -173,7 +179,9 @@ pub fn database_query_duration() -> &'static HistogramVec {
             "database_query_duration_seconds",
             "Database query duration in seconds",
             &["operation"],
-            vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+            vec![
+                0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0
+            ]
         )
         .expect("Failed to register database_query_duration_seconds metric")
     })

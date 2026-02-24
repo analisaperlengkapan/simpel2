@@ -29,8 +29,8 @@ This guide provides comprehensive instructions for integrating with the SIMKARI 
 ```rust
 // Cargo.toml
 [dependencies]
-authenc = { path = "../../infra/authenc" }
-secreton = { path = "../../infra/secreton" }
+authenc = { path = "../../layanan/authenc" }
+secreton = { path = "../../layanan/secreton" }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 uuid = { version = "1.0", features = ["v4"] }

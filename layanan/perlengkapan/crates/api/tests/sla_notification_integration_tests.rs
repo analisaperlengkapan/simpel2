@@ -25,7 +25,8 @@ async fn create_test_pool() -> Pool {
             .parse()
             .unwrap(),
     );
-    cfg.dbname = Some(env::var("DATABASE_NAME").unwrap_or_else(|_| "perlengkapan_test".to_string()));
+    cfg.dbname =
+        Some(env::var("DATABASE_NAME").unwrap_or_else(|_| "perlengkapan_test".to_string()));
     cfg.user = Some(env::var("DATABASE_USER").unwrap_or_else(|_| "postgres".to_string()));
     cfg.password = Some(env::var("DATABASE_PASSWORD").unwrap_or_else(|_| "password".to_string()));
 
@@ -34,7 +35,11 @@ async fn create_test_pool() -> Pool {
 }
 
 /// Helper function to create a test kebutuhan BMN entity
-async fn create_test_kebutuhan(pool: &Pool, status: &str, created_at: chrono::DateTime<Utc>) -> Uuid {
+async fn create_test_kebutuhan(
+    pool: &Pool,
+    status: &str,
+    created_at: chrono::DateTime<Utc>,
+) -> Uuid {
     let client = pool.get().await.expect("Failed to get database client");
 
     let entity_id = Uuid::new_v4();
@@ -79,7 +84,10 @@ async fn create_test_kebutuhan(pool: &Pool, status: &str, created_at: chrono::Da
     "#;
 
     client
-        .execute(activity_query, &[&entity_id, &status, &user_id, &created_at])
+        .execute(
+            activity_query,
+            &[&entity_id, &status, &user_id, &created_at],
+        )
         .await
         .expect("Failed to insert test activity");
 
@@ -101,7 +109,10 @@ async fn cleanup_test_data(pool: &Pool, entity_id: Uuid) {
 
     // Delete kebutuhan
     client
-        .execute("DELETE FROM perlengkapan.kebutuhan_bmn WHERE id = $1", &[&entity_id])
+        .execute(
+            "DELETE FROM perlengkapan.kebutuhan_bmn WHERE id = $1",
+            &[&entity_id],
+        )
         .await
         .ok();
 }
@@ -128,7 +139,10 @@ async fn test_sla_breach_detection() {
     let breach_info = breach.unwrap();
     assert_eq!(breach_info.entity_id, entity_id);
     assert_eq!(breach_info.current_state, "SUBMITTED");
-    assert!(breach_info.breach_duration_minutes > 0, "Breach duration should be positive");
+    assert!(
+        breach_info.breach_duration_minutes > 0,
+        "Breach duration should be positive"
+    );
 
     // Cleanup
     cleanup_test_data(&pool, entity_id).await;
@@ -175,7 +189,10 @@ async fn test_sla_check_all() {
     assert!(result.is_ok());
 
     let breaches = result.unwrap();
-    assert!(breaches.len() >= 2, "At least 2 SLA breaches should be detected");
+    assert!(
+        breaches.len() >= 2,
+        "At least 2 SLA breaches should be detected"
+    );
 
     // Verify entity1 is in breaches
     assert!(
@@ -203,8 +220,8 @@ async fn test_sla_escalation_with_notification() {
     let config = WorkflowConfig::default_kebutuhan_bmn();
 
     // Create notification client
-    let notifikasi_endpoint = env::var("NOTIFIKASI_GRPC_URL")
-        .unwrap_or_else(|_| "http://localhost:50053".to_string());
+    let notifikasi_endpoint =
+        env::var("NOTIFIKASI_GRPC_URL").unwrap_or_else(|_| "http://localhost:50053".to_string());
 
     let notifikasi_client = NotifikasiClient::new(&notifikasi_endpoint)
         .await
@@ -238,9 +255,15 @@ async fn test_sla_escalation_with_notification() {
         AND catatan LIKE '%SLA breach detected%'
     "#;
 
-    let row = client.query_one(query, &[&entity_id]).await.expect("Failed to query");
+    let row = client
+        .query_one(query, &[&entity_id])
+        .await
+        .expect("Failed to query");
     let count: i64 = row.get("count");
-    assert!(count > 0, "SLA breach should be logged in workflow activity");
+    assert!(
+        count > 0,
+        "SLA breach should be logged in workflow activity"
+    );
 
     // Cleanup
     cleanup_test_data(&pool, entity_id).await;
@@ -289,7 +312,10 @@ async fn test_sla_status_normal() {
     let status = result.unwrap();
     match status {
         layanan_perlengkapan_api::workflow::sla::SlaStatus::Normal { remaining_minutes } => {
-            assert!(remaining_minutes > 0, "Remaining minutes should be positive");
+            assert!(
+                remaining_minutes > 0,
+                "Remaining minutes should be positive"
+            );
         }
         _ => panic!("Expected Normal status"),
     }
@@ -319,7 +345,10 @@ async fn test_sla_status_breached() {
         layanan_perlengkapan_api::workflow::sla::SlaStatus::Breached {
             breach_duration_minutes,
         } => {
-            assert!(breach_duration_minutes > 0, "Breach duration should be positive");
+            assert!(
+                breach_duration_minutes > 0,
+                "Breach duration should be positive"
+            );
         }
         _ => panic!("Expected Breached status"),
     }

@@ -5,8 +5,8 @@
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let authenc_proto_dir = PathBuf::from("../../../infra/authenc/proto");
-    let secreton_proto_dir = PathBuf::from("../../../infra/secreton/proto");
+    let authenc_proto_dir = PathBuf::from("../../../layanan/authenc/proto");
+    let secreton_proto_dir = PathBuf::from("../../../layanan/secreton/proto");
     let integrasi_proto_dir = PathBuf::from("../../daskrimti/integrasi/proto");
 
     // Verify proto directories exist

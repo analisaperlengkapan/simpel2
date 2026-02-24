@@ -880,8 +880,7 @@ impl IntegrasiServiceImpl {
         );
 
         // Count total
-        let count_query =
-            "SELECT COUNT(*) FROM integrasi.siman_aset WHERE jenis_aset = $1";
+        let count_query = "SELECT COUNT(*) FROM integrasi.siman_aset WHERE jenis_aset = $1";
         let total_items: i64 = match self
             .state
             .db_client

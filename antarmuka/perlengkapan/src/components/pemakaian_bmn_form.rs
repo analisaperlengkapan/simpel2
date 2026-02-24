@@ -10,11 +10,11 @@
 //!
 //! Requirements: REQ-P001, REQ-P002, REQ-P014
 
-use leptos::prelude::*;
 use crate::api::{
+    BmnAvailabilityResponse, CreateBmnItemRequest, CreateIzinPemakaianRequest,
     check_bmn_availability, create_pemakaian_bmn,
-    CreateIzinPemakaianRequest, BmnAvailabilityResponse, CreateBmnItemRequest,
 };
+use leptos::prelude::*;
 
 #[component]
 pub fn PemakaianBmnForm() -> impl IntoView {
@@ -33,7 +33,8 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     let (foto_pegawai, set_foto_pegawai) = signal("".to_string());
 
     // Additional BMN items (multi-BMN per pegawai)
-    let (additional_bmn_items, set_additional_bmn_items) = signal::<Vec<CreateBmnItemRequest>>(vec![]);
+    let (additional_bmn_items, set_additional_bmn_items) =
+        signal::<Vec<CreateBmnItemRequest>>(vec![]);
 
     // Common fields
     let (tanggal_mulai, set_tanggal_mulai) = signal("".to_string());
@@ -98,7 +99,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 return;
             }
         } else {
-            set_error.set(Some("Silakan periksa ketersediaan BMN terlebih dahulu".to_string()));
+            set_error.set(Some(
+                "Silakan periksa ketersediaan BMN terlebih dahulu".to_string(),
+            ));
             return;
         }
 
@@ -113,10 +116,26 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             pegawai_satker_id: "".to_string(), // TODO: Get from user context
             pegawai_satker_nama: "".to_string(), // TODO: Get from user context
             pegawai_jabatan: None,
-            pegawai_golongan: if pegawai_golongan.get().is_empty() { None } else { Some(pegawai_golongan.get()) },
-            pegawai_pangkat: if pegawai_pangkat.get().is_empty() { None } else { Some(pegawai_pangkat.get()) },
-            pegawai_unit_kerja: if pegawai_unit_kerja.get().is_empty() { None } else { Some(pegawai_unit_kerja.get()) },
-            foto_pegawai: if foto_pegawai.get().is_empty() { None } else { Some(foto_pegawai.get()) },
+            pegawai_golongan: if pegawai_golongan.get().is_empty() {
+                None
+            } else {
+                Some(pegawai_golongan.get())
+            },
+            pegawai_pangkat: if pegawai_pangkat.get().is_empty() {
+                None
+            } else {
+                Some(pegawai_pangkat.get())
+            },
+            pegawai_unit_kerja: if pegawai_unit_kerja.get().is_empty() {
+                None
+            } else {
+                Some(pegawai_unit_kerja.get())
+            },
+            foto_pegawai: if foto_pegawai.get().is_empty() {
+                None
+            } else {
+                Some(foto_pegawai.get())
+            },
             jenis_bmn: jenis_bmn.get(),
             bmn_nup: bmn_nup.get(),
             bmn_kode_barang: "".to_string(), // TODO: Get from BMN data when NUP is entered

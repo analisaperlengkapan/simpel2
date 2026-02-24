@@ -1,13 +1,13 @@
 // Dashboard HTTP handlers
 
+use crate::AppState;
 use crate::dashboard::models::*;
 use crate::errors::AppError;
-use crate::AppState;
 use axum::{
-    extract::{Query, State},
-    http::{header, StatusCode},
-    response::IntoResponse,
     Json,
+    extract::{Query, State},
+    http::header,
+    response::IntoResponse,
 };
 
 /// GET /api/v1/dashboard/perlengkapan
@@ -57,15 +57,14 @@ pub async fn export_dashboard_excel(
         .export_dashboard_to_excel(&metrics, params.tahun_anggaran)
         .await?;
 
-    let filename = format!(
-        "dashboard_perlengkapan_{}.xlsx",
-        params.tahun_anggaran
-    );
+    let filename = format!("dashboard_perlengkapan_{}.xlsx", params.tahun_anggaran);
 
     let mut response = axum::response::Response::new(axum::body::Body::from(excel_bytes));
     response.headers_mut().insert(
         header::CONTENT_TYPE,
-        header::HeaderValue::from_static("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        header::HeaderValue::from_static(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
     );
     response.headers_mut().insert(
         header::CONTENT_DISPOSITION,
@@ -101,10 +100,7 @@ pub async fn export_dashboard_pdf(
         .export_dashboard_to_pdf(&metrics, params.tahun_anggaran)
         .await?;
 
-    let filename = format!(
-        "dashboard_perlengkapan_{}.pdf",
-        params.tahun_anggaran
-    );
+    let filename = format!("dashboard_perlengkapan_{}.pdf", params.tahun_anggaran);
 
     let mut response = axum::response::Response::new(axum::body::Body::from(pdf_bytes));
     response.headers_mut().insert(

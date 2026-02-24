@@ -2,10 +2,10 @@
 // Requirements: NFR-M002
 
 use tracing_subscriber::{
+    EnvFilter, Layer,
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
     util::SubscriberInitExt,
-    EnvFilter, Layer,
 };
 
 /// Initialize structured logging with JSON format
@@ -17,12 +17,12 @@ use tracing_subscriber::{
 /// - Span tracking for request tracing
 pub fn init_structured_logging() {
     // Get log level from environment or default to info
-    let log_level = std::env::var("RUST_LOG")
-        .unwrap_or_else(|_| "info,layanan_perlengkapan=debug".to_string());
+    let log_level =
+        std::env::var("RUST_LOG").unwrap_or_else(|_| "info,layanan_perlengkapan=debug".to_string());
 
     // Create environment filter
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(&log_level));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&log_level));
 
     // Determine if we should use JSON format (production) or pretty format (development)
     let use_json = std::env::var("LOG_FORMAT")
@@ -44,9 +44,7 @@ pub fn init_structured_logging() {
             .with_span_events(FmtSpan::CLOSE)
             .with_filter(env_filter);
 
-        tracing_subscriber::registry()
-            .with(json_layer)
-            .init();
+        tracing_subscriber::registry().with(json_layer).init();
     } else {
         // Pretty format for development
         let pretty_layer = fmt::layer()
@@ -58,9 +56,7 @@ pub fn init_structured_logging() {
             .with_span_events(FmtSpan::CLOSE)
             .with_filter(env_filter);
 
-        tracing_subscriber::registry()
-            .with(pretty_layer)
-            .init();
+        tracing_subscriber::registry().with(pretty_layer).init();
     }
 
     tracing::info!(

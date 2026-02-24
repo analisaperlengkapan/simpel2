@@ -21,8 +21,8 @@ COPY lib/perlengkapan ./lib/perlengkapan
 COPY layanan/perlengkapan ./layanan/perlengkapan
 
 # Copy proto files needed by build.rs
-COPY infra/authenc/proto ./infra/authenc/proto
-COPY infra/secreton/proto ./infra/secreton/proto
+COPY layanan/authenc/proto ./layanan/authenc/proto
+COPY layanan/secreton/proto ./layanan/secreton/proto
 
 # Build release
 RUN cargo build --release -p layanan-perlengkapan-api

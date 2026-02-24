@@ -350,18 +350,28 @@ impl PengajuanKebutuhanBmnSatker {
             prioritas: row.get("prioritas"),
             catatan_satker: row.try_get("catatan_satker").ok().flatten(),
             lampiran_surat_permohonan: row.try_get("lampiran_surat_permohonan").ok().flatten(),
-            lampiran_pendukung: row.try_get("lampiran_pendukung").unwrap_or(serde_json::json!([])),
+            lampiran_pendukung: row
+                .try_get("lampiran_pendukung")
+                .unwrap_or(serde_json::json!([])),
             catatan_validator_wilayah: row.try_get("catatan_validator_wilayah").ok().flatten(),
             validator_wilayah_id: row.try_get("validator_wilayah_id").ok().flatten(),
             tanggal_submit_wilayah: row.try_get("tanggal_submit_wilayah").ok().flatten(),
             catatan_validator_pusat: row.try_get("catatan_validator_pusat").ok().flatten(),
             validator_pusat_id: row.try_get("validator_pusat_id").ok().flatten(),
             tanggal_submit_pusat: row.try_get("tanggal_submit_pusat").ok().flatten(),
-            data_eksisting_siman: row.try_get("data_eksisting_siman").unwrap_or(serde_json::json!({})),
-            data_pegawai_mysimkari: row.try_get("data_pegawai_mysimkari").unwrap_or(serde_json::json!({})),
+            data_eksisting_siman: row
+                .try_get("data_eksisting_siman")
+                .unwrap_or(serde_json::json!({})),
+            data_pegawai_mysimkari: row
+                .try_get("data_pegawai_mysimkari")
+                .unwrap_or(serde_json::json!({})),
             rekap_eselon: row.try_get("rekap_eselon").unwrap_or(serde_json::json!({})),
-            rekap_non_eselon: row.try_get("rekap_non_eselon").unwrap_or(serde_json::json!({})),
-            hasil_analisis: row.try_get("hasil_analisis").unwrap_or(serde_json::json!({})),
+            rekap_non_eselon: row
+                .try_get("rekap_non_eselon")
+                .unwrap_or(serde_json::json!({})),
+            hasil_analisis: row
+                .try_get("hasil_analisis")
+                .unwrap_or(serde_json::json!({})),
             is_approved: row.try_get("is_approved").ok().flatten(),
             alasan_keputusan: row.try_get("alasan_keputusan").ok().flatten(),
             created_by: row.get("created_by"),

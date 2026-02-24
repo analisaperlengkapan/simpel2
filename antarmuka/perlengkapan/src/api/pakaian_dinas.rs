@@ -1256,4 +1256,3 @@ pub async fn fetch_laporan_daftar_pegawai(
         message: "Server-side stub".to_string(),
     })
 }
-

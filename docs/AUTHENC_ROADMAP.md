@@ -60,9 +60,9 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 
 **Lokasi**:
 
-- `infra/authenc/src/handlers/oauth2_comprehensive.rs`
-- `infra/authenc/src/handlers/oidc_provider.rs`
-- `infra/authenc/src/services/federation/saml.rs`
+- `layanan/authenc/src/handlers/oauth2_comprehensive.rs`
+- `layanan/authenc/src/handlers/oidc_provider.rs`
+- `layanan/authenc/src/services/federation/saml.rs`
 
 ### 2. **Multi-Factor Authentication (MFA)** ✅
 
@@ -80,9 +80,9 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 
 **Lokasi**:
 
-- `infra/authenc/src/services/mfa_service.rs`
-- `infra/authenc/src/services/webauthn.rs`
-- `infra/authenc/src/services/totp_store.rs`
+- `layanan/authenc/src/services/mfa_service.rs`
+- `layanan/authenc/src/services/webauthn.rs`
+- `layanan/authenc/src/services/totp_store.rs`
 
 ### 3. **Realm Management** ✅
 
@@ -95,7 +95,7 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 - ✅ Realm-specific settings
 - ✅ Realm isolation for users and clients
 
-**Lokasi**: `infra/authenc/src/services/realm.rs`
+**Lokasi**: `layanan/authenc/src/services/realm.rs`
 
 ### 4. **User Management** ✅
 
@@ -111,7 +111,7 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 - ✅ User role assignments
 - ✅ User enabled/disabled state
 
-**Lokasi**: `infra/authenc/src/services/user_store.rs`
+**Lokasi**: `layanan/authenc/src/services/user_store.rs`
 
 ### 5. **Role-Based Access Control (RBAC)** ✅
 
@@ -127,8 +127,8 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 
 **Lokasi**:
 
-- `infra/authenc/src/services/authorization/role_manager.rs`
-- `infra/authenc/src/services/satker_authorization.rs`
+- `layanan/authenc/src/services/authorization/role_manager.rs`
+- `layanan/authenc/src/services/satker_authorization.rs`
 
 ### 6. **Groups** ✅
 
@@ -141,7 +141,7 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 - ✅ Group-based role assignments
 - ✅ Group attributes
 
-**Lokasi**: `infra/authenc/src/services/group_store.rs`
+**Lokasi**: `layanan/authenc/src/services/group_store.rs`
 
 ### 7. **Audit Logging** ✅
 
@@ -158,9 +158,9 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 
 **Lokasi**:
 
-- `infra/authenc/src/services/pg_audit_log_store.rs`
-- `infra/authenc/src/services/enhanced_audit.rs`
-- `infra/authenc/src/services/event_publisher.rs`
+- `layanan/authenc/src/services/pg_audit_log_store.rs`
+- `layanan/authenc/src/services/enhanced_audit.rs`
+- `layanan/authenc/src/services/event_publisher.rs`
 
 ### 8. **Identity Federation (Backend)** ✅
 
@@ -177,9 +177,9 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 
 **Lokasi**:
 
-- `infra/authenc/src/services/federation/saml.rs`
-- `infra/authenc/src/services/federation/oidc.rs`
-- `infra/authenc/src/services/broker/mod.rs`
+- `layanan/authenc/src/services/federation/saml.rs`
+- `layanan/authenc/src/services/federation/oidc.rs`
+- `layanan/authenc/src/services/broker/mod.rs`
 
 ### 9. **Client Management (OAuth2/OIDC)** ✅
 
@@ -193,7 +193,7 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 - ✅ Client-specific settings (access token lifespan, refresh token)
 - ✅ Public vs confidential clients
 
-**Lokasi**: `infra/authenc/src/services/oidc_client_store.rs`
+**Lokasi**: `layanan/authenc/src/services/oidc_client_store.rs`
 
 ### 10. **Password Policies** ✅
 
@@ -207,7 +207,7 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 - ✅ Password expiration
 - ✅ Password strength validation
 
-**Lokasi**: `infra/authenc/src/services/password_policy.rs`
+**Lokasi**: `layanan/authenc/src/services/password_policy.rs`
 
 ### 11. **Brute Force Protection** ✅
 
@@ -221,7 +221,7 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 - ✅ CAPTCHA integration after failed attempts
 - ✅ IP-based rate limiting
 
-**Lokasi**: `infra/authenc/src/services/brute_force_protector.rs`
+**Lokasi**: `layanan/authenc/src/services/brute_force_protector.rs`
 
 ### 12. **Session Management** ✅
 
@@ -235,7 +235,7 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 - ✅ Session revocation
 - ✅ Cross-domain session sharing
 
-**Lokasi**: `infra/authenc/src/services/session_store.rs`
+**Lokasi**: `layanan/authenc/src/services/session_store.rs`
 
 ### 13. **Zero Trust Architecture** ✅
 
@@ -251,9 +251,9 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 
 **Lokasi**:
 
-- `infra/authenc/src/services/zero_trust/`
-- `infra/authenc/src/services/anomaly_detector.rs`
-- `infra/authenc/src/services/device.rs`
+- `layanan/authenc/src/services/zero_trust/`
+- `layanan/authenc/src/services/anomaly_detector.rs`
+- `layanan/authenc/src/services/device.rs`
 
 ### 14. **Secreton Integration** ✅
 
@@ -266,7 +266,7 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 - ✅ Encrypted storage for sensitive data
 - ✅ Key rotation support
 
-**Lokasi**: `infra/authenc/src/services/mfa_fallback_client.rs`
+**Lokasi**: `layanan/authenc/src/services/mfa_fallback_client.rs`
 
 ### 15. **WebAuthn Attestation** ✅
 
@@ -286,10 +286,10 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 
 **Lokasi**:
 
-- `infra/authenc/src/spi/credential/webauthn.rs` - Attestation data structures
-- `infra/authenc/src/services/webauthn.rs` - WebAuthn service with attestation
-- `infra/authenc/src/handlers/webauthn.rs` - HTTP handlers
-- `infra/authenc/migrations/037_webauthn_attestation_support.sql` - Database schema
+- `layanan/authenc/src/spi/credential/webauthn.rs` - Attestation data structures
+- `layanan/authenc/src/services/webauthn.rs` - WebAuthn service with attestation
+- `layanan/authenc/src/handlers/webauthn.rs` - HTTP handlers
+- `layanan/authenc/migrations/037_webauthn_attestation_support.sql` - Database schema
 
 ### 16. **Service Accounts (Machine-to-Machine Auth)** ✅
 
@@ -308,10 +308,10 @@ Authenc sudah memiliki **implementasi lengkap** untuk core IAM features (OAuth2,
 
 **Lokasi**:
 
-- `infra/authenc/src/services/service_account_store.rs` - Business logic
-- `infra/authenc/src/handlers/api/service_account.rs` - HTTP API
-- `infra/authenc/src/database/operations/service_accounts.rs` - Database operations
-- `infra/authenc/src/models/service_account.rs` - Data models
+- `layanan/authenc/src/services/service_account_store.rs` - Business logic
+- `layanan/authenc/src/handlers/api/service_account.rs` - HTTP API
+- `layanan/authenc/src/database/operations/service_accounts.rs` - Database operations
+- `layanan/authenc/src/models/service_account.rs` - Data models
 
 **API Endpoints**:
 
@@ -344,10 +344,10 @@ DELETE /api/v1/admin/service-accounts/:id/roles/:role_id
 
 **Lokasi**:
 
-- `infra/authenc/src/services/client_scope_service.rs` - Business logic
-- `infra/authenc/src/handlers/api/client_scopes.rs` - HTTP API
-- `infra/authenc/src/database/operations/client_scopes.rs` - Database operations
-- `infra/authenc/src/models/client_scope.rs` - Data models
+- `layanan/authenc/src/services/client_scope_service.rs` - Business logic
+- `layanan/authenc/src/handlers/api/client_scopes.rs` - HTTP API
+- `layanan/authenc/src/database/operations/client_scopes.rs` - Database operations
+- `layanan/authenc/src/models/client_scope.rs` - Data models
 
 **API Endpoints**:
 
@@ -385,10 +385,10 @@ DELETE /api/v1/users/:user_id/consents/:client_id
 
 **Lokasi**:
 
-- `infra/authenc/src/spi/ldap_federation.rs` - LDAP SPI implementation
-- `infra/authenc/src/services/broker/mod.rs` - Identity broker with LDAP support
-- `infra/authenc/src/handlers/spi_federation.rs` - LDAP authentication endpoints
-- `infra/authenc/src/services/federation_manager.rs` - Federation orchestration
+- `layanan/authenc/src/spi/ldap_federation.rs` - LDAP SPI implementation
+- `layanan/authenc/src/services/broker/mod.rs` - Identity broker with LDAP support
+- `layanan/authenc/src/handlers/spi_federation.rs` - LDAP authentication endpoints
+- `layanan/authenc/src/services/federation_manager.rs` - Federation orchestration
 
 **Configuration**:
 
@@ -433,9 +433,9 @@ pub struct LdapFederationConfig {
 
 **Lokasi**:
 
-- `infra/authenc/src/services/token_exchange.rs` - Token exchange service (837 lines)
-- `infra/authenc/src/handlers/token_exchange.rs` - HTTP handler
-- `infra/authenc/src/services/advanced_protocols.rs` - Protocol implementations
+- `layanan/authenc/src/services/token_exchange.rs` - Token exchange service (837 lines)
+- `layanan/authenc/src/handlers/token_exchange.rs` - HTTP handler
+- `layanan/authenc/src/services/advanced_protocols.rs` - Protocol implementations
 
 **API Endpoint**:
 
@@ -465,8 +465,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 
 **Sudah Diimplementasikan**:
 
-- ✅ Admin Console SPI framework (`infra/authenc/src/spi/admin_console.rs`)
-- ✅ Basic HTML admin console (`infra/authenc/src/admin_console/mod.rs` - 518 lines)
+- ✅ Admin Console SPI framework (`layanan/authenc/src/spi/admin_console.rs`)
+- ✅ Basic HTML admin console (`layanan/authenc/src/admin_console/mod.rs` - 518 lines)
 - ✅ Dashboard with system stats
 - ✅ Basic navigation (Users, Roles, Realms, Clients pages)
 - ✅ Authentication via `AuthBearer` middleware
@@ -798,7 +798,7 @@ See section 18 above for complete implementation details.
 
 - ✅ Manual client registration (admin API)
 - ✅ Client credentials storage
-- ✅ RFC 7591 partial implementation (`infra/authenc/src/handlers/client_registration.rs`)
+- ✅ RFC 7591 partial implementation (`layanan/authenc/src/handlers/client_registration.rs`)
 
 #### Fitur yang Dibutuhkan:
 
@@ -1116,7 +1116,7 @@ See section 15 above for complete implementation details.
 ### Existing Authenc Documentation:
 
 - `docs/AUTHENC_GETTING_STARTED_GUIDE.md`
-- `infra/authenc/README.md`
+- `layanan/authenc/README.md`
 - `docs/MFA_ARCHITECTURE_DOCUMENTATION.md`
 - `antarmuka/COMPLETE_AUTH_FLOW_ARCHITECTURE.md`
 

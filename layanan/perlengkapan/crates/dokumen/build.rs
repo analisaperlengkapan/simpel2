@@ -5,7 +5,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proto_file = proto_dir.join("dokumen.proto");
 
     if !proto_file.exists() {
-        println!("cargo::warning=Proto file not found at {:?}, skipping proto compilation", proto_file);
+        println!(
+            "cargo::warning=Proto file not found at {:?}, skipping proto compilation",
+            proto_file
+        );
         return Ok(());
     }
 

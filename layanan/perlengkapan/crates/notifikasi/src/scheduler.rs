@@ -2,10 +2,10 @@ use crate::email::EmailService;
 use crate::error::AppError;
 use crate::in_app::{InAppNotificationChannel, NotificationPriority, NotificationType};
 use crate::preferences::NotificationPreferencesService;
+use chrono::{Local, NaiveDate};
 use deadpool_postgres::Pool;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use uuid::Uuid;
-use chrono::{NaiveDate, Local};
 
 /// Notification scheduler for batch operations and reminders
 pub struct NotificationScheduler {
@@ -30,31 +30,31 @@ impl NotificationScheduler {
 
     /// Start all scheduled jobs
     pub async fn start(&self) -> Result<(), AppError> {
-        let scheduler = JobScheduler::new()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to create scheduler: {}", e).into_boxed_str()))?;
+        let scheduler = JobScheduler::new().await.map_err(|e| {
+            AppError::Internal(format!("Failed to create scheduler: {}", e).into_boxed_str())
+        })?;
 
         // Daily digest at 08:00 WIB (01:00 UTC, assuming WIB = UTC+7)
         let daily_digest_job = self.create_daily_digest_job()?;
-        scheduler.add(daily_digest_job)
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to add daily digest job: {}", e).into_boxed_str()))?;
+        scheduler.add(daily_digest_job).await.map_err(|e| {
+            AppError::Internal(format!("Failed to add daily digest job: {}", e).into_boxed_str())
+        })?;
 
         // Izin expiry reminders at 09:00 WIB (02:00 UTC)
         let izin_reminder_job = self.create_izin_reminder_job()?;
-        scheduler.add(izin_reminder_job)
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to add izin reminder job: {}", e).into_boxed_str()))?;
+        scheduler.add(izin_reminder_job).await.map_err(|e| {
+            AppError::Internal(format!("Failed to add izin reminder job: {}", e).into_boxed_str())
+        })?;
 
         // SLA breach check every hour
         let sla_breach_job = self.create_sla_breach_job()?;
-        scheduler.add(sla_breach_job)
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to add SLA breach job: {}", e).into_boxed_str()))?;
+        scheduler.add(sla_breach_job).await.map_err(|e| {
+            AppError::Internal(format!("Failed to add SLA breach job: {}", e).into_boxed_str())
+        })?;
 
-        scheduler.start()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to start scheduler: {}", e).into_boxed_str()))?;
+        scheduler.start().await.map_err(|e| {
+            AppError::Internal(format!("Failed to start scheduler: {}", e).into_boxed_str())
+        })?;
 
         tracing::info!("Notification scheduler started successfully");
 
@@ -75,12 +75,16 @@ impl NotificationScheduler {
             Box::pin(async move {
                 tracing::info!("Running daily digest job");
 
-                if let Err(e) = Self::send_daily_digest_static(pool, email_service, preferences_service).await {
+                if let Err(e) =
+                    Self::send_daily_digest_static(pool, email_service, preferences_service).await
+                {
                     tracing::error!("Daily digest job failed: {}", e);
                 }
             })
         })
-        .map_err(|e| AppError::Internal(format!("Failed to create daily digest job: {}", e).into_boxed_str()))?;
+        .map_err(|e| {
+            AppError::Internal(format!("Failed to create daily digest job: {}", e).into_boxed_str())
+        })?;
 
         Ok(job)
     }
@@ -97,12 +101,17 @@ impl NotificationScheduler {
             Box::pin(async move {
                 tracing::info!("Running izin expiry reminder job");
 
-                if let Err(e) = Self::send_izin_expiry_reminders_static(pool, in_app_channel).await {
+                if let Err(e) = Self::send_izin_expiry_reminders_static(pool, in_app_channel).await
+                {
                     tracing::error!("Izin expiry reminder job failed: {}", e);
                 }
             })
         })
-        .map_err(|e| AppError::Internal(format!("Failed to create izin reminder job: {}", e).into_boxed_str()))?;
+        .map_err(|e| {
+            AppError::Internal(
+                format!("Failed to create izin reminder job: {}", e).into_boxed_str(),
+            )
+        })?;
 
         Ok(job)
     }
@@ -124,7 +133,9 @@ impl NotificationScheduler {
                 }
             })
         })
-        .map_err(|e| AppError::Internal(format!("Failed to create SLA breach job: {}", e).into_boxed_str()))?;
+        .map_err(|e| {
+            AppError::Internal(format!("Failed to create SLA breach job: {}", e).into_boxed_str())
+        })?;
 
         Ok(job)
     }
@@ -229,8 +240,15 @@ impl NotificationScheduler {
                 NotificationPriority::Normal
             };
 
-            if let Err(e) = in_app_channel.send(user_id, notification_type, priority).await {
-                tracing::error!("Failed to send izin expiry reminder to user {}: {}", user_id, e);
+            if let Err(e) = in_app_channel
+                .send(user_id, notification_type, priority)
+                .await
+            {
+                tracing::error!(
+                    "Failed to send izin expiry reminder to user {}: {}",
+                    user_id,
+                    e
+                );
             } else {
                 reminder_count += 1;
             }
@@ -279,8 +297,15 @@ impl NotificationScheduler {
                 elapsed_minutes: elapsed_minutes as i64,
             };
 
-            if let Err(e) = in_app_channel.send(user_id, notification_type, NotificationPriority::High).await {
-                tracing::error!("Failed to send SLA breach notification to user {}: {}", user_id, e);
+            if let Err(e) = in_app_channel
+                .send(user_id, notification_type, NotificationPriority::High)
+                .await
+            {
+                tracing::error!(
+                    "Failed to send SLA breach notification to user {}: {}",
+                    user_id,
+                    e
+                );
             } else {
                 breach_count += 1;
             }

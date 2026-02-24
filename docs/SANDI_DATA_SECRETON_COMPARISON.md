@@ -25,15 +25,15 @@
 
 | Sandi Data Feature            | Secreton Implementation            | Status         | File Location                                                           |
 | ----------------------------- | ---------------------------------- | -------------- | ----------------------------------------------------------------------- |
-| **Master Key (MK)**           | Master Key + secure zeroization    | ✅ IMPLEMENTED | `infra/secreton/crates/core/src/services/seal.rs` (544 lines)           |
-| **Key Encryption Key (KEK)**  | Multi-layer seal wrapping with KEK | ✅ IMPLEMENTED | `infra/secreton/crates/core/src/security/seal_wrapping.rs` (900+ lines) |
-| **Session Key (SK)**          | Transit engine ephemeral keys      | ✅ IMPLEMENTED | `infra/secreton/crates/crypto/src/transit/`                             |
-| **Data Encryption Key (DEK)** | Per-operation encryption keys      | ✅ IMPLEMENTED | `infra/secreton/crates/crypto/src/transit/algorithms.rs`                |
+| **Master Key (MK)**           | Master Key + secure zeroization    | ✅ IMPLEMENTED | `layanan/secreton/crates/core/src/services/seal.rs` (544 lines)           |
+| **Key Encryption Key (KEK)**  | Multi-layer seal wrapping with KEK | ✅ IMPLEMENTED | `layanan/secreton/crates/core/src/security/seal_wrapping.rs` (900+ lines) |
+| **Session Key (SK)**          | Transit engine ephemeral keys      | ✅ IMPLEMENTED | `layanan/secreton/crates/crypto/src/transit/`                             |
+| **Data Encryption Key (DEK)** | Per-operation encryption keys      | ✅ IMPLEMENTED | `layanan/secreton/crates/crypto/src/transit/algorithms.rs`                |
 
 **Detail Implementasi Master Key:**
 
 ```rust
-// infra/secreton/crates/core/src/services/seal.rs
+// layanan/secreton/crates/core/src/services/seal.rs
 pub struct MasterKey {
     key_data: SecretBox<Vec<u8>>,  // Zeroized on drop
     version: u32,
@@ -73,7 +73,7 @@ pub async fn rotate_master_key(&mut self) -> Result<()> {
 **KMIP Lifecycle Implementation:**
 
 ```rust
-// infra/secreton/crates/core/src/services/secrets/kmip.rs
+// layanan/secreton/crates/core/src/services/secrets/kmip.rs
 pub enum KeyState {
     PreActive,    // Belum aktif, bisa di-test
     Active,       // Aktif untuk production
@@ -94,9 +94,9 @@ pub async fn transition_key_state(
 
 **Reference Files:**
 
-- `infra/secreton/crates/core/src/services/secrets/kmip.rs` - KMIP implementation
-- `infra/secreton/crates/crypto/src/tpm/mod.rs` - TPM integration
-- `infra/secreton/crates/core/src/services/seal.rs` - Key rotation
+- `layanan/secreton/crates/core/src/services/secrets/kmip.rs` - KMIP implementation
+- `layanan/secreton/crates/crypto/src/tpm/mod.rs` - TPM integration
+- `layanan/secreton/crates/core/src/services/seal.rs` - Key rotation
 
 ---
 
@@ -112,7 +112,7 @@ pub async fn transition_key_state(
 **Bulk Encryption Implementation (CRITICAL):**
 
 ```rust
-// infra/secreton/crates/crypto/src/transit/batch.rs
+// layanan/secreton/crates/crypto/src/transit/batch.rs
 pub struct BatchOperation {
     pub id: String,
     pub key_name: String,
@@ -179,9 +179,9 @@ let results = transit_engine.batch_operation(batch_request.operations).await;
 
 **Reference Files:**
 
-- `infra/secreton/crates/crypto/src/transit/batch.rs` - Batch operations (460+ lines)
-- `infra/secreton/crates/crypto/src/transit/mod.rs` - Transit engine
-- `infra/secreton/crates/crypto/src/transit/algorithms.rs` - Encryption algorithms
+- `layanan/secreton/crates/crypto/src/transit/batch.rs` - Batch operations (460+ lines)
+- `layanan/secreton/crates/crypto/src/transit/mod.rs` - Transit engine
+- `layanan/secreton/crates/crypto/src/transit/algorithms.rs` - Encryption algorithms
 
 ---
 
@@ -196,7 +196,7 @@ let results = transit_engine.batch_operation(batch_request.operations).await;
 **Implementation:**
 
 ```rust
-// infra/secreton/crates/core/src/services/secrets/transform.rs
+// layanan/secreton/crates/core/src/services/secrets/transform.rs
 pub enum TransformationType {
     Fpe,          // Format-Preserving Encryption
     Tokenization, // Token generation (tok_uuid format)
@@ -234,8 +234,8 @@ pub struct TransformEngine {
 
 **Reference Files:**
 
-- `infra/secreton/crates/core/src/services/secrets/transform.rs` (520+ lines)
-- `infra/secreton/test/integration/transform_operations_test.rs` - Integration tests
+- `layanan/secreton/crates/core/src/services/secrets/transform.rs` (520+ lines)
+- `layanan/secreton/test/integration/transform_operations_test.rs` - Integration tests
 
 ---
 
@@ -257,7 +257,7 @@ pub struct TransformEngine {
 **Implementation:**
 
 ```rust
-// infra/secreton/crates/crypto/src/argon2.rs
+// layanan/secreton/crates/crypto/src/argon2.rs
 pub fn hash_password_argon2id(password: &[u8]) -> Result<String> {
     let config = argon2::Config {
         variant: argon2::Variant::Argon2id,
@@ -276,14 +276,14 @@ pub fn hash_password_argon2id(password: &[u8]) -> Result<String> {
 **Note:** HMAC masih tersedia untuk message authentication (bukan password hashing):
 
 ```rust
-// infra/authenc/src/spi/credential/otp.rs
+// layanan/authenc/src/spi/credential/otp.rs
 // HMAC-SHA1/SHA256/SHA512 untuk TOTP
 ```
 
 **Reference Files:**
 
-- `infra/secreton/crates/crypto/src/argon2.rs` - Argon2id implementation
-- `infra/secreton/crates/crypto/src/lib.rs` - Crypto primitives
+- `layanan/secreton/crates/crypto/src/argon2.rs` - Argon2id implementation
+- `layanan/secreton/crates/crypto/src/lib.rs` - Crypto primitives
 
 ---
 
@@ -298,7 +298,7 @@ pub fn hash_password_argon2id(password: &[u8]) -> Result<String> {
 **RFC 6238 Compliance:**
 
 ```rust
-// infra/authenc/src/spi/credential/otp.rs
+// layanan/authenc/src/spi/credential/otp.rs
 pub struct OtpCredentialProvider {
     pub async fn generate_totp(
         &self,
@@ -325,14 +325,14 @@ pub struct OtpCredentialProvider {
 
 **Test Coverage (20+ test files):**
 
-- `infra/authenc/test/integration/totp_rfc6238_compliance_validation.rs`
-- `infra/authenc/test/integration/mfa_totp_authenticator_app_integration_test.rs`
+- `layanan/authenc/test/integration/totp_rfc6238_compliance_validation.rs`
+- `layanan/authenc/test/integration/mfa_totp_authenticator_app_integration_test.rs`
 - Validasi dengan test vectors dari RFC 6238
 
 **Reference Files:**
 
-- `infra/authenc/src/spi/credential/otp.rs` - TOTP implementation
-- `infra/secreton/crates/core/src/services/mfa.rs` - MFA service
+- `layanan/authenc/src/spi/credential/otp.rs` - TOTP implementation
+- `layanan/secreton/crates/core/src/services/mfa.rs` - MFA service
 - `docs/MFA_ARCHITECTURE_DOCUMENTATION.md` - 600+ lines documentation
 
 ---
@@ -348,7 +348,7 @@ pub struct OtpCredentialProvider {
 **Implementation:**
 
 ```rust
-// infra/secreton/crates/crypto/src/lib.rs
+// layanan/secreton/crates/crypto/src/lib.rs
 pub fn generate_random_bytes(length: usize) -> CryptoResult<Vec<u8>> {
     // Primary: OsRng (OS-level CSPRNG)
     // Fallback: ChaCha20Rng
@@ -393,9 +393,9 @@ fn validate_entropy(data: &[u8]) -> bool {
 
 **Reference Files:**
 
-- `infra/secreton/crates/crypto/src/lib.rs` - RNG implementation
-- `infra/secreton/crates/crypto/src/tpm/mod.rs` - TPM integration
-- `infra/secreton/crates/crypto/src/transit/algorithms.rs` - Nonce generation
+- `layanan/secreton/crates/crypto/src/lib.rs` - RNG implementation
+- `layanan/secreton/crates/crypto/src/tpm/mod.rs` - TPM integration
+- `layanan/secreton/crates/crypto/src/transit/algorithms.rs` - Nonce generation
 
 ---
 
@@ -410,7 +410,7 @@ fn validate_entropy(data: &[u8]) -> bool {
 **Multi-Layer Seal Wrapping:**
 
 ```rust
-// infra/secreton/crates/core/src/security/seal_wrapping.rs
+// layanan/secreton/crates/core/src/security/seal_wrapping.rs
 pub enum SealWrapAlgorithm {
     Classical(ClassicalSealAlgorithm),  // AES-GCM, ChaCha20
     Quantum(QuantumSealAlgorithm),      // Kyber, Frodo
@@ -453,9 +453,9 @@ pub async fn unseal(&mut self, share: Vec<u8>) -> Result<SealStatus> {
 
 **Reference Files:**
 
-- `infra/secreton/crates/core/src/services/seal.rs` (544 lines)
-- `infra/secreton/crates/core/src/security/seal_wrapping.rs` (900+ lines)
-- `infra/secreton/crates/crypto/src/pq_key_management.rs` - Post-quantum sealing
+- `layanan/secreton/crates/core/src/services/seal.rs` (544 lines)
+- `layanan/secreton/crates/core/src/security/seal_wrapping.rs` (900+ lines)
+- `layanan/secreton/crates/crypto/src/pq_key_management.rs` - Post-quantum sealing
 
 ---
 
@@ -505,8 +505,8 @@ impl SandiDataCompatLayer {
 
 **Reference Files:**
 
-- `infra/secreton/crates/api/src/services/vault.rs` - API service layer
-- `infra/secreton/crates/crypto/src/transit/batch.rs` - Batch operations
+- `layanan/secreton/crates/api/src/services/vault.rs` - API service layer
+- `layanan/secreton/crates/crypto/src/transit/batch.rs` - Batch operations
 
 ---
 
@@ -517,14 +517,14 @@ impl SandiDataCompatLayer {
 **NIST-Approved Algorithms:**
 
 ```rust
-// infra/secreton/crates/crypto/src/pqc/mlkem.rs
+// layanan/secreton/crates/crypto/src/pqc/mlkem.rs
 pub enum MLKemVariant {
     MLKem512,   // NIST Level 1 security
     MLKem768,   // NIST Level 3 security (recommended)
     MLKem1024,  // NIST Level 5 security
 }
 
-// infra/secreton/crates/crypto/src/pqc/mldsa.rs
+// layanan/secreton/crates/crypto/src/pqc/mldsa.rs
 pub enum MLDsaVariant {
     MLDsa44,    // NIST Level 2 security
     MLDsa65,    // NIST Level 3 security (recommended)
@@ -556,7 +556,7 @@ pub struct HybridEncryption {
 **Multiple Backend Support:**
 
 ```rust
-// infra/secreton/crates/storage/src/backends/
+// layanan/secreton/crates/storage/src/backends/
 pub enum StorageBackend {
     File,    // Single-node (development)
     Consul,  // Distributed HA with leader election
@@ -594,7 +594,7 @@ pub enum StorageBackend {
 **Immutable Audit Logs:**
 
 ```rust
-// infra/secreton/crates/core/src/services/audit/
+// layanan/secreton/crates/core/src/services/audit/
 pub struct AuditEntry {
     pub timestamp: DateTime<Utc>,
     pub user_id: String,
@@ -625,7 +625,7 @@ pub struct AuditEntry {
 **One-Time Use Tokens:**
 
 ```rust
-// infra/secreton/crates/core/src/services/secrets/wrapping.rs
+// layanan/secreton/crates/core/src/services/secrets/wrapping.rs
 pub struct WrappedResponse {
     pub token: String,        // One-time use token
     pub ttl: u64,             // Time-to-live (seconds)
@@ -670,7 +670,7 @@ impl ResponseWrapper {
 **ML-DSA Batch Signing:**
 
 ```rust
-// infra/secreton/crates/crypto/src/pqc/mldsa.rs
+// layanan/secreton/crates/crypto/src/pqc/mldsa.rs
 pub struct MLDsaBatchSigner {
     pub fn batch_sign(
         &self,
@@ -703,8 +703,8 @@ pub struct MLDsaBatchSigner {
 
 **Benchmark Files:**
 
-- `infra/authenc/benches/performance.rs` - Comprehensive benchmarks
-- `infra/secreton/benches/crypto_operations_bench.rs` - Crypto benchmarks
+- `layanan/authenc/benches/performance.rs` - Comprehensive benchmarks
+- `layanan/secreton/benches/crypto_operations_bench.rs` - Crypto benchmarks
 
 ---
 
@@ -770,31 +770,31 @@ pub struct MLDsaBatchSigner {
 
 **Core Cryptography:**
 
-- `infra/secreton/crates/crypto/src/lib.rs` - Crypto primitives
-- `infra/secreton/crates/crypto/src/transit/` - Transit engine (600+ lines)
-- `infra/secreton/crates/crypto/src/pqc/` - Post-quantum crypto
+- `layanan/secreton/crates/crypto/src/lib.rs` - Crypto primitives
+- `layanan/secreton/crates/crypto/src/transit/` - Transit engine (600+ lines)
+- `layanan/secreton/crates/crypto/src/pqc/` - Post-quantum crypto
 
 **Key Management:**
 
-- `infra/secreton/crates/core/src/services/seal.rs` (544 lines)
-- `infra/secreton/crates/core/src/security/seal_wrapping.rs` (900+ lines)
-- `infra/secreton/crates/core/src/services/secrets/kmip.rs`
+- `layanan/secreton/crates/core/src/services/seal.rs` (544 lines)
+- `layanan/secreton/crates/core/src/security/seal_wrapping.rs` (900+ lines)
+- `layanan/secreton/crates/core/src/services/secrets/kmip.rs`
 
 **Services:**
 
-- `infra/secreton/crates/core/src/services/secrets/transform.rs` (520+ lines)
-- `infra/secreton/crates/core/src/services/mfa.rs`
-- `infra/authenc/src/spi/credential/otp.rs` - TOTP implementation
+- `layanan/secreton/crates/core/src/services/secrets/transform.rs` (520+ lines)
+- `layanan/secreton/crates/core/src/services/mfa.rs`
+- `layanan/authenc/src/spi/credential/otp.rs` - TOTP implementation
 
 **Storage:**
 
-- `infra/secreton/crates/storage/src/backends/` - Multiple backends
-- `infra/secreton/crates/storage/src/kv_adapter.rs` (220+ lines)
+- `layanan/secreton/crates/storage/src/backends/` - Multiple backends
+- `layanan/secreton/crates/storage/src/kv_adapter.rs` (220+ lines)
 
 **API:**
 
-- `infra/secreton/crates/api/src/services/vault.rs`
-- `infra/secreton/crates/crypto/src/transit/batch.rs` (460+ lines)
+- `layanan/secreton/crates/api/src/services/vault.rs`
+- `layanan/secreton/crates/crypto/src/transit/batch.rs` (460+ lines)
 
 ---
 

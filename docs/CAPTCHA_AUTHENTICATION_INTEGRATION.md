@@ -144,7 +144,7 @@ let handle_submit = move |ev: web_sys::SubmitEvent| {
 
 **Backend (Authenc)**:
 ```rust
-// In infra/authenc/src/handlers/api/auth.rs
+// In layanan/authenc/src/handlers/api/auth.rs
 pub async fn login(
     Json(req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, AuthencError> {

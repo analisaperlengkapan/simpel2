@@ -40,7 +40,10 @@ impl PenghapusanBmnService {
         request: CreatePenghapusanBmnRequest,
         created_by: Uuid,
     ) -> AppResult<PenghapusanBmn> {
-        info!("Creating Usulan SK Penghapusan BMN for asset: {}", request.nama_barang);
+        info!(
+            "Creating Usulan SK Penghapusan BMN for asset: {}",
+            request.nama_barang
+        );
         self.repository.create(request, created_by).await
     }
 
@@ -52,15 +55,18 @@ impl PenghapusanBmnService {
     /// Get penghapusan BMN detail with allowed transitions
     pub async fn get_detail(&self, id: Uuid) -> AppResult<PenghapusanBmnDetailResponse> {
         let penghapusan = self.repository.get_by_id(id).await?;
-        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status)
-            .unwrap_or_default();
+        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
 
-        let transitions: Vec<PenghapusanTransitionInfo> = status.allowed_transitions()
+        let transitions: Vec<PenghapusanTransitionInfo> = status
+            .allowed_transitions()
             .into_iter()
             .map(|s| PenghapusanTransitionInfo {
                 status_kode: s.to_code(),
                 status_nama: s.label().to_string(),
-                requires_comment: matches!(s, PenghapusanBmnStatus::ReturnedToOperator | PenghapusanBmnStatus::Rejected),
+                requires_comment: matches!(
+                    s,
+                    PenghapusanBmnStatus::ReturnedToOperator | PenghapusanBmnStatus::Rejected
+                ),
             })
             .collect();
 
@@ -92,12 +98,14 @@ impl PenghapusanBmnService {
         request: UpdatePenghapusanBmnRequest,
     ) -> AppResult<PenghapusanBmn> {
         let current = self.repository.get_by_id(id).await?;
-        let status = PenghapusanBmnStatus::from_state_name(&current.status)
-            .unwrap_or_default();
+        let status = PenghapusanBmnStatus::from_state_name(&current.status).unwrap_or_default();
 
-        if !matches!(status, PenghapusanBmnStatus::Draft | PenghapusanBmnStatus::ReturnedToOperator) {
+        if !matches!(
+            status,
+            PenghapusanBmnStatus::Draft | PenghapusanBmnStatus::ReturnedToOperator
+        ) {
             return Err(crate::errors::AppError::WorkflowError(
-                "Hanya bisa diubah saat status Draft atau Dikembalikan ke Operator".into()
+                "Hanya bisa diubah saat status Draft atau Dikembalikan ke Operator".into(),
             ));
         }
 
@@ -107,12 +115,11 @@ impl PenghapusanBmnService {
     /// Delete penghapusan BMN (only in Draft status)
     pub async fn delete(&self, id: Uuid) -> AppResult<()> {
         let current = self.repository.get_by_id(id).await?;
-        let status = PenghapusanBmnStatus::from_state_name(&current.status)
-            .unwrap_or_default();
+        let status = PenghapusanBmnStatus::from_state_name(&current.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::Draft) {
             return Err(crate::errors::AppError::WorkflowError(
-                "Hanya bisa dihapus saat status Draft".into()
+                "Hanya bisa dihapus saat status Draft".into(),
             ));
         }
 
@@ -128,11 +135,14 @@ impl PenghapusanBmnService {
     ) -> AppResult<PenghapusanBmn> {
         self.transition(
             id,
-            PenghapusanBmnStatus::SubmitWilayah.to_state_name().to_string(),
+            PenghapusanBmnStatus::SubmitWilayah
+                .to_state_name()
+                .to_string(),
             user_id,
             catatan,
             "submit_to_wilayah".to_string(),
-        ).await
+        )
+        .await
     }
 
     /// Validator Wilayah forwards to Validator Pusat
@@ -143,15 +153,20 @@ impl PenghapusanBmnService {
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         // Update validator wilayah info
-        self.repository.update_validator_wilayah(id, validator_id, catatan.clone()).await?;
+        self.repository
+            .update_validator_wilayah(id, validator_id, catatan.clone())
+            .await?;
 
         self.transition(
             id,
-            PenghapusanBmnStatus::SubmitPusat.to_state_name().to_string(),
+            PenghapusanBmnStatus::SubmitPusat
+                .to_state_name()
+                .to_string(),
             validator_id,
             catatan,
             "forward_to_pusat".to_string(),
-        ).await
+        )
+        .await
     }
 
     /// Validator Wilayah returns to Operator Satker
@@ -161,15 +176,20 @@ impl PenghapusanBmnService {
         validator_id: Uuid,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
-        self.repository.update_validator_wilayah(id, validator_id, catatan.clone()).await?;
+        self.repository
+            .update_validator_wilayah(id, validator_id, catatan.clone())
+            .await?;
 
         self.transition(
             id,
-            PenghapusanBmnStatus::ReturnedToOperator.to_state_name().to_string(),
+            PenghapusanBmnStatus::ReturnedToOperator
+                .to_state_name()
+                .to_string(),
             validator_id,
             catatan,
             "return_to_operator".to_string(),
-        ).await
+        )
+        .await
     }
 
     /// Validator Pusat generates konsep SK (DOCX)
@@ -179,12 +199,11 @@ impl PenghapusanBmnService {
         validator_id: Uuid,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
-        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status)
-            .unwrap_or_default();
+        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::VerifikasiPusat) {
             return Err(crate::errors::AppError::WorkflowError(
-                "Konsep SK hanya bisa digenerate saat status Verifikasi Pusat".into()
+                "Konsep SK hanya bisa digenerate saat status Verifikasi Pusat".into(),
             ));
         }
 
@@ -199,11 +218,14 @@ impl PenghapusanBmnService {
         // Transition to KonsepSKGenerated
         self.transition(
             id,
-            PenghapusanBmnStatus::KonsepSKGenerated.to_state_name().to_string(),
+            PenghapusanBmnStatus::KonsepSKGenerated
+                .to_state_name()
+                .to_string(),
             validator_id,
             Some("Konsep Usulan SK Penghapusan BMN berhasil digenerate".to_string()),
             "generate_konsep_sk".to_string(),
-        ).await
+        )
+        .await
     }
 
     /// Validator Pusat uploads signed SK PDF
@@ -214,17 +236,18 @@ impl PenghapusanBmnService {
         signed_sk_pdf_url: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
-        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status)
-            .unwrap_or_default();
+        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::KonsepSKGenerated) {
             return Err(crate::errors::AppError::WorkflowError(
-                "SK hanya bisa diupload setelah konsep SK digenerate".into()
+                "SK hanya bisa diupload setelah konsep SK digenerate".into(),
             ));
         }
 
         // Update signed SK PDF URL
-        self.repository.update_signed_sk(id, &signed_sk_pdf_url).await?;
+        self.repository
+            .update_signed_sk(id, &signed_sk_pdf_url)
+            .await?;
 
         // Transition to SKSigned then Completed
         self.transition(
@@ -233,7 +256,8 @@ impl PenghapusanBmnService {
             validator_id,
             Some("Usulan SK Penghapusan BMN telah ditandatangani".to_string()),
             "upload_signed_sk".to_string(),
-        ).await?;
+        )
+        .await?;
 
         // Auto-complete
         self.transition(
@@ -242,7 +266,8 @@ impl PenghapusanBmnService {
             validator_id,
             Some("Proses Usulan SK Penghapusan BMN selesai".to_string()),
             "complete".to_string(),
-        ).await
+        )
+        .await
     }
 
     /// Perform workflow transition
@@ -265,7 +290,9 @@ impl PenghapusanBmnService {
             ip_address,
         };
 
-        self.workflow_engine.transition(transition_request).await
+        self.workflow_engine
+            .transition(transition_request)
+            .await
             .map_err(|e| crate::errors::AppError::WorkflowError(e.to_string()))?;
 
         self.repository.update_status(id, &to_state).await?;

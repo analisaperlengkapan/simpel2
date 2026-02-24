@@ -138,7 +138,7 @@ make build-dev
 # Or individually:
 cargo build --bin authenc
 cargo build -p portal-microfrontend
-cd infra/secreton && cargo build
+cd layanan/secreton && cargo build
 ```
 
 ### Production Build
@@ -150,7 +150,7 @@ make build-prod
 # Or individually:
 cargo build --bin authenc --release
 trunk build --release antarmuka/portal/index.html
-cd infra/secreton && cargo build --release
+cd layanan/secreton && cargo build --release
 ```
 
 ### WASM Optimization
@@ -168,7 +168,7 @@ cd infra/secreton && cargo build --release
 
 ```bash
 # Run database migrations
-cd infra/authenc
+cd layanan/authenc
 sqlx migrate run
 
 # Start service
@@ -182,7 +182,7 @@ curl http://localhost:8088/health
 
 ```bash
 # Initialize secreton
-cd infra/secreton
+cd layanan/secreton
 ./target/release/secreton init
 
 # Start service

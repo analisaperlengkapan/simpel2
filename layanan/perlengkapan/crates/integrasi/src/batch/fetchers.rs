@@ -534,10 +534,14 @@ pub async fn fetch_mysimkari(
                                         pegawai_obj.insert("satker_id".to_string(), id.clone());
                                     }
                                     // Ensure status_pegawai = 'aktif' for fresh data
-                                    pegawai_obj
-                                        .insert("status_pegawai".to_string(), serde_json::Value::String("aktif".to_string()));
+                                    pegawai_obj.insert(
+                                        "status_pegawai".to_string(),
+                                        serde_json::Value::String("aktif".to_string()),
+                                    );
                                     // Collect NIP
-                                    if let Some(nip) = pegawai_obj.get("nip").and_then(|v| v.as_str()) {
+                                    if let Some(nip) =
+                                        pegawai_obj.get("nip").and_then(|v| v.as_str())
+                                    {
                                         if !nip.is_empty() {
                                             all_fresh_nips.insert(nip.to_string());
                                         }

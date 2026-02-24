@@ -56,8 +56,8 @@ impl QueueService {
                 .map_err(|e| AppError::Internal(e.to_string().into()))?
                 .map_err(|e| AppError::Internal(e.to_string().into()))?;
         if let Some((_, data)) = res {
-            let job: QueueJob =
-                serde_json::from_str(&data).map_err(|e| AppError::Internal(e.to_string().into()))?;
+            let job: QueueJob = serde_json::from_str(&data)
+                .map_err(|e| AppError::Internal(e.to_string().into()))?;
             Ok(Some(job))
         } else {
             Ok(None)

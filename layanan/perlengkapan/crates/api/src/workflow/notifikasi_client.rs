@@ -9,9 +9,7 @@ use uuid::Uuid;
 
 // Re-export generated proto types
 pub use crate::workflow::notifikasi_proto::notification_service_client::NotificationServiceClient;
-pub use crate::workflow::notifikasi_proto::{
-    SendNotificationRequest, SendNotificationResponse,
-};
+pub use crate::workflow::notifikasi_proto::{SendNotificationRequest, SendNotificationResponse};
 
 /// Notifikasi client error types
 #[derive(Debug, thiserror::Error)]
@@ -122,7 +120,9 @@ impl NotifikasiClient {
     /// Create a new notifikasi client
     pub async fn new(endpoint: &str) -> Result<Self> {
         let channel = Channel::from_shared(endpoint.to_string())
-            .map_err(|e| NotifikasiClientError::InvalidResponse(format!("Invalid endpoint URI: {}", e)))?
+            .map_err(|e| {
+                NotifikasiClientError::InvalidResponse(format!("Invalid endpoint URI: {}", e))
+            })?
             .connect()
             .await?;
 
@@ -164,7 +164,10 @@ impl NotifikasiClient {
         let mut responses = Vec::new();
 
         for user_id in user_ids {
-            match self.send_notification(user_id, notification_type.clone(), priority).await {
+            match self
+                .send_notification(user_id, notification_type.clone(), priority)
+                .await
+            {
                 Ok(response) => responses.push(response),
                 Err(e) => {
                     // Log error but continue with other users
@@ -193,8 +196,9 @@ impl TryFrom<SendNotificationResponse> for NotificationSendResult {
     type Error = NotifikasiClientError;
 
     fn try_from(response: SendNotificationResponse) -> Result<Self> {
-        let notification_id = Uuid::parse_str(&response.notification_id)
-            .map_err(|e| NotifikasiClientError::InvalidResponse(format!("Invalid notification_id: {}", e)))?;
+        let notification_id = Uuid::parse_str(&response.notification_id).map_err(|e| {
+            NotifikasiClientError::InvalidResponse(format!("Invalid notification_id: {}", e))
+        })?;
 
         Ok(Self {
             notification_id,

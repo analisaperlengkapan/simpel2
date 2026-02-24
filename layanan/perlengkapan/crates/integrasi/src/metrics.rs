@@ -1,7 +1,7 @@
 // Prometheus metrics for integration service monitoring
 use prometheus::{
-    register_histogram_vec, register_int_counter_vec, HistogramVec, IntCounterVec, TextEncoder,
-    Encoder,
+    Encoder, HistogramVec, IntCounterVec, TextEncoder, register_histogram_vec,
+    register_int_counter_vec,
 };
 use std::sync::OnceLock;
 
@@ -13,7 +13,9 @@ pub fn integration_sync_duration() -> &'static HistogramVec {
             "integration_sync_duration_seconds",
             "Integration sync duration in seconds",
             &["service", "sync_type"],
-            vec![1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0, 3600.0]
+            vec![
+                1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0, 3600.0
+            ]
         )
         .expect("Failed to register integration_sync_duration_seconds metric")
     })

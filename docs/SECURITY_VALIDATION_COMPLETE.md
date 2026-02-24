@@ -13,8 +13,8 @@ This document confirms the successful implementation of comprehensive security v
 **Implementation:**
 
 1. **Zero-Trust Architecture Validation**
-   - Created comprehensive tests in `infra/authenc/tests/security_architecture_validation.rs`
-   - Created corresponding tests in `infra/secreton/tests/security_architecture_validation.rs`
+   - Created comprehensive tests in `layanan/authenc/tests/security_architecture_validation.rs`
+   - Created corresponding tests in `layanan/secreton/tests/security_architecture_validation.rs`
    - Validated independent operation capabilities
    - Verified no shared dependencies between projects
    - Confirmed proper isolation and security boundaries
@@ -38,7 +38,7 @@ This document confirms the successful implementation of comprehensive security v
    - Validated proper secret isolation between different satker
 
 5. **Integration Testing**
-   - Created `infra/authenc/tests/authenc_secreton_integration_validation.rs`
+   - Created `layanan/authenc/tests/authenc_secreton_integration_validation.rs`
    - Tested token-based authentication between services
    - Validated circuit breaker patterns for resilience
    - Tested retry mechanisms and connection pooling
@@ -50,8 +50,8 @@ This document confirms the successful implementation of comprehensive security v
 **Implementation:**
 
 1. **Attorney General's Office Compliance**
-   - Created `infra/authenc/tests/attorney_general_compliance_validation.rs`
-   - Created `infra/secreton/tests/attorney_general_compliance_validation.rs`
+   - Created `layanan/authenc/tests/attorney_general_compliance_validation.rs`
+   - Created `layanan/secreton/tests/attorney_general_compliance_validation.rs`
    - Implemented hierarchical kejaksaan structure validation
    - Validated NIP (Nomor Induk Pegawai) format compliance
    - Tested satker code validation according to Indonesian standards
@@ -91,8 +91,8 @@ This document confirms the successful implementation of comprehensive security v
 **Additional Implementation:**
 
 1. **Post-Quantum Readiness Validation**
-   - Created `infra/authenc/tests/post_quantum_readiness_validation.rs`
-   - Created `infra/secreton/tests/post_quantum_readiness_validation.rs`
+   - Created `layanan/authenc/tests/post_quantum_readiness_validation.rs`
+   - Created `layanan/secreton/tests/post_quantum_readiness_validation.rs`
    - Implemented hybrid cryptography support (Classical, Hybrid, PostQuantum modes)
    - Validated ML-DSA signature algorithms (ML-DSA-44, ML-DSA-65, ML-DSA-87)
    - Tested ML-KEM key encapsulation (ML-KEM-512, ML-KEM-768, ML-KEM-1024)

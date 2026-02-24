@@ -6,17 +6,15 @@ use crate::error::AppError;
 use crate::models::*;
 use crate::ocr::OcrService;
 use crate::storage::StorageService;
-use axum::body::Bytes;
 use axum::extract::Multipart;
 use axum::http::{StatusCode, header};
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
     response::{IntoResponse, Response},
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
 };
 use serde_json::json;
-use std::sync::Arc;
 use uuid::Uuid;
 
 /// Shared application state for handlers
@@ -42,7 +40,10 @@ pub fn routes(state: HandlerState) -> Router {
         .route("/archive/search", get(search_archive))
         .route("/archive/documents/search", get(search_archived_documents))
         .route("/archive/documents/{id}", get(get_archived_document))
-        .route("/archive/documents/expired", delete(delete_expired_documents))
+        .route(
+            "/archive/documents/expired",
+            delete(delete_expired_documents),
+        )
         .route("/audit/logs", get(get_audit_logs))
         .route("/health", get(health))
         .route("/health/storage", get(health_storage))
@@ -321,7 +322,9 @@ pub async fn classify_document(
     let file_bytes = storage.load_decrypted(&doc.filename).await?;
     let classify_service = ClassifyService::new(state.config.clone());
     let tags = classify_service.classify_document(id, file_bytes).await?;
-    classify_service.add_tags(&state.pool, id, tags.clone()).await?;
+    classify_service
+        .add_tags(&state.pool, id, tags.clone())
+        .await?;
 
     insert_audit_log(
         &state.pool,
@@ -384,7 +387,8 @@ pub async fn archive_document(
         .ok_or(AppError::BadRequest("collection_id wajib".to_string()))?;
     let collection_id = Uuid::parse_str(collection_id)
         .map_err(|_| AppError::BadRequest("collection_id tidak valid".to_string()))?;
-    let archive_service = ArchiveService;
+    let archive_service =
+        ArchiveService::new(std::path::PathBuf::from(&state.config.archive_storage_path));
     let archive_doc = archive_service
         .add_document_to_collection(&state.pool, collection_id, id)
         .await?;
@@ -405,7 +409,8 @@ pub async fn archive_document(
 pub async fn get_collections(
     State(state): State<HandlerState>,
 ) -> Result<impl IntoResponse, AppError> {
-    let archive_service = ArchiveService;
+    let archive_service =
+        ArchiveService::new(std::path::PathBuf::from(&state.config.archive_storage_path));
     let collections = archive_service.get_collections(&state.pool, None).await?;
     Ok(Json(collections))
 }
@@ -416,7 +421,8 @@ pub async fn search_archive(
 ) -> Result<impl IntoResponse, AppError> {
     let query = params["q"].as_str().unwrap_or("");
     let limit = params["limit"].as_i64().unwrap_or(20);
-    let archive_service = ArchiveService;
+    let archive_service =
+        ArchiveService::new(std::path::PathBuf::from(&state.config.archive_storage_path));
     let docs = archive_service
         .search_archive(&state.pool, query, limit)
         .await?;

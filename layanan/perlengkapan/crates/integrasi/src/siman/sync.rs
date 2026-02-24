@@ -9,7 +9,7 @@
 
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
-use crate::siman::endpoints::{fetch_all_assets_with_pagination, CircuitBreaker};
+use crate::siman::endpoints::{CircuitBreaker, fetch_all_assets_with_pagination};
 use crate::siman::models::SimanAssetCategory;
 use crate::storage::StorageStrategy;
 use chrono::{DateTime, Utc};
@@ -99,8 +99,8 @@ impl SimanSyncService {
             .map_err(|e| MonsaktiError::ApiError(format!("Failed to create scheduler: {}", e)))?;
 
         let circuit_breaker = Arc::new(CircuitBreaker::new(
-            5,                         // failure threshold
-            Duration::from_secs(300),  // 5 minute timeout
+            5,                        // failure threshold
+            Duration::from_secs(300), // 5 minute timeout
         ));
 
         Ok(Self {
@@ -223,12 +223,9 @@ impl SimanSyncService {
             MonsaktiError::ApiError(format!("Failed to create incremental sync job: {}", e))
         })?;
 
-        self.scheduler
-            .add(job)
-            .await
-            .map_err(|e| {
-                MonsaktiError::ApiError(format!("Failed to add incremental sync job: {}", e))
-            })?;
+        self.scheduler.add(job).await.map_err(|e| {
+            MonsaktiError::ApiError(format!("Failed to add incremental sync job: {}", e))
+        })?;
 
         Ok(())
     }

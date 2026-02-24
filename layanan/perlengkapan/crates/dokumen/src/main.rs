@@ -1,4 +1,4 @@
-use dokumen::{config::AppConfig, handlers, DocumentScheduler};
+use layanan_perlengkapan_dokumen::{DocumentScheduler, config::AppConfig, handlers};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -10,20 +10,62 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load configuration
     let config = AppConfig::from_env();
 
-    tracing::info!("Starting Document Service on {}:{}", config.server_host, config.server_port);
+    tracing::info!(
+        "Starting Document Service on {}:{}",
+        config.server_host,
+        config.server_port
+    );
+
+    // Parse database URL components
+    let before_at: &str = config.database_url.split('@').next().unwrap_or("");
+    let after_at: &str = config
+        .database_url
+        .split('@')
+        .nth(1)
+        .unwrap_or("localhost:5432/perlengkapan");
+
+    let db_user = before_at
+        .split(':')
+        .nth(1)
+        .unwrap_or("postgres")
+        .to_string();
+    let db_password = before_at
+        .split(':')
+        .nth(2)
+        .unwrap_or("postgres")
+        .to_string();
+    let db_host = after_at
+        .split(':')
+        .next()
+        .unwrap_or("localhost")
+        .to_string();
+    let db_port: u16 = after_at
+        .split(':')
+        .nth(1)
+        .and_then(|s| s.split('/').next())
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(5432);
+    let db_name = config
+        .database_url
+        .split('/')
+        .last()
+        .unwrap_or("perlengkapan")
+        .to_string();
 
     // Create database pool
     let db_config = deadpool_postgres::Config {
-        user: Some(config.database_url.split('@').next().and_then(|s| s.split(':').nth(1)).unwrap_or("postgres").to_string()),
-        password: Some(config.database_url.split('@').next().and_then(|s| s.split(':').nth(2)).unwrap_or("postgres").to_string()),
-        host: Some(config.database_url.split('@').nth(1).and_then(|s| s.split(':').next()).unwrap_or("localhost").to_string()),
-        port: Some(config.database_url.split('@').nth(1).and_then(|s| s.split(':').nth(1)).and_then(|s| s.split('/').next()).and_then(|s| s.parse().ok()).unwrap_or(5432)),
-        dbname: Some(config.database_url.split('/').last().unwrap_or("perlengkapan").to_string()),
+        user: Some(db_user),
+        password: Some(db_password),
+        host: Some(db_host),
+        port: Some(db_port),
+        dbname: Some(db_name),
         ..Default::default()
     };
 
-    let pool = db_config
-        .create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)?;
+    let pool = db_config.create_pool(
+        Some(deadpool_postgres::Runtime::Tokio1),
+        tokio_postgres::NoTls,
+    )?;
 
     // Test database connection
     let _ = pool.get().await?;

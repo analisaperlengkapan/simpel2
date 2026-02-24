@@ -3,15 +3,14 @@
 //! Detail view for BMN usage permit with workflow actions.
 //! Requirements: REQ-P001, REQ-P004, REQ-P008, REQ-P009
 
+use crate::api::{
+    GenerateKonsepSuratRequest, IzinPemakaianDetailResponse, PemakaianWorkflowTransitionRequest,
+    RevokePermitRequest, UploadSignedPdfRequest, fetch_pemakaian_bmn_detail,
+    generate_pemakaian_konsep_surat, revoke_pemakaian_bmn, transition_pemakaian_bmn_status,
+    upload_pemakaian_signed_pdf,
+};
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use crate::api::{
-    fetch_pemakaian_bmn_detail, transition_pemakaian_bmn_status,
-    revoke_pemakaian_bmn, IzinPemakaianDetailResponse,
-    PemakaianWorkflowTransitionRequest, RevokePermitRequest,
-    generate_pemakaian_konsep_surat, upload_pemakaian_signed_pdf,
-    GenerateKonsepSuratRequest, UploadSignedPdfRequest,
-};
 
 #[component]
 pub fn PemakaianBmnDetail() -> impl IntoView {
@@ -50,7 +49,11 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
             leptos::task::spawn_local(async move {
                 let request = PemakaianWorkflowTransitionRequest {
                     target_status,
-                    catatan: if comment.is_empty() { None } else { Some(comment) },
+                    catatan: if comment.is_empty() {
+                        None
+                    } else {
+                        Some(comment)
+                    },
                 };
 
                 match transition_pemakaian_bmn_status(&permit_id, request).await {
@@ -111,9 +114,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
         let permit_id = id();
 
         leptos::task::spawn_local(async move {
-            let request = GenerateKonsepSuratRequest {
-                format: None,
-            };
+            let request = GenerateKonsepSuratRequest { format: None };
             match generate_pemakaian_konsep_surat(&permit_id, request).await {
                 Ok(_) => {
                     permit_resource.refetch();

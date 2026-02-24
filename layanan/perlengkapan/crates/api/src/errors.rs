@@ -166,12 +166,7 @@ impl IntoResponse for AppError {
             }
             AppError::WorkflowError(msg) => {
                 tracing::error!("Workflow error: {}", msg);
-                (
-                    StatusCode::BAD_REQUEST,
-                    "WORKFLOW_ERROR",
-                    msg.clone(),
-                    None,
-                )
+                (StatusCode::BAD_REQUEST, "WORKFLOW_ERROR", msg.clone(), None)
             }
         };
 

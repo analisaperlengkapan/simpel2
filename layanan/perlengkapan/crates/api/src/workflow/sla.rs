@@ -4,9 +4,11 @@
 // Requirements: REQ-W003
 // ============================================================================
 
-use crate::workflow::config::WorkflowConfig;
-use crate::workflow::notifikasi_client::{NotifikasiClient, NotificationPriority, WorkflowNotificationType};
 use crate::metrics;
+use crate::workflow::config::WorkflowConfig;
+use crate::workflow::notifikasi_client::{
+    NotificationPriority, NotifikasiClient, WorkflowNotificationType,
+};
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
@@ -60,7 +62,11 @@ impl SlaMonitor {
     }
 
     /// Create a new SLA monitor with notification service
-    pub fn with_notifikasi(config: WorkflowConfig, db_pool: Pool, notifikasi_client: NotifikasiClient) -> Self {
+    pub fn with_notifikasi(
+        config: WorkflowConfig,
+        db_pool: Pool,
+        notifikasi_client: NotifikasiClient,
+    ) -> Self {
         Self {
             config,
             db_pool,
@@ -235,7 +241,11 @@ impl SlaMonitor {
             };
 
             match client
-                .send_notification(approver_id, escalation_notification.clone(), NotificationPriority::Urgent)
+                .send_notification(
+                    approver_id,
+                    escalation_notification.clone(),
+                    NotificationPriority::Urgent,
+                )
                 .await
             {
                 Ok(response) => {
@@ -278,7 +288,11 @@ impl SlaMonitor {
             };
 
             match client
-                .send_notification(requester_id, requester_notification, NotificationPriority::Normal)
+                .send_notification(
+                    requester_id,
+                    requester_notification,
+                    NotificationPriority::Normal,
+                )
                 .await
             {
                 Ok(response) => {
@@ -378,7 +392,9 @@ impl SlaMonitor {
             breach.breach_duration_minutes, breach.sla_limit_minutes
         );
 
-        client.execute(query, &[&breach.entity_id, &catatan]).await?;
+        client
+            .execute(query, &[&breach.entity_id, &catatan])
+            .await?;
 
         Ok(())
     }
@@ -450,7 +466,7 @@ impl SlaMonitor {
         // Calculate elapsed time and remaining time
         let now = Utc::now();
         let elapsed = now.signed_duration_since(state_entered_at);
-        let elapsed_minutes = elapsed.num_minutes();
+        let _elapsed_minutes = elapsed.num_minutes();
 
         let sla_deadline = state_entered_at + Duration::minutes(sla_limit_minutes as i64);
         let remaining = sla_deadline.signed_duration_since(now);

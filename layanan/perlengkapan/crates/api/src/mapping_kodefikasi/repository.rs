@@ -63,8 +63,10 @@ impl MappingRepository {
         );
 
         let client = self.pool.get().await?;
-        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let count_row = client.query_one(&count_query, &params_refs).await?;
         let total: i64 = count_row.get(0);
@@ -83,13 +85,17 @@ impl MappingRepository {
             ORDER BY jumlah_aset DESC
             LIMIT ${} OFFSET ${}
             "#,
-            where_clause, param_idx, param_idx + 1
+            where_clause,
+            param_idx,
+            param_idx + 1
         );
 
         params.push(Box::new(per_page as i64));
         params.push(Box::new(offset));
-        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client.query(&data_query, &params_refs).await?;
 

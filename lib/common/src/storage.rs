@@ -9,9 +9,9 @@ use crate::error::{CommonError, Result};
 use aws_config::BehaviorVersion;
 #[cfg(feature = "storage")]
 use aws_sdk_s3::{
+    Client as S3Client, Config,
     config::{Credentials, Region},
     primitives::ByteStream,
-    Client as S3Client, Config,
 };
 #[cfg(feature = "storage")]
 use sha2::{Digest, Sha256};
@@ -66,13 +66,8 @@ pub struct StorageClient {
 impl StorageClient {
     /// Create a new storage client
     pub async fn new(config: StorageConfig) -> Result<Self> {
-        let credentials = Credentials::new(
-            &config.access_key,
-            &config.secret_key,
-            None,
-            None,
-            "static",
-        );
+        let credentials =
+            Credentials::new(&config.access_key, &config.secret_key, None, None, "static");
 
         let s3_config = Config::builder()
             .region(Region::new(config.region))

@@ -37,11 +37,8 @@ impl SyncStatusStorage {
                 VALUES ($1, $2, $3, $4, NOW())
             "#;
 
-            db.execute(
-                query,
-                &[&service, &sync_type, &success, &error_message],
-            )
-            .await?;
+            db.execute(query, &[&service, &sync_type, &success, &error_message])
+                .await?;
 
             info!(
                 "Sync status saved: {} - {} (success: {})",
@@ -166,16 +163,12 @@ impl SyncStatusStorage {
                 updated_at = NOW()
         "#;
 
-        let api_id = data
-            .get("id")
-            .and_then(|v| v.as_str());
+        let api_id = data.get("id").and_then(|v| v.as_str());
         let kode_satker = data
             .get("kode_satker")
             .and_then(|v| v.as_str())
             .unwrap_or_default();
-        let nama_satker = data
-            .get("nama_satker")
-            .and_then(|v| v.as_str());
+        let nama_satker = data.get("nama_satker").and_then(|v| v.as_str());
         let tipe_satker = data.get("tipe_satker").and_then(|v| v.as_str());
         let alamat_satker = data.get("alamat_satker").and_then(|v| v.as_str());
         let telp_satker = data.get("telp_satker").and_then(|v| v.as_str());
@@ -191,10 +184,23 @@ impl SyncStatusStorage {
 
         db.execute(
             query,
-            &[&api_id, &kode_satker, &nama_satker, &tipe_satker,
-              &alamat_satker, &telp_satker, &website_satker, &city,
-              &long, &lat, &provinsi, &wilayah, &kategori_satker,
-              &pulau, &parent_id],
+            &[
+                &api_id,
+                &kode_satker,
+                &nama_satker,
+                &tipe_satker,
+                &alamat_satker,
+                &telp_satker,
+                &website_satker,
+                &city,
+                &long,
+                &lat,
+                &provinsi,
+                &wilayah,
+                &kategori_satker,
+                &pulau,
+                &parent_id,
+            ],
         )
         .await?;
 
@@ -248,10 +254,7 @@ impl SyncStatusStorage {
                 updated_at = NOW()
         "#;
 
-        let nip = data
-            .get("nip")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
+        let nip = data.get("nip").and_then(|v| v.as_str()).unwrap_or_default();
         let nama = data.get("nama").and_then(|v| v.as_str());
         let satker_id = data.get("satker_id").and_then(|v| v.as_str());
         let nama_satker = data.get("nama_satker").and_then(|v| v.as_str());
@@ -259,7 +262,10 @@ impl SyncStatusStorage {
         let jenis_jabatan = data.get("jenis_jabatan_terakhir").and_then(|v| v.as_str());
         let eselon = data.get("eselon").and_then(|v| v.as_str());
         let golpang = data.get("golpang").and_then(|v| v.as_str());
-        let gol_kd = data.get("gol_kd").or_else(|| data.get("GOL_KD")).and_then(|v| v.as_str());
+        let gol_kd = data
+            .get("gol_kd")
+            .or_else(|| data.get("GOL_KD"))
+            .and_then(|v| v.as_str());
         let jk = data.get("jk").and_then(|v| v.as_str());
         let agama = data.get("agama").and_then(|v| v.as_str());
         let email_dinas = data.get("email_dinas").and_then(|v| v.as_str());
@@ -272,9 +278,22 @@ impl SyncStatusStorage {
         db.execute(
             query,
             &[
-                &nip, &nama, &satker_id, &nama_satker, &jabatan,
-                &jenis_jabatan, &eselon, &golpang, &gol_kd, &jk,
-                &agama, &email_dinas, &no_hp, &nrp, &foto, &bidang,
+                &nip,
+                &nama,
+                &satker_id,
+                &nama_satker,
+                &jabatan,
+                &jenis_jabatan,
+                &eselon,
+                &golpang,
+                &gol_kd,
+                &jk,
+                &agama,
+                &email_dinas,
+                &no_hp,
+                &nrp,
+                &foto,
+                &bidang,
                 &jabat_tmt,
             ],
         )

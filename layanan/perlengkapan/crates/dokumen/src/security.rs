@@ -33,21 +33,35 @@ pub async fn get_user_role(
         )
         .await?;
 
-    Ok(row.map(|r| DocumentPermission::from(&r)).and_then(|p| Role::from_str(&p.role)))
+    Ok(row
+        .map(|r| DocumentPermission::from(&r))
+        .and_then(|p| Role::from_str(&p.role)))
 }
 
-pub async fn is_owner(pool: &deadpool_postgres::Pool, user_id: Uuid, document_id: Uuid) -> Result<bool, AppError> {
+pub async fn is_owner(
+    pool: &deadpool_postgres::Pool,
+    user_id: Uuid,
+    document_id: Uuid,
+) -> Result<bool, AppError> {
     Ok(get_user_role(pool, user_id, document_id).await? == Some(Role::Owner))
 }
 
-pub async fn is_editor(pool: &deadpool_postgres::Pool, user_id: Uuid, document_id: Uuid) -> Result<bool, AppError> {
+pub async fn is_editor(
+    pool: &deadpool_postgres::Pool,
+    user_id: Uuid,
+    document_id: Uuid,
+) -> Result<bool, AppError> {
     match get_user_role(pool, user_id, document_id).await? {
         Some(Role::Owner) | Some(Role::Editor) => Ok(true),
         _ => Ok(false),
     }
 }
 
-pub async fn is_viewer(pool: &deadpool_postgres::Pool, user_id: Uuid, document_id: Uuid) -> Result<bool, AppError> {
+pub async fn is_viewer(
+    pool: &deadpool_postgres::Pool,
+    user_id: Uuid,
+    document_id: Uuid,
+) -> Result<bool, AppError> {
     match get_user_role(pool, user_id, document_id).await? {
         Some(Role::Owner) | Some(Role::Editor) | Some(Role::Viewer) => Ok(true),
         _ => Ok(false),

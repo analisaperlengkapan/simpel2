@@ -4,7 +4,7 @@
 // Requirements: REQ-W007
 // ============================================================================
 
-use crate::workflow::engine::{WorkflowEngine, TransitionRequest};
+use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
@@ -234,7 +234,7 @@ impl ParallelApprovalEngine {
         let entity_id: Uuid = approval_row.get("entity_id");
         let approvers: Vec<Uuid> = approval_row.get("approvers");
         let required_approvals: i32 = approval_row.get("required_approvals");
-        let current_approvals: i32 = approval_row.get("current_approvals");
+        let _current_approvals: i32 = approval_row.get("current_approvals");
         let current_state: String = approval_row.get("current_state");
         let target_state: String = approval_row.get("target_state");
         let status: String = approval_row.get("status");
@@ -259,7 +259,10 @@ impl ParallelApprovalEngine {
         "#;
 
         let vote_count_row = tx
-            .query_one(vote_check_query, &[&request.approval_id, &request.approver_id])
+            .query_one(
+                vote_check_query,
+                &[&request.approval_id, &request.approver_id],
+            )
             .await?;
         let vote_count: i64 = vote_count_row.get("vote_count");
 
@@ -476,10 +479,7 @@ impl ParallelApprovalEngine {
     }
 
     /// Cancel a parallel approval
-    pub async fn cancel_approval(
-        &self,
-        approval_id: Uuid,
-    ) -> Result<(), ParallelApprovalError> {
+    pub async fn cancel_approval(&self, approval_id: Uuid) -> Result<(), ParallelApprovalError> {
         let client = self.db_pool.get().await?;
 
         let query = r#"

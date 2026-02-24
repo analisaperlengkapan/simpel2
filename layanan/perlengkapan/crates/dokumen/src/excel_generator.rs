@@ -1,9 +1,8 @@
 use crate::error::AppError;
 use crate::template_models::DocumentTemplate;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use rust_xlsxwriter::*;
 use serde_json::Value;
-use uuid::Uuid;
 
 pub struct ExcelGenerator;
 
@@ -42,12 +41,10 @@ impl ExcelGenerator {
         self.add_metadata_sheet(&mut workbook, template, data)?;
 
         // Save workbook
-        workbook.save(output_path)
-            .map_err(|_| AppError::Internal)?;
+        workbook.save(output_path).map_err(|_| AppError::Internal)?;
 
         // Read file back as bytes
-        let excel_bytes = std::fs::read(output_path)
-            .map_err(|_| AppError::Internal)?;
+        let excel_bytes = std::fs::read(output_path).map_err(|_| AppError::Internal)?;
 
         Ok(excel_bytes)
     }
@@ -59,7 +56,8 @@ impl ExcelGenerator {
         data: &Value,
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet.set_name("Rekapitulasi Kebutuhan")
+        worksheet
+            .set_name("Rekapitulasi Kebutuhan")
             .map_err(|_| AppError::Internal)?;
 
         // Header format
@@ -70,11 +68,13 @@ impl ExcelGenerator {
             .set_border(FormatBorder::Thin);
 
         // Title
-        worksheet.write_string(0, 0, "REKAPITULASI KEBUTUHAN BMN")
+        worksheet
+            .write_string(0, 0, "REKAPITULASI KEBUTUHAN BMN")
             .map_err(|_| AppError::Internal)?;
 
         let tahun = data["tahun_anggaran"].as_i64().unwrap_or(2024);
-        worksheet.write_string(1, 0, &format!("Tahun Anggaran: {}", tahun))
+        worksheet
+            .write_string(1, 0, &format!("Tahun Anggaran: {}", tahun))
             .map_err(|_| AppError::Internal)?;
 
         // Headers
@@ -91,7 +91,8 @@ impl ExcelGenerator {
         ];
 
         for (col, header) in headers.iter().enumerate() {
-            worksheet.write_string_with_format(3, col as u16, *header, &header_format)
+            worksheet
+                .write_string_with_format(3, col as u16, *header, &header_format)
                 .map_err(|_| AppError::Internal)?;
         }
 
@@ -100,33 +101,42 @@ impl ExcelGenerator {
             for (idx, item) in items.iter().enumerate() {
                 let row = (idx + 4) as u32;
 
-                worksheet.write_number(row, 0, (idx + 1) as f64)
+                worksheet
+                    .write_number(row, 0, (idx + 1) as f64)
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 1, item["satker_nama"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 1, item["satker_nama"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 2, item["kode_barang"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 2, item["kode_barang"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 3, item["nama_barang"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 3, item["nama_barang"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_number(row, 4, item["jumlah_kebutuhan"].as_f64().unwrap_or(0.0))
+                worksheet
+                    .write_number(row, 4, item["jumlah_kebutuhan"].as_f64().unwrap_or(0.0))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_number(row, 5, item["jumlah_existing"].as_f64().unwrap_or(0.0))
+                worksheet
+                    .write_number(row, 5, item["jumlah_existing"].as_f64().unwrap_or(0.0))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_number(row, 6, item["gap"].as_f64().unwrap_or(0.0))
+                worksheet
+                    .write_number(row, 6, item["gap"].as_f64().unwrap_or(0.0))
                     .map_err(|_| AppError::Internal)?;
 
                 let anggaran = item["estimasi_anggaran"].as_f64().unwrap_or(0.0);
                 let currency_format = Format::new().set_num_format("#,##0");
-                worksheet.write_number_with_format(row, 7, anggaran, &currency_format)
+                worksheet
+                    .write_number_with_format(row, 7, anggaran, &currency_format)
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 8, item["status"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 8, item["status"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
             }
         }
@@ -144,7 +154,8 @@ impl ExcelGenerator {
         data: &Value,
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet.set_name("Roadmap Sarpras")
+        worksheet
+            .set_name("Roadmap Sarpras")
             .map_err(|_| AppError::Internal)?;
 
         let header_format = Format::new()
@@ -154,7 +165,8 @@ impl ExcelGenerator {
             .set_border(FormatBorder::Thin);
 
         // Title
-        worksheet.write_string(0, 0, "ROADMAP SARANA DAN PRASARANA")
+        worksheet
+            .write_string(0, 0, "ROADMAP SARANA DAN PRASARANA")
             .map_err(|_| AppError::Internal)?;
 
         let periode = format!(
@@ -162,7 +174,8 @@ impl ExcelGenerator {
             data["periode_mulai"].as_i64().unwrap_or(2024),
             data["periode_akhir"].as_i64().unwrap_or(2028)
         );
-        worksheet.write_string(1, 0, &format!("Periode: {}", periode))
+        worksheet
+            .write_string(1, 0, &format!("Periode: {}", periode))
             .map_err(|_| AppError::Internal)?;
 
         // Headers
@@ -181,7 +194,8 @@ impl ExcelGenerator {
         ];
 
         for (col, header) in headers.iter().enumerate() {
-            worksheet.write_string_with_format(3, col as u16, *header, &header_format)
+            worksheet
+                .write_string_with_format(3, col as u16, *header, &header_format)
                 .map_err(|_| AppError::Internal)?;
         }
 
@@ -190,31 +204,38 @@ impl ExcelGenerator {
             for (idx, item) in items.iter().enumerate() {
                 let row = (idx + 4) as u32;
 
-                worksheet.write_number(row, 0, (idx + 1) as f64)
+                worksheet
+                    .write_number(row, 0, (idx + 1) as f64)
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 1, item["kode_barang"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 1, item["kode_barang"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 2, item["nama_barang"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 2, item["nama_barang"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
 
                 // Year columns
                 for year in 0..5 {
                     let key = format!("tahun_{}", year + 1);
                     let value = item[&key].as_f64().unwrap_or(0.0);
-                    worksheet.write_number(row, (3 + year) as u16, value)
+                    worksheet
+                        .write_number(row, (3 + year) as u16, value)
                         .map_err(|_| AppError::Internal)?;
                 }
 
                 // Total, Realisasi, Sisa
-                worksheet.write_number(row, 8, item["total"].as_f64().unwrap_or(0.0))
+                worksheet
+                    .write_number(row, 8, item["total"].as_f64().unwrap_or(0.0))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_number(row, 9, item["realisasi"].as_f64().unwrap_or(0.0))
+                worksheet
+                    .write_number(row, 9, item["realisasi"].as_f64().unwrap_or(0.0))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_number(row, 10, item["sisa"].as_f64().unwrap_or(0.0))
+                worksheet
+                    .write_number(row, 10, item["sisa"].as_f64().unwrap_or(0.0))
                     .map_err(|_| AppError::Internal)?;
             }
         }
@@ -225,13 +246,10 @@ impl ExcelGenerator {
     }
 
     /// Generate gap analysis
-    fn generate_gap_analysis(
-        &self,
-        workbook: &mut Workbook,
-        data: &Value,
-    ) -> Result<(), AppError> {
+    fn generate_gap_analysis(&self, workbook: &mut Workbook, data: &Value) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet.set_name("Gap Analysis")
+        worksheet
+            .set_name("Gap Analysis")
             .map_err(|_| AppError::Internal)?;
 
         let header_format = Format::new()
@@ -241,7 +259,8 @@ impl ExcelGenerator {
             .set_border(FormatBorder::Thin);
 
         // Title
-        worksheet.write_string(0, 0, "ANALISIS GAP KEBUTUHAN BMN")
+        worksheet
+            .write_string(0, 0, "ANALISIS GAP KEBUTUHAN BMN")
             .map_err(|_| AppError::Internal)?;
 
         // Headers
@@ -258,7 +277,8 @@ impl ExcelGenerator {
         ];
 
         for (col, header) in headers.iter().enumerate() {
-            worksheet.write_string_with_format(2, col as u16, *header, &header_format)
+            worksheet
+                .write_string_with_format(2, col as u16, *header, &header_format)
                 .map_err(|_| AppError::Internal)?;
         }
 
@@ -267,37 +287,50 @@ impl ExcelGenerator {
             for (idx, item) in items.iter().enumerate() {
                 let row = (idx + 3) as u32;
 
-                worksheet.write_number(row, 0, (idx + 1) as f64)
+                worksheet
+                    .write_number(row, 0, (idx + 1) as f64)
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 1, item["satker_nama"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 1, item["satker_nama"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 2, item["kode_barang"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 2, item["kode_barang"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 3, item["nama_barang"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 3, item["nama_barang"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
 
                 let standard = item["standard_quantity"].as_f64().unwrap_or(0.0);
                 let existing = item["existing_good_quantity"].as_f64().unwrap_or(0.0);
                 let gap = item["gap"].as_f64().unwrap_or(0.0);
-                let gap_pct = if standard > 0.0 { (gap / standard) * 100.0 } else { 0.0 };
+                let gap_pct = if standard > 0.0 {
+                    (gap / standard) * 100.0
+                } else {
+                    0.0
+                };
 
-                worksheet.write_number(row, 4, standard)
+                worksheet
+                    .write_number(row, 4, standard)
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_number(row, 5, existing)
+                worksheet
+                    .write_number(row, 5, existing)
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_number(row, 6, gap)
+                worksheet
+                    .write_number(row, 6, gap)
                     .map_err(|_| AppError::Internal)?;
 
                 let percent_format = Format::new().set_num_format("0.00%");
-                worksheet.write_number_with_format(row, 7, gap_pct / 100.0, &percent_format)
+                worksheet
+                    .write_number_with_format(row, 7, gap_pct / 100.0, &percent_format)
                     .map_err(|_| AppError::Internal)?;
 
-                worksheet.write_string(row, 8, item["prioritas"].as_str().unwrap_or(""))
+                worksheet
+                    .write_string(row, 8, item["prioritas"].as_str().unwrap_or(""))
                     .map_err(|_| AppError::Internal)?;
             }
         }
@@ -314,8 +347,7 @@ impl ExcelGenerator {
         data: &Value,
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet.set_name("Data")
-            .map_err(|_| AppError::Internal)?;
+        worksheet.set_name("Data").map_err(|_| AppError::Internal)?;
 
         let header_format = Format::new()
             .set_bold()
@@ -328,7 +360,8 @@ impl ExcelGenerator {
                 if let Some(obj) = first_item.as_object() {
                     // Write headers
                     for (col, key) in obj.keys().enumerate() {
-                        worksheet.write_string_with_format(0, col as u16, key, &header_format)
+                        worksheet
+                            .write_string_with_format(0, col as u16, key, &header_format)
                             .map_err(|_| AppError::Internal)?;
                     }
 
@@ -339,21 +372,25 @@ impl ExcelGenerator {
                                 let row = (row_idx + 1) as u32;
                                 match value {
                                     Value::String(s) => {
-                                        worksheet.write_string(row, col as u16, s)
+                                        worksheet
+                                            .write_string(row, col as u16, s)
                                             .map_err(|_| AppError::Internal)?;
                                     }
                                     Value::Number(n) => {
                                         if let Some(f) = n.as_f64() {
-                                            worksheet.write_number(row, col as u16, f)
+                                            worksheet
+                                                .write_number(row, col as u16, f)
                                                 .map_err(|_| AppError::Internal)?;
                                         }
                                     }
                                     Value::Bool(b) => {
-                                        worksheet.write_boolean(row, col as u16, *b)
+                                        worksheet
+                                            .write_boolean(row, col as u16, *b)
                                             .map_err(|_| AppError::Internal)?;
                                     }
                                     _ => {
-                                        worksheet.write_string(row, col as u16, &value.to_string())
+                                        worksheet
+                                            .write_string(row, col as u16, &value.to_string())
                                             .map_err(|_| AppError::Internal)?;
                                     }
                                 }
@@ -374,10 +411,11 @@ impl ExcelGenerator {
         &self,
         workbook: &mut Workbook,
         template: &DocumentTemplate,
-        data: &Value,
+        _data: &Value,
     ) -> Result<(), AppError> {
         let worksheet = workbook.add_worksheet();
-        worksheet.set_name("Metadata")
+        worksheet
+            .set_name("Metadata")
             .map_err(|_| AppError::Internal)?;
 
         let bold_format = Format::new().set_bold();
@@ -393,9 +431,11 @@ impl ExcelGenerator {
         ];
 
         for (row, (key, value)) in metadata.iter().enumerate() {
-            worksheet.write_string_with_format(row as u32, 0, *key, &bold_format)
+            worksheet
+                .write_string_with_format(row as u32, 0, *key, &bold_format)
                 .map_err(|_| AppError::Internal)?;
-            worksheet.write_string(row as u32, 1, *value)
+            worksheet
+                .write_string(row as u32, 1, *value)
                 .map_err(|_| AppError::Internal)?;
         }
 
@@ -444,7 +484,9 @@ mod tests {
             "items": []
         });
 
-        let result = generator.generate_excel(&template, &data, "/tmp/test.xlsx").await;
+        let result = generator
+            .generate_excel(&template, &data, "/tmp/test.xlsx")
+            .await;
         assert!(result.is_ok());
     }
 }

@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::models::{ArchiveCollection, ArchiveDocument, Document};
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
@@ -164,11 +164,13 @@ impl ArchiveService {
 
         let metadata: Option<serde_json::Value> = row.get("metadata");
         let archive_filename = metadata
+            .as_ref()
             .and_then(|m| m.get("archive_path"))
             .and_then(|p| p.as_str())
+            .map(|s| s.to_string())
             .ok_or_else(|| AppError::NotFound("Archive path not found in metadata".to_string()))?;
 
-        let archive_path = self.archive_storage_path.join(archive_filename);
+        let archive_path = self.archive_storage_path.join(&archive_filename);
 
         // Read archived file
         let data = fs::read(&archive_path).await?;
@@ -184,10 +186,8 @@ impl ArchiveService {
     ) -> Result<Vec<Document>, AppError> {
         let client = pool.get().await?;
 
-        let mut query = String::from(
-            "SELECT * FROM dokumen.documents WHERE is_archived = true",
-        );
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync>> = Vec::new();
+        let mut query = String::from("SELECT * FROM dokumen.documents WHERE is_archived = true");
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
         let mut param_count = 1;
 
         // Add date range filter
@@ -205,7 +205,10 @@ impl ArchiveService {
 
         // Add document type filter
         if let Some(doc_type) = filters.document_type {
-            query.push_str(&format!(" AND metadata->>'document_type' = ${}", param_count));
+            query.push_str(&format!(
+                " AND metadata->>'document_type' = ${}",
+                param_count
+            ));
             params.push(Box::new(doc_type));
             param_count += 1;
         }
@@ -238,8 +241,10 @@ impl ArchiveService {
         params.push(Box::new(filters.offset));
 
         // Execute query
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref()).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client.query(&query, &param_refs).await?;
 
@@ -281,12 +286,14 @@ impl ArchiveService {
             if policy.should_delete(created_at) {
                 // Get archive filename
                 let archive_filename = metadata
+                    .as_ref()
                     .and_then(|m| m.get("archive_path"))
-                    .and_then(|p| p.as_str());
+                    .and_then(|p| p.as_str())
+                    .map(|s| s.to_string());
 
                 // Delete physical file
                 if let Some(filename) = archive_filename {
-                    let archive_path = self.archive_storage_path.join(filename);
+                    let archive_path = self.archive_storage_path.join(&filename);
                     if fs::metadata(&archive_path).await.is_ok() {
                         fs::remove_file(&archive_path).await?;
                         tracing::info!("Deleted expired archive file: {}", archive_path.display());
@@ -295,7 +302,10 @@ impl ArchiveService {
 
                 // Delete database record
                 client
-                    .execute("DELETE FROM dokumen.documents WHERE id = $1", &[&document_id])
+                    .execute(
+                        "DELETE FROM dokumen.documents WHERE id = $1",
+                        &[&document_id],
+                    )
                     .await?;
 
                 deleted_count += 1;

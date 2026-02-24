@@ -583,7 +583,10 @@ pub async fn submit_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
-    let catatan = request.get("catatan").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let catatan = request
+        .get("catatan")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     let item = service
         .submit_pengajuan(id, claims.user_id, catatan)
@@ -602,7 +605,10 @@ pub async fn approve_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
-    let catatan = request.get("catatan").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let catatan = request
+        .get("catatan")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     let item = service
         .approve_pengajuan(id, claims.user_id, catatan)
@@ -621,7 +627,10 @@ pub async fn reject_pengajuan_handler(
     claims: Claims,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
-    let catatan = request.get("catatan").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let catatan = request
+        .get("catatan")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     let item = service
         .reject_pengajuan(id, claims.user_id, catatan)
@@ -643,7 +652,8 @@ pub async fn download_rekapitulasi_handler(
     let pengajuan = service.get_pengajuan_by_id(id).await?;
 
     // Check if document exists
-    let document_url = pengajuan.aktivitas_label
+    let document_url = pengajuan
+        .aktivitas_label
         .ok_or_else(|| bad_request("Rekapitulasi belum tersedia"))?;
 
     Ok(Json(ApiResponse::success(
@@ -658,8 +668,8 @@ pub async fn download_rekapitulasi_handler(
 
 #[derive(Debug, Deserialize)]
 pub struct CetakQuery {
-    pub jenis_laporan: String,  // "rekap" or "daftar"
-    pub jenis_file: String,     // "excel" or "pdf"
+    pub jenis_laporan: String, // "rekap" or "daftar"
+    pub jenis_file: String,    // "excel" or "pdf"
     pub pengajuan_id: Uuid,
     pub satker_id: Option<Uuid>,
     pub jenis_kelamin: Option<String>,
@@ -688,26 +698,44 @@ pub async fn cetak_laporan(
 
     match (query.jenis_laporan.as_str(), query.jenis_file.as_str()) {
         ("rekap", "excel") => {
-            let buffer = super::export::generate_rekap_xlsx(&service, query.pengajuan_id, &filter).await?;
+            let buffer =
+                super::export::generate_rekap_xlsx(&service, query.pengajuan_id, &filter).await?;
             let headers = [
-                (header::CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-                (header::CONTENT_DISPOSITION, "attachment; filename=\"Laporan_Rekap.xlsx\""),
+                (
+                    header::CONTENT_TYPE,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"Laporan_Rekap.xlsx\"",
+                ),
             ];
             Ok((headers, buffer).into_response())
         }
         ("daftar", "excel") => {
-            let buffer = super::export::generate_daftar_xlsx(&service, query.pengajuan_id, &filter).await?;
+            let buffer =
+                super::export::generate_daftar_xlsx(&service, query.pengajuan_id, &filter).await?;
             let headers = [
-                (header::CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-                (header::CONTENT_DISPOSITION, "attachment; filename=\"Laporan_Daftar.xlsx\""),
+                (
+                    header::CONTENT_TYPE,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"Laporan_Daftar.xlsx\"",
+                ),
             ];
             Ok((headers, buffer).into_response())
         }
         ("rekap", "pdf") | ("daftar", "pdf") => {
             // TODO: PDF generation with printpdf (to be implemented)
-            Err(bad_request("PDF export belum tersedia, gunakan Excel terlebih dahulu"))
+            Err(bad_request(
+                "PDF export belum tersedia, gunakan Excel terlebih dahulu",
+            ))
         }
-        _ => Err(bad_request("Jenis laporan atau file tidak valid. Gunakan jenis_laporan=rekap|daftar dan jenis_file=excel|pdf")),
+        _ => Err(bad_request(
+            "Jenis laporan atau file tidak valid. Gunakan jenis_laporan=rekap|daftar dan jenis_file=excel|pdf",
+        )),
     }
 }
 

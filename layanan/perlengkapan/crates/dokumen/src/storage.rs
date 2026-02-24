@@ -2,7 +2,7 @@ use crate::config::AppConfig;
 use crate::error::AppError;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use rand::RngCore;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use tokio::{fs, io::AsyncWriteExt};
 use uuid::Uuid;
@@ -200,7 +200,10 @@ impl StorageService {
             )
             .await?;
 
-        Ok(rows.iter().map(crate::models::DocumentVersion::from).collect())
+        Ok(rows
+            .iter()
+            .map(crate::models::DocumentVersion::from)
+            .collect())
     }
 
     pub async fn delete(&self, filename: &str) -> Result<(), AppError> {

@@ -87,8 +87,8 @@ mod tests {
         // Header: {"alg":"HS256","typ":"JWT"} -> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
         let header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
 
-        // Payload: {"sub":"123","preferred_username":"testuser","name":"Test User","email":"test@example.com","realm_access":{"roles":["user"]},"exp":1704067200}
-        let payload_json = r#"{"sub":"123","preferred_username":"testuser","name":"Test User","email":"test@example.com","realm_access":{"roles":["user"]},"exp":1704067200}"#;
+        // Payload: {"sub":"123","preferred_username":"testuser","name":"Test User","email":"test@example.com","realm_access":{"roles":["user"]},"exp":1704067200,"iat":1704060000,"iss":"https://auth.example.com"}
+        let payload_json = r#"{"sub":"123","preferred_username":"testuser","name":"Test User","email":"test@example.com","realm_access":{"roles":["user"]},"exp":1704067200,"iat":1704060000,"iss":"https://auth.example.com"}"#;
         let payload = general_purpose::URL_SAFE_NO_PAD.encode(payload_json);
 
         // Signature (dummy)

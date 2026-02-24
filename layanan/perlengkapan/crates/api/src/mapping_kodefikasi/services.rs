@@ -73,7 +73,9 @@ impl MappingService {
             .list_non_standard_codes(None, satker_id, 1, 10000)
             .await?;
 
-        let mut csv = String::from("Kode Lama,Nama Lama,Satker ID,Jumlah Aset,Suggested Kode Baru,Suggested Nama Baru,Similarity Score\n");
+        let mut csv = String::from(
+            "Kode Lama,Nama Lama,Satker ID,Jumlah Aset,Suggested Kode Baru,Suggested Nama Baru,Similarity Score\n",
+        );
 
         for code in &codes {
             let (suggested_kode, suggested_nama, score) = match &code.suggested_mapping {

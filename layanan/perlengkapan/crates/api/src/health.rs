@@ -57,10 +57,12 @@ pub async fn readiness_check(State(state): State<Arc<AppState>>) -> impl IntoRes
 
     // Determine overall status
     let overall_status = if db_health.status == HealthStatus::Healthy
-        && redis_health.status == HealthStatus::Healthy {
+        && redis_health.status == HealthStatus::Healthy
+    {
         HealthStatus::Healthy
     } else if db_health.status == HealthStatus::Unhealthy
-        || redis_health.status == HealthStatus::Unhealthy {
+        || redis_health.status == HealthStatus::Unhealthy
+    {
         HealthStatus::Unhealthy
     } else {
         HealthStatus::Degraded
@@ -132,28 +134,26 @@ async fn check_database_health(state: &AppState) -> ComponentHealth {
     let start = Instant::now();
 
     match state.db_pool.get().await {
-        Ok(client) => {
-            match client.simple_query("SELECT 1").await {
-                Ok(_) => {
-                    let response_time = start.elapsed().as_secs_f64() * 1000.0;
-                    ComponentHealth {
-                        name: "database".to_string(),
-                        status: HealthStatus::Healthy,
-                        message: Some("Connected".to_string()),
-                        response_time_ms: Some(response_time),
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error = %e, "Database query failed");
-                    ComponentHealth {
-                        name: "database".to_string(),
-                        status: HealthStatus::Unhealthy,
-                        message: Some(format!("Query failed: {}", e)),
-                        response_time_ms: None,
-                    }
+        Ok(client) => match client.simple_query("SELECT 1").await {
+            Ok(_) => {
+                let response_time = start.elapsed().as_secs_f64() * 1000.0;
+                ComponentHealth {
+                    name: "database".to_string(),
+                    status: HealthStatus::Healthy,
+                    message: Some("Connected".to_string()),
+                    response_time_ms: Some(response_time),
                 }
             }
-        }
+            Err(e) => {
+                tracing::error!(error = %e, "Database query failed");
+                ComponentHealth {
+                    name: "database".to_string(),
+                    status: HealthStatus::Unhealthy,
+                    message: Some(format!("Query failed: {}", e)),
+                    response_time_ms: None,
+                }
+            }
+        },
         Err(e) => {
             tracing::error!(error = %e, "Database connection failed");
             ComponentHealth {
@@ -214,8 +214,12 @@ async fn check_authenc_health(state: &AppState) -> ComponentHealth {
 
 /// Determine overall health status from component statuses
 fn determine_overall_status(components: &[ComponentHealth]) -> HealthStatus {
-    let has_unhealthy = components.iter().any(|c| c.status == HealthStatus::Unhealthy);
-    let has_degraded = components.iter().any(|c| c.status == HealthStatus::Degraded);
+    let has_unhealthy = components
+        .iter()
+        .any(|c| c.status == HealthStatus::Unhealthy);
+    let has_degraded = components
+        .iter()
+        .any(|c| c.status == HealthStatus::Degraded);
 
     if has_unhealthy {
         HealthStatus::Unhealthy
@@ -267,7 +271,10 @@ mod tests {
             },
         ];
 
-        assert_eq!(determine_overall_status(&components), HealthStatus::Degraded);
+        assert_eq!(
+            determine_overall_status(&components),
+            HealthStatus::Degraded
+        );
     }
 
     #[test]
@@ -287,6 +294,9 @@ mod tests {
             },
         ];
 
-        assert_eq!(determine_overall_status(&components), HealthStatus::Unhealthy);
+        assert_eq!(
+            determine_overall_status(&components),
+            HealthStatus::Unhealthy
+        );
     }
 }

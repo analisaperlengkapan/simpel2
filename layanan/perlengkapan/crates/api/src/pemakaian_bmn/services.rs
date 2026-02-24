@@ -11,7 +11,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::errors::{AppError, AppResult};
-use crate::workflow::engine::{WorkflowEngine, TransitionRequest};
+use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 
 use super::models::*;
 use super::repository::PemakaianBmnRepository;
@@ -63,8 +63,8 @@ impl PemakaianBmnService {
         let izin = self.repository.get_by_id(id).await?;
 
         // Get allowed transitions from workflow engine
-        let current_status = PemakaianBmnStatus::from_state_name(&izin.status)
-            .unwrap_or(PemakaianBmnStatus::Draft);
+        let current_status =
+            PemakaianBmnStatus::from_state_name(&izin.status).unwrap_or(PemakaianBmnStatus::Draft);
         let allowed_transitions = self.get_allowed_transitions(current_status);
 
         // Calculate expiry info
@@ -101,10 +101,14 @@ impl PemakaianBmnService {
         user_id: Uuid,
     ) -> AppResult<IzinPemakaianBmn> {
         let current = self.repository.get_by_id(id).await?;
-        let current_status = PemakaianBmnStatus::from_state_name(&current.status)
-            .ok_or_else(|| AppError::BadRequest(format!("Unknown current status: {}", current.status)))?;
+        let current_status =
+            PemakaianBmnStatus::from_state_name(&current.status).ok_or_else(|| {
+                AppError::BadRequest(format!("Unknown current status: {}", current.status))
+            })?;
         let target_status = PemakaianBmnStatus::from_state_name(&request.target_status)
-            .ok_or_else(|| AppError::BadRequest(format!("Invalid target status: {}", request.target_status)))?;
+            .ok_or_else(|| {
+                AppError::BadRequest(format!("Invalid target status: {}", request.target_status))
+            })?;
 
         // Convert status codes to state names for workflow engine
         let from_state = current_status.to_state_name();
@@ -213,19 +217,27 @@ impl PemakaianBmnService {
         user_nama: String,
     ) -> AppResult<IzinPemakaianBmn> {
         // Validate request
-        request.validate().map_err(|e| AppError::BadRequest(e.to_string()))?;
+        request
+            .validate()
+            .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
         // Validate BMN type-specific fields
         self.validate_bmn_type_fields(&request)?;
 
         // Check BMN availability (REQ-P002, REQ-P003)
-        let availability = self.repository.check_bmn_availability(&request.bmn_nup).await?;
+        let availability = self
+            .repository
+            .check_bmn_availability(&request.bmn_nup)
+            .await?;
         if !availability.is_available {
             return Err(AppError::BadRequest(format!(
                 "BMN {} sedang digunakan oleh {} hingga {}",
                 request.bmn_nup,
                 availability.active_permit_holder.unwrap_or_default(),
-                availability.active_permit_expires.map(|d| d.to_string()).unwrap_or_default()
+                availability
+                    .active_permit_expires
+                    .map(|d| d.to_string())
+                    .unwrap_or_default()
             )));
         }
 
@@ -242,22 +254,33 @@ impl PemakaianBmnService {
         );
 
         // Create permit
-        let mut permit = self.repository.create(request.clone(), user_id, user_nama).await?;
+        let mut permit = self
+            .repository
+            .create(request.clone(), user_id, user_nama)
+            .await?;
 
         // Create additional BMN items if any (multi-BMN support)
         if !request.additional_bmn_items.is_empty() {
             for item in &request.additional_bmn_items {
                 // Check availability for each additional BMN
-                let avail = self.repository.check_bmn_availability(&item.bmn_nup).await?;
+                let avail = self
+                    .repository
+                    .check_bmn_availability(&item.bmn_nup)
+                    .await?;
                 if !avail.is_available {
                     return Err(AppError::BadRequest(format!(
                         "BMN {} sedang digunakan oleh {} hingga {}",
                         item.bmn_nup,
                         avail.active_permit_holder.unwrap_or_default(),
-                        avail.active_permit_expires.map(|d| d.to_string()).unwrap_or_default()
+                        avail
+                            .active_permit_expires
+                            .map(|d| d.to_string())
+                            .unwrap_or_default()
                     )));
                 }
-                self.repository.create_bmn_item(permit.id, item.clone()).await?;
+                self.repository
+                    .create_bmn_item(permit.id, item.clone())
+                    .await?;
             }
         }
 
@@ -273,16 +296,22 @@ impl PemakaianBmnService {
     pub async fn generate_konsep_surat(
         &self,
         id: Uuid,
-        user_id: Uuid,
+        _user_id: Uuid,
     ) -> AppResult<IzinPemakaianBmn> {
         let current = self.repository.get_by_id(id).await?;
         let status = PemakaianBmnStatus::from_state_name(&current.status)
             .unwrap_or(PemakaianBmnStatus::Draft);
 
         // Can generate surat from Draft, Submitted, or Approved status
-        if !matches!(status, PemakaianBmnStatus::Draft | PemakaianBmnStatus::Submitted | PemakaianBmnStatus::Approved) {
+        if !matches!(
+            status,
+            PemakaianBmnStatus::Draft
+                | PemakaianBmnStatus::Submitted
+                | PemakaianBmnStatus::Approved
+        ) {
             return Err(AppError::BadRequest(
-                "Konsep surat hanya bisa digenerate pada status Draft, Submitted, atau Approved".to_string(),
+                "Konsep surat hanya bisa digenerate pada status Draft, Submitted, atau Approved"
+                    .to_string(),
             ));
         }
 
@@ -305,7 +334,7 @@ impl PemakaianBmnService {
         &self,
         id: Uuid,
         signed_pdf_url: String,
-        user_id: Uuid,
+        _user_id: Uuid,
     ) -> AppResult<IzinPemakaianBmn> {
         let current = self.repository.get_by_id(id).await?;
 
@@ -317,9 +346,14 @@ impl PemakaianBmnService {
         }
 
         // Update signed PDF and mark as completed
-        self.repository.update_signed_pdf(id, &signed_pdf_url).await?;
+        self.repository
+            .update_signed_pdf(id, &signed_pdf_url)
+            .await?;
 
-        info!("Uploaded signed PDF for permit {}, marking as completed", id);
+        info!(
+            "Uploaded signed PDF for permit {}, marking as completed",
+            id
+        );
         self.repository.get_by_id(id).await
     }
 
@@ -334,7 +368,9 @@ impl PemakaianBmnService {
         user_nama: String,
     ) -> AppResult<IzinPemakaianBmn> {
         // Validate request
-        request.validate().map_err(|e| AppError::BadRequest(e.to_string()))?;
+        request
+            .validate()
+            .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
         // Validate date range if both dates provided
         if let (Some(start), Some(end)) = (request.tanggal_mulai, request.tanggal_selesai) {
@@ -347,7 +383,10 @@ impl PemakaianBmnService {
 
         info!("Updating permit {} by user {}", id, user_id);
 
-        let permit = self.repository.update(id, request, user_id, user_nama).await?;
+        let permit = self
+            .repository
+            .update(id, request, user_id, user_nama)
+            .await?;
 
         Ok(permit)
     }
@@ -355,7 +394,10 @@ impl PemakaianBmnService {
     /// List permits with pagination and filters
     ///
     /// Requirements: REQ-P001, REQ-P011
-    pub async fn list_permits(&self, query: ListPermitsQuery) -> AppResult<PaginatedPermitsResponse> {
+    pub async fn list_permits(
+        &self,
+        query: ListPermitsQuery,
+    ) -> AppResult<PaginatedPermitsResponse> {
         self.repository.list(query).await
     }
 
@@ -382,7 +424,9 @@ impl PemakaianBmnService {
             catatan: Some(format!("Izin diaktifkan dengan nomor {}", nomor_izin)),
         };
 
-        let mut permit = self.transition_permit_status(id, transition_request, user_id).await?;
+        let mut permit = self
+            .transition_permit_status(id, transition_request, user_id)
+            .await?;
 
         // Generate permit document (REQ-P006)
         if let Some(dokumen_client) = &self.dokumen_client {
@@ -396,7 +440,8 @@ impl PemakaianBmnService {
                     );
 
                     // Update permit with document reference
-                    permit = self.repository
+                    permit = self
+                        .repository
                         .update_document_fields(id, document_id, document_url)
                         .await?;
                 }
@@ -410,7 +455,10 @@ impl PemakaianBmnService {
                 }
             }
         } else {
-            warn!("Dokumen client not configured, skipping document generation for permit {}", id);
+            warn!(
+                "Dokumen client not configured, skipping document generation for permit {}",
+                id
+            );
         }
 
         Ok(permit)
@@ -482,7 +530,9 @@ impl PemakaianBmnService {
             {
                 Ok(response) => {
                     let result = crate::workflow::DocumentGenerationResult::try_from(response)
-                        .map_err(|e| AppError::Internal(format!("Invalid document response: {}", e)))?;
+                        .map_err(|e| {
+                            AppError::Internal(format!("Invalid document response: {}", e))
+                        })?;
 
                     return Ok((result.document_id, result.download_url));
                 }
@@ -501,7 +551,8 @@ impl PemakaianBmnService {
                     );
 
                     // Wait before retry (exponential backoff)
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2u64.pow(retry_count))).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(2u64.pow(retry_count)))
+                        .await;
                 }
             }
         }
@@ -518,7 +569,9 @@ impl PemakaianBmnService {
         user_nama: String,
     ) -> AppResult<IzinPemakaianBmn> {
         // Validate request
-        request.validate().map_err(|e| AppError::BadRequest(e.to_string()))?;
+        request
+            .validate()
+            .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
         let current = self.repository.get_by_id(id).await?;
 
@@ -567,13 +620,19 @@ impl PemakaianBmnService {
         }
 
         // Check BMN availability
-        let availability = self.repository.check_bmn_availability(&current.bmn_nup).await?;
+        let availability = self
+            .repository
+            .check_bmn_availability(&current.bmn_nup)
+            .await?;
         if !availability.is_available && availability.active_permit_id != Some(id) {
             return Err(AppError::BadRequest(format!(
                 "BMN {} sedang digunakan oleh {} hingga {}",
                 current.bmn_nup,
                 availability.active_permit_holder.unwrap_or_default(),
-                availability.active_permit_expires.map(|d| d.to_string()).unwrap_or_default()
+                availability
+                    .active_permit_expires
+                    .map(|d| d.to_string())
+                    .unwrap_or_default()
             )));
         }
 
@@ -616,7 +675,10 @@ impl PemakaianBmnService {
             additional_bmn_items: vec![],
         };
 
-        let new_permit = self.repository.create(create_request, user_id, user_nama).await?;
+        let new_permit = self
+            .repository
+            .create(create_request, user_id, user_nama)
+            .await?;
 
         Ok(new_permit)
     }
@@ -624,7 +686,10 @@ impl PemakaianBmnService {
     /// Check if a BMN is available for new permit (no active permit exists)
     ///
     /// Requirements: REQ-P002, REQ-P003
-    pub async fn check_bmn_availability(&self, bmn_nup: &str) -> AppResult<BmnAvailabilityResponse> {
+    pub async fn check_bmn_availability(
+        &self,
+        bmn_nup: &str,
+    ) -> AppResult<BmnAvailabilityResponse> {
         self.repository.check_bmn_availability(bmn_nup).await
     }
 
@@ -638,14 +703,20 @@ impl PemakaianBmnService {
     /// Get pegawai usage history
     ///
     /// Requirements: REQ-P012
-    pub async fn get_pegawai_usage_history(&self, pegawai_nip: &str) -> AppResult<PegawaiUsageStats> {
+    pub async fn get_pegawai_usage_history(
+        &self,
+        pegawai_nip: &str,
+    ) -> AppResult<PegawaiUsageStats> {
         self.repository.get_pegawai_usage_history(pegawai_nip).await
     }
 
     /// Get permits expiring soon (for notifications)
     ///
     /// Requirements: REQ-P007
-    pub async fn get_expiring_permits(&self, days_threshold: i32) -> AppResult<Vec<IzinPemakaianBmn>> {
+    pub async fn get_expiring_permits(
+        &self,
+        days_threshold: i32,
+    ) -> AppResult<Vec<IzinPemakaianBmn>> {
         self.repository.get_expiring_permits(days_threshold).await
     }
 
@@ -825,29 +896,40 @@ impl PemakaianBmnService {
     ///
     /// Requirements: REQ-P001
     fn validate_bmn_type_fields(&self, request: &CreateIzinPemakaianRequest) -> AppResult<()> {
-        let jenis_bmn = JenisBmn::from_str(&request.jenis_bmn)
-            .ok_or_else(|| AppError::BadRequest(format!("Invalid jenis_bmn: {}", request.jenis_bmn)))?;
+        let jenis_bmn = JenisBmn::from_str(&request.jenis_bmn).ok_or_else(|| {
+            AppError::BadRequest(format!("Invalid jenis_bmn: {}", request.jenis_bmn))
+        })?;
 
         match jenis_bmn {
             JenisBmn::KendaraanBermotor => {
                 if request.no_polisi.is_none() {
-                    return Err(AppError::BadRequest("Nomor polisi harus diisi untuk kendaraan bermotor".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Nomor polisi harus diisi untuk kendaraan bermotor".to_string(),
+                    ));
                 }
             }
             JenisBmn::RumahNegara => {
                 if request.alamat.is_none() {
-                    return Err(AppError::BadRequest("Alamat harus diisi untuk rumah negara".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Alamat harus diisi untuk rumah negara".to_string(),
+                    ));
                 }
                 if request.luas_tanah.is_none() {
-                    return Err(AppError::BadRequest("Luas tanah harus diisi untuk rumah negara".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Luas tanah harus diisi untuk rumah negara".to_string(),
+                    ));
                 }
                 if request.luas_bangunan.is_none() {
-                    return Err(AppError::BadRequest("Luas bangunan harus diisi untuk rumah negara".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Luas bangunan harus diisi untuk rumah negara".to_string(),
+                    ));
                 }
             }
             JenisBmn::Laptop => {
                 if request.serial_number.is_none() {
-                    return Err(AppError::BadRequest("Serial number harus diisi untuk laptop".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Serial number harus diisi untuk laptop".to_string(),
+                    ));
                 }
             }
             JenisBmn::Lainnya => {

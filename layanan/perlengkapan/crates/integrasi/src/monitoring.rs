@@ -4,11 +4,11 @@
 //! and alerting on sync failures.
 
 use axum::{
+    Router,
     extract::{Query, State},
     http::StatusCode,
     response::{IntoResponse, Json},
     routing::get,
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -113,7 +113,10 @@ async fn get_sync_status(
     State(state): State<MonitoringState>,
     Query(params): Query<SyncStatusQuery>,
 ) -> impl IntoResponse {
-    info!("GET /api/monitoring/sync-status - source: {:?}", params.source);
+    info!(
+        "GET /api/monitoring/sync-status - source: {:?}",
+        params.source
+    );
 
     let query = if let Some(source) = params.source {
         format!(

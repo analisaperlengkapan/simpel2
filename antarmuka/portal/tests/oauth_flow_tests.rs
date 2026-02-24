@@ -35,10 +35,7 @@ mod oauth_flow_tests {
         let client = create_test_client();
 
         let endpoint = client.authorization_endpoint();
-        assert_eq!(
-            endpoint,
-            "http://localhost:8088/realms/simpel/protocol/openid-connect/auth"
-        );
+        assert_eq!(endpoint, "http://localhost:8088/api/v1/oauth2/authorize");
     }
 
     #[test]
@@ -46,10 +43,7 @@ mod oauth_flow_tests {
         let client = create_test_client();
 
         let endpoint = client.token_endpoint();
-        assert_eq!(
-            endpoint,
-            "http://localhost:8088/realms/simpel/protocol/openid-connect/token"
-        );
+        assert_eq!(endpoint, "http://localhost:8088/api/v1/oauth2/token");
     }
 
     #[test]

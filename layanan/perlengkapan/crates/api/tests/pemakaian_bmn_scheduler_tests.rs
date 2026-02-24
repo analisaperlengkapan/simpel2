@@ -469,10 +469,7 @@ async fn test_notification_message_content() {
 
     let message = format!(
         "Izin pemakaian BMN {} untuk {} akan berakhir dalam 30 hari (tanggal: {}). Nomor izin: {}. Silakan perpanjang jika masih diperlukan.",
-        permit.bmn_nama_barang,
-        permit.pegawai_nama,
-        permit.tanggal_selesai,
-        permit.nomor_izin
+        permit.bmn_nama_barang, permit.pegawai_nama, permit.tanggal_selesai, permit.nomor_izin
     );
 
     let _ = mock_client

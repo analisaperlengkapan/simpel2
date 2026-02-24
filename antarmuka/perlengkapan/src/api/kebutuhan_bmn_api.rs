@@ -1,6 +1,6 @@
-use super::kebutuhan_bmn_types::*;
 #[allow(unused_imports)]
 use super::common::*;
+use super::kebutuhan_bmn_types::*;
 
 use serde::{Deserialize, Serialize};
 
@@ -1052,4 +1052,3 @@ pub async fn fetch_siman_satker_summary(
         message: "Server-side stub".to_string(),
     })
 }
-

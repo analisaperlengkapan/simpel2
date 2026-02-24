@@ -109,13 +109,19 @@ impl WorkflowEngine {
     }
 
     /// Set the dokumen service client
-    pub fn with_dokumen_client(mut self, client: Arc<tokio::sync::Mutex<crate::workflow::DokumenClient>>) -> Self {
+    pub fn with_dokumen_client(
+        mut self,
+        client: Arc<tokio::sync::Mutex<crate::workflow::DokumenClient>>,
+    ) -> Self {
         self.dokumen_client = Some(client);
         self
     }
 
     /// Set the notifikasi service client
-    pub fn with_notifikasi_client(mut self, client: Arc<tokio::sync::Mutex<crate::workflow::NotifikasiClient>>) -> Self {
+    pub fn with_notifikasi_client(
+        mut self,
+        client: Arc<tokio::sync::Mutex<crate::workflow::NotifikasiClient>>,
+    ) -> Self {
         self.notifikasi_client = Some(client);
         self
     }
@@ -181,7 +187,12 @@ impl WorkflowEngine {
         if current_status != request.from_state {
             // Record failed transition metric
             crate::metrics::workflow_transitions_total()
-                .with_label_values(&[entity_type, &request.from_state, &request.to_state, "failed"])
+                .with_label_values(&[
+                    entity_type,
+                    &request.from_state,
+                    &request.to_state,
+                    "failed",
+                ])
                 .inc();
 
             return Err(WorkflowError::InvalidTransition {
@@ -231,7 +242,10 @@ impl WorkflowEngine {
         let mut document_url: Option<String> = None;
 
         if request.to_state == "APPROVED" && self.dokumen_client.is_some() {
-            match self.generate_document_for_entity(&request.entity_id, entity_type).await {
+            match self
+                .generate_document_for_entity(&request.entity_id, entity_type)
+                .await
+            {
                 Ok((doc_id, doc_url)) => {
                     document_id = Some(doc_id);
                     document_url = Some(doc_url.clone());
@@ -243,8 +257,10 @@ impl WorkflowEngine {
                         WHERE id = $3
                     "#;
 
-                    if let Ok(mut client) = self.db_pool.get().await {
-                        let _ = client.execute(update_doc_query, &[&doc_id, &doc_url, &activity_record_id]).await;
+                    if let Ok(client) = self.db_pool.get().await {
+                        let _ = client
+                            .execute(update_doc_query, &[&doc_id, &doc_url, &activity_record_id])
+                            .await;
                     }
 
                     tracing::info!(
@@ -267,11 +283,10 @@ impl WorkflowEngine {
 
         // 10.5. Send notifications after state transition
         if self.notifikasi_client.is_some() {
-            match self.send_workflow_notifications(
-                &request,
-                entity_type,
-                document_url.as_deref(),
-            ).await {
+            match self
+                .send_workflow_notifications(&request, entity_type, document_url.as_deref())
+                .await
+            {
                 Ok(notification_count) => {
                     tracing::info!(
                         entity_id = %request.entity_id,
@@ -299,7 +314,12 @@ impl WorkflowEngine {
 
         // Record successful transition
         crate::metrics::workflow_transitions_total()
-            .with_label_values(&[entity_type, &request.from_state, &request.to_state, "success"])
+            .with_label_values(&[
+                entity_type,
+                &request.from_state,
+                &request.to_state,
+                "success",
+            ])
             .inc();
 
         // Record transition duration
@@ -453,8 +473,9 @@ impl WorkflowEngine {
         entity_id: &Uuid,
         entity_type: &str,
     ) -> Result<(Uuid, String)> {
-        let dokumen_client = self.dokumen_client.as_ref()
-            .ok_or_else(|| WorkflowError::InvalidState("Dokumen client not configured".to_string()))?;
+        let dokumen_client = self.dokumen_client.as_ref().ok_or_else(|| {
+            WorkflowError::InvalidState("Dokumen client not configured".to_string())
+        })?;
 
         // Fetch entity data from database
         let client = self.db_pool.get().await?;
@@ -473,8 +494,7 @@ impl WorkflowEngine {
 
                 // TODO: Get template_id from configuration or database
                 // For now, use a placeholder UUID (should be created in migration)
-                let template_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")
-                    .unwrap();
+                let template_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
 
                 let entity_data = serde_json::json!({
                     "id": entity_id.to_string(),
@@ -499,8 +519,7 @@ impl WorkflowEngine {
 
                 let row = client.query_one(query, &[entity_id]).await?;
 
-                let template_id = Uuid::parse_str("00000000-0000-0000-0000-000000000002")
-                    .unwrap();
+                let template_id = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
 
                 let entity_data = serde_json::json!({
                     "id": entity_id.to_string(),
@@ -537,7 +556,9 @@ impl WorkflowEngine {
                 })),
             )
             .await
-            .map_err(|e| WorkflowError::InvalidState(format!("Document generation failed: {}", e)))?;
+            .map_err(|e| {
+                WorkflowError::InvalidState(format!("Document generation failed: {}", e))
+            })?;
 
         let document_id = Uuid::parse_str(&response.document_id)
             .map_err(|e| WorkflowError::InvalidState(format!("Invalid document_id: {}", e)))?;
@@ -557,15 +578,14 @@ impl WorkflowEngine {
         entity_type: &str,
         document_url: Option<&str>,
     ) -> Result<usize> {
-        let notifikasi_client = self.notifikasi_client.as_ref()
-            .ok_or_else(|| WorkflowError::InvalidState("Notifikasi client not configured".to_string()))?;
+        let notifikasi_client = self.notifikasi_client.as_ref().ok_or_else(|| {
+            WorkflowError::InvalidState("Notifikasi client not configured".to_string())
+        })?;
 
         // Determine notification recipients and type based on state transition
-        let (recipients, notification_type, priority) = self.determine_notification_details(
-            request,
-            entity_type,
-            document_url,
-        ).await?;
+        let (recipients, notification_type, priority) = self
+            .determine_notification_details(request, entity_type, document_url)
+            .await?;
 
         if recipients.is_empty() {
             tracing::warn!(
@@ -582,7 +602,9 @@ impl WorkflowEngine {
         let responses = client_guard
             .send_notification_to_multiple(recipients.clone(), notification_type, priority)
             .await
-            .map_err(|e| WorkflowError::NotificationError(format!("Failed to send notifications: {}", e)))?;
+            .map_err(|e| {
+                WorkflowError::NotificationError(format!("Failed to send notifications: {}", e))
+            })?;
 
         Ok(responses.len())
     }
@@ -600,8 +622,12 @@ impl WorkflowEngine {
         request: &TransitionRequest,
         entity_type: &str,
         document_url: Option<&str>,
-    ) -> Result<(Vec<Uuid>, crate::workflow::WorkflowNotificationType, crate::workflow::NotificationPriority)> {
-        use crate::workflow::{WorkflowNotificationType, NotificationPriority};
+    ) -> Result<(
+        Vec<Uuid>,
+        crate::workflow::WorkflowNotificationType,
+        crate::workflow::NotificationPriority,
+    )> {
+        use crate::workflow::{NotificationPriority, WorkflowNotificationType};
 
         // Fetch entity data to get requester and satker information
         let client = self.db_pool.get().await?;
@@ -658,7 +684,9 @@ impl WorkflowEngine {
         let (recipients, notification_type, priority) = match request.to_state.as_str() {
             "SUBMITTED" => {
                 // Notify approver (Verifikator role in same satker)
-                let approvers = self.get_approvers_for_state(&request.to_state, satker_id).await?;
+                let approvers = self
+                    .get_approvers_for_state(&request.to_state, satker_id)
+                    .await?;
 
                 let notification = WorkflowNotificationType::ApprovalRequired {
                     entity_type: entity_type.to_string(),
@@ -679,7 +707,11 @@ impl WorkflowEngine {
                     document_url: document_url.map(|s| s.to_string()),
                 };
 
-                (vec![requester_id], notification, NotificationPriority::Normal)
+                (
+                    vec![requester_id],
+                    notification,
+                    NotificationPriority::Normal,
+                )
             }
             "REJECTED" => {
                 // Notify requester
@@ -714,7 +746,11 @@ impl WorkflowEngine {
                     catatan: request.catatan.clone(),
                 };
 
-                (vec![requester_id], notification, NotificationPriority::Normal)
+                (
+                    vec![requester_id],
+                    notification,
+                    NotificationPriority::Normal,
+                )
             }
         };
 
@@ -727,11 +763,7 @@ impl WorkflowEngine {
     /// For now, this is a placeholder that returns an empty list.
     ///
     /// Requirements: REQ-N005
-    async fn get_approvers_for_state(
-        &self,
-        state: &str,
-        satker_id: Uuid,
-    ) -> Result<Vec<Uuid>> {
+    async fn get_approvers_for_state(&self, state: &str, satker_id: Uuid) -> Result<Vec<Uuid>> {
         // Get required role from configuration
         let required_role = self
             .config
@@ -779,12 +811,10 @@ mod tests {
     #[test]
     fn test_validate_transition() {
         let config = WorkflowConfig::default_kebutuhan_bmn();
-        let pool = deadpool_postgres::Pool::builder(
-            deadpool_postgres::Manager::new(
-                tokio_postgres::Config::new(),
-                tokio_postgres::NoTls,
-            ),
-        )
+        let pool = deadpool_postgres::Pool::builder(deadpool_postgres::Manager::new(
+            tokio_postgres::Config::new(),
+            tokio_postgres::NoTls,
+        ))
         .build()
         .unwrap();
 
@@ -800,12 +830,10 @@ mod tests {
     #[test]
     fn test_get_next_states() {
         let config = WorkflowConfig::default_kebutuhan_bmn();
-        let pool = deadpool_postgres::Pool::builder(
-            deadpool_postgres::Manager::new(
-                tokio_postgres::Config::new(),
-                tokio_postgres::NoTls,
-            ),
-        )
+        let pool = deadpool_postgres::Pool::builder(deadpool_postgres::Manager::new(
+            tokio_postgres::Config::new(),
+            tokio_postgres::NoTls,
+        ))
         .build()
         .unwrap();
 
@@ -820,12 +848,10 @@ mod tests {
     #[test]
     fn test_is_terminal_state() {
         let config = WorkflowConfig::default_kebutuhan_bmn();
-        let pool = deadpool_postgres::Pool::builder(
-            deadpool_postgres::Manager::new(
-                tokio_postgres::Config::new(),
-                tokio_postgres::NoTls,
-            ),
-        )
+        let pool = deadpool_postgres::Pool::builder(deadpool_postgres::Manager::new(
+            tokio_postgres::Config::new(),
+            tokio_postgres::NoTls,
+        ))
         .build()
         .unwrap();
 

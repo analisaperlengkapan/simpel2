@@ -181,10 +181,7 @@ impl DelegationManager {
     }
 
     /// Get delegation by ID
-    pub async fn get_delegation(
-        &self,
-        delegation_id: Uuid,
-    ) -> Result<Delegation, DelegationError> {
+    pub async fn get_delegation(&self, delegation_id: Uuid) -> Result<Delegation, DelegationError> {
         let client = self.db_pool.get().await?;
 
         let query = r#"
@@ -224,7 +221,10 @@ impl DelegationManager {
 
         let rows = client.query(query, &[&user_id]).await?;
 
-        Ok(rows.into_iter().map(|row| self.row_to_delegation(row)).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| self.row_to_delegation(row))
+            .collect())
     }
 
     /// Get all delegations created by a user (as delegator)
@@ -244,7 +244,10 @@ impl DelegationManager {
 
         let rows = client.query(query, &[&delegator_id]).await?;
 
-        Ok(rows.into_iter().map(|row| self.row_to_delegation(row)).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| self.row_to_delegation(row))
+            .collect())
     }
 
     /// Check if a user has a specific role through delegation

@@ -17,6 +17,3 @@ pub mod services;
 
 // Re-export handlers for convenience
 pub use handlers::*;
-pub use models::*;
-pub use repository::*;
-pub use services::*;

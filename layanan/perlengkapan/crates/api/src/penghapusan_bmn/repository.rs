@@ -121,7 +121,10 @@ impl PenghapusanBmnRepository {
         }
 
         if let Some(ref tahun) = filters.tahun {
-            where_clauses.push(format!("EXTRACT(YEAR FROM tanggal_penghapusan) = ${}", param_count));
+            where_clauses.push(format!(
+                "EXTRACT(YEAR FROM tanggal_penghapusan) = ${}",
+                param_count
+            ));
             params.push(Box::new(*tahun));
             param_count += 1;
         }
@@ -134,8 +137,10 @@ impl PenghapusanBmnRepository {
             where_clause
         );
 
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let count_row = client.query_one(&count_query, &param_refs).await?;
         let total: i64 = count_row.get(0);
@@ -144,14 +149,18 @@ impl PenghapusanBmnRepository {
         let offset = (page - 1) * per_page;
         let data_query = format!(
             "SELECT * FROM perlengkapan.penghapusan_bmn WHERE {} ORDER BY created_at DESC LIMIT ${} OFFSET ${}",
-            where_clause, param_count, param_count + 1
+            where_clause,
+            param_count,
+            param_count + 1
         );
 
         params.push(Box::new(per_page));
         params.push(Box::new(offset));
 
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client.query(&data_query, &param_refs).await?;
         let penghapusan: Vec<PenghapusanBmn> = rows.iter().map(PenghapusanBmn::from_row).collect();
@@ -265,7 +274,9 @@ impl PenghapusanBmnRepository {
             WHERE id = $3
         "#;
 
-        client.execute(query, &[&validator_id, &catatan, &id]).await?;
+        client
+            .execute(query, &[&validator_id, &catatan, &id])
+            .await?;
         Ok(())
     }
 
@@ -287,16 +298,14 @@ impl PenghapusanBmnRepository {
             WHERE id = $3
         "#;
 
-        client.execute(query, &[&validator_id, &catatan, &id]).await?;
+        client
+            .execute(query, &[&validator_id, &catatan, &id])
+            .await?;
         Ok(())
     }
 
     /// Update konsep SK URL (after DOCX generation)
-    pub async fn update_konsep_sk(
-        &self,
-        id: Uuid,
-        konsep_sk_url: &str,
-    ) -> AppResult<()> {
+    pub async fn update_konsep_sk(&self, id: Uuid, konsep_sk_url: &str) -> AppResult<()> {
         let client = self.pool.get().await?;
 
         let query = r#"
@@ -312,11 +321,7 @@ impl PenghapusanBmnRepository {
     }
 
     /// Update signed SK PDF URL
-    pub async fn update_signed_sk(
-        &self,
-        id: Uuid,
-        signed_sk_pdf_url: &str,
-    ) -> AppResult<()> {
+    pub async fn update_signed_sk(&self, id: Uuid, signed_sk_pdf_url: &str) -> AppResult<()> {
         let client = self.pool.get().await?;
 
         let query = r#"
@@ -347,7 +352,9 @@ impl PenghapusanBmnRepository {
             WHERE id = $3
         "#;
 
-        let rows_affected = client.execute(query, &[&document_id, &document_url, &id]).await?;
+        let rows_affected = client
+            .execute(query, &[&document_id, &document_url, &id])
+            .await?;
 
         if rows_affected == 0 {
             return Err(AppError::NotFound(format!(

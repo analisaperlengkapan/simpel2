@@ -378,13 +378,13 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 ### 3.2 Run Database Migrations
 
-Authenc uses SQL migrations located in `infra/authenc/migrations/`. These must be run in order.
+Authenc uses SQL migrations located in `layanan/authenc/migrations/`. These must be run in order.
 
 **Option 1: Manual Migration (Development)**
 
 ```bash
 # Navigate to authenc directory
-cd /srv/proyek/simpelv2/infra/authenc
+cd /srv/proyek/simpelv2/layanan/authenc
 
 # Set database URL
 export DATABASE_URL="postgresql://authenc:YOUR_PASSWORD@localhost/authenc"
@@ -405,7 +405,7 @@ Authenc uses the `refinery` crate for migrations. This is handled automatically 
 cargo install refinery_cli
 
 # Run migrations
-cd /srv/proyek/simpelv2/infra/authenc
+cd /srv/proyek/simpelv2/layanan/authenc
 refinery migrate -e DATABASE_URL
 ```
 
@@ -818,7 +818,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:8080,https://portal.simpel.kejaksaan.go.id
 cd /srv/proyek/simpelv2
 
 # Build authenc
-cd infra/authenc
+cd layanan/authenc
 cargo build --release
 
 # Binary will be at:
@@ -829,7 +829,7 @@ cargo build --release
 
 ```bash
 # Build Docker image
-cd /srv/proyek/simpelv2/infra/authenc
+cd /srv/proyek/simpelv2/layanan/authenc
 docker build -t authenc:latest .
 
 # Or use docker-compose
@@ -2782,7 +2782,7 @@ Secreton endpoint unreachable
 curl -f http://localhost:8200/health
 
 # Start Secreton
-cd /srv/proyek/simpelv2/infra/secreton
+cd /srv/proyek/simpelv2/layanan/secreton
 cargo run
 
 # Check Secreton token is correct

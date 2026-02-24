@@ -1,5 +1,7 @@
 use crate::in_app::{InAppNotificationChannel, NotificationPriority, NotificationType};
-use crate::preferences::{NotificationPreferencesService, UpdatePreferencesRequest as PrefsUpdateRequest};
+use crate::preferences::{
+    NotificationPreferencesService, UpdatePreferencesRequest as PrefsUpdateRequest,
+};
 use deadpool_postgres::Pool;
 use tonic::{Request, Response, Status};
 use uuid::Uuid;
@@ -90,7 +92,12 @@ impl NotificationService for NotificationServiceImpl {
         // Get notifications
         let notifications = self
             .in_app_channel
-            .get_notifications(user_id, req.limit as i64, req.offset as i64, req.unread_only)
+            .get_notifications(
+                user_id,
+                req.limit as i64,
+                req.offset as i64,
+                req.unread_only,
+            )
             .await
             .map_err(|e| Status::internal(format!("Failed to get notifications: {}", e)))?;
 
@@ -106,7 +113,11 @@ impl NotificationService for NotificationServiceImpl {
                 priority: n.priority.clone(),
                 category: n.category.clone(),
                 action_url: n.action_url.clone().unwrap_or_default(),
-                metadata: n.metadata.as_ref().map(|m| m.to_string()).unwrap_or_default(),
+                metadata: n
+                    .metadata
+                    .as_ref()
+                    .map(|m| m.to_string())
+                    .unwrap_or_default(),
                 read: n.read,
                 read_at: n.read_at.map(|dt| dt.to_rfc3339()).unwrap_or_default(),
                 created_at: n.created_at.to_rfc3339(),

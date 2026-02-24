@@ -38,7 +38,6 @@ impl PerlengkapanService {
         self.repo.get_asset_by_id(id).await
     }
 
-
     // ============ Analisis Kebutuhan Services ============
 
     pub async fn get_all_analisis(
@@ -85,7 +84,6 @@ impl PerlengkapanService {
         self.repo.create_pemakaian(request, user_id).await
     }
 
-
     // ============ Penghapusan Services ============
 
     pub async fn get_all_penghapusan(
@@ -109,14 +107,10 @@ impl PerlengkapanService {
         self.repo.create_penghapusan(request, user_id).await
     }
 
-
     // ============ Export Services ============
 
     /// Queue an async export job for large datasets
-    pub async fn queue_export_job(
-        &self,
-        query: crate::handlers::ExportQuery,
-    ) -> AppResult<Uuid> {
+    pub async fn queue_export_job(&self, query: crate::handlers::ExportQuery) -> AppResult<Uuid> {
         self.repo.queue_export_job(query).await
     }
 

@@ -127,19 +127,32 @@ impl QueueProcessor {
                 SET status = 'processing', updated_at = NOW()
                 WHERE id = $1
             "#;
-            self.pool.get().await?.execute(sql_update, &[&queue_id]).await?;
+            self.pool
+                .get()
+                .await?
+                .execute(sql_update, &[&queue_id])
+                .await?;
 
             // Process notification based on channel
             let result = match channel.as_str() {
                 "email" => {
                     self.email_service
-                        .send_email(&recipient, subject.as_deref().unwrap_or("Notification"), &body)
+                        .send_email(
+                            &recipient,
+                            subject.as_deref().unwrap_or("Notification"),
+                            &body,
+                        )
                         .await
                 }
                 "sms" => self.sms_service.send_sms(&recipient, &body).await,
                 "push" => {
                     self.push_service
-                        .send_push(&recipient, subject.as_deref().unwrap_or("Notification"), &body, serde_json::json!({}))
+                        .send_push(
+                            &recipient,
+                            subject.as_deref().unwrap_or("Notification"),
+                            &body,
+                            serde_json::json!({}),
+                        )
                         .await
                 }
                 _ => {
@@ -156,7 +169,11 @@ impl QueueProcessor {
                         SET status = 'completed', updated_at = NOW()
                         WHERE id = $1
                     "#;
-                    self.pool.get().await?.execute(sql_complete, &[&queue_id]).await?;
+                    self.pool
+                        .get()
+                        .await?
+                        .execute(sql_complete, &[&queue_id])
+                        .await?;
 
                     // Update delivery status
                     let sql_delivery = r#"
@@ -236,7 +253,12 @@ impl QueueProcessor {
                             .await?
                             .execute(
                                 sql_retry,
-                                &[&new_retry_count, &backoff_minutes, &e.to_string(), &queue_id],
+                                &[
+                                    &new_retry_count,
+                                    &backoff_minutes,
+                                    &e.to_string(),
+                                    &queue_id,
+                                ],
                             )
                             .await?;
 

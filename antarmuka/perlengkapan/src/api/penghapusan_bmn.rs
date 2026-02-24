@@ -19,7 +19,10 @@ pub async fn fetch_penghapusan_bmn_list(
     use crate::components::auth::get_auth_token;
     use gloo_net::http::Request;
 
-    let mut url = format!("{}?page={}&per_page={}", PENGHAPUSAN_BMN_BASE, page, per_page);
+    let mut url = format!(
+        "{}?page={}&per_page={}",
+        PENGHAPUSAN_BMN_BASE, page, per_page
+    );
     if let Some(ref satker_id) = filters.satker_id {
         url.push_str(&format!("&satker_id={}", satker_id));
     }
@@ -182,9 +185,7 @@ pub async fn update_penghapusan_bmn_workflow(
 
 // --- Delete Penghapusan BMN ---
 #[cfg(target_arch = "wasm32")]
-pub async fn delete_penghapusan_bmn_workflow(
-    id: &str,
-) -> Result<ApiResponse<()>, gloo_net::Error> {
+pub async fn delete_penghapusan_bmn_workflow(id: &str) -> Result<ApiResponse<()>, gloo_net::Error> {
     use crate::components::auth::get_auth_token;
     use gloo_net::http::Request;
 
@@ -207,9 +208,7 @@ pub async fn delete_penghapusan_bmn_workflow(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_penghapusan_bmn_workflow(
-    _id: &str,
-) -> Result<ApiResponse<()>, String> {
+pub async fn delete_penghapusan_bmn_workflow(_id: &str) -> Result<ApiResponse<()>, String> {
     Err("Server-side stub".to_string())
 }
 
@@ -337,15 +336,12 @@ pub async fn upload_penghapusan_signed_sk(
     let token = get_auth_token()
         .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
 
-    let resp = Request::post(&format!(
-        "{}/{}/upload-signed-sk",
-        PENGHAPUSAN_BMN_BASE, id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
+    let resp = Request::post(&format!("{}/{}/upload-signed-sk", PENGHAPUSAN_BMN_BASE, id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&request)?
+        .send()
+        .await?;
 
     if !resp.ok() {
         let err_text = resp.text().await.unwrap_or_default();
@@ -379,15 +375,12 @@ pub async fn transition_penghapusan_bmn_status(
     let token = get_auth_token()
         .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
 
-    let resp = Request::post(&format!(
-        "{}/{}/transition",
-        PENGHAPUSAN_BMN_BASE, id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
+    let resp = Request::post(&format!("{}/{}/transition", PENGHAPUSAN_BMN_BASE, id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&request)?
+        .send()
+        .await?;
 
     if !resp.ok() {
         let err_text = resp.text().await.unwrap_or_default();

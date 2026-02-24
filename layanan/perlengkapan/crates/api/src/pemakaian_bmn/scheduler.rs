@@ -4,7 +4,7 @@
 //! Requirements: REQ-P007, REQ-P010
 
 use std::sync::Arc;
-use tokio::time::{interval, Duration};
+use tokio::time::{Duration, interval};
 use tracing::{error, info};
 
 use super::services::PemakaianBmnService;
@@ -90,11 +90,7 @@ impl PemakaianBmnScheduler {
                 for days in [30, 14, 7] {
                     match service.get_expiring_permits(days).await {
                         Ok(permits) => {
-                            info!(
-                                "Found {} permits expiring in {} days",
-                                permits.len(),
-                                days
-                            );
+                            info!("Found {} permits expiring in {} days", permits.len(), days);
 
                             for permit in permits {
                                 // Send notification via notification service

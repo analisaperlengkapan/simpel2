@@ -61,9 +61,7 @@ impl KodeBarangValidator {
 
         // Validate first segment (1 digit)
         if segments[0].len() != 1 || !segments[0].chars().all(|c| c.is_ascii_digit()) {
-            return KodeBarangValidation::Invalid(
-                "First segment must be 1 digit".to_string()
-            );
+            return KodeBarangValidation::Invalid("First segment must be 1 digit".to_string());
         }
 
         // Validate segments 2-4 (2 digits each)
@@ -78,9 +76,7 @@ impl KodeBarangValidator {
 
         // Validate last segment (3 digits)
         if segments[4].len() != 3 || !segments[4].chars().all(|c| c.is_ascii_digit()) {
-            return KodeBarangValidation::Invalid(
-                "Last segment must be 3 digits".to_string()
-            );
+            return KodeBarangValidation::Invalid("Last segment must be 3 digits".to_string());
         }
 
         KodeBarangValidation::Valid
@@ -171,7 +167,10 @@ impl KodeBarangAutocomplete {
             LIMIT $2
         "#;
 
-        (sql.to_string(), vec![search_term.to_string(), limit.to_string()])
+        (
+            sql.to_string(),
+            vec![search_term.to_string(), limit.to_string()],
+        )
     }
 
     /// Build SQL query for autocomplete by category
@@ -250,50 +249,45 @@ mod tests {
     fn test_validate_invalid_segments() {
         let validation = KodeBarangValidator::validate("1.01.01.001");
         assert!(!validation.is_valid());
-        assert!(validation
-            .error_message()
-            .unwrap()
-            .contains("5 segments"));
+        assert!(validation.error_message().unwrap().contains("5 segments"));
     }
 
     #[test]
     fn test_validate_invalid_first_segment() {
         let validation = KodeBarangValidator::validate("10.01.01.01.001");
         assert!(!validation.is_valid());
-        assert!(validation
-            .error_message()
-            .unwrap()
-            .contains("First segment"));
+        assert!(
+            validation
+                .error_message()
+                .unwrap()
+                .contains("First segment")
+        );
     }
 
     #[test]
     fn test_validate_invalid_middle_segment() {
         let validation = KodeBarangValidator::validate("1.1.01.01.001");
         assert!(!validation.is_valid());
-        assert!(validation
-            .error_message()
-            .unwrap()
-            .contains("2 digits"));
+        assert!(validation.error_message().unwrap().contains("2 digits"));
     }
 
     #[test]
     fn test_validate_invalid_last_segment() {
         let validation = KodeBarangValidator::validate("1.01.01.01.01");
         assert!(!validation.is_valid());
-        assert!(validation
-            .error_message()
-            .unwrap()
-            .contains("3 digits"));
+        assert!(validation.error_message().unwrap().contains("3 digits"));
     }
 
     #[test]
     fn test_validate_empty() {
         let validation = KodeBarangValidator::validate("");
         assert!(!validation.is_valid());
-        assert!(validation
-            .error_message()
-            .unwrap()
-            .contains("cannot be empty"));
+        assert!(
+            validation
+                .error_message()
+                .unwrap()
+                .contains("cannot be empty")
+        );
     }
 
     #[test]
@@ -351,11 +345,8 @@ mod tests {
 
     #[test]
     fn test_autocomplete_result() {
-        let result = AutocompleteResult::new(
-            "1.01.01.01.001".to_string(),
-            "Meja Kerja".to_string(),
-            0.95,
-        );
+        let result =
+            AutocompleteResult::new("1.01.01.01.001".to_string(), "Meja Kerja".to_string(), 0.95);
         assert_eq!(result.kode_barang, "1.01.01.01.001");
         assert_eq!(result.nama_barang, "Meja Kerja");
         assert_eq!(result.relevance, 0.95);

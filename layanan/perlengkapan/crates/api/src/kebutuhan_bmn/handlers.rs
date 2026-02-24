@@ -12,7 +12,7 @@ use serde::Deserialize;
 use tracing::{debug, info};
 use uuid::Uuid;
 
-use crate::errors::{AppError, AppResult, bad_request};
+use crate::errors::{AppError, bad_request};
 use crate::middleware::Claims;
 use crate::models::{ApiResponse, PaginatedResponse};
 
@@ -544,10 +544,7 @@ pub async fn validator_pusat_keputusan(
         "Kebutuhan BMN ditolak oleh Validator Pusat"
     };
 
-    Ok(Json(ApiResponse::success(
-        satker,
-        message.to_string(),
-    )))
+    Ok(Json(ApiResponse::success(satker, message.to_string())))
 }
 
 // ============================================================================
@@ -653,7 +650,7 @@ pub async fn search_kebutuhan(
     _claims: Claims,
 ) -> Result<Json<PaginatedResponse<KebutuhanBmnSummary>>, AppError> {
     use lib_perlengkapan::search::{
-        SearchQuery, SearchFilters, Pagination, SortOptions, SortField, SortDirection,
+        Pagination, SearchFilters, SearchQuery, SortDirection, SortField, SortOptions,
     };
 
     // Validate search query
@@ -737,7 +734,9 @@ pub async fn get_search_suggestions(
         return Err(bad_request("Query must be at least 2 characters"));
     }
 
-    let suggestions = service.get_search_suggestions(&params.q, params.limit).await?;
+    let suggestions = service
+        .get_search_suggestions(&params.q, params.limit)
+        .await?;
 
     Ok(Json(ApiResponse::success(
         suggestions,

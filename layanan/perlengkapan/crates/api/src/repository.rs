@@ -18,7 +18,6 @@ pub trait PerlengkapanRepository: Send + Sync {
     ) -> AppResult<(Vec<Asset>, i64)>;
     async fn get_asset_by_id(&self, id: Uuid) -> AppResult<Asset>;
 
-
     // Analisis (Local)
     async fn get_all_analisis(
         &self,
@@ -42,7 +41,6 @@ pub trait PerlengkapanRepository: Send + Sync {
         user_id: Option<Uuid>,
     ) -> AppResult<Pemakaian>;
 
-
     // Penghapusan (Local)
     async fn get_all_penghapusan(
         &self,
@@ -56,10 +54,10 @@ pub trait PerlengkapanRepository: Send + Sync {
         user_id: Option<Uuid>,
     ) -> AppResult<Penghapusan>;
 
-
     // Export (Local)
     async fn queue_export_job(&self, query: crate::handlers::ExportQuery) -> AppResult<Uuid>;
-    async fn export_to_excel_sync(&self, query: crate::handlers::ExportQuery) -> AppResult<Vec<u8>>;
+    async fn export_to_excel_sync(&self, query: crate::handlers::ExportQuery)
+    -> AppResult<Vec<u8>>;
     async fn get_export_job_status(
         &self,
         job_id: Uuid,

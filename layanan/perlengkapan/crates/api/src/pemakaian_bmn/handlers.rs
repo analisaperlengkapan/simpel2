@@ -3,11 +3,15 @@
 //! Request handlers for BMN usage permit REST API.
 //! All endpoints require authentication via JWT middleware.
 
-use axum::{extract::{Path, State}, Json, http::StatusCode};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::errors::{AppError, AppResult};
+use crate::errors::AppError;
 use crate::middleware::Claims;
 use crate::models::ApiResponse;
 
@@ -147,7 +151,9 @@ pub async fn get_permit_document(
     }
 
     // Check if document exists - try new konsep_surat_url, then legacy document_url
-    let document_url = permit.izin.konsep_surat_url
+    let document_url = permit
+        .izin
+        .konsep_surat_url
         .or(permit.izin.document_url)
         .ok_or_else(|| AppError::NotFound("Document not found for this permit".to_string()))?;
 
@@ -296,7 +302,10 @@ pub async fn get_expiring_permits(
 
     Ok(Json(ApiResponse::success(
         permits,
-        format!("Found {} permits expiring within {} days", count, days_threshold),
+        format!(
+            "Found {} permits expiring within {} days",
+            count, days_threshold
+        ),
     )))
 }
 

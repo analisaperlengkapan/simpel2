@@ -7,7 +7,6 @@
 // ============================================================================
 
 use axum::{
-    body::Body,
     extract::{Request, State},
     http::{HeaderMap, HeaderValue, StatusCode},
     middleware::Next,
@@ -39,8 +38,8 @@ pub struct RateLimitConfig {
 impl Default for RateLimitConfig {
     fn default() -> Self {
         Self {
-            requests_per_second: 100,           // 100 req/s per user
-            burst_size: 200,                    // Burst of 200 requests
+            requests_per_second: 100,               // 100 req/s per user
+            burst_size: 200,                        // Burst of 200 requests
             global_requests_per_second: Some(1000), // 1000 req/s globally
             window_duration: Duration::from_secs(1),
         }
@@ -229,16 +228,9 @@ impl Clone for RateLimiter {
 /// Rate limit check result
 #[derive(Debug)]
 pub enum RateLimitResult {
-    Allowed {
-        remaining: u32,
-        reset_time: Instant,
-    },
-    UserLimitExceeded {
-        retry_after: Duration,
-    },
-    GlobalLimitExceeded {
-        retry_after: Duration,
-    },
+    Allowed { remaining: u32, reset_time: Instant },
+    UserLimitExceeded { retry_after: Duration },
+    GlobalLimitExceeded { retry_after: Duration },
 }
 
 /// Rate limit statistics
@@ -316,12 +308,7 @@ fn rate_limit_exceeded_response(retry_after: Duration, message: &str) -> Respons
         "retry_after_seconds": retry_after.as_secs(),
     });
 
-    (
-        StatusCode::TOO_MANY_REQUESTS,
-        headers,
-        axum::Json(body),
-    )
-        .into_response()
+    (StatusCode::TOO_MANY_REQUESTS, headers, axum::Json(body)).into_response()
 }
 
 /// Background task to cleanup old buckets

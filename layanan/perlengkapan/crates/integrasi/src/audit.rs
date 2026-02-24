@@ -171,8 +171,7 @@ impl BatchProcessingLog {
             WHERE id = $1
         "#;
 
-        db.execute(query, &[&batch_id, &processed, &failed])
-            .await?;
+        db.execute(query, &[&batch_id, &processed, &failed]).await?;
 
         Ok(())
     }

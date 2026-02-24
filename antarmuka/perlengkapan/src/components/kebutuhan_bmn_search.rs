@@ -3,12 +3,12 @@
 //! Full-text search with filters, pagination, and sorting for BMN requirements.
 //! Requirements: REQ-K005
 
-use leptos::prelude::*;
+use gloo_net::http::Request;
 use leptos::either::Either;
+use leptos::prelude::*;
 use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use gloo_net::http::Request;
 
 // ============================================================================
 // Types

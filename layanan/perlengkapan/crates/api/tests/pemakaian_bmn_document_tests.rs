@@ -21,7 +21,10 @@ async fn test_document_generated_after_activation() {
     // - Verification of document generation call
     // - Verification of document fields in database
 
-    assert!(true, "Document generation after activation test placeholder");
+    assert!(
+        true,
+        "Document generation after activation test placeholder"
+    );
 }
 
 #[tokio::test]
@@ -106,7 +109,10 @@ async fn test_document_download_requires_authentication() {
     // 2. Call GET /pemakaian-bmn/:id/document without auth token
     // 3. Verify 401 Unauthorized response
 
-    assert!(true, "Document download requires authentication test placeholder");
+    assert!(
+        true,
+        "Document download requires authentication test placeholder"
+    );
 }
 
 #[tokio::test]

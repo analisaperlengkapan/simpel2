@@ -440,13 +440,13 @@ mod tests {
 ## Support
 
 For issues or questions:
-- Check backend logs: `infra/authenc/logs/`
+- Check backend logs: `layanan/authenc/logs/`
 - Review integration docs: `docs/SSO_COOKIE_INTEGRATION.md`
 - Contact: DevOps team
 
 ## References
 
-- Backend Implementation: `infra/authenc/TASK_10.4_SSO_COOKIE_IMPLEMENTATION.md`
+- Backend Implementation: `layanan/authenc/TASK_10.4_SSO_COOKIE_IMPLEMENTATION.md`
 - Integration Guide: `docs/SSO_COOKIE_INTEGRATION.md`
 - Shared Utils: `antarmuka/shared/src/utils/sso_cookie.rs`
 

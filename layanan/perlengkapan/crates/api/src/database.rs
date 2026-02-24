@@ -4,9 +4,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use bigdecimal::ToPrimitive;
-use deadpool_postgres::{Config, Pool, Runtime};
-use tokio_postgres::NoTls;
+use deadpool_postgres::Pool;
 use tracing::info;
 use uuid::Uuid;
 
@@ -25,10 +23,10 @@ impl Database {
     pub async fn new(database_url: &str) -> Result<Self> {
         // Use optimized configuration from lib-common
         let db_config = lib_common::db::DbConfig::new(database_url.to_string())
-            .with_max_size(50)  // Max 50 connections (NFR-SC001)
-            .with_min_idle(10)  // Min 10 idle connections
+            .with_max_size(50) // Max 50 connections (NFR-SC001)
+            .with_min_idle(10) // Min 10 idle connections
             .with_connection_timeout(std::time::Duration::from_secs(30))
-            .with_idle_timeout(std::time::Duration::from_secs(600))  // 10 minutes
+            .with_idle_timeout(std::time::Duration::from_secs(600)) // 10 minutes
             .with_max_lifetime(std::time::Duration::from_secs(1800)); // 30 minutes
 
         let pool = lib_common::db::create_postgres_pool(db_config)?;
@@ -123,7 +121,6 @@ impl Database {
 
         // We do NOT create perlengkapan.aset anymore, as we use integrasi.siman_aset
 
-
         // Create analisis table
         client
             .execute(
@@ -169,7 +166,6 @@ impl Database {
             )
             .await?;
 
-
         // Create penghapusan table
         client
             .execute(
@@ -191,7 +187,6 @@ impl Database {
                 &[],
             )
             .await?;
-
 
         info!("Database tables created successfully");
         Ok(())
@@ -332,7 +327,6 @@ impl PerlengkapanRepository for Database {
         row.map(|r| Asset::from_row(&r))
             .ok_or_else(|| not_found("Aset", &id.to_string()))
     }
-
 
     async fn get_all_analisis(
         &self,
@@ -591,15 +585,15 @@ impl PerlengkapanRepository for Database {
         Ok(Penghapusan::from_row(&row))
     }
 
-
     // ============================================================================
     // Export Implementation
     // ============================================================================
 
     async fn queue_export_job(&self, query: crate::handlers::ExportQuery) -> AppResult<Uuid> {
-        let client = self.pool.get().await.map_err(|e| {
-            AppError::Internal(format!("Failed to get database connection: {}", e))
-        })?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let job_id = Uuid::new_v4();
 
@@ -627,14 +621,22 @@ impl PerlengkapanRepository for Database {
         Ok(job_id)
     }
 
-    async fn export_to_excel_sync(&self, query: crate::handlers::ExportQuery) -> AppResult<Vec<u8>> {
+    async fn export_to_excel_sync(
+        &self,
+        query: crate::handlers::ExportQuery,
+    ) -> AppResult<Vec<u8>> {
         // Fetch data based on entity type
         let data = match query.entity_type.as_str() {
             "kebutuhan_bmn" => self.fetch_kebutuhan_bmn_for_export(&query).await?,
             "pakaian_dinas" => self.fetch_pakaian_dinas_for_export(&query).await?,
             "roadmap_sarpras" => self.fetch_roadmap_for_export(&query).await?,
             "riwayat_pemenuhan" => self.fetch_riwayat_for_export(&query).await?,
-            _ => return Err(AppError::BadRequest(format!("Unknown entity type: {}", query.entity_type))),
+            _ => {
+                return Err(AppError::BadRequest(format!(
+                    "Unknown entity type: {}",
+                    query.entity_type
+                )));
+            }
         };
 
         // Generate Excel
@@ -645,9 +647,10 @@ impl PerlengkapanRepository for Database {
         &self,
         job_id: Uuid,
     ) -> AppResult<crate::handlers::ExportJobStatusResponse> {
-        let client = self.pool.get().await.map_err(|e| {
-            AppError::Internal(format!("Failed to get database connection: {}", e))
-        })?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let row = client
             .query_opt(
@@ -668,16 +671,20 @@ impl PerlengkapanRepository for Database {
             progress: row.get("progress"),
             document_id: row.get("document_id"),
             error_message: row.get("error_message"),
-            created_at: row.get::<_, chrono::DateTime<chrono::Utc>>("created_at").to_rfc3339(),
-            completed_at: row.get::<_, Option<chrono::DateTime<chrono::Utc>>>("completed_at")
+            created_at: row
+                .get::<_, chrono::DateTime<chrono::Utc>>("created_at")
+                .to_rfc3339(),
+            completed_at: row
+                .get::<_, Option<chrono::DateTime<chrono::Utc>>>("completed_at")
                 .map(|dt| dt.to_rfc3339()),
         })
     }
 
     async fn download_export_job(&self, job_id: Uuid) -> AppResult<(String, Vec<u8>)> {
-        let client = self.pool.get().await.map_err(|e| {
-            AppError::Internal(format!("Failed to get database connection: {}", e))
-        })?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         // Get job status
         let row = client
@@ -702,7 +709,7 @@ impl PerlengkapanRepository for Database {
         }
 
         let document_id: Option<Uuid> = row.get("document_id");
-        let document_id = document_id.ok_or_else(|| {
+        let _document_id = document_id.ok_or_else(|| {
             AppError::Internal("Export job completed but no document_id found".to_string())
         })?;
 
@@ -788,10 +795,7 @@ async fn process_export_job_background(
 }
 
 // Helper function to generate Excel from data
-fn generate_excel(
-    entity_type: &str,
-    data: Vec<serde_json::Value>,
-) -> AppResult<Vec<u8>> {
+fn generate_excel(entity_type: &str, data: Vec<serde_json::Value>) -> AppResult<Vec<u8>> {
     use rust_xlsxwriter::*;
 
     let mut workbook = Workbook::new();
@@ -950,9 +954,7 @@ fn write_string_safe(
     col: u16,
     value: Option<&serde_json::Value>,
 ) -> AppResult<()> {
-    let str_value = value
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let str_value = value.and_then(|v| v.as_str()).unwrap_or("");
     worksheet
         .write_string(row, col, str_value)
         .map_err(|e| AppError::Internal(format!("Failed to write string: {}", e)))?;
@@ -965,15 +967,12 @@ fn write_number_safe(
     col: u16,
     value: Option<&serde_json::Value>,
 ) -> AppResult<()> {
-    let num_value = value
-        .and_then(|v| v.as_f64())
-        .unwrap_or(0.0);
+    let num_value = value.and_then(|v| v.as_f64()).unwrap_or(0.0);
     worksheet
         .write_number(row, col, num_value)
         .map_err(|e| AppError::Internal(format!("Failed to write number: {}", e)))?;
     Ok(())
 }
-
 
 // Helper methods for Database to fetch export data
 impl Database {
@@ -981,9 +980,10 @@ impl Database {
         &self,
         query: &crate::handlers::ExportQuery,
     ) -> AppResult<Vec<serde_json::Value>> {
-        let client = self.pool.get().await.map_err(|e| {
-            AppError::Internal(format!("Failed to get database connection: {}", e))
-        })?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let limit = query.limit.unwrap_or(50000).min(50000);
 
@@ -1029,8 +1029,10 @@ impl Database {
         sql.push_str(&format!(" ORDER BY k.created_at DESC LIMIT ${}", param_idx));
         params.push(Box::new(limit as i64));
 
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client
             .query(&sql, &param_refs[..])
@@ -1040,13 +1042,44 @@ impl Database {
         let mut results = Vec::new();
         for row in rows {
             let mut obj = serde_json::Map::new();
-            obj.insert("satker_nama".to_string(), serde_json::Value::String(row.get::<_, Option<String>>("satker_nama").unwrap_or_default()));
-            obj.insert("kode_barang".to_string(), serde_json::Value::String(row.get("kode_barang")));
-            obj.insert("nama_barang".to_string(), serde_json::Value::String(row.get("nama_barang")));
-            obj.insert("jumlah_kebutuhan".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("jumlah_kebutuhan"))));
-            obj.insert("tahun_anggaran".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("tahun_anggaran"))));
-            obj.insert("status".to_string(), serde_json::Value::String(row.get("status")));
-            obj.insert("created_at".to_string(), serde_json::Value::String(row.get::<_, chrono::DateTime<chrono::Utc>>("created_at").to_rfc3339()));
+            obj.insert(
+                "satker_nama".to_string(),
+                serde_json::Value::String(
+                    row.get::<_, Option<String>>("satker_nama")
+                        .unwrap_or_default(),
+                ),
+            );
+            obj.insert(
+                "kode_barang".to_string(),
+                serde_json::Value::String(row.get("kode_barang")),
+            );
+            obj.insert(
+                "nama_barang".to_string(),
+                serde_json::Value::String(row.get("nama_barang")),
+            );
+            obj.insert(
+                "jumlah_kebutuhan".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(
+                    row.get::<_, i32>("jumlah_kebutuhan"),
+                )),
+            );
+            obj.insert(
+                "tahun_anggaran".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(
+                    row.get::<_, i32>("tahun_anggaran"),
+                )),
+            );
+            obj.insert(
+                "status".to_string(),
+                serde_json::Value::String(row.get("status")),
+            );
+            obj.insert(
+                "created_at".to_string(),
+                serde_json::Value::String(
+                    row.get::<_, chrono::DateTime<chrono::Utc>>("created_at")
+                        .to_rfc3339(),
+                ),
+            );
             results.push(serde_json::Value::Object(obj));
         }
 
@@ -1057,9 +1090,10 @@ impl Database {
         &self,
         query: &crate::handlers::ExportQuery,
     ) -> AppResult<Vec<serde_json::Value>> {
-        let client = self.pool.get().await.map_err(|e| {
-            AppError::Internal(format!("Failed to get database connection: {}", e))
-        })?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let limit = query.limit.unwrap_or(50000).min(50000);
 
@@ -1089,12 +1123,37 @@ impl Database {
         for row in rows {
             let mut obj = serde_json::Map::new();
             obj.insert("nip".to_string(), serde_json::Value::String(row.get("nip")));
-            obj.insert("nama_pegawai".to_string(), serde_json::Value::String(row.get("nama_pegawai")));
-            obj.insert("jenis_pakaian".to_string(), serde_json::Value::String(row.get::<_, Option<String>>("jenis_pakaian").unwrap_or_default()));
-            obj.insert("ukuran".to_string(), serde_json::Value::String(row.get::<_, Option<String>>("ukuran").unwrap_or_default()));
-            obj.insert("jumlah".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("jumlah"))));
-            obj.insert("tahun_anggaran".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("tahun_anggaran"))));
-            obj.insert("status".to_string(), serde_json::Value::String(row.get("status")));
+            obj.insert(
+                "nama_pegawai".to_string(),
+                serde_json::Value::String(row.get("nama_pegawai")),
+            );
+            obj.insert(
+                "jenis_pakaian".to_string(),
+                serde_json::Value::String(
+                    row.get::<_, Option<String>>("jenis_pakaian")
+                        .unwrap_or_default(),
+                ),
+            );
+            obj.insert(
+                "ukuran".to_string(),
+                serde_json::Value::String(
+                    row.get::<_, Option<String>>("ukuran").unwrap_or_default(),
+                ),
+            );
+            obj.insert(
+                "jumlah".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("jumlah"))),
+            );
+            obj.insert(
+                "tahun_anggaran".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(
+                    row.get::<_, i32>("tahun_anggaran"),
+                )),
+            );
+            obj.insert(
+                "status".to_string(),
+                serde_json::Value::String(row.get("status")),
+            );
             results.push(serde_json::Value::Object(obj));
         }
 
@@ -1105,9 +1164,10 @@ impl Database {
         &self,
         query: &crate::handlers::ExportQuery,
     ) -> AppResult<Vec<serde_json::Value>> {
-        let client = self.pool.get().await.map_err(|e| {
-            AppError::Internal(format!("Failed to get database connection: {}", e))
-        })?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let limit = query.limit.unwrap_or(50000).min(50000);
 
@@ -1135,17 +1195,53 @@ impl Database {
         let mut results = Vec::new();
         for row in rows {
             let mut obj = serde_json::Map::new();
-            obj.insert("satker_nama".to_string(), serde_json::Value::String(row.get::<_, Option<String>>("satker_nama").unwrap_or_default()));
-            obj.insert("kode_barang".to_string(), serde_json::Value::String(row.get("kode_barang")));
-            obj.insert("tahun_rencana".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("tahun_rencana"))));
-            obj.insert("jumlah_kebutuhan".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("jumlah_kebutuhan"))));
-            obj.insert("jumlah_terpenuhi".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("jumlah_terpenuhi"))));
+            obj.insert(
+                "satker_nama".to_string(),
+                serde_json::Value::String(
+                    row.get::<_, Option<String>>("satker_nama")
+                        .unwrap_or_default(),
+                ),
+            );
+            obj.insert(
+                "kode_barang".to_string(),
+                serde_json::Value::String(row.get("kode_barang")),
+            );
+            obj.insert(
+                "tahun_rencana".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(
+                    row.get::<_, i32>("tahun_rencana"),
+                )),
+            );
+            obj.insert(
+                "jumlah_kebutuhan".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(
+                    row.get::<_, i32>("jumlah_kebutuhan"),
+                )),
+            );
+            obj.insert(
+                "jumlah_terpenuhi".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(
+                    row.get::<_, i32>("jumlah_terpenuhi"),
+                )),
+            );
 
             if let Some(anggaran) = row.get::<_, Option<f64>>("estimasi_anggaran") {
-                obj.insert("estimasi_anggaran".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(anggaran).unwrap_or(serde_json::Number::from(0))));
+                obj.insert(
+                    "estimasi_anggaran".to_string(),
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(anggaran)
+                            .unwrap_or(serde_json::Number::from(0)),
+                    ),
+                );
             }
 
-            obj.insert("status_pemenuhan".to_string(), serde_json::Value::String(row.get::<_, Option<String>>("status_pemenuhan").unwrap_or_default()));
+            obj.insert(
+                "status_pemenuhan".to_string(),
+                serde_json::Value::String(
+                    row.get::<_, Option<String>>("status_pemenuhan")
+                        .unwrap_or_default(),
+                ),
+            );
             results.push(serde_json::Value::Object(obj));
         }
 
@@ -1156,9 +1252,10 @@ impl Database {
         &self,
         query: &crate::handlers::ExportQuery,
     ) -> AppResult<Vec<serde_json::Value>> {
-        let client = self.pool.get().await.map_err(|e| {
-            AppError::Internal(format!("Failed to get database connection: {}", e))
-        })?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                AppError::Internal(format!("Failed to get database connection: {}", e))
+            })?;
 
         let limit = query.limit.unwrap_or(50000).min(50000);
 
@@ -1185,12 +1282,40 @@ impl Database {
         let mut results = Vec::new();
         for row in rows {
             let mut obj = serde_json::Map::new();
-            obj.insert("satker_nama".to_string(), serde_json::Value::String(row.get::<_, Option<String>>("satker_nama").unwrap_or_default()));
-            obj.insert("kode_barang".to_string(), serde_json::Value::String(row.get("kode_barang")));
-            obj.insert("tahun_anggaran".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("tahun_anggaran"))));
-            obj.insert("jumlah_terpenuhi".to_string(), serde_json::Value::Number(serde_json::Number::from(row.get::<_, i32>("jumlah_terpenuhi"))));
-            obj.insert("sumber_data".to_string(), serde_json::Value::String(row.get("sumber_data")));
-            obj.insert("tanggal_pemenuhan".to_string(), serde_json::Value::String(row.get::<_, chrono::NaiveDate>("tanggal_pemenuhan").to_string()));
+            obj.insert(
+                "satker_nama".to_string(),
+                serde_json::Value::String(
+                    row.get::<_, Option<String>>("satker_nama")
+                        .unwrap_or_default(),
+                ),
+            );
+            obj.insert(
+                "kode_barang".to_string(),
+                serde_json::Value::String(row.get("kode_barang")),
+            );
+            obj.insert(
+                "tahun_anggaran".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(
+                    row.get::<_, i32>("tahun_anggaran"),
+                )),
+            );
+            obj.insert(
+                "jumlah_terpenuhi".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(
+                    row.get::<_, i32>("jumlah_terpenuhi"),
+                )),
+            );
+            obj.insert(
+                "sumber_data".to_string(),
+                serde_json::Value::String(row.get("sumber_data")),
+            );
+            obj.insert(
+                "tanggal_pemenuhan".to_string(),
+                serde_json::Value::String(
+                    row.get::<_, chrono::NaiveDate>("tanggal_pemenuhan")
+                        .to_string(),
+                ),
+            );
             results.push(serde_json::Value::Object(obj));
         }
 

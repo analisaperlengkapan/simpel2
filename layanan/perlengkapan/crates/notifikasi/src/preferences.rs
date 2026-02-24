@@ -1,8 +1,8 @@
 use crate::error::AppError;
+use chrono::{DateTime, NaiveTime, Utc};
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, NaiveTime, Utc};
 
 /// User notification preferences
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,7 +42,10 @@ impl NotificationPreferencesService {
     }
 
     /// Get user notification preferences (create default if not exists)
-    pub async fn get_preferences(&self, user_id: Uuid) -> Result<NotificationPreferences, AppError> {
+    pub async fn get_preferences(
+        &self,
+        user_id: Uuid,
+    ) -> Result<NotificationPreferences, AppError> {
         let query = r#"
             SELECT id, user_id, in_app_enabled, email_enabled, sms_enabled, push_enabled,
                    batch_non_urgent, daily_digest_time, created_at, updated_at
@@ -73,7 +76,10 @@ impl NotificationPreferencesService {
     }
 
     /// Create default notification preferences for a user
-    async fn create_default_preferences(&self, user_id: Uuid) -> Result<NotificationPreferences, AppError> {
+    async fn create_default_preferences(
+        &self,
+        user_id: Uuid,
+    ) -> Result<NotificationPreferences, AppError> {
         let query = r#"
             INSERT INTO notifikasi.user_notification_preferences
             (id, user_id, in_app_enabled, email_enabled, sms_enabled, push_enabled,
@@ -87,7 +93,10 @@ impl NotificationPreferencesService {
         let client = self.pool.get().await?;
         let row = client.query_one(query, &[&pref_id, &user_id]).await?;
 
-        tracing::info!("Created default notification preferences for user {}", user_id);
+        tracing::info!(
+            "Created default notification preferences for user {}",
+            user_id
+        );
 
         Ok(NotificationPreferences {
             id: row.get("id"),
@@ -112,7 +121,9 @@ impl NotificationPreferencesService {
         // Ensure preferences exist
         let _ = self.get_preferences(user_id).await?;
 
-        let mut query_parts: Vec<String> = vec!["UPDATE notifikasi.user_notification_preferences SET updated_at = NOW()".to_string()];
+        let mut query_parts: Vec<String> = vec![
+            "UPDATE notifikasi.user_notification_preferences SET updated_at = NOW()".to_string(),
+        ];
         let mut param_index = 1;
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Send + Sync>> = vec![];
 
@@ -147,8 +158,9 @@ impl NotificationPreferencesService {
         }
 
         if let Some(daily_digest_time) = updates.daily_digest_time {
-            let time = NaiveTime::parse_from_str(&daily_digest_time, "%H:%M:%S")
-                .map_err(|e| AppError::Internal(format!("Invalid time format: {}", e).into_boxed_str()))?;
+            let time = NaiveTime::parse_from_str(&daily_digest_time, "%H:%M:%S").map_err(|e| {
+                AppError::Internal(format!("Invalid time format: {}", e).into_boxed_str())
+            })?;
             query_parts.push(format!("daily_digest_time = ${}", param_index));
             params.push(Box::new(time));
             param_index += 1;
@@ -202,7 +214,10 @@ impl NotificationPreferencesService {
     }
 
     /// Get all users who have a specific channel enabled
-    pub async fn get_users_with_channel_enabled(&self, channel: &str) -> Result<Vec<Uuid>, AppError> {
+    pub async fn get_users_with_channel_enabled(
+        &self,
+        channel: &str,
+    ) -> Result<Vec<Uuid>, AppError> {
         let column = match channel {
             "in_app" => "in_app_enabled",
             "email" => "email_enabled",

@@ -7,7 +7,7 @@
 use leptos::prelude::*;
 
 use crate::api;
-use crate::components::role_switcher::{get_active_role, PerlengkapanRole};
+use crate::components::role_switcher::{PerlengkapanRole, get_active_role};
 
 /// User role assignment data
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -36,7 +36,8 @@ pub fn AdminUsersPage() -> impl IntoView {
                 <h2 class="text-xl font-bold text-red-700 mb-2">"Akses Ditolak"</h2>
                 <p class="text-red-600">"Anda tidak memiliki akses Admin."</p>
             </div>
-        }.into_any();
+        }
+        .into_any();
     }
 
     let (search, set_search) = signal(String::new());
@@ -50,24 +51,22 @@ pub fn AdminUsersPage() -> impl IntoView {
         let _role = selected_role_filter.get();
         async move {
             // In production: api::fetch_admin_users(search, role_filter).await
-            vec![
-                UserRoleAssignment {
-                    nip: "199203142014031001".to_string(),
-                    nama: "Admin".to_string(),
-                    jabatan: "Kasubag Perlengkapan".to_string(),
-                    golongan: "III/c".to_string(),
-                    satker_code: "0100000".to_string(),
-                    satker_name: "Kejaksaan Agung RI".to_string(),
-                    assigned_roles: vec![
-                        "operator_satker".to_string(),
-                        "validator_wilayah".to_string(),
-                        "validator_pusat".to_string(),
-                        "admin".to_string(),
-                    ],
-                    active_role: Some("admin".to_string()),
-                    status: "active".to_string(),
-                },
-            ]
+            vec![UserRoleAssignment {
+                nip: "199203142014031001".to_string(),
+                nama: "Admin".to_string(),
+                jabatan: "Kasubag Perlengkapan".to_string(),
+                golongan: "III/c".to_string(),
+                satker_code: "0100000".to_string(),
+                satker_name: "Kejaksaan Agung RI".to_string(),
+                assigned_roles: vec![
+                    "operator_satker".to_string(),
+                    "validator_wilayah".to_string(),
+                    "validator_pusat".to_string(),
+                    "admin".to_string(),
+                ],
+                active_role: Some("admin".to_string()),
+                status: "active".to_string(),
+            }]
         }
     });
 

@@ -162,7 +162,7 @@ sudo ufw allow 50051/tcp
 
 ```bash
 # Clone repository
-cd /srv/proyek/simpelv2/infra/secreton
+cd /srv/proyek/simpelv2/layanan/secreton
 
 # Build API server
 cargo build --release --bin api_server
@@ -335,7 +335,7 @@ id secreton
 
 ```bash
 # Build production binary
-cd /srv/proyek/simpelv2/infra/secreton
+cd /srv/proyek/simpelv2/layanan/secreton
 cargo build --release --bin api_server
 
 # Install
@@ -509,7 +509,7 @@ Create `/etc/systemd/system/secreton.service`:
 ```ini
 [Unit]
 Description=Secreton Security Vault System
-Documentation=https://github.com/analisaperlengkapan/simpel2/tree/main/infra/secreton
+Documentation=https://github.com/analisaperlengkapan/simpel2/tree/main/layanan/secreton
 After=network.target
 Wants=network-online.target
 
@@ -2007,8 +2007,8 @@ SECRETON_LOG_LEVEL=debug systemctl restart secreton
 
 **Internal Resources:**
 
-- Documentation: `/srv/proyek/simpelv2/infra/secreton/docs/`
-- Source code: `/srv/proyek/simpelv2/infra/secreton/`
+- Documentation: `/srv/proyek/simpelv2/layanan/secreton/docs/`
+- Source code: `/srv/proyek/simpelv2/layanan/secreton/`
 - Issue tracker: GitHub Issues
 
 **External Resources:**
@@ -2285,7 +2285,7 @@ SECRETON_METRICS_PORT=9090
 
 **Email:** tim-keamanan@kejaksaan.go.id
 **Slack:** #secreton-support
-**Documentation:** `/srv/proyek/simpelv2/infra/secreton/docs/`
+**Documentation:** `/srv/proyek/simpelv2/layanan/secreton/docs/`
 
 ### Issue Reporting
 

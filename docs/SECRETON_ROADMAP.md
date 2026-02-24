@@ -52,8 +52,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Context-based encryption (AAD)
 - ✅ HMAC operations
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/transit.rs`
-**Crypto**: `infra/secreton/crates/crypto/src/transit/`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/transit.rs`
+**Crypto**: `layanan/secreton/crates/crypto/src/transit/`
 
 ### 2. **KV Secrets Engine (v2)** ✅
 
@@ -69,7 +69,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Path-based organization
 - ✅ Integration with Lease Manager
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/kvv2.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/kvv2.rs`
 
 ### 3. **Dynamic Secrets Engine (Database)** ✅
 
@@ -92,7 +92,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - 🚧 MongoDB (planned)
 - 🚧 Redis (planned)
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/database.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/database.rs`
 **Dokumentasi**: `docs/DYNAMIC_SECRETS_API.md`
 
 ### 4. **Lease Management** ✅
@@ -109,7 +109,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Namespace isolation
 - ✅ Audit logging integration
 
-**Lokasi**: `infra/secreton/crates/core/src/services/lease.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/lease.rs`
 **Dokumentasi**: `docs/LEASE_API.md`, `docs/LEASE_INTEGRATION.md`
 
 ### 5. **Policy Engine** ✅
@@ -124,7 +124,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Namespace-aware policies
 - ✅ JWT integration for user context
 
-**Lokasi**: `infra/secreton/crates/core/src/models/policy.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/models/policy.rs`
 
 ### 6. **Seal/Unseal (Shamir Secret Sharing)** ✅
 
@@ -158,7 +158,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ TTL-based wrapping
 - ✅ Cubbyhole storage for wrapped responses
 
-**Lokasi**: `infra/secreton/crates/core/src/services/wrapping.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/wrapping.rs`
 
 ### 9. **HSM Integration** ✅
 
@@ -171,7 +171,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Azure Key Vault integration
 - ✅ Hardware-backed key storage
 
-**Lokasi**: `infra/secreton/crates/hsm/`
+**Lokasi**: `layanan/secreton/crates/hsm/`
 
 ### 10. **Audit Logging** ✅
 
@@ -199,8 +199,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 
 **Lokasi**:
 
-- gRPC: `infra/secreton/crates/grpc/`
-- REST: `infra/secreton/crates/api/`
+- gRPC: `layanan/secreton/crates/grpc/`
+- REST: `layanan/secreton/crates/api/`
 
 ### 12. **Raft Consensus (HA)** ✅
 
@@ -227,7 +227,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ **Raft** (consensus-based)
 - ⚠️ **S3** (placeholder, requires aws-sdk-s3)
 
-**Lokasi**: `infra/secreton/crates/storage/src/backends/`
+**Lokasi**: `layanan/secreton/crates/storage/src/backends/`
 
 ### 14. **PKI Secrets Engine** ✅
 
@@ -245,8 +245,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ CA chain management
 - ✅ Serial number tracking
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/pki.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/pki.rs` (if exists)
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/pki.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/pki.rs` (if exists)
 
 **Use Cases**:
 - Internal service-to-service mTLS certificates
@@ -269,8 +269,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Code validation with timestamp tracking
 - ✅ Integration with lease management
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/totp.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/totp.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/totp.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/totp.rs`
 
 **Use Cases**:
 - Authenc MFA secret storage
@@ -295,8 +295,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Credential cleanup scheduler
 - ✅ Full AWS SDK integration (aws-sdk-iam, aws-sdk-sts)
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/aws.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/aws.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/aws.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/aws.rs`
 
 **Use Cases**:
 - Dynamic AWS access untuk backup S3
@@ -320,8 +320,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Service account key JSON generation
 - ✅ Lease integration
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/gcp.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/gcp.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/gcp.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/gcp.rs`
 
 **Use Cases**:
 - Dynamic GCP access untuk cloud resources
@@ -344,8 +344,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Token scope configuration
 - ✅ Automatic cleanup and revocation
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/azure.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/azure.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/azure.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/azure.rs`
 
 **Use Cases**:
 - Dynamic Azure access untuk cloud resources
@@ -370,8 +370,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Token introspection
 - ✅ Automatic token cleanup
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/identity.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/identity.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/identity.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/identity.rs`
 
 **Use Cases**:
 - Single Sign-On (SSO) untuk semua microfrontends
@@ -397,8 +397,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ Configurable rotation intervals
 - ✅ Webhook retry mechanism
 
-**Lokasi**: `infra/secreton/crates/core/src/services/rotation.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/rotation.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/rotation.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/rotation.rs`
 
 **Use Cases**:
 - Automatic database password rotation (every 90 days)
@@ -423,8 +423,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ TLS/LDAPS support
 - ✅ Custom attribute configuration
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/ldap.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/ldap.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/ldap.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/ldap.rs`
 
 **Use Cases**:
 - Dynamic LDAP credentials untuk legacy applications
@@ -446,8 +446,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ TTL-based credential expiration
 - ✅ Connection management
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/rabbitmq.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/rabbitmq.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/rabbitmq.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/rabbitmq.rs`
 
 **Use Cases**:
 - Dynamic RabbitMQ access untuk microservices
@@ -469,8 +469,8 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ✅ TTL-based credential expiration
 - ✅ Cluster configuration
 
-**Lokasi**: `infra/secreton/crates/core/src/services/secrets/kafka.rs`
-**API Handler**: `infra/secreton/crates/api/src/handlers/kafka.rs`
+**Lokasi**: `layanan/secreton/crates/core/src/services/secrets/kafka.rs`
+**API Handler**: `layanan/secreton/crates/api/src/handlers/kafka.rs`
 
 **Use Cases**:
 - Dynamic Kafka access untuk event streaming

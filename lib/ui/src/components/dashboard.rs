@@ -115,10 +115,7 @@ pub fn BarChart(
     let class = class.unwrap_or_default();
 
     let max = max_value.unwrap_or_else(|| {
-        data.iter()
-            .map(|d| d.value)
-            .fold(0.0, f64::max)
-            .max(1.0) // Prevent division by zero
+        data.iter().map(|d| d.value).fold(0.0, f64::max).max(1.0) // Prevent division by zero
     });
 
     view! {
@@ -315,7 +312,11 @@ pub fn LineChart(
     }
 
     let max_value = data.iter().map(|d| d.value).fold(0.0, f64::max).max(1.0);
-    let min_value = data.iter().map(|d| d.value).fold(f64::MAX, f64::min).min(0.0);
+    let min_value = data
+        .iter()
+        .map(|d| d.value)
+        .fold(f64::MAX, f64::min)
+        .min(0.0);
     let value_range = max_value - min_value;
 
     let width = 600;
@@ -328,9 +329,9 @@ pub fn LineChart(
         .iter()
         .enumerate()
         .map(|(i, point)| {
-            let x = padding as f64 + (i as f64 / (data.len() - 1).max(1) as f64) * chart_width as f64;
-            let y = padding as f64
-                + chart_height as f64
+            let x =
+                padding as f64 + (i as f64 / (data.len() - 1).max(1) as f64) * chart_width as f64;
+            let y = padding as f64 + chart_height as f64
                 - ((point.value - min_value) / value_range.max(1.0)) * chart_height as f64;
             (x, y)
         })

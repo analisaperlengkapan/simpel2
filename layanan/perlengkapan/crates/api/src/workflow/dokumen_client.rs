@@ -9,9 +9,7 @@ use uuid::Uuid;
 
 // Re-export generated proto types
 pub use crate::workflow::dokumen_proto::document_service_client::DocumentServiceClient;
-pub use crate::workflow::dokumen_proto::{
-    GenerateDocumentRequest, GenerateDocumentResponse,
-};
+pub use crate::workflow::dokumen_proto::{GenerateDocumentRequest, GenerateDocumentResponse};
 
 /// Dokumen client error types
 #[derive(Debug, thiserror::Error)]
@@ -37,7 +35,9 @@ impl DokumenClient {
     /// Create a new dokumen client
     pub async fn new(endpoint: &str) -> Result<Self> {
         let channel = Channel::from_shared(endpoint.to_string())
-            .map_err(|e| DokumenClientError::InvalidResponse(format!("Invalid endpoint URI: {}", e)))?
+            .map_err(|e| {
+                DokumenClientError::InvalidResponse(format!("Invalid endpoint URI: {}", e))
+            })?
             .connect()
             .await?;
 
@@ -81,8 +81,9 @@ impl TryFrom<GenerateDocumentResponse> for DocumentGenerationResult {
     type Error = DokumenClientError;
 
     fn try_from(response: GenerateDocumentResponse) -> Result<Self> {
-        let document_id = Uuid::parse_str(&response.document_id)
-            .map_err(|e| DokumenClientError::InvalidResponse(format!("Invalid document_id: {}", e)))?;
+        let document_id = Uuid::parse_str(&response.document_id).map_err(|e| {
+            DokumenClientError::InvalidResponse(format!("Invalid document_id: {}", e))
+        })?;
 
         Ok(Self {
             document_id,

@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Navigate from layanan/perlengkapan/crates/api to root
-    let authenc_proto_dir = PathBuf::from("../../../../infra/authenc/proto");
-    let secreton_proto_dir = PathBuf::from("../../../../infra/secreton/proto");
+    let authenc_proto_dir = PathBuf::from("../../../../layanan/authenc/proto");
+    let secreton_proto_dir = PathBuf::from("../../../../layanan/secreton/proto");
     let integrasi_proto_dir = PathBuf::from("../integrasi/proto");
     let dokumen_proto_dir = PathBuf::from("../dokumen/proto");
     let notifikasi_proto_dir = PathBuf::from("../notifikasi/proto");

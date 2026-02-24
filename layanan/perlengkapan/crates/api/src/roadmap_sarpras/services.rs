@@ -65,8 +65,7 @@ impl RoadmapService {
         };
 
         // Store snapshot for future comparison
-        let predictions_json = serde_json::to_string(&result.predictions)
-            .unwrap_or_default();
+        let predictions_json = serde_json::to_string(&result.predictions).unwrap_or_default();
         let _ = self
             .repository
             .save_forecast_snapshot(
@@ -193,13 +192,24 @@ impl RoadmapService {
             return vec![];
         }
 
-        let avg_kebutuhan = historical.iter().map(|h| h.total_kebutuhan as f64).sum::<f64>() / n;
+        let avg_kebutuhan = historical
+            .iter()
+            .map(|h| h.total_kebutuhan as f64)
+            .sum::<f64>()
+            / n;
         let avg_gap = historical.iter().map(|h| h.total_gap as f64).sum::<f64>() / n;
-        let avg_biaya = historical.iter().map(|h| h.estimasi_total_biaya).sum::<f64>() / n;
+        let avg_biaya = historical
+            .iter()
+            .map(|h| h.estimasi_total_biaya)
+            .sum::<f64>()
+            / n;
 
         // Standard deviation for CI
         let std_kebutuhan = Self::std_dev(
-            &historical.iter().map(|h| h.total_kebutuhan as f64).collect::<Vec<_>>(),
+            &historical
+                .iter()
+                .map(|h| h.total_kebutuhan as f64)
+                .collect::<Vec<_>>(),
         );
 
         let z = Self::z_score(confidence);
@@ -255,7 +265,10 @@ impl RoadmapService {
             / weight_sum;
 
         let std_kebutuhan = Self::std_dev(
-            &historical.iter().map(|h| h.total_kebutuhan as f64).collect::<Vec<_>>(),
+            &historical
+                .iter()
+                .map(|h| h.total_kebutuhan as f64)
+                .collect::<Vec<_>>(),
         );
 
         let z = Self::z_score(confidence);
@@ -263,7 +276,10 @@ impl RoadmapService {
 
         // Apply trend from last 3 years
         let trend = Self::compute_trend(
-            &historical.iter().map(|h| h.total_kebutuhan as f64).collect::<Vec<_>>(),
+            &historical
+                .iter()
+                .map(|h| h.total_kebutuhan as f64)
+                .collect::<Vec<_>>(),
         );
 
         (1..=horizon)
@@ -274,7 +290,9 @@ impl RoadmapService {
                     tahun: last_year + i,
                     predicted_kebutuhan: predicted.max(0.0),
                     predicted_gap: (wma_gap + trend * 0.7 * i as f64).max(0.0),
-                    predicted_biaya: (wma_biaya + wma_biaya * trend / wma_kebutuhan.max(1.0) * i as f64).max(0.0),
+                    predicted_biaya: (wma_biaya
+                        + wma_biaya * trend / wma_kebutuhan.max(1.0) * i as f64)
+                        .max(0.0),
                     confidence_lower: (predicted - margin).max(0.0),
                     confidence_upper: predicted + margin,
                 }
@@ -296,7 +314,10 @@ impl RoadmapService {
         let alpha = 0.3; // level smoothing
         let beta = 0.1; // trend smoothing
 
-        let values: Vec<f64> = historical.iter().map(|h| h.total_kebutuhan as f64).collect();
+        let values: Vec<f64> = historical
+            .iter()
+            .map(|h| h.total_kebutuhan as f64)
+            .collect();
         let biaya: Vec<f64> = historical.iter().map(|h| h.estimasi_total_biaya).collect();
         let gaps: Vec<f64> = historical.iter().map(|h| h.total_gap as f64).collect();
 

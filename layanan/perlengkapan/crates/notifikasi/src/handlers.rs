@@ -39,11 +39,23 @@ pub fn routes(
                 .route("/notifications/in-app", post(send_in_app_notification))
                 .route("/notifications/in-app/list", get(list_in_app_notifications))
                 .route("/notifications/in-app/unread-count", get(get_unread_count))
-                .route("/notifications/in-app/:id/read", put(mark_notification_as_read))
-                .route("/notifications/in-app/mark-all-read", put(mark_all_notifications_as_read))
+                .route(
+                    "/notifications/in-app/:id/read",
+                    put(mark_notification_as_read),
+                )
+                .route(
+                    "/notifications/in-app/mark-all-read",
+                    put(mark_all_notifications_as_read),
+                )
                 // Notification preferences
-                .route("/notifications/preferences/:user_id", get(get_user_preferences))
-                .route("/notifications/preferences/:user_id", put(update_user_preferences))
+                .route(
+                    "/notifications/preferences/:user_id",
+                    get(get_user_preferences),
+                )
+                .route(
+                    "/notifications/preferences/:user_id",
+                    put(update_user_preferences),
+                )
                 // Email
                 .route("/notifications/email/send", post(send_email))
                 .route("/notifications/email/batch", post(send_batch_email))
@@ -246,7 +258,6 @@ pub async fn mark_all_notifications_as_read(
         "count": count,
     })))
 }
-
 
 // Notification preferences handlers
 

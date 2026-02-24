@@ -7,24 +7,24 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::{
+    PenghapusanBmnDetailResponse, PenghapusanValidatorWilayahActionRequest, UploadSignedSKRequest,
     fetch_penghapusan_bmn_detail, generate_penghapusan_konsep_sk,
     penghapusan_validator_wilayah_action, submit_penghapusan_to_wilayah,
-    upload_penghapusan_signed_sk, PenghapusanBmnDetailResponse,
-    PenghapusanValidatorWilayahActionRequest, UploadSignedSKRequest,
+    upload_penghapusan_signed_sk,
 };
 
 /// Status badge color helper
 fn status_badge_class(status_kode: i32) -> &'static str {
     match status_kode {
-        4000 => "bg-gray-100 text-gray-800",       // Draft
-        4001 => "bg-blue-100 text-blue-800",        // SubmitWilayah
-        4002 => "bg-yellow-100 text-yellow-800",    // ReturnedToOperator
-        4003 => "bg-indigo-100 text-indigo-800",    // SubmitPusat
-        4004 => "bg-purple-100 text-purple-800",    // VerifikasiPusat
-        4005 => "bg-cyan-100 text-cyan-800",        // KonsepSKGenerated
-        4006 => "bg-teal-100 text-teal-800",        // SKSigned
-        4007 => "bg-green-100 text-green-800",      // Completed
-        4008 => "bg-red-100 text-red-800",          // Rejected
+        4000 => "bg-gray-100 text-gray-800",     // Draft
+        4001 => "bg-blue-100 text-blue-800",     // SubmitWilayah
+        4002 => "bg-yellow-100 text-yellow-800", // ReturnedToOperator
+        4003 => "bg-indigo-100 text-indigo-800", // SubmitPusat
+        4004 => "bg-purple-100 text-purple-800", // VerifikasiPusat
+        4005 => "bg-cyan-100 text-cyan-800",     // KonsepSKGenerated
+        4006 => "bg-teal-100 text-teal-800",     // SKSigned
+        4007 => "bg-green-100 text-green-800",   // Completed
+        4008 => "bg-red-100 text-red-800",       // Rejected
         _ => "bg-gray-100 text-gray-800",
     }
 }
@@ -55,20 +55,18 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     let (show_return_modal, set_show_return_modal) = signal(false);
     let (show_upload_modal, set_show_upload_modal) = signal(false);
 
-    let detail_resource = LocalResource::new(
-        move || {
-            let id = params.get().get("id").unwrap_or_default();
-            async move {
-                if id.is_empty() {
-                    return Err("ID tidak ditemukan".to_string());
-                }
-                fetch_penghapusan_bmn_detail(&id)
-                    .await
-                    .map(|r| r.data)
-                    .map_err(|e| format!("{:?}", e))
+    let detail_resource = LocalResource::new(move || {
+        let id = params.get().get("id").unwrap_or_default();
+        async move {
+            if id.is_empty() {
+                return Err("ID tidak ditemukan".to_string());
             }
-        },
-    );
+            fetch_penghapusan_bmn_detail(&id)
+                .await
+                .map(|r| r.data)
+                .map_err(|e| format!("{:?}", e))
+        }
+    });
 
     // Action: Submit to Validator Wilayah (Draft → SubmitWilayah)
     let on_submit_wilayah = move |_| {
@@ -104,8 +102,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             };
             match penghapusan_validator_wilayah_action(&id, req).await {
                 Ok(_) => {
-                    set_success_msg
-                        .set(Some("Berhasil diteruskan ke Validator Pusat".to_string()));
+                    set_success_msg.set(Some("Berhasil diteruskan ke Validator Pusat".to_string()));
                     set_catatan_input.set(String::new());
                     detail_resource.refetch();
                 }
@@ -166,7 +163,9 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
         let id = params.get().get("id").unwrap_or_default();
         let url = signed_sk_url.get();
         if url.is_empty() {
-            set_error_msg.set(Some("URL file SK yang ditandatangani wajib diisi".to_string()));
+            set_error_msg.set(Some(
+                "URL file SK yang ditandatangani wajib diisi".to_string(),
+            ));
             return;
         }
         set_loading_action.set(true);
@@ -177,8 +176,9 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             };
             match upload_penghapusan_signed_sk(&id, req).await {
                 Ok(_) => {
-                    set_success_msg
-                        .set(Some("Usulan SK Penghapusan BMN berhasil diupload. Proses selesai.".to_string()));
+                    set_success_msg.set(Some(
+                        "Usulan SK Penghapusan BMN berhasil diupload. Proses selesai.".to_string(),
+                    ));
                     set_signed_sk_url.set(String::new());
                     set_show_upload_modal.set(false);
                     detail_resource.refetch();

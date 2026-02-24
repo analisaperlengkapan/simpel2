@@ -107,13 +107,16 @@ impl SimanTransformer {
             asset.kondisi = Self::extract_string(obj, &["KONDISI", "kondisi", "kondisi_barang"]);
 
             // Tahun perolehan
-            asset.tahun_perolehan = Self::extract_i32(obj, &["TAHUN_PEROLEHAN", "tahun_perolehan", "tahun"]);
+            asset.tahun_perolehan =
+                Self::extract_i32(obj, &["TAHUN_PEROLEHAN", "tahun_perolehan", "tahun"]);
 
             // Nilai perolehan
-            asset.nilai_perolehan = Self::extract_f64(obj, &["NILAI_PEROLEHAN", "nilai_perolehan", "nilai"]);
+            asset.nilai_perolehan =
+                Self::extract_f64(obj, &["NILAI_PEROLEHAN", "nilai_perolehan", "nilai"]);
 
             // Satker code
-            asset.satker_code = Self::extract_string(obj, &["KODE_SATKER", "kode_satker", "satker"]);
+            asset.satker_code =
+                Self::extract_string(obj, &["KODE_SATKER", "kode_satker", "satker"]);
         } else {
             asset.add_validation_error("Raw data is not a JSON object".to_string());
         }
@@ -137,10 +140,7 @@ impl SimanTransformer {
             match Self::transform(category, raw_data) {
                 Ok(asset) => {
                     if asset.has_errors() {
-                        warn!(
-                            "Asset has validation errors: {:?}",
-                            asset.validation_errors
-                        );
+                        warn!("Asset has validation errors: {:?}", asset.validation_errors);
                         error_count += 1;
                     }
                     transformed.push(asset);
@@ -155,8 +155,7 @@ impl SimanTransformer {
         if error_count > 0 {
             warn!(
                 "Transformation completed with {} errors out of {} records",
-                error_count,
-                total_count
+                error_count, total_count
             );
         }
 
@@ -164,7 +163,10 @@ impl SimanTransformer {
     }
 
     /// Extract string value from multiple possible field names
-    fn extract_string(obj: &serde_json::Map<String, Value>, field_names: &[&str]) -> Option<String> {
+    fn extract_string(
+        obj: &serde_json::Map<String, Value>,
+        field_names: &[&str],
+    ) -> Option<String> {
         for field_name in field_names {
             if let Some(value) = obj.get(*field_name) {
                 if let Some(s) = value.as_str() {
@@ -260,10 +262,7 @@ impl SimanTransformer {
             }
         }
 
-        debug!(
-            "Validated asset: {} errors",
-            asset.validation_errors.len()
-        );
+        debug!("Validated asset: {} errors", asset.validation_errors.len());
     }
 
     /// Convert transformed asset to database-ready JSON
@@ -337,7 +336,12 @@ mod tests {
         let asset = result.unwrap();
         assert!(asset.has_errors());
         assert!(!asset.is_valid());
-        assert!(asset.validation_errors.iter().any(|e| e.contains("NUP or kode_barang")));
+        assert!(
+            asset
+                .validation_errors
+                .iter()
+                .any(|e| e.contains("NUP or kode_barang"))
+        );
     }
 
     #[test]
@@ -353,7 +357,12 @@ mod tests {
 
         let asset = result.unwrap();
         assert!(asset.has_errors());
-        assert!(asset.validation_errors.iter().any(|e| e.contains("Invalid kondisi")));
+        assert!(
+            asset
+                .validation_errors
+                .iter()
+                .any(|e| e.contains("Invalid kondisi"))
+        );
     }
 
     #[test]
@@ -393,7 +402,10 @@ mod tests {
 
         assert!(json.is_object());
         assert!(json.get("id").is_some());
-        assert_eq!(json.get("jenis_aset").and_then(|v| v.as_str()), Some("Tanah"));
+        assert_eq!(
+            json.get("jenis_aset").and_then(|v| v.as_str()),
+            Some("Tanah")
+        );
         assert!(json.get("raw_data").is_none());
     }
 }

@@ -1,18 +1,17 @@
+use deadpool_postgres::{Config, Runtime};
 use notifikasi::config::AppConfig;
 use notifikasi::email::EmailService;
-use notifikasi::sms::SmsService;
 use notifikasi::push::PushService;
 use notifikasi::queue_processor::{QueueProcessor, QueueStats};
-use deadpool_postgres::{Config, Runtime};
+use notifikasi::sms::SmsService;
 use std::sync::Arc;
 
 /// Helper function to create a test database pool
 async fn create_test_pool() -> deadpool_postgres::Pool {
     let mut cfg = Config::new();
-    cfg.url = Some(
-        std::env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/notifikasi_test".to_string()),
-    );
+    cfg.url = Some(std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://postgres:postgres@localhost:5432/notifikasi_test".to_string()
+    }));
     cfg.create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
         .expect("Failed to create test pool")
 }
@@ -83,13 +82,8 @@ async fn test_queue_processor_creation() {
     let sms_service = Arc::new(SmsService::new((*config).clone(), pool.clone()));
     let push_service = Arc::new(PushService::new((*config).clone(), pool.clone()));
 
-    let queue_processor = QueueProcessor::new(
-        config,
-        pool,
-        email_service,
-        sms_service,
-        push_service,
-    );
+    let queue_processor =
+        QueueProcessor::new(config, pool, email_service, sms_service, push_service);
 
     // Verify queue processor was created successfully
     // This is a basic test - in production you would test actual queue processing
@@ -226,7 +220,8 @@ async fn test_queue_stats_structure() {
     assert_eq!(stats.retry_count, 5);
 
     // Verify total makes sense
-    let total = stats.pending_count + stats.processing_count + stats.completed_count + stats.failed_count;
+    let total =
+        stats.pending_count + stats.processing_count + stats.completed_count + stats.failed_count;
     assert!(total > 0);
 }
 

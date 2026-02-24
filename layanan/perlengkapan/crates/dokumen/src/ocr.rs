@@ -2,7 +2,6 @@ use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::OcrResult;
 use reqwest::Client;
-use serde_json::json;
 use uuid::Uuid;
 
 pub struct OcrService {

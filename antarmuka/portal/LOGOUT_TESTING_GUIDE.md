@@ -4,7 +4,7 @@
 
 1. **Backend Running**
    ```bash
-   cd infra/authenc
+   cd layanan/authenc
    cargo run
    # Should be running on http://localhost:8080
    ```

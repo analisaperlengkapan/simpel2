@@ -228,12 +228,7 @@ pub fn has_sequential_characters(password: &str) -> bool {
     let chars: Vec<char> = lower.chars().collect();
 
     // Check keyboard row patterns (common sequences typed on QWERTY layout)
-    let keyboard_rows = [
-        "qwertyuiop",
-        "asdfghjkl",
-        "zxcvbnm",
-        "1234567890",
-    ];
+    let keyboard_rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm", "1234567890"];
 
     for row in &keyboard_rows {
         // Check for 3+ consecutive chars from same keyboard row in order

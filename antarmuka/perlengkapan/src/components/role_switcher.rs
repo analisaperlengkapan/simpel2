@@ -71,9 +71,7 @@ pub fn get_active_role() -> String {
 
 /// Set active role in localStorage
 pub fn set_active_role(role: &str) {
-    if let Some(storage) = web_sys::window()
-        .and_then(|w| w.local_storage().ok().flatten())
-    {
+    if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
         let _ = storage.set_item("active_role", role);
     }
 }

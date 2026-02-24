@@ -1,7 +1,7 @@
 use crate::excel_generator::ExcelGenerator;
 use crate::pdf_generator::PdfGenerator;
-use crate::template_models::GeneratedDocument;
 use crate::storage::StorageService;
+use crate::template_models::GeneratedDocument;
 use crate::template_service::TemplateService;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -233,13 +233,17 @@ impl DocumentService for DocumentServiceImpl {
 
         let query = format!(
             "SELECT * FROM dokumen.generated_documents{} ORDER BY generated_at DESC LIMIT ${} OFFSET ${}",
-            where_clause, param_idx, param_idx + 1
+            where_clause,
+            param_idx,
+            param_idx + 1
         );
         params.push(Box::new(per_page));
         params.push(Box::new(offset));
 
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let rows = client
             .query(&query, &param_refs)
@@ -276,8 +280,10 @@ impl DocumentService for DocumentServiceImpl {
         if let Some(ref status) = req.status {
             count_params.push(Box::new(status.clone()));
         }
-        let count_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            count_params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let count_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = count_params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         let count_row = client
             .query_one(&count_query, &count_refs)
@@ -502,10 +508,7 @@ impl DocumentService for DocumentServiceImpl {
         let data: serde_json::Value = serde_json::from_str(&req.data_json)
             .map_err(|e| Status::invalid_argument(format!("Invalid data_json: {}", e)))?;
 
-        let preview_req = crate::template_models::TemplatePreviewRequest {
-            template_id,
-            data,
-        };
+        let preview_req = crate::template_models::TemplatePreviewRequest { template_id, data };
 
         let result = self
             .template_service

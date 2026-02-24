@@ -60,7 +60,9 @@ impl SmsService {
         let _sms_api_key = secreton_client
             .get_secret("sms/api_key")
             .await
-            .map_err(|e| AppError::Config(format!("Failed to fetch SMS API key: {}", e).into_boxed_str()))?;
+            .map_err(|e| {
+                AppError::Config(format!("Failed to fetch SMS API key: {}", e).into_boxed_str())
+            })?;
 
         // In production, store credentials securely
         Ok(Self {
@@ -201,10 +203,10 @@ impl SmsService {
         // Twilio API endpoint
         let account_sid = std::env::var("TWILIO_ACCOUNT_SID")
             .unwrap_or_else(|_| "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX".to_string());
-        let auth_token = std::env::var("TWILIO_AUTH_TOKEN")
-            .unwrap_or_else(|_| "your_auth_token".to_string());
-        let from_number = std::env::var("TWILIO_PHONE_NUMBER")
-            .unwrap_or_else(|_| "+15555555555".to_string());
+        let auth_token =
+            std::env::var("TWILIO_AUTH_TOKEN").unwrap_or_else(|_| "your_auth_token".to_string());
+        let from_number =
+            std::env::var("TWILIO_PHONE_NUMBER").unwrap_or_else(|_| "+15555555555".to_string());
 
         let url = format!(
             "https://api.twilio.com/2010-04-01/Accounts/{}/Messages.json",
@@ -224,10 +226,15 @@ impl SmsService {
             .form(&params)
             .send()
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to send SMS via Twilio: {}", e).into_boxed_str()))?;
+            .map_err(|e| {
+                AppError::Internal(format!("Failed to send SMS via Twilio: {}", e).into_boxed_str())
+            })?;
 
         if !response.status().is_success() {
-            let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(AppError::Internal(
                 format!("Twilio API returned error: {}", error_body).into_boxed_str(),
             ));
@@ -264,10 +271,17 @@ impl SmsService {
             .json(&payload)
             .send()
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to send SMS via AWS SNS: {}", e).into_boxed_str()))?;
+            .map_err(|e| {
+                AppError::Internal(
+                    format!("Failed to send SMS via AWS SNS: {}", e).into_boxed_str(),
+                )
+            })?;
 
         if !response.status().is_success() {
-            let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(AppError::Internal(
                 format!("AWS SNS API returned error: {}", error_body).into_boxed_str(),
             ));
@@ -311,7 +325,11 @@ impl SmsService {
             .await?
             .query_one(sql_template, &[&template_name])
             .await
-            .map_err(|e| AppError::Internal(format!("Template '{}' not found: {}", template_name, e).into_boxed_str()))?;
+            .map_err(|e| {
+                AppError::Internal(
+                    format!("Template '{}' not found: {}", template_name, e).into_boxed_str(),
+                )
+            })?;
 
         let body_template: String = row.get("body_template");
 
@@ -324,7 +342,11 @@ impl SmsService {
 
     /// Simple template rendering function
     /// Replaces {{key}} placeholders with values from template_data
-    fn render_template(&self, template: &str, data: &serde_json::Value) -> Result<String, AppError> {
+    fn render_template(
+        &self,
+        template: &str,
+        data: &serde_json::Value,
+    ) -> Result<String, AppError> {
         let mut rendered = template.to_string();
 
         if let Some(obj) = data.as_object() {
@@ -404,7 +426,10 @@ impl SmsService {
     ///
     /// # Returns
     /// * `Vec<NotificationRecipient>` - List of recipients with their delivery status
-    pub async fn get_recipients(&self, notification_id: Uuid) -> Result<Vec<NotificationRecipient>, AppError> {
+    pub async fn get_recipients(
+        &self,
+        notification_id: Uuid,
+    ) -> Result<Vec<NotificationRecipient>, AppError> {
         let sql = r#"SELECT id, notification_id, recipient, recipient_type, status, sent_at, error_message
                      FROM notifikasi.notification_recipients
                      WHERE notification_id = $1
@@ -416,9 +441,7 @@ impl SmsService {
             .query(sql, &[&notification_id])
             .await?;
 
-        let recipients = rows.into_iter()
-            .map(|row| row.into())
-            .collect();
+        let recipients = rows.into_iter().map(|row| row.into()).collect();
 
         Ok(recipients)
     }
@@ -433,22 +456,18 @@ impl SmsService {
     ///
     /// # Use Case
     /// This can be used by a background job to retry failed SMS sends
-    pub async fn get_failed_notifications(&self, limit: i64) -> Result<Vec<Notification>, AppError> {
+    pub async fn get_failed_notifications(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<Notification>, AppError> {
         let sql = r#"SELECT id, channel, status, subject, body, created_at, sent_at, error_message
                      FROM notifikasi.notifications
                      WHERE status = 'failed' AND channel = 'sms'
                      ORDER BY created_at DESC
                      LIMIT $1"#;
-        let rows = self
-            .pool
-            .get()
-            .await?
-            .query(sql, &[&limit])
-            .await?;
+        let rows = self.pool.get().await?.query(sql, &[&limit]).await?;
 
-        let notifications = rows.into_iter()
-            .map(|row| row.into())
-            .collect();
+        let notifications = rows.into_iter().map(|row| row.into()).collect();
 
         Ok(notifications)
     }
@@ -492,7 +511,10 @@ mod tests {
         });
 
         let rendered = service.render_template(template, &data).unwrap();
-        assert_eq!(rendered, "Hello John Doe, your permit IZN/2026/001 expires on 2026-12-31!");
+        assert_eq!(
+            rendered,
+            "Hello John Doe, your permit IZN/2026/001 expires on 2026-12-31!"
+        );
     }
 
     #[test]

@@ -111,9 +111,7 @@ pub fn json_to_sql_param<'a>(value: &'a Value, column_name: &str) -> SqlParam<'a
         }
         Value::Array(_arr) => {
             // For columns ending in _json or _data, pass as JSONB
-            if column_name.ends_with("_json")
-                || column_name.ends_with("_data")
-            {
+            if column_name.ends_with("_json") || column_name.ends_with("_data") {
                 return SqlParam::JsonValue(value);
             }
             // Otherwise convert to JSON string for TEXT columns
@@ -121,9 +119,7 @@ pub fn json_to_sql_param<'a>(value: &'a Value, column_name: &str) -> SqlParam<'a
         }
         Value::Object(_) => {
             // For columns ending in _json or _data, pass as JSONB
-            if column_name.ends_with("_json")
-                || column_name.ends_with("_data")
-            {
+            if column_name.ends_with("_json") || column_name.ends_with("_data") {
                 return SqlParam::JsonValue(value);
             }
             // Otherwise convert to JSON string for TEXT columns

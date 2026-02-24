@@ -20,7 +20,9 @@ pub async fn generate_rekap_xlsx(
     pengajuan_id: Uuid,
     filter: &LaporanFilter,
 ) -> AppResult<Vec<u8>> {
-    let data = service.get_laporan_rekap_ukuran(pengajuan_id, filter.clone()).await?;
+    let data = service
+        .get_laporan_rekap_ukuran(pengajuan_id, filter.clone())
+        .await?;
 
     let mut workbook = Workbook::new();
 
@@ -100,12 +102,7 @@ pub async fn generate_rekap_xlsx(
             .map_err(|e| bad_request(&e.to_string()))?;
         for (i, item) in items.iter().enumerate() {
             worksheet
-                .write_string_with_format(
-                    current_row,
-                    (i + 1) as u16,
-                    &item.ukuran,
-                    &header_format,
-                )
+                .write_string_with_format(current_row, (i + 1) as u16, &item.ukuran, &header_format)
                 .map_err(|e| bad_request(&e.to_string()))?;
         }
         worksheet
@@ -264,8 +261,17 @@ pub async fn generate_daftar_xlsx(
 
     // Headers — matching cetakDaftarTemplateV columns
     let headers = [
-        "No", "NIP", "Nama", "Jabatan", "Golongan", "Status", "Gender",
-        "Busana Muslimah", "Baju", "Celana", "Sepatu",
+        "No",
+        "NIP",
+        "Nama",
+        "Jabatan",
+        "Golongan",
+        "Status",
+        "Gender",
+        "Busana Muslimah",
+        "Baju",
+        "Celana",
+        "Sepatu",
     ];
     let widths = [5.0, 22.0, 25.0, 20.0, 10.0, 8.0, 8.0, 15.0, 8.0, 8.0, 8.0];
 
@@ -299,12 +305,7 @@ pub async fn generate_daftar_xlsx(
             .write_string_with_format(row, 2, &item.nama, &cell_format)
             .map_err(|e| bad_request(&e.to_string()))?;
         worksheet
-            .write_string_with_format(
-                row,
-                3,
-                item.jabatan.as_deref().unwrap_or("-"),
-                &cell_format,
-            )
+            .write_string_with_format(row, 3, item.jabatan.as_deref().unwrap_or("-"), &cell_format)
             .map_err(|e| bad_request(&e.to_string()))?;
         worksheet
             .write_string_with_format(

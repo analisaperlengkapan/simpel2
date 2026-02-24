@@ -248,6 +248,33 @@ pub fn Navbar(
                                 "Pengaturan"
                             </a>
 
+                            // Account management links
+                            <div class="border-t border-white/20 my-2"></div>
+                            <p class="px-4 py-1 text-xs text-white/60 uppercase font-semibold">"Akun"</p>
+                            <a href="/portal/profile" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200"
+                                on:click=move |_| set_mobile_open.set(false)>
+                                "👤 Profil"
+                            </a>
+                            <a href="/portal/passkeys" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200"
+                                on:click=move |_| set_mobile_open.set(false)>
+                                "🔐 Passkey"
+                            </a>
+                            <a href="/portal/password" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200"
+                                on:click=move |_| set_mobile_open.set(false)>
+                                "🔒 Ubah Kata Sandi"
+                            </a>
+                            <a href="/portal/sessions" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200"
+                                on:click=move |_| set_mobile_open.set(false)>
+                                "📱 Sesi Aktif"
+                            </a>
+
+                            // Admin link (visible to all - admin check done server-side)
+                            <div class="border-t border-white/20 my-2"></div>
+                            <a href="/portal/admin" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200"
+                                on:click=move |_| set_mobile_open.set(false)>
+                                "🛡️ Admin Panel"
+                            </a>
+
                             // Divider
                             <div class="border-t border-white/20 my-2"></div>
 

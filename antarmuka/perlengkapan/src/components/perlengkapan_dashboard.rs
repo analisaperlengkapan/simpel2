@@ -6,7 +6,7 @@ use lib_ui::core::types::ChartDataPoint;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::utils::{use_dashboard_websocket, ConnectionState, DashboardUpdate};
+use crate::utils::{ConnectionState, DashboardUpdate, use_dashboard_websocket};
 
 /// Dashboard query parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,9 +93,7 @@ pub fn PerlengkapanDashboard() -> impl IntoView {
     let metrics = LocalResource::new(move || {
         let tahun = tahun_anggaran.get();
         let _ = refresh_trigger.get(); // track refresh trigger
-        async move {
-            fetch_dashboard_metrics(tahun).await
-        }
+        async move { fetch_dashboard_metrics(tahun).await }
     });
 
     // WebSocket connection for real-time updates
@@ -106,13 +104,15 @@ pub fn PerlengkapanDashboard() -> impl IntoView {
             .unwrap_or_else(|| "localhost:8093".to_string())
     );
 
-    let (ws_state, reconnect_fn) = use_dashboard_websocket(
-        ws_url,
-        move |update: DashboardUpdate| {
+    let (ws_state, reconnect_fn) =
+        use_dashboard_websocket(ws_url, move |update: DashboardUpdate| {
             leptos::logging::log!("Received dashboard update: {:?}", update);
 
             match update {
-                DashboardUpdate::MetricsUpdate { tahun_anggaran: update_tahun, .. } => {
+                DashboardUpdate::MetricsUpdate {
+                    tahun_anggaran: update_tahun,
+                    ..
+                } => {
                     // If update is for current year, trigger refresh
                     if update_tahun == tahun_anggaran.get() {
                         leptos::logging::log!("Refreshing dashboard for year {}", update_tahun);
@@ -132,15 +132,19 @@ pub fn PerlengkapanDashboard() -> impl IntoView {
                 DashboardUpdate::Connected { client_id, .. } => {
                     leptos::logging::log!("WebSocket connected with client_id: {}", client_id);
                 }
-                DashboardUpdate::LagWarning { skipped_messages, .. } => {
-                    leptos::logging::warn!("WebSocket lagging, skipped {} messages", skipped_messages);
+                DashboardUpdate::LagWarning {
+                    skipped_messages, ..
+                } => {
+                    leptos::logging::warn!(
+                        "WebSocket lagging, skipped {} messages",
+                        skipped_messages
+                    );
                 }
                 _ => {
                     // Ignore other message types (Ping, Pong, Subscribed)
                 }
             }
-        },
-    );
+        });
 
     // Store reconnect function in a local StoredValue so it can be used in reactive closures (StoredValue is Copy)
     let reconnect = StoredValue::new_local(reconnect_fn);
@@ -372,7 +376,9 @@ fn convert_gap_analysis(data: &[GapAnalysisResult]) -> Vec<lib_ui::core::types::
 }
 
 // API function to fetch dashboard metrics
-async fn fetch_dashboard_metrics(tahun_anggaran: i32) -> Result<PerlengkapanDashboardMetrics, String> {
+async fn fetch_dashboard_metrics(
+    tahun_anggaran: i32,
+) -> Result<PerlengkapanDashboardMetrics, String> {
     let url = format!(
         "/api/pembinaan/perlengkapan/dashboard/perlengkapan?tahun_anggaran={}",
         tahun_anggaran
