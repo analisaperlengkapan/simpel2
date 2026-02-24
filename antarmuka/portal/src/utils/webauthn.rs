@@ -109,8 +109,8 @@ pub async fn create_credential(
         r#"
         (async function() {{
             const options = {};
-            
-            // Decode base64url to ArrayBuffer  
+
+            // Decode base64url to ArrayBuffer
             function b64urlToBuffer(b64url) {{
                 const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
                 const padding = '='.repeat((4 - b64.length % 4) % 4);
@@ -119,7 +119,7 @@ pub async fn create_credential(
                 for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
                 return buf.buffer;
             }}
-            
+
             // Encode ArrayBuffer to base64url
             function bufferToB64url(buffer) {{
                 const bytes = new Uint8Array(buffer);
@@ -127,10 +127,10 @@ pub async fn create_credential(
                 for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
                 return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
             }}
-            
+
             // Build createCredentialOptions
             const publicKey = options.publicKey || options;
-            
+
             const createOptions = {{
                 publicKey: {{
                     rp: publicKey.rp,
@@ -158,9 +158,9 @@ pub async fn create_credential(
                     }}))
                 }}
             }};
-            
+
             const credential = await navigator.credentials.create(createOptions);
-            
+
             return JSON.stringify({{
                 id: credential.id,
                 rawId: bufferToB64url(credential.rawId),
@@ -192,7 +192,7 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
         r#"
         (async function() {{
             const options = {};
-            
+
             function b64urlToBuffer(b64url) {{
                 const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
                 const padding = '='.repeat((4 - b64.length % 4) % 4);
@@ -201,16 +201,16 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
                 for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
                 return buf.buffer;
             }}
-            
+
             function bufferToB64url(buffer) {{
                 const bytes = new Uint8Array(buffer);
                 let binary = '';
                 for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
                 return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
             }}
-            
+
             const publicKey = options.publicKey || options;
-            
+
             const getOptions = {{
                 publicKey: {{
                     challenge: b64urlToBuffer(publicKey.challenge),
@@ -224,9 +224,9 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
                     }}))
                 }}
             }};
-            
+
             const assertion = await navigator.credentials.get(getOptions);
-            
+
             const result = {{
                 id: assertion.id,
                 rawId: bufferToB64url(assertion.rawId),
@@ -237,11 +237,11 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
                     signature: bufferToB64url(assertion.response.signature)
                 }}
             }};
-            
+
             if (assertion.response.userHandle) {{
                 result.response.userHandle = bufferToB64url(assertion.response.userHandle);
             }}
-            
+
             return JSON.stringify(result);
         }})()
         "#,
