@@ -1,4 +1,4 @@
-//! Database utilities for SIMPelv2
+//! Database utilities for SIMPEL
 //!
 //! Provides connection pool factory, prepared statement caching,
 //! and transaction helper functions.

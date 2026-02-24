@@ -112,7 +112,7 @@ mod tests {
         let limiter = Arc::new(AdaptiveRateLimiter::new(config));
 
         // Test failed authentication
-        let result: Result<(), AuthencError> = Err(AuthencError::AuthenticationFailed);
+        let result: Result<(), AuthencError> = Err(AuthencError::AuthenticationFailed("test".to_string()));
         let _ = result.record_auth_result(&limiter, "192.168.1.1");
 
         // Test successful authentication

@@ -634,4 +634,4 @@ curl -X POST http://localhost:8088/realms/simpel/protocol/openid-connect/token \
 
 **Document Version**: 1.0.0
 **Last Updated**: 2025-10-07
-**Authors**: SIMPelv2 Integration Team
+**Authors**: SIMPEL Integration Team

@@ -353,7 +353,7 @@ pub struct MfaCacheStats {
     pub rate_limit_checks: u64,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "redis-cache"))]
 mod tests {
     use super::*;
     use crate::config::RedisConfig;

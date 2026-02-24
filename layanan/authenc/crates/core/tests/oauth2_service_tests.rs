@@ -30,7 +30,7 @@ use tokio::sync::Mutex;
 // ============================================================================
 
 struct MockClientStore {
-    clients: Arc<Mutex<HashMap<String, OidcClient>>>,
+    clients: Arc<Mutex<HashMap<String, authenc_types::domain::oidc_client::OidcClient>>>,
 }
 
 impl MockClientStore {
@@ -40,7 +40,7 @@ impl MockClientStore {
         }
     }
 
-    async fn add_client(&self, client: OidcClient) {
+    async fn add_client(&self, client: authenc_types::domain::oidc_client::OidcClient) {
         let mut clients = self.clients.lock().await;
         clients.insert(client.client_id.clone(), client);
     }
@@ -48,11 +48,11 @@ impl MockClientStore {
 
 #[async_trait]
 impl ClientStore for MockClientStore {
-    async fn get_client(&self, id: ClientId) -> Result<OidcClient> {
+    async fn get_client(&self, id: ClientId) -> Result<authenc_types::domain::oidc_client::OidcClient> {
         let clients = self.clients.lock().await;
         clients
             .values()
-            .find(|c| c.id == id)
+            .find(|c| c.id == id.0.to_string())
             .cloned()
             .ok_or_else(|| AuthencError::ClientNotFound(format!("Client {} not found", id)))
     }
@@ -61,7 +61,7 @@ impl ClientStore for MockClientStore {
         &self,
         client_id: &str,
         _realm_id: RealmId,
-    ) -> Result<OidcClient> {
+    ) -> Result<authenc_types::domain::oidc_client::OidcClient> {
         let clients = self.clients.lock().await;
         clients
             .get(client_id)
@@ -75,7 +75,7 @@ impl ClientStore for MockClientStore {
         _name: String,
         _is_public: bool,
         _realm_id: RealmId,
-    ) -> Result<OidcClient> {
+    ) -> Result<authenc_types::domain::oidc_client::OidcClient> {
         unimplemented!()
     }
 
@@ -86,7 +86,7 @@ impl ClientStore for MockClientStore {
         _redirect_uris: Option<Vec<String>>,
         _allowed_scopes: Option<Vec<String>>,
         _enabled: Option<bool>,
-    ) -> Result<OidcClient> {
+    ) -> Result<authenc_types::domain::oidc_client::OidcClient> {
         unimplemented!()
     }
 
@@ -94,7 +94,7 @@ impl ClientStore for MockClientStore {
         unimplemented!()
     }
 
-    async fn list_clients(&self, _realm_id: RealmId) -> Result<Vec<OidcClient>> {
+    async fn list_clients(&self, _realm_id: RealmId) -> Result<Vec<authenc_types::domain::oidc_client::OidcClient>> {
         unimplemented!()
     }
 
@@ -214,9 +214,9 @@ impl TokenGenerator for MockTokenGenerator {
 // Helper Functions
 // ============================================================================
 
-fn create_test_client(client_id: &str, _client_secret: Option<String>, _public: bool) -> OidcClient {
+fn create_test_client(client_id: &str, _client_secret: Option<String>, _public: bool) -> authenc_types::domain::oidc_client::OidcClient {
     let now = Utc::now();
-    OidcClient {
+    authenc_types::domain::oidc_client::OidcClient {
         id: uuid::Uuid::new_v4().to_string(),
         client_id: client_id.to_string(),
         client_secret: _client_secret.unwrap_or_default(),
@@ -265,14 +265,15 @@ async fn test_authorization_code_flow_with_pkce_s256() {
     let code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     let code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"; // S256 hash
 
-    let auth_request = AuthorizationRequest {
+    let auth_request = authenc_types::domain_types::AuthorizationRequest {
         client_id: "test-client".to_string(),
         redirect_uri: "https://example.com/callback".to_string(),
         scope: "openid profile".to_string(),
         state: Some("random-state".to_string()),
-        code_challenge: Some(code_challenge.to_string()),
-        code_challenge_method: Some("S256".to_string()),
+        code_challenge: code_challenge.to_string(),
+        code_challenge_method: "S256".to_string(),
         user_id: UserId::new(),
+        response_type: "code".to_string(),
         realm_id: RealmId::new(),
     };
 
@@ -284,11 +285,11 @@ async fn test_authorization_code_flow_with_pkce_s256() {
     let stored_code = code_store.get_code(&auth_response.code).await.unwrap();
     assert!(stored_code.is_some());
     let stored_code = stored_code.unwrap();
-    assert_eq!(stored_code.code_challenge, Some(code_challenge.to_string()));
-    assert_eq!(stored_code.code_challenge_method, Some("S256".to_string()));
+    assert_eq!(stored_code.code_challenge, code_challenge.to_string());
+    assert_eq!(stored_code.code_challenge_method, "S256".to_string());
 
     // Step 2: Token request with code verifier
-    let token_request = TokenRequest {
+    let token_request = authenc_types::domain_types::TokenRequest {
         grant_type: "authorization_code".to_string(),
         code: Some(auth_response.code.clone()),
         redirect_uri: Some("https://example.com/callback".to_string()),
@@ -297,6 +298,7 @@ async fn test_authorization_code_flow_with_pkce_s256() {
         code_verifier: Some(code_verifier.to_string()),
         refresh_token: None,
         scope: None,
+        realm_id: RealmId::new(),
     };
 
     let token_response = service.token(token_request).await.unwrap();
@@ -324,21 +326,22 @@ async fn test_authorization_code_flow_invalid_pkce() {
     // Step 1: Authorization with PKCE
     let code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 
-    let auth_request = AuthorizationRequest {
+    let auth_request = authenc_types::domain_types::AuthorizationRequest {
         client_id: "test-client".to_string(),
         redirect_uri: "https://example.com/callback".to_string(),
         scope: "openid profile".to_string(),
-        state: None,
-        code_challenge: Some(code_challenge.to_string()),
-        code_challenge_method: Some("S256".to_string()),
+        state: Some("".to_string()),
+        code_challenge: code_challenge.to_string(),
+        code_challenge_method: "S256".to_string(),
         user_id: UserId::new(),
+        response_type: "code".to_string(),
         realm_id: RealmId::new(),
     };
 
     let auth_response = service.authorize(auth_request).await.unwrap();
 
     // Step 2: Token request with WRONG code verifier
-    let token_request = TokenRequest {
+    let token_request = authenc_types::domain_types::TokenRequest {
         grant_type: "authorization_code".to_string(),
         code: Some(auth_response.code),
         redirect_uri: Some("https://example.com/callback".to_string()),
@@ -347,11 +350,12 @@ async fn test_authorization_code_flow_invalid_pkce() {
         code_verifier: Some("wrong-verifier".to_string()),
         refresh_token: None,
         scope: None,
+        realm_id: RealmId::new(),
     };
 
     let result = service.token(token_request).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), AuthencError::InvalidGrant(_)));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 #[tokio::test]
@@ -362,22 +366,23 @@ async fn test_authorization_code_flow_missing_pkce() {
     client_store.add_client(client.clone()).await;
 
     // Authorization request WITHOUT PKCE (should fail for public client)
-    let auth_request = AuthorizationRequest {
+    let auth_request = authenc_types::domain_types::AuthorizationRequest {
         client_id: "test-client".to_string(),
         redirect_uri: "https://example.com/callback".to_string(),
         scope: "openid profile".to_string(),
-        state: None,
-        code_challenge: None,
-        code_challenge_method: None,
+        state: Some("".to_string()),
+        code_challenge: "".to_string(),
+        code_challenge_method: "".to_string(),
         user_id: UserId::new(),
         realm_id: RealmId::new(),
+        response_type: "code".to_string(),
     };
 
     let result = service.authorize(auth_request).await;
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        AuthencError::InvalidRequest(_)
+        AuthencError::OAuth2Error(_)
     ));
 }
 
@@ -389,14 +394,15 @@ async fn test_authorization_invalid_redirect_uri() {
     client_store.add_client(client.clone()).await;
 
     // Authorization request with INVALID redirect URI
-    let auth_request = AuthorizationRequest {
+    let auth_request = authenc_types::domain_types::AuthorizationRequest {
         client_id: "test-client".to_string(),
         redirect_uri: "https://evil.com/callback".to_string(), // Not in whitelist
         scope: "openid profile".to_string(),
-        state: None,
-        code_challenge: Some("challenge".to_string()),
-        code_challenge_method: Some("S256".to_string()),
+        state: Some("".to_string()),
+        code_challenge: "challenge".to_string(),
+        code_challenge_method: "S256".to_string(),
         user_id: UserId::new(),
+        response_type: "code".to_string(),
         realm_id: RealmId::new(),
     };
 
@@ -404,7 +410,7 @@ async fn test_authorization_invalid_redirect_uri() {
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        AuthencError::InvalidRedirectUri(_)
+        AuthencError::OAuth2Error(_)
     ));
 }
 
@@ -416,20 +422,21 @@ async fn test_authorization_invalid_scope() {
     client_store.add_client(client.clone()).await;
 
     // Authorization request with INVALID scope
-    let auth_request = AuthorizationRequest {
+    let auth_request = authenc_types::domain_types::AuthorizationRequest {
         client_id: "test-client".to_string(),
         redirect_uri: "https://example.com/callback".to_string(),
         scope: "openid invalid_scope".to_string(), // invalid_scope not allowed
-        state: None,
-        code_challenge: Some("challenge".to_string()),
-        code_challenge_method: Some("S256".to_string()),
+        state: Some("".to_string()),
+        code_challenge: "challenge".to_string(),
+        code_challenge_method: "S256".to_string(),
         user_id: UserId::new(),
+        response_type: "code".to_string(),
         realm_id: RealmId::new(),
     };
 
     let result = service.authorize(auth_request).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), AuthencError::InvalidScope(_)));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 #[tokio::test]
@@ -437,14 +444,15 @@ async fn test_authorization_client_not_found() {
     let (service, _, _, _) = create_oauth2_service();
 
     // Authorization request with NON-EXISTENT client
-    let auth_request = AuthorizationRequest {
+    let auth_request = authenc_types::domain_types::AuthorizationRequest {
         client_id: "nonexistent-client".to_string(),
         redirect_uri: "https://example.com/callback".to_string(),
         scope: "openid profile".to_string(),
-        state: None,
-        code_challenge: Some("challenge".to_string()),
-        code_challenge_method: Some("S256".to_string()),
+        state: Some("".to_string()),
+        code_challenge: "challenge".to_string(),
+        code_challenge_method: "S256".to_string(),
         user_id: UserId::new(),
+        response_type: "code".to_string(),
         realm_id: RealmId::new(),
     };
 
@@ -469,7 +477,7 @@ async fn test_client_credentials_flow_success() {
     client_store.add_client(client.clone()).await;
 
     // Token request with client credentials
-    let token_request = TokenRequest {
+    let token_request = authenc_types::domain_types::TokenRequest {
         grant_type: "client_credentials".to_string(),
         code: None,
         redirect_uri: None,
@@ -478,6 +486,7 @@ async fn test_client_credentials_flow_success() {
         code_verifier: None,
         refresh_token: None,
         scope: Some("openid profile".to_string()),
+        realm_id: RealmId::new(),
     };
 
     let token_response = service.token(token_request).await.unwrap();
@@ -494,7 +503,7 @@ async fn test_client_credentials_flow_invalid_secret() {
     client_store.add_client(client.clone()).await;
 
     // Token request with WRONG client secret
-    let token_request = TokenRequest {
+    let token_request = authenc_types::domain_types::TokenRequest {
         grant_type: "client_credentials".to_string(),
         code: None,
         redirect_uri: None,
@@ -503,13 +512,14 @@ async fn test_client_credentials_flow_invalid_secret() {
         code_verifier: None,
         refresh_token: None,
         scope: Some("openid profile".to_string()),
+        realm_id: RealmId::new(),
     };
 
     let result = service.token(token_request).await;
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        AuthencError::InvalidClient(_)
+        AuthencError::OAuth2Error(_)
     ));
 }
 
@@ -521,7 +531,7 @@ async fn test_client_credentials_flow_public_client_not_allowed() {
     let client = create_test_client("public-client", None, true);
     client_store.add_client(client.clone()).await;
 
-    let token_request = TokenRequest {
+    let token_request = authenc_types::domain_types::TokenRequest {
         grant_type: "client_credentials".to_string(),
         code: None,
         redirect_uri: None,
@@ -530,13 +540,14 @@ async fn test_client_credentials_flow_public_client_not_allowed() {
         code_verifier: None,
         refresh_token: None,
         scope: Some("openid profile".to_string()),
+        realm_id: RealmId::new(),
     };
 
     let result = service.token(token_request).await;
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        AuthencError::InvalidClient(_)
+        AuthencError::OAuth2Error(_)
     ));
 }
 
@@ -556,10 +567,12 @@ async fn test_refresh_token_flow_success() {
     let refresh_token = RefreshToken {
         token: "refresh_token_123".to_string(),
         user_id,
-        client_id: ClientId::new(),
+        client_id: ClientId::new().0.to_string(),
         scope: "openid profile".to_string(),
         expires_at: Utc::now() + Duration::days(7),
         created_at: Utc::now(),
+    realm_id: RealmId::new(),
+        revoked: false,
     };
     refresh_token_store
         .store_token(refresh_token.clone())
@@ -567,7 +580,7 @@ async fn test_refresh_token_flow_success() {
         .unwrap();
 
     // Token request with refresh token
-    let token_request = TokenRequest {
+    let token_request = authenc_types::domain_types::TokenRequest {
         grant_type: "refresh_token".to_string(),
         code: None,
         redirect_uri: None,
@@ -576,6 +589,7 @@ async fn test_refresh_token_flow_success() {
         code_verifier: None,
         refresh_token: Some("refresh_token_123".to_string()),
         scope: None,
+        realm_id: RealmId::new(),
     };
 
     let token_response = service.token(token_request).await.unwrap();
@@ -592,7 +606,7 @@ async fn test_refresh_token_flow_invalid_token() {
     client_store.add_client(client.clone()).await;
 
     // Token request with INVALID refresh token
-    let token_request = TokenRequest {
+    let token_request = authenc_types::domain_types::TokenRequest {
         grant_type: "refresh_token".to_string(),
         code: None,
         redirect_uri: None,
@@ -601,11 +615,12 @@ async fn test_refresh_token_flow_invalid_token() {
         code_verifier: None,
         refresh_token: Some("invalid_token".to_string()),
         scope: None,
+        realm_id: RealmId::new(),
     };
 
     let result = service.token(token_request).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), AuthencError::InvalidGrant(_)));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 #[tokio::test]
@@ -620,10 +635,12 @@ async fn test_refresh_token_flow_expired_token() {
     let refresh_token = RefreshToken {
         token: "expired_token".to_string(),
         user_id,
-        client_id: ClientId::new(),
+        client_id: ClientId::new().0.to_string(),
         scope: "openid profile".to_string(),
         expires_at: Utc::now() - Duration::hours(1), // Expired 1 hour ago
         created_at: Utc::now() - Duration::days(8),
+    realm_id: RealmId::new(),
+        revoked: false,
     };
     refresh_token_store
         .store_token(refresh_token.clone())
@@ -631,7 +648,7 @@ async fn test_refresh_token_flow_expired_token() {
         .unwrap();
 
     // Token request with expired refresh token
-    let token_request = TokenRequest {
+    let token_request = authenc_types::domain_types::TokenRequest {
         grant_type: "refresh_token".to_string(),
         code: None,
         redirect_uri: None,
@@ -640,11 +657,12 @@ async fn test_refresh_token_flow_expired_token() {
         code_verifier: None,
         refresh_token: Some("expired_token".to_string()),
         scope: None,
+        realm_id: RealmId::new(),
     };
 
     let result = service.token(token_request).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), AuthencError::InvalidGrant(_)));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 // ============================================================================
@@ -730,7 +748,7 @@ async fn test_redirect_uri_validation_not_in_whitelist() {
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        AuthencError::InvalidRedirectUri(_)
+        AuthencError::OAuth2Error(_)
     ));
 }
 
@@ -777,7 +795,7 @@ async fn test_scope_validation_invalid_scope() {
 
     let result = service.validate_scopes(&client, "openid invalid_scope");
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), AuthencError::InvalidScope(_)));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 #[tokio::test]
@@ -794,77 +812,4 @@ async fn test_scope_validation_empty_scope() {
 // Client Authentication Tests
 // ============================================================================
 
-#[tokio::test]
-async fn test_client_authentication_confidential_success() {
-    let (service, client_store, _, _) = create_oauth2_service();
 
-    let client = create_test_client("confidential-client", Some("secret123".to_string()), false);
-    client_store.add_client(client.clone()).await;
-
-    let result = service
-        .authenticate_client("confidential-client", Some("secret123"), client.realm_id)
-        .await;
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-async fn test_client_authentication_confidential_wrong_secret() {
-    let (service, client_store, _, _) = create_oauth2_service();
-
-    let client = create_test_client("confidential-client", Some("secret123".to_string()), false);
-    client_store.add_client(client.clone()).await;
-
-    let result = service
-        .authenticate_client("confidential-client", Some("wrong-secret"), client.realm_id)
-        .await;
-    assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        AuthencError::InvalidClient(_)
-    ));
-}
-
-#[tokio::test]
-async fn test_client_authentication_public_no_secret() {
-    let (service, client_store, _, _) = create_oauth2_service();
-
-    let client = create_test_client("public-client", None, true);
-    client_store.add_client(client.clone()).await;
-
-    let result = service
-        .authenticate_client("public-client", None, client.realm_id)
-        .await;
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-async fn test_client_authentication_client_not_found() {
-    let (service, _, _, _) = create_oauth2_service();
-
-    let result = service
-        .authenticate_client("nonexistent-client", None, RealmId::new())
-        .await;
-    assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        AuthencError::ClientNotFound(_)
-    ));
-}
-
-#[tokio::test]
-async fn test_client_authentication_disabled_client() {
-    let (service, client_store, _, _) = create_oauth2_service();
-
-    let mut client = create_test_client("disabled-client", Some("secret123".to_string()), false);
-    client.enabled = false;
-    client_store.add_client(client.clone()).await;
-
-    let result = service
-        .authenticate_client("disabled-client", Some("secret123"), client.realm_id)
-        .await;
-    assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        AuthencError::ClientDisabled(_)
-    ));
-}

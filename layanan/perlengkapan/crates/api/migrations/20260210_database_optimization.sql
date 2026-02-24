@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Database Optimization and Query Analysis
 -- Description: Additional optimizations, query analysis tools, and performance tuning
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-10
 -- Requirements: NFR-P001, NFR-P002
 -- ============================================================================

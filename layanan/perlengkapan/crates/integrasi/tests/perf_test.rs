@@ -1,6 +1,6 @@
-use layanan_integrasi::client::MonsaktiClient;
-use layanan_integrasi::config::Config;
-use layanan_integrasi::siman::{SimanAssetCategory, fetch_all_aset_paginated};
+use layanan_perlengkapan_integrasi::client::MonsaktiClient;
+use layanan_perlengkapan_integrasi::config::Config;
+use layanan_perlengkapan_integrasi::siman::{SimanAssetCategory, fetch_all_aset_paginated};
 use std::collections::HashMap;
 use std::time::Instant;
 use wiremock::matchers::{method, path, path_regex};
@@ -61,9 +61,10 @@ async fn test_siman_pagination_performance() {
         output_dir: "./output".to_string(),
         db_config: None,
         siman_concurrency_limit: 20,
+        ..Default::default()
     };
 
-    let mut client = MonsaktiClient::new(config)
+    let mut client: MonsaktiClient = MonsaktiClient::new(config)
         .await
         .expect("Failed to create client");
 
@@ -73,7 +74,7 @@ async fn test_siman_pagination_performance() {
     // Each request takes 50ms.
     // Serial: 5 * 50ms = 250ms + overhead.
     // Concurrent: ~50ms + overhead.
-    let result = fetch_all_aset_paginated(&mut client, SimanAssetCategory::AlatBesar, 1000).await;
+    let result: Result<Vec<serde_json::Value>, _> = fetch_all_aset_paginated(&mut client, SimanAssetCategory::AlatBesar, 1000).await;
     let duration = start.elapsed();
 
     assert!(result.is_ok(), "Fetching failed: {:?}", result.err());

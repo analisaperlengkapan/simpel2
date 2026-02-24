@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use crate::error::AppError;
 use crate::template_models::DocumentTemplate;
 use chrono::Utc;

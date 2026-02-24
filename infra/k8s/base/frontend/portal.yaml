@@ -45,7 +45,7 @@ spec:
                   name: simpelv2-config
                   key: RUST_LOG
             - name: APP_NAME
-              value: "SIMPelv2 Portal"
+              value: "SIMPEL Portal"
           volumeMounts:
             - name: nginx-config
               mountPath: /etc/nginx/nginx.conf

@@ -1,4 +1,4 @@
-# MFA Architecture Documentation - SIMPelv2
+# MFA Architecture Documentation - SIMPEL
 
 ## Table of Contents
 1. [System Overview](#system-overview)
@@ -1001,5 +1001,5 @@ data:
 
 **Architecture Version**: 1.0
 **Last Updated**: October 15, 2024
-**Maintained By**: SIMPelv2 Architecture Team
+**Maintained By**: SIMPEL Architecture Team
 **Contact**: architecture@kejaksaan.go.id

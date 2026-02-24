@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer().with_target(false))
         .init();
 
-    info!("🚀 SIMPelv2 - Integration Scheduler Starting...");
+    info!("🚀 SIMPEL - Integration Scheduler Starting...");
 
     // Load configuration
     let config = Config::from_env()?;

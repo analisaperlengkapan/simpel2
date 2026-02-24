@@ -4,7 +4,7 @@
 
 ## 🌍 Service Context
 
-**Authenc** adalah Enterprise-grade Identity Provider (IdP) dan Authorization Server untuk SIMPelv2, dikembangkan oleh Cipherce. Menyediakan:
+**Authenc** adalah Enterprise-grade Identity Provider (IdP) dan Authorization Server untuk SIMPEL, dikembangkan oleh Cipherce. Menyediakan:
 
 ### Core Authentication
 - **Multi-Protocol Auth**: OIDC, SAML, JWT, OAuth2
@@ -857,5 +857,5 @@ echo $TOTP_SECRET | base32 -d | xxd
 ---
 
 **Last Updated:** February 2, 2026
-**Maintainer:** SIMPelv2 Team
+**Maintainer:** SIMPEL Team
 **Related:** `/.github/copilot-instructions.md`, `/AGENTS.md`

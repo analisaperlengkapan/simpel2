@@ -11,7 +11,7 @@
 //! Run with: cargo run --example session_store_example
 
 use authenc_storage::{Database, PostgresSessionStore};
-use authenc_types::{UserId, traits::SessionStore};
+use authenc_types::{SessionId, UserId, traits::SessionStore};
 use std::sync::Arc;
 
 #[tokio::main]
@@ -46,11 +46,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   - User ID: {}", session.user_id);
     println!("   - Created at: {}", session.created_at);
     println!("   - Expires at: {}", session.expires_at);
-    println!("   - Last accessed: {}\n", session.last_accessed_at);
+    println!("   - Last accessed: {}\n", session.last_accessed);
 
     // 2. Retrieve the session
     println!("2. Retrieving session by ID...");
-    let retrieved_session = session_store.get_session(session.id).await?;
+    let retrieved_session = session_store.get_session(SessionId(session.id)).await?;
     match retrieved_session {
         Some(s) => {
             println!("✓ Session retrieved:");
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Update last accessed time
     println!("3. Updating session last accessed time...");
-    session_store.update_last_accessed(session.id).await?;
+    session_store.update_last_accessed(SessionId(session.id)).await?;
     println!("✓ Session last accessed time updated\n");
 
     // 4. List all active sessions for the user
@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "   {}. Session ID: {} (last accessed: {})",
             i + 1,
             s.id,
-            s.last_accessed_at
+            s.last_accessed
         );
     }
     println!();
@@ -92,12 +92,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 7. Invalidate a specific session
     println!("7. Invalidating first session...");
-    session_store.invalidate_session(session.id).await?;
+    session_store.invalidate_session(SessionId(session.id)).await?;
     println!("✓ Session invalidated\n");
 
     // 8. Verify session is gone
     println!("8. Verifying session is invalidated...");
-    let retrieved_session = session_store.get_session(session.id).await?;
+    let retrieved_session = session_store.get_session(SessionId(session.id)).await?;
     match retrieved_session {
         Some(_) => println!("✗ Session still exists (unexpected)"),
         None => println!("✓ Session successfully invalidated"),
@@ -139,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Cleanup
     custom_session_store
-        .invalidate_session(custom_session.id)
+        .invalidate_session(SessionId(custom_session.id))
         .await?;
 
     println!("=== Example completed successfully ===");

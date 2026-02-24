@@ -396,7 +396,7 @@ mod integration_tests {
         let uri = provider.generate_provisioning_uri(
             &secret,
             "test@kejaksaan.go.id",
-            "SIMPelv2 Kejaksaan RI",
+            "SIMPEL Kejaksaan RI",
             OtpAlgorithm::HmacSha1,
             6,
             30,

@@ -3,7 +3,7 @@
 **Project:** SIMPEL Completion - Total Refactor
 **Task:** 1.1 Audit existing schema and create standardization plan
 **Date:** 2026-02-09
-**Auditor:** SIMPelv2 Team
+**Auditor:** SIMPEL Team
 **Requirement:** NFR-M005
 
 ---

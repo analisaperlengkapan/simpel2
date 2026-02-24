@@ -640,5 +640,5 @@ MONSAKTI_SCHEDULE=0 25 * * * # ❌ Invalid (hour > 23)
 ---
 
 **Last Updated:** February 2, 2026
-**Maintainer:** SIMPelv2 Team
+**Maintainer:** SIMPEL Team
 **Documentation:** See `MIGRATION_OPTIMIZATION_REPORT.md`, `SCHEDULER.md`

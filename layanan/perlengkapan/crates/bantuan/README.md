@@ -1,6 +1,6 @@
-# 🆘 Layanan Bantuan - SIMPelv2
+# 🆘 Layanan Bantuan - SIMPEL
 
-**Layanan Bantuan** adalah microservice dalam SIMPelv2 untuk sistem bantuan, FAQ, ticket, chatbot AI, knowledge base, analytics, GDPR, webhook, export/import, RBAC granular, rate limit, captcha, dan audit log. Dibangun dengan Rust (Axum), PostgreSQL, Redis, dan siap integrasi AI.
+**Layanan Bantuan** adalah microservice dalam SIMPEL untuk sistem bantuan, FAQ, ticket, chatbot AI, knowledge base, analytics, GDPR, webhook, export/import, RBAC granular, rate limit, captcha, dan audit log. Dibangun dengan Rust (Axum), PostgreSQL, Redis, dan siap integrasi AI.
 
 ## 🚀 Fitur Utama
 - FAQ Management (CRUD, search, versioning)

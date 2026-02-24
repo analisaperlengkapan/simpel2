@@ -1,4 +1,4 @@
-//! 🚀 SIMPelv2 Shared Component Library
+//! 🚀 SIMPEL Shared Component Library
 //!
 //! Clean, focused, production-ready component library untuk aplikasi Kejaksaan RI.
 //!
@@ -74,7 +74,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Library info
 pub const INFO: &str = concat!(
-    "SIMPelv2 Shared Library v",
+    "SIMPEL Shared Library v",
     env!("CARGO_PKG_VERSION"),
     " - Production-ready components for Kejaksaan RI"
 );

@@ -1,6 +1,6 @@
 # GitHub Actions Workflows - Best Practices & Guidelines
 
-This document describes the CI/CD workflows for SIMPelv2, their purposes, and best practices for maintaining them.
+This document describes the CI/CD workflows for SIMPEL, their purposes, and best practices for maintaining them.
 
 ## 📋 Table of Contents
 
@@ -450,4 +450,4 @@ For issues with workflows:
 ---
 
 **Last Updated**: 2026-01-29
-**Maintained by**: SIMPelv2 Team
+**Maintained by**: SIMPEL Team

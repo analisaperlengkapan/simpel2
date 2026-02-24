@@ -2,8 +2,8 @@
 name = "layanan-perlengkapan-integrasi"
 version.workspace = true
 edition.workspace = true
-authors = ["SIMPelv2 Team"]
-description = "SIMPelv2 - Layanan Integrasi untuk External APIs (MonSAKTI, MySIMKARI, dll)"
+authors = ["SIMPEL Team"]
+description = "SIMPEL - Layanan Integrasi untuk External APIs (MonSAKTI, MySIMKARI, dll)"
 license = "MIT"
 repository = "https://github.com/kejaksaan/simpelv2"
 keywords = ["simpelv2", "integrasi", "api", "monsakti", "mysimkari"]

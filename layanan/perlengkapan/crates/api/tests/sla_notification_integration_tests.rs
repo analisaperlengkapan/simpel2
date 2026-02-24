@@ -130,7 +130,7 @@ async fn test_sla_breach_detection() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Check SLA for entity
-    let result = monitor.check_sla(entity_id).await;
+    let result: Result<Option<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> = monitor.check_sla(entity_id).await;
     assert!(result.is_ok());
 
     let breach = result.unwrap();
@@ -161,7 +161,7 @@ async fn test_sla_no_breach() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Check SLA for entity
-    let result = monitor.check_sla(entity_id).await;
+    let result: Result<Option<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> = monitor.check_sla(entity_id).await;
     assert!(result.is_ok());
 
     let breach = result.unwrap();
@@ -185,7 +185,7 @@ async fn test_sla_check_all() {
     let entity3 = create_test_kebutuhan(&pool, "REVIEWED", Utc::now() - Duration::days(2)).await;
 
     // Test: Check all SLAs
-    let result = monitor.check_all_sla().await;
+    let result: Result<Vec<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> = monitor.check_all_sla().await;
     assert!(result.is_ok());
 
     let breaches = result.unwrap();
@@ -234,7 +234,7 @@ async fn test_sla_escalation_with_notification() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Check SLA and escalate
-    let breach_result = monitor.check_sla(entity_id).await;
+    let breach_result: Result<Option<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> = monitor.check_sla(entity_id).await;
     assert!(breach_result.is_ok());
 
     let breach = breach_result.unwrap();
@@ -243,7 +243,7 @@ async fn test_sla_escalation_with_notification() {
     let breach_info = breach.unwrap();
 
     // Test: Escalate SLA breach
-    let escalate_result = monitor.escalate_sla_breach(&breach_info).await;
+    let escalate_result: Result<(), _> = monitor.escalate_sla_breach(&breach_info).await;
     assert!(escalate_result.is_ok(), "Escalation should succeed");
 
     // Verify escalation was logged in workflow activity
@@ -282,7 +282,7 @@ async fn test_sla_monitor_and_escalate() {
     let entity2 = create_test_kebutuhan(&pool, "REVIEWED", Utc::now() - Duration::days(2)).await;
 
     // Test: Monitor and escalate all breaches
-    let result = monitor.monitor_and_escalate().await;
+    let result: Result<usize, _> = monitor.monitor_and_escalate().await;
     assert!(result.is_ok());
 
     let breach_count = result.unwrap();
@@ -306,7 +306,7 @@ async fn test_sla_status_normal() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Get SLA status
-    let result = monitor.get_sla_status(entity_id).await;
+    let result: Result<layanan_perlengkapan_api::workflow::sla::SlaStatus, _> = monitor.get_sla_status(entity_id).await;
     assert!(result.is_ok());
 
     let status = result.unwrap();
@@ -337,7 +337,7 @@ async fn test_sla_status_breached() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Get SLA status
-    let result = monitor.get_sla_status(entity_id).await;
+    let result: Result<layanan_perlengkapan_api::workflow::sla::SlaStatus, _> = monitor.get_sla_status(entity_id).await;
     assert!(result.is_ok());
 
     let status = result.unwrap();
@@ -379,14 +379,14 @@ async fn test_sla_metrics_recorded() {
         .get();
 
     // Test: Check SLA and escalate
-    let breach_result = monitor.check_sla(entity_id).await;
+    let breach_result: Result<Option<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> = monitor.check_sla(entity_id).await;
     assert!(breach_result.is_ok());
 
     let breach = breach_result.unwrap();
     assert!(breach.is_some());
 
     let breach_info = breach.unwrap();
-    let escalate_result = monitor.escalate_sla_breach(&breach_info).await;
+    let escalate_result: Result<(), _> = monitor.escalate_sla_breach(&breach_info).await;
     assert!(escalate_result.is_ok());
 
     // Verify metrics were incremented

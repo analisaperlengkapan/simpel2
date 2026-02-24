@@ -1,7 +1,7 @@
 # Perbandingan Lengkap: Sandi Data vs Secreton
 
 **Tanggal Analisis:** 2024-01-20
-**Versi Secreton:** SIMPelv2 (Rust-based)
+**Versi Secreton:** SIMPEL (Rust-based)
 **Referensi:** Arsitektur Sandi Data BSSN (7 gambar arsitektur)
 
 ---

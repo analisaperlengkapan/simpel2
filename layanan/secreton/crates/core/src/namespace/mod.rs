@@ -1,6 +1,6 @@
 //! Namespace Management for Multi-Tenant Secreton
 //!
-//! This module provides hierarchical namespace isolation for SIMPelv2's organizational structure,
+//! This module provides hierarchical namespace isolation for SIMPEL's organizational structure,
 //! enabling secure multi-tenancy across Indonesian prosecutorial hierarchy (Kejaksaan RI).
 //!
 //! # Organizational Hierarchy (Indonesian Government Structure)

@@ -831,5 +831,5 @@ POST   /v1/sys/approval/break-glass
 
 **Document Version**: 2.0.0
 **Last Updated**: 11 November 2025
-**Author**: SIMPelv2 Development Team
+**Author**: SIMPEL Development Team
 **Analysis Method**: Comprehensive codebase review dengan fast context search

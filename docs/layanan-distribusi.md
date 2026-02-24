@@ -1,4 +1,4 @@
-# Layanan Distribusi - SIMPelv2
+# Layanan Distribusi - SIMPEL
 
 **Layanan Distribusi** bertanggung jawab atas proses pendistribusian fisik Barang Milik Negara (BMN) dari pusat ke satuan kerja (satker), antar satker, maupun ke pihak penerima yang berwenang.
 
@@ -90,4 +90,4 @@ Distribusi BMN memegang peran penting dalam menjamin efektivitas penyaluran aset
 
 ---
 
-© 2025 Kejaksaan Republik Indonesia – SIMPelv2
+© 2025 Kejaksaan Republik Indonesia – SIMPEL

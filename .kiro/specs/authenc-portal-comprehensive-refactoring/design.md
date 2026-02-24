@@ -3,7 +3,7 @@
 ## 1. Executive Summary
 
 ### 1.1 Purpose
-This document specifies the comprehensive architectural refactoring of the SIMPelv2 authentication system, transforming it from a monolithic structure into a modern, enterprise-grade Identity and Access Management (IAM) platform.
+This document specifies the comprehensive architectural refactoring of the SIMPEL authentication system, transforming it from a monolithic structure into a modern, enterprise-grade Identity and Access Management (IAM) platform.
 
 ### 1.2 Scope
 The refactoring encompasses two primary domains:
@@ -1204,7 +1204,7 @@ pub struct PasskeyAuthentication {
 **Architecture Decision**: The `layanan-portal` service is **completely eliminated**. The portal microfrontend now serves as a comprehensive IAM (Identity and Access Management) portal that communicates directly with Authenc's REST API.
 
 **Portal IAM Responsibilities**:
-1. **Authentication Gateway**: Primary login interface for all SIMPelv2 users
+1. **Authentication Gateway**: Primary login interface for all SIMPEL users
 2. **User Self-Service**: Profile management, password change, MFA setup, **Passkey management**
 3. **IAM Administration**: Full user, realm, client, and role management (admin users)
 4. **SSO Configuration**: External identity provider setup and management
@@ -1222,7 +1222,7 @@ pub struct PasskeyAuthentication {
 
 ### 3.1 Overview
 
-WebAuthn/Passkeys is positioned as the **PRIMARY authentication method** for SIMPelv2, providing:
+WebAuthn/Passkeys is positioned as the **PRIMARY authentication method** for SIMPEL, providing:
 - **Passwordless authentication**: No passwords to remember or steal
 - **Phishing-resistant**: Credentials are origin-bound
 - **Multi-device support**: Sync across devices via platform providers (iCloud Keychain, Google Password Manager)
@@ -1518,7 +1518,7 @@ pub fn LoginPage() -> impl IntoView {
             <div class="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
                 <div>
                     <h2 class="text-center text-3xl font-extrabold text-gray-900">
-                        "SIMPelv2 IAM Portal"
+                        "SIMPEL IAM Portal"
                     </h2>
                     <p class="mt-2 text-center text-sm text-gray-600">
                         "Sign in to your account"
@@ -1799,7 +1799,7 @@ pub async fn update_credential_nickname_handler(
 **Architecture Decision**: The `layanan-portal` service is **completely eliminated**. The portal microfrontend now serves as a comprehensive IAM (Identity and Access Management) portal that communicates directly with Authenc's REST API.
 
 **Portal IAM Responsibilities**:
-1. **Authentication Gateway**: Primary login interface for all SIMPelv2 users
+1. **Authentication Gateway**: Primary login interface for all SIMPEL users
 2. **User Self-Service**: Profile management, password change, MFA setup
 3. **IAM Administration**: Full user, realm, client, and role management (admin users)
 4. **SSO Configuration**: External identity provider setup and management
@@ -2088,7 +2088,7 @@ pub fn LoginPage() -> impl IntoView {
             <div class="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
                 <div>
                     <h2 class="text-center text-3xl font-extrabold text-gray-900">
-                        "SIMPelv2 IAM Portal"
+                        "SIMPEL IAM Portal"
                     </h2>
                     <p class="mt-2 text-center text-sm text-gray-600">
                         "Sign in to your account"
@@ -3928,7 +3928,7 @@ members = [
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
-authors = ["SIMPelv2 Team"]
+authors = ["SIMPEL Team"]
 license = "MIT"
 
 [workspace.dependencies]
@@ -4933,7 +4933,7 @@ pub fn DarkModeToggle() -> impl IntoView {
 
 ## Conclusion
 
-This comprehensive refactoring addresses the core architectural issues in the current SIMPelv2 authentication and portal system:
+This comprehensive refactoring addresses the core architectural issues in the current SIMPEL authentication and portal system:
 
 1. **Authenc Multi-Crate Architecture**: Transforms the monolithic 989-line app.rs with 70+ service modules into a clean, modular multi-crate architecture with clear separation of concerns
 
@@ -4954,7 +4954,7 @@ The design follows Rust best practices, maintains backward compatibility, includ
 
 **Document Version**: 1.0
 **Last Updated**: 2026-02-03
-**Authors**: SIMPelv2 Architecture Team
+**Authors**: SIMPEL Architecture Team
 **Status**: Draft - Awaiting Review
 
 
@@ -6172,7 +6172,7 @@ This comprehensive backend section covers Keycloak-inspired patterns including a
 
 ## Conclusion
 
-This comprehensive refactoring addresses the core architectural issues in the current SIMPelv2 authentication and portal system:
+This comprehensive refactoring addresses the core architectural issues in the current SIMPEL authentication and portal system:
 
 1. **Authenc Multi-Crate Architecture**: Transforms the monolithic 989-line app.rs with 70+ service modules into a clean, modular multi-crate architecture with clear separation of concerns
 
@@ -6196,5 +6196,5 @@ The design follows Rust best practices, maintains backward compatibility during 
 
 **Document Version**: 1.0
 **Last Updated**: 2026-02-19
-**Authors**: SIMPelv2 Architecture Team
+**Authors**: SIMPEL Architecture Team
 **Workflow**: Design-First

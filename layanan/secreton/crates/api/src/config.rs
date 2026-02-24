@@ -1061,7 +1061,7 @@ impl Default for CookieConfig {
 impl Default for TotpConfig {
     fn default() -> Self {
         Self {
-            issuer: "SIMPelv2 Kejaksaan RI".to_string(),
+            issuer: "SIMPEL Kejaksaan RI".to_string(),
             secret_length: 32,
             time_step: 30,
             code_length: 6,

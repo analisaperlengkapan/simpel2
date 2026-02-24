@@ -1,6 +1,6 @@
-# 🛠️ Panduan Kontribusi SIMPelv2
+# 🛠️ Panduan Kontribusi SIMPEL
 
-SIMPelv2 adalah proyek Kejaksaan yang terbuka untuk pegawai Kejaksaan dalam kontribusi baik berpengalaman maupun pemula yang ingin belajar sambil membangun sistem modern dengan arsitektur **microfrontend** dan **microservices**.
+SIMPEL adalah proyek Kejaksaan yang terbuka untuk pegawai Kejaksaan dalam kontribusi baik berpengalaman maupun pemula yang ingin belajar sambil membangun sistem modern dengan arsitektur **microfrontend** dan **microservices**.
 
 💡 **Tidak harus langsung ahli. Kami percaya bahwa kontribusi terbaik sering kali lahir dari proses belajar bersama.**
 
@@ -22,7 +22,7 @@ Mari mulai langkah kecil Anda hari ini—baik dari:
 - 🤖 Mengembangkan model AI untuk document processing
 - 🔐 Implementasi security features dan compliance
 
-Terima kasih atas ketertarikan Anda untuk berkontribusi dalam proyek **SIMPelv2**. Dokumen ini akan memandu Anda dari awal hingga pengajuan kontribusi ke sistem manajemen Barang Milik Negara berbasis teknologi microfrontend dan AI ini.
+Terima kasih atas ketertarikan Anda untuk berkontribusi dalam proyek **SIMPEL**. Dokumen ini akan memandu Anda dari awal hingga pengajuan kontribusi ke sistem manajemen Barang Milik Negara berbasis teknologi microfrontend dan AI ini.
 
 ---
 
@@ -276,7 +276,7 @@ Related to #[issue-number]
 
 ## 🚀 **AI/ML Integration Opportunities**
 
-SIMPelv2 menyediakan berbagai kesempatan untuk AI/ML contributions:
+SIMPEL menyediakan berbagai kesempatan untuk AI/ML contributions:
 
 ### 🤖 **AI Development Areas**
 
@@ -310,7 +310,7 @@ SIMPelv2 menyediakan berbagai kesempatan untuk AI/ML contributions:
 
 ### 📈 **AI Integration Approaches**
 
-| Approach | Description | Use Case di SIMPelv2 |
+| Approach | Description | Use Case di SIMPEL |
 |----------|-------------|----------------------|
 | **Supervised Learning** | Learn dari labeled data | Document classification, asset valuation |
 | **Unsupervised Learning** | Pattern discovery | Asset clustering, anomaly detection |
@@ -488,7 +488,7 @@ stages:
 
 #### **🏢 Contact Information**
 - **Project Lead**: Biro Perlengkapan Kejaksaan RI
-- **Technical Lead**: SIMPelv2 Architecture Team
+- **Technical Lead**: SIMPEL Architecture Team
 - **Security Team**: Information Security Division
 - **Email**: `biro.perlengkapan@kejaksaan.go.id`
 
@@ -503,7 +503,7 @@ Compliance Issue → Legal Team → Compliance Officer → Management
 
 ## 🙏 **Acknowledgments**
 
-Terima kasih kepada semua kontributor yang telah membantu membangun **SIMPelv2**:
+Terima kasih kepada semua kontributor yang telah membantu membangun **SIMPEL**:
 
 - **🏛️ Kejaksaan RI**: Institutional support dan vision
 - **👥 Development Team**: Dedication dalam building modern architecture
@@ -517,4 +517,4 @@ Terima kasih kepada semua kontributor yang telah membantu membangun **SIMPelv2**
 
 ---
 
-*Last updated: August 2025 - SIMPelv2 Development Team*
+*Last updated: August 2025 - SIMPEL Development Team*

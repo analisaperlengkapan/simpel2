@@ -1,4 +1,4 @@
-# Security Fixes Summary - SIMPelv2
+# Security Fixes Summary - SIMPEL
 
 **Date:** February 10, 2026
 **Status:** COMPLETED

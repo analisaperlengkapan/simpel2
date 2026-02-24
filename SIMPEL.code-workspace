@@ -1,14 +1,14 @@
 {
   // ==========================================
-  // SIMPelv2 - Multi-Module Workspace Configuration
+  // SIMPEL - Multi-Module Workspace Configuration
   // ==========================================
-  // Description: Complete development environment for SIMPelv2 project
-  // Version: 3.0 - Updated to match actual codebase structure
-  // Last Updated: February 9, 2026
+  // Description: Complete development environment for SIMPEL project
+  // Version: 4.0 - Updated to match actual codebase structure
+  // Last Updated: February 2026
   // ==========================================
   "folders": [
     {
-      "name": "🏠 SIMPelv2 Root",
+      "name": "🏠 SIMPEL Root",
       "path": "."
     },
     // ========================================
@@ -38,41 +38,23 @@
       "path": "./antarmuka/perlengkapan"
     },
     // ========================================
-    // EXAMPLE/MOCKUP MICROFRONTENDS
-    // ========================================
-    {
-      "name": "📦 Contoh Microfrontends (Examples)",
-      "path": "./antarmuka/contoh"
-    },
-    // ========================================
     // PRODUCTION BACKEND SERVICES
     // ========================================
-    {
-      "name": "⚙️ Portal Backend Service",
-      "path": "./layanan/portal"
-    },
     {
       "name": "⚙️ Perlengkapan Backend Service",
       "path": "./layanan/perlengkapan"
     },
-    // ========================================
-    // EXAMPLE/MOCKUP BACKEND SERVICES
-    // ========================================
     {
-      "name": "📦 Contoh Backend Services (Examples)",
-      "path": "./layanan/contoh"
+      "name": "🔐 Authenc (Identity Provider)",
+      "path": "./layanan/authenc"
+    },
+    {
+      "name": "🔒 Secreton (Secrets Vault)",
+      "path": "./layanan/secreton"
     },
     // ========================================
     // INFRASTRUCTURE SERVICES
     // ========================================
-    {
-      "name": "🔐 Authenc (Identity Provider)",
-      "path": "./infra/authenc"
-    },
-    {
-      "name": "🔒 Secreton (Secrets Vault)",
-      "path": "./infra/secreton"
-    },
     {
       "name": "☸️ Kubernetes Manifests",
       "path": "./infra/k8s"
@@ -99,7 +81,6 @@
       "**/pkg/**": true,
       "**/layanan/*/target/**": true,
       "**/antarmuka/*/target/**": true,
-      "**/infra/*/target/**": true,
       "**/.vscode-server/**": true,
       "**/.cache/**": true
     },
@@ -111,7 +92,6 @@
       "**/.git/**": true,
       "**/layanan/*/target/**": true,
       "**/antarmuka/*/target/**": true,
-      "**/infra/*/target/**": true,
       "**/.*cache*/**": true
     },
     // ========================================
@@ -287,26 +267,6 @@
       // PRODUCTION SERVICES
       // ========================================
       {
-        "label": "🚀 Build Portal Backend",
-        "type": "shell",
-        "command": "cargo",
-        "args": [
-          "build",
-          "--package",
-          "layanan-portal"
-        ],
-        "group": "build",
-        "presentation": {
-          "echo": true,
-          "reveal": "always",
-          "focus": false,
-          "panel": "shared"
-        },
-        "problemMatcher": [
-          "$rustc"
-        ]
-      },
-      {
         "label": "🚀 Build Perlengkapan Backend",
         "type": "shell",
         "command": "cargo",
@@ -432,7 +392,7 @@
         "request": "launch",
         "program": "${workspaceFolder}/target/debug/authenc",
         "args": [],
-        "cwd": "${workspaceFolder}/infra/authenc",
+        "cwd": "${workspaceFolder}/layanan/authenc",
         "preLaunchTask": "🔐 Build Authenc"
       },
       {
@@ -441,17 +401,8 @@
         "request": "launch",
         "program": "${workspaceFolder}/target/debug/secreton",
         "args": [],
-        "cwd": "${workspaceFolder}/infra/secreton",
+        "cwd": "${workspaceFolder}/layanan/secreton",
         "preLaunchTask": "🔒 Build Secreton"
-      },
-      {
-        "name": "🚀 Debug Portal Backend",
-        "type": "lldb",
-        "request": "launch",
-        "program": "${workspaceFolder}/target/debug/layanan-portal",
-        "args": [],
-        "cwd": "${workspaceFolder}/layanan/portal",
-        "preLaunchTask": "🚀 Build Portal Backend"
       },
       {
         "name": "🚀 Debug Perlengkapan Backend",

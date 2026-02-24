@@ -4,9 +4,9 @@
 apiVersion: 1
 
 providers:
-  - name: 'SIMPelv2 Dashboards'
+  - name: 'SIMPEL Dashboards'
     orgId: 1
-    folder: 'SIMPelv2'
+    folder: 'SIMPEL'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

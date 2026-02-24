@@ -13,7 +13,7 @@ data:
     #!/bin/bash
     set -e
 
-    echo "=== Creating SIMPelv2 databases ==="
+    echo "=== Creating SIMPEL databases ==="
     
     # Create databases
     for db in authenc secreton perlengkapan integrasi simpelv2; do

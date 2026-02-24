@@ -1,11 +1,11 @@
 #![recursion_limit = "1024"]
 
-//! # SIMPelv2 Portal Utama - Gateway to Justice Technology
+//! # SIMPEL Portal Utama - Gateway to Justice Technology
 //!
-//! Portal Utama sistem SIMPelv2 yang menyediakan:
+//! Portal Utama sistem SIMPEL yang menyediakan:
 //! - **Dashboard Terpadu**: Overview semua layanan kejaksaan
 //! - **SSO Integration**: Single Sign-On dengan sistem pemerintahan
-//! - **Microfrontend Router**: Gateway ke semua aplikasi SIMPelv2
+//! - **Microfrontend Router**: Gateway ke semua aplikasi SIMPEL
 //! - **Government Compliance**: Sesuai standar keamanan siber nasional
 //! - **Responsive Design**: Optimized untuk semua device
 

@@ -1,4 +1,4 @@
-# Alertmanager configuration for SIMPelv2
+# Alertmanager configuration for SIMPEL
 # Requirements: NFR-M004
 
 global:
@@ -54,7 +54,7 @@ receivers:
     email_configs:
       - to: 'ops@simpelv2.kejaksaan.go.id'
         headers:
-          Subject: '[SIMPelv2] {{ .GroupLabels.alertname }}'
+          Subject: '[SIMPEL] {{ .GroupLabels.alertname }}'
         html: |
           <h2>Alert: {{ .GroupLabels.alertname }}</h2>
           <p><strong>Severity:</strong> {{ .CommonLabels.severity }}</p>

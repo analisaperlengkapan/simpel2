@@ -213,7 +213,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                         "Account Name:"
                                                     </label>
                                                     <code class="block text-sm bg-white dark:bg-gray-800 p-2 rounded border font-mono">
-                                                        "SIMPelv2 (your-username@kejaksaan.go.id)"
+                                                        "SIMPEL (your-username@kejaksaan.go.id)"
                                                     </code>
                                                 </div>
                                                 <div>

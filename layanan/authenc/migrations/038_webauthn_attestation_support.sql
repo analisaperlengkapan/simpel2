@@ -1,6 +1,6 @@
 -- Migration: WebAuthn Attestation Support
 -- Description: Add comprehensive attestation fields to webauthn_credentials table
--- Author: SIMPelv2 Security Team
+-- Author: SIMPEL Security Team
 -- Date: 2025-11-11
 
 -- Add attestation-related columns to webauthn_credentials table if they don't exist

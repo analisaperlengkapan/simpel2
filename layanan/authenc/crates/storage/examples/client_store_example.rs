@@ -5,8 +5,9 @@
 //! Run with: cargo run --example client_store_example
 
 use authenc_storage::{Database, PostgresClientStore};
-use authenc_types::{RealmId, traits::ClientStore};
+use authenc_types::{ClientId, RealmId, traits::ClientStore};
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -43,10 +44,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   - ID: {}", public_client.id);
     println!("   - Client ID: {}", public_client.client_id);
     println!("   - Name: {}", public_client.name);
-    println!("   - Is Public: {}", public_client.is_public);
+    println!("   - Name: {}", public_client.name);
     println!(
         "   - Has Secret: {}\n",
-        public_client.client_secret_hash.is_some()
+        !public_client.client_secret.is_empty()
     );
 
     // 2. Create a confidential client (for backend services)
@@ -64,17 +65,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   - ID: {}", confidential_client.id);
     println!("   - Client ID: {}", confidential_client.client_id);
     println!("   - Name: {}", confidential_client.name);
-    println!("   - Is Public: {}", confidential_client.is_public);
+    println!("   - Name: {}", confidential_client.name);
     println!(
         "   - Has Secret: {}\n",
-        confidential_client.client_secret_hash.is_some()
+        !confidential_client.client_secret.is_empty()
     );
 
     // 3. Update client with redirect URIs and scopes
     println!("3. Updating public client with redirect URIs and scopes...");
     let updated_client = client_store
         .update_client(
-            public_client.id,
+            ClientId(Uuid::parse_str(&public_client.id).unwrap()),
             None, // name unchanged
             Some(vec![
                 "https://portal.kejaksaan.go.id/callback".to_string(),
@@ -90,12 +91,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     println!("   Updated client:");
-    println!("   - Redirect URIs: {:?}", updated_client.redirect_uris);
-    println!("   - Allowed Scopes: {:?}\n", updated_client.allowed_scopes);
+    println!("   - Redirect URIs: {:?}\n", updated_client.redirect_uris);
 
     // 4. Get client by ID
     println!("4. Retrieving client by ID...");
-    let retrieved_client = client_store.get_client(public_client.id).await?;
+    let retrieved_client = client_store.get_client(ClientId(Uuid::parse_str(&public_client.id).unwrap())).await?;
     println!(
         "   Retrieved: {} ({})\n",
         retrieved_client.name, retrieved_client.client_id
@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "   - {} ({}) - {}",
             client.name,
             client.client_id,
-            if client.is_public {
+            if client.client_secret.is_empty() {
                 "Public"
             } else {
                 "Confidential"
@@ -133,7 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("7. Updating client secret...");
     let new_secret_hash = "hashed_secret_value_here"; // In practice, hash with Argon2
     client_store
-        .update_client_secret(confidential_client.id, new_secret_hash.to_string())
+        .update_client_secret(ClientId(Uuid::parse_str(&confidential_client.id).unwrap()), new_secret_hash.to_string())
         .await?;
     println!("   Client secret updated successfully\n");
 
@@ -141,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("8. Disabling a client...");
     let disabled_client = client_store
         .update_client(
-            confidential_client.id,
+            ClientId(Uuid::parse_str(&confidential_client.id).unwrap()),
             None,
             None,
             None,
@@ -152,12 +152,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 9. Delete a client (soft delete)
     println!("9. Deleting a client...");
-    client_store.delete_client(public_client.id).await?;
+    client_store.delete_client(ClientId(Uuid::parse_str(&public_client.id).unwrap())).await?;
     println!("   Client deleted successfully\n");
 
     // 10. Verify deletion
     println!("10. Verifying deletion...");
-    match client_store.get_client(public_client.id).await {
+    match client_store.get_client(ClientId(Uuid::parse_str(&public_client.id).unwrap())).await {
         Ok(_) => println!("   ERROR: Client still exists!"),
         Err(e) => println!("   Confirmed deleted: {}\n", e),
     }

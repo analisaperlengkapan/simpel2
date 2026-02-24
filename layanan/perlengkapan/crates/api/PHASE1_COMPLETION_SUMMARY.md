@@ -273,6 +273,6 @@ Phase 1 has been **successfully completed** with all planned deliverables implem
 
 ---
 
-**Prepared by:** SIMPelv2 Team
+**Prepared by:** SIMPEL Team
 **Date:** February 9, 2026
 **Classification:** Internal - Kejaksaan Republik Indonesia

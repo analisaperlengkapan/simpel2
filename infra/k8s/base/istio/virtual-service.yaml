@@ -1,4 +1,4 @@
-# Istio VirtualService for SIMPelv2
+# Istio VirtualService for SIMPEL
 # IMPORTANT: Routes are ordered from most specific to least specific
 # IMPORTANT: VirtualService must be in istio-system or use namespace-qualified gateway reference
 

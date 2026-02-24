@@ -50,7 +50,7 @@ pub fn LoggedOutPage() -> impl IntoView {
 
                     // Description
                     <p class="text-gray-600 dark:text-gray-400 mb-8">
-                        "Sesi Anda telah berakhir dengan aman. Terima kasih telah menggunakan SIMPelv2."
+                        "Sesi Anda telah berakhir dengan aman. Terima kasih telah menggunakan SIMPEL."
                     </p>
 
                     // Security notice

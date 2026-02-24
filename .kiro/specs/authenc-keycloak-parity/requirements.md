@@ -3,7 +3,7 @@
 ## 1. Problem Statement
 
 ### 1.1 Current Situation
-Authenc is SIMPelv2's custom Identity and Access Management (IAM) service with 90%+ feature parity with industry-standard solutions like Keycloak. While core authentication protocols (OAuth2, OIDC, SAML, WebAuthn) are fully implemented and security features exceed industry standards (Ed25519, Post-Quantum Crypto), several enterprise features and UI components are incomplete or missing.
+Authenc is SIMPEL's custom Identity and Access Management (IAM) service with 90%+ feature parity with industry-standard solutions like Keycloak. While core authentication protocols (OAuth2, OIDC, SAML, WebAuthn) are fully implemented and security features exceed industry standards (Ed25519, Post-Quantum Crypto), several enterprise features and UI components are incomplete or missing.
 
 ### 1.2 Business Impact
 Without these enterprise features, Authenc cannot:
@@ -538,7 +538,7 @@ Without these enterprise features, Authenc cannot:
 - **C-6**: Must use Tonic 0.14.x for gRPC
 - **C-7**: Must maintain backward compatibility with existing APIs
 - **C-8**: Must not break existing integrations
-- **C-9**: Must follow SIMPelv2 coding standards
+- **C-9**: Must follow SIMPEL coding standards
 - **C-10**: Must use existing infrastructure (PostgreSQL, Redis, Kubernetes)
 
 ### 6.2 Integration Constraints
@@ -621,7 +621,7 @@ Without these enterprise features, Authenc cannot:
 - **M-12**: Support ticket reduction by 30%
 
 ### 8.4 Adoption Metrics
-- **M-13**: 100% of SIMPelv2 services using Authenc by Q2 2026
+- **M-13**: 100% of SIMPEL services using Authenc by Q2 2026
 - **M-14**: Zero Keycloak dependencies by Q3 2026
 - **M-15**: Admin CLI usage >50% of admin operations by Q3 2026
 - **M-16**: Production deployment in 5+ Satker by Q2 2026
@@ -735,7 +735,7 @@ Without these enterprise features, Authenc cannot:
 ## 11. Appendix
 
 ### 11.1 Glossary
-- **Authenc**: SIMPelv2's custom Identity and Access Management service
+- **Authenc**: SIMPEL's custom Identity and Access Management service
 - **Audit Report**: Comprehensive system audit and compliance reporting
 - **MySIMKARI**: Government employee management system
 - **NIP**: Nomor Induk Pegawai (Employee Identification Number)
@@ -1181,7 +1181,7 @@ Without these enterprise features, Authenc cannot:
 ### 8.3 Constraints
 - Must maintain backward compatibility with existing APIs
 - Must not break existing integrations
-- Must follow SIMPelv2 coding standards
+- Must follow SIMPEL coding standards
 - Must use existing infrastructure (PostgreSQL, Redis)
 - Must integrate with existing monitoring
 
@@ -1205,7 +1205,7 @@ Without these enterprise features, Authenc cannot:
 - Support ticket reduction by 30%
 
 ### 9.4 Adoption Metrics
-- 100% of SIMPelv2 services using Authenc
+- 100% of SIMPEL services using Authenc
 - Zero Keycloak dependencies
 - Admin CLI usage >50% of admin operations
 - Theme customization by >3 realms
@@ -1287,7 +1287,7 @@ Authenc is a **production-ready, feature-rich IAM service** with 90%+ feature pa
 - Lower resource usage (200MB vs 500MB)
 - Faster startup (seconds vs minutes)
 - Custom features for Indonesian government (Satker hierarchy, MySIMKARI integration)
-- Investment in Rust ecosystem aligns with SIMPelv2 architecture
+- Investment in Rust ecosystem aligns with SIMPEL architecture
 
 **Estimated Effort**: 6-9 months to achieve full enterprise readiness
 **Estimated Cost**: 3-4 full-time developers
@@ -1587,7 +1587,7 @@ pub struct Role {
     pub description: Option<String>,
 }
 
-// Contoh untuk SIMPelv2:
+// Contoh untuk SIMPEL:
 // Realm Roles: "pegawai", "pimpinan", "admin"
 // Client Roles (Portal): "portal_user", "portal_admin"
 // Client Roles (Perlengkapan): "perlengkapan_user", "perlengkapan_approver"
@@ -1707,7 +1707,7 @@ pub struct ClientScopeMapping {
     pub default_scope: bool,        // Auto-include vs optional
 }
 
-// Contoh untuk SIMPelv2:
+// Contoh untuk SIMPEL:
 // Scope "profile" → maps to: name, email, nip
 // Scope "satker" → maps to: satker_id, satker_name, hierarchy
 // Scope "roles" → maps to: realm_roles, client_roles
@@ -1756,7 +1756,7 @@ pub struct ProtocolMapper {
     pub config: HashMap<String, String>,
 }
 
-// Contoh untuk SIMPelv2:
+// Contoh untuk SIMPEL:
 // Mapper "NIP" → user.attributes.nip → token.nip
 // Mapper "Satker" → user.satker → token.satker
 // Mapper "Hierarchy" → satker.hierarchy → token.satker_path
@@ -2095,7 +2095,7 @@ pub const EMAIL_VERIFICATION_ID: &str = r#"
 - [ ] AC-13.9.7: Email templates untuk Indonesian language
 - [ ] AC-13.9.8: Government branding dalam emails
 
-## 14. Prioritas Implementasi untuk Proyek SIMPelv2
+## 14. Prioritas Implementasi untuk Proyek SIMPEL
 
 ### 14.1 CRITICAL (Harus Segera - 0-3 bulan)
 
@@ -2334,14 +2334,14 @@ Authenc sudah memiliki **90%+ feature parity** dengan Keycloak untuk core authen
 4. ✅ Custom features untuk pemerintah Indonesia
 5. ✅ Integration dengan MySIMKARI, SIMAN, MonSAKTI
 6. ✅ Lower operational cost
-7. ✅ Alignment dengan SIMPelv2 tech stack (Rust)
+7. ✅ Alignment dengan SIMPEL tech stack (Rust)
 
 **JANGAN MIGRATE KE KEYCLOAK** karena:
 1. ❌ Effort migrasi lebih besar dari complete Authenc
 2. ❌ Kehilangan custom features (Satker, MySIMKARI)
 3. ❌ Higher resource usage (500MB vs 200MB)
 4. ❌ Slower performance (Java vs Rust)
-5. ❌ Tidak align dengan tech stack SIMPelv2
+5. ❌ Tidak align dengan tech stack SIMPEL
 
 ### 17.3 Action Plan
 

@@ -1380,6 +1380,22 @@ impl AuthencApiClient {
     pub async fn iam_delete_role(&self, _id: &str) -> Result<(), String> {
         Ok(())
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn iam_get_client(&self, id: &str) -> Result<ClientInfo, String> {
+        Ok(ClientInfo {
+            id: id.to_string(),
+            client_id: "mock_client".to_string(),
+            name: None,
+            description: None,
+            client_type: "public".to_string(),
+            redirect_uris: vec![],
+            enabled: true,
+            created_at: "2026-01-01".to_string(),
+        })
+    }
+
+
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn iam_list_identity_providers(&self) -> Result<Vec<IdentityProviderInfo>, String> {
         Ok(vec![])

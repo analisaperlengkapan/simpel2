@@ -1,6 +1,6 @@
 -- Migration: WebAuthn Credentials Refactor for webauthn-rs 0.5.x
 -- Description: Update webauthn_credentials table to store full Passkey objects
--- Author: SIMPelv2 Security Team
+-- Author: SIMPEL Security Team
 -- Date: 2026-02-19
 
 -- Rename old table to preserve data

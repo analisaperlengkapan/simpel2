@@ -4,7 +4,7 @@
 
 ## 🌍 Service Context
 
-**Secreton** adalah Advanced Security Vault System untuk SIMPelv2, dikembangkan oleh Cipherce dengan fokus pada Quantum-Safe Cryptography. Menyediakan:
+**Secreton** adalah Advanced Security Vault System untuk SIMPEL, dikembangkan oleh Cipherce dengan fokus pada Quantum-Safe Cryptography. Menyediakan:
 
 ### Core Features
 - **Secret Storage**: Encrypted KV store untuk credentials, API keys, certificates
@@ -853,5 +853,5 @@ HSM_SLOT_ID=0  # Correct slot number
 ---
 
 **Last Updated:** February 2, 2026
-**Maintainer:** SIMPelv2 Team
+**Maintainer:** SIMPEL Team
 **Related:** `/AGENTS.md`, `/layanan/authenc/AGENTS.md`

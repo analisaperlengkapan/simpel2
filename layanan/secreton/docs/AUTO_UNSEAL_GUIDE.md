@@ -1685,5 +1685,5 @@ When auto-unseal fails, check:
 
 **Document Status:** COMPLETE
 **Last Updated:** 2026-02-18
-**Maintained by:** SIMPelv2 DevOps Team
+**Maintained by:** SIMPEL DevOps Team
 **Review Cycle:** Quarterly

@@ -1,4 +1,4 @@
-# SIMPelv2 AI Coding Agent Instructions
+# SIMPEL AI Coding Agent Instructions
 
 ## Project Overview
 

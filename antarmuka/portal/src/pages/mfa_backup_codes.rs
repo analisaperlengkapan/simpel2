@@ -79,7 +79,7 @@ pub fn MfaBackupCodesPage(
     let download_codes = move || {
         if let Some(codes) = backup_codes.get() {
             let _content = format!(
-                "SIMPelv2 Kejaksaan RI - MFA Backup Codes\n\
+                "SIMPEL Kejaksaan RI - MFA Backup Codes\n\
                 Generated: {}\n\
                 \n\
                 IMPORTANT: Store these codes in a secure location.\n\

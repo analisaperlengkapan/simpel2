@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SIMPelv2 AI-Resistant CAPTCHA system is a comprehensive security solution designed to protect against automated attacks while maintaining accessibility and user experience. This guide provides operational procedures for system administrators and security teams.
+The SIMPEL AI-Resistant CAPTCHA system is a comprehensive security solution designed to protect against automated attacks while maintaining accessibility and user experience. This guide provides operational procedures for system administrators and security teams.
 
 ## Table of Contents
 
@@ -616,4 +616,4 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 **Document Version**: 1.0
 **Last Updated**: $(date)
 **Next Review**: $(date -d "+3 months")
-**Owner**: SIMPelv2 Security Team
+**Owner**: SIMPEL Security Team

@@ -406,5 +406,5 @@ NOTIFIKASI_GRPC_URL=http://localhost:50053
 ---
 
 **Last Updated:** February 11, 2026
-**Author:** SIMPelv2 Development Team
+**Author:** SIMPEL Development Team
 **Status:** Production Ready

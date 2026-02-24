@@ -1,4 +1,4 @@
-# Istio DestinationRules for SIMPelv2
+# Istio DestinationRules for SIMPEL
 # NOTE: authenc and secreton have sidecar.istio.io/inject: "false"
 # so we must use DISABLE mode to allow plaintext connections from sidecared pods
 

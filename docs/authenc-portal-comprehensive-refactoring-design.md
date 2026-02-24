@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines a comprehensive architectural refactoring of the SIMPelv2 authentication and portal system. The refactoring addresses three major areas:
+This document outlines a comprehensive architectural refactoring of the SIMPEL authentication and portal system. The refactoring addresses three major areas:
 
 1. **Authenc Multi-Crate Architecture**: Breaking down the monolithic authenc service (70+ service modules, 989-line app.rs) into a modular multi-crate architecture following Rust best practices
 2. **Portal Service Architecture Decision**: Evaluating whether to merge layanan-portal into authenc or maintain separation with cleaner boundaries
@@ -2426,7 +2426,7 @@ members = [
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
-authors = ["SIMPelv2 Team"]
+authors = ["SIMPEL Team"]
 license = "MIT"
 
 [workspace.dependencies]
@@ -2689,7 +2689,7 @@ tokio = { workspace = true, features = ["test-util"] }
 
 ## Conclusion
 
-This comprehensive refactoring addresses the core architectural issues in the current SIMPelv2 authentication and portal system:
+This comprehensive refactoring addresses the core architectural issues in the current SIMPEL authentication and portal system:
 
 1. **Authenc Multi-Crate Architecture**: Transforms the monolithic 989-line app.rs with 70+ service modules into a clean, modular multi-crate architecture with clear separation of concerns
 
@@ -2710,5 +2710,5 @@ The design follows Rust best practices, maintains backward compatibility, includ
 
 **Document Version**: 1.0
 **Last Updated**: 2026-02-03
-**Authors**: SIMPelv2 Architecture Team
+**Authors**: SIMPEL Architecture Team
 **Status**: Draft - Awaiting Review

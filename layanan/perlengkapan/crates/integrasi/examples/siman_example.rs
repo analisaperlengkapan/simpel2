@@ -1,7 +1,7 @@
-use layanan_integrasi::siman::{
+use crate::siman::{
     SimanAssetCategory, fetch_all_aset_paginated, get_aset_by_category, get_row_count,
 };
-use layanan_integrasi::{Config, MonsaktiClient};
+use crate::{Config, MonsaktiClient};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_env()?;
 
     // Create client
-    let mut client = MonsaktiClient::new(config).await?;
+    let mut client: MonsaktiClient = MonsaktiClient::new(config).await?;
 
     println!("=== SIMAN API v2.0 Example ===\n");
 
@@ -86,7 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 8: Working with specific asset types using convenience functions
     println!("8. Using convenience functions for specific asset types...");
 
-    use layanan_integrasi::siman::{
+    use crate::siman::{
         get_aset_alat_persenjataan, get_aset_angkutan_bermotor, get_aset_khusus_tik,
     };
 

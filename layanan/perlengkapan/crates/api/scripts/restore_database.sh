@@ -2,7 +2,7 @@
 # ============================================================================
 # Database Restore Script for SIMPEL Migration
 # Description: Restore database from backup with verification
-# Author: SIMPelv2 Team
+# Author: SIMPEL Team
 # Created: 2026-02-11
 # Requirements: NFR-A003, NFR-A004, NFR-A005
 # ============================================================================

@@ -1,4 +1,4 @@
-# SIMPelv2 Main ConfigMap
+# SIMPEL Main ConfigMap
 # Environment-specific values will be patched in overlays
 
 apiVersion: v1
@@ -24,7 +24,7 @@ data:
   MTLS_MODE: "STRICT"
 
   # Application
-  APP_NAME: "SIMPelv2"
+  APP_NAME: "SIMPEL"
   APP_VERSION: "0.1.0"
 
   # Session

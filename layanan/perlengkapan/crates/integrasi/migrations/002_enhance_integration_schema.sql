@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Enhance Integration Schema
 -- Description: Add missing tables and enhance existing integration schema
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-09
 -- Requirements: REQ-I001, REQ-I002, REQ-I008
 -- ============================================================================

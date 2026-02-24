@@ -1,4 +1,4 @@
-/// Main binary untuk SIMPelv2 Layanan Integrasi
+/// Main binary untuk SIMPEL Layanan Integrasi
 /// Menggunakan unified batch processing dengan storage strategy yang fleksibel
 /// Menangani integrasi dengan external APIs: MonSAKTI, MySIMKARI, dll.
 use clap::{Parser, ValueEnum};
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    info!("=== SIMPelv2 Layanan Integrasi ===");
+    info!("=== SIMPEL Layanan Integrasi ===");
     info!("Source: {:?}", args.source);
     info!("Mode: {:?}", args.mode);
     info!("Kode KL: {}", args.kode_kl);

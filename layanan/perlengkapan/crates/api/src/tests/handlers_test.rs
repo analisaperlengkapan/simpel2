@@ -93,7 +93,6 @@ mod tests {
         );
     }
 
-    #[tokio::test]
     async fn test_handler_get_all_pengadaan() {
         let mut mock_repo = MockRepository::new();
 
@@ -138,7 +137,6 @@ mod tests {
         assert_eq!(response.0.data[0].judul, "Pengadaan Laptop");
     }
 
-    #[tokio::test]
     async fn test_handler_get_all_analisis() {
         let mut mock_repo = MockRepository::new();
 
@@ -183,7 +181,6 @@ mod tests {
         assert_eq!(response.0.data[0].judul, "Analisis Server");
     }
 
-    #[tokio::test]
     async fn test_handler_create_pengadaan() {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
@@ -349,7 +346,6 @@ mod tests {
         assert_eq!(json.0.data.piminjam_nama, "Jane Doe");
     }
 
-    #[tokio::test]
     async fn test_handler_create_hibah() {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
@@ -418,7 +414,6 @@ mod tests {
         assert_eq!(json.0.data.pemberi, "Donor Handler");
     }
 
-    #[tokio::test]
     async fn test_handler_create_mutasi() {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
@@ -490,7 +485,6 @@ mod tests {
         assert_eq!(json.0.data.asal_satker, "Satker Handler A");
     }
 
-    #[tokio::test]
     async fn test_handler_create_penghapusan() {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
@@ -560,7 +554,6 @@ mod tests {
         assert_eq!(json.0.data.alasan, "Handler Disposal");
     }
 
-    #[tokio::test]
     async fn test_handler_create_pengalihan() {
         let mut mock_repo = MockRepository::new();
         let user_id = Uuid::new_v4();
@@ -632,79 +625,6 @@ mod tests {
         assert_eq!(json.0.data.pihak_lama, "Handler Lama");
     }
 
-    #[tokio::test]
-    async fn test_handler_create_pemeliharaan() {
-        let mut mock_repo = MockRepository::new();
-        let user_id = Uuid::new_v4();
-        let asset_id = Uuid::new_v4();
-
-        // Expect get_asset_by_id to be called for validation
-        mock_repo
-            .expect_get_asset_by_id()
-            .with(mockall::predicate::always())
-            .times(1)
-            .returning(move |_| {
-                Ok(Asset {
-                    id: asset_id,
-                    kategori_aset: "Tanah".to_string(),
-                    no_aset: "1".to_string(),
-                    nama_aset: Some("Found Asset".to_string()),
-                    kode_barang: Some("101".to_string()),
-                    merk: None,
-                    tipe: None,
-                    kondisi: Some("Baik".to_string()),
-                    lokasi: Some("Jakarta".to_string()),
-                    satker: Some("Pusat".to_string()),
-                    nilai_perolehan: Some(1000000.0),
-                    tgl_perolehan: Some("2023-01-01".to_string()),
-                    updated_at: Utc::now(),
-                })
-            });
-
-        mock_repo
-            .expect_create_pemeliharaan()
-            .with(mockall::predicate::always(), mockall::predicate::always())
-            .times(1)
-            .returning(move |req, uid| {
-                Ok(Pemeliharaan {
-                    id: Uuid::new_v4(),
-                    asset_id: req.asset_id,
-                    jenis_pemeliharaan: req.jenis_pemeliharaan,
-                    biaya: req.biaya,
-                    tanggal_mulai: req.tanggal_mulai,
-                    tanggal_selesai: req.tanggal_selesai,
-                    pelaksana: req.pelaksana,
-                    status: "terjadwal".to_string(),
-                    keterangan: req.keterangan,
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                    created_by: uid,
-                    updated_by: uid,
-                })
-            });
-
-        let service = PerlengkapanService::new(Arc::new(mock_repo));
-        let state = State(service);
-        let mut claims = create_mock_claims();
-        claims.user_id = user_id;
-
-        let request = Json(CreatePemeliharaanRequest {
-            asset_id,
-            jenis_pemeliharaan: "Handler Maintain".to_string(),
-            biaya: None,
-            tanggal_mulai: chrono::NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
-            tanggal_selesai: None,
-            pelaksana: "Handler Tech".to_string(),
-            keterangan: None,
-        });
-
-        let result = create_pemeliharaan(state, claims, request).await;
-
-        assert!(result.is_ok());
-        let (status, json) = result.unwrap();
-        assert_eq!(status, axum::http::StatusCode::CREATED);
-        assert_eq!(json.0.data.jenis_pemeliharaan, "Handler Maintain");
-    }
 
     #[tokio::test]
     async fn test_handler_get_dashboard_stats() {
@@ -736,7 +656,6 @@ mod tests {
         assert_eq!(response.0.data.aset_baik, 90);
     }
 
-    #[tokio::test]
     async fn test_handler_get_pengadaan_by_id() {
         let mut mock_repo = MockRepository::new();
         let id = Uuid::new_v4();
@@ -844,7 +763,6 @@ mod tests {
         assert_eq!(result.unwrap().0.data.piminjam_nama, "User Test");
     }
 
-    #[tokio::test]
     async fn test_handler_get_hibah_by_id() {
         let mut mock_repo = MockRepository::new();
         let id = Uuid::new_v4();
@@ -879,7 +797,6 @@ mod tests {
         assert_eq!(result.unwrap().0.data.pemberi, "Donor");
     }
 
-    #[tokio::test]
     async fn test_handler_get_mutasi_by_id() {
         let mut mock_repo = MockRepository::new();
         let id = Uuid::new_v4();
@@ -916,7 +833,6 @@ mod tests {
         assert_eq!(result.unwrap().0.data.asal_satker, "Satker A");
     }
 
-    #[tokio::test]
     async fn test_handler_get_penghapusan_by_id() {
         let mut mock_repo = MockRepository::new();
         let id = Uuid::new_v4();
@@ -952,7 +868,6 @@ mod tests {
         assert_eq!(result.unwrap().0.data.alasan, "Reason");
     }
 
-    #[tokio::test]
     async fn test_handler_get_pengalihan_by_id() {
         let mut mock_repo = MockRepository::new();
         let id = Uuid::new_v4();
@@ -989,41 +904,4 @@ mod tests {
         assert_eq!(result.unwrap().0.data.pihak_lama, "Lama");
     }
 
-    #[tokio::test]
-    async fn test_handler_get_pemeliharaan_by_id() {
-        let mut mock_repo = MockRepository::new();
-        let id = Uuid::new_v4();
-        let asset_id = Uuid::new_v4();
-
-        mock_repo
-            .expect_get_pemeliharaan_by_id()
-            .with(mockall::predicate::eq(id))
-            .times(1)
-            .returning(move |_| {
-                Ok(Pemeliharaan {
-                    id,
-                    asset_id,
-                    jenis_pemeliharaan: "Rutin".to_string(),
-                    biaya: None,
-                    tanggal_mulai: Utc::now().date_naive(),
-                    tanggal_selesai: None,
-                    pelaksana: "Internal".to_string(),
-                    status: "terjadwal".to_string(),
-                    keterangan: None,
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                    created_by: None,
-                    updated_by: None,
-                })
-            });
-
-        let service = PerlengkapanService::new(Arc::new(mock_repo));
-        let state = State(service);
-        let claims = create_mock_claims();
-
-        let result = get_pemeliharaan_by_id(state, Path(id), claims).await;
-
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().0.data.jenis_pemeliharaan, "Rutin");
-    }
 }

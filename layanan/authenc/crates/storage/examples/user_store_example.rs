@@ -13,7 +13,7 @@
 
 use authenc_storage::{Database, PostgresUserStore};
 use authenc_types::{
-    RealmId,
+    RealmId, UserId,
     domain::{CreateUserRequest, UpdateUserRequest},
     traits::UserStore,
 };
@@ -48,8 +48,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let create_request = CreateUserRequest {
         username: "john_doe".to_string(),
         email: "john.doe@example.com".to_string(),
-        password: "$argon2id$v=19$m=65536,t=3,p=4$...".to_string(), // Pre-hashed password
-        realm_id,
+        password: Some("$argon2id$v=19$m=65536,t=3,p=4$...".to_string()), // Pre-hashed password
+        satker_code: "123".to_string(),
+        first_name: None,
+        last_name: None,
+        nip: None,
+        nama: None,
+        jabatan: None,
+        phone_number: None,
+        realm_id: Some(realm_id.0),
+        organization_id: None,
+        roles: None,
+        attributes: None,
     };
 
     match user_store.create_user(create_request).await {
@@ -64,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // 5. Get user by ID
             println!("5. Retrieving user by ID...");
-            let retrieved_user = user_store.get_user(user.id).await?;
+            let retrieved_user = user_store.get_user(UserId(user.id)).await?;
             println!("   ✓ User retrieved: {}", retrieved_user.username);
             println!();
 
@@ -80,13 +90,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("7. Updating user email...");
             let update_request = UpdateUserRequest {
                 email: Some("john.doe.updated@example.com".to_string()),
+                username: None,
+                satker_code: None,
+                first_name: None,
+                last_name: None,
+                nip: None,
+                nama: None,
+                jabatan: None,
+                phone_number: None,
                 password: None,
                 enabled: None,
                 email_verified: Some(true),
                 mfa_enabled: None,
+                require_password_change: None,
+                phone_verified: None,
+                attributes: None,
             };
 
-            let updated_user = user_store.update_user(user.id, update_request).await?;
+            let updated_user = user_store.update_user(UserId(user.id), update_request).await?;
             println!("   ✓ User updated:");
             println!("     - New email: {}", updated_user.email);
             println!("     - Email verified: {}", updated_user.email_verified);
@@ -106,13 +127,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // 10. Delete user (soft delete)
             println!("10. Deleting user...");
-            user_store.delete_user(user.id).await?;
+            user_store.delete_user(UserId(user.id)).await?;
             println!("   ✓ User deleted (soft delete - account disabled)");
             println!();
 
             // 11. Verify user is disabled
             println!("11. Verifying user is disabled...");
-            let deleted_user = user_store.get_user(user.id).await?;
+            let deleted_user = user_store.get_user(UserId(user.id)).await?;
             println!("   ✓ User enabled status: {}", deleted_user.enabled);
             println!();
         }

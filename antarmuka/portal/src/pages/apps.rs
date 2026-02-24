@@ -46,7 +46,7 @@ pub fn AppsPage(
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <h1 class="text-4xl font-bold bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent mb-2">
-                                "Aplikasi SIMPelv2"
+                                "Aplikasi SIMPEL"
                             </h1>
                             <p class="text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

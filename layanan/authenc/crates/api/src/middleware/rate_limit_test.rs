@@ -10,6 +10,10 @@ async fn test_rate_limiting() {
     let config = RateLimitConfig {
         requests_per_minute: 2,
         excluded_paths: vec!["/health".to_string()],
+        enabled: true,
+        base_delay_ms: 0,
+        max_delay_ms: 0,
+        progressive_delays: false,
     };
 
     let state = Arc::new(RateLimiterState::new(config));

@@ -122,7 +122,7 @@ test.describe('Dashboard & Navigation', () => {
 
   test('should show header with app branding', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('SIMPelv2')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('SIMPEL')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('header')).toBeVisible({ timeout: 30000 });
   });
 

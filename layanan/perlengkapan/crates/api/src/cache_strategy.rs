@@ -1,7 +1,7 @@
 // ============================================================================
 // Cache Strategy Implementation
 // Description: Caching strategy for perlengkapan service with TTL and invalidation
-// Author: SIMPelv2 Team
+// Author: SIMPEL Team
 // Created: 2026-02-10
 // Requirements: NFR-P006
 // ============================================================================
@@ -470,7 +470,7 @@ mod tests {
         };
 
         // Test set and get
-        let value = vec!["test1", "test2"];
+        let value = vec!["test1".to_string(), "test2".to_string()];
         manager.set(&key, &value).await.unwrap();
 
         let cached: Option<Vec<String>> = manager.get(&key).await.unwrap();

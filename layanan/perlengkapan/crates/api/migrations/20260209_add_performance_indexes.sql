@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Add Performance Indexes
 -- Description: Comprehensive indexing strategy for optimal query performance
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-09
 -- Requirements: NFR-P001, NFR-P002
 -- ============================================================================

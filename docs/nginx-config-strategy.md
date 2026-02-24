@@ -1,4 +1,4 @@
-# SIMPelv2 Nginx Configuration Strategy
+# SIMPEL Nginx Configuration Strategy
 # Optimized: August 19, 2025
 
 ## Configuration Structure:

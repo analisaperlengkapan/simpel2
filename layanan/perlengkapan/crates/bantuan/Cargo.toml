@@ -2,8 +2,8 @@
 name = "layanan-perlengkapan-bantuan"
 version.workspace = true
 edition.workspace = true
-authors = ["SIMPelv2 Team"]
-description = "SIMPelv2 - Layanan Bantuan (Help Service)"
+authors = ["SIMPEL Team"]
+description = "SIMPEL - Layanan Bantuan (Help Service)"
 license = "MIT"
 
 [dependencies]

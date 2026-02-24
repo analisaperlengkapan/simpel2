@@ -1,5 +1,5 @@
-use layanan_integrasi::client::MonsaktiClient;
-use layanan_integrasi::config::Config;
+use layanan_perlengkapan_integrasi::client::MonsaktiClient;
+use layanan_perlengkapan_integrasi::config::Config;
 use std::collections::HashMap;
 use std::sync::{
     Arc,
@@ -24,6 +24,7 @@ async fn test_save_to_csv_performance() {
         output_dir: "./output_test_perf".to_string(),
         db_config: None,
         siman_concurrency_limit: 20,
+        ..Default::default()
     };
     let client = MonsaktiClient::new(config)
         .await

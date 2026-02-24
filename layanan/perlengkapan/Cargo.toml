@@ -9,7 +9,6 @@ resolver = "2"
 members = [
     "crates/api",
     "crates/integrasi",
-    "crates/ai",
     "crates/dokumen",
     "crates/notifikasi",
     "crates/bantuan",
@@ -19,7 +18,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-authors = ["SIMPelv2 Team"]
+authors = ["SIMPEL Team"]
 license = "MIT"
 
 [workspace.dependencies]

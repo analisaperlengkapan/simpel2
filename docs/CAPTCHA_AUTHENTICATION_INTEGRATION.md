@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the comprehensive integration of the AI-resistant CAPTCHA system with SIMPelv2's authentication flows, including login, MFA setup, and password reset.
+This document describes the comprehensive integration of the AI-resistant CAPTCHA system with SIMPEL's authentication flows, including login, MFA setup, and password reset.
 
 ## Table of Contents
 

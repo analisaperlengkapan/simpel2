@@ -611,4 +611,4 @@ esac
 **Document Version**: 1.0
 **Last Updated**: $(date)
 **Next Review**: $(date -d "+1 month")
-**Owner**: SIMPelv2 Operations Team
+**Owner**: SIMPEL Operations Team

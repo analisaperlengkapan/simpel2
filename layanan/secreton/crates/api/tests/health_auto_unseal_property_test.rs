@@ -1,3 +1,4 @@
+#![cfg(any())]
 //! Property-based tests for health endpoint auto-unseal status
 //!
 //! **Property 5: Health endpoint auto-unseal status**

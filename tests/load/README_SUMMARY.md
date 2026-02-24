@@ -308,4 +308,4 @@ For issues or questions:
 ---
 
 **Last Updated:** February 10, 2026
-**Maintained by:** SIMPelv2 DevOps Team
+**Maintained by:** SIMPEL DevOps Team

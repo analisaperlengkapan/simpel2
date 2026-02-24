@@ -1,6 +1,6 @@
-# SIMPelv2 - Layanan Integrasi
+# SIMPEL - Layanan Integrasi
 
-Layanan integrasi untuk external APIs dalam ekosistem SIMPelv2. Menangani integrasi dengan:
+Layanan integrasi untuk external APIs dalam ekosistem SIMPEL. Menangani integrasi dengan:
 
 - **MonSAKTI** - Sistem Aplikasi Keuangan Tingkat Instansi (Kementerian Keuangan RI)
 - **MySIMKARI** - Sistem Informasi Kepegawaian Kejaksaan RI

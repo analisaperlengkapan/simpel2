@@ -3,7 +3,7 @@
 ## 1. Overview
 
 ### 1.1 Purpose
-This design document specifies the architecture and implementation details for achieving full enterprise readiness of Authenc, SIMPelv2's Identity and Access Management (IAM) service. The design addresses critical gaps identified in the requirements document, focusing on production management capabilities, user self-service, compliance features, and government-specific integrations for Indonesian government deployment.
+This design document specifies the architecture and implementation details for achieving full enterprise readiness of Authenc, SIMPEL's Identity and Access Management (IAM) service. The design addresses critical gaps identified in the requirements document, focusing on production management capabilities, user self-service, compliance features, and government-specific integrations for Indonesian government deployment.
 
 **Document Status**: REFRESHED - Updated to ensure complete alignment with all 31 functional requirements (FR-1 through FR-31), 66 non-functional requirements (NFR-1 through NFR-66), and 56 correctness properties.
 
@@ -101,7 +101,7 @@ This design addresses all functional and non-functional requirements as follows:
 
 ### 2.1 System Architecture
 
-Following SIMPelv2 architecture patterns, Authenc uses a clear separation between frontend (WASM microfrontends), backend (REST API), and infrastructure services (gRPC):
+Following SIMPEL architecture patterns, Authenc uses a clear separation between frontend (WASM microfrontends), backend (REST API), and infrastructure services (gRPC):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -176,7 +176,7 @@ Following SIMPelv2 architecture patterns, Authenc uses a clear separation betwee
 - **HTTP Client**: gloo-net
 - **State Management**: Leptos `signal()` and `RwSignal`
 - **Routing**: Leptos Router
-- **Shared Components**: lib-ui (from SIMPelv2 workspace)
+- **Shared Components**: lib-ui (from SIMPEL workspace)
 
 **UI Folder Structure**:
 ```
@@ -3551,7 +3551,7 @@ async fn test_api_response_time_p95() {
 - ✅ User onboarding time reduced by 50% (with self-registration)
 
 ### 14.4 Adoption Metrics
-- ✅ 100% of SIMPelv2 services using Authenc by Q2 2026
+- ✅ 100% of SIMPEL services using Authenc by Q2 2026
 - ✅ Zero Keycloak dependencies by Q3 2026
 - ✅ Admin CLI usage >50% of admin operations by Q3 2026
 - ✅ Production deployment in 5+ Satker by Q2 2026
@@ -3801,7 +3801,7 @@ This section provides complete traceability from requirements to design componen
 - Phase 5 (Q4 2026): Low-priority features and polish
 
 **Architecture Compliance**:
-- ✅ Follows SIMPelv2 architecture patterns
+- ✅ Follows SIMPEL architecture patterns
 - ✅ Leptos 0.8.x for frontend (WASM CSR)
 - ✅ Axum 0.8.x for backend REST API
 - ✅ Tonic 0.14.x for gRPC services
@@ -3972,7 +3972,7 @@ This design document provides a complete, production-ready architecture for Auth
 
 ## Appendix E: Glossary
 
-- **Authenc**: SIMPelv2's custom Identity and Access Management service
+- **Authenc**: SIMPEL's custom Identity and Access Management service
 - **BPK**: Badan Pemeriksa Keuangan (Indonesian Supreme Audit Agency)
 - **MySIMKARI**: Government employee management system
 - **NIP**: Nomor Induk Pegawai (Employee Identification Number) - 18 digits

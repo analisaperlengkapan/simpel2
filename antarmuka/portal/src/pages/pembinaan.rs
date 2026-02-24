@@ -125,7 +125,7 @@ pub fn PembinaanPage(
                                 "Tentang Pembinaan"
                             </h3>
                             <p class="text-gray-700 dark:text-gray-300 mb-3">
-                                "Sistem Pembinaan SIMPelv2 terdiri dari tiga modul utama yang saling terintegrasi:"
+                                "Sistem Pembinaan SIMPEL terdiri dari tiga modul utama yang saling terintegrasi:"
                             </p>
                             <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                                 <li class="flex items-start">

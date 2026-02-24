@@ -132,7 +132,7 @@ fn DashboardLayout() -> impl IntoView {
                                         </svg>
                                     </div>
                                     <div class="hidden sm:block">
-                                        <h1 class="text-lg font-bold tracking-tight leading-none">"SIMPelv2"</h1>
+                                        <h1 class="text-lg font-bold tracking-tight leading-none">"SIMPEL"</h1>
                                         <p class="text-[10px] text-blue-200 leading-none mt-0.5">"Perlengkapan"</p>
                                     </div>
                                 </a>

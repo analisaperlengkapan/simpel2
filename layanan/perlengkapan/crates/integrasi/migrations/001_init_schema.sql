@@ -1,5 +1,5 @@
 -- ============================================================================
--- SIMPelv2 - Layanan Integrasi Database Schema
+-- SIMPEL - Layanan Integrasi Database Schema
 -- ============================================================================
 -- Purpose: Complete database schema for integration service
 -- Sources: MonSAKTI (8 modules: ADM/ANG/AST/BEN/GLP/KOM/PEM/PER),

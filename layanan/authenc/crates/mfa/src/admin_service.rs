@@ -402,7 +402,7 @@ impl AutoUnlockService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::middleware::MfaRateLimitConfig;
+    use crate::rate_limiter::MfaRateLimitConfig;
 
     #[tokio::test]
     async fn test_account_unlock() {

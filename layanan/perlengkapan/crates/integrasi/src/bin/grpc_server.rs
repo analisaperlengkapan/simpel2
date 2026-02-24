@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    info!("=== SIMPelv2 Layanan Integrasi gRPC Server ===");
+    info!("=== SIMPEL Layanan Integrasi gRPC Server ===");
     info!("Version: {}", env!("CARGO_PKG_VERSION"));
 
     // Load .env file if exists

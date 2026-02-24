@@ -242,7 +242,7 @@ pub fn LoginPage() -> impl IntoView {
 
             <footer class="flex-shrink-0 bg-white/80 border-t border-gray-200 py-4">
                 <p class="text-center text-xs text-gray-400">
-                    "© 2026 Kejaksaan Republik Indonesia — SIMPelv2 Perlengkapan"
+                    "© 2026 Kejaksaan Republik Indonesia — SIMPEL Perlengkapan"
                 </p>
             </footer>
         </div>

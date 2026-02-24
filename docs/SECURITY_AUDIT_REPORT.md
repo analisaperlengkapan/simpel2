@@ -1,13 +1,13 @@
-# Security Audit Report - SIMPelv2
+# Security Audit Report - SIMPEL
 
 **Date:** February 10, 2026
 **Auditor:** Security Review Team
-**Scope:** Complete security review of SIMPelv2 codebase
+**Scope:** Complete security review of SIMPEL codebase
 **Status:** COMPLETED
 
 ## Executive Summary
 
-This security audit was conducted on the SIMPelv2 (Sistem Informasi Manajemen Perlengkapan) codebase to assess compliance with security requirements NFR-S001, NFR-S005, and NFR-S008. The audit covered authentication, authorization, input validation, SQL injection prevention, XSS prevention, and CSRF protection.
+This security audit was conducted on the SIMPEL (Sistem Informasi Manajemen Perlengkapan) codebase to assess compliance with security requirements NFR-S001, NFR-S005, and NFR-S008. The audit covered authentication, authorization, input validation, SQL injection prevention, XSS prevention, and CSRF protection.
 
 ### Overall Security Posture: **GOOD** ✅
 
@@ -429,11 +429,11 @@ None identified. ✅
 
 ## Conclusion
 
-The SIMPelv2 codebase demonstrates strong security fundamentals with comprehensive protection mechanisms. The authentication system (Authenc) and secrets management (Secreton) are enterprise-grade. Input validation, XSS prevention, and CSRF protection are well-implemented on the frontend.
+The SIMPEL codebase demonstrates strong security fundamentals with comprehensive protection mechanisms. The authentication system (Authenc) and secrets management (Secreton) are enterprise-grade. Input validation, XSS prevention, and CSRF protection are well-implemented on the frontend.
 
 However, several high-priority issues must be addressed before production deployment, primarily around backend security enforcement (rate limiting, server-side validation, CSRF validation, security headers).
 
-With the recommended fixes implemented, SIMPelv2 will meet all security requirements and be ready for production deployment.
+With the recommended fixes implemented, SIMPEL will meet all security requirements and be ready for production deployment.
 
 **Overall Assessment:** GOOD with HIGH-PRIORITY FIXES REQUIRED ⚠️
 

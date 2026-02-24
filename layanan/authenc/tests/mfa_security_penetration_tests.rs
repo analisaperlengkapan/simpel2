@@ -137,7 +137,7 @@ async fn mock_mfa_setup(
     let qr_uri = state.otp_provider.generate_provisioning_uri(
         &secret,
         "test@kejaksaan.go.id",
-        "SIMPelv2 Test",
+        "SIMPEL Test",
         OtpAlgorithm::HmacSha1,
         6,
         30,

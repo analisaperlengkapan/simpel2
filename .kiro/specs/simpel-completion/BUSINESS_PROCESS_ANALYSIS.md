@@ -2,7 +2,7 @@
 
 **Tanggal Analisis:** 11 Februari 2026
 **Sumber:** `simpel_web-main` (Laravel)
-**Target:** SIMPelv2 (Rust + Leptos)
+**Target:** SIMPEL (Rust + Leptos)
 
 ---
 
@@ -284,11 +284,11 @@ sequenceDiagram
 
 ---
 
-## 5. GAP ANALYSIS - Perbedaan dengan SIMPelv2
+## 5. GAP ANALYSIS - Perbedaan dengan SIMPEL
 
 ### 5.1 Struktur Role
 
-| Aspek | simpel_web-main | SIMPelv2 (Target) | Action |
+| Aspek | simpel_web-main | SIMPEL (Target) | Action |
 |-------|-----------------|-------------------|--------|
 | Role Validator | Validator Pusat, Validator Wilayah | ✅ Sama | Keep |
 | Role Operator | Pelaksana Satker | ✅ Operator Satker | Rename |
@@ -297,7 +297,7 @@ sequenceDiagram
 
 ### 5.2 Proses Bisnis Pakaian Dinas
 
-| Aspek | simpel_web-main | SIMPelv2 (Target) | Action |
+| Aspek | simpel_web-main | SIMPEL (Target) | Action |
 |-------|-----------------|-------------------|--------|
 | Inisiasi | Validator Pusat buat periode | ✅ Sama | Keep |
 | Input Data | Pelaksana Satker input | ✅ Operator Satker input | Rename role |
@@ -307,7 +307,7 @@ sequenceDiagram
 
 ### 5.3 Proses Bisnis Kebutuhan BMN
 
-| Aspek | simpel_web-main | SIMPelv2 (Target) | Action |
+| Aspek | simpel_web-main | SIMPEL (Target) | Action |
 |-------|-----------------|-------------------|--------|
 | Inisiasi | ❌ Tidak ada | ✅ Validator Pusat inisiasi | **TODO: Implement** |
 | Filter BMN | ❌ Tidak ada | ✅ Filter by standar kodefikasi | **TODO: Implement** |
@@ -320,7 +320,7 @@ sequenceDiagram
 
 ### 5.4 Proses Bisnis Pemakaian BMN
 
-| Aspek | simpel_web-main | SIMPelv2 (Target) | Action |
+| Aspek | simpel_web-main | SIMPEL (Target) | Action |
 |-------|-----------------|-------------------|--------|
 | Validasi BMN | ❌ Tidak ada | ✅ Cek apakah sudah dipakai | **TODO: Implement** |
 | Generate Surat | ❌ Tidak ada | ✅ Generate DOCX konsep | **TODO: Implement** |
@@ -332,7 +332,7 @@ sequenceDiagram
 
 ### 5.5 Proses Bisnis SK Penghapusan BMN
 
-| Aspek | simpel_web-main | SIMPelv2 (Target) | Action |
+| Aspek | simpel_web-main | SIMPEL (Target) | Action |
 |-------|-----------------|-------------------|--------|
 | Workflow | ❌ Frontend only | ✅ Full workflow backend | **TODO: Implement** |
 | Generate SK | ❌ Tidak ada | ✅ Generate DOCX konsep | **TODO: Implement** |

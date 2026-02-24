@@ -1,6 +1,6 @@
 ---
 mode: agent
-context: SIMPelv2 Perlengkapan Module Development
+context: SIMPEL Perlengkapan Module Development
 version: 0.4.0
 framework: Leptos 0.8.x CSR SPA WASM
 shared-components: v0.2.0 (40+ components, production-ready)

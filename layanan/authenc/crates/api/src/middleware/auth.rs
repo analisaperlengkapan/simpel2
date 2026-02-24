@@ -163,7 +163,14 @@ mod tests {
     #[tokio::test]
     async fn test_public_endpoints_no_auth_required() {
         // Create a mock JWT validator
-        let jwt_validator = Arc::new(JwtValidator::new_for_testing());
+        let key_bytes = authenc_crypto::jwt::JwtService::generate_signing_key();
+        let jwt_service = Arc::new(authenc_crypto::jwt::JwtService::new(
+            &key_bytes,
+            "https://test.example.com".to_string(),
+            chrono::Duration::minutes(15),
+            chrono::Duration::days(7),
+        ).unwrap());
+        let jwt_validator = Arc::new(JwtValidator::new(jwt_service, None));
         let state = Arc::new(AuthState::new(jwt_validator));
 
         let app = Router::new()
@@ -227,7 +234,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_protected_endpoints_require_auth() {
-        let jwt_validator = Arc::new(JwtValidator::new_for_testing());
+        let key_bytes = authenc_crypto::jwt::JwtService::generate_signing_key();
+        let jwt_service = Arc::new(authenc_crypto::jwt::JwtService::new(
+            &key_bytes,
+            "https://test.example.com".to_string(),
+            chrono::Duration::minutes(15),
+            chrono::Duration::days(7),
+        ).unwrap());
+        let jwt_validator = Arc::new(JwtValidator::new(jwt_service, None));
         let state = Arc::new(AuthState::new(jwt_validator));
 
         let app = Router::new()
@@ -277,7 +291,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_state_creation() {
-        let jwt_validator = Arc::new(JwtValidator::new_for_testing());
+        let key_bytes = authenc_crypto::jwt::JwtService::generate_signing_key();
+        let jwt_service = Arc::new(authenc_crypto::jwt::JwtService::new(
+            &key_bytes,
+            "https://test.example.com".to_string(),
+            chrono::Duration::minutes(15),
+            chrono::Duration::days(7),
+        ).unwrap());
+        let jwt_validator = Arc::new(JwtValidator::new(jwt_service, None));
         let state = AuthState::new(jwt_validator.clone());
 
         assert!(Arc::ptr_eq(&state.jwt_validator, &jwt_validator));

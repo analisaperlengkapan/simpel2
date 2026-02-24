@@ -1,4 +1,4 @@
-# SIMPelv2 Kubernetes Namespace Template
+# SIMPEL Kubernetes Namespace Template
 # Uses Kustomize namePrefix/nameSuffix for environment-specific naming
 
 apiVersion: v1
@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     istio-injection: enabled
   annotations:
-    description: "SIMPelv2 Application Namespace"
+    description: "SIMPEL Application Namespace"
 ---
 apiVersion: v1
 kind: Namespace
@@ -23,4 +23,4 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     istio-injection: enabled
   annotations:
-    description: "SIMPelv2 Infrastructure Namespace (PostgreSQL, Redis, Authenc, Secreton)"
+    description: "SIMPEL Infrastructure Namespace (PostgreSQL, Redis, Authenc, Secreton)"

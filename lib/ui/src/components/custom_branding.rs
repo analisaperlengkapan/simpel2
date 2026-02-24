@@ -118,7 +118,7 @@ impl BrandingConfig {
 
         // Update document title
         if let Some(title) = document.query_selector("title").ok().flatten() {
-            title.set_text_content(Some(&format!("{} - SIMPelv2", self.unit_name)));
+            title.set_text_content(Some(&format!("{} - SIMPEL", self.unit_name)));
         }
     }
 

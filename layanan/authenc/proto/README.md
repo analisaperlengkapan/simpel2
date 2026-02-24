@@ -1,6 +1,6 @@
-# Simpelv2 Protocol Buffers (gRPC)
+# SIMPEL Protocol Buffers (gRPC)
 
-Protocol Buffer definitions untuk komunikasi gRPC antar microservices Simpelv2.
+Protocol Buffer definitions untuk komunikasi gRPC antar microservices SIMPEL.
 
 ## 📁 Structure
 

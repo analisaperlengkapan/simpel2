@@ -548,14 +548,14 @@ mod otp_integration_tests {
         let uri = provider.generate_provisioning_uri(
             &secret,
             "test@kejaksaan.go.id",
-            "SIMPelv2 Kejaksaan RI",
+            "SIMPEL Kejaksaan RI",
             OtpAlgorithm::HmacSha1,
             6,
             30,
         );
 
         assert!(uri.starts_with("otpauth://totp/"));
-        assert!(uri.contains("SIMPelv2%20Kejaksaan%20RI"));
+        assert!(uri.contains("SIMPEL%20Kejaksaan%20RI"));
         assert!(uri.contains("test%40kejaksaan.go.id"));
         assert!(uri.contains(&format!("secret={}", secret)));
         assert!(uri.contains("algorithm=HmacSHA1"));

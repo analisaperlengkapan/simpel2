@@ -1,6 +1,6 @@
-# 🔔 Layanan Notifikasi - SIMPelv2
+# 🔔 Layanan Notifikasi - SIMPEL
 
-**Layanan Notifikasi** adalah microservice dalam SIMPelv2 untuk pengiriman notifikasi multi-channel (email, WhatsApp, push), template dinamis, audit log, rate limit, dan observability. Dibangun dengan Rust (Axum), PostgreSQL, Redis, dan siap integrasi cloud.
+**Layanan Notifikasi** adalah microservice dalam SIMPEL untuk pengiriman notifikasi multi-channel (email, WhatsApp, push), template dinamis, audit log, rate limit, dan observability. Dibangun dengan Rust (Axum), PostgreSQL, Redis, dan siap integrasi cloud.
 
 ## 🚀 Fitur Utama
 - Multi-channel: Email (SMTP), WhatsApp (Business API), Push (FCM)

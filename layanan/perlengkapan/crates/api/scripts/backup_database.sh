@@ -2,7 +2,7 @@
 # ============================================================================
 # Database Backup Script for SIMPEL Migration
 # Description: Full backup with WAL archiving for point-in-time recovery
-# Author: SIMPelv2 Team
+# Author: SIMPEL Team
 # Created: 2026-02-11
 # Requirements: NFR-A003, NFR-A004, NFR-A005
 # ============================================================================

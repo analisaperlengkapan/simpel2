@@ -1575,7 +1575,7 @@ For enterprise support, contact: support@kejaksaan.go.id
 
 **Document Version**: 2.0
 **Last Updated**: February 18, 2026
-**Maintained by**: SIMPelv2 DevOps Team
+**Maintained by**: SIMPEL DevOps Team
 **Next Review**: May 18, 2026
 
 ---

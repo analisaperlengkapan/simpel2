@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Create Kebutuhan BMN Tables
 -- Description: Tables for BMN (Barang Milik Negara) needs analysis system
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-02
 -- ============================================================================
 

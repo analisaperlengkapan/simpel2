@@ -1,4 +1,4 @@
-# cargo-deny configuration for SIMPelv2
+# cargo-deny configuration for SIMPEL
 # https://embarkstudios.github.io/cargo-deny/
 
 [advisories]

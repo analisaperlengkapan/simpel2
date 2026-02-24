@@ -86,7 +86,7 @@ fn test_provisioning_uri_compatibility() {
     let provider = OtpCredentialProvider::new();
     let secret = "JBSWY3DPEHPK3PXP"; // Standard test secret
     let account = "user@kejaksaan.go.id";
-    let issuer = "SIMPelv2 Kejaksaan RI";
+    let issuer = "SIMPEL Kejaksaan RI";
 
     for app in AUTHENTICATOR_APPS {
         println!("Testing compatibility with {}", app.name);
@@ -140,7 +140,7 @@ fn test_algorithm_compatibility() {
     let provider = OtpCredentialProvider::new();
     let secret = "JBSWY3DPEHPK3PXP";
     let account = "test@kejaksaan.go.id";
-    let issuer = "SIMPelv2";
+    let issuer = "SIMPEL";
 
     for app in AUTHENTICATOR_APPS {
         println!("Testing algorithm compatibility with {}", app.name);
@@ -201,7 +201,7 @@ fn test_digits_compatibility() {
     let provider = OtpCredentialProvider::new();
     let secret = "JBSWY3DPEHPK3PXP";
     let account = "test@kejaksaan.go.id";
-    let issuer = "SIMPelv2";
+    let issuer = "SIMPEL";
 
     for app in AUTHENTICATOR_APPS {
         println!("Testing digits compatibility with {}", app.name);
@@ -245,7 +245,7 @@ fn test_period_compatibility() {
     let provider = OtpCredentialProvider::new();
     let secret = "JBSWY3DPEHPK3PXP";
     let account = "test@kejaksaan.go.id";
-    let issuer = "SIMPelv2";
+    let issuer = "SIMPEL";
 
     for app in AUTHENTICATOR_APPS {
         println!("Testing period compatibility with {}", app.name);
@@ -381,7 +381,7 @@ fn test_qr_code_size_compatibility() {
     let provider = OtpCredentialProvider::new();
     let secret = "JBSWY3DPEHPK3PXP";
     let account = "user@kejaksaan.go.id";
-    let issuer = "SIMPelv2 Kejaksaan RI";
+    let issuer = "SIMPEL Kejaksaan RI";
 
     for app in AUTHENTICATOR_APPS {
         println!("Testing QR code size compatibility with {}", app.name);
@@ -422,7 +422,7 @@ fn test_qr_code_size_compatibility() {
 fn test_special_characters_in_account_names() {
     let provider = OtpCredentialProvider::new();
     let secret = "JBSWY3DPEHPK3PXP";
-    let issuer = "SIMPelv2 Kejaksaan RI";
+    let issuer = "SIMPEL Kejaksaan RI";
 
     // Test various account name formats used in government systems
     let test_accounts = vec![
@@ -475,12 +475,12 @@ fn test_issuer_name_compatibility() {
 
     // Test various issuer name formats
     let test_issuers = vec![
-        "SIMPelv2",
-        "SIMPelv2 Kejaksaan RI",
+        "SIMPEL",
+        "SIMPEL Kejaksaan RI",
         "Kejaksaan Republik Indonesia",
         "Attorney General's Office",
-        "AGO-SIMPelv2",
-        "SIMPel v2.0",
+        "AGO-SIMPEL",
+        "SIMPEL.0",
     ];
 
     for app in AUTHENTICATOR_APPS {
@@ -534,7 +534,7 @@ fn test_end_to_end_compatibility() {
         // Generate secret
         let secret = provider.generate_secret();
         let account = "test@kejaksaan.go.id";
-        let issuer = "SIMPelv2 Kejaksaan RI";
+        let issuer = "SIMPEL Kejaksaan RI";
 
         // Generate provisioning URI
         let uri = provider.generate_provisioning_uri(

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Create Integration Schema and Tables
 -- Description: Schema and tables for SIMAN, MySIMKARI, and MonSAKTI integration
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-09
 -- Requirements: REQ-I001, REQ-I002, REQ-I008
 -- ============================================================================

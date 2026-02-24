@@ -1,7 +1,7 @@
 // ============================================================================
 // Connection Pooling Configuration
 // Description: Optimized connection pool configuration for database and Redis
-// Author: SIMPelv2 Team
+// Author: SIMPEL Team
 // Created: 2026-02-10
 // Requirements: NFR-SC001
 // ============================================================================

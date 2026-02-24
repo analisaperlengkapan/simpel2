@@ -186,7 +186,7 @@ pub fn Sidebar(
             <div class="px-4 py-3 border-t border-white/10 flex-shrink-0">
                 <div class="flex items-center gap-2 text-[10px] text-gray-500">
                     <div class="w-1.5 h-1.5 bg-green-400 rounded-full" aria-hidden="true"></div>
-                    <span>"SIMPelv2 v2.0"</span>
+                    <span>"SIMPEL v2.0"</span>
                 </div>
             </div>
         </div>

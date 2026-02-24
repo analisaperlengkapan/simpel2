@@ -1,4 +1,4 @@
-//! Audit logging module for SIMPelv2
+//! Audit logging module for SIMPEL
 //!
 //! Provides comprehensive audit logging with database persistence,
 //! query capabilities, and filtering.

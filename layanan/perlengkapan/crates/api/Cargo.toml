@@ -2,12 +2,16 @@
 name = "layanan-perlengkapan-api"
 version.workspace = true
 edition.workspace = true
-authors = ["SIMPelv2 Team"]
+authors = ["SIMPEL Team"]
 description = "Main Perlengkapan API service - BMN management for Kejaksaan RI"
 
 [[bin]]
 name = "layanan-perlengkapan-api"
 path = "src/main.rs"
+
+[lib]
+name = "layanan_perlengkapan_api"
+path = "src/lib.rs"
 
 [features]
 default = []

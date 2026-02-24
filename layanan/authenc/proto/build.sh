@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║  Simpelv2 gRPC Code Generation        ║${NC}"
+echo -e "${BLUE}║  SIMPEL gRPC Code Generation        ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════╝${NC}\n"
 
 # Validate proto files

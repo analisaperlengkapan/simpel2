@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Create New Entity Tables
 -- Description: Tables for roadmap, mapping, fulfillment, parallel approvals, and pemakaian
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-09
 -- Requirements: REQ-K008, REQ-M007, REQ-K009, REQ-P001
 -- ============================================================================

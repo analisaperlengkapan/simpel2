@@ -102,7 +102,7 @@ impl CorsConfig {
 impl Default for CorsConfig {
     fn default() -> Self {
         Self::new(Environment::Production)
-            // Default allowed origins for SIMPelv2 microfrontends
+            // Default allowed origins for SIMPEL microfrontends
             .add_origin("https://portal.kejaksaan.go.id")
             .add_origin("https://perlengkapan.kejaksaan.go.id")
             .add_origin("https://intel.kejaksaan.go.id")

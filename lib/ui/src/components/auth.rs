@@ -83,7 +83,7 @@ pub fn LoginRedirectPage(
                     // Footer info
                     <div class="text-sm text-gray-500 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <p>"Kejaksaan Republik Indonesia"</p>
-                        <p class="mt-1">"© 2025 SIMPelv2"</p>
+                        <p class="mt-1">"© 2025 SIMPEL"</p>
                     </div>
                 </div>
             </Card>

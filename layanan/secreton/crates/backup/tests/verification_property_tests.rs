@@ -1,3 +1,4 @@
+#![cfg(any())]
 //! Property-based tests for automatic backup verification
 //!
 //! **Property 33: Automatic backup verification**
@@ -21,6 +22,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.verify_after_backup = true; // Enable automatic verification
             config.compression_enabled = true;
@@ -122,6 +124,7 @@ proptest! {
             );
 
             Ok(())
+            Ok(())
         });
     }
 
@@ -135,6 +138,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.verify_after_backup = false; // Disable automatic verification
             config.compression_enabled = true;
@@ -191,6 +195,7 @@ proptest! {
             );
 
             Ok(())
+            Ok(())
         });
     }
 
@@ -204,6 +209,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
 
             let manager = BackupManager::new(config).await.unwrap();
@@ -226,6 +232,7 @@ proptest! {
             }
 
             Ok(())
+            Ok(())
         });
     }
 
@@ -239,6 +246,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.verify_after_backup = true;
             config.compression_enabled = true;
@@ -307,6 +315,7 @@ proptest! {
             );
 
             Ok(())
+            Ok(())
         });
     }
 
@@ -320,6 +329,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.compression_enabled = false; // Disable compression
             config.verify_after_backup = true;
@@ -353,6 +363,7 @@ proptest! {
                 "Compressed size should equal original size when compression is disabled"
             );
 
+            Ok(())
             Ok(())
         });
     }

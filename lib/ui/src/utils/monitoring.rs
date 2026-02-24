@@ -1,4 +1,4 @@
-// Performance monitoring utilities for SIMPelv2
+// Performance monitoring utilities for SIMPEL
 // Tracks Core Web Vitals, WASM load times, and API response times
 
 use chrono::{DateTime, Utc};

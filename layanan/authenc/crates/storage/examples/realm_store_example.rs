@@ -39,11 +39,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Created realm: {:?}", realm);
     println!("  ID: {}", realm.id);
     println!("  Name: {}", realm.name);
-    println!("  Display Name: {}", realm.display_name);
+    println!("  Display Name: {}", realm.display_name.as_deref().unwrap_or(""));
     println!("  Enabled: {}", realm.enabled);
 
     println!("\n=== Getting Realm by ID ===");
-    let fetched_realm = realm_store.get_realm(realm.id).await?;
+    let fetched_realm = realm_store.get_realm(RealmId(realm.id)).await?;
     println!("Fetched realm: {:?}", fetched_realm);
 
     println!("\n=== Getting Realm by Name ===");
@@ -52,10 +52,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n=== Updating Realm ===");
     let updated_realm = realm_store
-        .update_realm(realm.id, Some("Kejaksaan RI - Updated".to_string()), None)
+        .update_realm(RealmId(realm.id), Some("Kejaksaan RI - Updated".to_string()), None)
         .await?;
     println!("Updated realm: {:?}", updated_realm);
-    println!("  New Display Name: {}", updated_realm.display_name);
+    println!("  New Display Name: {}", updated_realm.display_name.as_deref().unwrap_or(""));
 
     println!("\n=== Creating Another Realm ===");
     let realm2 = realm_store
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "  {}. {} - {} (enabled: {})",
             i + 1,
             r.name,
-            r.display_name,
+            r.display_name.as_deref().unwrap_or(""),
             r.enabled
         );
     }
@@ -85,16 +85,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n=== Disabling Realm ===");
     let disabled_realm = realm_store
-        .update_realm(realm.id, None, Some(false))
+        .update_realm(RealmId(realm.id), None, Some(false))
         .await?;
     println!("Disabled realm: {:?}", disabled_realm);
     println!("  Enabled: {}", disabled_realm.enabled);
 
     println!("\n=== Deleting Realms ===");
-    realm_store.delete_realm(realm.id).await?;
+    realm_store.delete_realm(RealmId(realm.id)).await?;
     println!("Deleted realm: {}", realm.id);
 
-    realm_store.delete_realm(realm2.id).await?;
+    realm_store.delete_realm(RealmId(realm2.id)).await?;
     println!("Deleted realm: {}", realm2.id);
 
     println!("\n=== Verifying Deletion ===");
@@ -105,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Try to get non-existent realm
     println!("Attempting to get non-existent realm...");
-    match realm_store.get_realm(RealmId::new()).await {
+    match realm_store.get_realm(RealmId(uuid::Uuid::new_v4())).await {
         Ok(_) => println!("  Unexpected success"),
         Err(e) => println!("  Expected error: {}", e),
     }
@@ -126,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Cleanup
-    realm_store.delete_realm(test_realm.id).await?;
+    realm_store.delete_realm(RealmId(test_realm.id)).await?;
     println!("Cleaned up test realm");
 
     println!("\n=== Example Complete ===");

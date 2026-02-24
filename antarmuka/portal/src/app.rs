@@ -1,6 +1,6 @@
-//! # SIMPelv2 Portal Utama - Modern Government Portal
+//! # SIMPEL Portal Utama - Modern Government Portal
 //!
-//! Portal utama yang mengintegrasikan semua layanan SIMPelv2 dengan:
+//! Portal utama yang mengintegrasikan semua layanan SIMPEL dengan:
 //! - **Modern UI/UX**: Design system berbasis Tailwind CSS
 //! - **Performance Optimized**: Code splitting dan lazy loading
 //! - **Accessibility**: WCAG 2.1 AA compliance
@@ -511,7 +511,7 @@ fn setup_search_providers() {
         SearchResult {
             id: "apps".to_string(),
             title: "Aplikasi".to_string(),
-            description: "Daftar semua aplikasi SIMPelv2 yang tersedia".to_string(),
+            description: "Daftar semua aplikasi SIMPEL yang tersedia".to_string(),
             category: SearchCategory::Page,
             url: "/portal/apps".to_string(),
             icon: "🚀".to_string(),

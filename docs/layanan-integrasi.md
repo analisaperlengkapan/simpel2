@@ -1,7 +1,7 @@
 # README – layanan-integrasi
 
 ## 🔗 Deskripsi Singkat
-`layanan-integrasi` merupakan layanan mikro SIMPelv2 yang bertugas menjembatani pertukaran data antara SIMPelv2 dan sistem eksternal pemerintah seperti SIMAN, MONSAKTI, MySimkari, dan SIPEDE. Layanan ini dirancang untuk menjaga integritas, keamanan, dan keteraturan proses sinkronisasi data.
+`layanan-integrasi` merupakan layanan mikro SIMPEL yang bertugas menjembatani pertukaran data antara SIMPEL dan sistem eksternal pemerintah seperti SIMAN, MONSAKTI, MySimkari, dan SIPEDE. Layanan ini dirancang untuk menjaga integritas, keamanan, dan keteraturan proses sinkronisasi data.
 
 ---
 
@@ -9,7 +9,7 @@
 - Menyediakan konektivitas aman dengan sistem eksternal
 - Menarik dan menyimpan data secara periodik dan on-demand
 - Menyediakan API internal yang distandarisasi untuk data eksternal
-- Melakukan validasi, normalisasi, dan transformasi data sesuai skema SIMPelv2
+- Melakukan validasi, normalisasi, dan transformasi data sesuai skema SIMPEL
 - Menyimpan histori sinkronisasi dan audit terpusat
 
 ---
@@ -94,7 +94,7 @@ SIPEDE_ENDPOINT=https://sipede.setjen.kemendagri.go.id/api
 
 ---
 
-## 📌 Integrasi Terkait Layanan SIMPelv2
+## 📌 Integrasi Terkait Layanan SIMPEL
 | Layanan               | Fungsi Integrasi                            |
 |------------------------|---------------------------------------------|
 | `layanan-aset`         | Pembaruan aset dari SIMAN                   |
@@ -115,6 +115,6 @@ SIPEDE_ENDPOINT=https://sipede.setjen.kemendagri.go.id/api
 ---
 
 ## 📝 Lisensi
-Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPelv2 Internal Use Only
+Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPEL Internal Use Only
 
-> Layanan Integrasi adalah penghubung krusial yang memastikan bahwa SIMPelv2 tetap selaras dengan sistem nasional dalam pengelolaan Barang Milik Negara.
+> Layanan Integrasi adalah penghubung krusial yang memastikan bahwa SIMPEL tetap selaras dengan sistem nasional dalam pengelolaan Barang Milik Negara.

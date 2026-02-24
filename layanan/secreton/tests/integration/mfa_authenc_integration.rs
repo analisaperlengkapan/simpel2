@@ -32,7 +32,7 @@ mod test_utils {
 
         // Configure MFA settings
         config.mfa.enabled = true;
-        config.mfa.totp_issuer = "SIMPelv2 Kejaksaan RI".to_string();
+        config.mfa.totp_issuer = "SIMPEL Kejaksaan RI".to_string();
         config.mfa.backup_codes_count = 10;
         config.mfa.rate_limit_window = Duration::from_secs(60);
         config.mfa.max_attempts_per_window = 5;
@@ -44,7 +44,7 @@ mod test_utils {
     pub fn create_test_mfa_setup_request(user_id: &str, satker_code: &str) -> MfaSetupRequest {
         MfaSetupRequest {
             user_id: user_id.to_string(),
-            issuer: "SIMPelv2 Kejaksaan RI".to_string(),
+            issuer: "SIMPEL Kejaksaan RI".to_string(),
             account_name: format!("{}@kejaksaan.go.id", user_id),
             satker_code: satker_code.to_string(),
             metadata: Some(json!({

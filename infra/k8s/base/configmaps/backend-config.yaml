@@ -1,4 +1,4 @@
-# SIMPelv2 Backend Services ConfigMap
+# SIMPEL Backend Services ConfigMap
 
 apiVersion: v1
 kind: ConfigMap

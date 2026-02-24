@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    info!("=== SIMPelv2 Layanan Integrasi Server ===");
+    info!("=== SIMPEL Layanan Integrasi Server ===");
     info!("Version: {}", env!("CARGO_PKG_VERSION"));
 
     // Load .env file if exists

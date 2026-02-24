@@ -27,7 +27,7 @@ fn test_mldsa_keypair_generation() {
 #[test]
 fn test_mldsa_sign_verify_roundtrip() {
     let (pk, sk) = mldsa::SecretKey::new().expect("keygen");
-    let message = b"SIMPelv2 Post-Quantum signature test";
+    let message = b"SIMPEL Post-Quantum signature test";
 
     let signature = sk.sign(message).expect("signing should succeed");
     assert!(
@@ -269,7 +269,7 @@ fn test_falcon_key_sizes() {
 #[test]
 fn test_hybrid_encrypt_decrypt_roundtrip() {
     let (pk, sk) = mlkem::SecretKey::new().expect("keygen");
-    let plaintext = b"Hybrid encryption test for SIMPelv2 government BMN data";
+    let plaintext = b"Hybrid encryption test for SIMPEL government BMN data";
 
     let (ct, encrypted, nonce) = hybrid::encrypt_hybrid(&pk, plaintext)
         .expect("Hybrid encryption should succeed");

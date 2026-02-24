@@ -1,5 +1,5 @@
 -- ============================================================================
--- ROLLBACK SCRIPT - SIMPelv2 Layanan Integrasi
+-- ROLLBACK SCRIPT - SIMPEL Layanan Integrasi
 -- ============================================================================
 -- Purpose: Clean rollback of all integration service database objects
 -- Usage: psql -U username -d database_name -f migrations/002_rollback.sql

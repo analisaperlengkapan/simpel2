@@ -1,4 +1,4 @@
-//! SIMPelv2 Layanan Bantuan
+//! SIMPEL Layanan Bantuan
 //!
 //! Service untuk menangani bantuan pengguna, FAQ, ticketing system,
 //! dan chatbot berbasis AI.

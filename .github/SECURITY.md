@@ -2,7 +2,7 @@
 
 ## 🔒 Reporting Security Vulnerabilities
 
-The SIMPelv2 team takes security seriously. We appreciate your efforts to responsibly disclose your findings.
+The SIMPEL team takes security seriously. We appreciate your efforts to responsibly disclose your findings.
 
 ### ⚠️ **DO NOT** disclose security vulnerabilities publicly
 
@@ -68,7 +68,7 @@ For highly sensitive issues, request our PGP key via email first.
 - Issues requiring unlikely user interaction
 - Vulnerabilities in outdated versions (report if affecting latest stable)
 
-## 🔐 Security Best Practices in SIMPelv2
+## 🔐 Security Best Practices in SIMPEL
 
 ### Current Security Measures
 
@@ -120,7 +120,7 @@ We recognize and thank security researchers who responsibly disclose vulnerabili
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 - [Rust Security Guidelines](https://anssi-fr.github.io/rust-guide/)
 - [CWE Top 25](https://cwe.mitre.org/top25/)
-- [SIMPelv2 Security Documentation](../docs/security/)
+- [SIMPEL Security Documentation](../docs/security/)
 
 ## 🔗 Related Policies
 

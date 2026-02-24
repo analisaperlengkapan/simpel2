@@ -151,7 +151,7 @@ BEGIN
             (default_realm_id, 'groups', 'User Groups', 'Access to user group membership', 'openid-connect', FALSE, FALSE, TRUE)
         ON CONFLICT (realm_id, name) DO NOTHING;
 
-        -- SIMPelv2-specific scopes for asset management
+        -- SIMPEL-specific scopes for asset management
         INSERT INTO client_scopes (realm_id, name, display_name, description, protocol, consent_required, display_on_consent_screen, include_in_token_scope)
         VALUES
             (default_realm_id, 'read:aset', 'Read Assets', 'View asset information', 'openid-connect', TRUE, TRUE, TRUE),

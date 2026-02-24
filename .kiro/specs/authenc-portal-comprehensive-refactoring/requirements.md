@@ -3,7 +3,7 @@
 ## 1. Overview
 
 ### 1.1 Purpose
-This document specifies the functional and non-functional requirements for the comprehensive refactoring of the SIMPelv2 authentication system, derived from the approved design document.
+This document specifies the functional and non-functional requirements for the comprehensive refactoring of the SIMPEL authentication system, derived from the approved design document.
 
 ### 1.2 Scope
 The requirements cover:
@@ -1635,7 +1635,7 @@ The requirements cover:
 
 ## 14. Glossary
 
-**Authenc**: Authentication and authorization service for SIMPelv2
+**Authenc**: Authentication and authorization service for SIMPEL
 **Portal IAM**: Identity and Access Management portal microfrontend
 **MFA**: Multi-Factor Authentication
 **TOTP**: Time-based One-Time Password
@@ -1702,7 +1702,7 @@ The requirements cover:
 
 **Document Version**: 2.0
 **Last Updated**: 2026-02-19
-**Authors**: SIMPelv2 Architecture Team
+**Authors**: SIMPEL Architecture Team
 **Status**: Updated - Enhanced with WebAuthn/Passkeys (MANDATORY) and FAPI (OPTIONAL)
 **Workflow**: Design-First
 **Changes from v1.0**:

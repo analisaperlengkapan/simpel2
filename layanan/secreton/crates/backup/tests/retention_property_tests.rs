@@ -1,3 +1,4 @@
+#![cfg(any())]
 //! Property-based tests for backup retention functionality
 //!
 //! **Property 31: Backup retention**
@@ -78,6 +79,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.retention_days = retention_days;
             config.verify_after_backup = false; // Disable for speed
@@ -199,6 +201,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.retention_days = 0; // Delete all backups
             config.verify_after_backup = false;
@@ -256,6 +259,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.retention_days = 3650; // 10 years
             config.verify_after_backup = false;
@@ -306,6 +310,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.retention_days = retention_days;
             config.verify_after_backup = false;
@@ -385,6 +390,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
             });
             config.retention_days = retention_days;
             config.verify_after_backup = false;

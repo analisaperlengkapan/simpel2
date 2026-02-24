@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Schema Standardization - Data Migration
 -- Description: Migrate pakaian_dinas tables to perlengkapan schema
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-09
 -- Requirements: NFR-A003, NFR-A004
 -- ============================================================================

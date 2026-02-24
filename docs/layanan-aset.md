@@ -1,6 +1,6 @@
 # README - layanan-aset
 
-**layanan-aset** adalah microservice utama yang mengelola master data aset Barang Milik Negara (BMN) dalam sistem SIMPelv2. Layanan ini menjadi fondasi utama integritas data aset nasional, mulai dari identitas aset, status kepemilikan, klasifikasi, hingga histori mutasi.
+**layanan-aset** adalah microservice utama yang mengelola master data aset Barang Milik Negara (BMN) dalam sistem SIMPEL. Layanan ini menjadi fondasi utama integritas data aset nasional, mulai dari identitas aset, status kepemilikan, klasifikasi, hingga histori mutasi.
 
 ---
 

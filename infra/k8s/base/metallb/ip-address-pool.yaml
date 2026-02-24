@@ -1,4 +1,4 @@
-# MetalLB IP Address Pool for SIMPelv2
+# MetalLB IP Address Pool for SIMPEL
 # This configures the IP range for LoadBalancer services
 # Updated: 2026-02-03 - Environment-specific pools (staging/production)
 #
@@ -15,7 +15,7 @@ metadata:
   name: prod-addresspool
   namespace: metallb-system
   annotations:
-    description: "Production IP pool for SIMPelv2 LoadBalancer services"
+    description: "Production IP pool for SIMPEL LoadBalancer services"
 spec:
   addresses:
     # Production range: 172.15.10.200-172.15.10.230 (31 IPs)
@@ -30,7 +30,7 @@ metadata:
   name: staging-addresspool
   namespace: metallb-system
   annotations:
-    description: "Staging IP pool for SIMPelv2 testing and staging"
+    description: "Staging IP pool for SIMPEL testing and staging"
 spec:
   addresses:
     # Staging range: 172.15.10.231-172.15.10.250 (20 IPs)

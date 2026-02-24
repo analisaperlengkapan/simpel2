@@ -4,7 +4,7 @@
 // =====================================================
 
 use anyhow::{Context, Result};
-use layanan_integrasi::{
+use layanan_perlengkapan_integrasi::{
     client::MonsaktiClient,
     config::Config,
     siman::{SimanAssetCategory, endpoints},

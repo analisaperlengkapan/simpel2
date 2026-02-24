@@ -17,7 +17,6 @@ members = [
     # Perlengkapan Backend sub-crates
     "layanan/perlengkapan/crates/api",
     "layanan/perlengkapan/crates/integrasi",
-    "layanan/perlengkapan/crates/ai",
     "layanan/perlengkapan/crates/dokumen",
     "layanan/perlengkapan/crates/notifikasi",
     "layanan/perlengkapan/crates/bantuan",

@@ -14,7 +14,7 @@ metadata:
     istio: ingressgateway
     environment: staging
   annotations:
-    description: "Staging service for SIMPelv2, accessible via WAN IP 10.1.7.121"
+    description: "Staging service for SIMPEL, accessible via WAN IP 10.1.7.121"
 spec:
   type: ClusterIP
   externalIPs:

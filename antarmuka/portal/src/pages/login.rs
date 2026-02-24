@@ -218,7 +218,7 @@ pub fn LoginPage(
                         <span class="text-3xl">"⚖️"</span>
                     </div>
                     <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-                        "Portal SIMPelv2"
+                        "Portal SIMPEL"
                     </h1>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
                         "Kejaksaan Republik Indonesia"

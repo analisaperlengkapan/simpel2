@@ -1,4 +1,4 @@
-# Docker Compose for SIMPelv2 Monitoring Stack
+# Docker Compose for SIMPEL Monitoring Stack
 # Requirements: NFR-M004
 
 version: '3.8'

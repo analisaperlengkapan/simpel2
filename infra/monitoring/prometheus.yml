@@ -1,4 +1,4 @@
-# Prometheus configuration for SIMPelv2 monitoring
+# Prometheus configuration for SIMPEL monitoring
 # Requirements: NFR-M004
 
 global:

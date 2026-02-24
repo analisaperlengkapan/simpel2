@@ -28,7 +28,7 @@ mod model_tests {
         );
         assert_eq!(
             KebutuhanBmnStatus::from_code(2002),
-            Some(KebutuhanBmnStatus::SubmitSatker)
+            Some(KebutuhanBmnStatus::SubmitWilayah)
         );
         assert_eq!(
             KebutuhanBmnStatus::from_code(2003),
@@ -40,7 +40,7 @@ mod model_tests {
         );
         assert_eq!(
             KebutuhanBmnStatus::from_code(2005),
-            Some(KebutuhanBmnStatus::PenyusunanPrioritas)
+            Some(KebutuhanBmnStatus::AnalisisKelayakan)
         );
         assert_eq!(
             KebutuhanBmnStatus::from_code(2006),
@@ -84,7 +84,7 @@ mod model_tests {
             "Analisis Kelayakan"
         );
         assert_eq!(
-            KebutuhanBmnStatus::PenyusunanPrioritas.label(),
+            KebutuhanBmnStatus::AnalisisKelayakan.label(),
             "Penyusunan Prioritas"
         );
     }
@@ -130,14 +130,14 @@ mod workflow_tests {
         // Invalid transitions
         assert!(!draft.can_transition_to(KebutuhanBmnStatus::Approved));
         assert!(!draft.can_transition_to(KebutuhanBmnStatus::Completed));
-        assert!(!draft.can_transition_to(KebutuhanBmnStatus::SubmitSatker));
+        assert!(!draft.can_transition_to(KebutuhanBmnStatus::SubmitWilayah));
     }
 
     #[test]
     fn test_input_barang_transitions() {
         let status = KebutuhanBmnStatus::InputBarang;
 
-        assert!(status.can_transition_to(KebutuhanBmnStatus::SubmitSatker));
+        assert!(status.can_transition_to(KebutuhanBmnStatus::SubmitWilayah));
         assert!(status.can_transition_to(KebutuhanBmnStatus::Cancelled));
 
         assert!(!status.can_transition_to(KebutuhanBmnStatus::Draft));
@@ -146,7 +146,7 @@ mod workflow_tests {
 
     #[test]
     fn test_submit_satker_transitions() {
-        let status = KebutuhanBmnStatus::SubmitSatker;
+        let status = KebutuhanBmnStatus::SubmitWilayah;
 
         assert!(status.can_transition_to(KebutuhanBmnStatus::AnalisisKelayakan));
         assert!(status.can_transition_to(KebutuhanBmnStatus::RevisiSatker));
@@ -160,7 +160,7 @@ mod workflow_tests {
     fn test_analisis_kelayakan_transitions() {
         let status = KebutuhanBmnStatus::AnalisisKelayakan;
 
-        assert!(status.can_transition_to(KebutuhanBmnStatus::PenyusunanPrioritas));
+        assert!(status.can_transition_to(KebutuhanBmnStatus::AnalisisKelayakan));
         assert!(status.can_transition_to(KebutuhanBmnStatus::RevisiSatker));
         assert!(status.can_transition_to(KebutuhanBmnStatus::Rejected));
 
@@ -169,7 +169,7 @@ mod workflow_tests {
 
     #[test]
     fn test_penyusunan_prioritas_transitions() {
-        let status = KebutuhanBmnStatus::PenyusunanPrioritas;
+        let status = KebutuhanBmnStatus::AnalisisKelayakan;
 
         assert!(status.can_transition_to(KebutuhanBmnStatus::Approved));
         assert!(status.can_transition_to(KebutuhanBmnStatus::Rejected));

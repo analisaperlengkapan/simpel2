@@ -66,7 +66,7 @@ pub fn Navbar(
                             </div>
                             <div class="hidden md:block">
                                 <h1 class="text-white text-lg font-bold tracking-tight">
-                                    "Portal SIMPelv2"
+                                    "Portal SIMPEL"
                                 </h1>
                                 <p class="text-red-100 text-xs font-medium">
                                     "Kejaksaan Agung RI"

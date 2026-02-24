@@ -1,8 +1,8 @@
-# SIMPelv2 Docker Build Guide
+# SIMPEL Docker Build Guide
 
 ## 📋 Overview
 
-Panduan lengkap untuk build dan push container images SIMPelv2 ke registry.
+Panduan lengkap untuk build dan push container images SIMPEL ke registry.
 
 ## 🏗️ Arsitektur Build
 

@@ -118,7 +118,7 @@ SIMAN_SCHEDULE=0 0 */12 * *      # Setiap 12 jam
 Scheduler akan memberikan log yang detail untuk setiap aktivitas:
 
 ```
-INFO 🚀 SIMPelv2 - Integration Scheduler Starting...
+INFO 🚀 SIMPEL - Integration Scheduler Starting...
 INFO 📋 Scheduler Configuration:
 INFO   • Timezone: Asia/Jakarta
 INFO   • MonSAKTI Schedule: 0 2 * * *

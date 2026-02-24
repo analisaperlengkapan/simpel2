@@ -1,4 +1,4 @@
-# SIMPelv2 Perlengkapan - Equipment Management
+# SIMPEL Perlengkapan - Equipment Management
 
 ## 📋 Overview
 
@@ -234,4 +234,4 @@ MIT License - See [LICENSE](../../LICENSE) for details.
 
 **Version**: 0.4.0
 **Last Updated**: October 1, 2025
-**Maintainer**: SIMPelv2 Team
+**Maintainer**: SIMPEL Team

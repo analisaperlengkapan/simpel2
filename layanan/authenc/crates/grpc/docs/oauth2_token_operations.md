@@ -298,5 +298,5 @@ This implementation satisfies the following requirements from the spec:
 ---
 
 **Last Updated**: 2026-02-19
-**Author**: SIMPelv2 Team
+**Author**: SIMPEL Team
 **Status**: Implemented (Medium Priority)

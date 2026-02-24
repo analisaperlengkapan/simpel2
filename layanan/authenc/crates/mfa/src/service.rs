@@ -120,7 +120,7 @@ impl MfaService {
     pub async fn setup_mfa(&self, user_id: Uuid) -> Result<MfaSetupResponse> {
         // Get user info for MFA setup
         let user = self.get_user(user_id).await?;
-        let issuer = "SIMPelv2 Kejaksaan RI";
+        let issuer = "SIMPEL Kejaksaan RI";
         let account_name = format!(
             "{}@kejaksaan.go.id",
             user.nip.unwrap_or_else(|| user.username.clone())

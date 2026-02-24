@@ -1,9 +1,9 @@
 use deadpool_postgres::{Config, Runtime};
-use notifikasi::config::AppConfig;
-use notifikasi::email::EmailService;
-use notifikasi::push::PushService;
-use notifikasi::queue_processor::{QueueProcessor, QueueStats};
-use notifikasi::sms::SmsService;
+use layanan_perlengkapan_notifikasi::config::AppConfig;
+use layanan_perlengkapan_notifikasi::email::EmailService;
+use layanan_perlengkapan_notifikasi::push::PushService;
+use layanan_perlengkapan_notifikasi::queue_processor::{QueueProcessor, QueueStats};
+use layanan_perlengkapan_notifikasi::sms::SmsService;
 use std::sync::Arc;
 
 /// Helper function to create a test database pool
@@ -23,6 +23,8 @@ fn create_test_config() -> AppConfig {
             server_host: "127.0.0.1".to_string(),
             server_port: 8080,
             database_url: "postgres://postgres:postgres@localhost:5432/notifikasi_test".to_string(),
+            database_pool_size: 10,
+            log_level: "info".to_string(),
         },
         grpc_port: 50053,
         smtp_host: "smtp.example.com".to_string(),

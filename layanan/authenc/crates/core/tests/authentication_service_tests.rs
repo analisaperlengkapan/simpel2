@@ -46,7 +46,7 @@ impl UserStore for MockUserStore {
         let users = self.users.lock().await;
         users
             .values()
-            .find(|u| u.id == id)
+            .find(|u| u.id == id.0)
             .cloned()
             .ok_or_else(|| AuthencError::UserNotFound(format!("User {} not found", id)))
     }
@@ -125,7 +125,7 @@ impl SessionStore for MockSessionStore {
             mfa_verified_at: None,
         };
         let mut sessions = self.sessions.lock().await;
-        sessions.insert(session.id, session.clone());
+        sessions.insert(SessionId::from_uuid(session.id), session.clone());
         Ok(session)
     }
 
@@ -315,7 +315,7 @@ async fn test_successful_authentication_without_mfa() {
 
     let credentials = Credentials {
         username: "testuser".to_string(),
-        password: Some("password123".to_string()),
+        password: "password123".to_string(),
     };
 
     let result = auth_service
@@ -328,7 +328,7 @@ async fn test_successful_authentication_without_mfa() {
             user_id,
             session_id,
         } => {
-            assert_eq!(user_id, user.id);
+            assert_eq!(user_id.0, user.id);
             assert_ne!(session_id, SessionId::new());
         }
         _ => panic!("Expected AuthResult::Success"),
@@ -355,7 +355,7 @@ async fn test_successful_authentication_with_mfa_required() {
 
     match result {
         AuthResult::MfaRequired { user_id, mfa_token } => {
-            assert_eq!(user_id, user.id);
+            assert_eq!(user_id.0, user.id);
             assert!(!mfa_token.is_empty());
             assert!(mfa_token.starts_with("mfa_"));
         }
@@ -373,7 +373,7 @@ async fn test_authentication_invalid_password() {
 
     let credentials = Credentials {
         username: "testuser".to_string(),
-        password: Some("wrongpassword".to_string()),
+        password: "wrongpassword".to_string(),
     };
 
     let result = auth_service
@@ -396,7 +396,7 @@ async fn test_authentication_user_not_found() {
 
     let credentials = Credentials {
         username: "nonexistent".to_string(),
-        password: Some("password123".to_string()),
+        password: "password123".to_string(),
     };
 
     let result = auth_service
@@ -422,7 +422,7 @@ async fn test_authentication_disabled_user() {
 
     let credentials = Credentials {
         username: "testuser".to_string(),
-        password: Some("password123".to_string()),
+        password: "password123".to_string(),
     };
 
     let result = auth_service
@@ -454,7 +454,7 @@ async fn test_brute_force_protection_triggers_after_max_attempts() {
     for _ in 0..5 {
         let credentials = Credentials {
             username: "testuser".to_string(),
-            password: Some("wrongpassword".to_string()),
+            password: "wrongpassword".to_string(),
         };
         let _ = auth_service.authenticate(credentials, realm_id).await;
     }
@@ -462,7 +462,7 @@ async fn test_brute_force_protection_triggers_after_max_attempts() {
     // 6th attempt should be blocked even with correct password
     let credentials = Credentials {
         username: "testuser".to_string(),
-        password: Some("password123".to_string()),
+        password: "password123".to_string(),
     };
 
     let result = auth_service
@@ -490,7 +490,7 @@ async fn test_brute_force_protection_resets_on_success() {
     for _ in 0..3 {
         let credentials = Credentials {
             username: "testuser".to_string(),
-            password: Some("wrongpassword".to_string()),
+            password: "wrongpassword".to_string(),
         };
         let _ = auth_service.authenticate(credentials, realm_id).await;
     }
@@ -503,7 +503,7 @@ async fn test_brute_force_protection_resets_on_success() {
     // Successful authentication should reset
     let credentials = Credentials {
         username: "testuser".to_string(),
-        password: Some("password123".to_string()),
+        password: "password123".to_string(),
     };
     let result = auth_service
         .authenticate(credentials, realm_id)
@@ -529,10 +529,10 @@ async fn test_validate_session_success() {
     user_store.add_user(user.clone()).await;
 
     // Create a session
-    let session = session_store.create_session(user.id).await.unwrap();
+    let session = session_store.create_session(UserId::from_uuid(user.id)).await.unwrap();
 
     // Validate session
-    let validated_user = auth_service.validate_session(session.id).await.unwrap();
+    let validated_user = auth_service.validate_session(SessionId::from_uuid(session.id)).await.unwrap();
     assert_eq!(validated_user.id, user.id);
     assert_eq!(validated_user.username, user.username);
 }
@@ -578,11 +578,11 @@ async fn test_validate_session_expired() {
     };
 
     let mut sessions = session_store.sessions.lock().await;
-    sessions.insert(session.id, session.clone());
+    sessions.insert(SessionId::from_uuid(session.id), session.clone());
     drop(sessions);
 
     // Validate expired session
-    let result = auth_service.validate_session(session.id).await;
+    let result = auth_service.validate_session(SessionId::from_uuid(session.id)).await;
 
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), AuthencError::TokenExpired));
@@ -597,7 +597,7 @@ async fn test_validate_session_disabled_user() {
     user_store.add_user(user.clone()).await;
 
     // Create a session
-    let session = session_store.create_session(user.id).await.unwrap();
+    let session = session_store.create_session(UserId::from_uuid(user.id)).await.unwrap();
 
     // Disable user
     user.enabled = false;
@@ -606,7 +606,7 @@ async fn test_validate_session_disabled_user() {
     drop(users);
 
     // Validate session with disabled user
-    let result = auth_service.validate_session(session.id).await;
+    let result = auth_service.validate_session(SessionId::from_uuid(session.id)).await;
 
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), AuthencError::UserDisabled));
@@ -625,19 +625,19 @@ async fn test_logout_success() {
     user_store.add_user(user.clone()).await;
 
     // Create a session
-    let session = session_store.create_session(user.id).await.unwrap();
+    let session = session_store.create_session(UserId::from_uuid(user.id)).await.unwrap();
 
     // Verify session exists
     let sessions = session_store.sessions.lock().await;
-    assert!(sessions.contains_key(&session.id));
+    assert!(sessions.contains_key(&SessionId::from_uuid(session.id)));
     drop(sessions);
 
     // Logout
-    auth_service.logout(session.id).await.unwrap();
+    auth_service.logout(SessionId::from_uuid(session.id)).await.unwrap();
 
     // Verify session removed
     let sessions = session_store.sessions.lock().await;
-    assert!(!sessions.contains_key(&session.id));
+    assert!(!sessions.contains_key(&SessionId::from_uuid(session.id)));
 }
 
 #[tokio::test]
@@ -662,7 +662,7 @@ async fn test_authentication_empty_username() {
 
     let credentials = Credentials {
         username: "".to_string(),
-        password: Some("password123".to_string()),
+        password: "password123".to_string(),
     };
 
     let result = auth_service
@@ -686,10 +686,10 @@ async fn test_authentication_empty_password() {
     let user = create_test_user("testuser", "password123", true, false, realm_id);
     user_store.add_user(user).await;
 
-    let credentials = Credentials {
-        username: "testuser".to_string(),
-        password: Some("".to_string()),
-    };
+        let credentials = Credentials {
+            username: "testuser".to_string(),
+            password: "".to_string(),
+        };
 
     let result = auth_service
         .authenticate(credentials, realm_id)
@@ -715,7 +715,7 @@ async fn test_authentication_case_sensitive_username() {
     // Try with different case
     let credentials = Credentials {
         username: "testuser".to_string(),
-        password: Some("password123".to_string()),
+        password: "password123".to_string(),
     };
 
     let result = auth_service
@@ -746,7 +746,7 @@ async fn test_multiple_sequential_authentications() {
     for i in 1..=5 {
         let credentials = Credentials {
             username: format!("user{}", i),
-            password: Some("password123".to_string()),
+            password: "password123".to_string(),
         };
         let result = auth_service
             .authenticate(credentials, realm_id)

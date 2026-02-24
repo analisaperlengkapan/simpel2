@@ -1,7 +1,7 @@
 // ============================================================================
 // Database Optimization Module
 // Description: Query analysis, index management, and query result caching
-// Author: SIMPelv2 Team
+// Author: SIMPEL Team
 // Created: 2026-02-10
 // Requirements: NFR-P001, NFR-P002
 // ============================================================================
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn test_extract_table_name() {
         let optimizer = DatabaseOptimizer::new(
-            Pool::builder(tokio_postgres::Config::new()).build_unchecked(),
+            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 
@@ -411,7 +411,7 @@ mod tests {
     #[test]
     fn test_extract_where_column() {
         let optimizer = DatabaseOptimizer::new(
-            Pool::builder(tokio_postgres::Config::new()).build_unchecked(),
+            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn test_optimize_query() {
         let optimizer = DatabaseOptimizer::new(
-            Pool::builder(tokio_postgres::Config::new()).build_unchecked(),
+            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 

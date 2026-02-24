@@ -1,6 +1,6 @@
 //! Microfrontend registry and management
 //!
-//! Centralized registry of all available microfrontends in SIMPelv2
+//! Centralized registry of all available microfrontends in SIMPEL
 
 use serde::{Deserialize, Serialize};
 

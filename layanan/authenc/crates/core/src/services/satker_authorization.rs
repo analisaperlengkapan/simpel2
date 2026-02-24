@@ -429,7 +429,8 @@ mod tests {
     use super::*;
     use authenc_types::domain::user::Role;
     use authenc_types::domain::user::User;
-    use authenc_types::domain::{Satker, SatkerType};
+    use authenc_types::domain::Satker;
+    use authenc_types::domain::satker::SatkerType;
     use chrono::Utc;
     use uuid::Uuid;
 

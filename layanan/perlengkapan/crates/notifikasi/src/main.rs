@@ -1,38 +1,12 @@
-#[allow(unused)]
-mod audit;
-mod config;
-#[allow(unused)]
-mod email;
-#[allow(unused)]
-mod error;
-mod grpc_service;
-mod handlers;
-mod in_app;
-#[allow(unused)]
-mod models;
-mod preferences;
-#[allow(unused)]
-mod push;
-#[allow(unused)]
-mod queue;
-mod queue_processor;
-mod scheduler;
-#[allow(unused)]
-mod security;
-mod sms;
-#[allow(unused)]
-mod template;
-mod websocket;
-#[allow(unused)]
-mod whatsapp;
-
-use crate::config::AppConfig;
-use crate::email::EmailService;
-use crate::grpc_service::NotificationServiceImpl;
-use crate::push::PushService;
-use crate::queue_processor::QueueProcessor;
-use crate::security::RateLimitState;
-use crate::sms::SmsService;
+use layanan_perlengkapan_notifikasi::config::AppConfig;
+use layanan_perlengkapan_notifikasi::email::EmailService;
+use layanan_perlengkapan_notifikasi::grpc_service::NotificationServiceImpl;
+use layanan_perlengkapan_notifikasi::push::PushService;
+use layanan_perlengkapan_notifikasi::queue_processor::QueueProcessor;
+use layanan_perlengkapan_notifikasi::security::RateLimitState;
+use layanan_perlengkapan_notifikasi::sms::SmsService;
+use layanan_perlengkapan_notifikasi::handlers;
+use layanan_perlengkapan_notifikasi::websocket;
 use axum::{Router, http::Method};
 use dashmap::DashMap;
 use deadpool_postgres::{Config, Runtime};

@@ -1,7 +1,7 @@
 # README – layanan-laporan
 
 ## 🧾 Deskripsi Singkat
-`layanan-laporan` adalah layanan mikro dalam platform **SIMPelv2** yang bertanggung jawab atas penyusunan laporan berkala, rekapitulasi lintas layanan, dan pelaporan tematik atas aktivitas pengelolaan Barang Milik Negara (BMN). Laporan ini mendukung pengambilan keputusan strategis, pemantauan kinerja, dan kepatuhan regulasi.
+`layanan-laporan` adalah layanan mikro dalam platform **SIMPEL** yang bertanggung jawab atas penyusunan laporan berkala, rekapitulasi lintas layanan, dan pelaporan tematik atas aktivitas pengelolaan Barang Milik Negara (BMN). Laporan ini mendukung pengambilan keputusan strategis, pemantauan kinerja, dan kepatuhan regulasi.
 
 ---
 
@@ -14,7 +14,7 @@
 ---
 
 ## 🧱 Fitur Utama
-- 📄 Laporan agregat semua layanan SIMPelv2
+- 📄 Laporan agregat semua layanan SIMPEL
 - 🧠 Ringkasan berbasis LLM dari indikator dan kinerja
 - 📊 Ekspor laporan ke PDF, Excel, dan CSV
 - 📆 Jadwal otomatis pembuatan laporan
@@ -130,4 +130,4 @@ Jika menemukan bug, ide, atau masukan:
 ---
 
 ## 📝 Lisensi
-Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPelv2 Internal Use Only
+Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPEL Internal Use Only

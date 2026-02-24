@@ -1,6 +1,6 @@
 #![recursion_limit = "1024"]
 
-//! Portal SIMPelv2 - Main Entry Point
+//! Portal SIMPEL - Main Entry Point
 //!
 //! This is the main entry point for the portal application.
 //! For CSR (Client-Side Rendering) with Trunk, this file is optional

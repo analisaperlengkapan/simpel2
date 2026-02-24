@@ -16,7 +16,7 @@ pub fn HomePage() -> impl IntoView {
                     </div>
 
                     <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-4 bg-gradient-to-r from-red-700 via-red-600 to-red-500 bg-clip-text text-transparent leading-tight">
-                        "Portal SIMPelv2"
+                        "Portal SIMPEL"
                     </h1>
                     <p class="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">
                         "Sistem Informasi Manajemen Perlengkapan"
@@ -70,7 +70,7 @@ pub fn HomePage() -> impl IntoView {
                 // ── Statistics ──
                 <section class="py-8 sm:py-12">
                     <div class="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl shadow-xl p-8 sm:p-10 text-white">
-                        <h2 class="text-2xl sm:text-3xl font-bold text-center mb-8">"SIMPelv2 dalam Angka"</h2>
+                        <h2 class="text-2xl sm:text-3xl font-bold text-center mb-8">"SIMPEL dalam Angka"</h2>
                         <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
                                 ("9", "Sistem Terintegrasi"),

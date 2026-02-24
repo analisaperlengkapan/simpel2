@@ -2,7 +2,7 @@
 # ============================================================================
 # Migration Verification Script for SIMPEL
 # Description: Comprehensive data integrity and migration verification
-# Author: SIMPelv2 Team
+# Author: SIMPEL Team
 # Created: 2026-02-11
 # ============================================================================
 

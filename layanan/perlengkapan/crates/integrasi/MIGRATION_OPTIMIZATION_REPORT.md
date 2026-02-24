@@ -479,4 +479,4 @@ REINDEX TABLE CONCURRENTLY integrasi.adm_ref_admin;
 
 **Status:** ✅ **Production Ready**
 **Last Updated:** February 2, 2026
-**Maintained by:** SIMPelv2 Team
+**Maintained by:** SIMPEL Team

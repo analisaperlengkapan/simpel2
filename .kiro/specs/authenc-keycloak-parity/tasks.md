@@ -667,7 +667,7 @@ UI Authenc digabung ke `antarmuka/portal/` untuk efektivitas, efisiensi, dan opt
 - All API calls dari portal ke Authenc backend menggunakan JWT authentication
 
 **Coding Standards**:
-- All tasks should follow SIMPelv2 coding standards (see AGENTS.md)
+- All tasks should follow SIMPEL coding standards (see AGENTS.md)
 - Use Leptos 0.8.x for all UI components (signal(), not create_signal!)
 - All REST API endpoints use Axum 0.8.x patterns
 - All gRPC services use Tonic 0.14.x + Prost 0.14.x

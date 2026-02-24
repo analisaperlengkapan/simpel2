@@ -2,7 +2,7 @@
 -- Migration: Create Workflow Engine Tables
 -- Description: Tables for centralized workflow engine, instance tracking, and delegation
 -- Requirements: REQ-W001, REQ-W002, REQ-W006
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-09
 -- ============================================================================
 

@@ -1,7 +1,7 @@
-use layanan_integrasi::StorageStrategy;
-use layanan_integrasi::client::MonsaktiClient;
-use layanan_integrasi::config::Config;
-use layanan_integrasi::siman::{SimanAssetCategory, endpoints::fetch_all_assets_with_pagination};
+use layanan_perlengkapan_integrasi::StorageStrategy;
+use layanan_perlengkapan_integrasi::client::MonsaktiClient;
+use layanan_perlengkapan_integrasi::config::Config;
+use layanan_perlengkapan_integrasi::siman::{SimanAssetCategory, endpoints::fetch_all_assets_with_pagination};
 use std::collections::HashMap;
 use std::time::Instant;
 use wiremock::matchers::{method, path, path_regex};
@@ -80,9 +80,10 @@ async fn test_siman_assets_pagination_performance() {
         output_dir: "./output_test".to_string(), // Use a test output dir
         db_config: None,
         siman_concurrency_limit: 20,
+        ..Default::default()
     };
 
-    let mut client = MonsaktiClient::new(config)
+    let mut client: MonsaktiClient = MonsaktiClient::new(config)
         .await
         .expect("Failed to create client");
 

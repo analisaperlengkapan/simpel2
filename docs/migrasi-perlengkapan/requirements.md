@@ -3,7 +3,7 @@
 **Versi:** 1.0  
 **Tanggal:** 2 Februari 2026  
 **Status:** Draft  
-**Project:** SIMPelv2 - Migrasi Modul Perlengkapan dari Laravel ke Rust
+**Project:** SIMPEL - Migrasi Modul Perlengkapan dari Laravel ke Rust
 
 ## Change History
 

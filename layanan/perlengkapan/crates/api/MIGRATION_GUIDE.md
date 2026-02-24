@@ -330,7 +330,7 @@ Expected improvements after migration:
 For issues or questions:
 - Check logs: `/var/log/simpelv2/`
 - Review PostgreSQL logs: `/var/log/postgresql/`
-- Contact: SIMPelv2 Team
+- Contact: SIMPEL Team
 
 ## References
 

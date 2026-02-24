@@ -6,7 +6,7 @@
 // BRANDING
 // ============================================================================
 
-pub const APP_NAME: &str = "SIMPelv2";
+pub const APP_NAME: &str = "SIMPEL";
 pub const APP_FULL_NAME: &str = "Sistem Informasi Manajemen Perlengkapan v2";
 pub const ORG_NAME: &str = "Kejaksaan Agung Republik Indonesia";
 pub const ORG_SHORT: &str = "Kejaksaan RI";

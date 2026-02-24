@@ -1,4 +1,4 @@
-# 🤖 AGENTS.md - AI Developer Guide for SIMPelv2
+# 🤖 AGENTS.md - AI Developer Guide for SIMPEL
 
 > **Notice to Agents**: This file serves as the **primary source of truth** for AI agents working on this repository. Read this before planning or executing tasks to understand the architecture, conventions, and workflows.
 
@@ -591,5 +591,5 @@ Setiap layanan memiliki database terpisah untuk isolasi:
 
 ## 🚀 Superapps Readiness
 
-> **Catatan Tambahan**: SIMPelv2 dirancang dengan arsitektur modular yang siap diintegrasikan menjadi **SIMKARI Superapps** jika diperlukan di masa depan. Arsitektur microfrontend dan microservices memungkinkan penambahan modul baru dengan mudah.
+> **Catatan Tambahan**: SIMPEL dirancang dengan arsitektur modular yang siap diintegrasikan menjadi **SIMKARI Superapps** jika diperlukan di masa depan. Arsitektur microfrontend dan microservices memungkinkan penambahan modul baru dengan mudah.
 

@@ -1,6 +1,6 @@
-# 📄 Layanan Dokumen - SIMPelv2
+# 📄 Layanan Dokumen - SIMPEL
 
-**Layanan Dokumen** adalah microservice dalam SIMPelv2 untuk manajemen dokumen digital, upload/download terenkripsi, preview, OCR, tagging, arsip, dan audit log. Dibangun dengan Rust (Axum), PostgreSQL, dan siap integrasi AI.
+**Layanan Dokumen** adalah microservice dalam SIMPEL untuk manajemen dokumen digital, upload/download terenkripsi, preview, OCR, tagging, arsip, dan audit log. Dibangun dengan Rust (Axum), PostgreSQL, dan siap integrasi AI.
 
 ## 🚀 Fitur Utama
 - Upload/download dokumen terenkripsi (AES-256)

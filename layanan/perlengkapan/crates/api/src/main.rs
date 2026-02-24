@@ -1,6 +1,6 @@
 //! # Layanan Pembinaan Perlengkapan Backend Service
 //!
-//! Backend microservice for Perlengkapan (asset management) within SIMPelv2.
+//! Backend microservice for Perlengkapan (asset management) within SIMPEL.
 //! Integrates with Authenc (IAM) and Secreton (Secret Manager) via gRPC.
 
 use axum::http::HeaderValue;
@@ -11,33 +11,12 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
-mod cache_strategy;
-mod connection_config;
-mod dashboard;
-mod database;
-mod database_optimization;
-mod errors;
-mod grpc_clients;
-mod handlers;
-mod health;
-mod kebutuhan_bmn;
-mod logging;
-mod mapping_kodefikasi;
-mod metrics;
-mod middleware;
-mod models;
-mod pakaian_dinas;
-mod pemakaian_bmn;
-mod penghapusan_bmn;
-mod rate_limiting;
-mod repository;
-mod roadmap_sarpras;
-mod routes;
-mod services;
-mod workflow;
-
-#[cfg(test)]
-mod tests;
+use layanan_perlengkapan_api::{
+    cache_strategy, connection_config, dashboard, database, database_optimization, errors,
+    grpc_clients, handlers, health, kebutuhan_bmn, logging, mapping_kodefikasi, metrics,
+    middleware, models, pakaian_dinas, pemakaian_bmn, penghapusan_bmn, rate_limiting,
+    repository, roadmap_sarpras, routes, services, workflow,
+};
 
 use cache_strategy::CacheManager;
 use dashboard::services::DashboardService;
@@ -51,76 +30,7 @@ use rate_limiting::{RateLimitConfig, RateLimiter};
 use roadmap_sarpras::{RoadmapRepository, RoadmapService};
 use services::PerlengkapanService;
 
-#[derive(Clone)]
-pub struct AppState {
-    pub service: PerlengkapanService,
-    pub authenc: AuthencClient,
-    pub pakaian_dinas_service: PakaianDinasService,
-    pub kebutuhan_bmn_service: KebutuhanBmnService,
-    pub pemakaian_bmn_service: PemakaianBmnService,
-    pub penghapusan_bmn_service: Arc<PenghapusanBmnService>,
-    pub roadmap_service: RoadmapService,
-    pub dashboard_service: DashboardService,
-    pub dashboard_updates: tokio::sync::broadcast::Sender<dashboard::DashboardUpdate>,
-    pub db_pool: deadpool_postgres::Pool,
-    pub cache_manager: Arc<CacheManager>,
-    pub rate_limiter: Arc<RateLimiter>,
-}
-
-impl FromRef<AppState> for PerlengkapanService {
-    fn from_ref(state: &AppState) -> Self {
-        state.service.clone()
-    }
-}
-
-impl FromRef<AppState> for AuthencClient {
-    fn from_ref(state: &AppState) -> Self {
-        state.authenc.clone()
-    }
-}
-
-impl FromRef<AppState> for PakaianDinasService {
-    fn from_ref(state: &AppState) -> Self {
-        state.pakaian_dinas_service.clone()
-    }
-}
-
-impl FromRef<AppState> for KebutuhanBmnService {
-    fn from_ref(state: &AppState) -> Self {
-        state.kebutuhan_bmn_service.clone()
-    }
-}
-
-impl FromRef<AppState> for DashboardService {
-    fn from_ref(state: &AppState) -> Self {
-        state.dashboard_service.clone()
-    }
-}
-
-impl FromRef<AppState> for RoadmapService {
-    fn from_ref(state: &AppState) -> Self {
-        state.roadmap_service.clone()
-    }
-}
-
-impl FromRef<AppState> for PemakaianBmnService {
-    fn from_ref(state: &AppState) -> Self {
-        state.pemakaian_bmn_service.clone()
-    }
-}
-
-impl FromRef<AppState> for Arc<PenghapusanBmnService> {
-    fn from_ref(state: &AppState) -> Self {
-        state.penghapusan_bmn_service.clone()
-    }
-}
-
-impl FromRef<AppState> for deadpool_postgres::Pool {
-    fn from_ref(state: &AppState) -> Self {
-        state.db_pool.clone()
-    }
-}
-
+use layanan_perlengkapan_api::AppState;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize structured logging

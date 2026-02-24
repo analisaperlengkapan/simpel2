@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully implemented comprehensive integration with **SIMAN API v2.0** (Sistem Informasi Manajemen Aset Negara) from Kementerian Keuangan RI into the SIMPelv2 integration layer.
+Successfully implemented comprehensive integration with **SIMAN API v2.0** (Sistem Informasi Manajemen Aset Negara) from Kementerian Keuangan RI into the SIMPEL integration layer.
 
 **Implementation Date:** November 2025
 **Location:** `layanan/shared/integrasi/`
@@ -114,7 +114,7 @@ pub use siman::{
 - Best practices
 - Performance considerations
 - Troubleshooting guide
-- Integration with SIMPelv2
+- Integration with SIMPEL
 
 #### `examples/siman_example.rs`
 
@@ -293,7 +293,7 @@ for category in SimanAssetCategory::all() {
 
 ### Architecture Compliance
 
-✅ Follows SIMPelv2 patterns
+✅ Follows SIMPEL patterns
 ✅ Matches MonSAKTI/MySIMKARI structure
 ✅ Proper module organization
 ✅ Clean public API
@@ -315,7 +315,7 @@ for category in SimanAssetCategory::all() {
 - Compatible with `save_to_json()` and `save_to_csv()`
 - Table names follow SIMAN convention
 
-### With SIMPelv2
+### With SIMPEL
 
 - Can be used by all microfrontends via shared library
 - Backend services can sync BMN data
@@ -436,7 +436,7 @@ The SIMAN API v2.0 integration is **complete and production-ready**. It provides
 ✅ **Production Ready** - Error handling and logging
 ✅ **Future Proof** - Extensible architecture
 
-The implementation follows SIMPelv2 best practices, integrates seamlessly with existing code, and provides a solid foundation for BMN data management in the Kejaksaan RI ecosystem.
+The implementation follows SIMPEL best practices, integrates seamlessly with existing code, and provides a solid foundation for BMN data management in the Kejaksaan RI ecosystem.
 
 ---
 

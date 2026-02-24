@@ -6,7 +6,7 @@
 
 **Secure secrets management and encryption service** built in Rust with modern cryptographic algorithms, post-quantum cryptography support, and comprehensive API design.
 
-> **Note**: Secreton is part of the SIMPelv2 project for the Indonesian Attorney General's Office (Kejaksaan Agung RI).
+> **Note**: Secreton is part of the SIMPEL project for the Indonesian Attorney General's Office (Kejaksaan Agung RI).
 
 ## 🔐 Core Features
 

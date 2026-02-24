@@ -3,15 +3,15 @@
 ### 📄 `layanan-konfigurasi/README.md`
 
 ```markdown
-# Layanan Konfigurasi – SIMPelv2
+# Layanan Konfigurasi – SIMPEL
 
-Layanan **Konfigurasi** adalah pusat pengelolaan referensi, konfigurasi sistem, dan template standar di SIMPelv2. Layanan ini menyediakan data referensi yang digunakan oleh seluruh layanan lain, seperti satuan barang, jenis BMN, kategori penggunaan, tahun anggaran, dan lainnya.
+Layanan **Konfigurasi** adalah pusat pengelolaan referensi, konfigurasi sistem, dan template standar di SIMPEL. Layanan ini menyediakan data referensi yang digunakan oleh seluruh layanan lain, seperti satuan barang, jenis BMN, kategori penggunaan, tahun anggaran, dan lainnya.
 
 ---
 
 ## 🎯 Tujuan
 
-Menjadi sumber kebenaran tunggal (Single Source of Truth) untuk seluruh konfigurasi dan referensi operasional yang diperlukan oleh sistem SIMPelv2 secara konsisten dan terpusat.
+Menjadi sumber kebenaran tunggal (Single Source of Truth) untuk seluruh konfigurasi dan referensi operasional yang diperlukan oleh sistem SIMPEL secara konsisten dan terpusat.
 
 ---
 
@@ -108,7 +108,7 @@ SIMAN_API_KEY=xxx
 
 ---
 
-© 2025 – Kejaksaan RI | Divisi Teknologi SIMPelv2
+© 2025 – Kejaksaan RI | Divisi Teknologi SIMPEL
 ```
 
 ---

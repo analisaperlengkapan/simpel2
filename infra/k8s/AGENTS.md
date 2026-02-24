@@ -1,10 +1,10 @@
-# 🚀 AGENTS.md - Kubernetes Infrastructure Guide for SIMPelv2
+# 🚀 AGENTS.md - Kubernetes Infrastructure Guide for SIMPEL
 
-> **For AI Agents**: This file is the primary reference for understanding and managing the Kubernetes infrastructure of SIMPelv2.
+> **For AI Agents**: This file is the primary reference for understanding and managing the Kubernetes infrastructure of SIMPEL.
 
 ## 📋 Overview
 
-This directory contains **Kustomize-based** Kubernetes manifests for deploying SIMPelv2 across multiple environments. The structure follows GitOps best practices with base/overlay pattern.
+This directory contains **Kustomize-based** Kubernetes manifests for deploying SIMPEL across multiple environments. The structure follows GitOps best practices with base/overlay pattern.
 
 ## 🏗️ Architecture
 
@@ -626,4 +626,4 @@ kubectl set image deployment/<name> <container>=localhost:32000/simpelv2/<image>
 ---
 
 *Last Updated: 2026-02-03*
-*Maintained by: SIMPelv2 DevOps Team*
+*Maintained by: SIMPEL DevOps Team*

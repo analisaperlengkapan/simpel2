@@ -2,8 +2,8 @@
 name = "perlengkapan-microfrontend"
 version.workspace = true
 edition.workspace = true
-authors = ["SIMPelv2 Team <simpelv2@kejaksaan.go.id>"]
-description = "SIMPelv2 Perlengkapan - Equipment & Supply Chain Management System"
+authors = ["SIMPEL Team <simpelv2@kejaksaan.go.id>"]
+description = "SIMPEL Perlengkapan - Equipment & Supply Chain Management System"
 license = "MIT"
 repository = "https://gitlab.com/analisiskebutuhan/simpelv2_web"
 keywords = ["leptos", "wasm", "kejaksaan", "equipment", "supply-chain"]

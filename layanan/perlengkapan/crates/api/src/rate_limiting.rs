@@ -1,7 +1,7 @@
 // ============================================================================
 // Rate Limiting Middleware
 // Description: Token bucket rate limiting with per-user and global limits
-// Author: SIMPelv2 Team
+// Author: SIMPEL Team
 // Created: 2026-02-10
 // Requirements: NFR-S007
 // ============================================================================
@@ -397,15 +397,15 @@ mod tests {
 
     #[test]
     fn test_rate_limit_config_from_env() {
-        std::env::set_var("RATE_LIMIT_REQUESTS_PER_SECOND", "50");
-        std::env::set_var("RATE_LIMIT_BURST_SIZE", "100");
+        unsafe { std::env::set_var("RATE_LIMIT_REQUESTS_PER_SECOND", "50"); }
+        unsafe { std::env::set_var("RATE_LIMIT_BURST_SIZE", "100"); }
 
         let config = RateLimitConfig::from_env();
 
         assert_eq!(config.requests_per_second, 50);
         assert_eq!(config.burst_size, 100);
 
-        std::env::remove_var("RATE_LIMIT_REQUESTS_PER_SECOND");
-        std::env::remove_var("RATE_LIMIT_BURST_SIZE");
+        unsafe { std::env::remove_var("RATE_LIMIT_REQUESTS_PER_SECOND"); }
+        unsafe { std::env::remove_var("RATE_LIMIT_BURST_SIZE"); }
     }
 }

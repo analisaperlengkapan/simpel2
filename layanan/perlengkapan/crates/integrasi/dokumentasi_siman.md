@@ -393,7 +393,7 @@ for start in (1..=total as u32).step_by(chunk_size as usize) {
 }
 ```
 
-## Integration dengan SIMPelv2
+## Integration dengan SIMPEL
 
 SIMAN integration dapat digunakan untuk:
 
@@ -444,11 +444,11 @@ Untuk pertanyaan atau masalah:
 
 1. Check dokumentasi di `layanan/shared/integrasi/README.md`
 2. Review example code di `examples/siman_example.rs`
-3. Hubungi team development SIMPelv2
+3. Hubungi team development SIMPEL
 4. Untuk credential issues: hubungi Biro TI Kejaksaan Agung
 
 ---
 
 **Version:** 1.0.0
 **Last Updated:** November 2025
-**Maintained by:** SIMPelv2 Development Team
+**Maintained by:** SIMPEL Development Team

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Database Validation Script for Phase 1: Database Refactoring & Standardization
 -- Description: Validates all tables, indexes, and views created in Phase 1
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-09
 -- ============================================================================
 

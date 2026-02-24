@@ -1246,7 +1246,7 @@ Dengan fokus 3-4 minggu pada **Admin Console UI**, Authenc akan menjadi **produc
 **Document Version**: 2.0.0
 **Last Updated**: 24 Desember 2025
 **Previous Update**: 10 November 2025
-**Author**: SIMPelv2 Development Team
+**Author**: SIMPEL Development Team
 **Changelog**:
 
 - Added 5 newly completed features (Service Accounts, Client Scopes, LDAP, Token Exchange, WebAuthn Attestation)

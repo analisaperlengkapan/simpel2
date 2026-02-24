@@ -1,4 +1,4 @@
-# Panduan Troubleshooting MFA SIMPelv2
+# Panduan Troubleshooting MFA SIMPEL
 
 ## Daftar Isi
 1. [Masalah Setup MFA](#masalah-setup-mfa)
@@ -97,7 +97,7 @@
 
 4. **Verifikasi Setup Authenticator**:
    - Pastikan akun name benar: [NIP]@kejaksaan.go.id
-   - Pastikan issuer: SIMPelv2 Kejaksaan RI
+   - Pastikan issuer: SIMPEL Kejaksaan RI
    - Hapus dan setup ulang jika perlu
 
 ---
@@ -150,7 +150,7 @@
    - Jangan tunggu sampai hampir expired
 
 3. **Verifikasi Akun Authenticator**:
-   - Pastikan menggunakan akun SIMPelv2 yang benar
+   - Pastikan menggunakan akun SIMPEL yang benar
    - Hapus akun duplikat jika ada
    - Periksa nama akun dan issuer
 
@@ -209,9 +209,9 @@
    - Storage → Clear Cache
    - Jangan pilih "Clear Data" (akan hapus akun)
 
-### 🔴 Akun SIMPelv2 Hilang dari Authenticator
+### 🔴 Akun SIMPEL Hilang dari Authenticator
 
-**Gejala**: Akun SIMPelv2 tidak muncul di daftar authenticator
+**Gejala**: Akun SIMPEL tidak muncul di daftar authenticator
 
 **Penyebab Umum**:
 - Aplikasi di-reinstall tanpa backup
@@ -431,7 +431,7 @@
 
 ## Kontak Darurat
 
-### Helpdesk SIMPelv2
+### Helpdesk SIMPEL
 - **Email**: helpdesk-simipelv2@kejaksaan.go.id
 - **Telepon**: (021) 123-4567 ext. 890
 - **WhatsApp**: +62-812-3456-7890 (hanya darurat)

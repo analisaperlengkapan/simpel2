@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Add Indonesian Full-Text Search Support
 -- Description: Configure PostgreSQL for Indonesian language full-text search
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-10
 -- Requirements: REQ-K005
 -- ============================================================================

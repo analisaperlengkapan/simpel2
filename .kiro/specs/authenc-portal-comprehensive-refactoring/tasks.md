@@ -1841,7 +1841,7 @@ All these flows MUST work before src/ can be deleted!
 
 **Document Version**: 1.0
 **Last Updated**: 2026-02-19
-**Authors**: SIMPelv2 Architecture Team
+**Authors**: SIMPEL Architecture Team
 **Status**: Ready for Implementation
 **Workflow**: Design-First (design.md ✅ → requirements.md ✅ → tasks.md ✅)
 **Estimated Duration**: 14 weeks (core) + 4-6 weeks (FAPI-1, optional) + 6-8 weeks (FAPI-2, optional)

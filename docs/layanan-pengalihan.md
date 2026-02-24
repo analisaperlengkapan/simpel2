@@ -1,6 +1,6 @@
 # layanan-pengalihan
 
-**Layanan Pengalihan** adalah komponen dari SIMPelv2 yang menangani proses pengalihan fungsi, penggunaan, atau pemanfaatan Barang Milik Negara (BMN) antar unit atau instansi. Layanan ini dirancang untuk memastikan pengalihan dilakukan secara tertib, akuntabel, dan sesuai kebijakan pengelolaan aset negara.
+**Layanan Pengalihan** adalah komponen dari SIMPEL yang menangani proses pengalihan fungsi, penggunaan, atau pemanfaatan Barang Milik Negara (BMN) antar unit atau instansi. Layanan ini dirancang untuk memastikan pengalihan dilakukan secara tertib, akuntabel, dan sesuai kebijakan pengelolaan aset negara.
 
 ---
 

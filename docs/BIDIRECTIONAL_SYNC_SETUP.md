@@ -2,7 +2,7 @@
 
 ## Sinkronisasi Bidirectional GitHub ↔ GitLab
 
-Panduan ini menjelaskan cara mengkonfigurasi sinkronisasi bidirectional antara GitHub dan GitLab untuk repository SIMPelv2.
+Panduan ini menjelaskan cara mengkonfigurasi sinkronisasi bidirectional antara GitHub dan GitLab untuk repository SIMPEL.
 
 ## Arsitektur Sinkronisasi
 

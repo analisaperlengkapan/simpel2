@@ -225,4 +225,4 @@ Implements requirements:
 
 ## License
 
-Part of the SIMPelv2 project for Kejaksaan RI.
+Part of the SIMPEL project for Kejaksaan RI.

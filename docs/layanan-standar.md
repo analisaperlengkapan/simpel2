@@ -1,6 +1,6 @@
 # README - layanan-standar
 
-**`layanan-standar`** adalah microservice dalam SIMPelv2 yang bertanggung jawab untuk mendefinisikan dan mengelola standar jumlah dan spesifikasi Barang Milik Negara (BMN) berdasarkan kategori, jenis pengguna, dan kebutuhan operasional.
+**`layanan-standar`** adalah microservice dalam SIMPEL yang bertanggung jawab untuk mendefinisikan dan mengelola standar jumlah dan spesifikasi Barang Milik Negara (BMN) berdasarkan kategori, jenis pengguna, dan kebutuhan operasional.
 
 ---
 

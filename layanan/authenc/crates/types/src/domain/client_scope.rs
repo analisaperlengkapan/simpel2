@@ -337,7 +337,7 @@ pub mod standard_scopes {
     }
 }
 
-/// SIMPelv2-specific scope names for asset management
+/// SIMPEL-specific scope names for asset management
 pub mod simpel_scopes {
     pub const READ_ASET: &str = "read:aset";
     pub const WRITE_ASET: &str = "write:aset";
@@ -347,7 +347,7 @@ pub mod simpel_scopes {
     pub const ADMIN_WILAYAH: &str = "admin:wilayah";
     pub const ADMIN_PUSAT: &str = "admin:pusat";
 
-    /// Returns all SIMPelv2 scope names
+    /// Returns all SIMPEL scope names
     pub fn all() -> Vec<&'static str> {
         vec![
             READ_ASET,

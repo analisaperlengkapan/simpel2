@@ -1,4 +1,4 @@
-# SIMPelv2 Kustomize Base Configuration
+# SIMPEL Kustomize Base Configuration
 # Common resources shared across all environments
 
 apiVersion: kustomize.config.k8s.io/v1beta1

@@ -1,7 +1,7 @@
-# MFA API Documentation - SIMPelv2
+# MFA API Documentation - SIMPEL
 
 ## Overview
-This document provides comprehensive API documentation for the Multi-Factor Authentication (MFA) system in SIMPelv2. The MFA API enables secure two-factor authentication using TOTP (Time-based One-Time Password) for government employees.
+This document provides comprehensive API documentation for the Multi-Factor Authentication (MFA) system in SIMPEL. The MFA API enables secure two-factor authentication using TOTP (Time-based One-Time Password) for government employees.
 
 ## Base URL
 ```
@@ -56,7 +56,7 @@ Content-Type: application/json
       "33445566",
       "66554433"
     ],
-    "provisioning_uri": "otpauth://totp/SIMPelv2%20Kejaksaan%20RI:12345678@kejaksaan.go.id?secret=JBSWY3DPEHPK3PXP&issuer=SIMPelv2%20Kejaksaan%20RI"
+    "provisioning_uri": "otpauth://totp/SIMPEL%20Kejaksaan%20RI:12345678@kejaksaan.go.id?secret=JBSWY3DPEHPK3PXP&issuer=SIMPEL%20Kejaksaan%20RI"
   },
   "message": "MFA setup initiated successfully"
 }

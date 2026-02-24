@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration: Create Dashboard Views
 -- Description: Optimized views and materialized views for dashboard queries
--- Author: SIMPelv2 Team
+-- Author: SIMPEL Team
 -- Created: 2026-02-09
 -- Requirements: REQ-DB001, REQ-DB013
 -- ============================================================================

@@ -1,6 +1,6 @@
-# 📚 Dokumentasi SIMPelv2
+# 📚 Dokumentasi SIMPEL
 
-Selamat datang di dokumentasi lengkap SIMPelv2. Dokumentasi ini mencakup semua aspek sistem, dari arsitektur hingga panduan pengembangan.
+Selamat datang di dokumentasi lengkap SIMPEL. Dokumentasi ini mencakup semua aspek sistem, dari arsitektur hingga panduan pengembangan.
 
 ## 📋 **Daftar Isi**
 
@@ -146,4 +146,4 @@ Dokumentasi ini dilisensikan di bawah [Creative Commons Attribution 4.0 Internat
 
 ---
 
-**📚 Dokumentasi SIMPelv2 - Comprehensive, Accurate, and Up-to-date** 
+**📚 Dokumentasi SIMPEL - Comprehensive, Accurate, and Up-to-date** 

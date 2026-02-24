@@ -1,8 +1,8 @@
-# SIMPelv2 Portal - Gateway to Justice Technology
+# SIMPEL Portal - Gateway to Justice Technology
 
 ## 📋 Overview
 
-**Portal SIMPelv2** adalah gateway utama untuk seluruh ekosistem aplikasi manajemen aset Kejaksaan RI. Portal ini menyediakan Single Sign-On (SSO), dashboard terpadu, dan routing ke semua microfrontend dalam sistem SIMPelv2.
+**Portal SIMPEL** adalah gateway utama untuk seluruh ekosistem aplikasi manajemen aset Kejaksaan RI. Portal ini menyediakan Single Sign-On (SSO), dashboard terpadu, dan routing ke semua microfrontend dalam sistem SIMPEL.
 
 ## 🎯 Features
 
@@ -10,7 +10,7 @@
 
 - ✅ **Single Sign-On (SSO)** - Autentikasi terpusat untuk semua aplikasi
 - ✅ **Unified Dashboard** - Dashboard overview semua modul
-- ✅ **Microfrontend Router** - Gateway ke semua aplikasi SIMPelv2
+- ✅ **Microfrontend Router** - Gateway ke semua aplikasi SIMPEL
 - ✅ **User Profile Management** - Manajemen profil dan preferensi
 - ✅ **Notification Center** - Notifikasi real-time lintas modul
 - ✅ **Quick Access Menu** - Akses cepat ke fungsi favorit
@@ -222,7 +222,7 @@ pub fn LoginPage() -> impl IntoView {
         <div class="login-container">
             <div class="login-card">
                 <Logo />
-                <h1>"SIMPelv2 Portal"</h1>
+                <h1>"SIMPEL Portal"</h1>
                 <p>"Kejaksaan Republik Indonesia"</p>
                 <Button on:click=login variant="primary" size="large">
                     "Login with SSO"
@@ -454,4 +454,4 @@ MIT License - See [LICENSE](../../LICENSE) for details.
 
 **Version**: 0.4.0
 **Last Updated**: October 1, 2025
-**Maintainer**: SIMPelv2 Team
+**Maintainer**: SIMPEL Team

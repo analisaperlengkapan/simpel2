@@ -1,6 +1,6 @@
 # Portal Authentication Tests
 
-Comprehensive test suite for the SIMPelv2 Portal authentication system.
+Comprehensive test suite for the SIMPEL Portal authentication system.
 
 ## Test Coverage Summary
 

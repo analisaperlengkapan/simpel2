@@ -41,7 +41,7 @@ This report validates the compatibility of the existing `OtpCredentialProvider` 
 
 Our implementation generates URIs in the standard format:
 ```
-otpauth://totp/SIMPelv2%20Kejaksaan%20RI:user@kejaksaan.go.id?secret=JBSWY3DPEHPK3PXP&issuer=SIMPelv2%20Kejaksaan%20RI&algorithm=HmacSHA1&digits=6&period=30
+otpauth://totp/SIMPEL%20Kejaksaan%20RI:user@kejaksaan.go.id?secret=JBSWY3DPEHPK3PXP&issuer=SIMPEL%20Kejaksaan%20RI&algorithm=HmacSHA1&digits=6&period=30
 ```
 
 **Validation Results:**
@@ -77,7 +77,7 @@ otpauth://totp/SIMPelv2%20Kejaksaan%20RI:user@kejaksaan.go.id?secret=JBSWY3DPEHP
 - ✅ Plus addressing: `user+tag@kejaksaan.go.id`
 
 **Issuer Names:**
-- ✅ "SIMPelv2 Kejaksaan RI"
+- ✅ "SIMPEL Kejaksaan RI"
 - ✅ "Kejaksaan Republik Indonesia"
 - ✅ "Attorney General's Office"
 - ✅ Unicode characters inn names
@@ -119,7 +119,7 @@ otpauth://totp/SIMPelv2%20Kejaksaan%20RI:user@kejaksaan.go.id?secret=JBSWY3DPEHP
 ### Scenario 1: Government Employee Onboarding
 ```
 Account: 19851234567890123456@kejaksaan.go.id
-Issuer: SIMPelv2 Kejaksaan RI
+Issuer: SIMPEL Kejaksaan RI
 Result: ✅ All apps successfully import and generate codes
 ```
 

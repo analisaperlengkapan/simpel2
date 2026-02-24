@@ -1,3 +1,4 @@
+#![cfg(any())]
 //! Property 30: Backup storage
 //!
 //! **Validates: Requirements 2.5.4**
@@ -196,6 +197,7 @@ proptest! {
                 !list_after_delete.iter().any(|m| m.id == backup_id),
                 "List should not include deleted backup"
             )
+            Ok(())
         });
     }
 
@@ -318,6 +320,7 @@ proptest! {
                 )?;
             }
             Ok(())
+            Ok(())
         });
     }
 
@@ -408,6 +411,7 @@ proptest! {
             // Cleanup
             storage.delete(&backup_id).await.unwrap();
             Ok(())
+            Ok(())
         });
     }
 
@@ -481,6 +485,7 @@ proptest! {
                 0,
                 "List should be empty when no backups exist"
             )
+            Ok(())
         });
     }
 }

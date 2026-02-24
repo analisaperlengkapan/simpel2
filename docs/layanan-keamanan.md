@@ -1,10 +1,10 @@
-# 🔐 Layanan Keamanan - SIMPelv2
+# 🔐 Layanan Keamanan - SIMPEL
 
-**Layanan Keamanan** adalah microservice utama dalam SIMPelv2 yang bertanggung jawab atas autentikasi, otorisasi, dan keamanan sistem. Dibangun dengan **Rust** untuk performa dan keamanan maksimal.
+**Layanan Keamanan** adalah microservice utama dalam SIMPEL yang bertanggung jawab atas autentikasi, otorisasi, dan keamanan sistem. Dibangun dengan **Rust** untuk performa dan keamanan maksimal.
 
 ## 🎯 **Overview**
 
-Layanan Keamanan menyediakan sistem keamanan yang komprehensif untuk SIMPelv2:
+Layanan Keamanan menyediakan sistem keamanan yang komprehensif untuk SIMPEL:
 
 - **JWT Authentication**: Token management dan validation
 - **Multi-Factor Authentication**: TOTP-based security
