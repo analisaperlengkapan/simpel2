@@ -1,4 +1,4 @@
-# Analisis Mendalam: Strategi CSS untuk SIMPelv2 Microfrontends
+# Analisis Mendalam: Strategi CSS untuk SIMPEL Microfrontends
 
 ## Status CSS Saat Ini (Post-Refactoring)
 

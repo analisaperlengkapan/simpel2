@@ -1,4 +1,4 @@
-// Error tracking and reporting for SIMPelv2
+// Error tracking and reporting for SIMPEL
 // Captures unhandled errors, provides stack traces, and sends reports with user context
 
 use chrono::{DateTime, Utc};

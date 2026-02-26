@@ -1,0 +1,117 @@
+# layanan-integrasi Backend Service
+# External API Integration: MonSAKTI, MySIMKARI, SIMAN
+# This service runs both the gRPC server and internal scheduled cron jobs.
+
+---
+# Deployment for layanan-integrasi
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: layanan-integrasi
+  labels:
+    app.kubernetes.io/name: layanan-integrasi
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1 # Using 1 replica to prevent duplicate cron executions if using pure tokio-cron-scheduler without locking
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: layanan-integrasi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: layanan-integrasi
+        app.kubernetes.io/component: backend
+      annotations:
+        sidecar.istio.io/inject: "true"
+        sidecar.istio.io/proxyCPU: "50m"
+        sidecar.istio.io/proxyCPULimit: "500m"
+        sidecar.istio.io/proxyMemory: "64Mi"
+        sidecar.istio.io/proxyMemoryLimit: "512Mi"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: integrasi
+          image: localhost:32000/simpelv2/layanan-integrasi:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - name: grpc
+              containerPort: 50051
+              protocol: TCP
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: integration-secrets
+            - configMapRef:
+                name: backend-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: integrasi-url
+            - name: GRPC_HOST
+              value: "0.0.0.0"
+            - name: GRPC_PORT
+              value: "50051"
+            - name: HTTP_HOST
+              value: "0.0.0.0"
+            - name: HTTP_PORT
+              value: "8080"
+            - name: RUST_LOG
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: RUST_LOG
+            - name: STORAGE_TYPE
+              value: "database"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+# Service for layanan-integrasi
+apiVersion: v1
+kind: Service
+metadata:
+  name: layanan-integrasi
+  labels:
+    app.kubernetes.io/name: layanan-integrasi
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: layanan-integrasi
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

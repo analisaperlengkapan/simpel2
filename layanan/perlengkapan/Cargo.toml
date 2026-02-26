@@ -1,0 +1,26 @@
+# Perlengkapan Workspace
+#
+# This is the workspace manifest for all perlengkapan-related crates.
+# Each service is organized under crates/ following the layanan/secreton pattern.
+
+[workspace]
+resolver = "2"
+
+members = [
+    "crates/api",
+    "crates/integrasi",
+    "crates/dokumen",
+    "crates/notifikasi",
+    "crates/bantuan",
+]
+
+# Inherit common settings from root workspace
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["SIMPEL Team"]
+license = "MIT"
+
+[workspace.dependencies]
+# All dependencies are inherited from the root workspace at /var/www/simpelv2/Cargo.toml
+# Sub-crates should use `{ workspace = true }` for common dependencies

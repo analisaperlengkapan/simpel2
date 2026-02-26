@@ -1,7 +1,7 @@
 # README – layanan-dasbor
 
 ## 🧾 Deskripsi Singkat
-`layanan-dasbor` adalah layanan mikro dalam platform **SIMPelv2** yang bertanggung jawab atas penyajian data secara visual, ringkas, dan interaktif dari berbagai layanan terkait pengelolaan Barang Milik Negara (BMN). Dasbor ini menjadi titik sentral monitoring dan pengambilan keputusan oleh pimpinan maupun operator teknis.
+`layanan-dasbor` adalah layanan mikro dalam platform **SIMPEL** yang bertanggung jawab atas penyajian data secara visual, ringkas, dan interaktif dari berbagai layanan terkait pengelolaan Barang Milik Negara (BMN). Dasbor ini menjadi titik sentral monitoring dan pengambilan keputusan oleh pimpinan maupun operator teknis.
 
 ---
 
@@ -116,4 +116,4 @@ SINKRONISASI_CRON=*/15 * * * *
 ---
 
 ## 📝 Lisensi
-Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPelv2 Internal Use Only
+Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPEL Internal Use Only

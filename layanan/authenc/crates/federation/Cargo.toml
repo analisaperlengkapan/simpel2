@@ -1,0 +1,43 @@
+[package]
+name = "authenc-federation"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+
+[dependencies]
+# Workspace dependencies
+authenc-types = { path = "../types" }
+authenc-core = { path = "../core", features = ["ldap"] }
+authenc-storage = { path = "../storage" }
+
+# External dependencies (from workspace)
+tokio = { workspace = true }
+tokio-postgres = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+urlencoding = { workspace = true }
+rand = { workspace = true }
+subtle = { workspace = true }
+ldap3 = { workspace = true }
+anyhow = { workspace = true }
+url = { workspace = true }
+quick-xml = { workspace = true }
+flate2 = { workspace = true }
+dashmap = { workspace = true }
+base64ct = { workspace = true }
+jsonwebtoken = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+
+# Federation-specific dependencies
+openidconnect = { workspace = true }
+# saml2 = { workspace = true }  # Add when implementing SAML
+
+[dev-dependencies]
+tokio-test = { workspace = true }

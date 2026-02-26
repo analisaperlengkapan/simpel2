@@ -1,12 +1,12 @@
 # layanan-audit
 
-**Layanan Audit SIMPelv2** bertanggung jawab atas pencatatan otomatis seluruh aktivitas pengguna dan sistem, guna memastikan integritas, pelacakan histori, dan dukungan audit internal/eksternal. Layanan ini juga terintegrasi dengan deteksi ancaman berbasis AI/ML dan menjadi komponen utama keamanan sistem.
+**Layanan Audit SIMPEL** bertanggung jawab atas pencatatan otomatis seluruh aktivitas pengguna dan sistem, guna memastikan integritas, pelacakan histori, dan dukungan audit internal/eksternal. Layanan ini juga terintegrasi dengan deteksi ancaman berbasis AI/ML dan menjadi komponen utama keamanan sistem.
 
 ---
 
 ## 🌟 Tujuan
 
-- Menyediakan **jejak audit immutable** terhadap seluruh aktivitas dalam SIMPelv2.
+- Menyediakan **jejak audit immutable** terhadap seluruh aktivitas dalam SIMPEL.
 - Mendukung **forensik digital**, pelacakan perubahan, dan deteksi penyalahgunaan akses.
 - Menjadi dasar **compliance ISO 27001**, **PCI DSS**, dan pengawasan internal kejaksaan.
 

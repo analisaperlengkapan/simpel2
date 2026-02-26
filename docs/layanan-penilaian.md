@@ -1,6 +1,6 @@
 # README - layanan-penilaian
 
-**layanan-penilaian** adalah layanan mikro dalam SIMPelv2 yang bertanggung jawab mendokumentasikan hasil penilaian Barang Milik Negara (BMN) oleh penilai pemerintah. Layanan ini menyimpan, mengelola, dan menyajikan data hasil penilaian untuk kepentingan pengelolaan aset, laporan, serta akuntabilitas publik.
+**layanan-penilaian** adalah layanan mikro dalam SIMPEL yang bertanggung jawab mendokumentasikan hasil penilaian Barang Milik Negara (BMN) oleh penilai pemerintah. Layanan ini menyimpan, mengelola, dan menyajikan data hasil penilaian untuk kepentingan pengelolaan aset, laporan, serta akuntabilitas publik.
 
 ---
 
@@ -98,7 +98,7 @@ Pastikan koneksi ke database lokal tersedia (dengan seed).
 
 Hak Cipta © 2025 Kejaksaan Republik Indonesia
 
-Layanan ini merupakan bagian dari sistem internal SIMPelv2 dan tidak untuk distribusi publik tanpa izin.
+Layanan ini merupakan bagian dari sistem internal SIMPEL dan tidak untuk distribusi publik tanpa izin.
 
 ---
 

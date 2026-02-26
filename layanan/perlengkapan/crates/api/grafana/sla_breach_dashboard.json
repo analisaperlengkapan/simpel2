@@ -1,0 +1,305 @@
+{
+    "dashboard": {
+        "title": "SLA Breach Monitoring",
+        "tags": [
+            "workflow",
+            "sla",
+            "monitoring"
+        ],
+        "timezone": "Asia/Jakarta",
+        "schemaVersion": 16,
+        "version": 1,
+        "refresh": "30s",
+        "panels": [
+            {
+                "id": 1,
+                "title": "SLA Breach Rate (Last 24h)",
+                "type": "graph",
+                "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                },
+                "targets": [
+                    {
+                        "expr": "rate(workflow_sla_breaches_total[5m])",
+                        "legendFormat": "{{entity_type}} - {{state}}",
+                        "refId": "A"
+                    }
+                ],
+                "yaxes": [
+                    {
+                        "format": "short",
+                        "label": "Breaches per second"
+                    }
+                ],
+                "alert": {
+                    "name": "High SLA Breach Rate",
+                    "conditions": [
+                        {
+                            "evaluator": {
+                                "params": [
+                                    0.1
+                                ],
+                                "type": "gt"
+                            },
+                            "operator": {
+                                "type": "and"
+                            },
+                            "query": {
+                                "params": [
+                                    "A",
+                                    "5m",
+                                    "now"
+                                ]
+                            },
+                            "reducer": {
+                                "params": [],
+                                "type": "avg"
+                            },
+                            "type": "query"
+                        }
+                    ],
+                    "executionErrorState": "alerting",
+                    "frequency": "1m",
+                    "handler": 1,
+                    "message": "SLA breach rate is above 10% threshold",
+                    "name": "High SLA Breach Rate Alert",
+                    "noDataState": "no_data",
+                    "notifications": []
+                }
+            },
+            {
+                "id": 2,
+                "title": "SLA Breach Duration Distribution",
+                "type": "heatmap",
+                "gridPos": {
+                    "x": 12,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                },
+                "targets": [
+                    {
+                        "expr": "rate(workflow_sla_breach_duration_minutes_bucket[5m])",
+                        "legendFormat": "{{le}}",
+                        "refId": "A"
+                    }
+                ],
+                "dataFormat": "tsbuckets",
+                "yAxis": {
+                    "format": "short",
+                    "label": "Duration (minutes)"
+                }
+            },
+            {
+                "id": 3,
+                "title": "Total SLA Breaches by State",
+                "type": "piechart",
+                "gridPos": {
+                    "x": 0,
+                    "y": 8,
+                    "w": 8,
+                    "h": 8
+                },
+                "targets": [
+                    {
+                        "expr": "sum by (state) (workflow_sla_breaches_total)",
+                        "legendFormat": "{{state}}",
+                        "refId": "A"
+                    }
+                ]
+            },
+            {
+                "id": 4,
+                "title": "Escalation Success Rate",
+                "type": "stat",
+                "gridPos": {
+                    "x": 8,
+                    "y": 8,
+                    "w": 8,
+                    "h": 8
+                },
+                "targets": [
+                    {
+                        "expr": "sum(workflow_escalations_total{status=\"success\"}) / sum(workflow_escalations_total) * 100",
+                        "refId": "A"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": null,
+                                    "color": "red"
+                                },
+                                {
+                                    "value": 80,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 95,
+                                    "color": "green"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 5,
+                "title": "Escalations Total",
+                "type": "stat",
+                "gridPos": {
+                    "x": 16,
+                    "y": 8,
+                    "w": 8,
+                    "h": 8
+                },
+                "targets": [
+                    {
+                        "expr": "sum(workflow_escalations_total)",
+                        "refId": "A"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "short",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": null,
+                                    "color": "green"
+                                },
+                                {
+                                    "value": 10,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 50,
+                                    "color": "red"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 6,
+                "title": "Average SLA Breach Duration by State",
+                "type": "bargauge",
+                "gridPos": {
+                    "x": 0,
+                    "y": 16,
+                    "w": 12,
+                    "h": 8
+                },
+                "targets": [
+                    {
+                        "expr": "avg by (state) (workflow_sla_breach_duration_minutes)",
+                        "legendFormat": "{{state}}",
+                        "refId": "A"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "m",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": null,
+                                    "color": "green"
+                                },
+                                {
+                                    "value": 60,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 240,
+                                    "color": "red"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "options": {
+                    "orientation": "horizontal",
+                    "displayMode": "gradient"
+                }
+            },
+            {
+                "id": 7,
+                "title": "SLA Breaches Timeline",
+                "type": "table",
+                "gridPos": {
+                    "x": 12,
+                    "y": 16,
+                    "w": 12,
+                    "h": 8
+                },
+                "targets": [
+                    {
+                        "expr": "workflow_sla_breaches_total",
+                        "format": "table",
+                        "instant": true,
+                        "refId": "A"
+                    }
+                ],
+                "transformations": [
+                    {
+                        "id": "organize",
+                        "options": {
+                            "excludeByName": {
+                                "__name__": true,
+                                "job": true,
+                                "instance": true
+                            },
+                            "indexByName": {},
+                            "renameByName": {
+                                "entity_type": "Entity Type",
+                                "state": "State",
+                                "Value": "Total Breaches"
+                            }
+                        }
+                    }
+                ]
+            }
+        ],
+        "templating": {
+            "list": [
+                {
+                    "name": "entity_type",
+                    "type": "query",
+                    "query": "label_values(workflow_sla_breaches_total, entity_type)",
+                    "current": {
+                        "text": "All",
+                        "value": "$__all"
+                    },
+                    "includeAll": true,
+                    "multi": true
+                },
+                {
+                    "name": "state",
+                    "type": "query",
+                    "query": "label_values(workflow_sla_breaches_total{entity_type=~\"$entity_type\"}, state)",
+                    "current": {
+                        "text": "All",
+                        "value": "$__all"
+                    },
+                    "includeAll": true,
+                    "multi": true
+                }
+            ]
+        },
+        "time": {
+            "from": "now-24h",
+            "to": "now"
+        }
+    }
+}

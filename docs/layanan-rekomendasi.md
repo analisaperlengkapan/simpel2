@@ -1,6 +1,6 @@
 # README.md - layanan-rekomendasi
 
-**Layanan Rekomendasi** adalah salah satu komponen inti dalam SIMPelv2 yang bertanggung jawab untuk menghasilkan rekomendasi jumlah, spesifikasi, dan prioritas kebutuhan Barang Milik Negara (BMN) berdasarkan data historis, standar, dan konteks kebutuhan instansi.
+**Layanan Rekomendasi** adalah salah satu komponen inti dalam SIMPEL yang bertanggung jawab untuk menghasilkan rekomendasi jumlah, spesifikasi, dan prioritas kebutuhan Barang Milik Negara (BMN) berdasarkan data historis, standar, dan konteks kebutuhan instansi.
 
 ---
 
@@ -102,7 +102,7 @@ Layanan ini bekerja sama dengan `layanan-ai` untuk:
 
 ## 👥 Kontribusi
 
-Ikuti standar kontribusi SIMPelv2. Untuk kontribusi AI, buat branch:
+Ikuti standar kontribusi SIMPEL. Untuk kontribusi AI, buat branch:
 
 ```
 ai/rekomendasi-jumlah-xgboost

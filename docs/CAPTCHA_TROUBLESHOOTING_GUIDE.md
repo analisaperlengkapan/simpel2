@@ -59,7 +59,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 1. **Component Import Issue**:
    ```rust
    // Ensure proper import in login.rs
-   use shared_microfrontend::components::captcha::Captcha;
+   use lib_ui::components::captcha::Captcha;
    ```
 
 2. **API Endpoint Issue**:
@@ -611,4 +611,4 @@ esac
 **Document Version**: 1.0
 **Last Updated**: $(date)
 **Next Review**: $(date -d "+1 month")
-**Owner**: SIMPelv2 Operations Team
+**Owner**: SIMPEL Operations Team

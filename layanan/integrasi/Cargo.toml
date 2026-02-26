@@ -1,0 +1,89 @@
+[package]
+name = "layanan-integrasi"
+version.workspace = true
+edition.workspace = true
+authors = ["SIMPEL Team"]
+description = "SIMPEL - Layanan Integrasi untuk External APIs (MonSAKTI, MySIMKARI, dll)"
+license = "MIT"
+repository = "https://github.com/kejaksaan/simpelv2"
+keywords = ["simpelv2", "integrasi", "api", "monsakti", "mysimkari"]
+categories = ["api-bindings", "web-programming::http-client"]
+
+[features]
+integration-tests = []
+default = []
+grpc = ["dep:tonic", "dep:prost", "dep:tonic-prost"]
+
+[dependencies]
+reqwest = { version = "0.12", features = [
+  "json",
+  "native-tls",
+  "cookies",
+], default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "signal"] }
+tokio-postgres = { version = "=0.7.16", features = [
+  "with-chrono-0_4",
+  "with-serde_json-1",
+  "with-uuid-1",
+] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "2.0.17"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+csv = "1.3"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+clap = { version = "4.5", features = ["derive"] }
+sha2 = "0.10"
+tokio-cron-scheduler = { workspace = true }
+futures = { workspace = true }
+bytes = "1.10"
+rand = { workspace = true }
+lib-common = { path = "../../lib/common", features = ["telemetry", "db"] }
+lib-perlengkapan = { path = "../../lib/perlengkapan", features = ["backend"] }
+prometheus = { workspace = true }
+
+# gRPC dependencies (optional, for server mode)
+tonic = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
+tonic-prost = { workspace = true, optional = true }
+
+# HTTP server dependencies (for monitoring dashboard)
+axum = { workspace = true }
+tower-http = { workspace = true, features = ["cors"] }
+
+[dev-dependencies]
+wiremock = "0.6"
+
+[build-dependencies]
+tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }
+
+[[bin]]
+name = "scheduler"
+path = "src/bin/scheduler.rs"
+
+[[bin]]
+name = "layanan-integrasi-grpc"
+path = "src/bin/grpc_server.rs"
+required-features = ["grpc"]
+
+[[bin]]
+name = "layanan-integrasi-server"
+path = "src/bin/server.rs"
+required-features = ["grpc"]
+
+[[example]]
+name = "fetch_to_database"
+path = "examples/fetch_to_database.rs"
+
+[[example]]
+name = "siman_example"
+path = "examples/siman_example.rs"
+
+[[example]]
+name = "siman_database_sync"
+path = "examples/siman_database_sync.rs"

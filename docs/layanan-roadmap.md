@@ -1,6 +1,6 @@
 # layanan-roadmap
 
-**Layanan Roadmap SIMPelv2** adalah microservice yang menangani perencanaan jangka menengah dan panjang atas kebutuhan serta pengelolaan Barang Milik Negara (BMN). Layanan ini mendukung proses penyusunan roadmap aset strategis untuk optimalisasi pengelolaan BMN lintas tahun.
+**Layanan Roadmap SIMPEL** adalah microservice yang menangani perencanaan jangka menengah dan panjang atas kebutuhan serta pengelolaan Barang Milik Negara (BMN). Layanan ini mendukung proses penyusunan roadmap aset strategis untuk optimalisasi pengelolaan BMN lintas tahun.
 
 ---
 

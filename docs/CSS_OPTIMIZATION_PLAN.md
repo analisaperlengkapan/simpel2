@@ -1,4 +1,4 @@
-# CSS Optimization Plan - SIMPelv2
+# CSS Optimization Plan - SIMPEL
 
 ## Current State Analysis
 

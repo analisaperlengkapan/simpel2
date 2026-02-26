@@ -1,4 +1,4 @@
-# Panduan Best Practices Keamanan MFA SIMPelv2
+# Panduan Best Practices Keamanan MFA SIMPEL
 
 ## Daftar Isi
 1. [Prinsip Keamanan MFA](#prinsip-keamanan-mfa)

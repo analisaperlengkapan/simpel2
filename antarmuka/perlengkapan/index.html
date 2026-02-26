@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/perlengkapan/" />
+    <title>SIMPEL — Kejaksaan RI</title>
+
+    <script>
+        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+            window.location.replace('/perlengkapan/');
+        }
+    </script>
+
+    <link data-trunk rel="tailwind-css" href="styles/tailwind.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link data-trunk rel="copy-dir" href="assets/" />
+    <link data-trunk rel="rust" data-bin="perlengkapan-microfrontend" data-wasm-opt="1"
+        data-wasm-opt-params="--enable-bulk-memory" />
+
+    <meta name="description" content="Sistem Informasi Manajemen Perlengkapan — Kejaksaan Republik Indonesia">
+    <meta name="robots" content="noindex, nofollow">
+
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+            background: #0f172a;
+        }
+
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f172a;
+        }
+
+        .loader-logo {
+            width: 80px;
+            height: 80px;
+        }
+
+        .loader-text {
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-top: 1.2rem;
+        }
+
+        .loader-sub {
+            color: #64748b;
+            font-size: .75rem;
+            margin-top: .4rem;
+        }
+
+        .loader-dots {
+            color: #d4a843;
+            font-size: .75rem;
+            margin-top: 1.2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading-screen">
+        <div style="text-align: center;">
+            <img src="/perlengkapan/assets/kejaksaan-logo.png" alt="Kejaksaan RI" class="loader-logo">
+            <div class="loader-text">SIMPEL</div>
+            <div class="loader-sub">Memuat aplikasi…</div>
+        </div>
+    </div>
+    <script>
+        const obs = new MutationObserver(m => {
+            if (m.some(x => x.addedNodes.length)) {
+                // Check if any added node is likely from Leptos (usually not text)
+                const ls = document.getElementById('loading-screen');
+                if (ls) ls.remove();
+                obs.disconnect();
+            }
+        });
+        obs.observe(document.body, { childList: true });
+        // Fallback
+        setTimeout(() => { const ls = document.getElementById('loading-screen'); if (ls) ls.remove(); }, 10000);
+    </script>
+</body>
+
+</html>

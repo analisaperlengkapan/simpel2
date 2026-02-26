@@ -1,0 +1,385 @@
+---
+# ConfigMap untuk menyimpan k6 test scripts
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-load-tests
+  namespace: simpelv2-staging
+data:
+  dashboard-load-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend, Counter } from 'k6/metrics';
+
+    const dashboardLoadTime = new Trend('dashboard_load_time');
+    const apiResponseTime = new Trend('api_response_time');
+    const errorRate = new Rate('error_rate');
+    const requestCount = new Counter('request_count');
+
+    export const options = {
+      stages: [
+        { duration: '1m', target: 20 },
+        { duration: '2m', target: 50 },
+        { duration: '3m', target: 100 },
+        { duration: '5m', target: 100 },
+        { duration: '2m', target: 0 },
+      ],
+      thresholds: {
+        'dashboard_load_time': ['p(95)<5000'],
+        'api_response_time': ['p(95)<500'],
+        'error_rate': ['rate<0.05'],
+        'http_req_duration': ['p(90)<2000'],
+      },
+    };
+
+    const BASE_URL = __ENV.BASE_URL || 'http://layanan-perlengkapan:3020';
+
+    function login() {
+      const loginRes = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify({
+        username: __ENV.TEST_USERNAME || 'test_operator',
+        password: __ENV.TEST_PASSWORD || 'test_password',
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (loginRes.status === 200) {
+        return loginRes.json('access_token');
+      }
+      return null;
+    }
+
+    export default function () {
+      const token = login();
+      if (!token) {
+        errorRate.add(1);
+        return;
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      const dashboardStart = Date.now();
+      const dashboardRes = http.get(`${BASE_URL}/api/v1/dashboard/portal`, { headers });
+      const dashboardDuration = Date.now() - dashboardStart;
+
+      check(dashboardRes, {
+        'portal dashboard loaded': (r) => r.status === 200,
+      });
+
+      dashboardLoadTime.add(dashboardDuration);
+      requestCount.add(1);
+      errorRate.add(dashboardRes.status !== 200 ? 1 : 0);
+
+      sleep(1);
+
+      const perlengkapanStart = Date.now();
+      const perlengkapanRes = http.get(`${BASE_URL}/api/v1/dashboard/perlengkapan`, { headers });
+      const perlengkapanDuration = Date.now() - perlengkapanStart;
+
+      check(perlengkapanRes, {
+        'perlengkapan dashboard loaded': (r) => r.status === 200,
+      });
+
+      dashboardLoadTime.add(perlengkapanDuration);
+      requestCount.add(1);
+      errorRate.add(perlengkapanRes.status !== 200 ? 1 : 0);
+
+      sleep(2);
+    }
+
+  api-load-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend, Counter } from 'k6/metrics';
+
+    const apiResponseTime = new Trend('api_response_time');
+    const errorRate = new Rate('error_rate');
+    const requestCount = new Counter('request_count');
+
+    export const options = {
+      scenarios: {
+        constant_rate: {
+          executor: 'constant-arrival-rate',
+          rate: 100,
+          timeUnit: '1s',
+          duration: '5m',
+          preAllocatedVUs: 50,
+          maxVUs: 200,
+        },
+      },
+      thresholds: {
+        'api_response_time': ['p(95)<500', 'p(99)<1000'],
+        'error_rate': ['rate<0.01'],
+        'http_req_duration': ['p(95)<500'],
+        'http_reqs': ['rate>100'],
+      },
+    };
+
+    const BASE_URL = __ENV.BASE_URL || 'http://layanan-perlengkapan:3020';
+
+    function login() {
+      const loginRes = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify({
+        username: __ENV.TEST_USERNAME || 'test_operator',
+        password: __ENV.TEST_PASSWORD || 'test_password',
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (loginRes.status === 200) {
+        return loginRes.json('access_token');
+      }
+      return null;
+    }
+
+    export default function () {
+      const token = login();
+      if (!token) {
+        errorRate.add(1);
+        return;
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      const endpoints = [
+        '/api/v1/kebutuhan?page=1&per_page=20',
+        '/api/v1/pakaian-dinas?tahun=2026',
+        '/api/v1/roadmap?periode_mulai=2026',
+        '/api/v1/master/kode-barang?search=komputer',
+        '/api/v1/workflow/status',
+      ];
+
+      const endpoint = endpoints[Math.floor(Math.random() * endpoints.length)];
+      const start = Date.now();
+      const res = http.get(`${BASE_URL}${endpoint}`, { headers });
+      const duration = Date.now() - start;
+
+      check(res, {
+        'request successful': (r) => r.status === 200,
+      });
+
+      apiResponseTime.add(duration);
+      requestCount.add(1);
+      errorRate.add(res.status !== 200 ? 1 : 0);
+
+      sleep(0.1);
+    }
+
+  search-load-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend, Counter } from 'k6/metrics';
+
+    const searchResponseTime = new Trend('search_response_time');
+    const errorRate = new Rate('error_rate');
+    const requestCount = new Counter('request_count');
+
+    export const options = {
+      stages: [
+        { duration: '1m', target: 10 },
+        { duration: '2m', target: 30 },
+        { duration: '3m', target: 50 },
+        { duration: '5m', target: 50 },
+        { duration: '2m', target: 100 },
+        { duration: '2m', target: 50 },
+        { duration: '1m', target: 0 },
+      ],
+      thresholds: {
+        'search_response_time': ['p(95)<500', 'p(99)<2000'],
+        'error_rate': ['rate<0.02'],
+        'http_req_duration': ['p(90)<2000'],
+      },
+    };
+
+    const BASE_URL = __ENV.BASE_URL || 'http://layanan-perlengkapan:3020';
+    const SEARCH_QUERIES = [
+      'komputer', 'laptop', 'printer', 'meja', 'kursi',
+      'lemari', 'AC', 'kendaraan', 'mobil', 'motor',
+    ];
+
+    function login() {
+      const loginRes = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify({
+        username: __ENV.TEST_USERNAME || 'test_operator',
+        password: __ENV.TEST_PASSWORD || 'test_password',
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (loginRes.status === 200) {
+        return loginRes.json('access_token');
+      }
+      return null;
+    }
+
+    export default function () {
+      const token = login();
+      if (!token) {
+        errorRate.add(1);
+        return;
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      const query = SEARCH_QUERIES[Math.floor(Math.random() * SEARCH_QUERIES.length)];
+      const start = Date.now();
+      const res = http.get(
+        `${BASE_URL}/api/v1/search/kebutuhan?q=${encodeURIComponent(query)}`,
+        { headers }
+      );
+      const duration = Date.now() - start;
+
+      check(res, {
+        'search successful': (r) => r.status === 200,
+      });
+
+      searchResponseTime.add(duration);
+      requestCount.add(1);
+      errorRate.add(res.status !== 200 ? 1 : 0);
+
+      sleep(1);
+    }
+
+---
+# Job untuk Dashboard Load Test
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-dashboard-load-test
+  namespace: simpelv2-staging
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: k6-load-test
+        test-type: dashboard
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: k6
+        image: grafana/k6:latest
+        command: ["k6", "run", "/scripts/dashboard-load-test.js"]
+        env:
+        - name: BASE_URL
+          value: "http://layanan-perlengkapan:3020"
+        - name: TEST_USERNAME
+          value: "test_operator"
+        - name: TEST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: load-test-credentials
+              key: password
+              optional: true
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+      volumes:
+      - name: scripts
+        configMap:
+          name: k6-load-tests
+
+---
+# Job untuk API Load Test
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-api-load-test
+  namespace: simpelv2-staging
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: k6-load-test
+        test-type: api
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: k6
+        image: grafana/k6:latest
+        command: ["k6", "run", "/scripts/api-load-test.js"]
+        env:
+        - name: BASE_URL
+          value: "http://layanan-perlengkapan:3020"
+        - name: TEST_USERNAME
+          value: "test_operator"
+        - name: TEST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: load-test-credentials
+              key: password
+              optional: true
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "1000m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"
+      volumes:
+      - name: scripts
+        configMap:
+          name: k6-load-tests
+
+---
+# Job untuk Search Load Test
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-search-load-test
+  namespace: simpelv2-staging
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: k6-load-test
+        test-type: search
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: k6
+        image: grafana/k6:latest
+        command: ["k6", "run", "/scripts/search-load-test.js"]
+        env:
+        - name: BASE_URL
+          value: "http://layanan-perlengkapan:3020"
+        - name: TEST_USERNAME
+          value: "test_operator"
+        - name: TEST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: load-test-credentials
+              key: password
+              optional: true
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+      volumes:
+      - name: scripts
+        configMap:
+          name: k6-load-tests

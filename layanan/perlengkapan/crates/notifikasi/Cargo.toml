@@ -1,0 +1,66 @@
+[package]
+name = "layanan-perlengkapan-notifikasi"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+postgres-types = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+prometheus = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+uuid = { workspace = true }
+lettre = { workspace = true }
+reqwest = { workspace = true }
+redis = { workspace = true }
+garde = { workspace = true, features = ["derive", "email"] }
+sea-query = { workspace = true }
+chrono = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+tokio-cron-scheduler = { workspace = true }
+thiserror = { workspace = true }
+sentry = { workspace = true }
+sentry-tracing = { workspace = true }
+async-trait = { workspace = true }
+tokio-util = { workspace = true }
+walkdir = { workspace = true }
+mime = { workspace = true }
+time = { workspace = true }
+anyhow = { workspace = true }
+futures = { workspace = true }
+tokio-stream = { workspace = true }
+base64 = { workspace = true }
+mockall = { workspace = true }
+dashmap = { workspace = true }
+lib-common = { workspace = true, features = ["telemetry", "db"] }
+lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
+
+[dev-dependencies]
+tokio = { workspace = true }
+dashmap = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+assert-json-diff = { workspace = true }
+serial_test = { workspace = true }
+tempfile = { workspace = true }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }
+
+[features]
+integration-tests = []
+default = []
+whatsapp = []
+push = []

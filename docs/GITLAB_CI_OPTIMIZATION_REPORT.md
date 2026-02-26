@@ -222,7 +222,7 @@ Pipeline akan otomatis:
 
 ## ✅ Kesimpulan
 
-GitLab CI/CD SIMPelv2 sekarang memiliki:
+GitLab CI/CD SIMPEL sekarang memiliki:
 - **Security-first approach** dengan 6 security tools
 - **Quality assurance** dengan 4 quality tools
 - **Performance optimization** dengan smart caching

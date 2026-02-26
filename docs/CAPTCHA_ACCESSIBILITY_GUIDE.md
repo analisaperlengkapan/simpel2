@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SIMPelv2 CAPTCHA system is designed to be accessible to all users, including those with disabilities. This guide explains the accessibility features available and how to use them effectively.
+The SIMPEL CAPTCHA system is designed to be accessible to all users, including those with disabilities. This guide explains the accessibility features available and how to use them effectively.
 
 ## Table of Contents
 
@@ -421,5 +421,5 @@ If CAPTCHA is completely inaccessible, alternative verification methods are avai
 **Document Version**: 1.0
 **Last Updated**: $(date)
 **Next Review**: $(date -d "+6 months")
-**Owner**: SIMPelv2 Accessibility Team
+**Owner**: SIMPEL Accessibility Team
 **Contact**: accessibility@kejaksaan.go.id

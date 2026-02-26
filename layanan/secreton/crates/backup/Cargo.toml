@@ -1,0 +1,63 @@
+[package]
+name = "secreton-backup"
+version = "0.1.0"
+edition = "2024"
+authors = ["Cipherce Security Team <security@cipherce.io>"]
+license = "Apache-2.0"
+description = "Automated backup and restore for Secreton"
+rust-version = "1.90"
+
+[dependencies]
+# Local crates
+secreton-core = { path = "../core" }
+secreton-storage = { path = "../storage" }
+secreton-types = { path = "../types" }
+
+# Core dependencies (from workspace)
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true, features = ["v4", "serde"] }
+chrono = { workspace = true, features = ["serde"] }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Cryptography
+aes-gcm = { workspace = true }
+chacha20poly1305 = { workspace = true }
+rand = { workspace = true }
+rand_core = { workspace = true }
+sha2 = { workspace = true }
+
+# Encoding
+hex = { workspace = true }
+base64 = { workspace = true }
+
+# Scheduling
+cron = "0.13"
+
+# Compression
+flate2 = { workspace = true }
+
+# Temporary files
+tempfile = { workspace = true }
+
+# S3-compatible storage
+aws-sdk-s3 = "1.68"
+aws-config = "1.5"
+aws-credential-types = "1.2"
+
+# Metrics (optional)
+metrics = { workspace = true, optional = true }
+
+[features]
+default = []
+metrics = ["dep:metrics"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+proptest = { workspace = true }
+pretty_assertions = { workspace = true }

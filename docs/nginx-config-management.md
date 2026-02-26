@@ -2,7 +2,7 @@
 
 ## Overview
 
-The enhanced nginx configuration management system for SIMPelv2 provides automated generation, validation, and deployment of nginx configurations for both microfrontend containers and infrastructure reverse proxy.
+The enhanced nginx configuration management system for SIMPEL provides automated generation, validation, and deployment of nginx configurations for both microfrontend containers and infrastructure reverse proxy.
 
 ## Components
 
@@ -189,4 +189,4 @@ echo 'name = "new-service"' > antarmuka/new-service/Cargo.toml
 ./scripts/tools/nginx-manager.sh deploy --dry-run
 ```
 
-This enhanced nginx configuration management system provides enterprise-grade automation for SIMPelv2's microfrontend architecture while maintaining simplicity and reliability.
+This enhanced nginx configuration management system provides enterprise-grade automation for SIMPEL's microfrontend architecture while maintaining simplicity and reliability.

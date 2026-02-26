@@ -1,19 +1,70 @@
-# Docker ignore file
-target/
-target_authenc/
-.git/
+# Git files
+.git
+.gitignore
+.gitmodules
+.gitattributes
+
+# Rust/Cargo files
+target
+**/target
+**/*.rs.bk
+Cargo.lock.bk
+
+# Node/Frontend files
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+build
+**/build
+.cache
+**/.cache
+
+# IDE/Editor files
+.vscode
+**/.vscode
+.idea
+**/.idea
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs
+**/logs
+output.txt
+
+# Secrets and local config
 .env
-.idea/
-.vscode/
-node_modules/
-dist/
-*.log
-tmp/
-coverage/
-doc/
-build_output/
-*.txt
-*.log
-.kiro/
-.claude/
-.windsurf/
+.env.*
+! .env.example
+credentials.json
+*.pem
+*.key
+*.cert
+*.crt
+secreton.toml
+
+# Temp files
+tmp
+**/tmp
+temp
+**/temp
+*.tar
+**/*.tar
+*.tar.gz
+**/*.tar.gz
+layanan/secreton/secreton_latest.tar
+
+# Large monorepo directories not needed for Secreton build
+antarmuka
+simpel_web-main
+tests
+
+# Deployment files
+# deploy/

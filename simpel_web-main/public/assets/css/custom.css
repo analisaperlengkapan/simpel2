@@ -1,0 +1,230 @@
+/*
+Template Name: Velzon - Admin & Dashboard Template
+Author: Themesbrand
+Website: https://themesbrand.com/
+Contact: support@themesbrand.com
+File: Custom Css File
+*/
+
+/* Perbaikan visibilitas huruf pada sidebar saat hover */
+.navbar-menu .navbar-nav .nav-link:hover {
+    color: #f9b233 !important;
+    font-weight: 600;
+    text-shadow: 0 0 2px rgba(249, 178, 51, 0.5);
+}
+
+.navbar-menu .navbar-nav .nav-link:hover span {
+    color: #f9b233 !important;
+    font-weight: 600;
+    text-shadow: 0 0 2px rgba(249, 178, 51, 0.5);
+}
+
+.navbar-menu .navbar-nav .nav-link:hover i {
+    color: #f9b233 !important;
+    text-shadow: 0 0 2px rgba(249, 178, 51, 0.5);
+}
+
+/* Perbaikan untuk sub-menu */
+.navbar-menu .navbar-nav .nav-sm .nav-link:hover {
+    color: #f9b233 !important;
+    font-weight: 600;
+    text-shadow: 0 0 2px rgba(249, 178, 51, 0.5);
+}
+
+.navbar-menu .navbar-nav .nav-sm .nav-link:hover:before {
+    background-color: #f9b233 !important;
+    opacity: 1;
+}
+
+/* Perbaikan untuk dark sidebar */
+[data-layout=vertical][data-sidebar=dark] .navbar-nav .nav-link:hover {
+    color: #f9b233 !important;
+    font-weight: 600;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.7);
+}
+
+[data-layout=vertical][data-sidebar=dark] .navbar-nav .nav-link:hover span {
+    color: #f9b233 !important;
+    font-weight: 600;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.7);
+}
+
+[data-layout=vertical][data-sidebar=dark] .navbar-nav .nav-link:hover i {
+    color: #f9b233 !important;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.7);
+}
+
+[data-layout=vertical][data-sidebar=dark] .navbar-nav .nav-sm .nav-link:hover {
+    color: #f9b233 !important;
+    font-weight: 600;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.7);
+}
+
+[data-layout=vertical][data-sidebar=dark] .navbar-nav .nav-sm .nav-link:hover:before {
+    background-color: #f9b233 !important;
+    opacity: 1;
+}
+
+/* Perbaikan untuk light sidebar */
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-link:hover {
+    color: #1e5631 !important;
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(30, 86, 49, 0.4);
+}
+
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-link:hover span {
+    color: #1e5631 !important;
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(30, 86, 49, 0.4);
+}
+
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-link:hover i {
+    color: #1e5631 !important;
+    text-shadow: 0 0 2px rgba(30, 86, 49, 0.4);
+}
+
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-sm .nav-link:hover {
+    color: #1e5631 !important;
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(30, 86, 49, 0.4);
+}
+
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-sm .nav-link:hover:before {
+    background-color: #1e5631 !important;
+    opacity: 1;
+}
+
+/* Perbaikan untuk gradient sidebar */
+[data-sidebar=gradient] .navbar-nav .nav-link:hover,
+[data-sidebar=gradient-2] .navbar-nav .nav-link:hover,
+[data-sidebar=gradient-3] .navbar-nav .nav-link:hover,
+[data-sidebar=gradient-4] .navbar-nav .nav-link:hover {
+    color: #f9b233 !important;
+    font-weight: 700;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.8);
+}
+
+[data-sidebar=gradient] .navbar-nav .nav-link:hover span,
+[data-sidebar=gradient-2] .navbar-nav .nav-link:hover span,
+[data-sidebar=gradient-3] .navbar-nav .nav-link:hover span,
+[data-sidebar=gradient-4] .navbar-nav .nav-link:hover span {
+    color: #f9b233 !important;
+    font-weight: 700;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.8);
+}
+
+[data-sidebar=gradient] .navbar-nav .nav-link:hover i,
+[data-sidebar=gradient-2] .navbar-nav .nav-link:hover i,
+[data-sidebar=gradient-3] .navbar-nav .nav-link:hover i,
+[data-sidebar=gradient-4] .navbar-nav .nav-link:hover i {
+    color: #f9b233 !important;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.8);
+}
+
+[data-sidebar=gradient] .navbar-nav .nav-sm .nav-link:hover,
+[data-sidebar=gradient-2] .navbar-nav .nav-sm .nav-link:hover,
+[data-sidebar=gradient-3] .navbar-nav .nav-sm .nav-link:hover,
+[data-sidebar=gradient-4] .navbar-nav .nav-sm .nav-link:hover {
+    color: #f9b233 !important;
+    font-weight: 700;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.8);
+}
+
+[data-sidebar=gradient] .navbar-nav .nav-sm .nav-link:hover:before,
+[data-sidebar=gradient-2] .navbar-nav .nav-sm .nav-link:hover:before,
+[data-sidebar=gradient-3] .navbar-nav .nav-sm .nav-link:hover:before,
+[data-sidebar=gradient-4] .navbar-nav .nav-sm .nav-link:hover:before {
+    background-color: #f9b233 !important;
+    opacity: 1;
+}
+
+/* Perbaikan untuk hover pada icon dual */
+.navbar-menu .navbar-nav .nav-link:hover .icon-dual {
+    color: inherit !important;
+    fill: rgba(249, 178, 51, 0.3) !important;
+}
+
+[data-layout=vertical][data-sidebar=dark] .navbar-nav .nav-link:hover .icon-dual {
+    color: inherit !important;
+    fill: rgba(249, 178, 51, 0.4) !important;
+}
+
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-link:hover .icon-dual {
+    color: inherit !important;
+    fill: rgba(30, 86, 49, 0.3) !important;
+}
+
+[data-sidebar=gradient] .navbar-nav .nav-link:hover .icon-dual,
+[data-sidebar=gradient-2] .navbar-nav .nav-link:hover .icon-dual,
+[data-sidebar=gradient-3] .navbar-nav .nav-link:hover .icon-dual,
+[data-sidebar=gradient-4] .navbar-nav .nav-link:hover .icon-dual {
+    color: inherit !important;
+    fill: rgba(249, 178, 51, 0.4) !important;
+}
+
+/* Perbaikan tambahan untuk memastikan visibilitas yang lebih baik */
+.navbar-menu .navbar-nav .nav-link {
+    transition: all 0.3s ease;
+}
+
+.navbar-menu .navbar-nav .nav-link:hover {
+    background-color: rgba(249, 178, 51, 0.1);
+    border-radius: 4px;
+}
+
+.navbar-menu .navbar-nav .nav-sm .nav-link:hover {
+    background-color: rgba(249, 178, 51, 0.1);
+    border-radius: 4px;
+}
+
+/* Perbaikan untuk light sidebar background hover */
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-link:hover {
+    background-color: rgba(30, 86, 49, 0.1);
+}
+
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-sm .nav-link:hover {
+    background-color: rgba(30, 86, 49, 0.1);
+}
+
+/* Perbaikan untuk menu yang aktif */
+.navbar-menu .navbar-nav .nav-link.active {
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(249, 178, 51, 0.6);
+}
+
+.navbar-menu .navbar-nav .nav-sm .nav-link.active {
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(249, 178, 51, 0.6);
+}
+
+/* Perbaikan untuk light sidebar active */
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-link.active {
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(30, 86, 49, 0.6);
+}
+
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-sm .nav-link.active {
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(30, 86, 49, 0.6);
+}
+
+/* Perbaikan untuk menu yang sedang di-collapse */
+.navbar-menu .navbar-nav .nav-link[data-bs-toggle=collapse][aria-expanded=true] {
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(249, 178, 51, 0.6);
+}
+
+/* Perbaikan untuk menu yang sedang di-collapse pada light sidebar */
+[data-layout=vertical][data-sidebar=light] .navbar-nav .nav-link[data-bs-toggle=collapse][aria-expanded=true] {
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(30, 86, 49, 0.6);
+}
+
+/* Perbaikan untuk menu yang sedang di-collapse pada gradient sidebar */
+[data-sidebar=gradient] .navbar-nav .nav-link[data-bs-toggle=collapse][aria-expanded=true],
+[data-sidebar=gradient-2] .navbar-nav .nav-link[data-bs-toggle=collapse][aria-expanded=true],
+[data-sidebar=gradient-3] .navbar-nav .nav-link[data-bs-toggle=collapse][aria-expanded=true],
+[data-sidebar=gradient-4] .navbar-nav .nav-link[data-bs-toggle=collapse][aria-expanded=true] {
+    font-weight: 700;
+    text-shadow: 0 0 3px rgba(249, 178, 51, 0.8);
+}

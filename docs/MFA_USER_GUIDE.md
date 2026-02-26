@@ -1,5 +1,5 @@
 # Panduan Pengguna Multi-Factor Authentication (MFA)
-## Sistem Informasi Manajemen Perlengkapan v2 (SIMPelv2)
+## Sistem Informasi Manajemen Perlengkapan v2 (SIMPEL)
 
 ### Daftar Isi
 1. [Pengenalan MFA](#pengenalan-mfa)
@@ -28,7 +28,7 @@ Multi-Factor Authentication (MFA) adalah lapisan keamanan tambahan yang melindun
 ## Pengaturan Awal MFA
 
 ### Langkah 1: Login Pertama Kali
-1. Masuk ke portal SIMPelv2 dengan NIP dan password Anda
+1. Masuk ke portal SIMPEL dengan NIP dan password Anda
 2. Setelah login berhasil, Anda akan diarahkan ke halaman "Setup MFA"
 3. Jangan tutup halaman ini sampai setup selesai
 
@@ -44,7 +44,7 @@ Pastikan Anda memiliki salah satu aplikasi authenticator berikut di ponsel:
 2. Pilih "Tambah Akun" atau ikon "+"
 3. Pilih "Scan QR Code" atau "Scan Barcode"
 4. Arahkan kamera ke QR code yang ditampilkan di layar
-5. Tunggu hingga akun "SIMPelv2 Kejaksaan RI" muncul di aplikasi
+5. Tunggu hingga akun "SIMPEL Kejaksaan RI" muncul di aplikasi
 
 ### Langkah 4: Verifikasi Setup
 1. Lihat kode 6 digit yang muncul di aplikasi authenticator
@@ -60,7 +60,7 @@ Jika tidak bisa scan QR code:
 4. Masukkan informasi berikut:
    - **Nama Akun**: [NIP Anda]@kejaksaan.go.id
    - **Kode Rahasia**: [Kode yang disalin]
-   - **Issuer**: SIMPelv2 Kejaksaan RI
+   - **Issuer**: SIMPEL Kejaksaan RI
 
 ---
 
@@ -103,7 +103,7 @@ Jika tidak bisa scan QR code:
 2. **Verifikasi MFA**:
    - Anda akan diarahkan ke halaman "Verifikasi MFA"
    - Buka aplikasi authenticator di ponsel
-   - Lihat kode 6 digit untuk akun SIMPelv2
+   - Lihat kode 6 digit untuk akun SIMPEL
    - Masukkan kode di kolom verifikasi
    - Klik "Verifikasi"
 
@@ -143,7 +143,7 @@ Jika tidak bisa scan QR code:
    - Tunggu kode baru muncul sebelum input
 
 3. **Periksa Akun**:
-   - Pastikan menggunakan kode dari akun SIMPelv2 yang benar
+   - Pastikan menggunakan kode dari akun SIMPEL yang benar
    - Hapus akun duplikat jika ada
 
 ### Masalah 3: Aplikasi Authenticator Hilang/Rusak

@@ -139,7 +139,7 @@ async fn run_single_authenc_benchmark(
     // Simulate running authenc benchmark using criterion
     let output = Command::new("cargo")
         .args(&["bench", "--bench", "performance", "--", category])
-        .current_dir("infra/authenc")
+        .current_dir("layanan/authenc")
         .output();
 
     match output {
@@ -167,7 +167,7 @@ async fn run_single_secreton_benchmark(
     // Simulate running secreton benchmark using criterion
     let output = Command::new("cargo")
         .args(&["bench", "--bench", "performance", "--", category])
-        .current_dir("infra/secreton")
+        .current_dir("layanan/secreton")
         .output();
 
     match output {

@@ -16,7 +16,13 @@ pub mod jwt_claims;
 pub mod cache;
 
 #[cfg(feature = "backend")]
+pub mod cache_middleware;
+
+#[cfg(feature = "backend")]
 pub mod memory;
+
+#[cfg(feature = "storage")]
+pub mod storage;
 
 // Full JWT module with decode functionality (requires jsonwebtoken)
 #[cfg(feature = "jwt")]

@@ -1,6 +1,6 @@
 # layanan-pemakaian
 
-**Layanan Pemakaian** adalah komponen dalam sistem SIMPelv2 yang menangani seluruh proses permohonan, izin, dan pencatatan pemakaian Barang Milik Negara (BMN) oleh satuan kerja (satker). Layanan ini memastikan bahwa seluruh proses pemanfaatan aset negara terdokumentasi dengan baik, sesuai regulasi, dan dapat dipantau secara akurat.
+**Layanan Pemakaian** adalah komponen dalam sistem SIMPEL yang menangani seluruh proses permohonan, izin, dan pencatatan pemakaian Barang Milik Negara (BMN) oleh satuan kerja (satker). Layanan ini memastikan bahwa seluruh proses pemanfaatan aset negara terdokumentasi dengan baik, sesuai regulasi, dan dapat dipantau secara akurat.
 
 ---
 
@@ -95,7 +95,7 @@ layanan-pemakaian/
 
 ## 📜 Lisensi
 
-Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPelv2
+Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPEL
 
 ---
 

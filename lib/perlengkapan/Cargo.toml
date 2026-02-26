@@ -1,0 +1,40 @@
+[package]
+name = "lib-perlengkapan"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Shared library for Perlengkapan domain - models, types, and validation for both backend and frontend"
+
+[features]
+default = ["serde"]
+serde = ["dep:serde", "dep:serde_json", "chrono/serde", "uuid/serde"]
+backend = ["dep:tokio-postgres", "dep:async-trait", "dep:deadpool-postgres", "dep:regex"]
+frontend = []
+wasm = ["dep:wasm-bindgen", "uuid/js"]
+
+[dependencies]
+# Core types
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Serialization (optional, enabled by default)
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+# Validation
+validator = { workspace = true }
+thiserror = { workspace = true }
+
+# Backend-only dependencies
+tokio-postgres = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+deadpool-postgres = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+
+# WASM support
+wasm-bindgen = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }

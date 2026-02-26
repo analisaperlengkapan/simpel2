@@ -1,0 +1,82 @@
+# GitLab CI/CD Configuration for Load Testing
+# Include this in your main .gitlab-ci.yml:
+#   include:
+#     - local: 'tests/load/gitlab-ci-load-test.yml'
+
+.load_test_template:
+  stage: test
+  image: grafana/k6:latest
+  variables:
+    BASE_URL: "http://staging.simpel.internal:3020"
+    TEST_USERNAME: "test_operator"
+    TEST_PASSWORD: "${LOAD_TEST_PASSWORD}"  # Set in CI/CD variables
+  before_script:
+    - echo "Starting load test against $BASE_URL"
+  artifacts:
+    when: always
+    paths:
+      - tests/load/results/
+    reports:
+      junit: tests/load/results/*.json
+    expire_in: 30 days
+  only:
+    - staging
+    - production
+  when: manual  # Require manual trigger
+
+# Dashboard Load Test
+load_test:dashboard:
+  extends: .load_test_template
+  script:
+    - mkdir -p tests/load/results
+    - |
+      k6 run \
+        -e BASE_URL="$BASE_URL" \
+        -e TEST_USERNAME="$TEST_USERNAME" \
+        -e TEST_PASSWORD="$TEST_PASSWORD" \
+        --out json=tests/load/results/dashboard-load-test.json \
+        tests/load/dashboard-load-test.js
+
+# API Load Test
+load_test:api:
+  extends: .load_test_template
+  script:
+    - mkdir -p tests/load/results
+    - |
+      k6 run \
+        -e BASE_URL="$BASE_URL" \
+        -e TEST_USERNAME="$TEST_USERNAME" \
+        -e TEST_PASSWORD="$TEST_PASSWORD" \
+        --out json=tests/load/results/api-load-test.json \
+        tests/load/api-load-test.js
+
+# Search Load Test
+load_test:search:
+  extends: .load_test_template
+  script:
+    - mkdir -p tests/load/results
+    - |
+      k6 run \
+        -e BASE_URL="$BASE_URL" \
+        -e TEST_USERNAME="$TEST_USERNAME" \
+        -e TEST_PASSWORD="$TEST_PASSWORD" \
+        --out json=tests/load/results/search-load-test.json \
+        tests/load/search-load-test.js
+
+# Run all load tests
+load_test:all:
+  extends: .load_test_template
+  script:
+    - chmod +x tests/load/run-all-tests.sh
+    - ./tests/load/run-all-tests.sh "$BASE_URL" "$TEST_USERNAME" "$TEST_PASSWORD"
+  dependencies: []
+
+# Scheduled load test (nightly)
+load_test:scheduled:
+  extends: .load_test_template
+  script:
+    - chmod +x tests/load/run-all-tests.sh
+    - ./tests/load/run-all-tests.sh "$BASE_URL" "$TEST_USERNAME" "$TEST_PASSWORD"
+  only:
+    - schedules
+  when: always  # Run automatically on schedule

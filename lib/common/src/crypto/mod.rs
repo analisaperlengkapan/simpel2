@@ -1,4 +1,4 @@
-//! Cryptographic primitives for shared use across SIMPelv2 services
+//! Cryptographic primitives for shared use across SIMPEL services
 //!
 //! This module provides:
 //! - Shamir Secret Sharing for key splitting

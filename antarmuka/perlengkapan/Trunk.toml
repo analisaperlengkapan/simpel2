@@ -1,0 +1,11 @@
+[build]
+target = "index.html"
+dist = "dist"
+release = false
+public_url = "/perlengkapan/"
+
+[serve]
+port = 8093
+addresses = ["0.0.0.0"]
+open = false
+no_autoreload = true

@@ -1,10 +1,10 @@
-# 🚀 AGENTS.md - Kubernetes Infrastructure Guide for SIMPelv2
+# 🚀 AGENTS.md - Kubernetes Infrastructure Guide for SIMPEL
 
-> **For AI Agents**: This file is the primary reference for understanding and managing the Kubernetes infrastructure of SIMPelv2.
+> **For AI Agents**: This file is the primary reference for understanding and managing the Kubernetes infrastructure of SIMPEL.
 
 ## 📋 Overview
 
-This directory contains **Kustomize-based** Kubernetes manifests for deploying SIMPelv2 across multiple environments. The structure follows GitOps best practices with base/overlay pattern.
+This directory contains **Kustomize-based** Kubernetes manifests for deploying SIMPEL across multiple environments. The structure follows GitOps best practices with base/overlay pattern.
 
 ## 🏗️ Architecture
 
@@ -40,13 +40,13 @@ This directory contains **Kustomize-based** Kubernetes manifests for deploying S
 infra/k8s/
 ├── base/                           # Shared base resources
 │   ├── backend/                    # Backend microservices (Axum)
-│   │   ├── layanan-daskrimti-portal.yaml
-│   │   ├── layanan-pembinaan-perlengkapan.yaml
+│   │   ├── layanan-portal.yaml
+│   │   ├── layanan-perlengkapan.yaml
 │   │   └── kustomization.yaml
 │   ├── frontend/                   # Frontend microfrontends (Leptos WASM)
 │   │   ├── portal.yaml
-│   │   ├── daskrimti-portal.yaml
-│   │   ├── pembinaan-perlengkapan.yaml
+│   │   ├── portal.yaml
+│   │   ├── perlengkapan.yaml
 │   │   └── kustomization.yaml
 │   ├── infrastructure/             # Core infrastructure
 │   │   ├── postgres.yaml           # PostgreSQL with Patroni HA
@@ -270,11 +270,11 @@ localhost:32000/simpelv2/<image-name>:<tag>
 | Image | Port | Type | Purpose |
 |-------|------|------|---------|
 | `portal` | 8080 | Deployment | Main portal frontend |
-| `daskrimti-portal` | 8080 | Deployment | Daskrimti microfrontend |
-| `pembinaan-perlengkapan` | 8080 | Deployment | Pembinaan microfrontend |
-| `layanan-daskrimti-portal` | 3010 | Deployment | Portal backend API |
-| `layanan-daskrimti-integrasi` | - | CronJob | External API integration (MonSAKTI/MySIMKARI/SIMAN) |
-| `layanan-pembinaan-perlengkapan` | 3020 | Deployment | Perlengkapan backend API |
+| `portal` | 8080 | Deployment | Portal microfrontend |
+| `perlengkapan` | 8080 | Deployment | Pembinaan microfrontend |
+| `layanan-portal` | 3010 | Deployment | Portal backend API |
+| `layanan-integrasi` | - | CronJob | External API integration (MonSAKTI/MySIMKARI/SIMAN) |
+| `layanan-perlengkapan` | 3020 | Deployment | Perlengkapan backend API |
 | `authenc` | 8088/9088/9090 | Deployment | Identity Provider |
 | `secreton` | 8200/9000/9090 | StatefulSet | Secrets Vault |
 
@@ -327,8 +327,8 @@ kubectl apply -k overlays/production
 ## 🔗 Related Documentation
 
 - [Main AGENTS.md](/home/anbud02/simpel2/AGENTS.md) - Project overview
-- [Authenc AGENTS.md](/home/anbud02/simpel2/infra/authenc/AGENTS.md) - Identity Provider
-- [Secreton AGENTS.md](/home/anbud02/simpel2/infra/secreton/AGENTS.md) - Secrets Vault
+- [Authenc AGENTS.md](/home/anbud02/simpel2/layanan/authenc/AGENTS.md) - Identity Provider
+- [Secreton AGENTS.md](/home/anbud02/simpel2/layanan/secreton/AGENTS.md) - Secrets Vault
 - [README.md](./README.md) - User documentation
 
 ## 📞 Troubleshooting
@@ -538,8 +538,8 @@ kubectl get networkpolicies -n <namespace>
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | **Root Project** | [`/AGENTS.md`](../../AGENTS.md) | Main codebase conventions, Rust patterns |
-| **Authenc** | [`/infra/authenc/AGENTS.md`](../authenc/AGENTS.md) | Identity Provider service |
-| **Secreton** | [`/infra/secreton/AGENTS.md`](../secreton/AGENTS.md) | Secrets Management service |
+| **Authenc** | [`/layanan/authenc/AGENTS.md`](../authenc/AGENTS.md) | Identity Provider service |
+| **Secreton** | [`/layanan/secreton/AGENTS.md`](../secreton/AGENTS.md) | Secrets Management service |
 | **Layanan Integrasi** | [`/layanan/daskrimti/integrasi/AGENTS.md`](../../layanan/daskrimti/integrasi/AGENTS.md) | Government API integration |
 
 ---
@@ -597,7 +597,7 @@ curl -s http://172.15.10.200/ -H "Host: simpel.kejaksaan.go.id"
 
 ```bash
 # Promote a specific image from staging to production
-IMAGE=layanan-daskrimti-portal
+IMAGE=layanan-portal
 
 # Tag staging as production
 docker pull localhost:32000/simpelv2/${IMAGE}:stag
@@ -626,4 +626,4 @@ kubectl set image deployment/<name> <container>=localhost:32000/simpelv2/<image>
 ---
 
 *Last Updated: 2026-02-03*
-*Maintained by: SIMPelv2 DevOps Team*
+*Maintained by: SIMPEL DevOps Team*

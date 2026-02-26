@@ -28,7 +28,7 @@
 
 ### 1.1 What is Authenc?
 
-Authenc is a **production-ready Identity and Access Management (IAM) service** built in Rust, designed specifically for the Indonesian Attorney General's Office (Kejaksaan Agung RI) SIMPelv2 system. It provides:
+Authenc is a **production-ready Identity and Access Management (IAM) service** built in Rust, designed specifically for the Indonesian Attorney General's Office (Kejaksaan Agung RI) SIMPEL system. It provides:
 
 - **Enterprise-grade authentication** with OAuth2, OIDC, and SAML 2.0
 - **Multi-factor authentication** (TOTP, WebAuthn/FIDO2, SMS, Email)
@@ -378,13 +378,13 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 ### 3.2 Run Database Migrations
 
-Authenc uses SQL migrations located in `infra/authenc/migrations/`. These must be run in order.
+Authenc uses SQL migrations located in `layanan/authenc/migrations/`. These must be run in order.
 
 **Option 1: Manual Migration (Development)**
 
 ```bash
 # Navigate to authenc directory
-cd /srv/proyek/simpelv2/infra/authenc
+cd /srv/proyek/simpelv2/layanan/authenc
 
 # Set database URL
 export DATABASE_URL="postgresql://authenc:YOUR_PASSWORD@localhost/authenc"
@@ -405,7 +405,7 @@ Authenc uses the `refinery` crate for migrations. This is handled automatically 
 cargo install refinery_cli
 
 # Run migrations
-cd /srv/proyek/simpelv2/infra/authenc
+cd /srv/proyek/simpelv2/layanan/authenc
 refinery migrate -e DATABASE_URL
 ```
 
@@ -681,7 +681,7 @@ session_absolute_timeout = 28800  # 8 hours
 
 [mfa]
 # MFA configuration
-issuer = "SIMPelv2 Kejaksaan RI"
+issuer = "SIMPEL Kejaksaan RI"
 totp_period = 30
 totp_digits = 6
 backup_codes_count = 10
@@ -818,7 +818,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:8080,https://portal.simpel.kejaksaan.go.id
 cd /srv/proyek/simpelv2
 
 # Build authenc
-cd infra/authenc
+cd layanan/authenc
 cargo build --release
 
 # Binary will be at:
@@ -829,7 +829,7 @@ cargo build --release
 
 ```bash
 # Build Docker image
-cd /srv/proyek/simpelv2/infra/authenc
+cd /srv/proyek/simpelv2/layanan/authenc
 docker build -t authenc:latest .
 
 # Or use docker-compose
@@ -980,7 +980,7 @@ curl -s http://localhost:8088/.well-known/openid-configuration | jq
 
 ### 5.1 Create Default Realm
 
-Realms in Authenc provide multi-tenancy. The default realm for SIMPelv2 is `simpel`.
+Realms in Authenc provide multi-tenancy. The default realm for SIMPEL is `simpel`.
 
 **Using API:**
 
@@ -990,7 +990,7 @@ curl -X POST http://localhost:8088/api/v1/realms \
   -H "Content-Type: application/json" \
   -d '{
     "name": "simpel",
-    "display_name": "SIMPelv2 Kejaksaan RI",
+    "display_name": "SIMPEL Kejaksaan RI",
     "enabled": true,
     "registration_allowed": false,
     "registration_email_as_username": false,
@@ -1014,7 +1014,7 @@ curl -X POST http://localhost:8088/api/v1/realms \
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "name": "simpel",
-  "display_name": "SIMPelv2 Kejaksaan RI",
+  "display_name": "SIMPEL Kejaksaan RI",
   "enabled": true,
   "created_at": "2025-11-10T10:30:00Z"
 }
@@ -1505,7 +1505,7 @@ curl -X POST http://localhost:8088/api/v1/auth/mfa/setup \
 
 ```json
 {
-  "qr_code_url": "otpauth://totp/SIMPelv2%20Kejaksaan%20RI:user@kejaksaan.go.id?secret=JBSWY3DPEHPK3PXP2AB4CDEFGHIJKLMN&issuer=SIMPelv2%20Kejaksaan%20RI&algorithm=SHA1&digits=6&period=30",
+  "qr_code_url": "otpauth://totp/SIMPEL%20Kejaksaan%20RI:user@kejaksaan.go.id?secret=JBSWY3DPEHPK3PXP2AB4CDEFGHIJKLMN&issuer=SIMPEL%20Kejaksaan%20RI&algorithm=SHA1&digits=6&period=30",
   "secret_key": "JBSWY3DPEHPK3PXP2AB4CDEFGHIJKLMN",
   "backup_codes": [
     "12345678",
@@ -1688,7 +1688,7 @@ curl -X POST http://localhost:8088/api/v1/auth/webauthn/register/begin \
 {
   "challenge": "BASE64_CHALLENGE_STRING",
   "rp": {
-    "name": "SIMPelv2 Kejaksaan RI",
+    "name": "SIMPEL Kejaksaan RI",
     "id": "simpel.kejaksaan.go.id"
   },
   "user": {
@@ -2289,7 +2289,7 @@ pub fn LoginRedirectPage() -> impl IntoView {
             <div class="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
                 <div class="text-center">
                     <h2 class="text-3xl font-bold text-gray-900">
-                        "Badiklat SIMPelv2"
+                        "Badiklat SIMPEL"
                     </h2>
                     <p class="mt-2 text-sm text-gray-600">
                         "Login untuk mengakses sistem pelatihan dan pendidikan"
@@ -2782,7 +2782,7 @@ Secreton endpoint unreachable
 curl -f http://localhost:8200/health
 
 # Start Secreton
-cd /srv/proyek/simpelv2/infra/secreton
+cd /srv/proyek/simpelv2/layanan/secreton
 cargo run
 
 # Check Secreton token is correct
@@ -3111,7 +3111,7 @@ curl -X POST http://localhost:8088/api/v1/auth/permissions/check \
 
 ## Appendix A: Glossary
 
-- **Authenc**: Authentication and Authorization Engine for SIMPelv2
+- **Authenc**: Authentication and Authorization Engine for SIMPEL
 - **OAuth2**: Open Authorization 2.0 protocol for delegated access
 - **OIDC**: OpenID Connect, identity layer on top of OAuth2
 - **JWT**: JSON Web Token, compact token format for claims

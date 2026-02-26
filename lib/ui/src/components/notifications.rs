@@ -182,7 +182,7 @@ pub fn NotificationBell(
                         // Footer - link to full history (optional, can be customized per app)
                         <div class="p-3 border-t border-gray-200 dark:border-gray-700">
                             <a
-                                href="/notifications"
+                                href="/portal/notifications"
                                 class="block text-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
                             >
                                 "Lihat semua notifikasi"

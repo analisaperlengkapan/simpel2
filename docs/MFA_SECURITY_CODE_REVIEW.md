@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document presents a comprehensive security code review of the Multi-Factor Authentication (MFA) implementation in the SIMPelv2 system. The review covers cryptographic implementations, key management, input validation, and security vulnerabilities across the authenc and secreton services.
+This document presents a comprehensive security code review of the Multi-Factor Authentication (MFA) implementation in the SIMPEL system. The review covers cryptographic implementations, key management, input validation, and security vulnerabilities across the authenc and secreton services.
 
 **Review Date:** October 15, 2025
 **Reviewer:** Security Team
@@ -34,7 +34,7 @@ The security code review was conducted using the following approach:
 
 #### 1.1 TOTP Implementation (OtpCredentialProvider)
 
-**File:** `infra/authenc/src/spi/credential/otp.rs`
+**File:** `layanan/authenc/src/spi/credential/otp.rs`
 
 **✅ Strengths:**
 - Proper RFC 6238 compliance with HMAC-SHA1/SHA256/SHA512 support
@@ -72,7 +72,7 @@ The security code review was conducted using the following approach:
 
 #### 1.2 Key Derivation and Storage
 
-**File:** `infra/authenc/src/services/mfa_service.rs`
+**File:** `layanan/authenc/src/services/mfa_service.rs`
 
 **⚠️ High Risk Issues:**
 

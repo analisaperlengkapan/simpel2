@@ -1,6 +1,8 @@
-# Staging Istio Ingress Gateway LoadBalancer Service
-# This creates a separate LoadBalancer with IP 10.1.7.121 for staging environment
-# Shares the same istio-ingressgateway pods as production
+# Staging Istio Ingress Gateway Service
+# This creates a service accessible via WAN IP 10.1.7.121
+# The upstream router/firewall forwards WAN traffic to one of the cluster nodes.
+# externalIPs tells kube-proxy to create iptables rules to accept traffic
+# destined for 10.1.7.121 and forward it to the ingress gateway pods.
 
 apiVersion: v1
 kind: Service
@@ -12,10 +14,11 @@ metadata:
     istio: ingressgateway
     environment: staging
   annotations:
-    description: "Staging LoadBalancer for SIMPelv2 at 10.1.7.121"
+    description: "Staging service for SIMPEL, accessible via WAN IP 10.1.7.121"
 spec:
-  type: LoadBalancer
-  loadBalancerIP: 10.1.7.121  # Request specific IP from MetalLB staging pool
+  type: ClusterIP
+  externalIPs:
+    - 10.1.7.121
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
@@ -40,4 +43,4 @@ spec:
       port: 15443
       protocol: TCP
       targetPort: 15443
-  externalTrafficPolicy: Cluster
+

@@ -48,7 +48,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: daskrimti-portal
+  name: perlengkapan
 spec:
   template:
     spec:
@@ -57,7 +57,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: daskrimti-portal
+        - name: perlengkapan
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -69,28 +69,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pembinaan-perlengkapan
-spec:
-  template:
-    spec:
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: pembinaan-perlengkapan
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: layanan-daskrimti-portal
+  name: layanan-portal
 spec:
   template:
     spec:
@@ -111,7 +90,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: layanan-pembinaan-perlengkapan
+  name: layanan-perlengkapan
 spec:
   template:
     spec:

@@ -1,4 +1,4 @@
-// User analytics and event tracking for SIMPelv2
+// User analytics and event tracking for SIMPEL
 // Tracks page views, user interactions, feature usage, and conversion funnels
 
 use chrono::{DateTime, Utc};

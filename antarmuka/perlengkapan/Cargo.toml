@@ -1,0 +1,40 @@
+[package]
+name = "perlengkapan-microfrontend"
+version.workspace = true
+edition.workspace = true
+authors = ["SIMPEL Team <simpelv2@kejaksaan.go.id>"]
+description = "Sistem Informasi Manajemen Perlengkapan"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "perlengkapan_microfrontend"
+
+[dependencies]
+leptos = { workspace = true, features = ["csr", "hydrate"] }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
+lib-ui = { workspace = true }
+lib-perlengkapan = { workspace = true, features = ["frontend", "wasm"] }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-sys = { workspace = true }
+js-sys = { workspace = true }
+gloo = { workspace = true, features = ["futures", "timers", "events"] }
+gloo-timers = { workspace = true, features = ["futures"] }
+getrandom = { workspace = true }
+gloo-utils = { workspace = true }
+gloo-net = { workspace = true, features = ["http"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true, features = ["wasm-bindgen"] }
+console_error_panic_hook = { workspace = true }
+console_log = { workspace = true }
+log = { workspace = true }
+uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
+url = { workspace = true }
+urlencoding = { workspace = true }
+
+[features]
+default = ["csr"]
+csr = ["leptos/csr"]
+hydrate = ["leptos/hydrate"]

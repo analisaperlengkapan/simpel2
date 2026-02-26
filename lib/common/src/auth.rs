@@ -1,10 +1,15 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// User role enum shared across services
+/// User role enum shared across services.
+///
+/// NOTE: Specific admin hierarchy roles (AdminPusat, AdminEselonI, AdminWilayah,
+/// AdminSatker, etc.) are now represented using Custom(String) for flexibility.
+/// This allows roles to be defined in the database and integrated with external
+/// identity providers like Keycloak or Vault without code changes.
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub enum UserRole {
-    /// System administrator
+    /// System administrator (global)
     Admin,
     /// Regular user
     #[default]
@@ -13,27 +18,69 @@ pub enum UserRole {
     Supervisor,
     /// Guest (read-only)
     Guest,
+    /// Custom role defined by external provider or dynamic configuration.
+    /// Examples: "admin_pusat", "admin_eselon_i", "admin_wilayah", "admin_satker",
+    /// or any role from Keycloak/Vault.
+    Custom(String),
 }
 
 impl UserRole {
-    /// Get role display name in Indonesian
-    pub fn display_name(&self) -> &'static str {
+    /// Get role display name in Indonesian.
+    /// For Custom roles, returns a formatted display name based on the role string.
+    pub fn display_name(&self) -> String {
         match self {
-            Self::Admin => "Administrator",
-            Self::User => "Pengguna",
-            Self::Supervisor => "Supervisor",
-            Self::Guest => "Tamu",
+            Self::Admin => "Administrator Global".to_string(),
+            Self::User => "Pengguna".to_string(),
+            Self::Supervisor => "Supervisor".to_string(),
+            Self::Guest => "Tamu".to_string(),
+            Self::Custom(name) => Self::format_custom_role_name(name),
         }
     }
 
-    /// Check if role has admin privileges
-    pub fn is_admin(&self) -> bool {
-        matches!(self, Self::Admin)
+    /// Format a custom role name into a display name.
+    /// Examples:
+    /// - "admin_pusat" -> "Admin Pusat"
+    /// - "admin_eselon_i" -> "Admin Eselon I"
+    /// - "operator_keuangan" -> "Operator Keuangan"
+    fn format_custom_role_name(name: &str) -> String {
+        name.split('_')
+            .map(|word| {
+                let mut chars = word.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(first) => first.to_uppercase().chain(chars).collect(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 
-    /// Check if role can manage users
+    /// Check if role has admin privileges.
+    /// Returns true for Admin or any Custom role starting with "admin".
+    pub fn is_admin(&self) -> bool {
+        match self {
+            Self::Admin => true,
+            Self::Custom(name) => name.to_lowercase().starts_with("admin"),
+            _ => false,
+        }
+    }
+
+    /// Check if role can manage users.
+    /// Admins and Supervisors can manage users.
     pub fn can_manage_users(&self) -> bool {
-        matches!(self, Self::Admin | Self::Supervisor)
+        self.is_admin() || matches!(self, Self::Supervisor)
+    }
+
+    /// Create a Custom role from a string.
+    /// Useful for roles from JWT claims or database.
+    pub fn from_string(role: &str) -> Self {
+        match role.to_lowercase().as_str() {
+            "admin" => Self::Admin,
+            "user" => Self::User,
+            "supervisor" => Self::Supervisor,
+            "guest" => Self::Guest,
+            _ => Self::Custom(role.to_string()),
+        }
     }
 }
 

@@ -405,3 +405,61 @@ impl AlertVariant {
         }
     }
 }
+
+// ============================================================================
+// DASHBOARD TYPES
+// ============================================================================
+
+/// Chart data point for visualizations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChartDataPoint {
+    pub label: String,
+    pub value: f64,
+    pub color: Option<String>,
+}
+
+impl ChartDataPoint {
+    pub fn new(label: impl Into<String>, value: f64) -> Self {
+        Self {
+            label: label.into(),
+            value,
+            color: None,
+        }
+    }
+
+    pub fn with_color(mut self, color: impl Into<String>) -> Self {
+        self.color = Some(color.into());
+        self
+    }
+}
+
+/// Gap analysis row for BMN requirements
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GapAnalysisRow {
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub satker_name: String,
+    pub standard_quantity: i32,
+    pub existing_quantity: i32,
+    pub gap: i32,
+}
+
+impl GapAnalysisRow {
+    pub fn new(
+        kode_barang: impl Into<String>,
+        nama_barang: impl Into<String>,
+        satker_name: impl Into<String>,
+        standard_quantity: i32,
+        existing_quantity: i32,
+    ) -> Self {
+        let gap = standard_quantity - existing_quantity;
+        Self {
+            kode_barang: kode_barang.into(),
+            nama_barang: nama_barang.into(),
+            satker_name: satker_name.into(),
+            standard_quantity,
+            existing_quantity,
+            gap,
+        }
+    }
+}

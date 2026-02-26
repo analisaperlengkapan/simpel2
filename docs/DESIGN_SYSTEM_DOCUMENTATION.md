@@ -1,7 +1,7 @@
-# SIMPelv2 Design System Documentation
+# SIMPEL Design System Documentation
 
 ## Overview
-Arsitektur CSS yang terstruktur dan scalable untuk sistem SIMPelv2 dengan pendekatan modular dan best practices.
+Arsitektur CSS yang terstruktur dan scalable untuk sistem SIMPEL dengan pendekatan modular dan best practices.
 
 ## Structure
 
@@ -73,7 +73,7 @@ antarmuka/shared/styles/
 <!-- Tailwind CSS for rapid development -->
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.0/dist/tailwind.min.css" rel="stylesheet">
 
-<!-- SIMPelv2 Design System -->
+<!-- SIMPEL Design System -->
 <link rel="stylesheet" href="../shared/styles/main.css">
 
 <!-- Legacy support for existing components -->
@@ -216,4 +216,4 @@ color: #2563eb;
 3. Use design system variables
 4. Follow component naming conventions
 
-This refactored system provides a solid foundation for scaling SIMPelv2's frontend architecture while maintaining full backward compatibility.
+This refactored system provides a solid foundation for scaling SIMPEL's frontend architecture while maintaining full backward compatibility.

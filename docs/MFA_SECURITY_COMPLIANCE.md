@@ -1,4 +1,4 @@
-# MFA Security Considerations and Compliance - SIMPelv2
+# MFA Security Considerations and Compliance - SIMPEL
 
 ## Table of Contents
 1. [Security Framework](#security-framework)

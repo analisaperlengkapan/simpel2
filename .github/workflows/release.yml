@@ -66,9 +66,9 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.version.outputs.version }}
-          name: SIMPelv2 ${{ steps.version.outputs.version }}
+          name: SIMPEL ${{ steps.version.outputs.version }}
           body: |
-            ## 🚀 SIMPelv2 Release ${{ steps.version.outputs.version }}
+            ## 🚀 SIMPEL Release ${{ steps.version.outputs.version }}
 
             ### What's Changed
             ${{ steps.changelog.outputs.changelog }}

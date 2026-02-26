@@ -1,4 +1,4 @@
-# Panduan Administrator MFA SIMPelv2
+# Panduan Administrator MFA SIMPEL
 ## Multi-Factor Authentication Management Guide
 
 ### Daftar Isi
@@ -14,7 +14,7 @@
 
 ## Pengenalan MFA untuk Administrator
 
-### Arsitektur MFA SIMPelv2
+### Arsitektur MFA SIMPEL
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐

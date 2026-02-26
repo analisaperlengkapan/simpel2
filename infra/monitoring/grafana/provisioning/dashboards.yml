@@ -1,0 +1,16 @@
+# Grafana dashboard provisioning
+# Requirements: NFR-M004
+
+apiVersion: 1
+
+providers:
+  - name: 'SIMPEL Dashboards'
+    orgId: 1
+    folder: 'SIMPEL'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true

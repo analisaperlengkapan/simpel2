@@ -1,4 +1,4 @@
-# SIMPelv2 Enhanced Build Configuration
+# SIMPEL Enhanced Build Configuration
 
 # Parallel build settings
 PARALLEL_JOBS=auto

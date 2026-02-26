@@ -1,6 +1,6 @@
 # README - layanan-usulan
 
-**Layanan Usulan** dalam SIMPelv2 menangani proses pencatatan dan pengajuan usulan kebutuhan Barang Milik Negara (BMN), mulai dari perencanaan kebutuhan, referensi standar, hingga pencatatan alokasi awal kebutuhan BMN.
+**Layanan Usulan** dalam SIMPEL menangani proses pencatatan dan pengajuan usulan kebutuhan Barang Milik Negara (BMN), mulai dari perencanaan kebutuhan, referensi standar, hingga pencatatan alokasi awal kebutuhan BMN.
 
 ---
 

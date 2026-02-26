@@ -1,4 +1,4 @@
-# Docker Compose for Building SIMPelv2 Images
+# Docker Compose for Building SIMPEL Images
 # Build all services with: docker compose -f docker-compose.build.yml build
 # Push to registry: docker compose -f docker-compose.build.yml push
 
@@ -11,47 +11,47 @@ services:
 
   secreton:
     build:
-      context: ./infra/secreton
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: layanan/secreton/Dockerfile
     image: localhost:32000/simpelv2/secreton:latest
 
   authenc:
     build:
-      context: ./infra/authenc
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: layanan/authenc/Dockerfile
     image: localhost:32000/simpelv2/authenc:latest
 
   # =====================================================
   # Backend Services (Layanan)
   # =====================================================
 
-  layanan-daskrimti-portal:
+  layanan-integrasi:
     build:
       context: .
-      dockerfile: layanan/daskrimti/portal/Dockerfile
-    image: localhost:32000/simpelv2/layanan-daskrimti-portal:latest
+      dockerfile: layanan/integrasi/Dockerfile
+    image: localhost:32000/simpelv2/layanan-integrasi:latest
 
-  layanan-pembinaan-perlengkapan:
+  layanan-perlengkapan:
     build:
       context: .
-      dockerfile: layanan/pembinaan/perlengkapan/Dockerfile
-    image: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan:latest
+      dockerfile: layanan/perlengkapan/Dockerfile
+    image: localhost:32000/simpelv2/layanan-perlengkapan:latest
 
   # =====================================================
   # Frontend Microfrontends (Antarmuka)
   # =====================================================
 
-  daskrimti-portal:
+  portal:
     build:
       context: .
-      dockerfile: antarmuka/daskrimti/portal/Dockerfile
-    image: localhost:32000/simpelv2/daskrimti-portal:latest
+      dockerfile: antarmuka/portal/Dockerfile
+    image: localhost:32000/simpelv2/portal:latest
 
-  pembinaan-perlengkapan:
+  perlengkapan:
     build:
       context: .
-      dockerfile: antarmuka/pembinaan/perlengkapan/Dockerfile
-    image: localhost:32000/simpelv2/pembinaan-perlengkapan:latest
+      dockerfile: antarmuka/perlengkapan/Dockerfile
+    image: localhost:32000/simpelv2/perlengkapan:latest
 
 # Build Commands:
 # ---------------
@@ -60,7 +60,6 @@ services:
 # Push all:      docker compose -f docker-compose.build.yml push
 # Push one:      docker compose -f docker-compose.build.yml push authenc
 #
-# Build order (if dependencies matter):
-# 1. docker compose -f docker-compose.build.yml build secreton authenc
-# 2. docker compose -f docker-compose.build.yml build layanan-daskrimti-portal layanan-pembinaan-perlengkapan
-# 3. docker compose -f docker-compose.build.yml build daskrimti-portal pembinaan-perlengkapan
+# Tag for staging:
+#   docker tag localhost:32000/simpelv2/authenc:latest localhost:32000/simpelv2/authenc:stag
+#   docker push localhost:32000/simpelv2/authenc:stag

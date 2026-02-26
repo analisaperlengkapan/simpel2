@@ -184,29 +184,53 @@ pub fn prefers_high_contrast() -> bool {
 // ============================================================================
 
 /// Generate CSS custom properties based on theme
+///
+/// Uses navy + gold government branding palette shared across all SIMPEL microfrontends.
 pub fn generate_css_vars(mode: ThemeMode) -> String {
     let is_dark = matches!(mode, ThemeMode::Dark)
         || (matches!(mode, ThemeMode::System) && prefers_dark_mode());
 
     if is_dark {
         r#"
-            --color-primary: #10b981;
-            --color-primary-hover: #059669;
-            --color-background: #1f2937;
-            --color-surface: #374151;
-            --color-text: #f9fafb;
-            --color-text-secondary: #d1d5db;
-            --color-border: #4b5563;
+            --color-primary: #60a5fa;
+            --color-primary-hover: #3b82f6;
+            --color-accent: #fbbf24;
+            --color-accent-hover: #f59e0b;
+            --color-background: #0f172a;
+            --color-surface: #1e293b;
+            --color-surface-elevated: #334155;
+            --color-text: #f1f5f9;
+            --color-text-secondary: #94a3b8;
+            --color-text-muted: #64748b;
+            --color-border: #334155;
+            --color-border-subtle: #1e293b;
+            --color-sidebar-bg: #0f172a;
+            --color-header-bg: #1e293b;
+            --color-success: #34d399;
+            --color-warning: #fbbf24;
+            --color-danger: #f87171;
+            --color-info: #60a5fa;
         "#
     } else {
         r#"
-            --color-primary: #047857;
-            --color-primary-hover: #065f46;
-            --color-background: #ffffff;
-            --color-surface: #f9fafb;
-            --color-text: #1f2937;
-            --color-text-secondary: #6b7280;
-            --color-border: #e5e7eb;
+            --color-primary: #1e3a5f;
+            --color-primary-hover: #15304f;
+            --color-accent: #d4a843;
+            --color-accent-hover: #b8860b;
+            --color-background: #f8fafc;
+            --color-surface: #ffffff;
+            --color-surface-elevated: #ffffff;
+            --color-text: #1e293b;
+            --color-text-secondary: #64748b;
+            --color-text-muted: #94a3b8;
+            --color-border: #e2e8f0;
+            --color-border-subtle: #f1f5f9;
+            --color-sidebar-bg: #0f172a;
+            --color-header-bg: #1e3a5f;
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --color-danger: #ef4444;
+            --color-info: #3b82f6;
         "#
     }
     .to_string()

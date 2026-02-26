@@ -1,4 +1,4 @@
-# Panduan Aplikasi Authenticator untuk MFA SIMPelv2
+# Panduan Aplikasi Authenticator untuk MFA SIMPEL
 
 ## Daftar Isi
 1. [Google Authenticator](#google-authenticator)
@@ -30,16 +30,16 @@
    - Pilih "Get Started" atau "Mulai"
    - Baca dan setujui terms of service
 
-3. **Tambah Akun SIMPelv2**
+3. **Tambah Akun SIMPEL**
    - Tap tombol "+" di pojok kanan bawah
    - Pilih "Scan a QR code"
    - Izinkan akses kamera jika diminta
    - Arahkan kamera ke QR code di layar komputer
-   - Tunggu hingga muncul "SIMPelv2 Kejaksaan RI" di daftar
+   - Tunggu hingga muncul "SIMPEL Kejaksaan RI" di daftar
 
 4. **Verifikasi Setup**
    - Lihat kode 6 digit yang muncul
-   - Masukkan kode di portal SIMPelv2
+   - Masukkan kode di portal SIMPEL
    - Jika berhasil, setup selesai
 
 #### Setup Manual (Jika QR Code Tidak Bisa Di-scan):
@@ -89,21 +89,21 @@
    - Tap "Sign in with Microsoft" untuk backup
    - Atau tap "Skip" untuk penggunaan lokal
 
-3. **Tambah Akun SIMPelv2**
+3. **Tambah Akun SIMPEL**
    - Tap "+" di pojok kanan atas
    - Pilih "Other account (Google, Facebook, etc.)"
    - Pilih "Scan QR code"
-   - Scan QR code dari portal SIMPelv2
+   - Scan QR code dari portal SIMPEL
 
 #### Setup Manual:
 1. Tap "+" → "Other account" → "Enter code manually"
 2. Isi:
-   - **Account name**: SIMPelv2 - [NIP Anda]
+   - **Account name**: SIMPEL - [NIP Anda]
    - **Secret key**: [Kode rahasia dari portal]
 3. Tap "Finish"
 
 ### Fitur Unggulan
-- **Push Notifications**: Untuk akun Microsoft (tidak berlaku untuk SIMPelv2)
+- **Push Notifications**: Untuk akun Microsoft (tidak berlaku untuk SIMPEL)
 - **Cloud Backup**: Otomatis jika login dengan akun Microsoft
 - **Biometric Lock**: Kunci app dengan fingerprint/face ID
 - **Dark Mode**: Tema gelap untuk kenyamanan mata
@@ -151,7 +151,7 @@
 #### Setup Manual:
 1. Tap menu (3 garis) → "Add Token Manually"
 2. Isi:
-   - **Issuer**: SIMPelv2 Kejaksaan RI
+   - **Issuer**: SIMPEL Kejaksaan RI
    - **Label**: [NIP Anda]
    - **Secret**: [Kode rahasia dari portal]
    - **Type**: TOTP
@@ -208,7 +208,7 @@
    - Verifikasi dengan SMS atau panggilan
    - Buat PIN untuk keamanan
 
-3. **Tambah Token SIMPelv2**
+3. **Tambah Token SIMPEL**
    - Tap "+" di pojok kanan bawah
    - Pilih "Scan QR Code"
    - Scan QR code dari portal
@@ -216,7 +216,7 @@
 #### Setup Manual:
 1. Tap "+" → "Enter Key Manually"
 2. Isi:
-   - **Account Name**: SIMPelv2 - [NIP]
+   - **Account Name**: SIMPEL - [NIP]
    - **Key**: [Kode rahasia dari portal]
    - **Digits**: 6 digits
 3. Tap "Save"

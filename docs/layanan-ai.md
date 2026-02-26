@@ -1,6 +1,6 @@
 # layanan-ai
 
-**Layanan AI SIMPelv2** merupakan inti dari kemampuan kecerdasan buatan dalam sistem SIMPelv2. Layanan ini menyediakan antarmuka API untuk berbagai fungsi seperti OCR, klasifikasi, rekomendasi, ringkasan teks, label dokumen, dan pemrosesan visual, yang diimplementasikan secara modular dan efisien.
+**Layanan AI SIMPEL** merupakan inti dari kemampuan kecerdasan buatan dalam sistem SIMPEL. Layanan ini menyediakan antarmuka API untuk berbagai fungsi seperti OCR, klasifikasi, rekomendasi, ringkasan teks, label dokumen, dan pemrosesan visual, yang diimplementasikan secara modular dan efisien.
 
 ---
 
@@ -109,7 +109,7 @@ POST /api/label-dokumen
 
 ## 🤖 Pendekatan AI/ML yang Digunakan
 
-| Pendekatan                  | Penjelasan & Implementasi SIMPelv2                                        |
+| Pendekatan                  | Penjelasan & Implementasi SIMPEL                                        |
 |----------------------------|----------------------------------------------------------------------------|
 | Supervised Learning        | Klasifikasi kondisi BMN, jenis usulan, hasil dokumen                      |
 | Transfer Learning          | Fine-tuning LLM (Phi-2, Gemma) untuk teks BMN spesifik                    |
@@ -135,6 +135,6 @@ POST /api/label-dokumen
 
 Hak Cipta © 2025 Kejaksaan Republik Indonesia.
 
-> Layanan ini merupakan bagian dari sistem internal tertutup SIMPelv2 dan memproses informasi sensitif. Setiap kontribusi, akses, atau penggunaan ulang wajib mematuhi NDA dan kebijakan internal Kejaksaan RI. Pelanggaran atas kerahasiaan data atau kebijakan sistem akan dikenakan sanksi administratif dan/atau hukum sesuai peraturan yang berlaku.
+> Layanan ini merupakan bagian dari sistem internal tertutup SIMPEL dan memproses informasi sensitif. Setiap kontribusi, akses, atau penggunaan ulang wajib mematuhi NDA dan kebijakan internal Kejaksaan RI. Pelanggaran atas kerahasiaan data atau kebijakan sistem akan dikenakan sanksi administratif dan/atau hukum sesuai peraturan yang berlaku.
 
 ---

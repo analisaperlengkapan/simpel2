@@ -1,5 +1,5 @@
 name: ✨ Feature Request
-description: Suggest a new feature or enhancement for SIMPelv2
+description: Suggest a new feature or enhancement for SIMPEL
 title: "[Feature]: "
 labels: ["enhancement", "needs-triage"]
 assignees:
@@ -109,7 +109,7 @@ body:
     attributes:
       label: Requirements
       options:
-        - label: This feature aligns with SIMPelv2's goals
+        - label: This feature aligns with SIMPEL's goals
           required: true
         - label: I have searched existing issues/PRs for similar requests
           required: true

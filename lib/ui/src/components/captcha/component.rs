@@ -83,10 +83,11 @@ pub fn Captcha(
 
             let verify_url = format!("{}/api/captcha/verify", backend_url);
 
-            // Prepare validation request
+            // Prepare validation request with session_id
             let validation_request = ValidationRequest {
                 challenge_id: challenge_id_val,
                 answer,
+                session_id: Some(session_id_val.clone()),
                 behavioral_data: Some(behavioral_data_val),
             };
 
@@ -431,10 +432,10 @@ fn CaptchaContainer(
             />
 
             <div class="captcha-header mb-4">
-                <h3 id="captcha-title" class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                <h3 id="captcha-title" class="text-lg font-bold text-gray-900 dark:text-white">
                     "Verify You're Human"
                 </h3>
-                <p id="captcha-description" class="text-sm text-gray-600 dark:text-gray-400">
+                <p id="captcha-description" class="text-sm font-medium text-gray-600 dark:text-gray-300">
                     "Complete the challenge below"
                 </p>
             </div>
@@ -618,21 +619,62 @@ pub fn ChallengeDisplay(
             </div>
 
             <div class="challenge-content">
-                {match challenge_type {
-                    ChallengeType::Visual => view! {
-                        <div class="visual-challenge">
-                            <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                                {challenge_parser::parse_challenge_question(challenge_data.clone())}
-                            </div>
-                            <div class="visual-elements grid grid-cols-2 gap-4">
-                                <div class="challenge-image bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg h-32 flex items-center justify-center">
-                                    <span class="text-2xl font-bold text-blue-800 dark:text-blue-200">
-                                        {challenge_parser::parse_challenge_visual(challenge_data.clone())}
-                                    </span>
+                {move || {
+                    let parsed = challenge_parser::parse_challenge(challenge_data.clone());
+                    let play_audio_fn = play_audio.clone();
+
+                    match challenge_type {
+                    ChallengeType::Visual => match parsed.challenge_type.as_str() {
+                            "text_recognition" => view! {
+                                <div class="text-recognition-challenge">
+                                    <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                                        {parsed.instructions.clone()}
+                                    </div>
+                                    <div class="text-display bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg p-6 flex items-center justify-center">
+                                        <span class="text-4xl font-mono font-bold tracking-widest text-blue-800 dark:text-blue-200 select-none"
+                                            style="letter-spacing: 0.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">
+                                            {parsed.text_to_recognize.clone().unwrap_or_default()}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    }.into_any(),
+                            }.into_any(),
+                            "image_selection" => view! {
+                                <div class="image-selection-challenge">
+                                    <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                                        {parsed.instructions.clone()}
+                                    </div>
+                                    <div class="image-grid grid gap-2"
+                                        style={format!("grid-template-columns: repeat({}, 1fr);", parsed.grid_size)}>
+                                        {parsed.images.iter().map(|img| {
+                                            let idx = img.index;
+                                            view! {
+                                                <div class="image-cell aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                                                    data-index={idx.to_string()}>
+                                                    <div class="w-full h-full flex items-center justify-center text-gray-500">
+                                                        {format!("📷 {}", idx + 1)}
+                                                    </div>
+                                                </div>
+                                            }
+                                        }).collect::<Vec<_>>()}
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-2">"Click images to select/deselect"</p>
+                                </div>
+                            }.into_any(),
+                            _ => view! {
+                                <div class="visual-challenge">
+                                    <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                                        {parsed.instructions.clone()}
+                                    </div>
+                                    <div class="visual-elements grid grid-cols-2 gap-4">
+                                        <div class="challenge-image bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg h-32 flex items-center justify-center">
+                                            <span class="text-2xl font-bold text-blue-800 dark:text-blue-200">
+                                                {parsed.display_data.clone()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }.into_any()
+                        },
                     ChallengeType::Audio => view! {
                         <div class="audio-challenge text-center">
                             <div class="audio-player bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-lg p-6">
@@ -640,7 +682,7 @@ pub fn ChallengeDisplay(
                                 <p class="text-gray-700 dark:text-gray-300 mb-4">"Listen to the audio challenge"</p>
                                 <Button
                                     on_click=Box::new(move || {
-                                        play_audio(leptos::ev::MouseEvent::new("click").unwrap())
+                                        play_audio_fn(leptos::ev::MouseEvent::new("click").unwrap())
                                     })
                                     variant=ButtonVariant::Primary
                                     disabled=audio_playing.get()
@@ -666,25 +708,24 @@ pub fn ChallengeDisplay(
                             </div>
                         </div>
                     }.into_any(),
-                    ChallengeType::Logical => view! {
+                    ChallengeType::Logical => {
+                        let logical_parsed = challenge_parser::parse_challenge(challenge_data.clone());
+                        view! {
                         <div class="logical-challenge">
                             <div class="puzzle-container bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 rounded-lg p-6">
                                 <div class="puzzle-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                                    {challenge_data.as_ref().map(|c| c.challenge_data.clone()).unwrap_or_else(|| "What comes next in the sequence: 2, 4, 6, ?".to_string())}
+                                    {logical_parsed.instructions.clone()}
                                 </div>
                                 <div class="sequence-display flex items-center justify-center space-x-4 text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                                    <span>"2"</span>
-                                    <span>"→"</span>
-                                    <span>"4"</span>
-                                    <span>"→"</span>
-                                    <span>"6"</span>
-                                    <span>"→"</span>
-                                    <span class="text-gray-400">"?"</span>
+                                    <span>{logical_parsed.display_data.clone()}</span>
                                 </div>
                             </div>
                         </div>
-                    }.into_any(),
-                    ChallengeType::Hybrid => view! {
+                    }.into_any()
+                    },
+                    ChallengeType::Hybrid => {
+                        let hybrid_parsed = challenge_parser::parse_challenge(challenge_data.clone());
+                        view! {
                         <div class="hybrid-challenge">
                             <div class="multi-step-challenge space-y-4">
                                 <div class="step-indicator flex items-center justify-center space-x-2 mb-4">
@@ -694,13 +735,14 @@ pub fn ChallengeDisplay(
                                 </div>
                                 <div class="current-step bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900 dark:to-orange-900 rounded-lg p-4">
                                     <p class="text-center text-gray-700 dark:text-gray-300">
-                                        "Step 1: " {challenge_data.as_ref().map(|c| c.challenge_data.clone()).unwrap_or_else(|| "Complete the visual challenge first".to_string())}
+                                        "Step 1: " {hybrid_parsed.instructions.clone()}
                                     </p>
                                 </div>
                             </div>
                         </div>
-                    }.into_any(),
-                }}
+                    }.into_any()
+                    },
+                }}}
             </div>
         </div>
     }
@@ -749,10 +791,11 @@ pub fn ChallengeInput(
 
             let verify_url = format!("{}/api/captcha/verify", backend_url);
 
-            // Prepare validation request
+            // Prepare validation request with session_id
             let validation_request = ValidationRequest {
                 challenge_id: challenge_id_val,
                 answer,
+                session_id: Some(session_id_val.clone()),
                 behavioral_data: Some(behavioral_data_val),
             };
 
@@ -832,15 +875,22 @@ pub fn ChallengeInput(
                 on_submit.run(token);
             } else {
                 set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
+                let mut should_notify_parent = false;
                 set_state.update(|s| {
                     s.attempts += 1;
                     if s.attempts >= 3 {
                         s.error = Some("Too many failed attempts. Please refresh.".to_string());
+                        should_notify_parent = true;
                     }
                 });
 
-                if let Some(failure_callback) = on_failure {
-                    failure_callback.run(error_msg);
+                // Only notify parent on critical failure (exhausted retries)
+                // ValidationStatusIndicator handles normal failures
+                if should_notify_parent {
+                    if let Some(failure_callback) = on_failure {
+                        failure_callback
+                            .run("Too many failed attempts. Please refresh.".to_string());
+                    }
                 }
             }
 
@@ -865,31 +915,114 @@ pub fn ChallengeInput(
         <div class="challenge-input mt-4">
             {move || {
                 let current_state = state.get();
+                let parsed = challenge_parser::parse_challenge(challenge_data.clone());
+
                 match current_state.challenge_type {
-                    ChallengeType::Visual => view! {
-                        <div class="visual-answer-options">
-                            <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                "Select the correct answer:"
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                {
-                                    let options = challenge_parser::parse_answer_options(challenge_data.clone());
-                                    options.into_iter().map(|option| {
-                                        let option_clone = option.clone();
-                                        view! {
-                                            <button
-                                                class="answer-option bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                disabled=is_submitting.get()
-                                                on:click=move |_| handle_answer_click(option_clone.clone())
-                                            >
-                                                <div class="text-2xl font-bold text-blue-800 dark:text-blue-200">{option}</div>
-                                            </button>
-                                        }
-                                    }).collect_view()
+                    ChallengeType::Visual => {
+                        match parsed.challenge_type.as_str() {
+                            "text_recognition" => view! {
+                                <div class="text-input-challenge">
+                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                        "Type the characters you see above:"
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <input
+                                            type="text"
+                                            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white font-mono text-lg uppercase tracking-widest"
+                                            placeholder="Enter the text..."
+                                            value=input_value
+                                            on:input=handle_input_change
+                                            disabled=is_submitting.get()
+                                            maxlength="10"
+                                            autocomplete="off"
+                                            spellcheck="false"
+                                        />
+                                        <Button
+                                            on_click=Box::new(handle_submit)
+                                            variant=ButtonVariant::Primary
+                                            disabled=is_submitting.get() || input_value.get().trim().is_empty()
+                                        >
+                                            {if is_submitting.get() { "Verifying..." } else { "Submit" }}
+                                        </Button>
+                                    </div>
+                                </div>
+                            }.into_any(),
+                            "image_selection" => view! {
+                                <div class="image-selection-input">
+                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                        "Selected images will be highlighted. Click Submit when done."
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <input
+                                            type="text"
+                                            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
+                                            placeholder="Enter selected image numbers (e.g., 1,3,5)..."
+                                            value=input_value
+                                            on:input=handle_input_change
+                                            disabled=is_submitting.get()
+                                        />
+                                        <Button
+                                            on_click=Box::new(handle_submit)
+                                            variant=ButtonVariant::Primary
+                                            disabled=is_submitting.get() || input_value.get().trim().is_empty()
+                                        >
+                                            {if is_submitting.get() { "Verify" } else { "Submit" }}
+                                        </Button>
+                                    </div>
+                                </div>
+                            }.into_any(),
+                            _ => {
+                                let options = parsed.options.clone();
+                                if options.is_empty() || options[0] == "..." {
+                                    // No options, show text input
+                                    view! {
+                                        <div class="text-input-challenge">
+                                            <div class="flex space-x-2">
+                                                <input
+                                                    type="text"
+                                                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
+                                                    placeholder="Enter your answer..."
+                                                    value=input_value
+                                                    on:input=handle_input_change
+                                                    disabled=is_submitting.get()
+                                                />
+                                                <Button
+                                                    on_click=Box::new(handle_submit)
+                                                    variant=ButtonVariant::Primary
+                                                    disabled=is_submitting.get() || input_value.get().trim().is_empty()
+                                                >
+                                                    {if is_submitting.get() { "Verifying..." } else { "Submit" }}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    }.into_any()
+                                } else {
+                                    // Show option buttons
+                                    view! {
+                                        <div class="visual-answer-options">
+                                            <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                                "Select the correct answer:"
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                {options.into_iter().map(|option| {
+                                                    let option_clone = option.clone();
+                                                    view! {
+                                                        <button
+                                                            class="answer-option bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            disabled=is_submitting.get()
+                                                            on:click=move |_| handle_answer_click(option_clone.clone())
+                                                        >
+                                                            <div class="text-2xl font-bold text-blue-800 dark:text-blue-200">{option}</div>
+                                                        </button>
+                                                    }
+                                                }).collect_view()}
+                                            </div>
+                                        </div>
+                                    }.into_any()
                                 }
-                            </div>
-                        </div>
-                    }.into_any(),
+                            }
+                        }
+                    },
                     _ => view! {
                         <div class="text-input-challenge">
                             <div class="flex space-x-2">
@@ -907,7 +1040,7 @@ pub fn ChallengeInput(
                                     disabled=is_submitting.get() || input_value.get().trim().is_empty()
                                 >
                                     {if is_submitting.get() { "Verifying..." } else { "Submit" }}
-        </Button>
+                                </Button>
                             </div>
                         </div>
                     }.into_any()

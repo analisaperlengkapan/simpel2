@@ -1,6 +1,6 @@
 # 📁 layanan-dokumen
 
-**layanan-dokumen** adalah layanan SIMPelv2 yang bertanggung jawab untuk pengelolaan dokumen elektronik, arsip digital, dan lampiran yang berkaitan dengan seluruh siklus pengelolaan BMN (Barang Milik Negara). Layanan ini mendukung pencarian, pelabelan otomatis, ekstraksi informasi, dan integrasi dengan modul AI (OCR, NER, klasifikasi).
+**layanan-dokumen** adalah layanan SIMPEL yang bertanggung jawab untuk pengelolaan dokumen elektronik, arsip digital, dan lampiran yang berkaitan dengan seluruh siklus pengelolaan BMN (Barang Milik Negara). Layanan ini mendukung pencarian, pelabelan otomatis, ekstraksi informasi, dan integrasi dengan modul AI (OCR, NER, klasifikasi).
 
 ---
 
@@ -83,10 +83,10 @@ Layanan ini digunakan oleh:
 
 ## 👥 Tim Penanggung Jawab
 
-- **Pengembang**: Tim Backend SIMPelv2
-- **AI & NLP**: Tim AI dan NLU SIMPelv2
+- **Pengembang**: Tim Backend SIMPEL
+- **AI & NLP**: Tim AI dan NLU SIMPEL
 - **Dokumentasi & Metadata**: Tim Pengelola Arsip BMN
 
 ---
 
-> "layanan-dokumen" adalah fondasi interoperabilitas antar-layanan di SIMPelv2, mendukung alur kerja berbasis bukti dan pencarian dokumen cerdas melalui integrasi AI.
+> "layanan-dokumen" adalah fondasi interoperabilitas antar-layanan di SIMPEL, mendukung alur kerja berbasis bukti dan pencarian dokumen cerdas melalui integrasi AI.

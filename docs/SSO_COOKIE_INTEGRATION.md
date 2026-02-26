@@ -44,9 +44,9 @@ Dokumentasi ini menjelaskan integrasi SSO cookie antara backend (Authenc) dan fr
 ## Backend Implementation
 
 ### Lokasi
-- **File**: `infra/authenc/src/utils/sso_cookie.rs`
-- **Config**: `infra/authenc/src/config/mod.rs`
-- **Handlers**: `infra/authenc/src/handlers/oidc_sso.rs`
+- **File**: `layanan/authenc/src/utils/sso_cookie.rs`
+- **Config**: `layanan/authenc/src/config/mod.rs`
+- **Handlers**: `layanan/authenc/src/handlers/oidc_sso.rs`
 
 ### Struktur Data
 
@@ -324,7 +324,7 @@ if let Some(sso_session) = reader.read_session() {
 ### Backend Tests
 
 ```bash
-cd infra/authenc
+cd layanan/authenc
 cargo test --lib utils::sso_cookie::tests
 ```
 
@@ -402,7 +402,7 @@ cargo test --lib utils::sso_cookie::tests
 
 ## References
 
-- Backend Implementation: `infra/authenc/TASK_10.4_SSO_COOKIE_IMPLEMENTATION.md`
+- Backend Implementation: `layanan/authenc/TASK_10.4_SSO_COOKIE_IMPLEMENTATION.md`
 - OWASP Cookie Security: https://owasp.org/www-community/controls/SecureCookieAttribute
 - RFC 6265 (HTTP Cookies): https://tools.ietf.org/html/rfc6265
 - SameSite Cookies: https://web.dev/samesite-cookies-explained/

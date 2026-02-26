@@ -289,7 +289,7 @@ impl ContentSecurityPolicy {
             .join("; ")
     }
 
-    /// Get default CSP for SIMPelv2
+    /// Get default CSP for SIMPEL
     pub fn default_policy() -> Self {
         let mut csp = Self::new();
 

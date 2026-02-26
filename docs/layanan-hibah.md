@@ -1,6 +1,6 @@
-# Layanan Hibah - SIMPelv2
+# Layanan Hibah - SIMPEL
 
-Layanan ini bertanggung jawab atas pengajuan, penerimaan, pencatatan, dan pelaporan hibah Barang Milik Negara (BMN) dalam Sistem Informasi Manajemen Pengelolaan BMN Versi 2 (**SIMPelv2**).
+Layanan ini bertanggung jawab atas pengajuan, penerimaan, pencatatan, dan pelaporan hibah Barang Milik Negara (BMN) dalam Sistem Informasi Manajemen Pengelolaan BMN Versi 2 (**SIMPEL**).
 
 ---
 

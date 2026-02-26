@@ -1,6 +1,6 @@
 //! CAPTCHA Components
 //!
-//! AI-resistant CAPTCHA components for SIMPelv2 authentication system.
+//! AI-resistant CAPTCHA components for SIMPEL authentication system.
 //! Integrates with authenc and secreton for secure challenge generation and validation.
 
 pub mod accessibility;

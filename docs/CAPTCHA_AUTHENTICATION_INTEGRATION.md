@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the comprehensive integration of the AI-resistant CAPTCHA system with SIMPelv2's authentication flows, including login, MFA setup, and password reset.
+This document describes the comprehensive integration of the AI-resistant CAPTCHA system with SIMPEL's authentication flows, including login, MFA setup, and password reset.
 
 ## Table of Contents
 
@@ -144,7 +144,7 @@ let handle_submit = move |ev: web_sys::SubmitEvent| {
 
 **Backend (Authenc)**:
 ```rust
-// In infra/authenc/src/handlers/api/auth.rs
+// In layanan/authenc/src/handlers/api/auth.rs
 pub async fn login(
     Json(req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, AuthencError> {

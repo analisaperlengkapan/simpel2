@@ -1,4 +1,4 @@
-# SIMPelv2 Kubernetes Kustomize Structure
+# SIMPEL Kubernetes Kustomize Structure
 
 ## Overview
 

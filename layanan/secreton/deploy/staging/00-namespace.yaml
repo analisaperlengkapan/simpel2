@@ -1,0 +1,8 @@
+# Secreton Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: secreton
+  labels:
+    name: secreton
+    environment: production

@@ -1,12 +1,12 @@
-# Layanan Bantuan – SIMPelv2
+# Layanan Bantuan – SIMPEL
 
-Layanan **Bantuan** menyediakan pusat pembelajaran, tanya jawab, dan sistem dukungan pengguna (helpdesk) dalam sistem SIMPelv2. Layanan ini bertujuan untuk meningkatkan pengalaman pengguna dan mempercepat penyelesaian masalah melalui bantuan interaktif dan terintegrasi AI.
+Layanan **Bantuan** menyediakan pusat pembelajaran, tanya jawab, dan sistem dukungan pengguna (helpdesk) dalam sistem SIMPEL. Layanan ini bertujuan untuk meningkatkan pengalaman pengguna dan mempercepat penyelesaian masalah melalui bantuan interaktif dan terintegrasi AI.
 
 ---
 
 ## 🎯 Tujuan
 
-Mendukung pengguna SIMPelv2 dengan dokumentasi, FAQ, video tutorial, serta kanal pengajuan tiket bantuan yang dikelola secara terstruktur, cepat, dan informatif.
+Mendukung pengguna SIMPEL dengan dokumentasi, FAQ, video tutorial, serta kanal pengajuan tiket bantuan yang dikelola secara terstruktur, cepat, dan informatif.
 
 ---
 
@@ -25,7 +25,7 @@ Mendukung pengguna SIMPelv2 dengan dokumentasi, FAQ, video tutorial, serta kanal
 
 - Backend: Go (Gin) + sqlc
 - Database: PostgreSQL (skema `bantuan`)
-- Frontend: Komponen Antarmuka SIMPelv2 (FAQ dan tiket)
+- Frontend: Komponen Antarmuka SIMPEL (FAQ dan tiket)
 - AI Q&A: LLaMA3-3B + Qdrant (Retrieval-Augmented Generation)
 - Notifikasi: Email via `authenc`, webhook Telegram
 
@@ -116,4 +116,4 @@ FEEDBACK_WEBHOOK_URL=https://telegram.me/simpelv2_bot
 
 Hak Cipta © 2025 Kejaksaan Republik Indonesia – Internal Use Only.
 
-Layanan ini merupakan bagian dari sistem internal SIMPelv2 dan tidak untuk disebarluaskan atau digunakan di luar organisasi tanpa izin resmi tertulis.
+Layanan ini merupakan bagian dari sistem internal SIMPEL dan tidak untuk disebarluaskan atau digunakan di luar organisasi tanpa izin resmi tertulis.

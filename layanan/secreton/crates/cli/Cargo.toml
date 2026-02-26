@@ -1,0 +1,40 @@
+[package]
+name = "secreton-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CLI for Secreton secret management system"
+
+[dependencies]
+serde.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+base64.workspace = true
+clap.workspace = true
+clap_complete.workspace = true
+dialoguer.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+dirs.workspace = true
+toml.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+comfy-table.workspace = true
+reqwest.workspace = true
+url.workspace = true
+rpassword.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+flate2.workspace = true
+aes-gcm.workspace = true
+argon2.workspace = true
+urlencoding.workspace = true
+rand.workspace = true
+lib-common = { path = "../../../../lib/common", features = ["telemetry"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+proptest.workspace = true

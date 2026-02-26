@@ -1,4 +1,4 @@
-# Network Policies for SIMPelv2
+# Network Policies for SIMPEL
 
 # Default deny all ingress
 apiVersion: networking.k8s.io/v1
@@ -99,6 +99,8 @@ spec:
               app.kubernetes.io/name: authenc
       ports:
         - protocol: TCP
+          port: 8200
+        - protocol: TCP
           port: 9000
 ---
 # Allow redis access
@@ -117,6 +119,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: identity
       ports:
         - protocol: TCP
           port: 6379

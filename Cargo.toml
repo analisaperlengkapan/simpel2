@@ -1,93 +1,69 @@
 [workspace]
 resolver = "2"
 
-# Note: infra/secreton is a separate workspace for architectural independence
+# Note: layanan/secreton is a separate workspace for architectural independence
 # It manages its own dependencies and has its own Cargo.lock
 
 members = [
-    # CLI Tool (temporarily disabled - directory missing)
-    # "scripts/cli",
-
     # Shared Libraries
     "lib/ui",
     "lib/common",
+    "lib/perlengkapan",
 
+    # Production Microfrontends (Leptos WASM)
+    "antarmuka/portal",
+    "antarmuka/perlengkapan",
 
-    # Frontend Microfrontends (Leptos)
-    "antarmuka/badiklat",
-    "antarmuka/datun",
-    "antarmuka/intel",
-    "antarmuka/pemulihan_aset",
-    "antarmuka/pengawasan",
-    "antarmuka/pidmil",
-    "antarmuka/pidsus",
-    "antarmuka/pidum",
+    # Perlengkapan Backend sub-crates
+    "layanan/perlengkapan/crates/api",
+    "layanan/integrasi",
+    "layanan/perlengkapan/crates/dokumen",
+    "layanan/perlengkapan/crates/notifikasi",
+    "layanan/perlengkapan/crates/bantuan",
 
-    # Daskrimti Frontend
-    "antarmuka/daskrimti/portal",
+    # Infrastructure Services
+    # "layanan/authenc",  # Legacy - migrated to crates/
+    "layanan/secreton",
 
-    # Pembinaan Microfrontends
-    "antarmuka/pembinaan/keuangan",
-    "antarmuka/pembinaan/perencanaan",
-    "antarmuka/pembinaan/perlengkapan",
-
-    # Backend Layanan Utama
-    "layanan/badiklat",
-    "layanan/datun",
-    "layanan/intel",
-    "layanan/pemulihan_aset",
-    "layanan/pengawasan",
-    "layanan/pidmil",
-    "layanan/pidsus",
-    "layanan/pidum",
-
-    # Backend Layanan Pembinaan
-    "layanan/pembinaan/keuangan",
-    "layanan/pembinaan/perlengkapan",
-    "layanan/pembinaan/perencanaan",
-
-    # Backend Shared Layanan (Daskrimti)
-    "layanan/daskrimti/portal",
-    "layanan/daskrimti/ai",
-    "layanan/daskrimti/bantuan",
-    "layanan/daskrimti/dokumen",
-    "layanan/daskrimti/integrasi",
-    "layanan/daskrimti/notifikasi",
-
-    # Infrastructure Services (Part of main workspace for dependency management)
-    "infra/authenc",
-    "infra/secreton",
+    # Authenc sub-crates (10 crates)
+    "layanan/authenc/crates/types",
+    "layanan/authenc/crates/core",
+    "layanan/authenc/crates/crypto",
+    "layanan/authenc/crates/storage",
+    "layanan/authenc/crates/api",
+    "layanan/authenc/crates/iam-api",
+    "layanan/authenc/crates/grpc",
+    "layanan/authenc/crates/mfa",
+    "layanan/authenc/crates/federation",
+    "layanan/authenc/crates/webauthn",
 
     # Secreton sub-crates
-    "infra/secreton/crates/core",
-    "infra/secreton/crates/api",
-    "infra/secreton/crates/storage",
-    "infra/secreton/crates/crypto",
-    "infra/secreton/crates/types",
-    "infra/secreton/crates/agent",
-    "infra/secreton/crates/cli",
-    "infra/secreton/crates/grpc",
-    "infra/secreton/crates/hsm",
-    "infra/secreton/crates/k8s-operator",
+    "layanan/secreton/crates/core",
+    "layanan/secreton/crates/api",
+    "layanan/secreton/crates/storage",
+    "layanan/secreton/crates/crypto",
+    "layanan/secreton/crates/types",
+    "layanan/secreton/crates/agent",
+    "layanan/secreton/crates/cli",
+    "layanan/secreton/crates/grpc",
+    "layanan/secreton/crates/hsm",
+    "layanan/secreton/crates/k8s-operator",
+    "layanan/secreton/crates/auto-unseal",
+    "layanan/secreton/crates/health",
+    "layanan/secreton/crates/backup",
+    "layanan/secreton/crates/replication",
 ]
 
 default-members = [
-    "antarmuka/daskrimti/portal",
-    "antarmuka/pembinaan/keuangan",
-    "antarmuka/pembinaan/perencanaan",
-    "antarmuka/pembinaan/perlengkapan",
-    "layanan/pembinaan/keuangan",
-    "layanan/pembinaan/perlengkapan",
-    "layanan/pembinaan/perencanaan",
-    "layanan/daskrimti/bantuan",
-    "layanan/daskrimti/integrasi",
-    "layanan/daskrimti/notifikasi",
+    "antarmuka/portal",
+    "antarmuka/perlengkapan",
+    "layanan/perlengkapan/crates/api",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-authors = ["SIMPelv2 Team"]
+authors = ["SIMPEL Team"]
 license = "Apache-2.0"
 rust-version = "1.90"
 
@@ -165,6 +141,10 @@ x25519-dalek = { version = "2.0.1", features = [
     "static_secrets",
 ] } # Key exchange
 
+# WebAuthn/Passkeys (MANDATORY - PRIMARY authentication method)
+webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
+webauthn-rs-proto = "0.5"
+
 # Note: No external vault dependencies (using internal Secreton system)
 # vaultrs removed - we use our own Secreton implementation
 
@@ -182,6 +162,7 @@ proc-macro2 = "1.0.103"
 # Frontend Shared Dependencies
 lib-ui = { path = "lib/ui" }
 lib-common = { path = "lib/common" }
+lib-perlengkapan = { path = "lib/perlengkapan" }
 regex = "1.11"
 urlencoding = "2.1"
 
@@ -253,19 +234,32 @@ temp-env = "0.3.6"
 bcrypt = "0.17.1"
 
 # Secreton Internal Dependencies (for sub-crates)
-secreton-core = { path = "infra/secreton/crates/core" }
-secreton-api = { path = "infra/secreton/crates/api" }
-secreton-storage = { path = "infra/secreton/crates/storage" }
-secreton-crypto = { path = "infra/secreton/crates/crypto" }
-secreton-types = { path = "infra/secreton/crates/types" }
-secreton-grpc = { path = "infra/secreton/crates/grpc" }
-secreton-hsm = { path = "infra/secreton/crates/hsm" }
+secreton-core = { path = "layanan/secreton/crates/core" }
+secreton-api = { path = "layanan/secreton/crates/api" }
+secreton-storage = { path = "layanan/secreton/crates/storage" }
+secreton-crypto = { path = "layanan/secreton/crates/crypto" }
+secreton-types = { path = "layanan/secreton/crates/types" }
+secreton-grpc = { path = "layanan/secreton/crates/grpc" }
+secreton-hsm = { path = "layanan/secreton/crates/hsm" }
+secreton-auto-unseal = { path = "layanan/secreton/crates/auto-unseal" }
+
+# Authenc Internal Dependencies (for sub-crates)
+authenc-types = { path = "layanan/authenc/crates/types" }
+authenc-core = { path = "layanan/authenc/crates/core" }
+authenc-crypto = { path = "layanan/authenc/crates/crypto" }
+authenc-storage = { path = "layanan/authenc/crates/storage" }
+authenc-api = { path = "layanan/authenc/crates/api" }
+authenc-iam-api = { path = "layanan/authenc/crates/iam-api" }
+authenc-grpc = { path = "layanan/authenc/crates/grpc" }
+authenc-mfa = { path = "layanan/authenc/crates/mfa" }
+authenc-federation = { path = "layanan/authenc/crates/federation" }
+authenc-webauthn = { path = "layanan/authenc/crates/webauthn" }
 lazy_static = "1.4"
 futures-util = { version = "0.3", features = ["std"] }
 pin-project = "1.0"
 env_logger = "0.11"
 rand_chacha = "0.9"
-getrandom = "0.3.3"
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
 base64ct = "1.8"
 p256 = { version = "0.13", features = ["ecdsa", "jwk"] }
 p384 = { version = "0.13", features = ["ecdsa", "jwk"] }
@@ -325,6 +319,10 @@ clamav-client = "2.1.0"
 
 # Template engines
 handlebars = "6.3.2"
+
+# PDF generation
+printpdf = "0.7.0"
+headless_chrome = "1.0.15"
 
 # Additional utilities
 rust-embed = "8.8.0"
@@ -472,6 +470,8 @@ tonic-build = "0.14"
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 prost = "0.14"
+prost-types = "0.14"
+openidconnect = "3.5"
 data-encoding = "2.6"
 fpe = "0.6.1"
 ssh-key = { version = "0.6", features = ["ed25519", "rsa", "ecdsa", "std"] }
@@ -480,11 +480,15 @@ aws-config = "1.5"
 aws-sdk-s3 = "1.45"
 aws-sdk-iam = "1.45"
 aws-sdk-sts = "1.45"
+aws-sdk-kms = "1.45"
 aws-types = "1.3"
 aws-credential-types = "1.2"
+google-cloudkms1 = "5.0"
+azure_security_keyvault = "0.20"
 num-bigint = "0.4"
 num-traits = "0.2"
 clap_complete = "4.4"
+dialoguer = "0.11"
 dirs = "6.0.0"
 comfy-table = "7.1"
 rpassword = "7.3"

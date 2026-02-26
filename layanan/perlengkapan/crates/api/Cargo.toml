@@ -1,0 +1,91 @@
+[package]
+name = "layanan-perlengkapan-api"
+version.workspace = true
+edition.workspace = true
+authors = ["SIMPEL Team"]
+description = "Main Perlengkapan API service - BMN management for Kejaksaan RI"
+
+[[bin]]
+name = "layanan-perlengkapan-api"
+path = "src/main.rs"
+
+[lib]
+name = "layanan_perlengkapan_api"
+path = "src/lib.rs"
+
+[features]
+default = []
+integration-tests = []
+
+[dependencies]
+# Web framework
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true, features = ["cors", "trace", "fs"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Database
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+
+# UUID and time
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Authentication & JWT
+jsonwebtoken = { workspace = true }
+
+# Validation
+validator = { workspace = true }
+
+# Environment variables
+dotenvy = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+bigdecimal = { workspace = true }
+
+# Shared libraries
+lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }
+lib-perlengkapan = { workspace = true, features = ["backend"] }
+
+# Internal perlengkapan crates
+layanan-perlengkapan-integrasi = { package = "layanan-integrasi", path = "../../../integrasi" }
+
+# gRPC
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+http = { workspace = true }
+http-body = { workspace = true }
+http-body-util = { workspace = true }
+
+async-trait = { workspace = true }
+
+# Metrics
+prometheus = { workspace = true }
+
+# Excel generation
+rust_xlsxwriter = { workspace = true }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }
+
+[dev-dependencies]
+mockall = { workspace = true }
+mime = "0.3"
+axum-test = { workspace = true }

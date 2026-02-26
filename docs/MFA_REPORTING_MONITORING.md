@@ -1,4 +1,4 @@
-# Panduan Reporting dan Monitoring MFA SIMPelv2
+# Panduan Reporting dan Monitoring MFA SIMPEL
 
 ## Daftar Isi
 1. [Dashboard dan Metrics](#dashboard-dan-metrics)
@@ -327,7 +327,7 @@ cp $REPORT_FILE "/var/archives/compliance/mfa_compliance_${MONTH}.pdf"
 ```json
 {
   "dashboard": {
-    "title": "MFA Overview - SIMPelv2",
+    "title": "MFA Overview - SIMPEL",
     "panels": [
       {
         "title": "MFA Adoption Rate",

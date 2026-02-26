@@ -1,5 +1,5 @@
 #!/bin/bash
-# SIMPelv2 Kubernetes Deployment Script
+# SIMPEL Kubernetes Deployment Script
 # Usage: ./deploy.sh [staging|production] [apply|delete|diff]
 
 set -euo pipefail
@@ -37,7 +37,7 @@ OVERLAY_DIR="${K8S_DIR}/overlays/${ENVIRONMENT}"
 NAMESPACE="simpelv2-${ENVIRONMENT}"
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║  SIMPelv2 Kubernetes Deployment                            ║${NC}"
+echo -e "${BLUE}║  SIMPEL Kubernetes Deployment                            ║${NC}"
 echo -e "${BLUE}║  Environment: ${GREEN}${ENVIRONMENT}${BLUE}                                      ║${NC}"
 echo -e "${BLUE}║  Action: ${YELLOW}${ACTION}${BLUE}                                             ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"

@@ -1,0 +1,35 @@
+[package]
+name = "authenc-mfa"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+
+[dependencies]
+# Workspace dependencies
+authenc-types = { path = "../types" }
+authenc-crypto = { path = "../crypto" }
+authenc-core = { path = "../core" }
+lib-common = { path = "../../../../lib/common" }
+
+# External dependencies (from workspace)
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+deadpool-postgres = { workspace = true }
+sha2 = { workspace = true }
+
+# MFA-specific dependencies
+totp-rs = { workspace = true }
+qrcode = { workspace = true }
+rand = { workspace = true }
+urlencoding = { workspace = true }
+dashmap = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+tempfile = { workspace = true }

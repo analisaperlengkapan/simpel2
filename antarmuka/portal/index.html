@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/portal/" />
+    <title>SIMPEL Portal</title>
+    <meta name="description" content="Portal Utama SIMPEL - Kejaksaan Agung Republik Indonesia">
+    <meta name="theme-color" content="#1e3a5f">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png">
+
+    <!-- Preload critical fonts -->
+    <link rel="preload" href="/fonts/inter-regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="/fonts/inter-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="/fonts/inter-semibold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+    <!-- DNS prefetch -->
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
+    <!-- Tailwind CSS (compiled via Trunk) -->
+    <link data-trunk rel="tailwind-css" href="styles/tailwind.css" />
+
+    <!-- Static Assets -->
+    <link data-trunk rel="copy-dir" href="assets/" />
+
+    <!-- Trunk WASM -->
+    <link data-trunk rel="rust" data-bin="portal-microfrontend" data-wasm-opt="1"
+        data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext" />
+
+    <style>
+        /* Font faces */
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: local('Inter'), url('/fonts/inter-regular.woff2') format('woff2');
+        }
+
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: local('Inter Medium'), url('/fonts/inter-medium.woff2') format('woff2');
+        }
+
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: local('Inter SemiBold'), url('/fonts/inter-semibold.woff2') format('woff2');
+        }
+
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: local('Inter Bold'), url('/fonts/inter-bold.woff2') format('woff2');
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            color: #1e293b;
+            background-color: #f8fafc;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Animations disabled for performance */
+        .animate-fade-in {
+            /* Disabled */
+        }
+
+        .animate-slide-up {
+            /* Disabled */
+        }
+
+        .animate-scale-in {
+            /* Disabled */
+        }
+
+        .animate-shimmer {
+            /* Disabled */
+        }
+
+        .animate-float {
+            /* Disabled */
+        }
+
+        .animate-pulse-glow {
+            /* Disabled */
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .5;
+            }
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Glassmorphism replaced with solid colors for performance */
+        .glass {
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .glass-light {
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* Line clamp */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .portal-loading {
+            /* Disabled pulsing */
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 dark:bg-navy-900">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="portal-loading min-h-screen flex items-center justify-center"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);">
+        <div class="max-w-md w-full p-8 text-center">
+            <div class="mx-auto h-32 w-32 flex items-center justify-center mb-6 animate-pulse">
+                <img src="/portal/assets/kejaksaan-logo.png" alt="Logo Kejaksaan RI"
+                    class="w-full h-full object-contain drop-shadow-2xl" />
+            </div>
+            <h2 class="mt-4 text-2xl font-bold text-white tracking-tight">Portal SIMPEL</h2>
+            <p class="mt-2 text-sm text-slate-300">Kejaksaan Agung Republik Indonesia</p>
+            <p class="mt-1 text-xs text-slate-400 italic">"Demi Keadilan Berdasarkan Ketuhanan Yang Maha Esa"</p>
+            <div class="mt-8">
+                <div id="loading-status"
+                    class="inline-flex items-center px-4 py-2 bg-white/10 text-white rounded-lg text-sm">
+                    <svg class="animate-spin h-4 w-4 mr-2 text-gold-400" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                    <span id="loading-text">Memuat aplikasi...</span>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-slate-500">SIMPEL v2.0</div>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="main"></div>
+
+    <script>
+        function hideLoadingScreen() {
+            const ls = document.getElementById('loading-screen');
+            if (ls && ls.style.display !== 'none') {
+                ls.style.transition = 'opacity 0.4s ease-out';
+                ls.style.opacity = '0';
+                setTimeout(() => { ls.style.display = 'none'; }, 400);
+            }
+        }
+
+        // Hide loading screen when Trunk signals application start
+        window.addEventListener('TrunkApplicationStarted', hideLoadingScreen);
+
+        // Fallback: observe body for Leptos mounting
+        const observer = new MutationObserver((mutations) => {
+            if (document.querySelector('meta[name="leptos-marker"]') || document.body.children.length > 3) {
+                hideLoadingScreen();
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true });
+    </script>
+</body>
+
+</html>

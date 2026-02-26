@@ -1,0 +1,28 @@
+[package]
+name = "authenc-types"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+
+[dependencies]
+# Core dependencies
+uuid = { workspace = true, features = ["v4", "serde"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+thiserror = { workspace = true }
+
+# Database
+tokio-postgres = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# Optional dependencies for specific features
+async-trait = { workspace = true }
+
+[features]
+default = []
+
+[dev-dependencies]
+serde_json = { workspace = true }
