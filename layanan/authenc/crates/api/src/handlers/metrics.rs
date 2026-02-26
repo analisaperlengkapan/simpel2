@@ -33,18 +33,23 @@ pub fn create_metrics_routes() -> Router<Arc<ApiState>> {
 // ===== Handlers =====
 
 /// Prometheus-format metrics endpoint
-async fn prometheus_metrics(State(_state): State<Arc<ApiState>>) -> impl IntoResponse {
-    // TODO: Collect and format Prometheus metrics
-    "# HELP authenc_requests_total Total requests\n\
-     # TYPE authenc_requests_total counter\n\
-     authenc_requests_total 0\n\
-     # HELP authenc_active_sessions Active sessions\n\
-     # TYPE authenc_active_sessions gauge\n\
-     authenc_active_sessions 0\n"
+pub async fn prometheus_metrics(State(_state): State<Arc<ApiState>>) -> impl IntoResponse {
+    use metrics_exporter_prometheus::PrometheusBuilder;
+    use std::sync::OnceLock;
+
+    static PROMETHEUS_HANDLE: OnceLock<metrics_exporter_prometheus::PrometheusHandle> = OnceLock::new();
+
+    let handle = PROMETHEUS_HANDLE.get_or_init(|| {
+        PrometheusBuilder::new()
+            .install_recorder()
+            .expect("failed to install Prometheus recorder")
+    });
+
+    handle.render()
 }
 
 /// JSON-format metrics endpoint
-async fn json_metrics(State(_state): State<Arc<ApiState>>) -> impl IntoResponse {
+pub async fn json_metrics(State(_state): State<Arc<ApiState>>) -> impl IntoResponse {
     // TODO: Collect real metrics
     Json(MetricsSummary {
         total_requests: 0,

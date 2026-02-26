@@ -490,7 +490,7 @@ pub fn parse_toml_policy(toml_content: &str, namespace: &str) -> Result<PolicyEn
         rules: Vec<TomlRule>,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Clone, Deserialize)]
     struct TomlRule {
         effect: String,
         path: String,
@@ -501,13 +501,13 @@ pub fn parse_toml_policy(toml_content: &str, namespace: &str) -> Result<PolicyEn
         condition: Option<TomlCondition>,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Clone, Deserialize)]
     struct TomlCondition {
         time_range: Option<TomlTimeRange>,
         allowed_ips: Option<Vec<String>>,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Clone, Deserialize)]
     struct TomlTimeRange {
         start: Option<String>,
         end: Option<String>,
@@ -528,7 +528,7 @@ pub fn parse_toml_policy(toml_content: &str, namespace: &str) -> Result<PolicyEn
                 _ => return Err(format!("Invalid effect: {}", r.effect)),
             };
 
-            let time_constraints = r.condition.and_then(|c| {
+            let time_constraints = r.condition.clone().and_then(|c| {
                 c.time_range.map(|t| TimeConstraints {
                     start_time: t.start,
                     end_time: t.end,

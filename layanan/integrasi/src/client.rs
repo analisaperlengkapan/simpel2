@@ -1,0 +1,1170 @@
+use crate::audit::ApiCallLog;
+use crate::config::Config;
+use crate::error::MonsaktiError;
+use crate::response::MonsaktiResponse;
+use crate::siman::models::{SimanAssetCategory, SimanTokenResponse};
+use reqwest::Client;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::future::Future;
+use std::path::Path;
+use std::pin::Pin;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tokio::io::AsyncWriteExt;
+use tokio_postgres::NoTls;
+use tracing::{error, info, warn};
+
+/// Klien utama untuk berinteraksi dengan API MonSAKTI
+pub struct MonsaktiClient {
+    /// Klien HTTP
+    client: Client,
+    /// Konfigurasi
+    config: Config,
+    /// Token saat ini (dapat diperbarui)
+    current_tokens: HashMap<String, String>,
+    /// Token SIMAN OAuth2 dan waktu expire
+    siman_token: Option<(String, u64)>,
+    /// Klien database opsional
+    db_client: Option<std::sync::Arc<tokio_postgres::Client>>,
+}
+
+impl MonsaktiClient {
+    /// Membuat klien MonSAKTI baru
+    pub async fn new(config: Config) -> Result<Self, MonsaktiError> {
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .pool_max_idle_per_host(10)
+            .cookie_store(true) // Enable cookie handling untuk PHPSESSID
+            .user_agent("curl/8.5.0") // Match curl exactly
+            .http1_only() // Force HTTP/1.1 like curl
+            .build()?;
+
+        let current_tokens = config.tokens.clone();
+
+        let db_client = if let Some(db_url) = &config.db_config {
+            let (client, connection) = tokio_postgres::connect(db_url, NoTls).await?;
+            tokio::spawn(async move {
+                if let Err(e) = connection.await {
+                    error!("Error koneksi database: {}", e);
+                }
+            });
+
+            // Set search_path ke integrasi schema
+            if let Err(e) = client
+                .execute("SET search_path TO integrasi, public", &[])
+                .await
+            {
+                warn!("Gagal set search_path: {}", e);
+            } else {
+                info!("Database search_path set to: integrasi, public");
+            }
+
+            Some(client)
+        } else {
+            None
+        };
+
+        Ok(Self {
+            client,
+            config,
+            current_tokens,
+            siman_token: None,
+            db_client: db_client.map(std::sync::Arc::new),
+        })
+    }
+
+    /// Membuat klien MonSAKTI baru dengan database client yang sudah ada
+    pub async fn new_with_db(
+        config: Config,
+        db_client: std::sync::Arc<tokio_postgres::Client>,
+    ) -> Result<Self, MonsaktiError> {
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .pool_max_idle_per_host(10)
+            .cookie_store(true)
+            .user_agent("curl/8.5.0")
+            .http1_only()
+            .build()?;
+
+        let current_tokens = config.tokens.clone();
+
+        Ok(Self {
+            client,
+            config,
+            current_tokens,
+            siman_token: None,
+            db_client: Some(db_client),
+        })
+    }
+
+    /// Seed initial MonSAKTI tokens from .env config into monsakti_tokens table.
+    /// Called once at startup to ensure token table reflects current configuration.
+    /// Only seeds MonSAKTI module tokens (ADM, ANG, AST, BEN, GLP, KOM, PEM, PER).
+    pub async fn seed_monsakti_tokens(&self) -> Result<usize, MonsaktiError> {
+        let db = match &self.db_client {
+            Some(db) => db,
+            None => return Ok(0),
+        };
+
+        let monsakti_modules = ["ADM", "ANG", "AST", "BEN", "GLP", "KOM", "PEM", "PER"];
+        let mut seeded = 0usize;
+
+        for module in &monsakti_modules {
+            if let Some(token) = self.current_tokens.get(*module) {
+                if token.is_empty() {
+                    continue;
+                }
+                match self.save_token_to_db(db, module, token).await {
+                    Ok(()) => seeded += 1,
+                    Err(e) => warn!("⚠ Gagal seed token {} ke database: {:?}", module, e),
+                }
+            }
+        }
+
+        if seeded > 0 {
+            info!(
+                "✓ Seeded {} MonSAKTI tokens ke monsakti_tokens table",
+                seeded
+            );
+        }
+        Ok(seeded)
+    }
+
+    /// Clone untuk parallel processing - Token tidak di-share, DB client shared via Arc
+    pub fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            config: self.config.clone(),
+            current_tokens: self.current_tokens.clone(),
+            siman_token: self.siman_token.clone(),
+            db_client: self.db_client.clone(), // Clones the Arc, sharing the connection
+        }
+    }
+
+    /// Getter untuk konfigurasi (read-only access)
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
+    /// Getter untuk database client (read-only access)
+    pub fn get_db_client(&self) -> Option<&tokio_postgres::Client> {
+        self.db_client.as_deref()
+    }
+
+    /// Getter untuk database client Arc (untuk sharing connection)
+    pub fn get_db_client_arc(&self) -> Option<std::sync::Arc<tokio_postgres::Client>> {
+        self.db_client.clone()
+    }
+
+    /// Fungsi fetch generik untuk semua endpoint dengan auto-retry pada token expired
+    pub async fn fetch(
+        &mut self,
+        module: &str,
+        tipe_data: &str,
+        variables: Vec<String>,
+    ) -> Result<MonsaktiResponse, MonsaktiError> {
+        self.fetch_with_retry(module, tipe_data, variables, 1).await
+    }
+
+    /// Fungsi fetch dengan retry logic + audit logging ke api_log
+    fn fetch_with_retry<'a>(
+        &'a mut self,
+        module: &'a str,
+        tipe_data: &'a str,
+        variables: Vec<String>,
+        retry_count: u8,
+    ) -> Pin<Box<dyn Future<Output = Result<MonsaktiResponse, MonsaktiError>> + Send + 'a>> {
+        Box::pin(async move {
+            let token = self.get_current_token(module)?;
+            // Format URL sesuai dokumentasi: /API/MODULE/tipeData/variable1/variable2/...
+            let mut url = format!("{}/API/{}/{}", self.config.base_url, module, tipe_data);
+            for var in &variables {
+                if !var.is_empty() {
+                    url.push_str(&format!("/{}", var));
+                }
+            }
+
+            if retry_count == 1 {
+                info!("→ Fetching: {} (attempt {})", url, retry_count);
+                info!(
+                    "Token (8 karakter pertama): {}...",
+                    &token.chars().take(8).collect::<String>()
+                );
+            } else {
+                info!(
+                    "⟳ Retry fetching: {} (attempt {} dengan token baru)",
+                    url, retry_count
+                );
+                info!(
+                    "Token baru (8 karakter pertama): {}...",
+                    &token.chars().take(8).collect::<String>()
+                );
+            }
+
+            let started = Instant::now();
+
+            let response = self
+                .client
+                .get(&url)
+                .header("Authorization", format!("Bearer {}", token))
+                .send()
+                .await?;
+
+            let elapsed_ms = started.elapsed().as_millis() as i32;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                error!("Request gagal: {} - {}", status, body);
+
+                // Log gagal ke api_log
+                self.log_api_call(
+                    module,
+                    tipe_data,
+                    &url,
+                    "GET",
+                    Some(status.as_u16() as i32),
+                    elapsed_ms,
+                    None,
+                    false,
+                    Some(&body),
+                    retry_count as i32,
+                )
+                .await;
+
+                // Jika unauthorized atau forbidden, coba reset token
+                if (status == 401 || status == 403) && retry_count == 1 {
+                    warn!(
+                        "⚠ Token kadaluarsa (HTTP {}), mencoba reset token dengan Bearer token dari .env...",
+                        status
+                    );
+                    match self.reset_token_auto(module, tipe_data).await {
+                        Ok(_new_token) => {
+                            info!("✓ Token baru diterima dari resetToken endpoint");
+                            info!(
+                                "⟳ Retry request dengan token baru (attempt {})",
+                                retry_count + 1
+                            );
+                            return self
+                                .fetch_with_retry(module, tipe_data, variables, retry_count + 1)
+                                .await;
+                        }
+                        Err(e) => {
+                            error!("✗ Gagal reset token untuk modul {}: {:?}", module, e);
+                            error!(
+                                "⚠ Token di .env sudah tidak valid atau expired, perlu regenerasi manual dari portal Kemenkeu"
+                            );
+                        }
+                    }
+                }
+
+                return Err(MonsaktiError::ApiError(format!(
+                    "HTTP {}: {}",
+                    status, body
+                )));
+            }
+
+            let json_response: serde_json::Value = response.json().await?;
+
+            // Coba parsing format Array khusus MonSAKTI: [[{"TOKEN":"..."}], [data, data, ...]]
+            if let Some(arr) = json_response.as_array()
+                && arr.len() >= 2
+            {
+                // Element 0: token array
+                let mut new_token_opt = None;
+                if let Some(token_arr) = arr[0].as_array()
+                    && let Some(token_obj) = token_arr.first()
+                    && let Some(token_str) = token_obj.get("TOKEN").and_then(|t| t.as_str())
+                {
+                    new_token_opt = Some(token_str.to_string());
+                    info!("Memperbarui token untuk modul {}", module);
+                    self.current_tokens
+                        .insert(module.to_string(), token_str.to_string());
+
+                    // Save token baru ke database
+                    if let Some(db) = &self.db_client {
+                        match self.save_token_to_db(db, module, token_str).await {
+                            Ok(_) => info!(
+                                "✓ Token dari response disimpan ke database (modul: {})",
+                                module
+                            ),
+                            Err(e) => {
+                                warn!("⚠ Gagal simpan token dari response ke database: {:?}", e)
+                            }
+                        }
+                    }
+                }
+
+                // Element 1: data array
+                let data_value = arr[1].clone();
+                let record_count = data_value.as_array().map(|a| a.len() as i32);
+
+                // Log sukses ke api_log
+                self.log_api_call(
+                    module,
+                    tipe_data,
+                    &url,
+                    "GET",
+                    Some(200),
+                    elapsed_ms,
+                    record_count,
+                    true,
+                    None,
+                    retry_count as i32,
+                )
+                .await;
+
+                return Ok(MonsaktiResponse {
+                    new_token: new_token_opt,
+                    data: Some(data_value),
+                    error: None,
+                });
+            }
+
+            // Fallback: parse sebagai MonsaktiResponse standar (JSON Object)
+            // Jika gagal parse sebagai MonsaktiResponse, bungkus JSON raw ke dalam data
+            let result: MonsaktiResponse =
+                serde_json::from_value(json_response.clone()).unwrap_or(MonsaktiResponse {
+                    new_token: None,
+                    data: Some(json_response),
+                    error: None,
+                });
+
+            if let Some(error_msg) = &result.error {
+                if error_msg.contains("Token Expired")
+                    || error_msg.contains("token") && error_msg.contains("expired")
+                {
+                    warn!(
+                        "Token kadaluarsa untuk modul {} (attempt {})",
+                        module, retry_count
+                    );
+
+                    // Log token expired ke api_log
+                    self.log_api_call(
+                        module,
+                        tipe_data,
+                        &url,
+                        "GET",
+                        Some(200),
+                        elapsed_ms,
+                        None,
+                        false,
+                        Some(error_msg),
+                        retry_count as i32,
+                    )
+                    .await;
+
+                    // Auto-retry dengan reset token
+                    if retry_count == 1 {
+                        warn!(
+                            "⚠ Response error: 'Token Expired', mencoba reset token dengan Bearer token dari .env..."
+                        );
+                        match self.reset_token_auto(module, tipe_data).await {
+                            Ok(_new_token) => {
+                                info!("✓ Token baru diterima dari resetToken endpoint");
+                                info!(
+                                    "⟳ Retry request dengan token baru (attempt {})",
+                                    retry_count + 1
+                                );
+                                return self
+                                    .fetch_with_retry(module, tipe_data, variables, retry_count + 1)
+                                    .await;
+                            }
+                            Err(e) => {
+                                error!("✗ Gagal reset token untuk modul {}: {:?}", module, e);
+                                error!(
+                                    "⚠ Token di .env sudah tidak valid atau expired, perlu regenerasi manual dari portal Kemenkeu"
+                                );
+                            }
+                        }
+                    }
+
+                    return Err(MonsaktiError::TokenExpired);
+                }
+
+                // Log error dari response body ke api_log
+                self.log_api_call(
+                    module,
+                    tipe_data,
+                    &url,
+                    "GET",
+                    Some(200),
+                    elapsed_ms,
+                    None,
+                    false,
+                    Some(error_msg),
+                    retry_count as i32,
+                )
+                .await;
+
+                return Err(MonsaktiError::ApiError(error_msg.clone()));
+            }
+
+            // Record count dari fallback response
+            let fallback_record_count = result
+                .data
+                .as_ref()
+                .and_then(|d| d.as_array().map(|a| a.len() as i32));
+
+            if let Some(new_token) = &result.new_token {
+                info!("Memperbarui token untuk modul {}", module);
+                self.current_tokens
+                    .insert(module.to_string(), new_token.clone());
+
+                // Save token baru ke database
+                if let Some(db) = &self.db_client {
+                    match self.save_token_to_db(db, module, new_token).await {
+                        Ok(_) => info!(
+                            "✓ Token dari response disimpan ke database (modul: {})",
+                            module
+                        ),
+                        Err(e) => warn!("⚠ Gagal simpan token dari response ke database: {:?}", e),
+                    }
+                }
+            }
+
+            // Log sukses ke api_log (fallback path)
+            self.log_api_call(
+                module,
+                tipe_data,
+                &url,
+                "GET",
+                Some(200),
+                elapsed_ms,
+                fallback_record_count,
+                true,
+                None,
+                retry_count as i32,
+            )
+            .await;
+
+            Ok(result)
+        })
+    }
+
+    /// Fungsi fetch khusus untuk MySIMKARI API
+    /// Token dipilih berdasarkan endpoint:
+    /// - "get-satker" → menggunakan token MYSIMKARI (MYSIMKARI_TOKEN)
+    /// - "pegawai-satker", "pegawai", "pegawai-aktif", "pegawai-mutasi" → menggunakan token MYSIMKARI_PEGAWAI (MYSIMKARI_TOKEN_PEGAWAI)
+    pub async fn fetch_mysimkari(
+        &mut self,
+        endpoint: &str,
+        variables: Vec<String>,
+    ) -> Result<MonsaktiResponse, MonsaktiError> {
+        let token_key = Self::mysimkari_token_key(endpoint);
+        // Fallback ke token "MYSIMKARI" jika token spesifik (MYSIMKARI_PEGAWAI) belum dikonfigurasi
+        let token = self.get_current_token(token_key).or_else(|_| {
+            if token_key != "MYSIMKARI" {
+                warn!(
+                    "Token {} belum dikonfigurasi, fallback ke MYSIMKARI",
+                    token_key
+                );
+                self.get_current_token("MYSIMKARI")
+            } else {
+                Err(MonsaktiError::ConfigError(format!(
+                    "No token for module: {}",
+                    token_key
+                )))
+            }
+        })?;
+        // Format URL: /base_url/endpoint/variable1/variable2/...
+        let mut url = format!("{}/{}", self.config.mysimkari_base_url, endpoint);
+        for var in &variables {
+            if !var.is_empty() {
+                url.push_str(&format!("/{}", var));
+            }
+        }
+
+        info!("Fetching MySIMKARI: {} (token: {})", url, token_key);
+
+        let started = Instant::now();
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await?;
+
+        let elapsed_ms = started.elapsed().as_millis() as i32;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            error!("MySIMKARI request gagal: {} - {}", status, body);
+
+            self.log_api_call(
+                "MYSIMKARI",
+                endpoint,
+                &url,
+                "GET",
+                Some(status.as_u16() as i32),
+                elapsed_ms,
+                None,
+                false,
+                Some(&body),
+                1,
+            )
+            .await;
+
+            return Err(MonsaktiError::ApiError(format!(
+                "HTTP {}: {}",
+                status, body
+            )));
+        }
+
+        let result: MonsaktiResponse = response.json().await?;
+
+        if let Some(error_msg) = &result.error {
+            self.log_api_call(
+                "MYSIMKARI",
+                endpoint,
+                &url,
+                "GET",
+                Some(200),
+                elapsed_ms,
+                None,
+                false,
+                Some(error_msg),
+                1,
+            )
+            .await;
+            return Err(MonsaktiError::ApiError(error_msg.clone()));
+        }
+
+        let record_count = result
+            .data
+            .as_ref()
+            .and_then(|d| d.as_array().map(|a| a.len() as i32));
+        self.log_api_call(
+            "MYSIMKARI",
+            endpoint,
+            &url,
+            "GET",
+            Some(200),
+            elapsed_ms,
+            record_count,
+            true,
+            None,
+            1,
+        )
+        .await;
+
+        Ok(result)
+    }
+
+    /// Reset token yang kadaluarsa
+    /// Endpoint reset token SELALU menggunakan literal "tipedata" bukan variable tipe_data
+    /// Contoh: /resetToken/ADM/tipedata/KL006
+    pub async fn reset_token(
+        &mut self,
+        module: &str,
+        _tipe_data: &str, // Tidak dipakai, endpoint selalu pakai "tipedata" literal
+        variable2: &str,
+    ) -> Result<String, MonsaktiError> {
+        // Hard-coded "tipedata" sesuai dokumentasi MonSAKTI
+        let url = format!(
+            "{}/resetToken/{}/tipedata/{}",
+            self.config.base_url, module, variable2
+        );
+
+        // Get token dari .env untuk reset request
+        let token = self.get_current_token(module)?;
+
+        info!("→ Reset token request: {}", url);
+        info!(
+            "Authorization: Bearer {}...",
+            &token.chars().take(20).collect::<String>()
+        );
+        info!("Token length: {} bytes", token.len());
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .header("Accept", "*/*") // Match curl exactly
+            .send()
+            .await?;
+
+        info!("Response status: {}", response.status());
+
+        // Log full response untuk debugging
+        let response_text = response.text().await?;
+        info!("Response body: {}", &response_text);
+
+        // Parse response sebagai JSON
+        let response_value: serde_json::Value = serde_json::from_str(&response_text)
+            .map_err(|e| MonsaktiError::ApiError(format!("Failed to parse JSON: {}", e)))?;
+        // Response format: [{"TOKEN":"eyJ0eXAi..."}]
+        #[derive(Deserialize, Debug)]
+        struct ResetTokenItem {
+            #[serde(rename = "TOKEN")]
+            token: String,
+        }
+
+        let mut result: Vec<ResetTokenItem> = serde_json::from_value(response_value)
+            .map_err(|e| MonsaktiError::ApiError(format!("Failed to parse token array: {}", e)))?;
+
+        if result.is_empty() {
+            error!("Reset token response kosong");
+            return Err(MonsaktiError::ApiError(
+                "Reset token response kosong".to_string(),
+            ));
+        }
+
+        let new_token = result.remove(0).token;
+
+        // Update token internal cache dengan token baru
+        self.current_tokens
+            .insert(module.to_string(), new_token.clone());
+
+        info!("✓ Token baru diterima untuk modul {}", module);
+        info!(
+            "Token baru (20 karakter pertama): {}...",
+            &new_token.chars().take(20).collect::<String>()
+        );
+
+        // Simpan token baru ke database jika ada koneksi database
+        if let Some(db) = &self.db_client {
+            match self.save_token_to_db(db, module, &new_token).await {
+                Ok(_) => info!("✓ Token baru disimpan ke database (modul: {})", module),
+                Err(e) => warn!("⚠ Gagal simpan token ke database: {:?}", e),
+            }
+        }
+
+        Ok(new_token)
+    }
+
+    /// Reset token otomatis dengan KL006 sebagai default
+    async fn reset_token_auto(
+        &mut self,
+        module: &str,
+        tipe_data: &str,
+    ) -> Result<String, MonsaktiError> {
+        // Default menggunakan KL006 untuk Kejaksaan RI
+        self.reset_token(module, tipe_data, "KL006").await
+    }
+
+    /// Helper: Log API call ke tabel api_log (fire-and-forget, tidak mengganggu flow utama)
+    async fn log_api_call(
+        &self,
+        module: &str,
+        endpoint: &str,
+        url: &str,
+        method: &str,
+        status: Option<i32>,
+        elapsed_ms: i32,
+        record_count: Option<i32>,
+        success: bool,
+        error_msg: Option<&str>,
+        retry_count: i32,
+    ) {
+        if let Some(db) = &self.db_client {
+            let mut log = ApiCallLog::new(module, endpoint, url);
+            log.request_method = Some(method.to_string());
+            log.response_status = status;
+            log.response_time_ms = Some(elapsed_ms);
+            log.record_count = record_count;
+            log.success = success;
+            log.error_message = error_msg.map(|s| s.to_string());
+            log.retry_count = retry_count;
+            match log.save(db).await {
+                Ok(id) => info!(
+                    "📝 API call logged (id={}): {} {} → {}",
+                    id,
+                    method,
+                    url,
+                    if success { "OK" } else { "FAIL" }
+                ),
+                Err(e) => warn!("⚠ Gagal log API call ke api_log: {:?}", e),
+            }
+        }
+    }
+
+    /// Simpan token baru ke database
+    async fn save_token_to_db(
+        &self,
+        db: &tokio_postgres::Client,
+        module: &str,
+        token: &str,
+    ) -> Result<(), MonsaktiError> {
+        // Hash token untuk verifikasi (SHA256)
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(token.as_bytes());
+        let token_hash = format!("{:x}", hasher.finalize());
+
+        // Upsert token ke tabel monsakti_tokens
+        let query = r#"
+            INSERT INTO integrasi.monsakti_tokens (
+                module,
+                token_value,
+                token_hash,
+                is_active,
+                is_expired,
+                refreshed_at,
+                updated_at
+            )
+            VALUES ($1, $2, $3, true, false, NOW(), NOW())
+            ON CONFLICT (module)
+            DO UPDATE SET
+                token_value = $2,
+                token_hash = $3,
+                is_active = true,
+                is_expired = false,
+                refreshed_at = NOW(),
+                updated_at = NOW()
+        "#;
+
+        db.execute(query, &[&module, &token, &token_hash]).await?;
+        Ok(())
+    }
+
+    /// Simpan data ke file JSON
+    pub async fn save_to_json<P: AsRef<Path>>(
+        &self,
+        data: &serde_json::Value,
+        filename: P,
+    ) -> Result<(), MonsaktiError> {
+        let path = Path::new(&self.config.output_dir).join(filename);
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        let json = serde_json::to_string_pretty(data)?;
+        tokio::fs::write(&path, json).await?;
+        info!("Data disimpan ke: {}", path.display());
+        Ok(())
+    }
+
+    /// Simpan data ke file CSV
+    pub async fn save_to_csv<P: AsRef<Path>>(
+        &self,
+        data: &serde_json::Value,
+        filename: P,
+    ) -> Result<(), MonsaktiError> {
+        let path = Path::new(&self.config.output_dir).join(filename);
+
+        // Check data validity
+        let array = match data.as_array() {
+            Some(arr) if !arr.is_empty() => arr,
+            Some(_) => {
+                warn!("Tidak ada data untuk disimpan");
+                return Ok(());
+            }
+            None => return Ok(()),
+        };
+
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
+        let file = tokio::fs::File::create(&path).await?;
+        let mut writer = tokio::io::BufWriter::new(file);
+
+        if let Some(first) = array.first()
+            && let Some(obj) = first.as_object()
+        {
+            let headers: Vec<&String> = obj.keys().collect();
+
+            // Reusable buffer for CSV formatting
+            let mut csv_buffer = Vec::new();
+
+            // Write headers
+            {
+                let mut wtr = csv::WriterBuilder::new().from_writer(&mut csv_buffer);
+                wtr.write_record(&headers)?;
+                wtr.flush()?;
+            }
+            writer.write_all(&csv_buffer).await?;
+            csv_buffer.clear();
+
+            for item in array {
+                if let Some(obj) = item.as_object() {
+                    let row: Vec<std::borrow::Cow<'_, [u8]>> = headers
+                        .iter()
+                        .map(|h| {
+                            obj.get(*h)
+                                .map(|v| match v {
+                                    serde_json::Value::String(s) => {
+                                        std::borrow::Cow::Borrowed(s.as_bytes())
+                                    }
+                                    serde_json::Value::Number(n) => {
+                                        std::borrow::Cow::Owned(n.to_string().into_bytes())
+                                    }
+                                    serde_json::Value::Bool(b) => {
+                                        std::borrow::Cow::Owned(b.to_string().into_bytes())
+                                    }
+                                    serde_json::Value::Null => {
+                                        std::borrow::Cow::Borrowed(&[] as &[u8])
+                                    }
+                                    _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
+                                })
+                                .unwrap_or(std::borrow::Cow::Borrowed(&[]))
+                        })
+                        .collect();
+
+                    {
+                        let mut wtr = csv::WriterBuilder::new()
+                            .has_headers(false)
+                            .from_writer(&mut csv_buffer);
+                        wtr.write_record(&row)?;
+                        wtr.flush()?;
+                    }
+                    writer.write_all(&csv_buffer).await?;
+                    csv_buffer.clear();
+                }
+            }
+        }
+
+        writer.flush().await?;
+        info!("CSV disimpan ke: {}", path.display());
+        Ok(())
+    }
+
+    /// Simpan data ke database PostgreSQL
+    pub async fn save_to_postgres(
+        &self,
+        table_name: &str,
+        data: &serde_json::Value,
+    ) -> Result<usize, MonsaktiError> {
+        let db = self.db_client.as_ref().ok_or_else(|| {
+            MonsaktiError::ConfigError("Database tidak dikonfigurasi".to_string())
+        })?;
+
+        if let Some(array) = data.as_array() {
+            if array.is_empty() {
+                warn!("Tidak ada data untuk diinsert ke tabel {}", table_name);
+                return Ok(0);
+            }
+            let insert_count = crate::db::bulk_insert_postgres(db, table_name, array).await?;
+            info!(
+                "{} baris berhasil diinsert ke tabel {}",
+                insert_count, table_name
+            );
+            Ok(insert_count)
+        } else {
+            warn!(
+                "Data bukan array, tidak dapat diinsert ke tabel {}",
+                table_name
+            );
+            Ok(0)
+        }
+    }
+
+    /// Simpan data ke database dengan mapping modul dan endpoint
+    pub async fn save_to_database(
+        &self,
+        module: &str,
+        endpoint: &str,
+        data: &serde_json::Value,
+    ) -> Result<usize, MonsaktiError> {
+        let db = self.db_client.as_ref().ok_or_else(|| {
+            MonsaktiError::ConfigError("Database tidak dikonfigurasi".to_string())
+        })?;
+
+        crate::db::save_to_database(db, module, endpoint, data).await
+    }
+
+    fn get_current_token(&self, module: &str) -> Result<String, MonsaktiError> {
+        self.current_tokens
+            .get(module)
+            .cloned()
+            .or_else(|| self.config.tokens.get(module).cloned())
+            .ok_or_else(|| MonsaktiError::ConfigError(format!("No token for module: {}", module)))
+    }
+
+    /// Menentukan token key yang tepat berdasarkan endpoint MySIMKARI.
+    /// - Endpoint pegawai (`pegawai-satker`, `pegawai`, `pegawai-aktif`, `pegawai-mutasi`) → "MYSIMKARI_PEGAWAI"
+    /// - Endpoint lainnya (`get-satker`, dll) → "MYSIMKARI"
+    /// Jika token MYSIMKARI_PEGAWAI belum dikonfigurasi, fallback ke "MYSIMKARI".
+    fn mysimkari_token_key(endpoint: &str) -> &'static str {
+        match endpoint {
+            "pegawai-satker" | "pegawai" | "pegawai-aktif" | "pegawai-mutasi" => {
+                "MYSIMKARI_PEGAWAI"
+            }
+            _ => "MYSIMKARI",
+        }
+    }
+
+    // === SIMAN API Methods ===
+
+    /// Mendapatkan OAuth2 token dari SSO Kemenkeu untuk SIMAN API
+    /// Token akan di-cache dan di-refresh otomatis saat expired
+    async fn get_siman_token(&mut self) -> Result<String, MonsaktiError> {
+        // Cek apakah token masih valid (dengan buffer 60 detik)
+        if let Some((token, expires_at)) = &self.siman_token {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            if now + 60 < *expires_at {
+                return Ok(token.clone());
+            }
+        }
+
+        // Token tidak ada atau sudah expired, request token baru
+        info!("Requesting new SIMAN OAuth2 token from SSO Kemenkeu");
+
+        let client_id =
+            self.config.siman_client_id.as_ref().ok_or_else(|| {
+                MonsaktiError::ConfigError("SIMAN_CLIENT_ID not configured".into())
+            })?;
+
+        let client_secret = self.config.siman_client_secret.as_ref().ok_or_else(|| {
+            MonsaktiError::ConfigError("SIMAN_CLIENT_SECRET not configured".into())
+        })?;
+
+        let params = [
+            ("client_id", client_id.as_str()),
+            ("client_secret", client_secret.as_str()),
+            ("grant_type", "client_credentials"),
+        ];
+
+        let response = self
+            .client
+            .post(&self.config.siman_token_url)
+            .form(&params)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            error!(
+                "Failed to get SIMAN token from SSO Kemenkeu: {} - {}",
+                status, body
+            );
+            return Err(MonsaktiError::ApiError(format!(
+                "OAuth2 token request failed: HTTP {}",
+                status
+            )));
+        }
+
+        let token_response: SimanTokenResponse = response.json().await?;
+        info!(
+            "SIMAN token successfully obtained, expires in {} seconds",
+            token_response.expires_in
+        );
+
+        // Simpan token dengan waktu expire
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let expires_at = now + token_response.expires_in;
+        let token = token_response.access_token.clone();
+
+        self.siman_token = Some((token.clone(), expires_at));
+
+        Ok(token)
+    }
+
+    /// Mendapatkan jumlah baris untuk kategori aset SIMAN
+    pub async fn fetch_siman_row_count(
+        &mut self,
+        category: SimanAssetCategory,
+    ) -> Result<MonsaktiResponse, MonsaktiError> {
+        let token = self.get_siman_token().await?;
+        let ba_key = self
+            .config
+            .siman_ba_key
+            .as_ref()
+            .ok_or_else(|| MonsaktiError::ConfigError("SIMAN_BA_KEY not configured".into()))?;
+
+        let url = format!(
+            "{}/gateway/SLDKSimanKL/2.0/getRowCount/{}/{}",
+            self.config.siman_base_url,
+            ba_key,
+            category.table_name()
+        );
+
+        info!("Fetching SIMAN row count: {}", url);
+
+        let started = Instant::now();
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await?;
+
+        let elapsed_ms = started.elapsed().as_millis() as i32;
+        let endpoint_name = format!("getRowCount/{}", category.table_name());
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            error!("SIMAN getRowCount request failed: {} - {}", status, body);
+
+            self.log_api_call(
+                "SIMAN",
+                &endpoint_name,
+                &url,
+                "GET",
+                Some(status.as_u16() as i32),
+                elapsed_ms,
+                None,
+                false,
+                Some(&body),
+                1,
+            )
+            .await;
+
+            return Err(MonsaktiError::ApiError(format!(
+                "HTTP {}: {}",
+                status, body
+            )));
+        }
+
+        // SIMAN mengembalikan structure yang berbeda, wrap dalam MonsaktiResponse
+        let data: serde_json::Value = response.json().await?;
+
+        self.log_api_call(
+            "SIMAN",
+            &endpoint_name,
+            &url,
+            "GET",
+            Some(200),
+            elapsed_ms,
+            Some(1),
+            true,
+            None,
+            1,
+        )
+        .await;
+
+        Ok(MonsaktiResponse {
+            new_token: None,
+            data: Some(data),
+            error: None,
+        })
+    }
+
+    /// Mengambil data aset SIMAN dengan pagination
+    pub async fn fetch_siman_data(
+        &mut self,
+        category: SimanAssetCategory,
+        start_id: u32,
+        end_id: u32,
+    ) -> Result<MonsaktiResponse, MonsaktiError> {
+        let token = self.get_siman_token().await?;
+        let ba_key = self
+            .config
+            .siman_ba_key
+            .as_ref()
+            .ok_or_else(|| MonsaktiError::ConfigError("SIMAN_BA_KEY not configured".into()))?;
+
+        let url = format!(
+            "{}/gateway/SLDKSimanKL/2.0/{}",
+            self.config.siman_base_url,
+            category.endpoint()
+        );
+
+        info!(
+            "Fetching SIMAN data: {} ({}-{})",
+            category.description(),
+            start_id,
+            end_id
+        );
+
+        let params = [
+            ("BA_KEY", ba_key.as_str()),
+            ("ID_1", &start_id.to_string()),
+            ("ID_2", &end_id.to_string()),
+        ];
+
+        let started = Instant::now();
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .form(&params)
+            .send()
+            .await?;
+
+        let elapsed_ms = started.elapsed().as_millis() as i32;
+        let endpoint_name = category.endpoint().to_string();
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            error!(
+                "SIMAN {} request failed: {} - {}",
+                category.endpoint(),
+                status,
+                body
+            );
+
+            self.log_api_call(
+                "SIMAN",
+                &endpoint_name,
+                &url,
+                "POST",
+                Some(status.as_u16() as i32),
+                elapsed_ms,
+                None,
+                false,
+                Some(&body),
+                1,
+            )
+            .await;
+
+            return Err(MonsaktiError::ApiError(format!(
+                "HTTP {}: {}",
+                status, body
+            )));
+        }
+
+        // Parse response
+        let data: serde_json::Value = response.json().await?;
+
+        // Cek apakah ada error dalam response
+        if let Some(error_msg) = data.get("error").and_then(|e| e.as_str()) {
+            self.log_api_call(
+                "SIMAN",
+                &endpoint_name,
+                &url,
+                "POST",
+                Some(200),
+                elapsed_ms,
+                None,
+                false,
+                Some(error_msg),
+                1,
+            )
+            .await;
+            return Err(MonsaktiError::ApiError(error_msg.to_string()));
+        }
+
+        let record_count = if let Some(a) = data.as_array() {
+            Some(a.len() as i32)
+        } else if let Some(a) = data.get("data").and_then(|v| v.as_array()) {
+            Some(a.len() as i32)
+        } else if let Some(a) = data.get("results").and_then(|v| v.as_array()) {
+            Some(a.len() as i32)
+        } else {
+            None
+        };
+        self.log_api_call(
+            "SIMAN",
+            &endpoint_name,
+            &url,
+            "POST",
+            Some(200),
+            elapsed_ms,
+            record_count,
+            true,
+            None,
+            1,
+        )
+        .await;
+
+        Ok(MonsaktiResponse {
+            new_token: None,
+            data: Some(data),
+            error: None,
+        })
+    }
+}

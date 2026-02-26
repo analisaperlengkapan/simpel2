@@ -562,7 +562,7 @@ pub async fn fetch_assets(
     per_page: i32,
     category: Option<String>,
 ) -> Result<PaginatedResponse<Asset>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = format!(
@@ -611,7 +611,7 @@ pub async fn fetch_assets(
 
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/dashboard/stats";
@@ -652,7 +652,7 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, Stri
 
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_asset_by_id(id: String) -> Result<ApiResponse<Asset>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!("/api/pembinaan/perlengkapan/assets/{}", id);
@@ -685,7 +685,7 @@ pub async fn fetch_pengadaan(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<Pengadaan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -731,7 +731,7 @@ pub async fn fetch_pengadaan(
 pub async fn create_pengadaan(
     request: CreatePengadaanRequest,
 ) -> Result<ApiResponse<Pengadaan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengadaan";
@@ -766,7 +766,7 @@ pub async fn create_pengadaan(
 pub async fn fetch_pengadaan_hps(
     pengadaan_id: String,
 ) -> Result<ApiResponse<Vec<PengadaanHps>>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!("/api/pembinaan/perlengkapan/pengadaan/{}/hps", pengadaan_id);
@@ -800,7 +800,7 @@ pub async fn fetch_pengadaan_hps(
 pub async fn create_pengadaan_hps(
     request: CreatePengadaanHpsRequest,
 ) -> Result<ApiResponse<PengadaanHps>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -843,7 +843,7 @@ pub async fn fetch_analisis(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<AnalisisKebutuhan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -889,7 +889,7 @@ pub async fn fetch_analisis(
 pub async fn create_analisis(
     request: CreateAnalisisRequest,
 ) -> Result<ApiResponse<AnalisisKebutuhan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/analisis";
@@ -925,7 +925,7 @@ pub async fn fetch_pemakaian(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<Pemakaian>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -971,7 +971,7 @@ pub async fn fetch_pemakaian(
 pub async fn create_pemakaian(
     request: CreatePemakaianRequest,
 ) -> Result<ApiResponse<Pemakaian>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pemakaian";
@@ -1007,7 +1007,7 @@ pub async fn fetch_hibah(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<Hibah>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -1050,7 +1050,7 @@ pub async fn fetch_hibah(_page: i32, _per_page: i32) -> Result<PaginatedResponse
 pub async fn create_hibah(
     request: CreateHibahRequest,
 ) -> Result<ApiResponse<Hibah>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/hibah";
@@ -1084,7 +1084,7 @@ pub async fn fetch_mutasi(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<Mutasi>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -1127,7 +1127,7 @@ pub async fn fetch_mutasi(_page: i32, _per_page: i32) -> Result<PaginatedRespons
 pub async fn create_mutasi(
     request: CreateMutasiRequest,
 ) -> Result<ApiResponse<Mutasi>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/mutasi";
@@ -1161,7 +1161,7 @@ pub async fn fetch_penghapusan(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<Penghapusan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -1207,7 +1207,7 @@ pub async fn fetch_penghapusan(
 pub async fn create_penghapusan(
     request: CreatePenghapusanRequest,
 ) -> Result<ApiResponse<Penghapusan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/penghapusan";
@@ -1243,7 +1243,7 @@ pub async fn fetch_pengalihan(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<Pengalihan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -1289,7 +1289,7 @@ pub async fn fetch_pengalihan(
 pub async fn create_pengalihan(
     request: CreatePengalihanRequest,
 ) -> Result<ApiResponse<Pengalihan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengalihan";
@@ -1325,7 +1325,7 @@ pub async fn fetch_pemeliharaan(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<Pemeliharaan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -1371,7 +1371,7 @@ pub async fn fetch_pemeliharaan(
 pub async fn create_pemeliharaan(
     request: CreatePemeliharaanRequest,
 ) -> Result<ApiResponse<Pemeliharaan>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pemeliharaan";

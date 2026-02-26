@@ -1,43 +1,40 @@
 # 🏛️ SIMPEL (Sistem Informasi Perlengkapan)
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](CHANGELOG.md)
-[![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://rustlang.org)
+[![Rust](https://img.shields.io/badge/rust-1.93%2B-orange.svg)](https://rustlang.org)
 [![Leptos](https://img.shields.io/badge/leptos-0.8.14-green.svg)](https://leptos.dev)
+[![Axum](https://img.shields.io/badge/axum-0.8.7-blue.svg)](https://github.com/tokio-rs/axum)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**SIMPEL (Sistem Informasi Perlengkapan)** adalah platform untuk manajemen Barang Milik Negara (BMN) di lingkungan Kejaksaan Republik Indonesia. Dibangun menggunakan bahasa **Rust** dengan arsitektur berbasis workspace yang terdiri dari microfrontend (WebAssembly) dan backend services komprehensif.
+**SIMPEL** adalah platform untuk manajemen Barang Milik Negara (BMN) di lingkungan Kejaksaan Republik Indonesia. Dibangun sepenuhnya menggunakan **Rust** dengan arsitektur workspace tunggal yang terdiri dari microfrontend (WebAssembly), backend services, dan layanan infrastruktur inti.
 
 ---
 
 ## ✨ Fitur Utama
 
-- 🛡️ **Keamanan & Autentikasi**: Otorisasi terpusat melalui IAM kustom (*Authenc*) dan manajemen rahasia (*Secreton*).
-- 🧩 **Microfrontend (WASM)**: Antarmuka dibangun dengan Leptos (Rust to WebAssembly) yang terbagi menjadi Portal dan Perlengkapan.
-- ⚙️ **Backend Services**: API backend asinkron berperforma tinggi yang dibangun menggunakan Axum.
-- 📦 **Workspace Terintegrasi**: Pengelolaan dependensi terpusat dalam satu `Cargo.toml` workspace secara efisien.
+- 🛡️ **Keamanan & Autentikasi**: IAM kustom (*Authenc*) dengan OAuth2/OIDC, MFA, RBAC, SAML, WebAuthn, dan manajemen rahasia (*Secreton*)
+- 🧩 **Microfrontend (WASM)**: Antarmuka reaktif dibangun dengan Leptos 0.8 — Portal (SSO Gateway) dan Perlengkapan (BMN)
+- ⚙️ **Backend Services**: API asinkron berperforma tinggi dengan Axum 0.8, komunikasi antar-layanan via gRPC (Tonic)
+- 📦 **Workspace Terintegrasi**: Seluruh ~32 crate dikelola dalam satu `Cargo.toml` workspace dengan dependensi terpusat
 
 ---
 
-## 🏗️ Arsitektur Sistem (Riil Saat Ini)
-
-Berikut adalah interaksi komponen-komponen utama yang faktual dan tersedia pada platform SIMPEL saat ini:
+## 🏗️ Arsitektur Sistem
 
 ```mermaid
 graph TD
     User([Pengguna]) --> LB[Load Balancer / Nginx]
 
-    subgraph Antarmuka [Microfrontends - Leptos WASM]
+    subgraph Antarmuka [Microfrontends — Leptos WASM]
         LB --> Portal[Portal Gateway & SSO]
         LB --> Perlengkapan_UI[Aplikasi Perlengkapan]
     end
 
-    subgraph Layanan [Backend API Services]
-        Portal --> Authenc[Authenc - Identity Provider]
+    subgraph Layanan [Backend & Core Services]
+        Portal --> Authenc[Authenc — Identity Provider]
         Perlengkapan_UI --> Perlengkapan_API[Perlengkapan API]
         Perlengkapan_API --> Authenc
 
-        Authenc -. "Kriptografi & Rahasia" .-> Secreton[Secreton - Vault]
+        Authenc -. "Kriptografi & Rahasia" .-> Secreton[Secreton — Vault]
         Perlengkapan_API -. "Kriptografi & Rahasia" .-> Secreton
     end
 
@@ -61,95 +58,84 @@ graph TD
 
 ## 📁 Struktur Proyek
 
-Platform SIMPEL terdistribusi dalam beberapa direktori utama:
-
-- `📁 antarmuka/` – Berisi *Microfrontend applications* berbasis WebAssembly (Leptos):
-  - `portal` - Portal Gateway & SSO.
-  - `perlengkapan` - Modul operasional layanan perlengkapan BMN.
-- `📁 layanan/` – Pusat seluruh kode program *Backend Services*:
-  - `perlengkapan/` - Domain API, integrasi, dan dokumen terkait perlengkapan.
-  - `authenc/` - Identity Provider & Layanan IAM Kustom.
-  - `secreton/` - Secrets Vault & Manajemen Kriptografi dan Sertifikat.
-- `📁 lib/` – Komponen dan pustaka yang digunakan bersama (*Shared Libraries*):
-  - `ui` - Pustaka Komponen Antarmuka (Shared UI Library).
-  - `common` - Utilitas bersama (Error handling, tipe dasar, dll).
-  - `perlengkapan` - Tipe data dan core logic domain perlengkapan.
-- `📁 infra/` – Infrastruktur deklaratif untuk *deployment* (Kubernetes Manifests, Monitoring, Nginx).
-- `📁 docs/` – Repositori untuk dokumentasi *engineering*, panduan arsitektur, dll.
-
----
-
-## 🚀 Tumpukan Teknologi (Tech Stack)
-
-| Lapisan           | Teknologi              | Tujuan Utama                                        |
-| ----------------- | ---------------------- | --------------------------------------------------- |
-| **Inti Sistem**   | Rust 1.90+             | Keamanan memori (*Memory Safety*) & Performa Tinggi |
-| **Frontend**      | Leptos 0.8             | Reaktivitas antarmuka berbasis WebAssembly (WASM)   |
-| **Backend API**   | Axum 0.8.7             | Web framework asinkron untuk REST API dan gRPC      |
-| **Database**      | PostgreSQL 15 & Redis  | Persistensi data relasional dan *caching* in-memory |
-| **Keamanan**      | Ed25519, WebAuthn      | Autentikasi modern dan kriptografi kencang & ringan |
-| **Orkestrasi**    | Kubernetes             | Manajemen *container* untuk fase deployment         |
+```bash
+simpel2/
+├── Cargo.toml               # Workspace manifest (single source of truth)
+├── antarmuka/               # Microfrontend applications (Leptos WASM)
+│   ├── portal/              #   Portal Gateway & SSO
+│   └── perlengkapan/        #   Modul operasional BMN
+├── layanan/                 # Backend & Core Services
+│   ├── perlengkapan/crates/ #   5 crates: api, integrasi, dokumen, notifikasi, bantuan
+│   ├── authenc/crates/      #   10 crates: types, core, crypto, storage, api, iam-api,
+│   │                        #              grpc, mfa, federation, webauthn
+│   └── secreton/crates/     #   14 crates: core, api, storage, crypto, types, agent,
+│                            #              cli, grpc, hsm, k8s-operator, auto-unseal,
+│                            #              backup, health, replication
+├── lib/                     # Shared Libraries
+│   ├── ui/                  #   Komponen Antarmuka (Leptos)
+│   ├── common/              #   Utilitas bersama (types, config, crypto)
+│   └── perlengkapan/        #   Tipe domain perlengkapan
+├── tests/                   # Integration & E2E tests
+├── docs/                    # Dokumentasi engineering
+└── infra/                   # Infrastruktur (K8s, Monitoring, Nginx)
+```
 
 ---
 
-## 🏁 Memulai Pengembangan (Quick Start)
+## 🚀 Tumpukan Teknologi
+
+| Lapisan | Teknologi | Versi | Tujuan |
+|---------|-----------|-------|--------|
+| **Bahasa** | Rust | 1.93+ (Edition 2024) | Memory safety & performa tinggi |
+| **Frontend** | Leptos | 0.8.14 | Reaktivitas WASM (Client-Side Rendering) |
+| **Backend HTTP** | Axum | 0.8.7 | REST API asinkron |
+| **Backend gRPC** | Tonic + Prost | 0.14.x | Komunikasi antar-layanan terproteksi mTLS |
+| **Database** | PostgreSQL | 15+ | Persistensi data relasional |
+| **Cache** | Redis | — | Caching in-memory & session store |
+| **Kriptografi** | Ed25519, ChaCha20 | — | Signing, enkripsi modern |
+| **Orkestrasi** | Kubernetes | — | Manajemen container |
+
+---
+
+## 🏁 Memulai Pengembangan
 
 ### 1. Persyaratan Sistem
-Pastikan Anda memiliki *tools* berikut terpasang:
-- **Rust 1.90+** (Gunakan `rustup`)
-- **Trunk** (Build tool khusus untuk Rust WebAssembly): `cargo install trunk` atau `cargo binstall trunk`
-- **Docker & Docker Compose** (Untuk menjalankan database lokal Redis/PostgreSQL)
 
-### 2. Instalasi dan Persiapan Lokal
+- **Rust 1.90+** (`rustup` dengan target `wasm32-unknown-unknown`)
+- **Trunk** (`cargo install trunk` atau `cargo binstall trunk`)
+- **Docker & Docker Compose** (PostgreSQL & Redis lokal)
+
+### 2. Instalasi
 
 ```bash
-# 1. Unduh repositori
-git clone <URL_REPOSITORY_SIMPEL> simpel
+git clone <URL_REPOSITORY> simpel
 cd simpel
-
-# 2. Persiapan Konfigurasi Lingkungan
 cp .env.example .env
-
-# 3. Jalankan Basis Data (contoh: PostgreSQL dan Redis)
 docker compose up -d postgres redis
 ```
 
-### 3. Kompilasi & Menjalankan Service
+### 3. Menjalankan Service
 
-**Frontend (WASM dengan hot-reloading):**
+**Frontend (WASM + hot-reload):**
 ```bash
-# Menjalankan Portal Microfrontend
-cd antarmuka/portal
-trunk serve --port 8080 --open
-
-# Menjalankan Perlengkapan Microfrontend
-cd antarmuka/perlengkapan
-trunk serve --port 8081 --open
+cd antarmuka/portal && trunk serve --port 8080 --open
+cd antarmuka/perlengkapan && trunk serve --port 8081 --open
 ```
 
 **Backend API:**
 ```bash
-# Menjalankan backend layanan utama
 cargo run --bin layanan-perlengkapan-api
-
-# Menjalankan layanan infrastruktur IAM dan Kriptografi
 cargo run --bin authenc
 cargo run --bin secreton
 ```
 
-### 4. Memverifikasi Workspace
-
-Sangat direkomendasikan untuk memverifikasi proyek secara berkala:
+### 4. Verifikasi Workspace
 
 ```bash
-# Cek seluruh workspace tanpa kompilasi penuh
-cargo check --workspace
-
-# Analisis linter (Pastikan tidak ada warning)
-cargo clippy --workspace --all-targets -- -D warnings
-
-# Format kode
-cargo fmt --all
+cargo check --workspace                                    # Cek kompilasi
+cargo clippy --workspace --all-targets -- -D warnings      # Linter
+cargo fmt --all                                            # Format kode
+cargo test --workspace                                     # Jalankan semua tes
 ```
 
 ---
@@ -157,26 +143,27 @@ cargo fmt --all
 ## 🛡️ Kebijakan Keamanan
 
 SIMPEL mematuhi paradigma **Security-by-Design**:
-- Menerapkan arsitektur autentikasi berbasis token modern dengan rotasi kunci melalui utilitas `Secreton`.
-- Menggunakan standar Ed25519 Cryptography dibandingkan standar lama RSA.
-- Mematuhi strict `unsafe_code = "forbid"` pada level konfigurasi workspace di tingkat `Cargo.toml`.
+- Arsitektur autentikasi berbasis token modern (OAuth2/OIDC) dengan rotasi kunci via Secreton
+- Kriptografi modern: Ed25519 (signing), ChaCha20-Poly1305 (enkripsi), Argon2id (password hashing)
+- Strict `unsafe_code = "forbid"` pada level workspace
+- Zero-trust: semua komunikasi antar-layanan via mTLS (gRPC)
 
 ---
 
 ## 🤝 Panduan Kontribusi
 
-1. Mulai pengembangan dari cabang (*branch*) tunggal berdasarkan penugasan yang spesifik.
-2. Pastikan kode selaras dalam format standar (`cargo fmt --all`).
-3. Pastikan tidak ada *warning* atau *error* dari linter (`cargo clippy --workspace --all-targets -- -D warnings`).
-4. *Commits* diusahakan jelas tertata sebelum mengajukan pertimbangan ke dalam sistem *Merge Request*.
+1. Buat cabang (*branch*) dari `main` berdasarkan penugasan spesifik
+2. Pastikan kode selaras: `cargo fmt --all`
+3. Pastikan tidak ada warning: `cargo clippy --workspace --all-targets -- -D warnings`
+4. Commit dengan format [Conventional Commits](https://www.conventionalcommits.org/)
 
-Panduan selengkapnya: 📖 [CONTRIBUTING.md](CONTRIBUTING.md)
+Panduan selengkapnya: 📖 [CONTRIBUTING.md](CONTRIBUTING.md) · Panduan AI Agent: 🤖 [AGENTS.md](AGENTS.md)
 
 ---
 
-## ☎️ Bantuan & Dukungan Sistem
+## ☎️ Bantuan & Dukungan
 
-Silakan merujuk pada `docs/` untuk panduan arsitektur yang jauh lebih mendalam dan pemahaman logika lintas layanan (*cross-service logics*).
+Lihat `docs/` untuk panduan arsitektur mendalam dan pemahaman logika lintas layanan.
 
 > **SIMPEL (Sistem Informasi Perlengkapan)**
 > Hak Cipta © Kejaksaan Agung Republik Indonesia. Semua Hak Dilindungi Undang-Undang.

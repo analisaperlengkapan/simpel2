@@ -1,28 +1,28 @@
-FROM rust:latest as builder
-
+# Stage 1: Chef
+FROM rust:1.85-slim-bookworm AS chef
+RUN cargo install cargo-chef --locked
 WORKDIR /workspace
 
-# Install build dependencies
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Stage 2: Builder
+FROM chef AS builder
+COPY --from=planner /workspace/recipe.json recipe.json
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
+# Cook dependencies
+RUN cargo chef cook --release --recipe-path recipe.json
 
-# Copy workspace files
-COPY Cargo.toml Cargo.lock ./
-
-# Patch Cargo.toml to only include required packages
+COPY . .
+# Patch Cargo.toml
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "lib/perlengkapan", "layanan/perlengkapan/crates/api", "layanan/perlengkapan/crates/integrasi"]' Cargo.toml || true
-
-COPY lib/common ./lib/common
-COPY lib/perlengkapan ./lib/perlengkapan
-COPY layanan/perlengkapan ./layanan/perlengkapan
-
-# Copy proto files needed by build.rs
-COPY layanan/authenc/proto ./layanan/authenc/proto
-COPY layanan/secreton/proto ./layanan/secreton/proto
+    sed -i '/\[workspace\]/a members = ["lib/common", "lib/perlengkapan", "layanan/integrasi", "layanan/perlengkapan/crates/api"]' Cargo.toml || true
 
 # Build release
 RUN cargo build --release -p layanan-perlengkapan-api

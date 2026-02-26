@@ -107,7 +107,7 @@ pub fn PembinaanPage(
 
                                 // Coming Soon Badge (if needed)
                                 <div class="absolute bottom-4 right-4">
-                                    <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
+                                    <span class="bg-black/40 text-white text-xs font-semibold px-3 py-1 rounded-full">
                                         "Microfrontend"
                                     </span>
                                 </div>

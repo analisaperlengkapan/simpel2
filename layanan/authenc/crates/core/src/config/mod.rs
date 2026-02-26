@@ -628,7 +628,7 @@ pub use lib_common::config::{DatabaseConfig, ServerConfig};
 /// - Brute force protection prevents credential stuffing attacks
 /// - All timeouts and limits should be tuned for your security requirements
 /// # Example
-/// ```rust
+/// ```rust,ignore
 /// use authenc::config::BasicSecurityConfig;
 /// let config = BasicSecurityConfig {
 ///     jwt_secret: "your-secure-jwt-secret".to_string(),

@@ -1,4 +1,6 @@
-//! Pages module - All page components
+//! Pages module — all page components
+//!
+//! Removes password_reset (admin-only in government context).
 
 pub mod admin;
 pub mod apps;
@@ -16,10 +18,8 @@ pub mod not_found;
 pub mod notifications;
 pub mod passkeys;
 pub mod password_change;
-pub mod password_reset;
 pub mod pembinaan;
 pub mod profile;
-pub mod secrets;
 pub mod sessions;
 pub mod settings;
 
@@ -39,8 +39,6 @@ pub use not_found::*;
 pub use notifications::*;
 pub use passkeys::*;
 pub use password_change::*;
-// Explicitly export types from password_reset to avoid conflicts if needed
-pub use password_reset::*;
 pub use pembinaan::*;
 pub use profile::*;
 pub use sessions::*;

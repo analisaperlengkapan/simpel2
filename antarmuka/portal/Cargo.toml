@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 authors = ["SIMPEL Team <simpelv2@kejaksaan.go.id>"]
 description = "SIMPEL Portal Utama - Gateway to Justice Technology & SSO Integration"
-license = "MIT"
 repository = "https://gitlab.com/analisiskebutuhan/simpelv2_web"
 keywords = ["leptos", "wasm", "kejaksaan", "portal", "sso"]
 categories = ["wasm", "web-programming"]
@@ -54,6 +53,7 @@ base64 = { workspace = true }
 chrono = { workspace = true }
 # Explicitly enable wasm_js feature for getrandom 0.3+ which is pulled transitively
 getrandom = { version = "0.3.3", features = ["wasm_js"] }
+once_cell.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }

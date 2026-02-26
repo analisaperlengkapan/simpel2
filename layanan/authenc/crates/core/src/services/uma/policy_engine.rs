@@ -253,17 +253,12 @@ pub struct AttributeCondition {
 }
 
 /// Policy engine for evaluating policies
-pub struct PolicyEngine {
-    /// Database connection
-    db: Arc<Database>,
-    /// Resource store
-    resource_store: Arc<dyn ResourceStoreTrait>,
-}
+pub struct PolicyEngine {}
 
 impl PolicyEngine {
     /// Create new policy engine
-    pub fn new(db: Arc<Database>, resource_store: Arc<dyn ResourceStoreTrait>) -> Self {
-        Self { db, resource_store }
+    pub fn new() -> Self {
+        Self {}
     }
 
     /// Evaluate policies for permission request

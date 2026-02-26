@@ -14,7 +14,7 @@ const KEBUTUHAN_BMN_BASE: &str = "/api/pembinaan/perlengkapan/kebutuhan-bmn";
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_kebutuhan_bmn_dashboard()
 -> Result<ApiResponse<KebutuhanBmnDashboardStats>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -62,7 +62,7 @@ pub async fn fetch_kebutuhan_bmn_list(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<KebutuhanBmnSummary>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = format!(
@@ -121,7 +121,7 @@ pub async fn fetch_kebutuhan_bmn_list(
 pub async fn fetch_kebutuhan_bmn_detail(
     id: &str,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -153,7 +153,7 @@ pub async fn fetch_kebutuhan_bmn_detail(
 pub async fn create_kebutuhan_bmn(
     request: CreateKebutuhanBmnRequest,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -190,7 +190,7 @@ pub async fn update_kebutuhan_bmn(
     id: &str,
     request: UpdateKebutuhanBmnRequest,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -225,7 +225,7 @@ pub async fn update_kebutuhan_bmn(
 
 #[cfg(target_arch = "wasm32")]
 pub async fn delete_kebutuhan_bmn(id: &str) -> Result<ApiResponse<()>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -257,7 +257,7 @@ pub async fn transition_kebutuhan_bmn_status(
     id: &str,
     request: WorkflowTransitionRequest,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -300,7 +300,7 @@ pub async fn fetch_pengajuan_satkers(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -347,7 +347,7 @@ pub async fn fetch_pengajuan_satkers(
 pub async fn fetch_satker_with_barang(
     satker_id: &str,
 ) -> Result<ApiResponse<SatkerWithBarangResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -380,7 +380,7 @@ pub async fn transition_satker_status(
     satker_id: &str,
     request: WorkflowTransitionRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -420,7 +420,7 @@ pub async fn transition_satker_status(
 pub async fn fetch_satker_aktivitas(
     satker_id: &str,
 ) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -459,7 +459,7 @@ pub async fn fetch_satker_aktivitas(
 pub async fn fetch_satker_analisis(
     satker_id: &str,
 ) -> Result<ApiResponse<AnalisisKelayakanResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -496,7 +496,7 @@ pub async fn create_kebutuhan_bmn_barang(
     satker_id: &str,
     request: CreateKebutuhanBmnBarangRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -537,7 +537,7 @@ pub async fn update_kebutuhan_bmn_barang(
     barang_id: &str,
     request: UpdateBarangApprovalRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -574,7 +574,7 @@ pub async fn update_kebutuhan_bmn_barang(
 pub async fn delete_kebutuhan_bmn_barang(
     barang_id: &str,
 ) -> Result<ApiResponse<()>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -605,7 +605,7 @@ pub async fn delete_kebutuhan_bmn_barang(_barang_id: &str) -> Result<ApiResponse
 pub async fn set_kebutuhan_bmn_prioritas(
     request: SetPrioritasRequest,
 ) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -640,7 +640,7 @@ pub async fn set_kebutuhan_bmn_prioritas(
 // --- Export ---
 #[cfg(target_arch = "wasm32")]
 pub async fn export_kebutuhan_bmn(id: &str) -> Result<Vec<u8>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -694,7 +694,7 @@ pub async fn batch_approve_kebutuhan(
     ids: Vec<uuid::Uuid>,
     komentar: Option<String>,
 ) -> Result<BatchOperationResponse, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
     use serde_json::json;
 
@@ -739,7 +739,7 @@ pub async fn batch_reject_kebutuhan(
     ids: Vec<uuid::Uuid>,
     komentar: String,
 ) -> Result<BatchOperationResponse, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
     use serde_json::json;
 
@@ -785,7 +785,7 @@ pub async fn batch_update_status(
     target_status: i32,
     komentar: Option<String>,
 ) -> Result<BatchOperationResponse, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
     use serde_json::json;
 
@@ -833,7 +833,7 @@ pub async fn submit_kebutuhan_satker_to_wilayah(
     satker_id: &str,
     request: SubmitKebutuhanSatkerRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -875,7 +875,7 @@ pub async fn kebutuhan_validator_wilayah_action(
     satker_id: &str,
     request: KebutuhanValidatorWilayahActionRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -917,7 +917,7 @@ pub async fn kebutuhan_validator_pusat_keputusan(
     satker_id: &str,
     request: ValidatorPusatKeputusanRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -964,7 +964,7 @@ pub async fn search_siman_assets(
     kategori: Option<&str>,
     limit: Option<usize>,
 ) -> Result<ApiResponse<Vec<SimanAsset>>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -1011,7 +1011,7 @@ pub async fn search_siman_assets(
 pub async fn fetch_siman_satker_summary(
     satker_id: &str,
 ) -> Result<ApiResponse<SatkerAssetSummary>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()

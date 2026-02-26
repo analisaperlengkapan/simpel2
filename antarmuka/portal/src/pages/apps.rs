@@ -1,211 +1,144 @@
-//! Applications page - Microfrontend launcher
+//! Applications page — microfrontend launcher
 
-use crate::components::cards::AppCard;
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use crate::features::microfrontends::{AppCategory, MicrofrontendRegistry};
 use leptos::prelude::*;
 
-/// Applications page component - displays available microfrontends
+/// Applications page
 #[component]
 pub fn AppsPage(
-    /// Current user session data
     user_session: UserSession,
-    /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let (selected_category, set_selected_category) = signal(None::<AppCategory>);
     let (search_query, set_search_query) = signal(String::new());
+    let (selected_category, set_selected_category) = signal(None::<AppCategory>);
 
-    let apps = move || {
-        let mut apps = match selected_category.get() {
-            Some(cat) => MicrofrontendRegistry::get_apps_by_category(cat),
-            None => MicrofrontendRegistry::get_all_apps(),
-        };
-
-        // Filter by search query
-        let query = search_query.get().to_lowercase();
-        if !query.is_empty() {
-            apps.retain(|app| {
-                app.name.to_lowercase().contains(&query)
-                    || app.description.to_lowercase().contains(&query)
-            });
-        }
-
-        apps
-    };
-
+    let all_apps = MicrofrontendRegistry::get_all_apps();
     let categories = MicrofrontendRegistry::get_all_categories();
-    let total_apps = MicrofrontendRegistry::get_all_apps().len();
 
     view! {
         <MainLayout user_session=user_session on_logout=on_logout>
-            <div class="container mx-auto px-4 py-8">
-                // Page Header - Enhanced with gradient
+            <div class="p-6 lg:p-8">
+                // Header
                 <div class="mb-8">
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <h1 class="text-4xl font-bold bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent mb-2">
-                                "Aplikasi SIMPEL"
-                            </h1>
-                            <p class="text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                                </svg>
-                                {total_apps}" aplikasi tersedia"
-                            </p>
-                        </div>
-
-                        // Search Box
-                        <div class="relative w-full md:w-96">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                </svg>
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Cari aplikasi..."
-                                class="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                                on:input=move |ev| {
-                                    set_search_query.set(event_target_value(&ev));
-                                }
-                                prop:value=move || search_query.get()
-                            />
-                        </div>
-                    </div>
+                    <h1 class="text-2xl font-bold text-slate-800 dark:text-white">"Aplikasi"</h1>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">"Daftar layanan dan aplikasi terintegrasi SIMPEL"</p>
                 </div>
 
-                // Category Filter - Enhanced with icons
-                <div class="mb-8">
-                    <div class="flex items-center gap-3 mb-4">
-                        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                // Search
+                <div class="mb-6">
+                    <div class="relative max-w-md">
+                        <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
-                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">"Filter Kategori:"</span>
-                    </div>
-                    <div class="flex flex-wrap gap-3">
-                        <button
-                            on:click=move |_| set_selected_category.set(None)
-                            class=move || format!(
-                                "px-5 py-2.5 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 {}",
-                                if selected_category.get().is_none() {
-                                    "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-500/50"
-                                } else {
-                                    "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-red-500 dark:hover:border-red-500"
-                                }
-                            )
-                        >
-                            <span class="flex items-center gap-2">
-                                "🏠"
-                                "Semua Aplikasi"
-                            </span>
-                        </button>
-                        {categories.into_iter().map(|cat| {
-                            let cat_clone = cat.clone();
-                            let icon = match cat {
-                                AppCategory::Prosecution => "⚖️",
-                                AppCategory::Training => "🎓",
-                                AppCategory::Legal => "📜",
-                                AppCategory::Asset => "💰",
-                                AppCategory::Intelligence => "🕵️",
-                                AppCategory::Supervision => "👁️",
-                            };
-                            view! {
-    <button
-                                    on:click=move |_| set_selected_category.set(Some(cat_clone.clone()))
-                                    class=move || format!(
-                                        "px-5 py-2.5 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 {}",
-                                        if selected_category.get() == Some(cat.clone()) {
-                                            "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-500/50"
-                                        } else {
-                                            "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-red-500 dark:hover:border-red-500"
-                                        }
-                                    )
-                                >
-                                    <span class="flex items-center gap-2">
-                                        {icon}
-                                        {cat.display_name()}
-                                    </span>
-                                </button>
-                            }
-                        }).collect_view()}
+                        <input
+                            type="text"
+                            placeholder="Cari aplikasi..."
+                            class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-navy-800 border border-slate-200 dark:border-navy-700 rounded-xl text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:border-navy-500 dark:focus:border-gold-500 focus:outline-none transition-colors"
+                            prop:value=move || search_query.get()
+                            on:input=move |ev| set_search_query.set(event_target_value(&ev))
+                        />
                     </div>
                 </div>
 
-                // Apps Grid - Enhanced with stagger animation
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    {move || apps().into_iter().enumerate().map(|(idx, app)| {
-                        let delay = format!("{}ms", idx * 50);
+                // Category Filter
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <button
+                        on:click=move |_| set_selected_category.set(None)
+                        class=move || format!(
+                            "px-4 py-1.5 text-sm font-medium rounded-lg transition-colors {}",
+                            if selected_category.get().is_none() {
+                                "bg-navy-800 text-white dark:bg-gold-500 dark:text-navy-900"
+                            } else {
+                                "bg-slate-100 dark:bg-navy-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-navy-700"
+                            }
+                        )
+                    >
+                        "Semua"
+                    </button>
+                    {categories.into_iter().map(|category| {
+                        let cat = category.clone();
+                        let cat2 = category.clone();
+                        let cat3 = category.clone();
                         view! {
-                            <div
-                                class="animate-fade-in"
-                                style=format!("animation-delay: {}", delay)
+                            <button
+                                on:click=move |_| set_selected_category.set(Some(cat.clone()))
+                                class=move || format!(
+                                    "px-4 py-1.5 text-sm font-medium rounded-lg transition-colors {}",
+                                    if selected_category.get().as_ref() == Some(&cat2) {
+                                        "bg-navy-800 text-white dark:bg-gold-500 dark:text-navy-900"
+                                    } else {
+                                        "bg-slate-100 dark:bg-navy-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-navy-700"
+                                    }
+                                )
                             >
-                                <AppCard app=app />
-                            </div>
+                                {cat3.display_name()}
+                            </button>
                         }
                     }).collect_view()}
                 </div>
 
-                // Empty State - Enhanced
-                {move || (apps().is_empty()).then(|| view! {
-                    <div class="text-center py-20">
-                        <div class="inline-flex items-center justify-center w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full mb-6">
-                            <span class="text-6xl">"📭"</span>
-                        </div>
-                        <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-                            "Tidak ada aplikasi ditemukan"
-                        </h3>
-                        <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                            {if !search_query.get().is_empty() {
-                                "Coba ubah kata kunci pencarian Anda"
-                            } else {
-                                "Tidak ada aplikasi dalam kategori ini"
-                            }}
-                        </p>
-                        <button
-                            on:click=move |_| {
-                                set_selected_category.set(None);
-                                set_search_query.set(String::new());
-                            }
-                            class="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200"
-                        >
-                            "Tampilkan Semua Aplikasi"
-                        </button>
-                    </div>
-                })}
+                // Apps Grid
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {move || {
+                        let query = search_query.get().to_lowercase();
+                        let category = selected_category.get();
 
-                // Info Banner
-                <div class="mt-12 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl p-8 border border-blue-200 dark:border-blue-800">
-                    <div class="flex flex-col md:flex-row items-center gap-6">
-                        <div class="flex-shrink-0">
-                            <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center">
-                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="flex-1 text-center md:text-left">
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                                "Butuh Bantuan?"
-                            </h3>
-                            <p class="text-gray-600 dark:text-gray-400">
-                                "Jika Anda mengalami kesulitan mengakses aplikasi, silakan hubungi tim IT support atau baca dokumentasi pengguna."
-                            </p>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <a
-                                href="/portal/help"
-                                class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
-                            >
-                                "Pusat Bantuan"
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                </svg>
-                            </a>
-                        </div>
-                    </div>
+                        let filtered: Vec<_> = all_apps.iter()
+                            .filter(|app| {
+                                let matches_search = query.is_empty()
+                                    || app.name.to_lowercase().contains(&query)
+                                    || app.description.to_lowercase().contains(&query);
+                                let matches_category = category.as_ref()
+                                    .map_or(true, |cat| &app.category == cat);
+                                matches_search && matches_category && app.status.is_available()
+                            })
+                            .collect();
+
+                        if filtered.is_empty() {
+                            view! {
+                                <div class="col-span-full text-center py-16">
+                                    <span class="text-4xl block mb-3">"🔍"</span>
+                                    <p class="text-slate-500 dark:text-slate-400">"Tidak ada aplikasi yang ditemukan"</p>
+                                </div>
+                            }.into_any()
+                        } else {
+                            filtered.into_iter().map(|app| {
+                                let color_classes = app.color.to_classes();
+                                let status_text = app.status.badge_text();
+                                let is_beta = app.status == crate::features::microfrontends::AppStatus::Beta;
+                                view! {
+                                    <a
+                                        href=app.url.clone()
+                                        target="_blank"
+                                        class="block bg-white dark:bg-navy-800 rounded-xl p-5 shadow-sm border border-slate-100 dark:border-navy-700 hover:shadow-lg hover:border-navy-200 dark:hover:border-gold-600 transition-all group"
+                                    >
+                                        <div class="flex items-start gap-4">
+                                            <div class=format!("w-12 h-12 rounded-xl bg-gradient-to-br {} flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform", color_classes)>
+                                                <span class="text-xl text-white">{app.icon.clone()}</span>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2">
+                                                    <h3 class="text-sm font-semibold text-slate-800 dark:text-white">{app.name.clone()}</h3>
+                                                    {is_beta.then(|| view! {
+                                                        <span class="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
+                                                            {status_text}
+                                                        </span>
+                                                    })}
+                                                </div>
+                                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{app.description.clone()}</p>
+                                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">{app.category.display_name()}</p>
+                                            </div>
+                                            <svg class="w-4 h-4 text-slate-400 group-hover:text-navy-600 dark:group-hover:text-gold-400 transition-colors flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                            </svg>
+                                        </div>
+                                    </a>
+                                }
+                            }).collect_view().into_any()
+                        }
+                    }}
                 </div>
             </div>
         </MainLayout>

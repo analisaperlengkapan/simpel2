@@ -52,7 +52,7 @@ pub fn create_router(state: Arc<ApiState>) -> Router {
             get(handlers::list_credentials_handler),
         )
         .route(
-            "/api/v1/auth/webauthn/credentials/:id",
+            "/api/v1/auth/webauthn/credentials/{id}",
             delete(handlers::delete_credential_handler).patch(handlers::update_credential_handler),
         )
         // OAuth2/OIDC endpoints
@@ -72,7 +72,7 @@ pub fn create_router(state: Arc<ApiState>) -> Router {
         .route("/api/v1/clients", get(handlers::list_clients_handler))
         .route("/api/v1/clients", post(handlers::create_client_handler))
         .route(
-            "/api/v1/clients/:id",
+            "/api/v1/clients/{id}",
             get(handlers::get_client_handler)
                 .patch(handlers::update_client_handler)
                 .delete(handlers::delete_client_handler),
@@ -80,7 +80,7 @@ pub fn create_router(state: Arc<ApiState>) -> Router {
         // Dynamic Client Registration (RFC 7591/7592)
         .route("/register", post(handlers::register_client_handler))
         .route(
-            "/register/:client_id",
+            "/register/{client_id}",
             get(handlers::get_client_configuration_handler)
                 .patch(handlers::update_client_configuration_handler)
                 .delete(handlers::delete_client_configuration_handler),

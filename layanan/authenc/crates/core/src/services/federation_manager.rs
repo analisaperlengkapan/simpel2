@@ -260,15 +260,119 @@ impl FederationManager {
     /// Authenticate user via social login
     pub async fn authenticate_social(
         &self,
-        _provider_alias: &str,
-        _auth_code: &str,
-        _redirect_uri: &str,
-        _realm_id: Uuid,
+        provider_alias: &str,
+        auth_code: &str,
+        redirect_uri: &str,
+        realm_id: Uuid,
     ) -> Result<FederationAuthResult> {
-        // TODO: SPI-dependent code - needs implementation
-        Err(AuthencError::not_implemented(
-            "Social authentication requires SPI implementation",
-        ))
+        // 1. Get provider configuration
+        let config = self.get_provider_config_by_alias(provider_alias, realm_id).await?;
+
+        // 2. Parse social provider config from stored JSON
+        let social_config: crate::spi::social::SocialProviderConfig =
+            serde_json::from_value(config.config.clone()).map_err(|e| {
+                AuthencError::config(format!("Invalid social provider config: {}", e))
+            })?;
+
+        // 3. Create a social provider instance
+        let provider = crate::spi::social::DefaultSocialProvider::new(social_config);
+
+        // 4. Exchange authorization code for token
+        let token = crate::spi::social::SocialProvider::exchange_code(
+            &provider,
+            auth_code,
+            redirect_uri,
+        )
+        .await?;
+
+        // 5. Fetch user profile from provider
+        let profile = crate::spi::social::SocialProvider::get_user_profile(
+            &provider,
+            &token,
+        )
+        .await?;
+
+        // 6. Find or create identity link
+        let existing_link = self
+            .find_identity_link(
+                provider_alias,
+                &profile.provider_user_id,
+                realm_id,
+            )
+            .await?;
+
+        if let Some(link) = existing_link {
+            // Existing user - update auth stats and token
+            self.update_authentication_stats(&link.id).await?;
+
+            if config.store_token {
+                let expires_at = token.expires_in.map(|e| {
+                    chrono::Utc::now() + chrono::Duration::seconds(e as i64)
+                });
+                self.update_identity_link_token(
+                    &link.id,
+                    &token.access_token,
+                    expires_at,
+                    token.refresh_token.as_deref(),
+                )
+                .await?;
+            }
+
+            Ok(FederationAuthResult {
+                success: true,
+                user: None, // Caller should load user by link.user_id
+                identity_link: Some(link),
+                provider_token: if config.store_token {
+                    Some(token.access_token)
+                } else {
+                    None
+                },
+                error: None,
+            })
+        } else {
+            // New user - provision via social profile
+            let user = self
+                .provision_user_from_social(
+                    &serde_json::to_value(&profile).unwrap_or_default(),
+                    realm_id,
+                    &config,
+                )
+                .await?;
+
+            // Create identity link
+            let expires_at = token.expires_in.map(|e| {
+                chrono::Utc::now() + chrono::Duration::seconds(e as i64)
+            });
+            let link = self
+                .create_identity_link(
+                    user.id,
+                    realm_id,
+                    provider_alias,
+                    &profile.provider_user_id,
+                    profile.username.as_deref(),
+                    if config.store_token {
+                        Some(token.access_token.as_str())
+                    } else {
+                        None
+                    },
+                    expires_at,
+                    token.refresh_token.as_deref(),
+                    Some(Some(serde_json::to_value(&profile.attributes).unwrap_or_default())),
+                )
+                .await?;
+
+            Ok(FederationAuthResult {
+                success: true,
+                user: Some(user),
+                identity_link: Some(link),
+                provider_token: if config.store_token {
+                    Some(token.access_token)
+                } else {
+                    None
+                },
+                error: None,
+            })
+        }
     }
 
     /// Find identity link by provider alias and federated user ID
@@ -508,15 +612,70 @@ impl FederationManager {
     /// Provision user from social login profile
     async fn provision_user_from_social(
         &self,
-        _profile: &serde_json::Value, // Placeholder type
+        profile: &serde_json::Value,
         realm_id: Uuid,
         config: &IdentityProviderConfig,
     ) -> Result<User> {
-        // TODO: SPI-dependent code - needs implementation
-        // This would use SocialUserProfile from the SPI module
-        Err(AuthencError::not_implemented(
-            "Social user provisioning requires SPI implementation",
-        ))
+        let client = self.db.get_connection().await?;
+
+        // Extract profile fields
+        let email = profile["email"]
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("{}@social.federated", Uuid::new_v4()));
+        let username = profile["username"]
+            .as_str()
+            .or_else(|| profile["display_name"].as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| email.split('@').next().unwrap_or("user").to_string());
+        let first_name = profile["first_name"].as_str().map(|s| s.to_string());
+        let last_name = profile["last_name"].as_str().map(|s| s.to_string());
+        let picture_url = profile["picture_url"].as_str().map(|s| s.to_string());
+
+        // Create new user
+        let mut new_user = User::new(
+            username,
+            email,
+            String::new(), // No satker_code for social users
+            None,           // No password for federated users
+            Some(realm_id),
+        );
+
+        new_user.first_name = first_name;
+        new_user.last_name = last_name;
+        new_user.email_verified = config.trust_email;
+        new_user.federated = true;
+
+        // Store profile picture in attributes if present
+        if let Some(pic) = picture_url {
+            let mut attrs = new_user.attributes.clone().unwrap_or_default();
+            attrs["picture_url"] = serde_json::json!(pic);
+            new_user.attributes = Some(attrs);
+        }
+
+        // Insert into database
+        client
+            .execute(
+                "INSERT INTO users (id, username, email, satker_code, first_name, last_name,
+                                   email_verified, federated, attributes, realm_id, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())",
+                &[
+                    &new_user.id,
+                    &new_user.username,
+                    &new_user.email,
+                    &new_user.satker_code,
+                    &new_user.first_name,
+                    &new_user.last_name,
+                    &new_user.email_verified,
+                    &new_user.federated,
+                    &new_user.attributes,
+                    &realm_id,
+                ],
+            )
+            .await
+            .map_err(|e| AuthencError::database(format!("Failed to provision social user: {}", e)))?;
+
+        Ok(new_user)
     }
 
     /// Load user by ID

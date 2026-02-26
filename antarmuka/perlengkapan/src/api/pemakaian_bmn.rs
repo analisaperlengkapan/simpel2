@@ -250,7 +250,7 @@ pub async fn fetch_pemakaian_bmn_list(
     satker_id: Option<String>,
     search: Option<String>,
 ) -> Result<PaginatedResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = format!("{}?page={}&per_page={}", PEMAKAIAN_BMN_BASE, page, per_page);
@@ -314,7 +314,7 @@ pub async fn fetch_pemakaian_bmn_list(
 pub async fn fetch_pemakaian_bmn_detail(
     id: &str,
 ) -> Result<ApiResponse<IzinPemakaianDetailResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -347,7 +347,7 @@ pub async fn fetch_pemakaian_bmn_detail(
 pub async fn create_pemakaian_bmn(
     request: CreateIzinPemakaianRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -384,7 +384,7 @@ pub async fn create_pemakaian_bmn(
 pub async fn check_bmn_availability(
     bmn_nup: &str,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -421,7 +421,7 @@ pub async fn transition_pemakaian_bmn_status(
     id: &str,
     request: PemakaianWorkflowTransitionRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -459,7 +459,7 @@ pub async fn transition_pemakaian_bmn_status(
 pub async fn activate_pemakaian_bmn(
     id: &str,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -491,7 +491,7 @@ pub async fn revoke_pemakaian_bmn(
     id: &str,
     request: RevokePermitRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -530,7 +530,7 @@ pub async fn renew_pemakaian_bmn(
     id: &str,
     request: RenewPermitRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -568,7 +568,7 @@ pub async fn renew_pemakaian_bmn(
 pub async fn fetch_bmn_usage_history(
     bmn_nup: &str,
 ) -> Result<ApiResponse<BmnUsageStats>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -599,7 +599,7 @@ pub async fn fetch_bmn_usage_history(_bmn_nup: &str) -> Result<ApiResponse<BmnUs
 pub async fn fetch_pegawai_usage_history(
     pegawai_nip: &str,
 ) -> Result<ApiResponse<PegawaiUsageStats>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -635,7 +635,7 @@ pub async fn fetch_pegawai_usage_history(
 pub async fn fetch_expiring_permits(
     days: i32,
 ) -> Result<ApiResponse<Vec<IzinPemakaianBmn>>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -673,7 +673,7 @@ pub async fn generate_pemakaian_konsep_surat(
     id: &str,
     request: GenerateKonsepSuratRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -715,7 +715,7 @@ pub async fn upload_pemakaian_signed_pdf(
     id: &str,
     request: UploadSignedPdfRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()

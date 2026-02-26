@@ -255,26 +255,163 @@ impl SocialProvider for DefaultSocialProvider {
         Ok(url.to_string())
     }
 
-    async fn exchange_code(&self, _code: &str, _redirect_uri: &str) -> Result<OAuth2Token> {
-        // TODO: Implement OAuth2 token exchange with reqwest (requires "elasticsearch" feature or
-        // a dedicated HTTP client feature). For now, return a not-implemented error.
-        Err(Error::NotImplemented(
-            "OAuth2 token exchange requires HTTP client support".to_string(),
-        ))
+    async fn exchange_code(&self, code: &str, redirect_uri: &str) -> Result<OAuth2Token> {
+        #[cfg(feature = "oidc-federation")]
+        {
+            let client = reqwest::Client::new();
+            let params = [
+                ("grant_type", "authorization_code"),
+                ("code", code),
+                ("redirect_uri", redirect_uri),
+                ("client_id", &self.config.client_id),
+                ("client_secret", &self.config.client_secret),
+            ];
+
+            let response = client
+                .post(&self.config.token_url)
+                .form(&params)
+                .send()
+                .await
+                .map_err(|e| Error::internal(format!("Token exchange request failed: {}", e)))?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                return Err(Error::internal(format!(
+                    "Token exchange failed with status {}: {}",
+                    status, body
+                )));
+            }
+
+            let token_data: serde_json::Value = response
+                .json()
+                .await
+                .map_err(|e| Error::internal(format!("Failed to parse token response: {}", e)))?;
+
+            Ok(OAuth2Token {
+                access_token: token_data["access_token"]
+                    .as_str()
+                    .ok_or_else(|| Error::validation("Missing access_token in response"))?
+                    .to_string(),
+                token_type: token_data["token_type"]
+                    .as_str()
+                    .unwrap_or("Bearer")
+                    .to_string(),
+                expires_in: token_data["expires_in"].as_u64(),
+                refresh_token: token_data["refresh_token"]
+                    .as_str()
+                    .map(|s| s.to_string()),
+                scope: token_data["scope"].as_str().map(|s| s.to_string()),
+                id_token: token_data["id_token"].as_str().map(|s| s.to_string()),
+            })
+        }
+        #[cfg(not(feature = "oidc-federation"))]
+        {
+            let _ = (code, redirect_uri);
+            Err(Error::NotImplemented(
+                "OAuth2 token exchange requires the 'oidc-federation' feature".to_string(),
+            ))
+        }
     }
 
-    async fn get_user_profile(&self, _token: &OAuth2Token) -> Result<SocialUserProfile> {
-        // TODO: Implement user profile fetching with reqwest.
-        Err(Error::NotImplemented(
-            "Social user profile fetching requires HTTP client support".to_string(),
-        ))
+    async fn get_user_profile(&self, token: &OAuth2Token) -> Result<SocialUserProfile> {
+        #[cfg(feature = "oidc-federation")]
+        {
+            let client = reqwest::Client::new();
+            let response = client
+                .get(&self.config.user_info_url)
+                .bearer_auth(&token.access_token)
+                .send()
+                .await
+                .map_err(|e| Error::internal(format!("User profile request failed: {}", e)))?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                return Err(Error::internal(format!(
+                    "User profile fetch failed with status {}: {}",
+                    status, body
+                )));
+            }
+
+            let data: serde_json::Value = response
+                .json()
+                .await
+                .map_err(|e| Error::internal(format!("Failed to parse user profile: {}", e)))?;
+
+            // Dispatch to provider-specific parser
+            match self.config.provider_type {
+                SocialProviderType::Google => self.parse_google_profile(&data),
+                SocialProviderType::Facebook => self.parse_facebook_profile(&data),
+                SocialProviderType::GitHub => self.parse_github_profile(&data),
+                _ => self.parse_generic_profile(&data),
+            }
+        }
+        #[cfg(not(feature = "oidc-federation"))]
+        {
+            let _ = token;
+            Err(Error::NotImplemented(
+                "Social user profile fetching requires the 'oidc-federation' feature".to_string(),
+            ))
+        }
     }
 
-    async fn refresh_token(&self, _refresh_token: &str) -> Result<OAuth2Token> {
-        // TODO: Implement token refresh with reqwest.
-        Err(Error::NotImplemented(
-            "OAuth2 token refresh requires HTTP client support".to_string(),
-        ))
+    async fn refresh_token(&self, refresh_token: &str) -> Result<OAuth2Token> {
+        #[cfg(feature = "oidc-federation")]
+        {
+            let client = reqwest::Client::new();
+            let params = [
+                ("grant_type", "refresh_token"),
+                ("refresh_token", refresh_token),
+                ("client_id", &self.config.client_id),
+                ("client_secret", &self.config.client_secret),
+            ];
+
+            let response = client
+                .post(&self.config.token_url)
+                .form(&params)
+                .send()
+                .await
+                .map_err(|e| Error::internal(format!("Token refresh request failed: {}", e)))?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                return Err(Error::internal(format!(
+                    "Token refresh failed with status {}: {}",
+                    status, body
+                )));
+            }
+
+            let token_data: serde_json::Value = response
+                .json()
+                .await
+                .map_err(|e| Error::internal(format!("Failed to parse refresh response: {}", e)))?;
+
+            Ok(OAuth2Token {
+                access_token: token_data["access_token"]
+                    .as_str()
+                    .ok_or_else(|| Error::validation("Missing access_token in response"))?
+                    .to_string(),
+                token_type: token_data["token_type"]
+                    .as_str()
+                    .unwrap_or("Bearer")
+                    .to_string(),
+                expires_in: token_data["expires_in"].as_u64(),
+                refresh_token: token_data["refresh_token"]
+                    .as_str()
+                    .map(|s| s.to_string()),
+                scope: token_data["scope"].as_str().map(|s| s.to_string()),
+                id_token: token_data["id_token"].as_str().map(|s| s.to_string()),
+            })
+        }
+        #[cfg(not(feature = "oidc-federation"))]
+        {
+            let _ = refresh_token;
+            Err(Error::NotImplemented(
+                "OAuth2 token refresh requires the 'oidc-federation' feature".to_string(),
+            ))
+        }
     }
 
     async fn validate_token(&self, token: &str) -> Result<bool> {
@@ -295,9 +432,9 @@ impl SocialProvider for DefaultSocialProvider {
         }
     }
 
-    async fn revoke_token(&self, token: &str) -> Result<()> {
-        // Token revocation - implementation depends on provider
-        // For now, just return success as tokens are typically short-lived
+    async fn revoke_token(&self, _token: &str) -> Result<()> {
+        // Token revocation is provider-specific and not all providers support it
+        // Return success as tokens are typically short-lived
         Ok(())
     }
 }

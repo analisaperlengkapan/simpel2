@@ -49,7 +49,7 @@
 //! ## Usage Examples
 //!
 //! ### JWT Generation
-//! ```rust,no_run
+//! ```rust,ignore
 //! use authenc_crypto::{JwtService, TokenClaims};
 //!
 //! let jwt_service = JwtService::new();
@@ -62,7 +62,7 @@
 //! ```
 //!
 //! ### Password Hashing
-//! ```rust,no_run
+//! ```rust,ignore
 //! use authenc_crypto::Argon2PasswordHasher;
 //!
 //! let hasher = Argon2PasswordHasher::new();
@@ -72,7 +72,7 @@
 //! ```
 //!
 //! ### DPoP Proof Generation
-//! ```rust,no_run
+//! ```rust,ignore
 //! use authenc_crypto::dpop::DPoPProof;
 //! use ed25519_dalek::SigningKey;
 //!

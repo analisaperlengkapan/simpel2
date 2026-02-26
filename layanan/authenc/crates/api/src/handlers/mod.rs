@@ -32,6 +32,9 @@ pub mod saml;
 pub mod social;
 pub mod sso;
 
+// CAPTCHA handlers
+pub mod captcha;
+
 // Utility handlers
 pub mod authorization;
 pub mod consent_ui;
@@ -102,8 +105,6 @@ pub use client_registration::{
     update_client_configuration_handler,
 };
 
-// Handler modules will be added here as implementation progresses
-// - auth.rs (login, logout, refresh)
-// - token.rs (validate token)
-// - oauth2.rs (OAuth2/OIDC endpoints)
-// - profile.rs (user profile)
+pub use captcha::{
+    captcha_challenge_handler, captcha_image_handler, captcha_verify_handler,
+};

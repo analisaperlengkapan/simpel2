@@ -3,6 +3,7 @@
 use authenc_storage::Database;
 use authenc_types::domain::{Organization, OrganizationMember};
 use authenc_types::{AuthencError, Result};
+use authenc_storage::operations::organizations;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -150,47 +151,61 @@ impl OrganizationService {
             deleted_at: None,
         };
 
-        // TODO: Store organization in database when operations::organizations is available
-        // self.store_organization(&organization).await?;
+        // Store organization in database
+        let stored_org = organizations::create_organization(&self.db, &organization).await?;
 
-        // TODO: Add creator as owner when operations::organizations is available
-        // self.add_member(&organization.id, &created_by, OrganizationRole::Owner, Some(created_by)).await?;
+        // Add creator as owner
+        organizations::add_member(&self.db, stored_org.id, created_by, OrganizationRole::Owner.as_str(), Some(created_by)).await?;
 
-        Ok(organization)
+        Ok(stored_org)
     }
 
     /// Get organization by ID
-    pub async fn get_organization(&self, _organization_id: &Uuid) -> Result<Option<Organization>> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization operations not yet available in storage crate",
-        ))
+    pub async fn get_organization(&self, organization_id: &Uuid) -> Result<Option<Organization>> {
+        organizations::get_organization_by_id(&self.db, *organization_id).await
     }
 
     /// Get organization by domain
-    pub async fn get_organization_by_domain(&self, _domain: &str) -> Result<Option<Organization>> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization operations not yet available in storage crate",
-        ))
+    pub async fn get_organization_by_domain(&self, domain: &str) -> Result<Option<Organization>> {
+        organizations::get_organization_by_domain(&self.db, domain).await
     }
 
     /// Update organization
     pub async fn update_organization(
         &self,
-        _organization_id: &Uuid,
-        _updates: &OrganizationUpdate,
+        organization_id: &Uuid,
+        updates: &OrganizationUpdate,
     ) -> Result<()> {
-        // In production, update in database
-        Ok(())
+        let mut org = self.get_organization(organization_id).await?
+            .ok_or_else(|| AuthencError::resource_not_found("Organization not found"))?;
+
+        if let Some(name) = &updates.display_name {
+            org.display_name = Some(name.clone());
+        }
+        if let Some(desc) = &updates.description {
+            org.description = Some(desc.clone());
+        }
+        if let Some(domain) = &updates.domain {
+            org.domain = Some(domain.clone());
+        }
+        if let Some(logo) = &updates.logo_url {
+            org.logo_url = Some(logo.clone());
+        }
+        if let Some(web) = &updates.website {
+            org.website_url = Some(web.clone());
+        }
+        if let Some(enabled) = updates.enabled {
+            org.enabled = enabled;
+        }
+
+        org.updated_at = chrono::Utc::now();
+
+        organizations::update_organization(&self.db, &org).await
     }
 
     /// Delete organization
-    pub async fn delete_organization(&self, _organization_id: &Uuid) -> Result<()> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization operations not yet available in storage crate",
-        ))
+    pub async fn delete_organization(&self, organization_id: &Uuid) -> Result<()> {
+        organizations::delete_organization(&self.db, organization_id).await
     }
 
     /// Add member to organization
@@ -202,66 +217,47 @@ impl OrganizationService {
         role: OrganizationRole,
         invited_by: Option<Uuid>,
     ) -> Result<()> {
-        let _member = OrganizationMember {
-            id: Uuid::new_v4(),
-            user_id: *user_id,
-            organization_id: *organization_id,
-            role: role.as_str().to_string(),
-            invited_by,
-            invited_at: None,
-            joined_at: Some(chrono::Utc::now()),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
-
-        // TODO: Store member in database when operations::organizations is available
-        Ok(())
+        organizations::add_member(&self.db, *organization_id, *user_id, role.as_str(), invited_by).await
     }
 
     /// Remove member from organization
-    pub async fn remove_member(&self, _organization_id: &Uuid, _user_id: &Uuid) -> Result<()> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization operations not yet available in storage crate",
-        ))
+    pub async fn remove_member(&self, organization_id: &Uuid, user_id: &Uuid) -> Result<()> {
+        organizations::remove_organization_member(&self.db, organization_id, user_id).await
     }
 
     /// Update member role
     #[allow(deprecated)]
     pub async fn update_member_role(
         &self,
-        _organization_id: &Uuid,
-        _user_id: &Uuid,
-        _new_role: OrganizationRole,
+        organization_id: &Uuid,
+        user_id: &Uuid,
+        new_role: OrganizationRole,
     ) -> Result<()> {
-        // In production, update in database
-        Ok(())
+        organizations::update_member_role(&self.db, organization_id, user_id, new_role.as_str()).await
     }
 
     /// Get organization members
-    pub async fn get_members(&self, _organization_id: &Uuid) -> Result<Vec<OrganizationMember>> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization operations not yet available in storage crate",
-        ))
+    pub async fn get_members(&self, organization_id: &Uuid) -> Result<Vec<OrganizationMember>> {
+        organizations::get_organization_members(&self.db, organization_id).await
     }
 
     /// Check if user is member of organization
-    pub async fn is_member(&self, _organization_id: &Uuid, _user_id: &Uuid) -> Result<bool> {
-        // In production, check in database
-        Ok(false)
+    pub async fn is_member(&self, organization_id: &Uuid, user_id: &Uuid) -> Result<bool> {
+        let members = organizations::get_organization_members(&self.db, organization_id).await?;
+        Ok(members.iter().any(|m| m.user_id == *user_id))
     }
 
     /// Check if user has role in organization
     #[allow(deprecated)]
     pub async fn has_role(
         &self,
-        _organization_id: &Uuid,
-        _user_id: &Uuid,
-        _role: &OrganizationRole,
+        organization_id: &Uuid,
+        user_id: &Uuid,
+        role: &OrganizationRole,
     ) -> Result<bool> {
-        // In production, check in database
-        Ok(false)
+        let members = organizations::get_organization_members(&self.db, organization_id).await?;
+        let required_role_str = role.as_str();
+        Ok(members.iter().any(|m| m.user_id == *user_id && m.role == required_role_str))
     }
 
     /// Create invitation
@@ -274,28 +270,45 @@ impl OrganizationService {
         invited_by: Uuid,
         expires_in_days: u32,
     ) -> Result<OrganizationInvitation> {
-        let invitation = OrganizationInvitation {
-            id: Uuid::new_v4(),
+        let token = self.generate_invitation_token();
+        let now = chrono::Utc::now();
+        let expires_at = now + chrono::Duration::days(expires_in_days as i64);
+        let id = Uuid::new_v4();
+
+        let db_invitation = authenc_types::domain::organization::OrganizationInvitation {
+            id,
+            organization_id: *organization_id,
+            email: email.to_string(),
+            role: role.as_str().to_string(),
+            invited_by,
+            token_hash: token.clone(), // In real implementation, we would hash this
+            expires_at,
+            accepted_at: None,
+            accepted_by: None,
+            created_at: now,
+        };
+
+        organizations::create_invitation(&self.db, &db_invitation).await?;
+
+        // Return the service model
+        let service_invitation = OrganizationInvitation {
+            id,
             organization_id: *organization_id,
             email: email.to_string(),
             role,
             invited_by,
-            invited_at: chrono::Utc::now(),
-            expires_at: chrono::Utc::now() + chrono::Duration::days(expires_in_days as i64),
+            invited_at: now,
+            expires_at,
             accepted_at: None,
-            token: self.generate_invitation_token(),
+            token, // Return raw token to user
         };
 
-        // TODO: Store invitation in database when operations::organizations is available
-        Ok(invitation)
+        Ok(service_invitation)
     }
 
     /// Accept invitation
-    pub async fn accept_invitation(&self, _token: &str, _user_id: Uuid) -> Result<Organization> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization operations not yet available in storage crate",
-        ))
+    pub async fn accept_invitation(&self, token: &str, user_id: Uuid) -> Result<()> {
+        organizations::accept_invitation(&self.db, token, user_id).await
     }
 
     /// Get organization settings
@@ -320,11 +333,8 @@ impl OrganizationService {
     }
 
     /// Get user's organizations
-    pub async fn get_user_organizations(&self, _user_id: &Uuid) -> Result<Vec<Organization>> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization operations not yet available in storage crate",
-        ))
+    pub async fn get_user_organizations(&self, user_id: &Uuid) -> Result<Vec<Organization>> {
+        organizations::get_user_organizations(&self.db, user_id).await
     }
 
     /// Transfer organization ownership
@@ -355,55 +365,42 @@ impl OrganizationService {
     /// Add domain to organization for verification
     pub async fn add_domain(
         &self,
-        _organization_id: &Uuid,
-        _domain: &str,
-        _verification_method: &str,
+        organization_id: &Uuid,
+        domain: &str,
+        verification_method: &str,
     ) -> Result<()> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization domain operations not yet available in storage crate",
-        ))
+        organizations::add_domain(&self.db, *organization_id, domain, verification_method).await?;
+        Ok(())
     }
 
     /// Verify organization domain
-    pub async fn verify_domain(&self, _domain_id: &Uuid) -> Result<()> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization domain operations not yet available in storage crate",
-        ))
+    pub async fn verify_domain(&self, domain_id: &Uuid) -> Result<()> {
+        organizations::verify_domain(&self.db, *domain_id).await
     }
 
     /// Get organization domains
-    pub async fn get_domains(&self, _organization_id: &Uuid) -> Result<Vec<String>> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization domain operations not yet available in storage crate",
-        ))
+    pub async fn get_domains(&self, organization_id: &Uuid) -> Result<Vec<String>> {
+        let domains = organizations::get_domains(&self.db, *organization_id).await?;
+        Ok(domains.into_iter().map(|d| d.domain).collect())
     }
 
     /// Link identity provider to organization
     pub async fn link_identity_provider(
         &self,
-        _organization_id: &Uuid,
-        _identity_provider_id: &Uuid,
-        _priority: i32,
+        organization_id: &Uuid,
+        identity_provider_id: &Uuid,
+        priority: i32,
     ) -> Result<()> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization identity provider operations not yet available in storage crate",
-        ))
+        organizations::link_identity_provider(&self.db, *organization_id, *identity_provider_id, priority).await
     }
 
     /// Unlink identity provider from organization
     pub async fn unlink_identity_provider(
         &self,
-        _organization_id: &Uuid,
-        _identity_provider_id: &Uuid,
+        organization_id: &Uuid,
+        identity_provider_id: &Uuid,
     ) -> Result<()> {
-        // TODO: Implement when operations::organizations is available in authenc-storage
-        Err(AuthencError::database(
-            "Organization identity provider operations not yet available in storage crate",
-        ))
+        organizations::unlink_identity_provider(&self.db, *organization_id, *identity_provider_id).await
     }
 
     /// Generate secure invitation token

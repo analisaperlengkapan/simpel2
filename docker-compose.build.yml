@@ -25,30 +25,16 @@ services:
   # Backend Services (Layanan)
   # =====================================================
 
-  layanan-portal:
-    build:
-      context: .
-      dockerfile: layanan/daskrimti/portal/Dockerfile
-    image: localhost:32000/simpelv2/layanan-portal:latest
-
   layanan-integrasi:
     build:
       context: .
-      dockerfile: layanan/daskrimti/integrasi/Dockerfile
-      target: cli
+      dockerfile: layanan/integrasi/Dockerfile
     image: localhost:32000/simpelv2/layanan-integrasi:latest
-
-  layanan-integrasi-grpc:
-    build:
-      context: .
-      dockerfile: layanan/daskrimti/integrasi/Dockerfile
-      target: grpc
-    image: localhost:32000/simpelv2/layanan-integrasi-grpc:latest
 
   layanan-perlengkapan:
     build:
       context: .
-      dockerfile: layanan/pembinaan/perlengkapan/Dockerfile
+      dockerfile: layanan/perlengkapan/Dockerfile
     image: localhost:32000/simpelv2/layanan-perlengkapan:latest
 
   # =====================================================
@@ -58,13 +44,13 @@ services:
   portal:
     build:
       context: .
-      dockerfile: antarmuka/daskrimti/portal/Dockerfile
+      dockerfile: antarmuka/portal/Dockerfile
     image: localhost:32000/simpelv2/portal:latest
 
   perlengkapan:
     build:
       context: .
-      dockerfile: antarmuka/pembinaan/perlengkapan/Dockerfile
+      dockerfile: antarmuka/perlengkapan/Dockerfile
     image: localhost:32000/simpelv2/perlengkapan:latest
 
 # Build Commands:
@@ -74,7 +60,6 @@ services:
 # Push all:      docker compose -f docker-compose.build.yml push
 # Push one:      docker compose -f docker-compose.build.yml push authenc
 #
-# Build order (if dependencies matter):
-# 1. docker compose -f docker-compose.build.yml build secreton authenc
-# 2. docker compose -f docker-compose.build.yml build layanan-portal layanan-perlengkapan
-# 3. docker compose -f docker-compose.build.yml build portal perlengkapan
+# Tag for staging:
+#   docker tag localhost:32000/simpelv2/authenc:latest localhost:32000/simpelv2/authenc:stag
+#   docker push localhost:32000/simpelv2/authenc:stag

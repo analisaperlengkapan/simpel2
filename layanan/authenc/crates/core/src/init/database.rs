@@ -30,12 +30,10 @@ pub async fn initialize_database(config: &AppConfig) -> Result<Arc<authenc_stora
 ///
 /// Sets up the PostgreSQL-backed audit log storage.
 pub async fn initialize_audit_store(
-    config: &AppConfig,
+    database: Arc<authenc_storage::Database>,
 ) -> Result<Arc<crate::services::pg_audit_log_store::PgAuditLogStore>> {
     let audit_log_store = Arc::new(
-        crate::services::pg_audit_log_store::PgAuditLogStore::new(&config.database_url())
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to init audit store: {}", e)))?,
+        crate::services::pg_audit_log_store::PgAuditLogStore::new(database)
     );
     Ok(audit_log_store)
 }

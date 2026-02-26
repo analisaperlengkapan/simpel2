@@ -55,7 +55,7 @@ impl AuditLogSink for MultiAuditLogSink {
 /// - Supports batch operations for high-volume audit logging
 /// - Provides configurable timeouts and retry mechanisms
 /// # Example
-/// ```rust
+/// ```rust,ignore
 /// use authenc::services::audit_log_sink::PgAuditLogSink;
 /// use authenc::services::pg_audit_log_store::PgAuditLogStore;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {

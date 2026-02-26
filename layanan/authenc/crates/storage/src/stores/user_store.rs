@@ -51,8 +51,7 @@ impl UserStore for PostgresUserStore {
         debug!("Getting user by ID: {}", id);
 
         let query = r#"
-            SELECT id, username, email, password_hash, enabled, email_verified,
-                   mfa_enabled, realm_id, created_at, updated_at
+            SELECT *
             FROM users
             WHERE id = $1
         "#;
@@ -69,8 +68,7 @@ impl UserStore for PostgresUserStore {
         );
 
         let query = r#"
-            SELECT id, username, email, password_hash, enabled, email_verified,
-                   mfa_enabled, realm_id, created_at, updated_at
+            SELECT *
             FROM users
             WHERE username = $1 AND realm_id = $2
         "#;
@@ -84,8 +82,7 @@ impl UserStore for PostgresUserStore {
         debug!("Getting user by email: {} in realm: {}", email, realm_id);
 
         let query = r#"
-            SELECT id, username, email, password_hash, enabled, email_verified,
-                   mfa_enabled, realm_id, created_at, updated_at
+            SELECT *
             FROM users
             WHERE email = $1 AND realm_id = $2
         "#;
@@ -278,8 +275,7 @@ impl UserStore for PostgresUserStore {
         );
 
         let query = r#"
-            SELECT id, username, email, password_hash, enabled, email_verified,
-                   mfa_enabled, realm_id, created_at, updated_at
+            SELECT *
             FROM users
             WHERE realm_id = $1
             ORDER BY created_at DESC
@@ -333,52 +329,52 @@ impl UserStore for PostgresUserStore {
 }
 
 /// Convert a database row to a User struct
-/// TODO: This needs to be properly implemented with all User fields
-/// For now, we create a minimal User struct for compilation
 fn row_to_user(row: Row) -> Result<User> {
     use authenc_types::{Permission, Role, SecurityContext};
+
+    let satker_code: Option<String> = row.try_get("satker_code").ok();
 
     Ok(User {
         id: row.get("id"),
         username: row.get("username"),
         email: row.get("email"),
-        email_verified: row.get("email_verified"),
+        email_verified: row.try_get("email_verified").unwrap_or(false),
         first_name: row.try_get("first_name").ok(),
         last_name: row.try_get("last_name").ok(),
         nip: row.try_get("nip").ok(),
         nama: row.try_get("nama").ok(),
         jabatan: row.try_get("jabatan").ok(),
-        satker_code: row.try_get("satker_code").unwrap_or_default(),
+        satker_code: satker_code.unwrap_or_default(),
         phone_number: row.try_get("phone_number").ok(),
-        phone_verified: false,
-        password_hash: row.get("password_hash"),
-        totp_secret: None,
-        totp_backup_codes: None,
-        mfa_enabled: row.get("mfa_enabled"),
-        mfa_setup_at: None,
-        mfa_last_used: None,
-        webauthn_enabled: false,
-        account_locked: false,
-        account_locked_until: None,
-        failed_login_attempts: 0,
-        last_login_at: None,
-        last_failed_login_at: None,
-        password_changed_at: None,
-        password_expires_at: None,
-        require_password_change: false,
-        realm_id: row.get("realm_id"),
-        organization_id: None,
-        roles: Vec::new(),
+        phone_verified: row.try_get("phone_verified").unwrap_or(false),
+        password_hash: row.try_get("password_hash").ok(),
+        totp_secret: row.try_get("totp_secret").ok(),
+        totp_backup_codes: row.try_get("totp_backup_codes").ok(),
+        mfa_enabled: row.try_get("mfa_enabled").unwrap_or(false),
+        mfa_setup_at: row.try_get("mfa_setup_at").ok(),
+        mfa_last_used: row.try_get("mfa_last_used").ok(),
+        webauthn_enabled: row.try_get("webauthn_enabled").unwrap_or(false),
+        account_locked: row.try_get("account_locked").unwrap_or(false),
+        account_locked_until: row.try_get("account_locked_until").ok(),
+        failed_login_attempts: row.try_get("failed_login_attempts").unwrap_or(0),
+        last_login_at: row.try_get("last_login_at").ok(),
+        last_failed_login_at: row.try_get("last_failed_login_at").ok(),
+        password_changed_at: row.try_get("password_changed_at").ok(),
+        password_expires_at: row.try_get("password_expires_at").ok(),
+        require_password_change: row.try_get("require_password_change").unwrap_or(false),
+        realm_id: row.try_get("realm_id").ok(),
+        organization_id: row.try_get("organization_id").ok(),
+        roles: Vec::new(), // TODO: Load from roles/user_roles tables when full domain model exists
         permissions: Vec::new(),
-        session_data: None,
+        session_data: None, // Session data usually loaded separately where needed
         security_context: SecurityContext::default(),
-        attributes: None,
-        enabled: row.get("enabled"),
-        federated: false,
+        attributes: row.try_get("attributes").ok(),
+        enabled: row.try_get("enabled").unwrap_or(true),
+        federated: row.try_get("federated").unwrap_or(false),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
-        deleted_at: None,
-        login_count: 0,
+        deleted_at: row.try_get("deleted_at").ok(),
+        login_count: row.try_get("login_count").unwrap_or(0),
     })
 }
 

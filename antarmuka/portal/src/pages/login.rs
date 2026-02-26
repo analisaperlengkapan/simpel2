@@ -214,14 +214,19 @@ pub fn LoginPage(
             <div class="max-w-md mx-auto">
                 // Logo dan Header
                 <div class="text-center mb-6">
-                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-red-600 to-red-700 rounded-full shadow-lg mb-3">
-                        <span class="text-3xl">"⚖️"</span>
+                    <div class="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-4 animate-float">
+                        <div class="absolute inset-0 bg-gold-400/20 blur-2xl rounded-full"></div>
+                        <img
+                            src="/portal/assets/kejaksaan-logo.png"
+                            alt="Logo Kejaksaan RI"
+                            class="relative w-full h-full object-contain drop-shadow-xl"
+                        />
                     </div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-                        "Portal SIMPEL"
+                    <h1 class="text-2xl font-bold text-white">
+                        "Masuk ke " <span class="text-gold-400">"SIMPEL"</span>
                     </h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        "Kejaksaan Republik Indonesia"
+                    <p class="text-sm text-slate-400">
+                        "Kejaksaan Agung Republik Indonesia"
                     </p>
                 </div>
 
@@ -261,19 +266,19 @@ pub fn LoginPage(
                             </p>
                         </div>
 
-                        // Divider
-                        <div class="relative my-5">
+                        // Divider and Toggle
+                        <div class="relative my-6">
                             <div class="absolute inset-0 flex items-center">
                                 <div class="w-full border-t border-gray-200 dark:border-gray-700"></div>
                             </div>
-                            <div class="relative flex justify-center text-xs">
+                            <div class="relative flex justify-center">
                                 <button
                                     type="button"
                                     on:click=move |_| set_show_password_form.set(!show_password_form.get())
-                                    class="bg-white dark:bg-gray-800 px-3 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                                    class="bg-white dark:bg-gray-800 px-4 py-1.5 text-sm font-medium text-gold-600 dark:text-gold-400 border border-gold-300 dark:border-gold-600/50 rounded-full shadow-sm hover:bg-gold-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                 >
                                     {move || if show_password_form.get() {
-                                        "Sembunyikan login password"
+                                        "Tutup login password"
                                     } else {
                                         "Atau masuk dengan password"
                                     }}
@@ -300,7 +305,7 @@ pub fn LoginPage(
                                 type="text"
                                 id="username"
                                 name="username"
-                                class="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                class="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-navy-600 rounded-xl focus:ring-2 focus:ring-navy-500 focus:border-navy-500 dark:focus:ring-gold-500 dark:focus:border-gold-500 bg-white dark:bg-navy-700 dark:text-white transition-colors"
                                 placeholder="Masukkan username"
                                 prop:value=move || username.get()
                                 on:input=move |ev| set_username.set(event_target_value(&ev))
@@ -345,9 +350,9 @@ pub fn LoginPage(
                             class=move || format!(
                                 "w-full py-3 px-6 text-sm font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed {}",
                                 if captcha_token.get().is_none() {
-                                    "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                                    "bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed"
                                 } else {
-                                    "bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl focus:ring-red-500"
+                                    "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-navy-900 shadow-lg hover:shadow-xl focus:ring-gold-500"
                                 }
                             )
                             disabled=move || is_loading.get() || captcha_token.get().is_none()
@@ -372,11 +377,11 @@ pub fn LoginPage(
                             </Show>
                         </button>
 
-                        // Forgot Password
-                        <div class="text-center pt-2">
-                            <a href="/portal/password-reset" class="text-sm text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 font-medium transition-colors">
-                                "Lupa Password?"
-                            </a>
+                        // Info: Admin-only password reset
+                        <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                            <p class="text-xs text-blue-700 dark:text-blue-400 text-center">
+                                "Lupa password? Hubungi administrator unit kerja Anda."
+                            </p>
                         </div>
                     </form>
                     </div> // end password form wrapper

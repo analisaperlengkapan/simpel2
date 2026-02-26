@@ -1,0 +1,37 @@
+[build]
+target = "index.html"
+dist = "dist"
+release = true
+wasm_opt = false
+public_url = "/portal/"
+
+# Advanced wasm-bindgen configuration
+[build.wasm-bindgen]
+target = "web"
+typescript = false                 # Disable TS generation for smaller bundles
+debug = false                      # No debug in production
+demangle = false                   # No name demangling for size
+keep-debug = false                 # Remove debug info
+no-modules-global = "wasm_bindgen"
+reference-types = true             # Enable reference types for smaller code
+weak-refs = true                   # Enable weak references
+
+# Tree shaking and optimization
+[build.rust]
+optimization-level = "z" # Maximum size optimization for code splitting
+debug = false
+lto = true
+codegen-units = 1        # Single codegen unit for better optimization
+
+# Server configuration - NO AUTO RELOAD
+[serve]
+port = 8080
+open = false
+
+[build.public-assets]
+sources = ["styles/*.css", "../shared/styles/*.css"]
+output-dir = "assets"
+
+[build.public-files]
+copy-to = "assets/"
+sources = ["assets/*"]

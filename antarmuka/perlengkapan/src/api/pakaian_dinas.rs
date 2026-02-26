@@ -305,7 +305,7 @@ pub async fn fetch_jenis_pakaian_dinas(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<JenisPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -351,7 +351,7 @@ pub async fn fetch_jenis_pakaian_dinas(
 pub async fn create_jenis_pakaian_dinas(
     request: CreateJenisPakaianDinasRequest,
 ) -> Result<ApiResponse<JenisPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pakaian-dinas/jenis";
@@ -387,7 +387,7 @@ pub async fn update_jenis_pakaian_dinas(
     id: String,
     request: UpdateJenisPakaianDinasRequest,
 ) -> Result<ApiResponse<JenisPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!("/api/pembinaan/perlengkapan/pakaian-dinas/jenis/{}", id);
@@ -421,7 +421,7 @@ pub async fn update_jenis_pakaian_dinas(
 
 #[cfg(target_arch = "wasm32")]
 pub async fn delete_jenis_pakaian_dinas(id: String) -> Result<ApiResponse<()>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!("/api/pembinaan/perlengkapan/pakaian-dinas/jenis/{}", id);
@@ -457,7 +457,7 @@ pub async fn fetch_spesifikasi_pakaian(
     per_page: i32,
     jenis_id: Option<String>,
 ) -> Result<PaginatedResponse<SpesifikasiPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = format!(
@@ -507,7 +507,7 @@ pub async fn fetch_spesifikasi_pakaian(
 pub async fn create_spesifikasi_pakaian(
     request: CreateSpesifikasiRequest,
 ) -> Result<ApiResponse<SpesifikasiPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pakaian-dinas/spesifikasi";
@@ -543,7 +543,7 @@ pub async fn update_spesifikasi_pakaian(
     id: String,
     request: UpdateSpesifikasiRequest,
 ) -> Result<ApiResponse<SpesifikasiPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -580,7 +580,7 @@ pub async fn update_spesifikasi_pakaian(
 
 #[cfg(target_arch = "wasm32")]
 pub async fn delete_spesifikasi_pakaian(id: String) -> Result<ApiResponse<()>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -619,7 +619,7 @@ pub async fn fetch_subspesifikasi_pakaian(
     per_page: i32,
     spesifikasi_id: Option<String>,
 ) -> Result<PaginatedResponse<SubSpesifikasiPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = format!(
@@ -669,7 +669,7 @@ pub async fn fetch_subspesifikasi_pakaian(
 pub async fn create_subspesifikasi_pakaian(
     request: CreateSubSpesifikasiRequest,
 ) -> Result<ApiResponse<SubSpesifikasiPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pakaian-dinas/subspesifikasi";
@@ -706,7 +706,7 @@ pub async fn create_subspesifikasi_pakaian(
 pub async fn fetch_master_ukuran(
     group: Option<String>,
 ) -> Result<ApiResponse<Vec<Ukuran>>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = "/api/pembinaan/perlengkapan/pakaian-dinas/ukuran".to_string();
@@ -751,7 +751,7 @@ pub async fn fetch_pengajuan_pakaian_dinas(
     per_page: i32,
     tahun: Option<i32>,
 ) -> Result<PaginatedResponse<PengajuanPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = format!(
@@ -801,7 +801,7 @@ pub async fn fetch_pengajuan_pakaian_dinas(
 pub async fn create_pengajuan_pakaian_dinas(
     request: CreatePengajuanPakaianDinasRequest,
 ) -> Result<ApiResponse<PengajuanPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pakaian-dinas/pengajuan";
@@ -836,7 +836,7 @@ pub async fn create_pengajuan_pakaian_dinas(
 pub async fn delete_pengajuan_pakaian_dinas(
     id: String,
 ) -> Result<ApiResponse<()>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!("/api/pembinaan/perlengkapan/pakaian-dinas/pengajuan/{}", id);
@@ -872,7 +872,7 @@ pub async fn fetch_pengajuan_satker(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<PengajuanSatkerWithActivities>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -919,7 +919,7 @@ pub async fn fetch_pengajuan_satker(
 pub async fn process_validator_action(
     request: ValidatorActionRequest,
 ) -> Result<ApiResponse<PengajuanSatker>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pakaian-dinas/validator-action";
@@ -956,7 +956,7 @@ pub async fn process_validator_action(
 pub async fn fetch_pegawai_ukuran(
     pegawai_id: String,
 ) -> Result<ApiResponse<Option<PegawaiPakaianDinas>>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -997,7 +997,7 @@ pub async fn fetch_pegawai_ukuran(
 pub async fn upsert_pegawai_ukuran(
     request: UpsertPegawaiUkuranRequest,
 ) -> Result<ApiResponse<PegawaiPakaianDinas>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pakaian-dinas/ukuran-pakaian-pegawai";
@@ -1036,7 +1036,7 @@ pub async fn fetch_pegawai_by_satker(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<MysimkariPegawai>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -1085,7 +1085,7 @@ pub async fn fetch_pegawai_with_sizes(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<PegawaiWithSizes>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
@@ -1134,7 +1134,7 @@ pub async fn fetch_pegawai_with_sizes(
 pub async fn fetch_laporan_rekap_ukuran(
     query: LaporanQuery,
 ) -> Result<ApiResponse<Vec<LaporanRekapUkuran>>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/rekap-ukuran".to_string();
@@ -1196,7 +1196,7 @@ pub async fn fetch_laporan_daftar_pegawai(
     page: i32,
     per_page: i32,
 ) -> Result<PaginatedResponse<LaporanDaftarPegawai>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = format!(

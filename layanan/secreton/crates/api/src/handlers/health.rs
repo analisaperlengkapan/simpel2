@@ -419,7 +419,7 @@ async fn check_crypto_health(state: &AppState) -> HealthCheck {
 
     // Test encryption/decryption with the crypto service
     let test_data = b"health_check_test_data";
-    let test_key = b"test_key_32_bytes_for_health_01";
+    let test_key = b"test_key_32_bytes_for_health_01_";
 
     let (status, message, mut details_map) =
         match state

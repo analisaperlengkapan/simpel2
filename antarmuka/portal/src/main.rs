@@ -1,32 +1,16 @@
-#![recursion_limit = "1024"]
+#![recursion_limit = "256"]
+//! # SIMPEL Portal — Entry Point
 
-//! Portal SIMPEL - Main Entry Point
-//!
-//! This is the main entry point for the portal application.
-//! For CSR (Client-Side Rendering) with Trunk, this file is optional
-//! as the WASM module is loaded directly from index.html.
-//!
-//! However, we include it for:
-//! - Consistency with Rust project structure
-//! - Potential SSR (Server-Side Rendering) support in the future
-//! - Better IDE support and tooling
+use portal_microfrontend::app::App;
 
 fn main() {
-    // This main function is not used in CSR mode with Trunk
-    // The actual entry point is in lib.rs with #[wasm_bindgen(start)]
-    // or through Trunk's automatic WASM initialization
+    // Set up panic hook for better error messages in WASM
+    console_error_panic_hook::set_once();
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        eprintln!("This application is designed to run in a web browser via WebAssembly.");
-        eprintln!("Please use 'trunk serve' to run the development server.");
-        std::process::exit(1);
-    }
+    // Initialize logging
+    let _ = console_log::init_with_level(log::Level::Debug);
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        // For WASM target, mount the Leptos app
-        console_error_panic_hook::set_once();
-        leptos::mount::mount_to_body(portal_microfrontend::App);
-    }
+    log::info!("🚀 Portal SIMPEL starting...");
+
+    leptos::mount::mount_to_body(App);
 }

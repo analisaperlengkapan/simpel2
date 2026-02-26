@@ -48,7 +48,7 @@ pub fn Navbar(
     };
 
     view! {
-        <nav class="bg-gradient-to-r from-red-600 via-red-500 to-orange-500 dark:from-red-800 dark:to-red-900 shadow-2xl sticky top-0 z-50 backdrop-blur-lg bg-opacity-95" role="navigation" aria-label="Navigasi utama">
+        <nav class="bg-gradient-to-r from-red-600 via-red-500 to-orange-500 dark:from-red-800 dark:to-red-900 shadow-2xl sticky top-0 z-50" role="navigation" aria-label="Navigasi utama">
             // Subtle top border for depth
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-red-400 to-pink-400"></div>
 
@@ -81,7 +81,7 @@ pub fn Navbar(
                             <>
                                 <a
                                     href="/portal/dashboard"
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:bg-white/20 transition-all duration-200 font-medium backdrop-blur-sm"
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:bg-white/20 transition-all duration-200 font-medium"
                                 >
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -90,7 +90,7 @@ pub fn Navbar(
                                 </a>
                                 <a
                                     href="/portal/apps"
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:bg-white/20 transition-all duration-200 font-medium backdrop-blur-sm"
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:bg-white/20 transition-all duration-200 font-medium"
                                 >
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
@@ -111,7 +111,7 @@ pub fn Navbar(
                         // Theme Toggle - Enhanced
                         <button
                             on:click=handle_theme_toggle
-                            class="p-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200 backdrop-blur-sm group"
+                            class="p-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200 group"
                             title="Toggle Theme"
                             aria-label="Toggle dark mode"
                         >
@@ -129,7 +129,7 @@ pub fn Navbar(
                         {user_session.as_ref().map(|_| view! {
                             <a
                                 href="/portal/settings"
-                                class="p-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200 backdrop-blur-sm group"
+                                class="p-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200 group"
                                 title="Pengaturan"
                                 aria-label="Pengaturan"
                             >
@@ -143,13 +143,13 @@ pub fn Navbar(
                         {user_session.clone().map(|session| view! {
                             <>
                                 // User Info - Simplified
-                                <div class="hidden md:flex items-center space-x-3 px-3 py-2 rounded-xl text-white bg-white/10 backdrop-blur-sm">
+                                <div class="hidden md:flex items-center space-x-3 px-3 py-2 rounded-xl text-white bg-white/10">
                                     <div class="text-right">
                                         <p class="text-sm font-semibold">{session.name}</p>
                                         <p class="text-xs text-red-100">{session.role.display_name()}</p>
                                     </div>
                                     <div class="relative">
-                                        <div class="w-10 h-10 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/50">
+                                        <div class="w-10 h-10 bg-white/30 rounded-full flex items-center justify-center border-2 border-white/50">
                                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
                                             </svg>
@@ -177,7 +177,7 @@ pub fn Navbar(
                         // Mobile Menu Toggle Button
                         <button
                             on:click=move |_| set_mobile_open.update(|v| *v = !*v)
-                            class="lg:hidden p-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200 backdrop-blur-sm"
+                            class="lg:hidden p-2.5 rounded-xl text-white hover:bg-white/20 transition-all duration-200"
                             aria-label="Buka menu navigasi"
                             aria-expanded=move || if mobile_open.get() { "true" } else { "false" }
                         >
@@ -198,7 +198,7 @@ pub fn Navbar(
 
             // Mobile Navigation Drawer (CSS-toggled, no <Show> to avoid Send+Sync)
             <div class=move || format!(
-                "lg:hidden border-t border-white/20 bg-red-700/95 dark:bg-red-900/95 backdrop-blur-lg transition-all duration-300 overflow-hidden {}",
+                "lg:hidden border-t border-white/20 bg-red-700 dark:bg-red-900 transition-all duration-300 overflow-hidden {}",
                 if mobile_open.get() { "max-h-screen opacity-100" } else { "max-h-0 opacity-0" }
             )>
                 <div class="container mx-auto px-4 py-4 space-y-2">

@@ -136,7 +136,7 @@ impl SessionStore for PostgresSessionStore {
         debug!("Getting session by ID: {}", id);
 
         let query = r#"
-            SELECT id, user_id, created_at, expires_at, last_activity_at
+            SELECT *
             FROM sessions
             WHERE id = $1
         "#;
@@ -238,7 +238,7 @@ impl SessionStore for PostgresSessionStore {
         let idle_deadline = now - Duration::minutes(self.idle_timeout_minutes);
 
         let query = r#"
-            SELECT id, user_id, created_at, expires_at, last_activity_at
+            SELECT *
             FROM sessions
             WHERE user_id = $1
               AND expires_at > $2
@@ -276,17 +276,16 @@ impl SessionStore for PostgresSessionStore {
 }
 
 /// Convert a database row to a Session struct
-/// TODO: This needs to be properly implemented with all Session fields
 fn row_to_session(row: Row) -> Result<Session> {
     Ok(Session {
         id: row.get("id"),
         user_id: row.get("user_id"),
-        token: row.try_get("token").unwrap_or_default(),
-        refresh_token: row.try_get("refresh_token").ok(),
+        token: row.try_get::<_, String>("token_hash").unwrap_or_default(),
+        refresh_token: row.try_get("refresh_token_hash").ok(),
         expires_at: row.get("expires_at"),
         created_at: row.get("created_at"),
         last_accessed: row.get("last_activity_at"), // Note: DB column is last_activity_at
-        ip_address: row.try_get("ip_address").ok(),
+        ip_address: row.try_get::<_, std::net::IpAddr>("ip_address").map(|ip| ip.to_string()).ok(),
         user_agent: row.try_get("user_agent").ok(),
         revoked: row.try_get("revoked").unwrap_or(false),
         mfa_verified: row.try_get("mfa_verified").unwrap_or(false),

@@ -4,6 +4,10 @@
 //! for passkey registration and authentication from WASM.
 
 use serde::{Deserialize, Serialize};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
 
 /// WebAuthn credential creation options (simplified for JSON transport)
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -57,9 +61,13 @@ pub struct AuthenticationResponse {
 pub fn is_webauthn_supported() -> bool {
     #[cfg(target_arch = "wasm32")]
     {
-        web_sys::window()
-            .and_then(|w| w.navigator().credentials().ok())
-            .is_some()
+        if let Some(window) = web_sys::window() {
+            let nav = window.navigator();
+            if let Ok(creds) = js_sys::Reflect::get(&wasm_bindgen::JsValue::from(nav), &wasm_bindgen::JsValue::from_str("credentials")) {
+                return !creds.is_undefined() && !creds.is_null();
+            }
+        }
+        false
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -70,8 +78,6 @@ pub fn is_webauthn_supported() -> bool {
 /// Check if platform authenticator (biometrics) is available
 #[cfg(target_arch = "wasm32")]
 pub async fn is_platform_authenticator_available() -> bool {
-    use wasm_bindgen_futures::JsFuture;
-
     let result: Result<bool, _> = async {
         let window = web_sys::window().ok_or("No window")?;
         let nav = window.navigator();
@@ -83,9 +89,9 @@ pub async fn is_platform_authenticator_available() -> bool {
         );
         // Fallback: just check if the API exists
         if promise.is_err() {
-            return Ok(false);
+            return Ok::<bool, String>(false);
         }
-        Ok(true)
+        Ok::<bool, String>(true)
     }
     .await;
     result.unwrap_or(false)
@@ -99,9 +105,6 @@ pub async fn is_platform_authenticator_available() -> bool {
 pub async fn create_credential(
     options_json: &serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    use js_sys::{Array, JSON, Object, Uint8Array};
-    use wasm_bindgen_futures::JsFuture;
-
     // We need to call navigator.credentials.create() with proper ArrayBuffer types.
     // The server sends base64url-encoded values that need converting.
 

@@ -64,7 +64,7 @@ lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"
 lib-perlengkapan = { workspace = true, features = ["backend"] }
 
 # Internal perlengkapan crates
-layanan-perlengkapan-integrasi = { path = "../integrasi" }
+layanan-perlengkapan-integrasi = { package = "layanan-integrasi", path = "../../../integrasi" }
 
 # gRPC
 tonic = { workspace = true }

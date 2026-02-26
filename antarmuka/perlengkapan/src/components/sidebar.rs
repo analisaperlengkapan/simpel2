@@ -1,202 +1,194 @@
-use crate::components::role_switcher::get_active_role;
-use crate::components::sidebar_section::{MenuItem, SidebarSection};
+//! Sidebar — dark navy Kejaksaan-branded navigation.
+//!
+//! Menu structure:
+//!   Dashboard (single link)
+//!   Bank Aset (Daftar Aset, Cetak QR)
+//!   Kebutuhan BMN (Daftar, Buat Baru, Laporan)
+//!   Pakaian Dinas (Jenis, Pengajuan, Ukuran, Laporan)
+//!   Pengelolaan BMN (Pemakaian BMN, Penghapusan)
+//!   Analitik (Roadmap Sarpras, Kodefikasi BMN)
+//!   Admin (Pengguna, Otorisasi, Audit Log, Master Data)
+//!   Bantuan (Panduan, FAQ, Helpdesk)
+
 use leptos::prelude::*;
 
-/// All four perlengkapan roles as string slices for convenience
-const ALL_ROLES: &[&str] = &[
-    "operator_satker",
-    "validator_wilayah",
-    "validator_pusat",
-    "admin",
-];
-
-fn roles(keys: &[&str]) -> Vec<String> {
-    keys.iter().map(|s| s.to_string()).collect()
-}
+// ══════════════════════════════════════════════════════════════════════
+// Helper: section header
+// ══════════════════════════════════════════════════════════════════════
 
 #[component]
-pub fn Sidebar(
-    /// Sidebar open state signal
-    sidebar_open: RwSignal<bool>,
-) -> impl IntoView {
-    let active_role = get_active_role();
+fn SectionHeader(label: &'static str) -> impl IntoView {
+    view! {
+        <div style="padding: 16px 18px 6px; font-size: 0.6rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.1em;">
+            {label}
+        </div>
+    }
+}
 
-    // Reactive signals for collapsible sections
-    let dashboard_rw = RwSignal::new(false);
-    let bank_aset_rw = RwSignal::new(false);
-    let kebutuhan_bmn_rw = RwSignal::new(false);
-    let pemakaian_bmn_rw = RwSignal::new(false);
-    let pengelolaan_bmn_rw = RwSignal::new(false);
-    let pakaian_dinas_rw = RwSignal::new(false);
-    let pemeliharaan_rw = RwSignal::new(false);
-    let admin_rw = RwSignal::new(false);
-    let bantuan_rw = RwSignal::new(false);
+// ══════════════════════════════════════════════════════════════════════
+// Helper: single nav link
+// ══════════════════════════════════════════════════════════════════════
+
+#[component]
+fn NavLink(
+    href: &'static str,
+    icon: &'static str,
+    label: &'static str,
+    #[prop(default = false)] gold: bool,
+) -> impl IntoView {
+    let icon_color = if gold { "#d4a843" } else { "#64748b" };
+    view! {
+        <a
+            href=href
+            style=format!(
+                "display: flex; align-items: center; gap: 10px; padding: 8px 18px; text-decoration: none; font-size: 0.8rem; color: #94a3b8; transition: all 0.15s; border-left: 2px solid transparent;"
+            )
+            class="hover:bg-white/[0.04] hover:text-white hover:border-l-gold-400"
+        >
+            <i class=icon style=format!("font-size: 0.7rem; color: {}; width: 18px; text-align: center;", icon_color)></i>
+            <span>{label}</span>
+        </a>
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Helper: collapsible section with sub-links
+// ══════════════════════════════════════════════════════════════════════
+
+#[component]
+fn NavSection(
+    icon: &'static str,
+    label: &'static str,
+    accent: &'static str,
+    children: Children,
+) -> impl IntoView {
+    let is_open = RwSignal::new(false);
 
     view! {
-        // Sidebar panel – fixed left on large screens, slide-over on mobile
+        <div>
+            <button
+                on:click=move |_| is_open.update(|o| *o = !*o)
+                style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 18px; border: none; background: none; color: #94a3b8; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; text-align: left;"
+                class="hover:bg-white/[0.04] hover:text-white"
+            >
+                <i class=icon style=format!("font-size: 0.72rem; color: {}; width: 18px; text-align: center;", accent)></i>
+                <span style="flex: 1;">{label}</span>
+                <i class="fas fa-chevron-right" style=move || format!(
+                    "font-size: 0.55rem; color: #475569; transition: transform 0.2s; transform: rotate({}deg);",
+                    if is_open.get() { 90 } else { 0 }
+                )></i>
+            </button>
+            <div style=move || format!(
+                "overflow: hidden; transition: max-height 0.25s ease; max-height: {};",
+                if is_open.get() { "500px" } else { "0" }
+            )>
+                <div style="padding-left: 14px; border-left: 1px solid rgba(255,255,255,0.05); margin-left: 27px;">
+                    {children()}
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Sidebar component
+// ══════════════════════════════════════════════════════════════════════
+
+#[component]
+pub fn Sidebar(sidebar_open: RwSignal<bool>) -> impl IntoView {
+    view! {
         <div
             class=move || format!(
-                "fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 shadow-xl transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 flex flex-col {}",
+                "transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 {}",
                 if sidebar_open.get() { "translate-x-0" } else { "-translate-x-full" }
             )
+            style="position: fixed; inset-y: 0; left: 0; z-index: 40; width: 250px; background: linear-gradient(180deg, #0c1425 0%, #0f172a 40%, #0c1425 100%); border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; overflow: hidden;"
         >
-            // Brand header
-            <div class="px-5 py-4 border-b border-white/10 flex-shrink-0">
-                <a href="/perlengkapan/dashboard" class="flex items-center gap-3 group">
-                    <div class="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-                        <span class="text-white text-sm">"⚖️"</span>
-                    </div>
+            // ── Brand ────────────────────────────────────────────
+            <div style="padding: 20px 18px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <a href="/perlengkapan/dashboard" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
+                    <img
+                        src="/perlengkapan/assets/kejaksaan-logo.png"
+                        alt="Kejaksaan RI"
+                        style="width: 36px; height: 36px; object-fit: contain;"
+                    />
                     <div>
-                        <h1 class="text-sm font-bold text-white leading-none tracking-tight">"SIMPEL"</h1>
-                        <p class="text-[10px] text-gray-400 leading-none mt-0.5">"Perlengkapan"</p>
+                        <div style="font-size: 1rem; font-weight: 800; color: #ffffff; letter-spacing: 0.03em; line-height: 1;">"SIMPEL"</div>
+                        <div style="font-size: 0.6rem; color: #64748b; margin-top: 2px; letter-spacing: 0.05em; text-transform: uppercase;">"Manajemen Perlengkapan"</div>
                     </div>
                 </a>
             </div>
 
-            // Scrollable nav
-            <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Menu utama perlengkapan">
-                // ── Dashboard ── all roles
-                <SidebarSection
-                    title="Dashboard".to_string()
-                    icon=r#"<i class="fas fa-home text-gray-400"></i>"#.to_string()
-                    is_expanded=dashboard_rw
-                    allowed_roles=roles(ALL_ROLES)
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard", "Ringkasan"),
-                    ]
-                />
+            // ── Navigation ───────────────────────────────────────
+            <nav style="flex: 1; overflow-y: auto; padding: 8px 0;">
 
-                // ── Bank Aset ── all roles
-                <SidebarSection
-                    title="Bank Aset".to_string()
-                    icon=r#"<i class="fas fa-boxes text-red-400"></i>"#.to_string()
-                    is_expanded=bank_aset_rw
-                    allowed_roles=roles(ALL_ROLES)
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard/bank-aset/daftar", "Daftar Aset"),
-                        MenuItem::new("/perlengkapan/dashboard/bank-aset/peta", "Peta Sebaran"),
-                        MenuItem::new("/perlengkapan/dashboard/bank-aset/qr-code", "Cetak QR Code"),
-                    ]
-                />
+                // Dashboard (single link, gold accent)
+                <div style="padding: 2px 0 6px;">
+                    <NavLink href="/perlengkapan/dashboard" icon="fas fa-home" label="Dashboard" gold=true />
+                </div>
 
-                // ── Kebutuhan BMN ── all roles
-                <SidebarSection
-                    title="Kebutuhan BMN".to_string()
-                    icon=r#"<i class="fas fa-clipboard-list text-orange-400"></i>"#.to_string()
-                    is_expanded=kebutuhan_bmn_rw
-                    allowed_roles=roles(ALL_ROLES)
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard/kebutuhan-bmn/dashboard", "Dashboard"),
-                        MenuItem::new("/perlengkapan/dashboard/kebutuhan-bmn/daftar", "Daftar Kebutuhan"),
-                        MenuItem::new("/perlengkapan/dashboard/kebutuhan-bmn/baru", "Buat Baru"),
-                    ]
-                />
+                <div style="border-bottom: 1px solid rgba(255,255,255,0.04); margin: 4px 18px;"></div>
 
-                // ── Pemakaian BMN ── all roles
-                <SidebarSection
-                    title="Pemakaian BMN".to_string()
-                    icon=r#"<i class="fas fa-file-signature text-blue-400"></i>"#.to_string()
-                    is_expanded=pemakaian_bmn_rw
-                    allowed_roles=roles(ALL_ROLES)
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard/pemakaian-bmn/daftar", "Daftar Pemakaian"),
-                        MenuItem::new("/perlengkapan/dashboard/pemakaian-bmn/baru", "Buat Pengajuan"),
-                    ]
-                />
+                // ── Modul Utama ───────────────────────────────────
+                <SectionHeader label="MODUL UTAMA" />
 
-                // ── Pengelolaan BMN ── validator_wilayah, validator_pusat, admin
-                <SidebarSection
-                    title="Pengelolaan BMN".to_string()
-                    icon=r#"<i class="fas fa-cogs text-amber-300"></i>"#.to_string()
-                    is_expanded=pengelolaan_bmn_rw
-                    allowed_roles=roles(&["validator_wilayah", "validator_pusat", "admin"])
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/pemakaian", "Pemakaian"),
-                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/hibah", "Hibah"),
-                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/pengalihan", "Pengalihan"),
-                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/mutasi", "Mutasi"),
-                        MenuItem::new("/perlengkapan/dashboard/pengelolaan/penghapusan", "Penghapusan"),
-                    ]
-                />
+                <NavSection icon="fas fa-boxes" label="Bank Aset" accent="#34d399">
+                    <NavLink href="/perlengkapan/dashboard/bank-aset/daftar" icon="fas fa-list" label="Daftar Aset" />
+                    <NavLink href="/perlengkapan/dashboard/bank-aset/qrcode" icon="fas fa-qrcode" label="Cetak QR Code" />
+                </NavSection>
 
-                // ── Pakaian Dinas ── all roles
-                <SidebarSection
-                    title="Pakaian Dinas".to_string()
-                    icon=r#"<i class="fas fa-tshirt text-purple-300"></i>"#.to_string()
-                    is_expanded=pakaian_dinas_rw
-                    allowed_roles=roles(ALL_ROLES)
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard/pakaian-dinas/jenis", "Jenis Pakaian"),
-                        MenuItem::new("/perlengkapan/dashboard/pakaian-dinas/pengajuan", "Pengajuan"),
-                        MenuItem::new("/perlengkapan/dashboard/pakaian-dinas/laporan", "Laporan"),
-                    ]
-                />
+                <NavSection icon="fas fa-clipboard-list" label="Kebutuhan BMN" accent="#fb923c">
+                    <NavLink href="/perlengkapan/dashboard/kebutuhan-bmn/daftar" icon="fas fa-list" label="Daftar" />
+                    <NavLink href="/perlengkapan/dashboard/kebutuhan-bmn/buat" icon="fas fa-plus-circle" label="Buat Baru" />
+                    <NavLink href="/perlengkapan/dashboard/kebutuhan-bmn/laporan" icon="fas fa-chart-bar" label="Laporan" />
+                </NavSection>
 
-                // ── Pemeliharaan ── operator_satker, admin
-                <SidebarSection
-                    title="Pemeliharaan".to_string()
-                    icon=r#"<i class="fas fa-tools text-teal-300"></i>"#.to_string()
-                    is_expanded=pemeliharaan_rw
-                    allowed_roles=roles(&["operator_satker", "admin"])
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard/pemeliharaan/daftar", "Daftar Pemeliharaan"),
-                        MenuItem::new("/perlengkapan/dashboard/pemeliharaan/baru", "Buat Baru"),
-                    ]
-                />
+                <NavSection icon="fas fa-tshirt" label="Pakaian Dinas" accent="#c084fc">
+                    <NavLink href="/perlengkapan/dashboard/pakaian-dinas/jenis" icon="fas fa-tags" label="Jenis" />
+                    <NavLink href="/perlengkapan/dashboard/pakaian-dinas/pengajuan" icon="fas fa-paper-plane" label="Pengajuan" />
+                    <NavLink href="/perlengkapan/dashboard/pakaian-dinas/ukuran" icon="fas fa-ruler" label="Ukuran" />
+                    <NavLink href="/perlengkapan/dashboard/pakaian-dinas/laporan" icon="fas fa-chart-bar" label="Laporan" />
+                </NavSection>
 
-                // ── Admin ── admin only
-                <SidebarSection
-                    title="Admin".to_string()
-                    icon=r#"<i class="fas fa-user-shield text-red-300"></i>"#.to_string()
-                    is_expanded=admin_rw
-                    allowed_roles=roles(&["admin"])
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard/admin/users", "Manajemen User"),
-                        MenuItem::new("/perlengkapan/dashboard/admin/roles", "Manajemen Role"),
-                        MenuItem::new("/perlengkapan/dashboard/admin/audit", "Audit Log"),
-                        MenuItem::new("/perlengkapan/dashboard/admin/config", "Konfigurasi"),
-                        MenuItem::new("/perlengkapan/dashboard/admin/master", "Master Data"),
-                    ]
-                />
+                <NavSection icon="fas fa-cogs" label="Pengelolaan BMN" accent="#60a5fa">
+                    <NavLink href="/perlengkapan/dashboard/pengelolaan/pemakaian" icon="fas fa-file-signature" label="Pemakaian BMN" />
+                    <NavLink href="/perlengkapan/dashboard/pengelolaan/penghapusan" icon="fas fa-trash-alt" label="Penghapusan" />
+                </NavSection>
 
-                // ── Bantuan ── all roles
-                <SidebarSection
-                    title="Bantuan".to_string()
-                    icon=r#"<i class="fas fa-question-circle text-gray-300"></i>"#.to_string()
-                    is_expanded=bantuan_rw
-                    allowed_roles=roles(ALL_ROLES)
-                    active_role=active_role.clone()
-                    items=vec![
-                        MenuItem::new("/perlengkapan/dashboard/bantuan/panduan", "Panduan"),
-                        MenuItem::new("/perlengkapan/dashboard/bantuan/faq", "FAQ"),
-                        MenuItem::new("/perlengkapan/dashboard/bantuan/helpdesk", "Helpdesk"),
-                    ]
-                />
+                <div style="border-bottom: 1px solid rgba(255,255,255,0.04); margin: 6px 18px;"></div>
+
+                // ── Analitik ─────────────────────────────────────
+                <SectionHeader label="ANALITIK" />
+
+                <NavSection icon="fas fa-chart-line" label="Analitik" accent="#2dd4bf">
+                    <NavLink href="/perlengkapan/dashboard/analitik/roadmap" icon="fas fa-road" label="Roadmap Sarpras" />
+                    <NavLink href="/perlengkapan/dashboard/analitik/kodefikasi" icon="fas fa-barcode" label="Kodefikasi BMN" />
+                </NavSection>
+
+                <div style="border-bottom: 1px solid rgba(255,255,255,0.04); margin: 6px 18px;"></div>
+
+                // ── Administrasi ─────────────────────────────────
+                <SectionHeader label="ADMINISTRASI" />
+
+                <NavSection icon="fas fa-shield-alt" label="Admin" accent="#f87171">
+                    <NavLink href="/perlengkapan/dashboard/admin/users"  icon="fas fa-users" label="Pengguna" />
+                    <NavLink href="/perlengkapan/dashboard/admin/roles"  icon="fas fa-user-tag" label="Otorisasi" />
+                    <NavLink href="/perlengkapan/dashboard/admin/audit"  icon="fas fa-history" label="Audit Log" />
+                    <NavLink href="/perlengkapan/dashboard/admin/master" icon="fas fa-database" label="Master Data" />
+                </NavSection>
+
+                <NavSection icon="fas fa-life-ring" label="Bantuan" accent="#94a3b8">
+                    <NavLink href="/perlengkapan/dashboard/bantuan/panduan"  icon="fas fa-book" label="Panduan" />
+                    <NavLink href="/perlengkapan/dashboard/bantuan/faq"      icon="fas fa-question-circle" label="FAQ" />
+                    <NavLink href="/perlengkapan/dashboard/bantuan/helpdesk" icon="fas fa-headset" label="Helpdesk" />
+                </NavSection>
+
             </nav>
 
-            // Footer inside sidebar
-            <div class="px-4 py-3 border-t border-white/10 flex-shrink-0">
-                <div class="flex items-center gap-2 text-[10px] text-gray-500">
-                    <div class="w-1.5 h-1.5 bg-green-400 rounded-full" aria-hidden="true"></div>
-                    <span>"SIMPEL v2.0"</span>
-                </div>
+            // ── Footer ───────────────────────────────────────────
+            <div style="padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.6rem; color: #475569;">
+                "v" {crate::APP_VERSION}
             </div>
         </div>
-
-        // Mobile overlay backdrop
-        {move || sidebar_open.get().then(|| view! {
-            <div
-                class="fixed inset-0 bg-black/50 z-30 lg:hidden"
-                on:click=move |_| sidebar_open.set(false)
-            ></div>
-        })}
     }
 }

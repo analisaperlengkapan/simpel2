@@ -1,3 +1,3 @@
-pub mod dashboard_home;
+pub mod dashboard;
 pub mod not_found;
-pub mod under_construction;
+pub mod placeholder;

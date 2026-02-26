@@ -7,7 +7,7 @@
     <base href="/portal/" />
     <title>SIMPEL Portal</title>
     <meta name="description" content="Portal Utama SIMPEL - Kejaksaan Agung Republik Indonesia">
-    <meta name="theme-color" content="#1e40af">
+    <meta name="theme-color" content="#1e3a5f">
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png">
@@ -17,62 +17,22 @@
     <link rel="preload" href="/fonts/inter-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
     <link rel="preload" href="/fonts/inter-semibold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 
-    <!-- Preload critical images -->
-    <link rel="preload" href="/favicon.png" as="image">
-
-    <!-- DNS prefetch for external resources -->
+    <!-- DNS prefetch -->
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-    <!-- Tailwind config MUST be set before CDN loads -->
-    <script>
-        tailwind = window.tailwind || {};
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#fef2f2',
-                            100: '#fee2e2',
-                            200: '#fecaca',
-                            300: '#fca5a5',
-                            400: '#f87171',
-                            500: '#ef4444',
-                            600: '#dc2626',
-                            700: '#b91c1c',
-                            800: '#991b1b',
-                            900: '#7f1d1d',
-                        },
-                    },
-                },
-            },
-        }
-    </script>
-    <!-- Tailwind CSS CDN (no defer — must apply styles before WASM mounts) -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS (compiled via Trunk) -->
+    <link data-trunk rel="tailwind-css" href="styles/tailwind.css" />
 
-    <!-- Font Awesome Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"></noscript>
+    <!-- Static Assets -->
+    <link data-trunk rel="copy-dir" href="assets/" />
 
-    <!-- Custom CSS (focus, accessibility, print) -->
-    <link data-trunk rel="css" href="styles/main.css" />
-
-    <!-- Trunk WASM configuration -->
+    <!-- Trunk WASM -->
     <link data-trunk rel="rust" data-bin="portal-microfrontend" data-wasm-opt="1"
         data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext" />
 
-    <!-- Portal-specific styling -->
     <style>
-        /* Base reset and body */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        /* Font face declarations with font-display: swap */
+        /* Font faces */
         @font-face {
             font-family: 'Inter';
             font-style: normal;
@@ -105,31 +65,62 @@
             src: local('Inter Bold'), url('/fonts/inter-bold.woff2') format('woff2');
         }
 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             line-height: 1.6;
-            color: #1f2937;
-            background-color: #f9fafb;
+            color: #1e293b;
+            background-color: #f8fafc;
             min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Portal loading animation */
-        .portal-loading {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        /* Animations disabled for performance */
+        .animate-fade-in {
+            /* Disabled */
         }
 
-        /* Ensure spinner works even without Tailwind CDN */
-        .animate-spin {
-            animation: spin 1s linear infinite;
+        .animate-slide-up {
+            /* Disabled */
+        }
+
+        .animate-scale-in {
+            /* Disabled */
+        }
+
+        .animate-shimmer {
+            /* Disabled */
+        }
+
+        .animate-float {
+            /* Disabled */
+        }
+
+        .animate-pulse-glow {
+            /* Disabled */
         }
 
         @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         @keyframes pulse {
-
             0%,
             100% {
                 opacity: 1;
@@ -140,157 +131,49 @@
             }
         }
 
-        /* Fade in animation */
-        @keyframes fade-in {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .animate-spin {
+            animation: spin 1s linear infinite;
         }
 
-        .animate-fade-in {
-            animation: fade-in 0.6s ease-out forwards;
+        /* Glassmorphism replaced with solid colors for performance */
+        .glass {
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
-        /* Slide up animation */
-        @keyframes slide-up {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .animate-slide-up {
-            animation: slide-up 0.5s ease-out;
-        }
-
-        /* Scale in animation */
-        @keyframes scale-in {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        .animate-scale-in {
-            animation: scale-in 0.4s ease-out;
-        }
-
-        /* Shimmer effect */
-        @keyframes shimmer {
-            0% {
-                background-position: -1000px 0;
-            }
-
-            100% {
-                background-position: 1000px 0;
-            }
-        }
-
-        .animate-shimmer {
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            background-size: 1000px 100%;
-            animation: shimmer 2s infinite;
-        }
-
-        /* Bounce animation */
-        @keyframes bounce-subtle {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-5px);
-            }
-        }
-
-        .animate-bounce-subtle {
-            animation: bounce-subtle 2s ease-in-out infinite;
-        }
-
-        /* Glow animation */
-        @keyframes glow {
-
-            0%,
-            100% {
-                box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
-            }
-
-            50% {
-                box-shadow: 0 0 40px rgba(220, 38, 38, 0.8);
-            }
-        }
-
-        .animate-glow {
-            animation: glow 2s ease-in-out infinite;
-        }
-
-        /* Portal fallback styling */
-        .portal-fallback {
-            background: linear-gradient(135deg, #fef2f2, #fee2e2);
-        }
-
-        /* Portal branding override */
-        .portal-brand {
-            background: linear-gradient(135deg, #dc2626, #991b1b);
-            color: white;
-        }
-
-        /* Smooth scrolling */
-        html {
-            scroll-behavior: smooth;
+        .glass-light {
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
 
         /* Custom scrollbar */
         ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
         }
 
         ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: transparent;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #dc2626;
-            border-radius: 5px;
+            background: #94a3b8;
+            border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #991b1b;
-        }
-
-        /* Dark mode scrollbar */
-        .dark ::-webkit-scrollbar-track {
-            background: #1f2937;
+            background: #64748b;
         }
 
         .dark ::-webkit-scrollbar-thumb {
-            background: #dc2626;
+            background: #475569;
         }
 
         .dark ::-webkit-scrollbar-thumb:hover {
-            background: #ef4444;
+            background: #64748b;
         }
 
-        /* Line clamp utility */
+        /* Line clamp */
         .line-clamp-2 {
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -305,95 +188,67 @@
             overflow: hidden;
         }
 
-        /* Backdrop blur fallback */
-        @supports not (backdrop-filter: blur(10px)) {
-            .backdrop-blur-sm {
-                background-color: rgba(255, 255, 255, 0.9);
-            }
-
-            .dark .backdrop-blur-sm {
-                background-color: rgba(31, 41, 55, 0.9);
-            }
+        .portal-loading {
+            /* Disabled pulsing */
         }
     </style>
 </head>
 
-<body class="bg-gray-50">
-    <!-- Loading Screen - akan disembunyikan setelah WASM loaded -->
-    <div id="loading-screen" class="portal-loading min-h-screen flex items-center justify-center portal-fallback"
-        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999;">
+<body class="bg-slate-50 dark:bg-navy-900">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="portal-loading min-h-screen flex items-center justify-center"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);">
         <div class="max-w-md w-full p-8 text-center">
-            <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full portal-brand shadow-lg">
-                <svg class="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+            <div class="mx-auto h-32 w-32 flex items-center justify-center mb-6 animate-pulse">
+                <img src="/portal/assets/kejaksaan-logo.png" alt="Logo Kejaksaan RI"
+                    class="w-full h-full object-contain drop-shadow-2xl" />
             </div>
-            <h2 class="mt-6 text-3xl font-bold text-gray-900">Portal SIMPEL</h2>
-            <p class="mt-2 text-sm text-gray-600">Kejaksaan Agung Republik Indonesia</p>
-            <p class="mt-1 text-xs text-gray-500">"Demi Keadilan Berdasarkan Ketuhanan Yang Maha Esa"</p>
-            <div class="mt-6">
-                <div id="loading-status" class="inline-flex items-center px-4 py-2 portal-brand text-white rounded-md shadow">
-                    <svg class="animate-spin h-4 w-4 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <h2 class="mt-4 text-2xl font-bold text-white tracking-tight">Portal SIMPEL</h2>
+            <p class="mt-2 text-sm text-slate-300">Kejaksaan Agung Republik Indonesia</p>
+            <p class="mt-1 text-xs text-slate-400 italic">"Demi Keadilan Berdasarkan Ketuhanan Yang Maha Esa"</p>
+            <div class="mt-8">
+                <div id="loading-status"
+                    class="inline-flex items-center px-4 py-2 bg-white/10 text-white rounded-lg text-sm">
+                    <svg class="animate-spin h-4 w-4 mr-2 text-gold-400" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
                     </svg>
                     <span id="loading-text">Memuat aplikasi...</span>
                 </div>
             </div>
-            <div class="mt-4 text-xs text-gray-400">
-                SIMPEL Portal v2.0.0
-            </div>
+            <div class="mt-4 text-xs text-slate-500">SIMPEL v2.0</div>
         </div>
     </div>
 
-    <!-- Portal Application Container -->
-    <div id="main">
-        <!-- Portal application akan di-render di sini oleh Leptos -->
-    </div>
+    <!-- App Container -->
+    <div id="main"></div>
 
-    <!-- Script untuk menyembunyikan loading screen setelah WASM loaded -->
     <script>
         function hideLoadingScreen() {
-            const loadingScreen = document.getElementById('loading-screen');
-            if (loadingScreen && loadingScreen.style.display !== 'none') {
-                loadingScreen.style.transition = 'opacity 0.3s ease-out';
-                loadingScreen.style.opacity = '0';
-                setTimeout(function () {
-                    loadingScreen.style.display = 'none';
-                }, 300);
+            const ls = document.getElementById('loading-screen');
+            if (ls && ls.style.display !== 'none') {
+                ls.style.transition = 'opacity 0.4s ease-out';
+                ls.style.opacity = '0';
+                setTimeout(() => { ls.style.display = 'none'; }, 400);
             }
         }
 
-        // Sembunyikan loading screen saat Leptos/WASM sudah selesai inisialisasi
-        window.addEventListener('TrunkApplicationStarted', function () {
-            hideLoadingScreen();
-        });
+        // Hide loading screen when Trunk signals application start
+        window.addEventListener('TrunkApplicationStarted', hideLoadingScreen);
 
-        // Fallback: jika TrunkApplicationStarted tidak terpicu dalam 15 detik, hide loading screen
-        // Ini bisa terjadi jika WASM gagal load atau browser cache
-        var loadingFallbackTimer = setTimeout(function () {
-            const mainDiv = document.getElementById('main');
-            if (mainDiv && mainDiv.children.length > 0) {
-                // App sudah mount, aman untuk hide
+        // Fallback: observe body for Leptos mounting
+        const observer = new MutationObserver((mutations) => {
+            if (document.querySelector('meta[name="leptos-marker"]') || document.body.children.length > 3) {
                 hideLoadingScreen();
-            } else {
-                // App gagal mount, tampilkan error
-                const loadingStatus = document.getElementById('loading-status');
-                if (loadingStatus) {
-                    loadingStatus.style.background = '#991b1b';
-                    loadingStatus.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>Gagal memuat aplikasi. Coba muat ulang halaman.';
-                }
+                observer.disconnect();
             }
-        }, 15000);
-
-        // Jika app berhasil mount lebih cepat dari fallback timer, batalkan timer
-        window.addEventListener('TrunkApplicationStarted', function () {
-            clearTimeout(loadingFallbackTimer);
         });
+        observer.observe(document.body, { childList: true });
     </script>
-
-    <!-- Script Leptos/Trunk akan di-inject otomatis oleh Trunk build -->
 </body>
 
 </html>

@@ -7,7 +7,7 @@
 //! - **Government Branding**: Konsisten dengan identitas Kejaksaan RI
 
 use crate::features::auth::AuthService;
-use crate::pages::secrets::SecretsPage;
+
 use crate::pages::*;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -23,6 +23,9 @@ use leptos_router::{
 pub fn App() -> impl IntoView {
     // Setup global search providers
     setup_search_providers();
+
+    // Initialize global application state (including AuthencApiClient)
+    let _app_state = crate::utils::app_state::provide_app_state();
 
     // Global auth state - load from localStorage on mount
     let (user_session, set_user_session) = signal(AuthService::load_session());
@@ -60,7 +63,7 @@ pub fn App() -> impl IntoView {
         use leptos::prelude::Effect;
 
         Effect::new(move |_| {
-            if let Some(session) = user_session.get() {
+            if let Some(_session) = user_session.get() {
                 // Spawn async task for token refresh monitoring
                 spawn_local(async move {
                     loop {
@@ -153,7 +156,7 @@ pub fn App() -> impl IntoView {
                 <Route path=StaticSegment("logged-out") view=LoggedOutPage />
 
                 // Password reset route
-                <Route path=StaticSegment("password-reset") view=PasswordResetPage />
+
 
                 // MFA routes
                 <Route path=StaticSegment("mfa/setup") view=MfaSetupPage />
@@ -260,19 +263,7 @@ pub fn App() -> impl IntoView {
                     }
                 } />
 
-                <Route path=StaticSegment("secrets") view=move || {
-                    match user_session.get() {
-                        Some(session) => view! {
-                            <SecretsPage
-                                user_session=session
-                                on_logout=Box::new(handle_logout)
-                            />
-                        }.into_any(),
-                        None => view! {
-                            <LoginPage on_login_success=set_user_session />
-                        }.into_any(),
-                    }
-                } />
+
 
                 // Self-service account management routes
                 <Route path=StaticSegment("profile") view=move || {

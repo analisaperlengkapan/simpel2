@@ -2,25 +2,10 @@
 target = "index.html"
 dist = "dist"
 release = false
-wasm_opt = false
-
-# Simplified wasm-bindgen configuration for development
-[[build.wasm-bindgen]]
-target = "web"
-typescript = false
-debug = false
-
-[build.rust]
-optimization-level = "s"   # Smaller optimization for development
-debug = false
-lto = false
+public_url = "/perlengkapan/"
 
 [serve]
 port = 8093
 addresses = ["0.0.0.0"]
 open = false
 no_autoreload = true
-
-[build.public-assets]
-sources = ["styles/*.css", "../../shared/styles/*.css"]
-output-dir = "assets"

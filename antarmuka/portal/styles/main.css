@@ -1,30 +1,26 @@
 /**
- * Portal SIMPEL - Minimal Custom Styles
+ * Portal SIMPEL — Custom Styles
  *
- * All styling is handled by Tailwind CSS utility classes in components.
- * This file only contains supplementary utilities that Tailwind CDN cannot generate.
- * DO NOT add global element selectors (button, nav, header, main, h1, etc.)
- * to avoid conflicts with Tailwind classes.
+ * Tailwind CSS handles most styling. This file provides:
+ * - Focus & accessibility styles
+ * - Print styles
+ * - Glassmorphism utilities
  */
 
-/* ============================================================================
-   Focus & Accessibility
-   ============================================================================ */
-
+/* Focus & Accessibility */
 *:focus-visible {
-  outline: 2px solid #dc2626;
+  outline: 2px solid #d4a843;
   outline-offset: 2px;
   border-radius: 0.25rem;
 }
 
-/* Skip to content link */
 .skip-to-content {
   position: absolute;
   top: -100%;
   left: 1rem;
   z-index: 9999;
   padding: 0.75rem 1.5rem;
-  background: #dc2626;
+  background: #1e3a5f;
   color: white;
   font-weight: 600;
   border-radius: 0 0 0.5rem 0.5rem;
@@ -35,21 +31,14 @@
   top: 0;
 }
 
-/* ============================================================================
-   Print Styles
-   ============================================================================ */
+/* Sidebar transition */
+.sidebar-transition {
+  transition: width 0.2s ease, transform 0.2s ease;
+}
 
+/* Print */
 @media print {
-  .no-print {
-    display: none !important;
-  }
-
-  body {
-    background: white !important;
-  }
-
-  * {
-    color: black !important;
-    box-shadow: none !important;
-  }
+  .no-print { display: none !important; }
+  body { background: white !important; }
+  * { color: black !important; box-shadow: none !important; }
 }

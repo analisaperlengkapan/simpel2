@@ -16,7 +16,7 @@ pub async fn fetch_penghapusan_bmn_list(
     per_page: i32,
     filters: PenghapusanBmnFilters,
 ) -> Result<PaginatedResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let mut url = format!(
@@ -79,7 +79,7 @@ pub async fn fetch_penghapusan_bmn_list(
 pub async fn fetch_penghapusan_bmn_detail(
     id: &str,
 ) -> Result<ApiResponse<PenghapusanBmnDetailResponse>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -112,7 +112,7 @@ pub async fn fetch_penghapusan_bmn_detail(
 pub async fn create_penghapusan_bmn_workflow(
     request: CreatePenghapusanBmnWorkflowRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -150,7 +150,7 @@ pub async fn update_penghapusan_bmn_workflow(
     id: &str,
     request: UpdatePenghapusanBmnWorkflowRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -186,7 +186,7 @@ pub async fn update_penghapusan_bmn_workflow(
 // --- Delete Penghapusan BMN ---
 #[cfg(target_arch = "wasm32")]
 pub async fn delete_penghapusan_bmn_workflow(id: &str) -> Result<ApiResponse<()>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -217,7 +217,7 @@ pub async fn delete_penghapusan_bmn_workflow(_id: &str) -> Result<ApiResponse<()
 pub async fn submit_penghapusan_to_wilayah(
     id: &str,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -253,7 +253,7 @@ pub async fn penghapusan_validator_wilayah_action(
     id: &str,
     request: PenghapusanValidatorWilayahActionRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -294,7 +294,7 @@ pub async fn penghapusan_validator_wilayah_action(
 pub async fn generate_penghapusan_konsep_sk(
     id: &str,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -330,7 +330,7 @@ pub async fn upload_penghapusan_signed_sk(
     id: &str,
     request: UploadSignedSKRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()
@@ -369,7 +369,7 @@ pub async fn transition_penghapusan_bmn_status(
     id: &str,
     request: PenghapusanWorkflowTransitionRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
-    use crate::components::auth::get_auth_token;
+    use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let token = get_auth_token()

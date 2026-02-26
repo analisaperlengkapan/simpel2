@@ -1,51 +1,47 @@
 # ============================================================================
-# Multi-stage build for Secreton - Build from workspace root
-# Run with: docker build -t secreton -f layanan/secreton/Dockerfile .
+# Multi-stage build for Secreton - Optimized for size and performance
 # ============================================================================
 
-# Stage 1: Builder
-FROM rust:1.90-slim-bookworm AS builder
+# Stage 1: Preparation
+FROM rust:1.90-slim-bookworm AS chef
+RUN cargo install cargo-chef --locked
+WORKDIR /usr/src/app
 
-WORKDIR /workspace
+# Stage 2: Planner
+FROM chef AS planner
+COPY . .
+# Patch Cargo.toml for workspace build (exclude ignored members)
+RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
+    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/secreton", "layanan/secreton/crates/core", "layanan/secreton/crates/api", "layanan/secreton/crates/storage", "layanan/secreton/crates/crypto", "layanan/secreton/crates/types", "layanan/secreton/crates/agent", "layanan/secreton/crates/cli", "layanan/secreton/crates/grpc", "layanan/secreton/crates/hsm", "layanan/secreton/crates/k8s-operator"]' Cargo.toml || true
+RUN cargo chef prepare --recipe-path recipe.json
 
+# Stage 3: Builder
+FROM chef AS builder
+COPY --from=planner /usr/src/app/recipe.json recipe.json
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
+# Cook dependencies
+RUN cargo chef cook --release --recipe-path recipe.json
 
-# Copy workspace Cargo files
-COPY Cargo.toml Cargo.lock ./
-
-# Patch Cargo.toml: delete old members list and add new minimal one
+# Copy source and build
+COPY . .
+# Patch Cargo.toml for workspace build (exclude ignored members)
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
     sed -i '/\[workspace\]/a members = ["lib/common", "layanan/secreton", "layanan/secreton/crates/core", "layanan/secreton/crates/api", "layanan/secreton/crates/storage", "layanan/secreton/crates/crypto", "layanan/secreton/crates/types", "layanan/secreton/crates/agent", "layanan/secreton/crates/cli", "layanan/secreton/crates/grpc", "layanan/secreton/crates/hsm", "layanan/secreton/crates/k8s-operator"]' Cargo.toml || true
 
-# Copy lib-common (workspace dependency)
-COPY lib/common ./lib/common
-
-# Copy secreton crate (entire layanan/secreton directory)
-COPY layanan/secreton ./layanan/secreton
-
-# Build secreton api_server
-WORKDIR /workspace/layanan/secreton
 RUN cargo build --release -p secreton-api --bin api_server --features raft-consensus
 
-# Find and copy the binary
-RUN find /workspace/target/release -name "api_server" -type f -executable | head -1 | xargs -I {} cp {} /workspace/api_server || \
-    cp /workspace/target/release/api_server /workspace/api_server
-
-# Strip binary
-RUN strip /workspace/api_server 2>/dev/null || true
-RUN ls -la /workspace/target/release
-
-# Stage 2: Runtime
+# Stage 4: Runtime
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    libssl3 \
     tini \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r secreton -g 1000 \
@@ -56,12 +52,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder --chown=root:root /workspace/api_server /app/api_server
-
+COPY --from=builder /usr/src/app/target/release/api_server /app/api_server
 # Copy configuration
 COPY layanan/secreton/secreton.toml /app/config/secreton.toml
 
-RUN chmod 555 /app/api_server
+RUN chmod 555 /app/api_server && \
+    chown -R secreton:secreton /app
 
 USER secreton
 

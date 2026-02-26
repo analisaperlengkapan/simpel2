@@ -1,0 +1,308 @@
+//! Authenc identity provider - main entry point
+//!
+//! Wires up all sub-crates and starts the HTTP server.
+
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use authenc_core::services::{
+    AuthenticationServiceImpl, BruteForceProtectorImpl, OAuth2ServiceImpl,
+    ProductionClientRegistrationService, RealmManagementServiceImpl, UserManagementServiceImpl,
+};
+use authenc_crypto::{Argon2PasswordHasher, JwtService};
+use authenc_storage::{
+    Database, PostgresClientStore, PostgresCredentialStore, PostgresRealmStore,
+    PostgresSessionStore, PostgresUserStore,
+};
+use authenc_types::{
+    AuthorizationCode, RefreshToken, Result, UserId,
+    traits::{AuthorizationCodeStore, RefreshTokenStore, TokenGenerator},
+};
+use authenc_webauthn::{WebAuthnConfig, WebAuthnService};
+
+use async_trait::async_trait;
+use chrono::Utc;
+use dashmap::DashMap;
+use tracing::info;
+use url::Url;
+
+use authenc_api::{
+    session_store::SessionStore as WebAuthnSessionStore, state::ApiState, AppConfig, AxumApp,
+    CorsConfig, CsrfConfig, Environment,
+};
+
+// ============================================================================
+// In-memory OAuth2 stores
+// ============================================================================
+
+struct InMemoryAuthorizationCodeStore {
+    codes: DashMap<String, AuthorizationCode>,
+}
+
+impl InMemoryAuthorizationCodeStore {
+    fn new() -> Self {
+        Self {
+            codes: DashMap::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl AuthorizationCodeStore for InMemoryAuthorizationCodeStore {
+    async fn store_code(&self, code: AuthorizationCode) -> Result<()> {
+        self.codes.insert(code.code.clone(), code);
+        Ok(())
+    }
+
+    async fn get_code(&self, code: &str) -> Result<Option<AuthorizationCode>> {
+        Ok(self.codes.get(code).map(|c| c.clone()))
+    }
+
+    async fn mark_code_used(&self, code: &str) -> Result<()> {
+        if let Some(mut c) = self.codes.get_mut(code) {
+            c.used = true;
+        }
+        Ok(())
+    }
+
+    async fn cleanup_expired_codes(&self) -> Result<usize> {
+        let now = Utc::now();
+        let before = self.codes.len();
+        self.codes.retain(|_, c| c.expires_at > now);
+        Ok(before - self.codes.len())
+    }
+}
+
+struct InMemoryRefreshTokenStore {
+    tokens: DashMap<String, RefreshToken>,
+}
+
+impl InMemoryRefreshTokenStore {
+    fn new() -> Self {
+        Self {
+            tokens: DashMap::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl RefreshTokenStore for InMemoryRefreshTokenStore {
+    async fn store_token(&self, token: RefreshToken) -> Result<()> {
+        self.tokens.insert(token.token.clone(), token);
+        Ok(())
+    }
+
+    async fn get_token(&self, token: &str) -> Result<Option<RefreshToken>> {
+        Ok(self.tokens.get(token).map(|t| t.clone()))
+    }
+
+    async fn revoke_token(&self, token: &str) -> Result<()> {
+        if let Some(mut t) = self.tokens.get_mut(token) {
+            t.revoked = true;
+        }
+        Ok(())
+    }
+
+    async fn revoke_user_tokens(&self, user_id: UserId) -> Result<()> {
+        self.tokens.iter_mut().for_each(|mut entry| {
+            if entry.user_id == user_id {
+                entry.revoked = true;
+            }
+        });
+        Ok(())
+    }
+
+    async fn cleanup_expired_tokens(&self) -> Result<usize> {
+        let now = Utc::now();
+        let before = self.tokens.len();
+        self.tokens.retain(|_, t| t.expires_at > now && !t.revoked);
+        Ok(before - self.tokens.len())
+    }
+}
+
+/// JWT-backed implementation of the TokenGenerator trait
+struct JwtTokenGenerator {
+    jwt_service: Arc<JwtService>,
+}
+
+impl JwtTokenGenerator {
+    fn new(jwt_service: Arc<JwtService>) -> Self {
+        Self { jwt_service }
+    }
+}
+
+impl TokenGenerator for JwtTokenGenerator {
+    fn generate_access_token(
+        &self,
+        user_id: UserId,
+        scope: &str,
+    ) -> Result<String> {
+        let uid = user_id.as_uuid().to_string();
+        self.jwt_service
+            .generate_access_token(&uid, None, Some(scope.to_string()), None)
+    }
+
+    fn generate_refresh_token(&self, user_id: UserId) -> Result<String> {
+        let uid = user_id.as_uuid().to_string();
+        let session_id = uuid::Uuid::new_v4().to_string();
+        self.jwt_service.generate_refresh_token(&uid, &session_id)
+    }
+
+    fn validate_token(&self, token: &str) -> Result<authenc_types::traits::TokenClaims> {
+        let claims = self.jwt_service.verify_token(token)?;
+        Ok(authenc_types::traits::TokenClaims {
+            sub: claims.sub,
+            iss: claims.iss,
+            aud: claims.aud,
+            exp: claims.exp,
+            iat: claims.iat,
+            scope: claims.scope.unwrap_or_default(),
+        })
+    }
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+#[tokio::main]
+async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "authenc=info,tower_http=info".to_string()),
+        )
+        .json()
+        .init();
+
+    info!("Starting Authenc identity provider");
+
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://authenc:authenc@localhost:5432/authenc".to_string());
+    let jwt_issuer = std::env::var("JWT_ISSUER")
+        .unwrap_or_else(|_| "http://10.1.7.121/api/v1/auth".to_string());
+    let jwt_secret_hex = std::env::var("JWT_SECRET").unwrap_or_default();
+    let webauthn_rp_id =
+        std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
+    let webauthn_rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
+        .unwrap_or_else(|_| "http://localhost:8088".to_string());
+    let webauthn_rp_name =
+        std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPEL Authenc".to_string());
+    let port: u16 = std::env::var("PORT")
+        .unwrap_or_else(|_| "8088".to_string())
+        .parse()
+        .unwrap_or(8088);
+    let registration_base =
+        std::env::var("REGISTRATION_BASE").unwrap_or_else(|_| jwt_issuer.clone());
+
+    // Database
+    info!("Connecting to database...");
+    let db = Arc::new(
+        Database::new(&database_url, 20)
+            .await
+            .map_err(|e| format!("Failed to connect to database: {}", e))?,
+    );
+    info!("Database connected");
+
+    // Stores
+    let user_store = Arc::new(PostgresUserStore::new(db.clone()));
+    let session_store = Arc::new(PostgresSessionStore::new(db.clone()));
+    let realm_store = Arc::new(PostgresRealmStore::new(db.clone()));
+    let client_store = Arc::new(PostgresClientStore::new(db.clone()));
+    let credential_store = Arc::new(PostgresCredentialStore::new(db.clone()));
+
+    // JWT service
+    let signing_key_bytes: [u8; 32] = if !jwt_secret_hex.is_empty() {
+        let bytes = hex::decode(&jwt_secret_hex)
+            .map_err(|e| format!("Invalid JWT_SECRET hex: {}", e))?;
+        if bytes.len() != 32 {
+            return Err("JWT_SECRET must be 32 bytes (64 hex chars)".into());
+        }
+        let mut key = [0u8; 32];
+        key.copy_from_slice(&bytes);
+        key
+    } else {
+        info!("JWT_SECRET not set - generating ephemeral key (not for production)");
+        JwtService::generate_signing_key()
+    };
+
+    let jwt_service = Arc::new(JwtService::new(
+        &signing_key_bytes,
+        jwt_issuer.clone(),
+        chrono::Duration::minutes(15),
+        chrono::Duration::days(7),
+    )?);
+
+    let password_hasher = Arc::new(Argon2PasswordHasher::new());
+    let brute_force_protector = Arc::new(BruteForceProtectorImpl::new());
+
+    // OAuth2 stores
+    let code_store = Arc::new(InMemoryAuthorizationCodeStore::new());
+    let refresh_token_store = Arc::new(InMemoryRefreshTokenStore::new());
+    let token_generator = Arc::new(JwtTokenGenerator::new(jwt_service.clone()));
+
+    // Services
+    let auth_service = Arc::new(AuthenticationServiceImpl::new(
+        user_store.clone(),
+        session_store.clone(),
+        password_hasher.clone(),
+        brute_force_protector,
+    ));
+    let user_service = Arc::new(UserManagementServiceImpl::new(
+        user_store.clone(),
+        password_hasher,
+    ));
+    let oauth2_service = Arc::new(OAuth2ServiceImpl::new(
+        client_store.clone(),
+        code_store,
+        refresh_token_store,
+        token_generator,
+    ));
+    let realm_service = Arc::new(RealmManagementServiceImpl::new(realm_store));
+    let client_service = Arc::new(ProductionClientRegistrationService::new(
+        db.clone(),
+        None,
+        registration_base,
+    ));
+
+    // WebAuthn
+    let webauthn_config = WebAuthnConfig {
+        rp_id: webauthn_rp_id,
+        rp_origin: Url::parse(&webauthn_rp_origin)
+            .map_err(|e| format!("Invalid WEBAUTHN_RP_ORIGIN: {}", e))?,
+        rp_name: webauthn_rp_name,
+    };
+    let webauthn_service = Arc::new(WebAuthnService::new(webauthn_config, credential_store)?);
+
+    // WebAuthn session store (in-memory)
+    let webauthn_session_store = WebAuthnSessionStore::new();
+
+    // API state
+    let state = ApiState::new(
+        jwt_service,
+        auth_service,
+        user_service,
+        oauth2_service,
+        realm_service,
+        client_service,
+        webauthn_service,
+        None,
+        webauthn_session_store,
+        db,
+    );
+
+    // App config - development CORS + disabled CSRF for API service
+    let mut config = AppConfig::default();
+    config.cors = CorsConfig::new(Environment::Development);
+    config.csrf = CsrfConfig {
+        enabled: false,
+        ..Default::default()
+    };
+
+    let app = AxumApp::new(state, config);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    info!("Listening on {}", addr);
+    app.run(addr).await?;
+
+    Ok(())
+}

@@ -1,4 +1,4 @@
-# Multi-stage build for Perlengkapan Microfrontend with Nginx
+# Multi-stage build for Perlengkapan with Nginx - PORT 8080
 FROM rustlang/rust:nightly as chef
 RUN cargo install cargo-chef --locked
 
@@ -14,7 +14,7 @@ WORKDIR /workspace
 RUN apt-get update && apt-get install -y \
     pkg-config libssl-dev protobuf-compiler \
     cmake clang libclang-dev perl \
-    libc6-dev libc6-dev-i386 llvm \
+    libc6-dev libc6-dev-i386 llvm lld \
     && rm -rf /var/lib/apt/lists/*
 ENV BINDGEN_EXTRA_CLANG_ARGS="-I/usr/include -I/usr/include/x86_64-linux-gnu"
 
@@ -47,26 +47,30 @@ ENV RUST_BACKTRACE=1
 RUN mkdir -p /root/.cache/trunk/wasm-bindgen-0.2.100
 RUN cp /usr/local/cargo/bin/wasm-bindgen /root/.cache/trunk/wasm-bindgen-0.2.100/wasm-bindgen || true
 
-# Set build-time environment variables for WASM baking
-ARG PORTAL_URL="https://10.1.7.121/portal"
-ARG AUTHENC_URL="https://10.1.7.121/api/auth"
-ENV PORTAL_URL=$PORTAL_URL
-ENV AUTHENC_URL=$AUTHENC_URL
-
 # Build with trunk (release mode)
+# Assets served at /perlengkapan/ path prefix
 RUN trunk build --release --public-url "/perlengkapan/"
 
-# Stage 2: Nginx untuk serving hasil build - LISTEN ON PORT 8080
+# Stage 2: Nginx for serving build output - LISTEN ON PORT 8080
 FROM nginx:alpine
 
-# Copy main nginx config
-COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
+# Copy perlengkapan-specific nginx config
+COPY antarmuka/perlengkapan/nginx.conf /etc/nginx/nginx.conf
 
-# Inject WASM MIME type to standard mime.types (ensure it exists)
-RUN sed -i 's|}|    application/wasm wasm;\n}|' /etc/nginx/mime.types
+# Copy build output to Nginx html dir
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html/perlengkapan
 
-# Copy build output ke Nginx html dir
-COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html
+# Change ownership so entrypoint can write to config.json
+RUN chown -R nginx:nginx /usr/share/nginx/html
 
+# Copy entrypoint script
+COPY antarmuka/perlengkapan/entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Expose port 8080 (match K8s deployment)
 EXPOSE 8080
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+# Run nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]

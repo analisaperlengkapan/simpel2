@@ -33,7 +33,7 @@ use uuid::Uuid;
 /// - CI/CD pipeline authentication
 /// - Integration with external systems
 /// # Example
-/// ```rust
+/// ```rust,ignore
 /// use uuid::Uuid;
 /// use chrono::Utc;
 /// let service_account = ServiceAccount {

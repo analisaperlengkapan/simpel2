@@ -146,7 +146,7 @@ pub fn DashboardPage(
         <MainLayout user_session=user_session.clone() on_logout=on_logout>
             <div class="container mx-auto px-4 py-8">
                 // Welcome Section
-                <div class="relative bg-gradient-to-r from-red-600 via-red-500 to-orange-500 dark:from-red-800 dark:to-red-900 rounded-2xl shadow-2xl p-8 mb-8 text-white overflow-hidden">
+                <div class="relative bg-gradient-to-r from-navy-700 via-navy-800 to-navy-900 dark:from-navy-800 dark:to-navy-950 rounded-2xl shadow-2xl p-8 mb-8 text-white overflow-hidden border border-navy-600">
                     <div class="absolute inset-0 opacity-10">
                         <div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 40px 40px;"></div>
                     </div>
@@ -154,24 +154,24 @@ pub fn DashboardPage(
                     <div class="relative flex flex-col md:flex-row items-center justify-between">
                         <div class="flex-1 mb-4 md:mb-0">
                             <div class="flex items-center gap-3 mb-3">
-                                <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                                <div class="w-16 h-16 bg-white/30 rounded-full flex items-center justify-center">
                                     <span class="text-3xl">"👤"</span>
                                 </div>
                                 <div>
-                                    <p class="text-red-100 text-sm font-medium">{greeting}</p>
+                                    <p class="text-gold-200 text-sm font-medium">{greeting}</p>
                                     <h1 class="text-3xl md:text-4xl font-bold">
                                         {user_session.name.clone()}
                                     </h1>
                                 </div>
                             </div>
                             <div class="flex flex-wrap gap-3">
-                                <span class="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
+                                <span class="inline-flex items-center px-3 py-1 bg-white/30 rounded-full text-sm font-medium">
                                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
                                     </svg>
                                     {user_session.role.display_name()}
                                 </span>
-                                <span class="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
+                                <span class="inline-flex items-center px-3 py-1 bg-white/30 rounded-full text-sm font-medium">
                                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
                                     </svg>
@@ -188,7 +188,7 @@ pub fn DashboardPage(
                 // Portal Dashboard Metrics
                 <Suspense fallback=move || view! {
                     <div class="flex items-center justify-center py-8 text-gray-400 dark:text-gray-500 gap-3">
-                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-red-500"></div>
+                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-gold-500"></div>
                         <span class="text-sm">"Memuat metrik..."</span>
                     </div>
                 }>
@@ -530,7 +530,7 @@ fn IntegrationStatusCard(
             "Terdegradasi",
         ),
         "down" => (
-            "bg-red-100 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+            "bg-red-100 dark:bg-red-900/20 border-red-200 dark:border-red-800", // Keep error state red
             "❌",
             "Mati",
         ),

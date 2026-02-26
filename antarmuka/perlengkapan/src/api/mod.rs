@@ -1,29 +1,19 @@
-//! API client for Perlengkapan microfrontend.
-//!
-//! Setiap sub-modul berisi models + async fetch functions untuk satu domain.
-//! Semua tipe dan fungsi di-re-export di sini agar kode lama (`crate::api::X`)
-//! tetap bekerja tanpa perubahan pada 37+ file konsumen.
+//! API module — types and fetch functions for all domains.
 
-// ── Sub-modules ───────────────────────────────────────────────────────────
-mod common;
-mod kebutuhan_bmn_api;
-mod kebutuhan_bmn_types;
-mod pakaian_dinas;
-mod pemakaian_bmn;
-mod penghapusan_bmn;
+pub mod client;
+pub mod common;
+pub mod dashboard;
+pub mod kebutuhan_bmn_api;
+pub mod kebutuhan_bmn_types;
+pub mod pakaian_dinas;
+pub mod pemakaian_bmn;
+pub mod penghapusan_bmn;
+pub mod types;
 
-// ── Re-exports: common (dashboard, legacy CRUD) ───────────────────────────
+// Re-exports for backward compat (old components use `crate::api::TypeName`)
 pub use common::*;
-
-// ── Re-exports: Kebutuhan BMN ──────────────────────────────────────────────
 pub use kebutuhan_bmn_api::*;
 pub use kebutuhan_bmn_types::*;
-
-// ── Re-exports: Pakaian Dinas ─────────────────────────────────────────────
 pub use pakaian_dinas::*;
-
-// ── Re-exports: Pemakaian BMN ─────────────────────────────────────────────
 pub use pemakaian_bmn::*;
-
-// ── Re-exports: Penghapusan BMN ───────────────────────────────────────────
 pub use penghapusan_bmn::*;

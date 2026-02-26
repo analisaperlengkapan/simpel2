@@ -56,7 +56,8 @@ pub mod state;
 pub use app::{AppConfig, AxumApp};
 
 pub use handlers::{
-    ErrorResponse, authorize_handler, create_client_handler, delete_client_configuration_handler,
+    ErrorResponse, authorize_handler, captcha_challenge_handler, captcha_image_handler,
+    captcha_verify_handler, create_client_handler, delete_client_configuration_handler,
     delete_client_handler, delete_credential_handler, discovery_handler,
     finish_authentication_handler, finish_registration_handler, get_client_configuration_handler,
     get_client_handler, get_current_user_handler, introspect_handler, list_clients_handler,

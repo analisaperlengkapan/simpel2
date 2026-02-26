@@ -418,18 +418,15 @@ pub async fn auth_middleware(
     mut request: Request,
     next: Next,
 ) -> Result<Response, AuthError> {
-    // Skip auth for health/status endpoints
+    // 1. Whitelist endpoints that don't require authentication
+    // These include health checks, version info, and engine initialization/unsealing
     let path = request.uri().path();
-    if path == "/health"
-        || path == "/version"
-        || path.starts_with("/health")
-        || path == "/v1/sys/seal-status"
-        || path == "/api/v1/sys/seal-status"
-        || path == "/v1/sys/unseal"
-        || path == "/api/v1/sys/unseal"
-        || path == "/v1/sys/init"
-        || path == "/api/v1/sys/init"
-    {
+    let normalized_path = path.trim_end_matches('/');
+    let whitelisted = is_whitelisted(normalized_path);
+
+    tracing::warn!("🔒 AUTH_MIDDLEWARE: path='{}', normalized='{}', whitelisted={}", path, normalized_path, whitelisted);
+
+    if whitelisted {
         return Ok(next.run(request).await);
     }
 
@@ -709,24 +706,6 @@ pub async fn audit_logging(request: Request, next: Next) -> Response {
 ///
 /// Whitelisted endpoints are those required for basic engine operations,
 /// such as health checks, initialization, and unsealing.
-fn is_whitelisted(path: &str) -> bool {
-    // These endpoints allow sub-paths (e.g., /health/live)
-    const WHITELISTED_PREFIXES: &[&str] = &["/health", "/version", "/metrics"];
-    if WHITELISTED_PREFIXES.iter().any(|p| path.starts_with(p)) {
-        return true;
-    }
-
-    // These endpoints must match exactly
-    const WHITELISTED_PATHS: &[&str] = &[
-        "/v1/sys/seal-status",
-        "/api/v1/sys/seal-status",
-        "/v1/sys/unseal",
-        "/api/v1/sys/unseal",
-        "/v1/sys/init",
-        "/api/v1/sys/init",
-    ];
-    WHITELISTED_PATHS.contains(&path)
-}
 
 /// Metrics middleware
 /// Tracks request counts and active connections
@@ -1825,4 +1804,31 @@ mod middleware_tests {
             None
         );
     }
+}
+
+/// Check if a path is whitelisted for anonymous access
+fn is_whitelisted(path: &str) -> bool {
+    tracing::warn!("🔍 IS_WHITELISTED CHECK: path='{}'", path);
+    // Health and metrics (infrastructure)
+    if path == "/health" || path == "/ready" || path == "/live" || path == "/version" || path == "/metrics" {
+        return true;
+    }
+
+    // Standard system endpoints that must be available without authentication
+    let system_paths = [
+        "/sys/init",
+        "/sys/seal-status",
+        "/sys/unseal",
+        "/sys/rekey/init",
+        "/sys/rekey/update",
+    ];
+
+    for sys_path in system_paths {
+        if path == sys_path || path.ends_with(sys_path) {
+            tracing::warn!("✅ Whitelisted system path: '{}'", path);
+            return true;
+        }
+    }
+
+    false
 }

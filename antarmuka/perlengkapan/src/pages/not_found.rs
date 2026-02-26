@@ -1,24 +1,23 @@
-//! 404 Not Found Page
+//! 404 Not Found page
 
 use leptos::prelude::*;
 
 #[component]
 pub fn NotFound() -> impl IntoView {
     view! {
-        <div class="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-            <div class="text-8xl font-black text-gray-200 mb-4 select-none">"404"</div>
-            <h1 class="text-2xl font-bold text-gray-800 mb-2">"Halaman Tidak Ditemukan"</h1>
-            <p class="text-gray-500 mb-6 max-w-sm">
-                "Halaman yang kamu cari tidak ada atau sudah dipindahkan."
-            </p>
-            <a
-                href="/perlengkapan/dashboard"
-                class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white \
-                       rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors"
-            >
-                <i class="fas fa-home"></i>
-                "Kembali ke Dashboard"
-            </a>
+        <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0f172a, #1e3a5f, #0a1020); text-align: center; padding: 2rem;">
+            <div>
+                <div style="font-size: 5rem; font-weight: 900; color: rgba(255,255,255,0.06); line-height: 1;">"404"</div>
+                <h1 style="font-size: 1.3rem; font-weight: 700; color: #e2e8f0; margin: 16px 0 8px;">"Halaman Tidak Ditemukan"</h1>
+                <p style="font-size: 0.88rem; color: #64748b; margin: 0 0 24px;">"Halaman yang Anda cari tidak ada atau telah dipindahkan."</p>
+                <a
+                    href="/perlengkapan/dashboard"
+                    style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; background: linear-gradient(135deg, #d4a843, #facc15); color: #0f172a; font-weight: 700; font-size: 0.88rem; border-radius: 12px; text-decoration: none; transition: all 0.2s;"
+                >
+                    <i class="fas fa-home"></i>
+                    "Ke Dashboard"
+                </a>
+            </div>
         </div>
     }
 }

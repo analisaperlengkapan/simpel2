@@ -13,14 +13,14 @@
 //!
 //! # Usage
 //!
-//! ```rust
-//! use authenc::models::dynamic_role::{DynamicRoleStore, CapabilityCheck};
+//! ```rust,ignore
+//! use authenc_types::domain::dynamic_role::{DynamicRoleStore, EffectiveCapabilities};
 //!
 //! // Check if user has a capability
-//! let has_access = role_store.user_has_capability(user_id, "users:read").await?;
+//! let has_access = role_store.user_has_capability(user_id, "users:read", realm_id).await?;
 //!
 //! // Check path-based access (Vault-style)
-//! let can_access = role_store.user_can_access_path(user_id, "/api/users/*", "read").await?;
+//! let can_access = role_store.user_can_access_path(user_id, "/api/users/*", "read", realm_id).await?;
 //! ```
 
 use chrono::{DateTime, Utc};

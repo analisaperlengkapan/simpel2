@@ -52,7 +52,7 @@ impl AppColor {
     /// Get Tailwind CSS classes for this color
     pub fn to_classes(&self) -> &'static str {
         match self {
-            Self::Red => "from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
+            Self::Red => "from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 border border-navy-600",
             Self::Blue => "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
             Self::Green => "from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
             Self::Yellow => {

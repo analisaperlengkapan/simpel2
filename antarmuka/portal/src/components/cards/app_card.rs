@@ -66,19 +66,19 @@ pub fn AppCard(
             tabindex=if is_available { "0" } else { "-1" }
             aria-label=format!("Buka aplikasi {}", app.name)
             class=format!(
-                "group relative bg-gradient-to-br {} text-white rounded-2xl shadow-lg p-8 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-left w-full overflow-hidden focus:outline-none focus:ring-4 focus:ring-white/50",
+                "group relative bg-gradient-to-br {} text-white rounded-2xl shadow-lg p-8 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed text-left w-full overflow-hidden focus:outline-none focus:ring-4 focus:ring-white/50",
                 color_classes
             )
         >
-            // Animated background pattern
-            <div class="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
+            // Static background pattern
+            <div class="absolute inset-0 opacity-10 group-hover:opacity-20">
                 <div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 30px 30px;"></div>
             </div>
 
             // Status badge
             {(!matches!(app.status, AppStatus::Active)).then(|| view! {
                 <div class="absolute top-3 right-3 z-10">
-                    <span class="inline-flex items-center gap-1 bg-white/30 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/20 shadow-lg">
+                    <span class="inline-flex items-center gap-1 bg-black/40 text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/20 shadow-lg">
                         {match app.status {
                             AppStatus::Beta => "🧪",
                             AppStatus::Maintenance => "🔧",
@@ -90,16 +90,16 @@ pub fn AppCard(
                 </div>
             })}
 
-            // Icon with animation
+            // Icon without animation
             <div class="relative z-10 mb-6">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-white/30 rounded-2xl shadow-lg">
                     <span class="text-5xl">{app.icon.clone()}</span>
                 </div>
             </div>
 
             // Content
             <div class="relative z-10">
-                <h3 class="text-2xl font-bold mb-3 group-hover:translate-x-1 transition-transform duration-300">
+                <h3 class="text-2xl font-bold mb-3">
                     {app.name.clone()}
                 </h3>
                 <p class="text-sm text-white/90 leading-relaxed mb-4 line-clamp-2">
@@ -107,10 +107,10 @@ pub fn AppCard(
                 </p>
 
                 // Action indicator
-                <div class="flex items-center gap-2 text-sm font-medium text-white/80 group-hover:text-white transition-colors">
+                <div class="flex items-center gap-2 text-sm font-medium text-white/80 group-hover:text-white">
                     <span>"Buka Aplikasi"</span>
                     <svg
-                        class="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300"
+                        class="w-5 h-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -125,10 +125,7 @@ pub fn AppCard(
                 </div>
             </div>
 
-            // Shine effect on hover
-            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000"></div>
-            </div>
+            // Removed shine effect for performance
 
             // Bottom gradient overlay
             <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>

@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+@layer base {
+    /* Inherit main styles */
+    @import url("./main.css");
+}

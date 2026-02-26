@@ -23,8 +23,6 @@ use uuid::Uuid;
 
 /// Permission endpoint service
 pub struct PermissionEndpoint {
-    /// Database connection
-    db: Arc<Database>,
     /// Resource store
     resource_store: Arc<dyn ResourceStoreTrait>,
     /// Permission ticket store
@@ -42,7 +40,6 @@ pub struct PermissionEndpoint {
 impl PermissionEndpoint {
     /// Create new permission endpoint
     pub fn new(
-        db: Arc<Database>,
         resource_store: Arc<dyn ResourceStoreTrait>,
         ticket_store: Arc<dyn PermissionTicketStoreTrait>,
         policy_engine: Arc<PolicyEngine>,
@@ -51,7 +48,6 @@ impl PermissionEndpoint {
         ticket_lifetime: i64,
     ) -> Self {
         Self {
-            db,
             resource_store,
             ticket_store,
             policy_engine,

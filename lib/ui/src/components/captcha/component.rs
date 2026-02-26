@@ -432,10 +432,10 @@ fn CaptchaContainer(
             />
 
             <div class="captcha-header mb-4">
-                <h3 id="captcha-title" class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                <h3 id="captcha-title" class="text-lg font-bold text-gray-900 dark:text-white">
                     "Verify You're Human"
                 </h3>
-                <p id="captcha-description" class="text-sm text-gray-600 dark:text-gray-400">
+                <p id="captcha-description" class="text-sm font-medium text-gray-600 dark:text-gray-300">
                     "Complete the challenge below"
                 </p>
             </div>

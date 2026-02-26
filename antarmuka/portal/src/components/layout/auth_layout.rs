@@ -21,7 +21,7 @@ pub fn AuthLayout(
                 </div>
             </main>
 
-            <footer class="flex-shrink-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700">
+            <footer class="flex-shrink-0 bg-white/80 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700">
                 <div class="max-w-7xl mx-auto px-4 py-4">
                     <p class="text-center text-sm text-gray-500 dark:text-gray-400">
                         "© 2026 Kejaksaan Republik Indonesia — Portal SIMPEL v2.0"

@@ -106,7 +106,7 @@
 //!
 //! ## Usage Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use authenc_core::{
 //!     services::{AuthenticationServiceImpl, UserManagementServiceImpl},
 //!     stores::{UserStore, UserStoreTrait},

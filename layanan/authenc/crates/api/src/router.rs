@@ -57,6 +57,13 @@ pub fn create_unified_router(
     // Create the base router with all routes
     let router = create_base_router(state.clone());
 
+    // Ensure we have configs for the other middleware layers
+    let validation_config = Arc::new(middleware::InputValidationConfig::default());
+    let security_state = Arc::new(middleware::SecurityMonitoringState::new(
+        middleware::SecurityMonitoringConfig::default(),
+        None, // TODO: inject actual audit store
+    ));
+
     // Apply CSRF protection (wraps router directly)
     let router = middleware::apply_csrf_layer(router, csrf_config);
 
@@ -64,6 +71,11 @@ pub fn create_unified_router(
     router
         // 1. Compression (outermost)
         .layer(CompressionLayer::new())
+        // Apply security monitoring middleware
+        .layer(axum::middleware::from_fn_with_state(
+            security_state,
+            middleware::security_monitoring_middleware,
+        ))
         // 2. CORS
         .layer(cors_config.build())
         // 3. Request size limit
@@ -72,10 +84,12 @@ pub fn create_unified_router(
         ))
         // 4. Tracing (innermost)
         .layer(tower_http::trace::TraceLayer::new_for_http())
-    // TODO: Re-enable middleware once ConnectInfo and state injection are configured:
-    // - security_monitoring_middleware (requires ConnectInfo + State)
-    // - rate_limit_middleware (requires ConnectInfo + State)
-    // - input_validation_middleware (requires config injection)
+        // Apply rate limit middleware (inner)
+        .layer(middleware::rate_limit_layer(_rate_limit_config))
+        // Apply input validation middleware
+        .layer(axum::middleware::from_fn(move |req, next| {
+            middleware::input_validation_middleware(validation_config.clone(), req, next)
+        }))
 }
 
 /// Create the base router with all routes (no middleware)
@@ -88,7 +102,7 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
         .route("/health", get(health_check))
         .route("/health/ready", get(health_ready))
         .route("/health/live", get(health_live))
-        .route("/metrics", get(metrics_handler))
+        .route("/metrics", get(handlers::metrics::prometheus_metrics))
         // ===== Authentication Endpoints =====
         .route("/api/v1/auth/login", post(handlers::login_handler))
         .route("/api/v1/auth/logout", post(handlers::logout_handler))
@@ -139,7 +153,7 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
             get(handlers::list_credentials_handler),
         )
         .route(
-            "/api/v1/auth/webauthn/credentials/:id",
+            "/api/v1/auth/webauthn/credentials/{id}",
             delete(handlers::delete_credential_handler).patch(handlers::update_credential_handler),
         )
         // ===== MFA/TOTP Endpoints (SECONDARY authentication method) =====
@@ -187,13 +201,34 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
             "/api/v1/oauth2/introspect",
             post(handlers::introspect_handler),
         )
+        // ===== CAPTCHA Endpoints (public — no auth required) =====
+        .route(
+            "/api/captcha/challenge",
+            post(handlers::captcha_challenge_handler),
+        )
+        .route(
+            "/api/captcha/verify",
+            post(handlers::captcha_verify_handler),
+        )
+        .route(
+            "/api/captcha/image/{nonce}/{index}",
+            get(handlers::captcha_image_handler),
+        )
+        .route(
+            "/api/v1/captcha/challenge",
+            post(handlers::captcha_challenge_handler),
+        )
+        .route(
+            "/api/v1/captcha/verify",
+            post(handlers::captcha_verify_handler),
+        )
         // ===== Client Management Endpoints (Admin-only) =====
         .route(
             "/api/v1/clients",
             get(handlers::list_clients_handler).post(handlers::create_client_handler),
         )
         .route(
-            "/api/v1/clients/:id",
+            "/api/v1/clients/{id}",
             get(handlers::get_client_handler)
                 .patch(handlers::update_client_handler)
                 .delete(handlers::delete_client_handler),
@@ -201,7 +236,7 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
         // ===== Dynamic Client Registration (RFC 7591/7592) =====
         .route("/register", post(handlers::register_client_handler))
         .route(
-            "/register/:client_id",
+            "/register/{client_id}",
             get(handlers::get_client_configuration_handler)
                 .patch(handlers::update_client_configuration_handler)
                 .delete(handlers::delete_client_configuration_handler),
@@ -250,10 +285,7 @@ async fn health_live() -> &'static str {
     "Live"
 }
 
-/// Metrics handler (placeholder)
-async fn metrics_handler() -> &'static str {
-    "# Metrics endpoint\n# TODO: Implement Prometheus metrics"
-}
+
 
 #[cfg(test)]
 mod tests {
