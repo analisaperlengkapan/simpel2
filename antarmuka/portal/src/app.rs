@@ -6,7 +6,7 @@
 //! - **Accessibility**: WCAG 2.1 AA compliance
 //! - **Government Branding**: Konsisten dengan identitas Kejaksaan RI
 
-use crate::features::auth::AuthService;
+use crate::features::auth::{AuthService, UserSession};
 
 use crate::pages::*;
 use leptos::prelude::*;
@@ -17,6 +17,31 @@ use leptos_router::{
     ParamSegment, StaticSegment,
     components::{Route, Router, Routes},
 };
+
+// ============================================================================
+// AUTH GUARD HELPER COMPONENT
+// ============================================================================
+
+/// Auth guard component that redirects to login if not authenticated.
+/// Used by self-service and admin routes to avoid match boilerplate.
+#[component]
+fn WithAuth(
+    /// Current user session signal
+    user_session: ReadSignal<Option<UserSession>>,
+    /// Login success writer for redirect-to-login fallback
+    on_login_success: WriteSignal<Option<UserSession>>,
+    /// Child content rendered when authenticated
+    children: ChildrenFn,
+) -> impl IntoView {
+    let children = StoredValue::new(children);
+    move || match user_session.get() {
+        Some(_session) => children.with_value(|c| c().into_any()),
+        None => view! {
+            <LoginPage on_login_success=on_login_success />
+        }
+        .into_any(),
+    }
+}
 
 /// Main application component with session management
 #[component]
@@ -126,342 +151,297 @@ pub fn App() -> impl IntoView {
         });
     }
 
-    // Logout handler with broadcast
-    let handle_logout = move || {
-        #[cfg(target_arch = "wasm32")]
-        AuthService::broadcast_logout();
+    // Logout handler with broadcast — produces Box<dyn Fn()> for each route
+    let make_logout = move || -> Box<dyn Fn()> {
+        Box::new(move || {
+            #[cfg(target_arch = "wasm32")]
+            AuthService::broadcast_logout();
 
-        AuthService::logout();
-        set_user_session.set(None);
-        set_show_timeout_warning.set(false);
-        set_timeout_countdown.set(0);
+            AuthService::logout();
+            set_user_session.set(None);
+            set_show_timeout_warning.set(false);
+            set_timeout_countdown.set(0);
+        })
     };
 
     view! {
         <BrandingProvider unit="portal".to_string()>
-            // Router untuk halaman
-            // Base path disesuaikan dengan serving endpoint
             <Router base="/portal">
                 <Routes fallback=|| view! { <NotFoundPage /> }>
-                // Public routes
+
+                // ══════════════════════════════════════════════
+                // PUBLIC ROUTES (no auth required)
+                // ══════════════════════════════════════════════
                 <Route path=StaticSegment("") view=HomePage />
                 <Route path=StaticSegment("login") view=move || view! {
                     <LoginPage on_login_success=set_user_session />
                 } />
-
-                // OAuth callback route
                 <Route path=StaticSegment("callback") view=CallbackPage />
-
-                // Logout confirmation page
                 <Route path=StaticSegment("logged-out") view=LoggedOutPage />
 
-                // Password reset route
-
-
-                // MFA routes
+                // MFA routes (semi-public, temp-token based)
                 <Route path=StaticSegment("mfa/setup") view=MfaSetupPage />
                 <Route path=StaticSegment("mfa/verify") view=MfaVerificationPage />
                 <Route path=StaticSegment("mfa/backup-verify") view=MfaBackupVerificationPage />
 
-                // Protected MFA backup codes route
+                // ══════════════════════════════════════════════
+                // PROTECTED ROUTES (with MainLayout wrapper)
+                // ══════════════════════════════════════════════
                 <Route path=StaticSegment("mfa/backup-codes") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
-                            <MfaBackupCodesPage
-                                user_session=session
-                                on_logout=Box::new(handle_logout)
-                            />
+                            <MfaBackupCodesPage user_session=session on_logout=make_logout() />
                         }.into_any(),
-                        None => view! {
-                            <LoginPage on_login_success=set_user_session />
-                        }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
                     }
                 } />
 
-                // Protected routes - check auth state
                 <Route path=StaticSegment("dashboard") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
-                            <DashboardPage
-                                user_session=session
-                                on_logout=Box::new(handle_logout)
-                            />
+                            <DashboardPage user_session=session on_logout=make_logout() />
                         }.into_any(),
-                        None => view! {
-                            <LoginPage on_login_success=set_user_session />
-                        }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
                     }
                 } />
 
                 <Route path=StaticSegment("apps") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
-                            <AppsPage
-                                user_session=session
-                                on_logout=Box::new(handle_logout)
-                            />
+                            <AppsPage user_session=session on_logout=make_logout() />
                         }.into_any(),
-                        None => view! {
-                            <LoginPage on_login_success=set_user_session />
-                        }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
                     }
                 } />
 
                 <Route path=StaticSegment("pembinaan") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
-                            <PembinaanPage
-                                user_session=session
-                                on_logout=Box::new(handle_logout)
-                            />
+                            <PembinaanPage user_session=session on_logout=make_logout() />
                         }.into_any(),
-                        None => view! {
-                            <LoginPage on_login_success=set_user_session />
-                        }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
                     }
                 } />
 
                 <Route path=StaticSegment("notifications") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
-                            <NotificationsPage
-                                user_session=session
-                                on_logout=Box::new(handle_logout)
-                            />
+                            <NotificationsPage user_session=session on_logout=make_logout() />
                         }.into_any(),
-                        None => view! {
-                            <LoginPage on_login_success=set_user_session />
-                        }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
                     }
                 } />
 
                 <Route path=StaticSegment("monitoring") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
-                            <MonitoringPage
-                                user_session=session
-                                on_logout=Box::new(handle_logout)
-                            />
+                            <MonitoringPage user_session=session on_logout=make_logout() />
                         }.into_any(),
-                        None => view! {
-                            <LoginPage on_login_success=set_user_session />
-                        }.into_any(),
+                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
                     }
                 } />
 
                 <Route path=StaticSegment("settings") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
-                            <SettingsPage
-                                user_session=session
-                                on_logout=Box::new(handle_logout)
-                            />
+                            <SettingsPage user_session=session on_logout=make_logout() />
                         }.into_any(),
-                        None => view! {
-                            <LoginPage on_login_success=set_user_session />
-                        }.into_any(),
-                    }
-                } />
-
-
-
-                // Self-service account management routes
-                <Route path=StaticSegment("profile") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::profile::ProfilePage /> }.into_any(),
                         None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
                     }
                 } />
 
-                <Route path=StaticSegment("passkeys") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::passkeys::PasskeysPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                // ══════════════════════════════════════════════
+                // SELF-SERVICE ACCOUNT MANAGEMENT (WithAuth guard)
+                // ══════════════════════════════════════════════
+                <Route path=StaticSegment("profile") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::profile::ProfilePage />
+                    </WithAuth>
+                } />
+                <Route path=StaticSegment("passkeys") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::passkeys::PasskeysPage />
+                    </WithAuth>
+                } />
+                <Route path=StaticSegment("password") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::password_change::PasswordChangePage />
+                    </WithAuth>
+                } />
+                <Route path=StaticSegment("sessions") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::sessions::SessionsPage />
+                    </WithAuth>
                 } />
 
-                <Route path=StaticSegment("password") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::password_change::PasswordChangePage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                // ══════════════════════════════════════════════
+                // ADMIN IAM ROUTES (WithAuth guard)
+                // ══════════════════════════════════════════════
+                <Route path=StaticSegment("admin") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::AdminOverviewPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("sessions") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::sessions::SessionsPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/users") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::UsersManagementPage />
+                    </WithAuth>
                 } />
-
-                // Admin IAM routes
-                <Route path=StaticSegment("admin") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::AdminOverviewPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=(StaticSegment("admin/users"), ParamSegment("id")) view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::UserDetailPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("admin/users") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::UsersManagementPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/realms") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::RealmsManagementPage />
+                    </WithAuth>
                 } />
-
-                <Route path=(StaticSegment("admin/users"), ParamSegment("id")) view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::UserDetailPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/clients") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::ClientsManagementPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("admin/realms") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::RealmsManagementPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=(StaticSegment("admin/clients"), ParamSegment("id")) view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::ClientDetailPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("admin/clients") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::ClientsManagementPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/roles") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::RolesManagementPage />
+                    </WithAuth>
                 } />
-
-                <Route path=(StaticSegment("admin/clients"), ParamSegment("id")) view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::ClientDetailPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/federation") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::FederationManagementPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("admin/roles") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::RolesManagementPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/permissions") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::PermissionsManagementPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("admin/federation") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::FederationManagementPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/audit") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::AuditLogsPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("admin/permissions") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::PermissionsManagementPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/groups") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::GroupsManagementPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("admin/audit") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::AuditLogsPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/realm-settings") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::RealmSettingsPage />
+                    </WithAuth>
                 } />
-                <Route path=StaticSegment("admin/groups") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::GroupsManagementPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/auth-flows") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::AuthFlowsPage />
+                    </WithAuth>
                 } />
-
-                <Route path=StaticSegment("admin/realm-settings") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::RealmSettingsPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
-                } />
-
-                <Route path=StaticSegment("admin/auth-flows") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::AuthFlowsPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
-                } />
-
-                <Route path=StaticSegment("admin/linked-accounts") view=move || {
-                    match user_session.get() {
-                        Some(_session) => view! { <crate::pages::admin::LinkedAccountsPage /> }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
+                <Route path=StaticSegment("admin/linked-accounts") view=move || view! {
+                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                        <crate::pages::admin::LinkedAccountsPage />
+                    </WithAuth>
                 } />
             </Routes>
         </Router>
 
-        // Session timeout warning modal
-        {move || {
-            if show_timeout_warning.get() {
-                let countdown = timeout_countdown.get();
-                let minutes = countdown / 60;
-                let seconds = countdown % 60;
+        // Session timeout warning modal (extracted to component)
+        <SessionTimeoutModal
+            show=show_timeout_warning
+            countdown=timeout_countdown
+            user_session=user_session
+            set_user_session=set_user_session
+            set_show=set_show_timeout_warning
+        />
+        </BrandingProvider>
+    }
+}
 
-                Some(view! {
-                    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-                            <div class="flex items-center mb-4">
-                                <div class="flex-shrink-0">
-                                    <svg class="h-12 w-12 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                </div>
-                                <div class="ml-4">
-                                    <h3 class="text-lg font-semibold text-gray-900">
-                                        "Sesi Akan Berakhir"
-                                    </h3>
-                                </div>
+// ============================================================================
+// SESSION TIMEOUT MODAL (extracted from inline closure for readability)
+// ============================================================================
+
+/// Session timeout warning modal component
+#[component]
+fn SessionTimeoutModal(
+    show: ReadSignal<bool>,
+    countdown: ReadSignal<i64>,
+    user_session: ReadSignal<Option<UserSession>>,
+    set_user_session: WriteSignal<Option<UserSession>>,
+    set_show: WriteSignal<bool>,
+) -> impl IntoView {
+    move || {
+        if show.get() {
+            let secs = countdown.get();
+            let minutes = secs / 60;
+            let seconds = secs % 60;
+
+            Some(view! {
+                <div
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Peringatan sesi akan berakhir"
+                >
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center mb-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+                                <svg class="h-6 w-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
                             </div>
-
-                            <p class="text-gray-600 mb-4">
-                                "Sesi Anda akan berakhir dalam "
-                                <span class="font-bold text-red-600">
-                                    {format!("{:02}:{:02}", minutes, seconds)}
-                                </span>
-                                ". Silakan simpan pekerjaan Anda."
-                            </p>
-
-                            <div class="flex justify-end space-x-3">
-                                <button
-                                    on:click=move |_| {
-                                        set_show_timeout_warning.set(false);
-                                    }
-                                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                                >
-                                    "Tutup"
-                                </button>
-                                <button
-                                    on:click=move |_| {
-                                        // Extend session by refreshing token
-                                        if let Some(session) = user_session.get()
-                                            && let Some(refresh_token) = &session.refresh_token {
-                                                let refresh_token = refresh_token.clone();
-                                                spawn_local(async move {
-                                                    if let Ok(token_response) = AuthService::refresh_token(&refresh_token).await {
-                                                        AuthService::update_session_token(&token_response);
-                                                        set_user_session.set(AuthService::load_session());
-                                                        set_show_timeout_warning.set(false);
-                                                    }
-                                                });
-                                            }
-                                    }
-                                    class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors"
-                                >
-                                    "Perpanjang Sesi"
-                                </button>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                    "Sesi Akan Berakhir"
+                                </h3>
                             </div>
                         </div>
+
+                        <p class="text-gray-600 dark:text-gray-400 mb-6">
+                            "Sesi Anda akan berakhir dalam "
+                            <span class="font-bold text-red-600 dark:text-red-400 tabular-nums">
+                                {format!("{:02}:{:02}", minutes, seconds)}
+                            </span>
+                            ". Silakan simpan pekerjaan Anda."
+                        </p>
+
+                        <div class="flex justify-end space-x-3">
+                            <button
+                                on:click=move |_| set_show.set(false)
+                                class="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                                "Tutup"
+                            </button>
+                            <button
+                                on:click=move |_| {
+                                    if let Some(session) = user_session.get()
+                                        && let Some(refresh_token) = &session.refresh_token {
+                                            let refresh_token = refresh_token.clone();
+                                            spawn_local(async move {
+                                                if let Ok(token_response) = AuthService::refresh_token(&refresh_token).await {
+                                                    AuthService::update_session_token(&token_response);
+                                                    set_user_session.set(AuthService::load_session());
+                                                    set_show.set(false);
+                                                }
+                                            });
+                                        }
+                                }
+                                class="px-4 py-2.5 text-sm font-medium text-white bg-navy-700 hover:bg-navy-800 dark:bg-gold-500 dark:hover:bg-gold-600 dark:text-navy-900 rounded-xl shadow-sm transition-colors"
+                            >
+                                "Perpanjang Sesi"
+                            </button>
+                        </div>
                     </div>
-                })
-            } else {
-                None
-            }
-        }}
-        </BrandingProvider>
+                </div>
+            })
+        } else {
+            None
+        }
     }
 }
 
