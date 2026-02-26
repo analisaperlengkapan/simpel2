@@ -27,6 +27,8 @@ pub fn Navbar(
         move |_| {
             if let Some(ref callback) = *on_logout {
                 callback();
+            } else {
+                AuthService::logout();
             }
         }
     };
@@ -37,6 +39,8 @@ pub fn Navbar(
             set_mobile_open.set(false);
             if let Some(ref callback) = *on_logout {
                 callback();
+            } else {
+                AuthService::logout();
             }
         }
     };
