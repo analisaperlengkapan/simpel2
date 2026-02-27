@@ -25,9 +25,10 @@ pub fn Navbar(
     let handle_logout_click = {
         let on_logout = Rc::clone(&on_logout_rc);
         move |_| {
-            AuthService::logout();
             if let Some(ref callback) = *on_logout {
                 callback();
+            } else {
+                AuthService::logout();
             }
         }
     };
@@ -36,9 +37,10 @@ pub fn Navbar(
         let on_logout = Rc::clone(&on_logout_rc);
         move |_| {
             set_mobile_open.set(false);
-            AuthService::logout();
             if let Some(ref callback) = *on_logout {
                 callback();
+            } else {
+                AuthService::logout();
             }
         }
     };

@@ -63,7 +63,7 @@ fn RedirectToLogin() -> impl IntoView {
 
 /// Forbidden page for non-admin users trying to access admin routes
 #[component]
-fn ForbiddenPage() -> impl IntoView {
+pub fn ForbiddenPage() -> impl IntoView {
     view! {
         <div class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
             <div class="text-center max-w-md px-4">
