@@ -135,11 +135,11 @@ pub fn App() -> impl IntoView {
                         for _ in 0..30 {
                             if !is_active.get() { break; }
                             TimeoutFuture::new(1_000).await;
-                            if show_timeout_warning.get_untracked() {
-                                let current = timeout_countdown.get_untracked();
-                                if current > 0 {
-                                    set_timeout_countdown.set(current - 1);
-                                } else if current <= 0 {
+
+                            let current = timeout_countdown.get_untracked();
+                            if current > 0 {
+                                set_timeout_countdown.set(current - 1);
+                                if current - 1 <= 0 {
                                     // Session expired due to countdown
                                     AuthService::broadcast_logout();
                                     AuthService::logout();
