@@ -112,24 +112,47 @@ pub fn App() -> impl IntoView {
     {
         use gloo_timers::future::TimeoutFuture;
         use leptos::prelude::Effect;
+        use leptos::prelude::on_cleanup;
+        use std::rc::Rc;
+        use std::cell::Cell;
 
         Effect::new(move |_| {
             if let Some(_session) = user_session.get() {
+                // Cancellation token to prevent multiple concurrent tasks
+                let is_active = Rc::new(Cell::new(true));
+                let is_active_clone = is_active.clone();
+
+                on_cleanup(move || {
+                    is_active_clone.set(false);
+                });
+
                 // Spawn async task for token refresh monitoring
                 spawn_local(async move {
                     loop {
+                        if !is_active.get() { break; }
+
                         // Wait 30 seconds, decrementing countdown every second if active
                         for _ in 0..30 {
+                            if !is_active.get() { break; }
                             TimeoutFuture::new(1_000).await;
                             if show_timeout_warning.get_untracked() {
                                 let current = timeout_countdown.get_untracked();
                                 if current > 0 {
                                     set_timeout_countdown.set(current - 1);
+                                } else if current <= 0 {
+                                    // Session expired due to countdown
+                                    AuthService::broadcast_logout();
+                                    AuthService::logout();
+                                    set_user_session.set(None);
+                                    set_show_timeout_warning.set(false);
+                                    break;
                                 }
                             }
                         }
 
-                        if let Some(current_session) = AuthService::load_session() {
+                        if !is_active.get() { break; }
+
+                        if let Some(mut current_session) = AuthService::load_session() {
                             // Check if session is expired
                             if !AuthService::is_session_valid(&current_session) {
                                 // Session expired - logout
@@ -151,6 +174,10 @@ pub fn App() -> impl IntoView {
                                         AuthService::update_session_token(&token_response);
                                         // Reload session to update UI
                                         set_user_session.set(AuthService::load_session());
+                                        // Update current_session for accurate countdown calculation
+                                        if let Some(refreshed_session) = AuthService::load_session() {
+                                            current_session = refreshed_session;
+                                        }
                                     }
                                     Err(_) => {
                                         // Refresh failed - logout
