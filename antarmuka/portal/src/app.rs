@@ -177,6 +177,30 @@ pub fn App() -> impl IntoView {
         });
     }
 
+    #[cfg(target_arch = "wasm32")]
+    {
+        use gloo_timers::future::TimeoutFuture;
+        use leptos::prelude::Effect;
+
+        Effect::new(move |_| {
+            if show_timeout_warning.get() {
+                spawn_local(async move {
+                    loop {
+                        TimeoutFuture::new(1_000).await;
+                        if !show_timeout_warning.get_untracked() {
+                            break;
+                        }
+                        let current = timeout_countdown.get_untracked();
+                        if current <= 0 {
+                            break;
+                        }
+                        set_timeout_countdown.set(current - 1);
+                    }
+                });
+            }
+        });
+    }
+
     // Logout handler with broadcast — produces Box<dyn Fn()> for each route
     let make_logout = move || -> Box<dyn Fn()> {
         Box::new(move || {
