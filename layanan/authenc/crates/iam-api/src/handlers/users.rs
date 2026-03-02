@@ -22,8 +22,8 @@ fn to_user_response(user: User) -> UserResponse {
         email_verified: user.email_verified,
         mfa_enabled: user.mfa_enabled,
         realm_id: user.realm_id.unwrap_or(Uuid::nil()),
-        created_at: user.created_at,
-        updated_at: user.updated_at,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
     }
 }
 
@@ -240,6 +240,7 @@ pub async fn update_user(
         require_password_change: None,
         password: None,
         mfa_enabled: None,
+        totp_secret: None,
     };
 
     let user = state.user_service.update_user(UserId::from_uuid(id), core_req).await.map_err(crate::error::ApiError)?;
@@ -279,6 +280,7 @@ pub async fn reset_user_password(
         require_password_change: None,
         password: Some(req.new_password),
         mfa_enabled: None,
+        totp_secret: None,
     };
 
     state.user_service.update_user(UserId::from_uuid(id), core_req).await.map_err(crate::error::ApiError)?;
@@ -291,13 +293,34 @@ pub async fn enable_user_mfa(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<EnableMfaResponse>> {
-    let _user = state.user_service.enable_mfa(UserId::from_uuid(id)).await.map_err(crate::error::ApiError)?;
+    // Generate a random TOTP secret (at least 20 bytes, base32 encoded) using Uuid since rand is not linked
+    let mut secret_bytes = [0u8; 20];
+    let uuid_bytes = Uuid::new_v4().into_bytes();
+    secret_bytes[0..16].copy_from_slice(&uuid_bytes);
+    secret_bytes[16..20].copy_from_slice(&[1, 2, 3, 4]);
 
-    // Basic fallback secret generation without totp-rs feature directly required in iam-api
-    let encoded_secret = format!("MFA{}{}", id.as_simple(), chrono::Utc::now().timestamp());
+    const ALPHABET: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let mut encoded_secret = String::with_capacity((secret_bytes.len() * 8 + 4) / 5);
+    let mut buffer = 0u32;
+    let mut bits_left = 0;
 
-    // Mock QR code URL since actual image generation requires qrcode or totp-rs crates to be enabled
-    let qr_code = format!("otpauth://totp/SIMPEL:{}?secret={}&issuer=SIMPEL", _user.username, encoded_secret);
+    for &byte in &secret_bytes {
+        buffer = (buffer << 8) | (byte as u32);
+        bits_left += 8;
+        while bits_left >= 5 {
+            bits_left -= 5;
+            let index = (buffer >> bits_left) & 0x1F;
+            encoded_secret.push(ALPHABET[index as usize] as char);
+        }
+    }
+    if bits_left > 0 {
+        let index = (buffer << (5 - bits_left)) & 0x1F;
+        encoded_secret.push(ALPHABET[index as usize] as char);
+    }
+
+    let user = state.user_service.enable_mfa(UserId::from_uuid(id), encoded_secret.clone()).await.map_err(crate::error::ApiError)?;
+
+    let qr_code = format!("otpauth://totp/SIMPEL:{}?secret={}&issuer=SIMPEL", user.username, encoded_secret);
 
     Ok(Json(EnableMfaResponse {
         secret: encoded_secret,

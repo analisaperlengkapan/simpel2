@@ -427,6 +427,7 @@ impl UserManagementServiceImpl {
             enabled: Some(false),
             email_verified: None,
             mfa_enabled: None,
+            totp_secret: None,
             attributes: None,
         };
 
@@ -533,6 +534,7 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: Some(true),
             mfa_enabled: None,
+            totp_secret: None,
             attributes: None,
         };
 
@@ -552,7 +554,7 @@ impl UserManagementServiceImpl {
     /// # Arguments
     ///
     /// * `user_id` - User ID
-    pub async fn enable_mfa(&self, user_id: UserId) -> Result<User> {
+    pub async fn enable_mfa(&self, user_id: UserId, totp_secret: String) -> Result<User> {
         debug!(user_id = %user_id, "Enabling MFA");
 
         let update_request = UpdateUserRequest {
@@ -571,6 +573,7 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: None,
             mfa_enabled: Some(true),
+            totp_secret: Some(totp_secret),
             attributes: None,
         };
 
@@ -609,6 +612,7 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: None,
             mfa_enabled: Some(false),
+            totp_secret: None,
             attributes: None,
         };
 
@@ -829,6 +833,7 @@ mod tests {
             enabled: None,
             email_verified: None,
             mfa_enabled: None,
+            totp_secret: None,
             attributes: None,
         }
     }
@@ -850,6 +855,7 @@ mod tests {
             enabled: None,
             email_verified: None,
             mfa_enabled: None,
+            totp_secret: None,
             attributes: None,
         }
     }

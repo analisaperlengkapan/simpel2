@@ -858,6 +858,8 @@ pub struct UpdateUserRequest {
     pub password: Option<String>,
     /// Enable/disable MFA
     pub mfa_enabled: Option<bool>,
+    /// New TOTP secret
+    pub totp_secret: Option<String>,
     /// Additional attributes
     pub attributes: Option<serde_json::Value>,
 }
