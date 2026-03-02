@@ -40,7 +40,7 @@ data:
             add_header Referrer-Policy "strict-origin-when-cross-origin" always;
             add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
             add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-            add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id; font-src 'self'; frame-ancestors 'self'" always;
+            add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
 
             # SPA Routing - Istio strips /portal prefix, nginx serves from root
             location / {
@@ -60,7 +60,7 @@ data:
                 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
                 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
                 add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id; font-src 'self'; frame-ancestors 'self'" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
             }
 
             # Static assets caching (content-hashed filenames are safe to cache forever)
@@ -75,7 +75,7 @@ data:
                 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
                 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
                 add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id; font-src 'self'; frame-ancestors 'self'" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
             }
 
             # Health check
@@ -91,7 +91,7 @@ data:
                 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
                 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
                 add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id; font-src 'self'; frame-ancestors 'self'" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
             }
         }
     }
