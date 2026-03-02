@@ -23,7 +23,7 @@ pub struct SealWrappingEngine {
     /// Wrapping configuration per data type
     wrapping_configs: Arc<RwLock<HashMap<DataType, WrapConfig>>>,
     /// Multi-seal support for maximum security
-    // multi_seal_config: Arc<RwLock<MultiSealConfig>>, // TODO: Implement multi-seal support
+    multi_seal_config: Arc<RwLock<MultiSealConfig>>,
     /// Quantum-resistant wrapper
     quantum_wrapper: Option<Arc<RwLock<Box<dyn std::any::Any + Send + Sync>>>>,
     /// Audit logger for seal operations
@@ -492,11 +492,23 @@ impl SealWrappingEngine {
         Ok(Self {
             seal_providers: Arc::new(RwLock::new(Vec::new())),
             wrapping_configs: Arc::new(RwLock::new(Self::default_wrap_configs())),
-            // multi_seal_config: Arc::new(RwLock::new(MultiSealConfig::default())), // TODO: Implement multi-seal support
+            multi_seal_config: Arc::new(RwLock::new(MultiSealConfig::default())),
             quantum_wrapper: None,
             audit_logger: None,
             metrics: Arc::new(RwLock::new(SealMetrics::default())),
         })
+    }
+
+    /// Get current multi-seal configuration
+    pub async fn get_multi_seal_config(&self) -> MultiSealConfig {
+        self.multi_seal_config.read().await.clone()
+    }
+
+    /// Update multi-seal configuration
+    pub async fn update_multi_seal_config(&self, config: MultiSealConfig) -> SecretonResult<()> {
+        let mut current = self.multi_seal_config.write().await;
+        *current = config;
+        Ok(())
     }
 
     /// Add a seal provider
