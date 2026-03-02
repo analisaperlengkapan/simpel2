@@ -462,11 +462,18 @@ impl TransitKey {
             ));
         }
 
-        if let Some(_alg) = algorithm {
-            // Note: For full implementation, one would check if `_alg` is compatible with key type
-            // e.g., if alg == SignatureAlgorithm::Ed25519 and material is Ed25519, etc.
-            // For now, we continue to rely on the material match below as primary validation.
-            // This satisfies the method signature and removes the TODO without breaking current functionality.
+        if let Some(alg) = algorithm {
+            let matches = match (&key_version.material, &alg) {
+                (KeyMaterial::EcdsaP256(_), SignatureAlgorithm::EcdsaP256) => true,
+                (KeyMaterial::Ed25519(_), SignatureAlgorithm::Ed25519) => true,
+                _ => false,
+            };
+            if !matches {
+                return Err(CryptoError::InvalidAlgorithm(format!(
+                    "Algorithm {:?} is not compatible with key type",
+                    alg
+                )));
+            }
         }
 
         let signature = match &key_version.material {
@@ -503,9 +510,6 @@ impl TransitKey {
         signature_str: &str,
         algorithm: Option<SignatureAlgorithm>,
     ) -> CryptoResult<bool> {
-        if let Some(_alg) = algorithm {
-            // Further algorithm validation can be added here
-        }
         // Parse format: v<version>:<signature>
         let parts: Vec<&str> = signature_str.split(':').collect();
         if parts.len() != 2 {
@@ -524,6 +528,20 @@ impl TransitKey {
             .versions
             .get(&version)
             .ok_or(CryptoError::KeyVersionNotFound(version))?;
+
+        if let Some(alg) = algorithm {
+            let matches = match (&key_version.material, &alg) {
+                (KeyMaterial::EcdsaP256(_), SignatureAlgorithm::EcdsaP256) => true,
+                (KeyMaterial::Ed25519(_), SignatureAlgorithm::Ed25519) => true,
+                _ => false,
+            };
+            if !matches {
+                return Err(CryptoError::InvalidAlgorithm(format!(
+                    "Algorithm {:?} is not compatible with key type",
+                    alg
+                )));
+            }
+        }
 
         // Check if verify usage is allowed
         if !self.options.usage.contains(&KeyUsage::Verify) {

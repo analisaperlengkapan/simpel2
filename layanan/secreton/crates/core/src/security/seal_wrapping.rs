@@ -913,7 +913,7 @@ impl SealWrappingEngine {
 impl Default for MultiSealConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             threshold: 2,
             max_seals: 5,
             strategy: SealCombinationStrategy::Priority,
