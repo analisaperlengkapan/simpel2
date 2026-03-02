@@ -163,6 +163,8 @@ pub fn App() -> impl IntoView {
                                         AuthService::broadcast_logout();
                                         AuthService::logout();
                                         set_user_session.set(None);
+                                        set_show_timeout_warning.set(false);
+                                        set_timeout_countdown.set(0);
                                         break;
                                     }
                                 }
