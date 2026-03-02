@@ -593,7 +593,7 @@ impl AuthencService for AuthencGrpcService {
 
         // Enable MFA flag on user
         self.user_service
-            .enable_mfa(user_id, "mock_totp_secret_for_grpc".to_string())
+            .enable_mfa(user_id, mfa_setup.secret.clone())
             .await
             .map_err(Self::error_to_status)?;
 
