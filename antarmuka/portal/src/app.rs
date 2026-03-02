@@ -179,6 +179,7 @@ pub fn App() -> impl IntoView {
                                     set_timeout_countdown.set(time_until_expiry);
                                 } else {
                                     set_show_timeout_warning.set(false);
+                                    set_timeout_countdown.set(0);
                                 }
                             }
                         } else {
