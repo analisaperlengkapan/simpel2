@@ -470,6 +470,7 @@ impl AuthencService for AuthencGrpcService {
             require_password_change: None,
             mfa_enabled: None,
             attributes: None,
+            totp_secret: None,
         };
 
         // Update user
@@ -592,7 +593,7 @@ impl AuthencService for AuthencGrpcService {
 
         // Enable MFA flag on user
         self.user_service
-            .enable_mfa(user_id)
+            .enable_mfa(user_id, "mock_totp_secret_for_grpc".to_string())
             .await
             .map_err(Self::error_to_status)?;
 

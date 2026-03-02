@@ -427,6 +427,7 @@ impl UserManagementServiceImpl {
             enabled: Some(false),
             email_verified: None,
             mfa_enabled: None,
+            clear_totp_secret: None,
             totp_secret: None,
             attributes: None,
         };
@@ -534,6 +535,7 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: Some(true),
             mfa_enabled: None,
+            clear_totp_secret: None,
             totp_secret: None,
             attributes: None,
         };
@@ -575,6 +577,7 @@ impl UserManagementServiceImpl {
             mfa_enabled: Some(true),
             totp_secret: Some(totp_secret),
             attributes: None,
+            clear_totp_secret: None,
         };
 
         let user = self.user_store.update_user(user_id, update_request).await?;
@@ -612,7 +615,8 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: None,
             mfa_enabled: Some(false),
-            totp_secret: Some(String::new()),
+            clear_totp_secret: Some(true),
+            totp_secret: None,
             attributes: None,
         };
 
@@ -834,6 +838,7 @@ mod tests {
             email_verified: None,
             mfa_enabled: None,
             totp_secret: None,
+            clear_totp_secret: None,
             attributes: None,
         }
     }
@@ -856,6 +861,7 @@ mod tests {
             email_verified: None,
             mfa_enabled: None,
             totp_secret: None,
+            clear_totp_secret: None,
             attributes: None,
         }
     }
@@ -1205,7 +1211,7 @@ mod tests {
 
         // Enable MFA
         let mfa_user = service
-            .enable_mfa(UserId::from_uuid(user.id))
+            .enable_mfa(UserId::from_uuid(user.id), "mock_totp_secret_for_test".to_string())
             .await
             .unwrap();
         assert!(mfa_user.mfa_enabled);
@@ -1230,7 +1236,7 @@ mod tests {
             .await
             .unwrap();
         let mfa_user = service
-            .enable_mfa(UserId::from_uuid(user.id))
+            .enable_mfa(UserId::from_uuid(user.id), "mock_totp_secret_for_test".to_string())
             .await
             .unwrap();
         assert!(mfa_user.mfa_enabled);

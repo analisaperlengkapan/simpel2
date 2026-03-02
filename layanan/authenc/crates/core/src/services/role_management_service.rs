@@ -8,6 +8,7 @@ use authenc_types::{RealmId, Result, RoleId, UserId, error::AuthencError};
 use std::sync::Arc;
 use tracing::{debug, error};
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
 
 /// Role information
 #[derive(Debug, Clone)]
@@ -19,6 +20,8 @@ pub struct Role {
     pub composite: bool,
     pub client_role: bool,
     pub permissions: Vec<Permission>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Permission information
@@ -222,6 +225,8 @@ impl RoleManagementServiceImpl {
                 composite: row.get("composite"),
                 client_role: row.get("client_role"),
                 permissions,
+                created_at: row.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+                updated_at: row.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
             });
         }
 
@@ -256,8 +261,8 @@ impl RoleManagementServiceImpl {
         debug!("Creating role {} in realm {}", name, realm_id);
 
         let query = r#"
-            INSERT INTO roles (id, name, description, realm_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, NOW(), NOW())
+            INSERT INTO roles (id, name, description, realm_id, composite, client_role, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, false, false, NOW(), NOW())
             RETURNING id, name, description, realm_id, composite, client_role
         "#;
 
@@ -275,6 +280,8 @@ impl RoleManagementServiceImpl {
             composite: row.get("composite"),
             client_role: row.get("client_role"),
             permissions: vec![],
+            created_at: row.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+            updated_at: row.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
         })
     }
 
@@ -303,6 +310,8 @@ impl RoleManagementServiceImpl {
                 composite: row.get("composite"),
                 client_role: row.get("client_role"),
                 permissions,
+                created_at: row.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+                updated_at: row.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
             }))
         } else {
             Ok(None)
@@ -350,7 +359,9 @@ impl RoleManagementServiceImpl {
             realm_id: RealmId::from_uuid(row.get("realm_id")),
             composite: row.get("composite"),
             client_role: row.get("client_role"),
-            permissions,
+                permissions,
+                created_at: row.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+                updated_at: row.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
         })
     }
 

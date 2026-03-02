@@ -68,8 +68,8 @@ pub async fn list_roles(
         name: r.name,
         description: r.description,
         realm_id: *r.realm_id.as_uuid(),
-        created_at: chrono::Utc::now(), // Best effort since it's not in the Role struct
-        updated_at: chrono::Utc::now(),
+        created_at: r.created_at,
+        updated_at: r.updated_at,
     }).collect();
 
     Ok(Json(responses))
@@ -90,8 +90,8 @@ pub async fn create_role(
             name: role.name,
             description: role.description,
             realm_id: *role.realm_id.as_uuid(),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: role.created_at,
+            updated_at: role.updated_at,
         })
     ))
 }
@@ -110,8 +110,8 @@ pub async fn get_role(
         name: role.name,
         description: role.description,
         realm_id: *role.realm_id.as_uuid(),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: role.created_at,
+        updated_at: role.updated_at,
     }))
 }
 
@@ -134,8 +134,8 @@ pub async fn update_role(
         name: role.name,
         description: role.description,
         realm_id: *role.realm_id.as_uuid(),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: role.created_at,
+        updated_at: role.updated_at,
     }))
 }
 

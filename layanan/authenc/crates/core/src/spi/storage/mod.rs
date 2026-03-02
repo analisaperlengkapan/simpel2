@@ -238,6 +238,7 @@ impl UserStorageProvider for DefaultUserStorageProvider {
     async fn update_user(&self, user: User) -> Result<User> {
         // Convert User to UpdateUserRequest
         let request = authenc_types::domain::user::UpdateUserRequest {
+            clear_totp_secret: None,
             totp_secret: None,
             username: Some(user.username.clone()),
             email: Some(user.email.clone()),

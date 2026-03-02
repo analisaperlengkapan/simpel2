@@ -141,19 +141,30 @@ pub async fn list_users(
 
     // In a real implementation we would do searching and getting a total count.
     // Here we just wrap the existing `list_users`
-    let users = state.user_service.list_users(RealmId::from_uuid(realm_id), offset, params.page_size as usize).await.map_err(crate::error::ApiError)?;
+    let mut users = if let Some(ref search_term) = params.search {
+        state.user_service.search_users(RealmId::from_uuid(realm_id), search_term, 1000).await.map_err(crate::error::ApiError)?
+    } else {
+        state.user_service.list_users(RealmId::from_uuid(realm_id), 0, 1000).await.map_err(crate::error::ApiError)? // Fetch larger batch for post-filtering if needed
+    };
+
+    if let Some(enabled_filter) = params.enabled {
+        users.retain(|u| u.enabled == enabled_filter);
+    }
+
+    // Manual pagination since we might have post-filtered or fetched a large batch
+    let paginated_users: Vec<_> = users.into_iter().skip(offset).take(params.page_size as usize).collect();
+    let users = paginated_users;
 
     let total_returned = users.len() as u64;
     let user_responses: Vec<UserResponse> = users.into_iter().map(to_user_response).collect();
 
     // In a full implementation, we'd query the actual total from the database.
     // Since UserManagementServiceImpl doesn't expose a count method yet,
-    let total = if total_returned < params.page_size as u64 {
-        total_returned + offset as u64
+    // we provide a heuristic based on what we fetched.
+    let total = if total_returned < params.page_size as u64 && params.page == 1 {
+        total_returned
     } else {
-        // We got a full page; signal there may be more data
-        total_returned + offset as u64 + 1
-    };
+        total_returned + offset as u64 // Minimum possible total
     };
 
     let total_pages = (total as f64 / params.page_size as f64).ceil() as u32;
@@ -206,9 +217,33 @@ pub async fn create_user(
         attributes: Some(serde_json::Value::Object(attrs_map)),
     };
 
-    let user = state.user_service.create_user(core_req).await.map_err(crate::error::ApiError)?;
+    let mut user = state.user_service.create_user(core_req).await.map_err(crate::error::ApiError)?;
 
-    // We would ideally set the password too if user_service supported it directly or via another call
+    // Core CreateUserRequest doesn't support setting 'enabled' directly, it uses default=true.
+    // If the request explicitly asked to create a disabled user, update them.
+    if let Some(false) = req.enabled {
+        let disable_req = CoreUpdateUserRequest {
+            username: None,
+            email: None,
+            first_name: None,
+            last_name: None,
+            phone_number: None,
+            nip: None,
+            nama: None,
+            jabatan: None,
+            satker_code: None,
+            attributes: None,
+            enabled: Some(false),
+            email_verified: None,
+            phone_verified: None,
+            require_password_change: None,
+            password: None,
+            mfa_enabled: None,
+            clear_totp_secret: None,
+            totp_secret: None,
+        };
+        user = state.user_service.update_user(UserId::from_uuid(user.id), disable_req).await.map_err(crate::error::ApiError)?;
+    }
 
     Ok((StatusCode::CREATED, Json(to_user_response(user))))
 }
@@ -246,6 +281,7 @@ pub async fn update_user(
         password: None,
         mfa_enabled: None,
         totp_secret: None,
+        clear_totp_secret: None,
     };
 
     let user = state.user_service.update_user(UserId::from_uuid(id), core_req).await.map_err(crate::error::ApiError)?;
@@ -286,6 +322,7 @@ pub async fn reset_user_password(
         password: Some(req.new_password),
         mfa_enabled: None,
         totp_secret: None,
+        clear_totp_secret: None,
     };
 
     state.user_service.update_user(UserId::from_uuid(id), core_req).await.map_err(crate::error::ApiError)?;
