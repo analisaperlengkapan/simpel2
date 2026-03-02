@@ -148,11 +148,12 @@ pub async fn list_users(
 
     // In a full implementation, we'd query the actual total from the database.
     // Since UserManagementServiceImpl doesn't expose a count method yet,
-    // we provide a heuristic based on what we fetched.
-    let total = if total_returned < params.page_size as u64 && params.page == 1 {
-        total_returned
+    let total = if total_returned < params.page_size as u64 {
+        total_returned + offset as u64
     } else {
-        total_returned + offset as u64 // Minimum possible total
+        // We got a full page; signal there may be more data
+        total_returned + offset as u64 + 1
+    };
     };
 
     let total_pages = (total as f64 / params.page_size as f64).ceil() as u32;
