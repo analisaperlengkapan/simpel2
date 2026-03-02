@@ -131,27 +131,6 @@ pub fn App() -> impl IntoView {
                     loop {
                         if !is_active.get() { break; }
 
-                        // Wait 30 seconds, decrementing countdown every second if active
-                        for _ in 0..30 {
-                            if !is_active.get() { break; }
-                            TimeoutFuture::new(1_000).await;
-
-                            let current = timeout_countdown.get_untracked();
-                            if current > 0 {
-                                set_timeout_countdown.set(current - 1);
-                                if current - 1 <= 0 {
-                                    // Session expired due to countdown
-                                    AuthService::broadcast_logout();
-                                    AuthService::logout();
-                                    set_user_session.set(None);
-                                    set_show_timeout_warning.set(false);
-                                    break;
-                                }
-                            }
-                        }
-
-                        if !is_active.get() { break; }
-
                         if let Some(mut current_session) = AuthService::load_session() {
                             // Check if session is expired
                             if !AuthService::is_session_valid(&current_session) {
@@ -205,6 +184,27 @@ pub fn App() -> impl IntoView {
                         } else {
                             // No session - stop monitoring
                             break;
+                        }
+
+                        if !is_active.get() { break; }
+
+                        // Wait 30 seconds, decrementing countdown every second if active
+                        for _ in 0..30 {
+                            if !is_active.get() { break; }
+                            TimeoutFuture::new(1_000).await;
+
+                            let current = timeout_countdown.get_untracked();
+                            if current > 0 {
+                                set_timeout_countdown.set(current - 1);
+                                if current - 1 <= 0 {
+                                    // Session expired due to countdown
+                                    AuthService::broadcast_logout();
+                                    AuthService::logout();
+                                    set_user_session.set(None);
+                                    set_show_timeout_warning.set(false);
+                                    break;
+                                }
+                            }
                         }
                     }
                 });
