@@ -515,6 +515,12 @@ impl SealWrappingEngine {
         if config.threshold > config.max_seals || config.threshold == 0 || config.max_seals == 0 {
             return Err(crate::error::SecretonError::InvalidMultiSealData);
         }
+
+        let providers_count = self.seal_providers.read().await.len();
+        if config.threshold as usize > providers_count {
+            return Err(crate::error::SecretonError::SealProviderUnavailable);
+        }
+
         let mut current = self.multi_seal_config.write().await;
         *current = config;
         Ok(())
@@ -667,7 +673,7 @@ impl SealWrappingEngine {
         };
 
         let max_seals = if multi_seal_config.enabled {
-            multi_seal_config.max_seals as usize
+            std::cmp::max(target_seals as usize, multi_seal_config.max_seals as usize)
         } else {
             target_seals as usize
         };
@@ -676,10 +682,10 @@ impl SealWrappingEngine {
         let available_providers: Vec<_> = providers
             .iter()
             .filter(|p| p.health_status.available)
-            .take(std::cmp::min(target_seals as usize, max_seals))
+            .take(max_seals)
             .collect();
 
-        if available_providers.len() < std::cmp::min(target_seals as usize, max_seals) {
+        if available_providers.len() < target_seals as usize {
             return Err(crate::error::SecretonError::SealProviderUnavailable);
         }
 
@@ -851,12 +857,15 @@ impl SealWrappingEngine {
     async fn update_wrap_metrics(&self, duration: std::time::Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
         metrics.total_wraps += 1;
-        if success {
-            metrics.successful_wraps += 1;
-            metrics.avg_latency_ms = (metrics.avg_latency_ms + duration.as_millis() as u64) / 2;
-        }
 
         let total_ops = metrics.total_wraps + metrics.total_unwraps;
+
+        if success {
+            metrics.successful_wraps += 1;
+            let new_time = duration.as_millis() as u64;
+            metrics.avg_latency_ms = ((metrics.avg_latency_ms * (total_ops - 1) as u64) + new_time) / total_ops as u64;
+        }
+
         let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
         metrics.success_rate = if total_ops > 0 {
             successful_ops as f64 / total_ops as f64
@@ -869,12 +878,15 @@ impl SealWrappingEngine {
     async fn update_unwrap_metrics(&self, duration: std::time::Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
         metrics.total_unwraps += 1;
-        if success {
-            metrics.successful_unwraps += 1;
-            metrics.avg_latency_ms = (metrics.avg_latency_ms + duration.as_millis() as u64) / 2;
-        }
 
         let total_ops = metrics.total_wraps + metrics.total_unwraps;
+
+        if success {
+            metrics.successful_unwraps += 1;
+            let new_time = duration.as_millis() as u64;
+            metrics.avg_latency_ms = ((metrics.avg_latency_ms * (total_ops - 1) as u64) + new_time) / total_ops as u64;
+        }
+
         let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
         metrics.success_rate = if total_ops > 0 {
             successful_ops as f64 / total_ops as f64
