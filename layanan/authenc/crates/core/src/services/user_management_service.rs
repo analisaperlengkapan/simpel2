@@ -612,7 +612,7 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: None,
             mfa_enabled: Some(false),
-            totp_secret: None,
+            totp_secret: Some(String::new()),
             attributes: None,
         };
 
