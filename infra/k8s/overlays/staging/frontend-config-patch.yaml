@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-nginx-config
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        sendfile        on;
+        keepalive_timeout  65;
+
+        # Fix double-slash paths (Istio strips /portal prefix leaving // in requests)
+        merge_slashes on;
+
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json application/wasm;
+
+        server {
+            listen 8080;
+            listen [::]:8080;
+            server_name _;
+            root /usr/share/nginx/html;
+            index index.html;
+
+            # Security headers (Staging overrides for localhost/10.1.7.121)
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-XSS-Protection "0" always;
+            add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+            add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+            add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+            add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
+
+            # SPA Routing
+            location / {
+                try_files $uri $uri/ /index.html;
+            }
+
+            location = /index.html {
+                add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+                add_header Pragma "no-cache" always;
+                expires 0;
+
+                add_header X-Frame-Options "SAMEORIGIN" always;
+                add_header X-Content-Type-Options "nosniff" always;
+                add_header X-XSS-Protection "0" always;
+                add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+                add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+                add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
+            }
+
+            location ~* \.(wasm|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+
+                add_header X-Frame-Options "SAMEORIGIN" always;
+                add_header X-Content-Type-Options "nosniff" always;
+                add_header X-XSS-Protection "0" always;
+                add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+                add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+                add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
+            }
+
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+
+                add_header X-Frame-Options "SAMEORIGIN" always;
+                add_header X-Content-Type-Options "nosniff" always;
+                add_header X-XSS-Protection "0" always;
+                add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+                add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+                add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
+            }
+        }
+    }

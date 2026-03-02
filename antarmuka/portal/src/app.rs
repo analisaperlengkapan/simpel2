@@ -112,16 +112,26 @@ pub fn App() -> impl IntoView {
     {
         use gloo_timers::future::TimeoutFuture;
         use leptos::prelude::Effect;
+        use leptos::prelude::on_cleanup;
+        use std::rc::Rc;
+        use std::cell::Cell;
 
         Effect::new(move |_| {
             if let Some(_session) = user_session.get() {
+                // Cancellation token to prevent multiple concurrent tasks
+                let is_active = Rc::new(Cell::new(true));
+                let is_active_clone = is_active.clone();
+
+                on_cleanup(move || {
+                    is_active_clone.set(false);
+                });
+
                 // Spawn async task for token refresh monitoring
                 spawn_local(async move {
                     loop {
-                        // Check every 30 seconds
-                        TimeoutFuture::new(30_000).await;
+                        if !is_active.get() { break; }
 
-                        if let Some(current_session) = AuthService::load_session() {
+                        if let Some(mut current_session) = AuthService::load_session() {
                             // Check if session is expired
                             if !AuthService::is_session_valid(&current_session) {
                                 // Session expired - logout
@@ -143,6 +153,10 @@ pub fn App() -> impl IntoView {
                                         AuthService::update_session_token(&token_response);
                                         // Reload session to update UI
                                         set_user_session.set(AuthService::load_session());
+                                        // Update current_session for accurate countdown calculation
+                                        if let Some(refreshed_session) = AuthService::load_session() {
+                                            current_session = refreshed_session;
+                                        }
                                     }
                                     Err(_) => {
                                         // Refresh failed - logout
@@ -170,6 +184,27 @@ pub fn App() -> impl IntoView {
                         } else {
                             // No session - stop monitoring
                             break;
+                        }
+
+                        if !is_active.get() { break; }
+
+                        // Wait 30 seconds, decrementing countdown every second if active
+                        for _ in 0..30 {
+                            if !is_active.get() { break; }
+                            TimeoutFuture::new(1_000).await;
+
+                            let current = timeout_countdown.get_untracked();
+                            if current > 0 {
+                                set_timeout_countdown.set(current - 1);
+                                if current - 1 <= 0 {
+                                    // Session expired due to countdown
+                                    AuthService::broadcast_logout();
+                                    AuthService::logout();
+                                    set_user_session.set(None);
+                                    set_show_timeout_warning.set(false);
+                                    break;
+                                }
+                            }
                         }
                     }
                 });
@@ -383,6 +418,7 @@ pub fn App() -> impl IntoView {
             user_session=user_session
             set_user_session=set_user_session
             set_show=set_show_timeout_warning
+            set_countdown=set_timeout_countdown
         />
         </BrandingProvider>
     }
@@ -400,6 +436,7 @@ fn SessionTimeoutModal(
     user_session: ReadSignal<Option<UserSession>>,
     set_user_session: WriteSignal<Option<UserSession>>,
     set_show: WriteSignal<bool>,
+    set_countdown: WriteSignal<i64>,
 ) -> impl IntoView {
     move || {
         if show.get() {
@@ -453,6 +490,7 @@ fn SessionTimeoutModal(
                                                     AuthService::update_session_token(&token_response);
                                                     set_user_session.set(AuthService::load_session());
                                                     set_show.set(false);
+                                                    set_countdown.set(0);
                                                 }
                                             });
                                         }
