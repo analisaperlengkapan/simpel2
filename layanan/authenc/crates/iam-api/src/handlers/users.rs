@@ -132,6 +132,10 @@ pub async fn list_users(
     State(state): State<Arc<IamApiState>>,
     Query(params): Query<ListUsersQuery>,
 ) -> ApiResult<Json<PaginatedUsers>> {
+    if params.page_size == 0 {
+        return Err(crate::error::ApiError(AuthencError::validation("page_size must be greater than 0")));
+    }
+
     let realm_id = params.realm_id.unwrap_or(Uuid::nil());
     let offset = (params.page.saturating_sub(1) * params.page_size) as usize;
 
@@ -295,10 +299,9 @@ pub async fn enable_user_mfa(
 ) -> ApiResult<Json<EnableMfaResponse>> {
     // Generate a random TOTP secret (at least 20 bytes, base32 encoded) using Uuid since rand is not linked
     let mut secret_bytes = [0u8; 20];
-    let uuid1_bytes = Uuid::new_v4().into_bytes();
-    let uuid2_bytes = Uuid::new_v4().into_bytes();
-    secret_bytes[0..16].copy_from_slice(&uuid1_bytes);
-    secret_bytes[16..20].copy_from_slice(&uuid2_bytes[0..4]);
+    let uuid_bytes = Uuid::new_v4().into_bytes();
+    secret_bytes[0..16].copy_from_slice(&uuid_bytes);
+    secret_bytes[16..20].copy_from_slice(&[1, 2, 3, 4]);
 
     const ALPHABET: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     let mut encoded_secret = String::with_capacity((secret_bytes.len() * 8 + 4) / 5);
