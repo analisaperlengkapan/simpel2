@@ -118,8 +118,16 @@ pub fn App() -> impl IntoView {
                 // Spawn async task for token refresh monitoring
                 spawn_local(async move {
                     loop {
-                        // Check every 30 seconds
-                        TimeoutFuture::new(30_000).await;
+                        // Wait 30 seconds, decrementing countdown every second if active
+                        for _ in 0..30 {
+                            TimeoutFuture::new(1_000).await;
+                            if show_timeout_warning.get_untracked() {
+                                let current = timeout_countdown.get_untracked();
+                                if current > 0 {
+                                    set_timeout_countdown.set(current - 1);
+                                }
+                            }
+                        }
 
                         if let Some(current_session) = AuthService::load_session() {
                             // Check if session is expired
@@ -171,30 +179,6 @@ pub fn App() -> impl IntoView {
                             // No session - stop monitoring
                             break;
                         }
-                    }
-                });
-            }
-        });
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        use gloo_timers::future::TimeoutFuture;
-        use leptos::prelude::Effect;
-
-        Effect::new(move |_| {
-            if show_timeout_warning.get() {
-                spawn_local(async move {
-                    loop {
-                        TimeoutFuture::new(1_000).await;
-                        if !show_timeout_warning.get_untracked() {
-                            break;
-                        }
-                        let current = timeout_countdown.get_untracked();
-                        if current <= 0 {
-                            break;
-                        }
-                        set_timeout_countdown.set(current - 1);
                     }
                 });
             }
