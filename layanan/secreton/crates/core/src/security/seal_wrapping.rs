@@ -649,14 +649,28 @@ impl SealWrappingEngine {
         context: &WrapContext,
         config: &WrapConfig,
     ) -> SecretonResult<WrappedData> {
+        let multi_seal_config = self.get_multi_seal_config().await;
+
+        let target_seals = if multi_seal_config.enabled {
+            std::cmp::max(config.min_seals, multi_seal_config.threshold)
+        } else {
+            config.min_seals
+        };
+
+        let max_seals = if multi_seal_config.enabled {
+            multi_seal_config.max_seals as usize
+        } else {
+            target_seals as usize
+        };
+
         let providers = self.seal_providers.read().await;
         let available_providers: Vec<_> = providers
             .iter()
             .filter(|p| p.health_status.available)
-            .take(config.min_seals as usize)
+            .take(std::cmp::max(target_seals as usize, max_seals))
             .collect();
 
-        if available_providers.is_empty() {
+        if available_providers.len() < target_seals as usize {
             return Err(crate::error::SecretonError::SealProviderUnavailable);
         }
 
