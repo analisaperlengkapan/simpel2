@@ -658,7 +658,7 @@ impl SealWrappingEngine {
         };
 
         let max_seals = if multi_seal_config.enabled {
-            multi_seal_config.max_seals as usize
+            std::cmp::max(target_seals as usize, multi_seal_config.max_seals as usize)
         } else {
             target_seals as usize
         };
@@ -667,7 +667,7 @@ impl SealWrappingEngine {
         let available_providers: Vec<_> = providers
             .iter()
             .filter(|p| p.health_status.available)
-            .take(std::cmp::max(target_seals as usize, max_seals))
+            .take(std::cmp::min(target_seals as usize, max_seals))
             .collect();
 
         if available_providers.len() < target_seals as usize {
@@ -845,10 +845,15 @@ impl SealWrappingEngine {
         if success {
             metrics.avg_latency_ms = (metrics.avg_latency_ms + duration.as_millis() as u64) / 2;
         }
+
+        let successful_wraps = if success { 1.0 } else { 0.0 };
         metrics.success_rate = if metrics.total_wraps > 0 {
-            (metrics.total_wraps as f64 - metrics.total_unwraps as f64) / metrics.total_wraps as f64
+            // Recalculate based on a proper success tracking metric in a real system
+            // For now, doing a simplified rolling average update
+            let current_success_count = metrics.success_rate * (metrics.total_wraps - 1) as f64;
+            (current_success_count + successful_wraps) / metrics.total_wraps as f64
         } else {
-            0.0
+            if success { 1.0 } else { 0.0 }
         };
     }
 

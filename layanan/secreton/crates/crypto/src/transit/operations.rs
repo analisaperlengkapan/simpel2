@@ -541,12 +541,16 @@ pub struct OperationStats {
     pub total_bytes_encrypted: u64,
     pub total_bytes_decrypted: u64,
     pub total_bytes_signed: u64,
+    #[serde(default)]
     pub total_bytes_verified: u64,
     pub average_encryption_time_ms: f64,
     pub average_decryption_time_ms: f64,
     pub average_signing_time_ms: f64,
+    #[serde(default)]
     pub average_key_creation_time_ms: f64,
+    #[serde(default)]
     pub average_key_rotation_time_ms: f64,
+    #[serde(default)]
     pub average_verification_time_ms: f64,
     pub start_time: DateTime<Utc>,
     pub last_operation: Option<DateTime<Utc>>,

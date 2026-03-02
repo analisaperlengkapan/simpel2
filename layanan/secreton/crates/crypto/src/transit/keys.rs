@@ -465,10 +465,8 @@ impl TransitKey {
         if let Some(alg) = algorithm {
             let matches = match (&key_version.material, &alg) {
                 (KeyMaterial::EcdsaP256(_), SignatureAlgorithm::EcdsaP256) => true,
-                (KeyMaterial::EcdsaSecp256k1(_), SignatureAlgorithm::EcdsaSecp256k1) => true,
                 (KeyMaterial::Ed25519(_), SignatureAlgorithm::Ed25519) => true,
                 _ => false,
-            };
             };
             if !matches {
                 return Err(CryptoError::InvalidAlgorithm(format!(
@@ -534,10 +532,8 @@ impl TransitKey {
         if let Some(alg) = algorithm {
             let matches = match (&key_version.material, &alg) {
                 (KeyMaterial::EcdsaP256(_), SignatureAlgorithm::EcdsaP256) => true,
-                (KeyMaterial::EcdsaSecp256k1(_), SignatureAlgorithm::EcdsaSecp256k1) => true,
                 (KeyMaterial::Ed25519(_), SignatureAlgorithm::Ed25519) => true,
                 _ => false,
-            };
             };
             if !matches {
                 return Err(CryptoError::InvalidAlgorithm(format!(
