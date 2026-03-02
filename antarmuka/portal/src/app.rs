@@ -418,6 +418,7 @@ pub fn App() -> impl IntoView {
             user_session=user_session
             set_user_session=set_user_session
             set_show=set_show_timeout_warning
+            set_countdown=set_timeout_countdown
         />
         </BrandingProvider>
     }
@@ -435,6 +436,7 @@ fn SessionTimeoutModal(
     user_session: ReadSignal<Option<UserSession>>,
     set_user_session: WriteSignal<Option<UserSession>>,
     set_show: WriteSignal<bool>,
+    set_countdown: WriteSignal<i64>,
 ) -> impl IntoView {
     move || {
         if show.get() {
@@ -488,6 +490,7 @@ fn SessionTimeoutModal(
                                                     AuthService::update_session_token(&token_response);
                                                     set_user_session.set(AuthService::load_session());
                                                     set_show.set(false);
+                                                    set_countdown.set(0);
                                                 }
                                             });
                                         }
