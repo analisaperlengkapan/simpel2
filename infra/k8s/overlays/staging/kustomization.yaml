@@ -107,6 +107,15 @@ patches:
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: "256Mi"
 
+  # Allow disruption when portal replica is reduced to 1 for staging
+  - target:
+      kind: PodDisruptionBudget
+      name: portal-pdb
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 0
+
 # ConfigMap patches for staging
 configMapGenerator:
   - name: simpelv2-config
