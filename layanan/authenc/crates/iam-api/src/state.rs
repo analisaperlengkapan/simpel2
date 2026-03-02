@@ -1,6 +1,7 @@
 //! IAM API state with admin service dependencies
 
 use authenc_core::services::{
+    AuditService, RoleManagementServiceImpl,
     OAuth2ServiceImpl, RealmManagementServiceImpl, UserManagementServiceImpl,
 };
 use authenc_core::services::group_store::GroupStore;
@@ -24,6 +25,12 @@ pub struct IamApiState {
 
     /// Group management service
     pub group_service: Option<Arc<GroupStore>>,
+
+    /// Role management service
+    pub role_service: Option<Arc<RoleManagementServiceImpl>>,
+
+    /// Audit service
+    pub audit_service: Option<Arc<AuditService>>,
     // TODO: Add missing services for full IAM API functionality
     // These services are required by the migrated admin handlers:
 
@@ -95,12 +102,26 @@ impl IamApiState {
             client_service,
             jwt_service,
             group_service: None,
+            role_service: None,
+            audit_service: None,
         }
     }
 
     /// Set group service (optional, for group management endpoints)
     pub fn with_group_service(mut self, group_service: Arc<GroupStore>) -> Self {
         self.group_service = Some(group_service);
+        self
+    }
+
+    /// Set role service
+    pub fn with_role_service(mut self, role_service: Arc<RoleManagementServiceImpl>) -> Self {
+        self.role_service = Some(role_service);
+        self
+    }
+
+    /// Set audit service
+    pub fn with_audit_service(mut self, audit_service: Arc<AuditService>) -> Self {
+        self.audit_service = Some(audit_service);
         self
     }
 }
