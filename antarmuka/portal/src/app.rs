@@ -128,7 +128,7 @@ pub fn App() -> impl IntoView {
 
                 // Spawn async task for token refresh monitoring
                 spawn_local(async move {
-                    loop {
+                    'monitor: loop {
                         if !is_active.get() { break; }
 
                         if let Some(mut current_session) = AuthService::load_session() {
@@ -139,6 +139,7 @@ pub fn App() -> impl IntoView {
                                 AuthService::logout();
                                 set_user_session.set(None);
                                 set_show_timeout_warning.set(false);
+                                set_timeout_countdown.set(0);
                                 break;
                             }
 
@@ -163,6 +164,8 @@ pub fn App() -> impl IntoView {
                                         AuthService::broadcast_logout();
                                         AuthService::logout();
                                         set_user_session.set(None);
+                                        set_show_timeout_warning.set(false);
+                                        set_timeout_countdown.set(0);
                                         break;
                                     }
                                 }
@@ -203,7 +206,7 @@ pub fn App() -> impl IntoView {
                                     AuthService::logout();
                                     set_user_session.set(None);
                                     set_show_timeout_warning.set(false);
-                                    break;
+                                    break 'monitor;
                                 }
                             }
                         }
