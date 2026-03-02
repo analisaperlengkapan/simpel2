@@ -3,6 +3,7 @@ module.exports = {
   content: [
     "./src/**/*.rs",
     "./index.html",
+    "../../lib/ui/src/**/*.rs",
   ],
   theme: {
     extend: {

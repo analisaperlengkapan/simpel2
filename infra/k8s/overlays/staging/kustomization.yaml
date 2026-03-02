@@ -30,6 +30,12 @@ commonAnnotations:
 
 # Patches for staging-specific values
 patches:
+  # Portal nginx ConfigMap override patch for staging CSP
+  - path: frontend-config-patch.yaml
+    target:
+      kind: ConfigMap
+      name: portal-nginx-config
+
   # Portal nginx patch: mount nginx.conf dan index.html dari ConfigMap
   - path: portal-nginx-patch.yaml
     target:
