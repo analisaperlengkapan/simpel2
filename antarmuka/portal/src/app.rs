@@ -189,6 +189,8 @@ pub fn App() -> impl IntoView {
                         if !is_active.get() { break; }
 
                         // Wait 30 seconds, decrementing countdown every second if active
+                        // Wait 30 seconds, decrementing countdown every second if active
+                        let mut expired = false;
                         for _ in 0..30 {
                             if !is_active.get() { break; }
                             TimeoutFuture::new(1_000).await;
@@ -202,10 +204,12 @@ pub fn App() -> impl IntoView {
                                     AuthService::logout();
                                     set_user_session.set(None);
                                     set_show_timeout_warning.set(false);
+                                    expired = true;
                                     break;
                                 }
                             }
                         }
+                        if expired { break; }
                     }
                 });
             }
