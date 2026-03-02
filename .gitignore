@@ -203,3 +203,4 @@ antarmuka/*/Cargo.lock
 # Cargo Chef auto-generated
 recipe.json
 !**/tailwind.config.js
+!**/profile.rs
