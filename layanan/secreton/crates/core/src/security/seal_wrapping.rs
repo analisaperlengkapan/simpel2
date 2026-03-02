@@ -463,6 +463,12 @@ pub struct SealMetrics {
     pub total_wraps: u64,
     /// Total unwrap operations
     pub total_unwraps: u64,
+    /// Total successful wrap operations
+    #[serde(default)]
+    pub successful_wraps: u64,
+    /// Total successful unwrap operations
+    #[serde(default)]
+    pub successful_unwraps: u64,
     /// Success rate
     pub success_rate: f64,
     /// Average latency
@@ -846,17 +852,16 @@ impl SealWrappingEngine {
         let mut metrics = self.metrics.write().await;
         metrics.total_wraps += 1;
         if success {
+            metrics.successful_wraps += 1;
             metrics.avg_latency_ms = (metrics.avg_latency_ms + duration.as_millis() as u64) / 2;
         }
 
-        let successful_wraps = if success { 1.0 } else { 0.0 };
-        metrics.success_rate = if metrics.total_wraps > 0 {
-            // Recalculate based on a proper success tracking metric in a real system
-            // For now, doing a simplified rolling average update
-            let current_success_count = metrics.success_rate * (metrics.total_wraps - 1) as f64;
-            (current_success_count + successful_wraps) / metrics.total_wraps as f64
+        let total_ops = metrics.total_wraps + metrics.total_unwraps;
+        let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
+        metrics.success_rate = if total_ops > 0 {
+            successful_ops as f64 / total_ops as f64
         } else {
-            if success { 1.0 } else { 0.0 }
+            0.0
         };
     }
 
@@ -865,15 +870,16 @@ impl SealWrappingEngine {
         let mut metrics = self.metrics.write().await;
         metrics.total_unwraps += 1;
         if success {
+            metrics.successful_unwraps += 1;
             metrics.avg_latency_ms = (metrics.avg_latency_ms + duration.as_millis() as u64) / 2;
         }
 
-        let successful_unwraps = if success { 1.0 } else { 0.0 };
-        metrics.success_rate = if metrics.total_unwraps > 0 {
-            let current_success_count = metrics.success_rate * (metrics.total_unwraps - 1) as f64;
-            (current_success_count + successful_unwraps) / metrics.total_unwraps as f64
+        let total_ops = metrics.total_wraps + metrics.total_unwraps;
+        let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
+        metrics.success_rate = if total_ops > 0 {
+            successful_ops as f64 / total_ops as f64
         } else {
-            if success { 1.0 } else { 0.0 }
+            0.0
         };
     }
 
@@ -966,6 +972,8 @@ impl Default for SealMetrics {
         Self {
             total_wraps: 0,
             total_unwraps: 0,
+            successful_wraps: 0,
+            successful_unwraps: 0,
             success_rate: 1.0,
             avg_latency_ms: 0,
             provider_stats: HashMap::new(),
