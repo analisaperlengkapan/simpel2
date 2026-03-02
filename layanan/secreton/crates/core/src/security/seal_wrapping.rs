@@ -506,6 +506,9 @@ impl SealWrappingEngine {
 
     /// Update multi-seal configuration
     pub async fn update_multi_seal_config(&self, config: MultiSealConfig) -> SecretonResult<()> {
+        if config.threshold > config.max_seals || config.threshold == 0 || config.max_seals == 0 {
+            return Err(crate::error::SecretonError::InvalidMultiSealData);
+        }
         let mut current = self.multi_seal_config.write().await;
         *current = config;
         Ok(())
@@ -658,7 +661,7 @@ impl SealWrappingEngine {
         };
 
         let max_seals = if multi_seal_config.enabled {
-            std::cmp::max(target_seals as usize, multi_seal_config.max_seals as usize)
+            multi_seal_config.max_seals as usize
         } else {
             target_seals as usize
         };
@@ -670,7 +673,7 @@ impl SealWrappingEngine {
             .take(std::cmp::min(target_seals as usize, max_seals))
             .collect();
 
-        if available_providers.len() < target_seals as usize {
+        if available_providers.len() < std::cmp::min(target_seals as usize, max_seals) {
             return Err(crate::error::SecretonError::SealProviderUnavailable);
         }
 
@@ -864,6 +867,14 @@ impl SealWrappingEngine {
         if success {
             metrics.avg_latency_ms = (metrics.avg_latency_ms + duration.as_millis() as u64) / 2;
         }
+
+        let successful_unwraps = if success { 1.0 } else { 0.0 };
+        metrics.success_rate = if metrics.total_unwraps > 0 {
+            let current_success_count = metrics.success_rate * (metrics.total_unwraps - 1) as f64;
+            (current_success_count + successful_unwraps) / metrics.total_unwraps as f64
+        } else {
+            if success { 1.0 } else { 0.0 }
+        };
     }
 
     /// Default wrap configurations
