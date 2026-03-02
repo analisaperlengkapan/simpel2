@@ -1,12 +1,18 @@
 //! Main authenticated layout component
 //!
-//! Layout wrapper for authenticated pages with navbar and footer
+//! Layout wrapper for authenticated pages with navbar and footer.
+//! Uses navy/gold government branding consistent with Kejaksaan RI design system.
 
 use crate::components::navigation::Navbar;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
 
 /// Main layout for authenticated pages
+///
+/// Provides:
+/// - Skip-to-content accessibility link
+/// - Responsive navbar with user session
+/// - Consistent footer with correct year and branding
 #[component]
 pub fn MainLayout(
     /// User session data
@@ -18,7 +24,7 @@ pub fn MainLayout(
 ) -> impl IntoView {
     view! {
         <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-            // Skip to content link for accessibility
+            // Skip to content link for accessibility (WCAG 2.1 AA)
             <a href="#main-content" class="skip-to-content">"Langsung ke konten"</a>
 
             <Navbar user_session=user_session on_logout=on_logout />
@@ -32,18 +38,18 @@ pub fn MainLayout(
                     <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
                         <div class="text-center md:text-left">
                             <p class="text-sm text-gray-600 dark:text-gray-400">
-                                "© 2025 Kejaksaan Agung Republik Indonesia"
+                                "© 2026 Kejaksaan Agung Republik Indonesia"
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
                                 "SIMPEL Portal v2 — Sistem Terintegrasi"
                             </p>
                         </div>
                         <div class="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                            <a href="/portal/apps" class="hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                            <a href="/portal/apps" class="hover:text-navy-600 dark:hover:text-gold-400 transition-colors">
                                 "Aplikasi"
                             </a>
                             <span class="text-gray-300 dark:text-gray-600" aria-hidden="true">"|"</span>
-                            <a href="/portal/settings" class="hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                            <a href="/portal/settings" class="hover:text-navy-600 dark:hover:text-gold-400 transition-colors">
                                 "Pengaturan"
                             </a>
                         </div>

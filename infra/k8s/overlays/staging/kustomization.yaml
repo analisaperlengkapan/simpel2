@@ -30,6 +30,12 @@ commonAnnotations:
 
 # Patches for staging-specific values
 patches:
+  # Portal nginx ConfigMap override patch for staging CSP
+  - path: frontend-config-patch.yaml
+    target:
+      kind: ConfigMap
+      name: portal-nginx-config
+
   # Portal nginx patch: mount nginx.conf dan index.html dari ConfigMap
   - path: portal-nginx-patch.yaml
     target:
@@ -100,6 +106,15 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: "256Mi"
+
+  # Allow disruption when portal replica is reduced to 1 for staging
+  - target:
+      kind: PodDisruptionBudget
+      name: portal-pdb
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 0
 
 # ConfigMap patches for staging
 configMapGenerator:

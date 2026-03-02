@@ -7,6 +7,7 @@ metadata:
   labels:
     app.kubernetes.io/name: portal
     app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
 spec:
   replicas: 2
   strategy:
@@ -22,6 +23,7 @@ spec:
       labels:
         app.kubernetes.io/name: portal
         app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: simpelv2
       annotations:
         sidecar.istio.io/inject: "true"
     spec:
@@ -29,12 +31,25 @@ spec:
         runAsNonRoot: true
         runAsUser: 101  # nginx user
         fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      # Spread pods across nodes for HA
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: portal
       containers:
         - name: portal
           image: localhost:32000/simpelv2/portal:latest
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 8080
               name: http
@@ -54,6 +69,8 @@ spec:
               mountPath: /var/cache/nginx
             - name: nginx-run
               mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "64Mi"
@@ -65,14 +82,24 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 3
+            failureThreshold: 10
       volumes:
         - name: nginx-config
           configMap:
@@ -81,6 +108,8 @@ spec:
           emptyDir: {}
         - name: nginx-run
           emptyDir: {}
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -88,6 +117,8 @@ metadata:
   name: portal
   labels:
     app.kubernetes.io/name: portal
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
 spec:
   type: ClusterIP
   ports:
@@ -96,3 +127,17 @@ spec:
       name: http
   selector:
     app.kubernetes.io/name: portal
+---
+# PodDisruptionBudget — ensure at least 1 replica during voluntary disruptions
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: portal-pdb
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/component: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portal

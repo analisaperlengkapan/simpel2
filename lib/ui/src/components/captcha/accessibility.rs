@@ -278,7 +278,7 @@ pub fn AlternativeInputs(
             let recognition = wrapped_recognition.take();
             if let Ok(abort_fn) = js_sys::Reflect::get(&recognition, &"abort".into()) {
                 let _ = js_sys::Reflect::apply(
-                    abort_fn.unchecked_ref(),
+                    abort_fn.unchecked_ref::<js_sys::Function>(),
                     &recognition,
                     &js_sys::Array::new(),
                 );
@@ -301,7 +301,7 @@ pub fn AlternativeInputs(
                     if !recognition_constructor.is_undefined() {
                         // Create speech recognition instance
                         if let Ok(recognition) = js_sys::Reflect::construct(
-                            recognition_constructor.unchecked_ref(),
+                            recognition_constructor.unchecked_ref::<js_sys::Function>(),
                             &js_sys::Array::new(),
                         ) {
                             // Store reference for cleanup
@@ -395,7 +395,7 @@ pub fn AlternativeInputs(
                                 js_sys::Reflect::get(&recognition, &"start".into())
                             {
                                 let _ = js_sys::Reflect::apply(
-                                    start_fn.unchecked_ref(),
+                                    start_fn.unchecked_ref::<js_sys::Function>(),
                                     &recognition,
                                     &js_sys::Array::new(),
                                 );

@@ -2,9 +2,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: portal-nginx-config
-  labels:
-    app.kubernetes.io/name: portal
-    app.kubernetes.io/component: frontend
 data:
   nginx.conf: |
     events {
@@ -33,65 +30,59 @@ data:
             root /usr/share/nginx/html;
             index index.html;
 
-            # Security headers
+            # Security headers (Staging overrides for localhost/10.1.7.121)
             add_header X-Frame-Options "SAMEORIGIN" always;
             add_header X-Content-Type-Options "nosniff" always;
             add_header X-XSS-Protection "0" always;
             add_header Referrer-Policy "strict-origin-when-cross-origin" always;
             add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
             add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-            add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id; font-src 'self'; frame-ancestors 'self'" always;
+            add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
 
-            # SPA Routing - Istio strips /portal prefix, nginx serves from root
+            # SPA Routing
             location / {
                 try_files $uri $uri/ /index.html;
             }
 
-            # index.html must NOT be cached so browsers always get the latest version
             location = /index.html {
                 add_header Cache-Control "no-cache, no-store, must-revalidate" always;
                 add_header Pragma "no-cache" always;
                 expires 0;
 
-                # Security headers (duplicated because add_header overrides parent block)
                 add_header X-Frame-Options "SAMEORIGIN" always;
                 add_header X-Content-Type-Options "nosniff" always;
                 add_header X-XSS-Protection "0" always;
                 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
                 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
                 add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id; font-src 'self'; frame-ancestors 'self'" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
             }
 
-            # Static assets caching (content-hashed filenames are safe to cache forever)
             location ~* \.(wasm|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
                 expires 1y;
                 add_header Cache-Control "public, immutable";
 
-                # Security headers (duplicated because add_header overrides parent block)
                 add_header X-Frame-Options "SAMEORIGIN" always;
                 add_header X-Content-Type-Options "nosniff" always;
                 add_header X-XSS-Protection "0" always;
                 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
                 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
                 add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id; font-src 'self'; frame-ancestors 'self'" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
             }
 
-            # Health check
             location /health {
                 access_log off;
                 return 200 "healthy\n";
                 add_header Content-Type text/plain;
 
-                # Security headers (duplicated because add_header overrides parent block)
                 add_header X-Frame-Options "SAMEORIGIN" always;
                 add_header X-Content-Type-Options "nosniff" always;
                 add_header X-XSS-Protection "0" always;
                 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
                 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
                 add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id; font-src 'self'; frame-ancestors 'self'" always;
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.kejaksaan.go.id http://localhost:* https://localhost:* http://10.1.7.121:* https://10.1.7.121:*; font-src 'self'; frame-ancestors 'self'" always;
             }
         }
     }
