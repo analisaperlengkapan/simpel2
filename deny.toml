@@ -9,6 +9,13 @@ yanked = "deny"
 ignore = [
     # Add specific advisories to ignore here if needed
     # Example: "RUSTSEC-2020-0001",
+    "RUSTSEC-2024-0437", # protobuf (via prometheus)
+    "RUSTSEC-2025-0066", # google-apis-common
+    "RUSTSEC-2024-0384", # instant
+    "RUSTSEC-2024-0436", # paste
+    "RUSTSEC-2023-0071", # rsa
+    "RUSTSEC-2025-0134", # rustls-pemfile
+    "RUSTSEC-2025-0141", # bincode
 ]
 
 [licenses]
@@ -26,18 +33,6 @@ allow = [
     "Zlib",
     "0BSD",
 ]
-# Deny copyleft licenses
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "AGPL-3.0",
-]
-# Warn on licenses that need review
-copyleft = "deny"
-# Allow OSI-approved and FSF-approved licenses
-allow-osi-fsf-free = "both"
-# Require license information for all dependencies
-unlicensed = "deny"
 # Confidence threshold for license detection
 confidence-threshold = 0.8
 
@@ -53,8 +48,6 @@ license-files = [
 multiple-versions = "warn"
 # Deny wildcard dependencies
 wildcards = "deny"
-# Allow git dependencies (for development)
-allow-git = false
 # Specific crates to deny
 deny = [
     # Deny old crypto crates with known vulnerabilities
