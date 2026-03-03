@@ -1195,7 +1195,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         let lease = self
             .services
             .lease_manager
-            .renew_lease(&req.lease_id, req.increment.unwrap_or(0))
+            .renew_lease(&req.lease_id, req.increment.unwrap_or(3600))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
