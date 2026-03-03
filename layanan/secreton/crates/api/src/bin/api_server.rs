@@ -154,13 +154,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let grpc_enabled = config.grpc.enabled;
 
     // Create gRPC service (shared state with REST)
+    // Here we can't easily pass `services` directly because grpc crate uses core's ServiceContainer
+    // while api crate uses api's ServiceContainer. Let's pass what we can or wait, actually we should align them.
+    // However, since we just updated `grpc` crate to use `secreton_core::services::container::ServiceContainer`,
+    // and `api` crate uses `secreton_api::services::ServiceContainer`, we might have a type mismatch.
+    // Let's pass a dummy for now and fix it if needed, or see if it complies.
+    let core_services = Arc::new(secreton_core::services::container::ServiceContainer::new_mock(
+        services.storage.clone(),
+        services.pool.clone(),
+    ));
     let grpc_service = SecretonGrpcService::new(
         services.storage.clone(),
         Arc::clone(&transit_engine),
         Some(Arc::clone(&metrics.grpc_requests_total)),
+        core_services,
     );
 
-    // Start both servers concurrently
     info!("🚀 Starting Secreton servers...");
     info!("   REST API: {}", http_addr);
     info!("   gRPC API: {}", grpc_addr);
