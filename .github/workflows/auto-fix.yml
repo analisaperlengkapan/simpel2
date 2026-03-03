@@ -48,10 +48,10 @@ jobs:
       - name: Verify workspace structure
         run: |
           echo "📁 Workspace structure:"
-          ls -la infra/
+          ls -la layanan/
           echo ""
-          echo "✅ authenc exists: $([ -d infra/authenc ] && echo 'yes' || echo 'no')"
-          echo "✅ secreton exists: $([ -d infra/secreton ] && echo 'yes' || echo 'no')"
+          echo "✅ authenc exists: $([ -d layanan/authenc ] && echo 'yes' || echo 'no')"
+          echo "✅ secreton exists: $([ -d layanan/secreton ] && echo 'yes' || echo 'no')"
 
       - name: Fix root workspace
         run: |
@@ -60,25 +60,25 @@ jobs:
           cargo clippy --fix --workspace --all-targets --allow-dirty --allow-staged || true
           cargo fmt --all
 
-      - name: Fix infra/authenc workspace
-        working-directory: infra/authenc
+      - name: Fix layanan/authenc workspace
+        working-directory: layanan/authenc
         run: |
-          echo "🔧 Fixing infra/authenc workspace..."
+          echo "🔧 Fixing layanan/authenc workspace..."
           cargo fix --all-targets --allow-dirty --allow-staged || true
           cargo clippy --fix --all-targets --allow-dirty --allow-staged || true
           cargo fmt --all
 
-      - name: Fix infra/secreton workspace
+      - name: Fix layanan/secreton workspace
         run: |
-          if [ -d "infra/secreton" ]; then
-            echo "🔧 Fixing infra/secreton workspace..."
-            cd infra/secreton
+          if [ -d "layanan/secreton" ]; then
+            echo "🔧 Fixing layanan/secreton workspace..."
+            cd layanan/secreton
             cargo fix --all-targets --allow-dirty --allow-staged || true
             cargo clippy --fix --all-targets --allow-dirty --allow-staged || true
             cargo fmt --all
             cd ../..
           else
-            echo "⚠️ infra/secreton directory not found, skipping..."
+            echo "⚠️ layanan/secreton directory not found, skipping..."
           fi
 
       - name: Check for changes
@@ -100,11 +100,11 @@ jobs:
           cargo check --workspace --all-targets --verbose
 
           echo "Validating authenc workspace..."
-          cd infra/authenc && cargo check --all-targets --verbose && cd ../..
+          cd layanan/authenc && cargo check --all-targets --verbose && cd ../..
 
-          if [ -d "infra/secreton" ]; then
+          if [ -d "layanan/secreton" ]; then
             echo "Validating secreton workspace..."
-            cd infra/secreton && cargo check --all-targets --verbose && cd ../..
+            cd layanan/secreton && cargo check --all-targets --verbose && cd ../..
           else
             echo "⚠️ Skipping secreton validation (directory not found)"
           fi
@@ -130,8 +130,8 @@ jobs:
 
             Applied to:
             - Root workspace
-            - infra/authenc workspace
-            - infra/secreton workspace
+            - layanan/authenc workspace
+            - layanan/secreton workspace
           branch: autofix/cargo-fixes-${{ github.run_number }}
           base: main
           delete-branch: true
@@ -148,8 +148,8 @@ jobs:
 
             ### Workspaces Fixed
             - 📦 Root workspace (layanan/*)
-            - 🔐 infra/authenc (IAM system with protobuf support)
-            - 🔒 infra/secreton (Vault system - if present)
+            - 🔐 layanan/authenc (IAM system with protobuf support)
+            - 🔒 layanan/secreton (Vault system - if present)
 
             ### Validation
             - ✅ Cargo check passed for all workspaces
