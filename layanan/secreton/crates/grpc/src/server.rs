@@ -1401,9 +1401,10 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<GenerateDatabaseCredentialsRequest>,
     ) -> Result<Response<GenerateDatabaseCredentialsResponse>, Status> {
+        let user = request.metadata().get("x-user")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("grpc_user");
         let req = request.into_inner();
-
-        let user = "grpc_user"; // In reality, get from context
 
         let (credentials, lease) = self
             .services
