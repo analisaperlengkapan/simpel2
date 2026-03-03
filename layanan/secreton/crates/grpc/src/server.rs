@@ -1694,16 +1694,13 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<GetPolicyRequest>,
     ) -> Result<Response<GetPolicyResponse>, Status> {
+        let namespace = request.metadata().get("x-namespace").map(|v| v.to_str().unwrap_or("default")).unwrap_or("default").to_string();
         let req = request.into_inner();
-
-        // Note: For now using "default" namespace as default if not specified
-        // A better approach would be adding namespace to GetPolicyRequest in proto
-        let namespace = "default";
 
         let policy = self
             .services
             .policy_service
-            .get_policy(&req.name, namespace)
+            .get_policy(&req.name, &namespace)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -1717,6 +1714,8 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<UpdatePolicyRequest>,
     ) -> Result<Response<UpdatePolicyResponse>, Status> {
+        let namespace = request.metadata().get("x-namespace").map(|v| v.to_str().unwrap_or("default")).unwrap_or("default").to_string();
+        let user = request.metadata().get("x-user").map(|v| v.to_str().unwrap_or("grpc_user")).unwrap_or("grpc_user").to_string();
         let req = request.into_inner();
 
         let rules: Vec<secreton_core::models::PolicyRule> = req
@@ -1727,15 +1726,12 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         let rules_opt = if rules.is_empty() { None } else { Some(rules) };
 
-        let namespace = "default"; // Add namespace to proto if needed
-        let user = "grpc_user".to_string();
-
         let policy = self
             .services
             .policy_service
             .update_policy(
                 &req.name,
-                namespace,
+                &namespace,
                 req.description,
                 rules_opt,
                 req.is_active,
@@ -1754,12 +1750,12 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<DeletePolicyRequest>,
     ) -> Result<Response<DeletePolicyResponse>, Status> {
+        let namespace = request.metadata().get("x-namespace").map(|v| v.to_str().unwrap_or("default")).unwrap_or("default").to_string();
         let req = request.into_inner();
-        let namespace = "default"; // Add namespace to proto if needed
 
         self.services
             .policy_service
-            .delete_policy(&req.name, namespace)
+            .delete_policy(&req.name, &namespace)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
