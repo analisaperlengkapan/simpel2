@@ -24,8 +24,8 @@ fn to_user_response(user: User) -> UserResponse {
         email_verified: user.email_verified,
         mfa_enabled: user.mfa_enabled,
         realm_id: user.realm_id.unwrap_or(Uuid::nil()),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: user.created_at,
+        updated_at: user.updated_at,
     }
 }
 
