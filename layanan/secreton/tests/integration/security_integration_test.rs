@@ -1,7 +1,7 @@
-use Secreton_core::security::
+use secreton_core::security::{
     AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig,
     SecurityConfig, ComplianceStatus, SecurityMetrics, HealthStatus,
-;
+};
 use tokio::time::{timeout, Duration};
 use std::sync::Arc;
 use serde_json::json;
