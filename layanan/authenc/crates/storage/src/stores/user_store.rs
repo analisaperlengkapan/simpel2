@@ -189,6 +189,10 @@ impl UserStore for PostgresUserStore {
             updates.push(format!("phone_number = ${}", param_index));
             param_index += 1;
         }
+        if req.mfa_enabled.is_some() {
+            updates.push(format!("mfa_enabled = ${}", param_index));
+            param_index += 1;
+        }
         if let Some(true) = req.clear_totp_secret {
             updates.push("totp_secret = NULL".to_string());
         } else if req.totp_secret.is_some() {
