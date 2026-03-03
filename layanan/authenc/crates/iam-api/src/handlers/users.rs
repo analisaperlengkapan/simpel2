@@ -24,8 +24,8 @@ fn to_user_response(user: User) -> UserResponse {
         email_verified: user.email_verified,
         mfa_enabled: user.mfa_enabled,
         realm_id: user.realm_id.unwrap_or(Uuid::nil()),
-        created_at: user.created_at,
-        updated_at: user.updated_at,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
     }
 }
 
@@ -146,12 +146,14 @@ pub async fn list_users(
     // Currently fetching up to 1000 items into memory for client-side filtering if `enabled` is filtered.
     // This is technical debt that limits correct pagination for realms with >1000 users.
     // A clean approach without adding new trait methods is fetching larger bounds.
-    let fetch_limit = if params.enabled.is_some() {
+    let needs_memory_pagination = params.enabled.is_some() || params.search.is_some();
+
+    let fetch_limit = if needs_memory_pagination {
         1000
     } else {
         params.page_size as usize
     };
-    let fetch_offset = if params.enabled.is_some() { 0 } else { offset };
+    let fetch_offset = if needs_memory_pagination { 0 } else { offset };
 
     let mut users = if let Some(ref search_term) = params.search {
         state
@@ -169,7 +171,9 @@ pub async fn list_users(
 
     if let Some(enabled_filter) = params.enabled {
         users.retain(|u| u.enabled == enabled_filter);
+    }
 
+    if needs_memory_pagination {
         // Manual pagination for post-filtered results
         users = users
             .into_iter()
