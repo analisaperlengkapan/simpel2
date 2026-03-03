@@ -1,0 +1,15 @@
+--- layanan/secreton/tests/integration/security_integration_test.rs
++++ layanan/secreton/tests/integration/security_integration_test.rs
+@@ -1,9 +1,9 @@
+ use secreton_core::security::{
+     AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig,
+     SecurityConfig, ComplianceStatus, SecurityMetrics, HealthStatus,
+ };
+-use tokio::time::{timeout, Duration}};
+-use std::sync::Arc};
+-use serde_json::json};
++use tokio::time::{timeout, Duration};
++use std::sync::Arc;
++use serde_json::json;
+
+ /// Integration tests for the complete security system
