@@ -239,6 +239,9 @@ impl UserStore for PostgresUserStore {
         if let Some(ref phone_number) = req.phone_number {
             params.push(phone_number);
         }
+        if let Some(ref mfa_enabled) = req.mfa_enabled {
+            params.push(mfa_enabled);
+        }
         if req.clear_totp_secret != Some(true) {
             if let Some(ref totp_secret) = req.totp_secret {
                 params.push(totp_secret);
