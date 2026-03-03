@@ -10,8 +10,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{error::ApiResult, state::IamApiState};
-use authenc_types::{AuthencError, RealmId, UserId, User};
-use authenc_types::domain::user::{CreateUserRequest as CoreCreateUserRequest, UpdateUserRequest as CoreUpdateUserRequest};
+use authenc_types::domain::user::{
+    CreateUserRequest as CoreCreateUserRequest, UpdateUserRequest as CoreUpdateUserRequest,
+};
+use authenc_types::{AuthencError, RealmId, User, UserId};
 
 fn to_user_response(user: User) -> UserResponse {
     UserResponse {
@@ -26,7 +28,6 @@ fn to_user_response(user: User) -> UserResponse {
         updated_at: chrono::Utc::now(),
     }
 }
-
 
 /// Query parameters for listing users
 #[derive(Debug, Deserialize)]
@@ -133,30 +134,48 @@ pub async fn list_users(
     Query(params): Query<ListUsersQuery>,
 ) -> ApiResult<Json<PaginatedUsers>> {
     if params.page_size == 0 {
-        return Err(crate::error::ApiError(AuthencError::validation("page_size must be greater than 0")));
+        return Err(crate::error::ApiError(AuthencError::validation(
+            "page_size must be greater than 0",
+        )));
     }
 
     let realm_id = params.realm_id.unwrap_or(Uuid::nil());
     let offset = (params.page.saturating_sub(1) * params.page_size) as usize;
 
-    // In a real implementation we would do searching and getting a total count.
-    // If filtering by `enabled` status is not supported natively by the `user_service`, we fetch a slightly larger
-    // page batch to ensure we can fulfill the requested limit post-filtering, or we let the pagination act on the raw results.
+    // TODO: Replace with proper database-level pagination once implemented in Core Service.
+    // Currently fetching up to 1000 items into memory for client-side filtering if `enabled` is filtered.
+    // This is technical debt that limits correct pagination for realms with >1000 users.
     // A clean approach without adding new trait methods is fetching larger bounds.
-    let fetch_limit = if params.enabled.is_some() { 1000 } else { params.page_size as usize };
+    let fetch_limit = if params.enabled.is_some() {
+        1000
+    } else {
+        params.page_size as usize
+    };
     let fetch_offset = if params.enabled.is_some() { 0 } else { offset };
 
     let mut users = if let Some(ref search_term) = params.search {
-        state.user_service.search_users(RealmId::from_uuid(realm_id), search_term, fetch_limit).await.map_err(crate::error::ApiError)?
+        state
+            .user_service
+            .search_users(RealmId::from_uuid(realm_id), search_term, fetch_limit)
+            .await
+            .map_err(crate::error::ApiError)?
     } else {
-        state.user_service.list_users(RealmId::from_uuid(realm_id), fetch_offset, fetch_limit).await.map_err(crate::error::ApiError)?
+        state
+            .user_service
+            .list_users(RealmId::from_uuid(realm_id), fetch_offset, fetch_limit)
+            .await
+            .map_err(crate::error::ApiError)?
     };
 
     if let Some(enabled_filter) = params.enabled {
         users.retain(|u| u.enabled == enabled_filter);
 
         // Manual pagination for post-filtered results
-        users = users.into_iter().skip(offset).take(params.page_size as usize).collect();
+        users = users
+            .into_iter()
+            .skip(offset)
+            .take(params.page_size as usize)
+            .collect();
     }
 
     let total_returned = users.len() as u64;
@@ -195,7 +214,12 @@ pub async fn create_user(
         for r in rs {
             match Uuid::parse_str(&r) {
                 Ok(uuid) => parsed.push(uuid),
-                Err(_) => return Err(crate::error::ApiError(AuthencError::validation(format!("Invalid UUID for role: {}", r)))),
+                Err(_) => {
+                    return Err(crate::error::ApiError(AuthencError::validation(format!(
+                        "Invalid UUID for role: {}",
+                        r
+                    ))));
+                }
             }
         }
         roles_uuids = Some(parsed);
@@ -218,7 +242,11 @@ pub async fn create_user(
         attributes: Some(serde_json::Value::Object(attrs_map)),
     };
 
-    let mut user = state.user_service.create_user(core_req).await.map_err(crate::error::ApiError)?;
+    let mut user = state
+        .user_service
+        .create_user(core_req)
+        .await
+        .map_err(crate::error::ApiError)?;
 
     // Core CreateUserRequest doesn't support setting 'enabled' directly, it uses default=true.
     // If the request explicitly asked to create a disabled user, update them.
@@ -243,7 +271,11 @@ pub async fn create_user(
             clear_totp_secret: None,
             totp_secret: None,
         };
-        user = state.user_service.update_user(UserId::from_uuid(user.id), disable_req).await.map_err(crate::error::ApiError)?;
+        user = state
+            .user_service
+            .update_user(UserId::from_uuid(user.id), disable_req)
+            .await
+            .map_err(crate::error::ApiError)?;
     }
 
     Ok((StatusCode::CREATED, Json(to_user_response(user))))
@@ -254,7 +286,11 @@ pub async fn get_user(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<UserResponse>> {
-    let user = state.user_service.get_user(UserId::from_uuid(id)).await.map_err(crate::error::ApiError)?;
+    let user = state
+        .user_service
+        .get_user(UserId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
     Ok(Json(to_user_response(user)))
 }
 
@@ -285,7 +321,11 @@ pub async fn update_user(
         clear_totp_secret: None,
     };
 
-    let user = state.user_service.update_user(UserId::from_uuid(id), core_req).await.map_err(crate::error::ApiError)?;
+    let user = state
+        .user_service
+        .update_user(UserId::from_uuid(id), core_req)
+        .await
+        .map_err(crate::error::ApiError)?;
     Ok(Json(to_user_response(user)))
 }
 
@@ -294,7 +334,11 @@ pub async fn delete_user(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
-    state.user_service.delete_user(UserId::from_uuid(id)).await.map_err(crate::error::ApiError)?;
+    state
+        .user_service
+        .delete_user(UserId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -326,7 +370,11 @@ pub async fn reset_user_password(
         clear_totp_secret: None,
     };
 
-    state.user_service.update_user(UserId::from_uuid(id), core_req).await.map_err(crate::error::ApiError)?;
+    state
+        .user_service
+        .update_user(UserId::from_uuid(id), core_req)
+        .await
+        .map_err(crate::error::ApiError)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -336,17 +384,57 @@ pub async fn enable_user_mfa(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<EnableMfaResponse>> {
-    // Generate a secure random TOTP secret
+    let user_id = UserId::from_uuid(id);
+
+    let user = state
+        .user_service
+        .get_user(user_id)
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    if let Some(mfa_service) = &state.mfa_service {
+        // Use the proper MFA service facade to setup TOTP
+        let mfa_setup = mfa_service
+            .setup_totp(user_id, &user.username)
+            .await
+            .map_err(crate::error::ApiError)?;
+
+        // Ensure user is marked as having MFA enabled in the core service
+        state
+            .user_service
+            .enable_mfa(user_id, mfa_setup.secret.clone())
+            .await
+            .map_err(crate::error::ApiError)?;
+
+        return Ok(Json(EnableMfaResponse {
+            secret: mfa_setup.secret,
+            qr_code: mfa_setup.qr_code,
+        }));
+    }
+
+    // Fallback if no MFA service is configured (e.g. tests)
     let mut secret_bytes = [0u8; 20];
     rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut secret_bytes);
     let encoded_secret = data_encoding::BASE32_NOPAD.encode(&secret_bytes);
 
-    let user = state.user_service.enable_mfa(UserId::from_uuid(id), encoded_secret.clone()).await.map_err(crate::error::ApiError)?;
+    state
+        .user_service
+        .enable_mfa(user_id, encoded_secret.clone())
+        .await
+        .map_err(crate::error::ApiError)?;
 
-    let qr_string = format!("otpauth://totp/SIMPEL:{}?secret={}&issuer=SIMPEL", user.username, encoded_secret);
+    // URL-encode the username for the fallback QR URI
+    let encoded_username = urlencoding::encode(&user.username);
+    let qr_string = format!(
+        "otpauth://totp/SIMPEL:{}?secret={}&issuer=SIMPEL",
+        encoded_username, encoded_secret
+    );
 
     // Using an embedded simulated Base64 SVG payload for the QR URI for demonstration purposes
-    let simulated_svg = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/><text x="10" y="100" font-family="Arial" font-size="12" fill="black">QR: {}</text></svg>"#, qr_string);
+    let simulated_svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/><text x="10" y="100" font-family="Arial" font-size="12" fill="black">QR: {}</text></svg>"#,
+        qr_string
+    );
     let simulated_svg_b64 = data_encoding::BASE64.encode(simulated_svg.as_bytes());
     let qr_code_data_uri = format!("data:image/svg+xml;base64,{}", simulated_svg_b64);
 
@@ -361,6 +449,10 @@ pub async fn disable_user_mfa(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
-    state.user_service.disable_mfa(UserId::from_uuid(id)).await.map_err(crate::error::ApiError)?;
+    state
+        .user_service
+        .disable_mfa(UserId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
     Ok(StatusCode::NO_CONTENT)
 }

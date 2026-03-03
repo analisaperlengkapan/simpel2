@@ -39,7 +39,13 @@ impl AuthFlowTab {
     }
 
     fn all() -> &'static [AuthFlowTab] {
-        &[Self::Flows, Self::RequiredActions, Self::Policies, Self::Events, Self::EventListeners]
+        &[
+            Self::Flows,
+            Self::RequiredActions,
+            Self::Policies,
+            Self::Events,
+            Self::EventListeners,
+        ]
     }
 }
 

@@ -1211,7 +1211,10 @@ mod tests {
 
         // Enable MFA
         let mfa_user = service
-            .enable_mfa(UserId::from_uuid(user.id), "mock_totp_secret_for_test".to_string())
+            .enable_mfa(
+                UserId::from_uuid(user.id),
+                "mock_totp_secret_for_test".to_string(),
+            )
             .await
             .unwrap();
         assert!(mfa_user.mfa_enabled);
@@ -1236,7 +1239,10 @@ mod tests {
             .await
             .unwrap();
         let mfa_user = service
-            .enable_mfa(UserId::from_uuid(user.id), "mock_totp_secret_for_test".to_string())
+            .enable_mfa(
+                UserId::from_uuid(user.id),
+                "mock_totp_secret_for_test".to_string(),
+            )
             .await
             .unwrap();
         assert!(mfa_user.mfa_enabled);

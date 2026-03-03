@@ -5,10 +5,10 @@ impl Clone for PgAuditLogStore {
         }
     }
 }
-use anyhow::Result;
-use authenc_types::{domain::audit_log::AuditLog, ClientId, UserId};
-use std::sync::Arc;
 use crate::services::audit_log_sink::AuditLogSink;
+use anyhow::Result;
+use authenc_types::{ClientId, UserId, domain::audit_log::AuditLog};
+use std::sync::Arc;
 
 /// PostgreSQL-based audit log store implementation
 pub struct PgAuditLogStore {

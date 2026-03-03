@@ -189,6 +189,38 @@ impl UserStore for PostgresUserStore {
             updates.push(format!("phone_number = ${}", param_index));
             param_index += 1;
         }
+        if req.username.is_some() {
+            updates.push(format!("username = ${}", param_index));
+            param_index += 1;
+        }
+        if req.satker_code.is_some() {
+            updates.push(format!("satker_code = ${}", param_index));
+            param_index += 1;
+        }
+        if req.nip.is_some() {
+            updates.push(format!("nip = ${}", param_index));
+            param_index += 1;
+        }
+        if req.nama.is_some() {
+            updates.push(format!("nama = ${}", param_index));
+            param_index += 1;
+        }
+        if req.jabatan.is_some() {
+            updates.push(format!("jabatan = ${}", param_index));
+            param_index += 1;
+        }
+        if req.phone_verified.is_some() {
+            updates.push(format!("phone_verified = ${}", param_index));
+            param_index += 1;
+        }
+        if req.require_password_change.is_some() {
+            updates.push(format!("require_password_change = ${}", param_index));
+            param_index += 1;
+        }
+        if req.password.is_some() {
+            updates.push(format!("password_hash = ${}", param_index));
+            param_index += 1;
+        }
         if req.mfa_enabled.is_some() {
             updates.push(format!("mfa_enabled = ${}", param_index));
             param_index += 1;
@@ -238,6 +270,30 @@ impl UserStore for PostgresUserStore {
         }
         if let Some(ref phone_number) = req.phone_number {
             params.push(phone_number);
+        }
+        if let Some(ref username) = req.username {
+            params.push(username);
+        }
+        if let Some(ref satker_code) = req.satker_code {
+            params.push(satker_code);
+        }
+        if let Some(ref nip) = req.nip {
+            params.push(nip);
+        }
+        if let Some(ref nama) = req.nama {
+            params.push(nama);
+        }
+        if let Some(ref jabatan) = req.jabatan {
+            params.push(jabatan);
+        }
+        if let Some(ref phone_verified) = req.phone_verified {
+            params.push(phone_verified);
+        }
+        if let Some(ref require_password_change) = req.require_password_change {
+            params.push(require_password_change);
+        }
+        if let Some(ref password_hash) = req.password {
+            params.push(password_hash);
         }
         if let Some(ref mfa_enabled) = req.mfa_enabled {
             params.push(mfa_enabled);

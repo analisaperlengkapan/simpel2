@@ -13,11 +13,11 @@ use crate::error::ApiResult;
 use crate::state::IamApiState;
 use authenc_types::{AuthencError, RealmId, RoleId, UserId};
 
-
 /// Helper to get role_service or return error
 fn require_role_service(
     state: &IamApiState,
-) -> std::result::Result<&authenc_core::services::RoleManagementServiceImpl, crate::error::ApiError> {
+) -> std::result::Result<&authenc_core::services::RoleManagementServiceImpl, crate::error::ApiError>
+{
     state
         .role_service
         .as_ref()
@@ -28,7 +28,6 @@ fn require_role_service(
             ))
         })
 }
-
 
 /// Role response DTO
 #[derive(Debug, Serialize)]
@@ -63,14 +62,17 @@ pub async fn list_roles(
     let svc = require_role_service(&state)?;
     let roles = svc.list_roles(None).await.map_err(crate::error::ApiError)?;
 
-    let responses = roles.into_iter().map(|r| RoleResponse {
-        id: *r.id.as_uuid(),
-        name: r.name,
-        description: r.description,
-        realm_id: *r.realm_id.as_uuid(),
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-    }).collect();
+    let responses = roles
+        .into_iter()
+        .map(|r| RoleResponse {
+            id: *r.id.as_uuid(),
+            name: r.name,
+            description: r.description,
+            realm_id: *r.realm_id.as_uuid(),
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+        })
+        .collect();
 
     Ok(Json(responses))
 }
@@ -81,7 +83,14 @@ pub async fn create_role(
     Json(req): Json<CreateRoleRequest>,
 ) -> ApiResult<(StatusCode, Json<RoleResponse>)> {
     let svc = require_role_service(&state)?;
-    let role = svc.create_role(&req.name, req.description.as_deref(), RealmId::from_uuid(req.realm_id)).await.map_err(crate::error::ApiError)?;
+    let role = svc
+        .create_role(
+            &req.name,
+            req.description.as_deref(),
+            RealmId::from_uuid(req.realm_id),
+        )
+        .await
+        .map_err(crate::error::ApiError)?;
 
     Ok((
         StatusCode::CREATED,
@@ -92,7 +101,7 @@ pub async fn create_role(
             realm_id: *role.realm_id.as_uuid(),
             created_at: role.created_at,
             updated_at: role.updated_at,
-        })
+        }),
     ))
 }
 
@@ -102,7 +111,10 @@ pub async fn get_role(
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<RoleResponse>> {
     let svc = require_role_service(&state)?;
-    let role = svc.get_role(RoleId::from_uuid(id)).await.map_err(crate::error::ApiError)?
+    let role = svc
+        .get_role(RoleId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?
         .ok_or_else(|| crate::error::ApiError(AuthencError::not_found("Role not found")))?;
 
     Ok(Json(RoleResponse {
@@ -124,10 +136,13 @@ pub async fn update_role(
     let svc = require_role_service(&state)?;
     let desc_opt = match &req.description {
         Some(d) => Some(Some(d.as_str())),
-        None => None
+        None => None,
     };
 
-    let role = svc.update_role(RoleId::from_uuid(id), req.name.as_deref(), desc_opt).await.map_err(crate::error::ApiError)?;
+    let role = svc
+        .update_role(RoleId::from_uuid(id), req.name.as_deref(), desc_opt)
+        .await
+        .map_err(crate::error::ApiError)?;
 
     Ok(Json(RoleResponse {
         id: *role.id.as_uuid(),
@@ -145,7 +160,9 @@ pub async fn delete_role(
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
     let svc = require_role_service(&state)?;
-    svc.delete_role(RoleId::from_uuid(id)).await.map_err(crate::error::ApiError)?;
+    svc.delete_role(RoleId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -156,7 +173,9 @@ pub async fn assign_role_to_user(
     Path((user_id, role_id)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<StatusCode> {
     let svc = require_role_service(&state)?;
-    svc.assign_role(UserId::from_uuid(user_id), RoleId::from_uuid(role_id)).await.map_err(crate::error::ApiError)?;
+    svc.assign_role(UserId::from_uuid(user_id), RoleId::from_uuid(role_id))
+        .await
+        .map_err(crate::error::ApiError)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -167,7 +186,9 @@ pub async fn remove_role_from_user(
     Path((user_id, role_id)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<StatusCode> {
     let svc = require_role_service(&state)?;
-    svc.remove_role_from_user(UserId::from_uuid(user_id), RoleId::from_uuid(role_id)).await.map_err(crate::error::ApiError)?;
+    svc.remove_role_from_user(UserId::from_uuid(user_id), RoleId::from_uuid(role_id))
+        .await
+        .map_err(crate::error::ApiError)?;
 
     Ok(StatusCode::NO_CONTENT)
 }

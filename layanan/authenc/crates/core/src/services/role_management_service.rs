@@ -5,10 +5,10 @@
 
 use authenc_storage::Database;
 use authenc_types::{RealmId, Result, RoleId, UserId, error::AuthencError};
+use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tracing::{debug, error};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// Role information
 #[derive(Debug, Clone)]
@@ -267,10 +267,14 @@ impl RoleManagementServiceImpl {
         "#;
 
         let role_id = Uuid::new_v4();
-        let row = self.db.query_one(query, &[&role_id, &name, &description, &realm_id.as_uuid()]).await.map_err(|e| {
-            error!("Failed to create role: {}", e);
-            AuthencError::database(format!("Failed to create role: {}", e))
-        })?;
+        let row = self
+            .db
+            .query_one(query, &[&role_id, &name, &description, &realm_id.as_uuid()])
+            .await
+            .map_err(|e| {
+                error!("Failed to create role: {}", e);
+                AuthencError::database(format!("Failed to create role: {}", e))
+            })?;
 
         Ok(Role {
             id: RoleId::from_uuid(row.get("id")),
@@ -295,10 +299,14 @@ impl RoleManagementServiceImpl {
             WHERE id = $1
         "#;
 
-        let row_opt = self.db.query_opt(query, &[&role_id.as_uuid()]).await.map_err(|e| {
-            error!("Failed to get role: {}", e);
-            AuthencError::database(format!("Failed to get role: {}", e))
-        })?;
+        let row_opt = self
+            .db
+            .query_opt(query, &[&role_id.as_uuid()])
+            .await
+            .map_err(|e| {
+                error!("Failed to get role: {}", e);
+                AuthencError::database(format!("Failed to get role: {}", e))
+            })?;
 
         if let Some(row) = row_opt {
             let permissions = self.get_role_permissions(role_id).await?;
@@ -327,15 +335,16 @@ impl RoleManagementServiceImpl {
     ) -> Result<Role> {
         debug!("Updating role {}", role_id);
 
-        let current_role = self.get_role(role_id).await?.ok_or_else(|| {
-            AuthencError::NotFound(format!("Role {} not found", role_id))
-        })?;
+        let current_role = self
+            .get_role(role_id)
+            .await?
+            .ok_or_else(|| AuthencError::NotFound(format!("Role {} not found", role_id)))?;
 
         let new_name = name.unwrap_or(&current_role.name);
 
         let new_desc: Option<&str> = match description {
             Some(d) => d,
-            None => current_role.description.as_deref()
+            None => current_role.description.as_deref(),
         };
 
         let query = r#"
@@ -345,10 +354,14 @@ impl RoleManagementServiceImpl {
             RETURNING id, name, description, realm_id, composite, client_role, created_at, updated_at
         "#;
 
-        let row = self.db.query_one(query, &[&role_id.as_uuid(), &new_name, &new_desc]).await.map_err(|e| {
-            error!("Failed to update role: {}", e);
-            AuthencError::database(format!("Failed to update role: {}", e))
-        })?;
+        let row = self
+            .db
+            .query_one(query, &[&role_id.as_uuid(), &new_name, &new_desc])
+            .await
+            .map_err(|e| {
+                error!("Failed to update role: {}", e);
+                AuthencError::database(format!("Failed to update role: {}", e))
+            })?;
 
         let permissions = self.get_role_permissions(role_id).await?;
 
@@ -359,9 +372,9 @@ impl RoleManagementServiceImpl {
             realm_id: RealmId::from_uuid(row.get("realm_id")),
             composite: row.get("composite"),
             client_role: row.get("client_role"),
-                permissions,
-                created_at: row.try_get("created_at").unwrap_or_else(|_| Utc::now()),
-                updated_at: row.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
+            permissions,
+            created_at: row.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+            updated_at: row.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
         })
     }
 
@@ -371,13 +384,20 @@ impl RoleManagementServiceImpl {
 
         let query = "DELETE FROM roles WHERE id = $1";
 
-        let rows_affected = self.db.execute(query, &[&role_id.as_uuid()]).await.map_err(|e| {
-            error!("Failed to delete role: {}", e);
-            AuthencError::database(format!("Failed to delete role: {}", e))
-        })?;
+        let rows_affected = self
+            .db
+            .execute(query, &[&role_id.as_uuid()])
+            .await
+            .map_err(|e| {
+                error!("Failed to delete role: {}", e);
+                AuthencError::database(format!("Failed to delete role: {}", e))
+            })?;
 
         if rows_affected == 0 {
-            return Err(AuthencError::NotFound(format!("Role {} not found", role_id)));
+            return Err(AuthencError::NotFound(format!(
+                "Role {} not found",
+                role_id
+            )));
         }
 
         Ok(())

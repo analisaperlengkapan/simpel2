@@ -100,10 +100,8 @@ impl ResourceStoreTrait for ResourceStore {
         let id = Uuid::new_v4();
         let uris = request.uris.unwrap_or_default();
         let scopes = request.scopes.unwrap_or_default();
-        let attributes_json = serde_json::to_value(
-            request.attributes.unwrap_or_default(),
-        )
-        .unwrap_or(serde_json::json!({}));
+        let attributes_json = serde_json::to_value(request.attributes.unwrap_or_default())
+            .unwrap_or(serde_json::json!({}));
 
         let row = self
             .database
@@ -326,9 +324,7 @@ impl ResourceStoreTrait for ResourceStore {
                 &[&owner],
             )
             .await
-            .map_err(|e| {
-                AuthencError::database(format!("Failed to count resources: {}", e))
-            })?;
+            .map_err(|e| AuthencError::database(format!("Failed to count resources: {}", e)))?;
 
         Ok(row.get::<_, i64>("count"))
     }

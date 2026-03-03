@@ -281,7 +281,9 @@ impl ComplianceCheck for GDPRDataEncryptionCheck {
             match db.get_connection().await {
                 Ok(conn) => {
                     score += 40.0;
-                    evidence.push("Database connection established successfully (encrypted)".to_string());
+                    evidence.push(
+                        "Database connection established successfully (encrypted)".to_string(),
+                    );
                     // Test 2: Verify encrypted columns exist
                     let check = conn.query_opt(
                         "SELECT column_name FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password_hash' LIMIT 1",
@@ -298,7 +300,8 @@ impl ComplianceCheck for GDPRDataEncryptionCheck {
                 }
                 Err(e) => {
                     violations.push(format!("Database connection failed: {}", e));
-                    remediation_steps.push("Ensure database is accessible and SSL is configured".to_string());
+                    remediation_steps
+                        .push("Ensure database is accessible and SSL is configured".to_string());
                 }
             }
         } else {
@@ -373,29 +376,46 @@ impl ComplianceCheck for GDPRDataRetentionCheck {
                             let count: i64 = row.get(0);
                             if count == 0 {
                                 score += 40.0;
-                                evidence.push("No audit logs older than 90 days found — retention enforced".to_string());
+                                evidence.push(
+                                    "No audit logs older than 90 days found — retention enforced"
+                                        .to_string(),
+                                );
                             } else {
                                 score += 20.0;
-                                violations.push(format!("{} audit logs exceed 90-day retention period", count));
-                                remediation_steps.push("Run audit log cleanup to enforce retention policy".to_string());
+                                violations.push(format!(
+                                    "{} audit logs exceed 90-day retention period",
+                                    count
+                                ));
+                                remediation_steps.push(
+                                    "Run audit log cleanup to enforce retention policy".to_string(),
+                                );
                             }
                         }
                         Err(_) => {
                             score += 30.0;
-                            evidence.push("Audit log table accessible for retention checks".to_string());
+                            evidence.push(
+                                "Audit log table accessible for retention checks".to_string(),
+                            );
                         }
                     }
                     // Check session cleanup
                     score += 30.0;
-                    evidence.push("Expired sessions are automatically cleaned up via TTL".to_string());
+                    evidence
+                        .push("Expired sessions are automatically cleaned up via TTL".to_string());
                     score += 15.0;
                     evidence.push("Token expiration enforced via database TTL".to_string());
                     score += 15.0;
-                    evidence.push("Soft delete with deleted_at field available for GDPR erasure".to_string());
+                    evidence.push(
+                        "Soft delete with deleted_at field available for GDPR erasure".to_string(),
+                    );
                 }
                 Err(e) => {
-                    violations.push(format!("Database connection failed for retention check: {}", e));
-                    remediation_steps.push("Provide database connection to compliance check".to_string());
+                    violations.push(format!(
+                        "Database connection failed for retention check: {}",
+                        e
+                    ));
+                    remediation_steps
+                        .push("Provide database connection to compliance check".to_string());
                 }
             }
         } else {
@@ -617,46 +637,55 @@ impl ComplianceCheck for HIPAAAccessControlCheck {
             match db.get_connection().await {
                 Ok(conn) => {
                     // Check if roles table exists and has data
-                    let role_count = conn.query_one(
-                        "SELECT COUNT(*) FROM roles", &[]
-                    ).await;
+                    let role_count = conn.query_one("SELECT COUNT(*) FROM roles", &[]).await;
                     match role_count {
                         Ok(row) => {
                             let count: i64 = row.get(0);
                             score += 40.0;
-                            evidence.push(format!("RBAC system operational: {} roles defined", count));
+                            evidence
+                                .push(format!("RBAC system operational: {} roles defined", count));
                             // Check for admin roles
-                            let admin_roles = conn.query_one(
-                                "SELECT COUNT(*) FROM roles WHERE name ILIKE '%admin%'", &[]
-                            ).await;
+                            let admin_roles = conn
+                                .query_one(
+                                    "SELECT COUNT(*) FROM roles WHERE name ILIKE '%admin%'",
+                                    &[],
+                                )
+                                .await;
                             if let Ok(admin_row) = admin_roles {
                                 let admin_count: i64 = admin_row.get(0);
                                 if admin_count > 0 {
                                     score += 15.0;
-                                    evidence.push(format!("{} administrative roles defined", admin_count));
+                                    evidence.push(format!(
+                                        "{} administrative roles defined",
+                                        admin_count
+                                    ));
                                 }
                             }
                             score += 15.0;
-                            evidence.push("Standard user roles defined for regular access".to_string());
+                            evidence
+                                .push("Standard user roles defined for regular access".to_string());
                             // Check user-role assignments
-                            let assignments = conn.query_one(
-                                "SELECT COUNT(*) FROM user_roles", &[]
-                            ).await;
+                            let assignments =
+                                conn.query_one("SELECT COUNT(*) FROM user_roles", &[]).await;
                             if let Ok(assign_row) = assignments {
                                 let assign_count: i64 = assign_row.get(0);
                                 score += 30.0;
-                                evidence.push(format!("{} user-role assignments active", assign_count));
+                                evidence
+                                    .push(format!("{} user-role assignments active", assign_count));
                             }
                         }
                         Err(_) => {
                             violations.push("Roles table not accessible".to_string());
-                            remediation_steps.push("Ensure roles table exists and RBAC is configured".to_string());
+                            remediation_steps.push(
+                                "Ensure roles table exists and RBAC is configured".to_string(),
+                            );
                         }
                     }
                 }
                 Err(e) => {
                     violations.push(format!("Database connection failed for RBAC check: {}", e));
-                    remediation_steps.push("Provide database connection to compliance check".to_string());
+                    remediation_steps
+                        .push("Provide database connection to compliance check".to_string());
                 }
             }
         } else {
@@ -721,22 +750,24 @@ impl ComplianceCheck for HIPAAAuditControlsCheck {
             match db.get_connection().await {
                 Ok(conn) => {
                     // Check if audit_logs table has data
-                    let log_count = conn.query_one(
-                        "SELECT COUNT(*) FROM audit_logs", &[]
-                    ).await;
+                    let log_count = conn.query_one("SELECT COUNT(*) FROM audit_logs", &[]).await;
                     match log_count {
                         Ok(row) => {
                             let count: i64 = row.get(0);
                             score += 40.0;
-                            evidence.push(format!("Audit logging system operational: {} log entries", count));
+                            evidence.push(format!(
+                                "Audit logging system operational: {} log entries",
+                                count
+                            ));
                             // Check event type diversity
-                            let event_types = conn.query_one(
-                                "SELECT COUNT(DISTINCT event_type) FROM audit_logs", &[]
-                            ).await;
+                            let event_types = conn
+                                .query_one("SELECT COUNT(DISTINCT event_type) FROM audit_logs", &[])
+                                .await;
                             if let Ok(et_row) = event_types {
                                 let type_count: i64 = et_row.get(0);
                                 score += 30.0;
-                                evidence.push(format!("Capturing {} distinct event types", type_count));
+                                evidence
+                                    .push(format!("Capturing {} distinct event types", type_count));
                             }
                             score += 15.0;
                             evidence.push("Authentication events are being audited".to_string());
@@ -745,13 +776,16 @@ impl ComplianceCheck for HIPAAAuditControlsCheck {
                         }
                         Err(_) => {
                             violations.push("Audit logs table not accessible".to_string());
-                            remediation_steps.push("Ensure audit_logs table exists and is populated".to_string());
+                            remediation_steps.push(
+                                "Ensure audit_logs table exists and is populated".to_string(),
+                            );
                         }
                     }
                 }
                 Err(e) => {
                     violations.push(format!("Database connection failed for audit check: {}", e));
-                    remediation_steps.push("Provide database connection to compliance check".to_string());
+                    remediation_steps
+                        .push("Provide database connection to compliance check".to_string());
                 }
             }
         } else {

@@ -754,7 +754,6 @@ mod scheduler_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
@@ -777,7 +776,6 @@ mod scheduler_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
@@ -816,7 +814,6 @@ mod scheduler_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
@@ -863,7 +860,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
 
         // Generate a 32-byte encryption key
@@ -931,7 +927,6 @@ mod encryption_tests {
         let mut config1 = BackupConfig::default();
         config1.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let key1 = vec![1u8; 32];
         config1.encryption_key = Some(key1);
@@ -941,7 +936,6 @@ mod encryption_tests {
         let mut config2 = BackupConfig::default();
         config2.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let key2 = vec![2u8; 32];
         config2.encryption_key = Some(key2);
@@ -971,7 +965,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);
@@ -1021,7 +1014,6 @@ mod encryption_tests {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
             });
             let invalid_key = vec![0u8; invalid_size];
             config.encryption_key = Some(invalid_key);
@@ -1048,7 +1040,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let valid_key = vec![42u8; 32];
         config.encryption_key = Some(valid_key);
@@ -1060,7 +1051,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         config.encryption_key = None;
 
@@ -1095,7 +1085,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);
@@ -1153,7 +1142,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);

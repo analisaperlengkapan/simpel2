@@ -1,10 +1,10 @@
 //! IAM API state with admin service dependencies
 
-use authenc_core::services::{
-    AuditService, RoleManagementServiceImpl,
-    OAuth2ServiceImpl, RealmManagementServiceImpl, UserManagementServiceImpl,
-};
 use authenc_core::services::group_store::GroupStore;
+use authenc_core::services::{
+    AuditService, OAuth2ServiceImpl, RealmManagementServiceImpl, RoleManagementServiceImpl,
+    UserManagementServiceImpl,
+};
 use authenc_crypto::jwt::JwtService;
 use std::sync::Arc;
 
@@ -31,6 +31,9 @@ pub struct IamApiState {
 
     /// Audit service
     pub audit_service: Option<Arc<AuditService>>,
+
+    /// MFA service facade for generating TOTP secrets and QR codes
+    pub mfa_service: Option<Arc<dyn authenc_grpc::service::MfaServiceFacade>>,
     // TODO: Add missing services for full IAM API functionality
     // These services are required by the migrated admin handlers:
 
@@ -104,6 +107,7 @@ impl IamApiState {
             group_service: None,
             role_service: None,
             audit_service: None,
+            mfa_service: None,
         }
     }
 
@@ -122,6 +126,15 @@ impl IamApiState {
     /// Set audit service
     pub fn with_audit_service(mut self, audit_service: Arc<AuditService>) -> Self {
         self.audit_service = Some(audit_service);
+        self
+    }
+
+    /// Set MFA service (optional)
+    pub fn with_mfa_service(
+        mut self,
+        mfa_service: Arc<dyn authenc_grpc::service::MfaServiceFacade>,
+    ) -> Self {
+        self.mfa_service = Some(mfa_service);
         self
     }
 }

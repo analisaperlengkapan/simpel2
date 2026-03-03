@@ -109,7 +109,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 clear_totp_secret: None,
             };
 
-            let updated_user = user_store.update_user(UserId(user.id), update_request).await?;
+            let updated_user = user_store
+                .update_user(UserId(user.id), update_request)
+                .await?;
             println!("   ✓ User updated:");
             println!("     - New email: {}", updated_user.email);
             println!("     - Email verified: {}", updated_user.email_verified);

@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 use crate::error::ApiResult;
 use crate::state::IamApiState;
-use authenc_types::{AuthencError, RealmId};
 use authenc_types::domain::realm::Realm;
+use authenc_types::{AuthencError, RealmId};
 
 fn to_realm_response(realm: Realm) -> RealmResponse {
     RealmResponse {
@@ -24,7 +24,6 @@ fn to_realm_response(realm: Realm) -> RealmResponse {
         updated_at: chrono::Utc::now(),
     }
 }
-
 
 /// Realm response DTO
 #[derive(Debug, Serialize)]
@@ -56,7 +55,11 @@ pub struct UpdateRealmRequest {
 pub async fn list_realms(
     State(state): State<Arc<IamApiState>>,
 ) -> ApiResult<Json<Vec<RealmResponse>>> {
-    let realms = state.realm_service.list_realms().await.map_err(crate::error::ApiError)?;
+    let realms = state
+        .realm_service
+        .list_realms()
+        .await
+        .map_err(crate::error::ApiError)?;
     let responses: Vec<RealmResponse> = realms.into_iter().map(to_realm_response).collect();
     Ok(Json(responses))
 }
@@ -67,15 +70,27 @@ pub async fn create_realm(
     Json(req): Json<CreateRealmRequest>,
 ) -> ApiResult<(StatusCode, Json<RealmResponse>)> {
     let display_name = req.display_name.unwrap_or_else(|| req.name.clone());
-    let realm = state.realm_service.create_realm(req.name, display_name).await.map_err(crate::error::ApiError)?;
+    let realm = state
+        .realm_service
+        .create_realm(req.name, display_name)
+        .await
+        .map_err(crate::error::ApiError)?;
 
     // The create_realm does not let us set `enabled` initially, so update if specified.
     if let Some(false) = req.enabled {
-        state.realm_service.disable_realm(RealmId::from_uuid(realm.id)).await.map_err(crate::error::ApiError)?;
+        state
+            .realm_service
+            .disable_realm(RealmId::from_uuid(realm.id))
+            .await
+            .map_err(crate::error::ApiError)?;
     }
 
     // We fetch again to get the updated state
-    let final_realm = state.realm_service.get_realm(RealmId::from_uuid(realm.id)).await.map_err(crate::error::ApiError)?;
+    let final_realm = state
+        .realm_service
+        .get_realm(RealmId::from_uuid(realm.id))
+        .await
+        .map_err(crate::error::ApiError)?;
     Ok((StatusCode::CREATED, Json(to_realm_response(final_realm))))
 }
 
@@ -84,7 +99,11 @@ pub async fn get_realm(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<RealmResponse>> {
-    let realm = state.realm_service.get_realm(RealmId::from_uuid(id)).await.map_err(crate::error::ApiError)?;
+    let realm = state
+        .realm_service
+        .get_realm(RealmId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
     Ok(Json(to_realm_response(realm)))
 }
 
@@ -94,17 +113,33 @@ pub async fn update_realm(
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateRealmRequest>,
 ) -> ApiResult<Json<RealmResponse>> {
-    let mut realm = state.realm_service.get_realm(RealmId::from_uuid(id)).await.map_err(crate::error::ApiError)?;
+    let mut realm = state
+        .realm_service
+        .get_realm(RealmId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
 
     if let Some(display_name) = req.display_name {
-        realm = state.realm_service.update_realm(RealmId::from_uuid(realm.id), Some(display_name), None).await.map_err(crate::error::ApiError)?;
+        realm = state
+            .realm_service
+            .update_realm(RealmId::from_uuid(realm.id), Some(display_name), None)
+            .await
+            .map_err(crate::error::ApiError)?;
     }
 
     if let Some(enabled) = req.enabled {
         if enabled {
-            realm = state.realm_service.enable_realm(RealmId::from_uuid(realm.id)).await.map_err(crate::error::ApiError)?;
+            realm = state
+                .realm_service
+                .enable_realm(RealmId::from_uuid(realm.id))
+                .await
+                .map_err(crate::error::ApiError)?;
         } else {
-            realm = state.realm_service.disable_realm(RealmId::from_uuid(realm.id)).await.map_err(crate::error::ApiError)?;
+            realm = state
+                .realm_service
+                .disable_realm(RealmId::from_uuid(realm.id))
+                .await
+                .map_err(crate::error::ApiError)?;
         }
     }
 
@@ -116,6 +151,10 @@ pub async fn delete_realm(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
-    state.realm_service.delete_realm(RealmId::from_uuid(id)).await.map_err(crate::error::ApiError)?;
+    state
+        .realm_service
+        .delete_realm(RealmId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
     Ok(StatusCode::NO_CONTENT)
 }

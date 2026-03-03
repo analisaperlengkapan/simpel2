@@ -39,7 +39,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Created realm: {:?}", realm);
     println!("  ID: {}", realm.id);
     println!("  Name: {}", realm.name);
-    println!("  Display Name: {}", realm.display_name.as_deref().unwrap_or(""));
+    println!(
+        "  Display Name: {}",
+        realm.display_name.as_deref().unwrap_or("")
+    );
     println!("  Enabled: {}", realm.enabled);
 
     println!("\n=== Getting Realm by ID ===");
@@ -52,10 +55,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n=== Updating Realm ===");
     let updated_realm = realm_store
-        .update_realm(RealmId(realm.id), Some("Kejaksaan RI - Updated".to_string()), None)
+        .update_realm(
+            RealmId(realm.id),
+            Some("Kejaksaan RI - Updated".to_string()),
+            None,
+        )
         .await?;
     println!("Updated realm: {:?}", updated_realm);
-    println!("  New Display Name: {}", updated_realm.display_name.as_deref().unwrap_or(""));
+    println!(
+        "  New Display Name: {}",
+        updated_realm.display_name.as_deref().unwrap_or("")
+    );
 
     println!("\n=== Creating Another Realm ===");
     let realm2 = realm_store

@@ -5,9 +5,9 @@
 
 use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 /// WebAuthn credential creation options (simplified for JSON transport)
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -63,7 +63,10 @@ pub fn is_webauthn_supported() -> bool {
     {
         if let Some(window) = web_sys::window() {
             let nav = window.navigator();
-            if let Ok(creds) = js_sys::Reflect::get(&wasm_bindgen::JsValue::from(nav), &wasm_bindgen::JsValue::from_str("credentials")) {
+            if let Ok(creds) = js_sys::Reflect::get(
+                &wasm_bindgen::JsValue::from(nav),
+                &wasm_bindgen::JsValue::from_str("credentials"),
+            ) {
                 return !creds.is_undefined() && !creds.is_null();
             }
         }
