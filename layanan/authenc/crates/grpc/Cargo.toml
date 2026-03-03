@@ -26,6 +26,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+getrandom.workspace = true
+data-encoding.workspace = true
+rand.workspace = true
 
 [build-dependencies]
 tonic-prost-build = { workspace = true }

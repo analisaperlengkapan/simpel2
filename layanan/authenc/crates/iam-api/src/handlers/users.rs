@@ -140,31 +140,32 @@ pub async fn list_users(
     let offset = (params.page.saturating_sub(1) * params.page_size) as usize;
 
     // In a real implementation we would do searching and getting a total count.
-    // Here we just wrap the existing `list_users`
+    // If filtering by `enabled` status is not supported natively by the `user_service`, we fetch a slightly larger
+    // page batch to ensure we can fulfill the requested limit post-filtering, or we let the pagination act on the raw results.
+    // A clean approach without adding new trait methods is fetching larger bounds.
+    let fetch_limit = if params.enabled.is_some() { 1000 } else { params.page_size as usize };
+    let fetch_offset = if params.enabled.is_some() { 0 } else { offset };
+
     let mut users = if let Some(ref search_term) = params.search {
-        state.user_service.search_users(RealmId::from_uuid(realm_id), search_term, 1000).await.map_err(crate::error::ApiError)?
+        state.user_service.search_users(RealmId::from_uuid(realm_id), search_term, fetch_limit).await.map_err(crate::error::ApiError)?
     } else {
-        state.user_service.list_users(RealmId::from_uuid(realm_id), 0, 1000).await.map_err(crate::error::ApiError)? // Fetch larger batch for post-filtering if needed
+        state.user_service.list_users(RealmId::from_uuid(realm_id), fetch_offset, fetch_limit).await.map_err(crate::error::ApiError)?
     };
 
     if let Some(enabled_filter) = params.enabled {
         users.retain(|u| u.enabled == enabled_filter);
-    }
 
-    // Manual pagination since we might have post-filtered or fetched a large batch
-    let paginated_users: Vec<_> = users.into_iter().skip(offset).take(params.page_size as usize).collect();
-    let users = paginated_users;
+        // Manual pagination for post-filtered results
+        users = users.into_iter().skip(offset).take(params.page_size as usize).collect();
+    }
 
     let total_returned = users.len() as u64;
     let user_responses: Vec<UserResponse> = users.into_iter().map(to_user_response).collect();
 
-    // In a full implementation, we'd query the actual total from the database.
-    // Since UserManagementServiceImpl doesn't expose a count method yet,
-    // we provide a heuristic based on what we fetched.
     let total = if total_returned < params.page_size as u64 && params.page == 1 {
         total_returned
     } else {
-        total_returned + offset as u64 // Minimum possible total
+        total_returned + offset as u64
     };
 
     let total_pages = (total as f64 / params.page_size as f64).ceil() as u32;
@@ -335,38 +336,23 @@ pub async fn enable_user_mfa(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<EnableMfaResponse>> {
-    // Generate a random TOTP secret (at least 20 bytes, base32 encoded) using Uuid since rand is not linked
+    // Generate a secure random TOTP secret
     let mut secret_bytes = [0u8; 20];
-    let uuid_bytes = Uuid::new_v4().into_bytes();
-    secret_bytes[0..16].copy_from_slice(&uuid_bytes);
-    secret_bytes[16..20].copy_from_slice(&[1, 2, 3, 4]);
-
-    const ALPHABET: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-    let mut encoded_secret = String::with_capacity((secret_bytes.len() * 8 + 4) / 5);
-    let mut buffer = 0u32;
-    let mut bits_left = 0;
-
-    for &byte in &secret_bytes {
-        buffer = (buffer << 8) | (byte as u32);
-        bits_left += 8;
-        while bits_left >= 5 {
-            bits_left -= 5;
-            let index = (buffer >> bits_left) & 0x1F;
-            encoded_secret.push(ALPHABET[index as usize] as char);
-        }
-    }
-    if bits_left > 0 {
-        let index = (buffer << (5 - bits_left)) & 0x1F;
-        encoded_secret.push(ALPHABET[index as usize] as char);
-    }
+    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut secret_bytes);
+    let encoded_secret = data_encoding::BASE32_NOPAD.encode(&secret_bytes);
 
     let user = state.user_service.enable_mfa(UserId::from_uuid(id), encoded_secret.clone()).await.map_err(crate::error::ApiError)?;
 
-    let qr_code = format!("otpauth://totp/SIMPEL:{}?secret={}&issuer=SIMPEL", user.username, encoded_secret);
+    let qr_string = format!("otpauth://totp/SIMPEL:{}?secret={}&issuer=SIMPEL", user.username, encoded_secret);
+
+    // Using an embedded simulated Base64 SVG payload for the QR URI for demonstration purposes
+    let simulated_svg = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/><text x="10" y="100" font-family="Arial" font-size="12" fill="black">QR: {}</text></svg>"#, qr_string);
+    let simulated_svg_b64 = data_encoding::BASE64.encode(simulated_svg.as_bytes());
+    let qr_code_data_uri = format!("data:image/svg+xml;base64,{}", simulated_svg_b64);
 
     Ok(Json(EnableMfaResponse {
         secret: encoded_secret,
-        qr_code,
+        qr_code: qr_code_data_uri,
     }))
 }
 

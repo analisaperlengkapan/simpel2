@@ -189,6 +189,12 @@ impl UserStore for PostgresUserStore {
             updates.push(format!("phone_number = ${}", param_index));
             param_index += 1;
         }
+        if let Some(true) = req.clear_totp_secret {
+            updates.push("totp_secret = NULL".to_string());
+        } else if req.totp_secret.is_some() {
+            updates.push(format!("totp_secret = ${}", param_index));
+            param_index += 1;
+        }
 
         if updates.is_empty() {
             // No updates requested, just return the current user
@@ -228,6 +234,11 @@ impl UserStore for PostgresUserStore {
         }
         if let Some(ref phone_number) = req.phone_number {
             params.push(phone_number);
+        }
+        if req.clear_totp_secret != Some(true) {
+            if let Some(ref totp_secret) = req.totp_secret {
+                params.push(totp_secret);
+            }
         }
 
         let now = Utc::now();
@@ -457,6 +468,8 @@ mod tests {
                 password: None,
                 mfa_enabled: None,
                 attributes: None,
+                totp_secret: None,
+                clear_totp_secret: None,
             };
 
             assert!(req.email.is_none());
@@ -483,6 +496,8 @@ mod tests {
                 password: None,
                 mfa_enabled: Some(true),
                 attributes: None,
+                totp_secret: None,
+                clear_totp_secret: None,
             };
 
             assert_eq!(req.email, Some("newemail@example.com".to_string()));

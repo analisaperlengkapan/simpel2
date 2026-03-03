@@ -182,7 +182,7 @@ impl RoleManagementServiceImpl {
         let (query, params): (&str, Vec<&Uuid>) = if let Some(uid) = user_id.as_ref() {
             (
                 r#"
-                SELECT DISTINCT r.id, r.name, r.description, r.realm_id, r.composite, r.client_role
+                SELECT DISTINCT r.id, r.name, r.description, r.realm_id, r.composite, r.client_role, r.created_at, r.updated_at
                 FROM roles r
                 INNER JOIN user_roles ur ON r.id = ur.role_id
                 WHERE ur.user_id = $1
@@ -193,7 +193,7 @@ impl RoleManagementServiceImpl {
         } else {
             (
                 r#"
-                SELECT id, name, description, realm_id, composite, client_role
+                SELECT id, name, description, realm_id, composite, client_role, created_at, updated_at
                 FROM roles
                 ORDER BY name
                 "#,
@@ -263,7 +263,7 @@ impl RoleManagementServiceImpl {
         let query = r#"
             INSERT INTO roles (id, name, description, realm_id, composite, client_role, created_at, updated_at)
             VALUES ($1, $2, $3, $4, false, false, NOW(), NOW())
-            RETURNING id, name, description, realm_id, composite, client_role
+            RETURNING id, name, description, realm_id, composite, client_role, created_at, updated_at
         "#;
 
         let role_id = Uuid::new_v4();
@@ -290,7 +290,7 @@ impl RoleManagementServiceImpl {
         debug!("Getting role {}", role_id);
 
         let query = r#"
-            SELECT id, name, description, realm_id, composite, client_role
+            SELECT id, name, description, realm_id, composite, client_role, created_at, updated_at
             FROM roles
             WHERE id = $1
         "#;
@@ -342,7 +342,7 @@ impl RoleManagementServiceImpl {
             UPDATE roles
             SET name = $2, description = $3, updated_at = NOW()
             WHERE id = $1
-            RETURNING id, name, description, realm_id, composite, client_role
+            RETURNING id, name, description, realm_id, composite, client_role, created_at, updated_at
         "#;
 
         let row = self.db.query_one(query, &[&role_id.as_uuid(), &new_name, &new_desc]).await.map_err(|e| {
