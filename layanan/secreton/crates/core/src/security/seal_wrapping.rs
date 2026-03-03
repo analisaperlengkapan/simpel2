@@ -666,7 +666,7 @@ impl SealWrappingEngine {
     ) -> SecretonResult<WrappedData> {
         let multi_seal_config = self.get_multi_seal_config().await;
 
-        let target_seals = if multi_seal_config.enabled {
+        let mut target_seals = if multi_seal_config.enabled {
             std::cmp::max(config.min_seals, multi_seal_config.threshold)
         } else {
             config.min_seals
@@ -677,6 +677,10 @@ impl SealWrappingEngine {
         } else {
             target_seals as usize
         };
+
+        if target_seals as usize > max_seals {
+            target_seals = max_seals as u8;
+        }
 
         let providers = self.seal_providers.read().await;
         let available_providers: Vec<_> = providers
