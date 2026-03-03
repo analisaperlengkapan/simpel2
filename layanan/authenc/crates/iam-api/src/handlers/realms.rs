@@ -20,8 +20,8 @@ fn to_realm_response(realm: Realm) -> RealmResponse {
         name: realm.name,
         display_name: realm.display_name,
         enabled: realm.enabled,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: realm.created_at,
+        updated_at: realm.updated_at,
     }
 }
 
