@@ -439,6 +439,28 @@ impl UserManagementServiceImpl {
         Ok(())
     }
 
+    /// Count users
+    ///
+    /// # Arguments
+    ///
+    /// * `realm_id` - Realm ID
+    ///
+    /// # Returns
+    ///
+    /// Total number of users
+    pub async fn count_users(&self, realm_id: RealmId) -> Result<u64> {
+        debug!(
+            realm_id = %realm_id,
+            "Counting users"
+        );
+
+        // As a fallback since we don't have count_users in the user_store trait,
+        // we'll get the full list and count it
+        // TODO: add count_users to user_store trait
+        let all_users = self.user_store.list_users(realm_id, 0, 1_000_000).await?;
+        Ok(all_users.len() as u64)
+    }
+
     /// List users in a realm with pagination
     ///
     /// # Arguments

@@ -24,8 +24,8 @@ fn to_user_response(user: User) -> UserResponse {
         email_verified: user.email_verified,
         mfa_enabled: user.mfa_enabled,
         realm_id: user.realm_id.unwrap_or(Uuid::nil()),
-        created_at: user.created_at,
-        updated_at: user.updated_at,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
     }
 }
 
@@ -173,6 +173,16 @@ pub async fn list_users(
         users.retain(|u| u.enabled == enabled_filter);
     }
 
+    let total = if needs_memory_pagination {
+        users.len() as u64
+    } else {
+        state
+            .user_service
+            .count_users(RealmId::from_uuid(realm_id))
+            .await
+            .unwrap_or_else(|_| users.len() as u64)
+    };
+
     if needs_memory_pagination {
         // Manual pagination for post-filtered results
         users = users
@@ -182,14 +192,7 @@ pub async fn list_users(
             .collect();
     }
 
-    let total_returned = users.len() as u64;
     let user_responses: Vec<UserResponse> = users.into_iter().map(to_user_response).collect();
-
-    let total = if total_returned < params.page_size as u64 && params.page == 1 {
-        total_returned
-    } else {
-        total_returned + offset as u64
-    };
 
     let total_pages = (total as f64 / params.page_size as f64).ceil() as u32;
 
