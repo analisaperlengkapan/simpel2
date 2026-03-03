@@ -23,7 +23,7 @@ pub struct SealWrappingEngine {
     /// Wrapping configuration per data type
     wrapping_configs: Arc<RwLock<HashMap<DataType, WrapConfig>>>,
     /// Multi-seal support for maximum security
-    // multi_seal_config: Arc<RwLock<MultiSealConfig>>, // TODO: Implement multi-seal support
+    multi_seal_config: Arc<RwLock<MultiSealConfig>>,
     /// Quantum-resistant wrapper
     quantum_wrapper: Option<Arc<RwLock<Box<dyn std::any::Any + Send + Sync>>>>,
     /// Audit logger for seal operations
@@ -463,6 +463,12 @@ pub struct SealMetrics {
     pub total_wraps: u64,
     /// Total unwrap operations
     pub total_unwraps: u64,
+    /// Total successful wrap operations
+    #[serde(default)]
+    pub successful_wraps: u64,
+    /// Total successful unwrap operations
+    #[serde(default)]
+    pub successful_unwraps: u64,
     /// Success rate
     pub success_rate: f64,
     /// Average latency
@@ -492,11 +498,32 @@ impl SealWrappingEngine {
         Ok(Self {
             seal_providers: Arc::new(RwLock::new(Vec::new())),
             wrapping_configs: Arc::new(RwLock::new(Self::default_wrap_configs())),
-            // multi_seal_config: Arc::new(RwLock::new(MultiSealConfig::default())), // TODO: Implement multi-seal support
+            multi_seal_config: Arc::new(RwLock::new(MultiSealConfig::default())),
             quantum_wrapper: None,
             audit_logger: None,
             metrics: Arc::new(RwLock::new(SealMetrics::default())),
         })
+    }
+
+    /// Get current multi-seal configuration
+    pub async fn get_multi_seal_config(&self) -> MultiSealConfig {
+        self.multi_seal_config.read().await.clone()
+    }
+
+    /// Update multi-seal configuration
+    pub async fn update_multi_seal_config(&self, config: MultiSealConfig) -> SecretonResult<()> {
+        if config.threshold > config.max_seals || config.threshold == 0 || config.max_seals == 0 {
+            return Err(crate::error::SecretonError::InvalidMultiSealData);
+        }
+
+        let providers_count = self.seal_providers.read().await.len();
+        if config.threshold as usize > providers_count {
+            return Err(crate::error::SecretonError::SealProviderUnavailable);
+        }
+
+        let mut current = self.multi_seal_config.write().await;
+        *current = config;
+        Ok(())
     }
 
     /// Add a seal provider
@@ -637,14 +664,32 @@ impl SealWrappingEngine {
         context: &WrapContext,
         config: &WrapConfig,
     ) -> SecretonResult<WrappedData> {
+        let multi_seal_config = self.get_multi_seal_config().await;
+
+        let mut target_seals = if multi_seal_config.enabled {
+            std::cmp::max(config.min_seals, multi_seal_config.threshold)
+        } else {
+            config.min_seals
+        };
+
+        let max_seals = if multi_seal_config.enabled {
+            std::cmp::max(target_seals as usize, multi_seal_config.max_seals as usize)
+        } else {
+            target_seals as usize
+        };
+
+        if target_seals as usize > max_seals {
+            target_seals = max_seals as u8;
+        }
+
         let providers = self.seal_providers.read().await;
         let available_providers: Vec<_> = providers
             .iter()
             .filter(|p| p.health_status.available)
-            .take(config.min_seals as usize)
+            .take(max_seals)
             .collect();
 
-        if available_providers.is_empty() {
+        if available_providers.len() < target_seals as usize {
             return Err(crate::error::SecretonError::SealProviderUnavailable);
         }
 
@@ -816,11 +861,19 @@ impl SealWrappingEngine {
     async fn update_wrap_metrics(&self, duration: std::time::Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
         metrics.total_wraps += 1;
+
+        let total_ops = metrics.total_wraps + metrics.total_unwraps;
+
         if success {
-            metrics.avg_latency_ms = (metrics.avg_latency_ms + duration.as_millis() as u64) / 2;
+            metrics.successful_wraps += 1;
+            let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
+            let new_time = duration.as_millis() as u64;
+            metrics.avg_latency_ms = ((metrics.avg_latency_ms * (successful_ops - 1) as u64) + new_time) / successful_ops as u64;
         }
-        metrics.success_rate = if metrics.total_wraps > 0 {
-            (metrics.total_wraps as f64 - metrics.total_unwraps as f64) / metrics.total_wraps as f64
+
+        let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
+        metrics.success_rate = if total_ops > 0 {
+            successful_ops as f64 / total_ops as f64
         } else {
             0.0
         };
@@ -830,9 +883,22 @@ impl SealWrappingEngine {
     async fn update_unwrap_metrics(&self, duration: std::time::Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
         metrics.total_unwraps += 1;
+
+        let total_ops = metrics.total_wraps + metrics.total_unwraps;
+
         if success {
-            metrics.avg_latency_ms = (metrics.avg_latency_ms + duration.as_millis() as u64) / 2;
+            metrics.successful_unwraps += 1;
+            let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
+            let new_time = duration.as_millis() as u64;
+            metrics.avg_latency_ms = ((metrics.avg_latency_ms * (successful_ops - 1) as u64) + new_time) / successful_ops as u64;
         }
+
+        let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
+        metrics.success_rate = if total_ops > 0 {
+            successful_ops as f64 / total_ops as f64
+        } else {
+            0.0
+        };
     }
 
     /// Default wrap configurations
@@ -887,7 +953,7 @@ impl SealWrappingEngine {
 impl Default for MultiSealConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             threshold: 2,
             max_seals: 5,
             strategy: SealCombinationStrategy::Priority,
@@ -924,6 +990,8 @@ impl Default for SealMetrics {
         Self {
             total_wraps: 0,
             total_unwraps: 0,
+            successful_wraps: 0,
+            successful_unwraps: 0,
             success_rate: 1.0,
             avg_latency_ms: 0,
             provider_stats: HashMap::new(),
