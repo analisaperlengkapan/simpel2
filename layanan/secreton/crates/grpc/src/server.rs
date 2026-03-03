@@ -1195,7 +1195,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         let lease = self
             .services
             .lease_manager
-            .renew_lease(&req.lease_id, req.increment.unwrap_or(3600))
+            .renew_lease(&req.lease_id, req.increment.unwrap_or(0))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -1295,21 +1295,31 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         let limit = req.limit.unwrap_or(50) as i64;
         let offset = req.offset.unwrap_or(0) as i64;
 
+        let total = self
+            .services
+            .lease_manager
+            .count_leases(
+                req.user_id.clone(),
+                req.namespace.clone(),
+                req.resource_type.clone(),
+                req.status.clone(),
+            )
+            .await
+            .map_err(|e| Status::internal(format!("Failed to count leases: {}", e)))?;
+
         let leases = self
             .services
             .lease_manager
             .list_leases(
-                req.user_id,
-                req.namespace,
-                req.resource_type,
-                req.status,
+                req.user_id.clone(),
+                req.namespace.clone(),
+                req.resource_type.clone(),
+                req.status.clone(),
                 Some(limit),
                 Some(offset),
             )
             .await
             .map_err(|e| Status::internal(format!("Failed to list leases: {}", e)))?;
-
-        let total = leases.len() as i64;
 
         let lease_responses: Vec<LookupLeaseResponse> = leases
             .into_iter()
@@ -1338,12 +1348,13 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             })
             .collect();
 
-        let has_next = offset + limit < total;
+        let total_i64 = total as i64;
+        let has_next = offset + limit < total_i64;
         let has_previous = offset > 0;
 
         let response = ListLeasesResponse {
             leases: lease_responses,
-            total,
+            total: total_i64,
             limit: limit as i32,
             offset: offset as i32,
             has_next,
@@ -1808,18 +1819,10 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
     ) -> Result<Response<UnwrapTokenResponse>, Status> {
         let req = request.into_inner();
 
-        // Need to get created_at and expired_at, but unwrap only returns JsonValue
-        let info = self
+        let (data, info) = self
             .services
             .wrapping_service
-            .lookup(&req.token, &req.namespace)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let data = self
-            .services
-            .wrapping_service
-            .unwrap(&req.token, &req.namespace)
+            .unwrap_with_info(&req.token, &req.namespace)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
