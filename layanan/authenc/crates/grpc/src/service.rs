@@ -592,10 +592,8 @@ impl AuthencService for AuthencGrpcService {
             .await
             .map_err(Self::error_to_status)?;
 
-        // Generate secure random bytes for TOTP secret
-        let mut secret_bytes = [0u8; 16];
-        rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut secret_bytes);
-        let encoded_secret = data_encoding::BASE32_NOPAD.encode(&secret_bytes);
+        // Use the secret generated from the MFA service
+        let encoded_secret = mfa_setup.secret.clone();
 
         // Enable MFA flag on user
         self.user_service
