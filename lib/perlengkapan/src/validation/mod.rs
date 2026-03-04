@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_if)]
 //! Validation helpers for Perlengkapan domain
 
 use thiserror::Error;

@@ -45,7 +45,7 @@ fn cron_expression_strategy() -> impl Strategy<Value = String> {
         // Every hour at minute 0
         Just("0 * * * *".to_string()),
         // Every day at 2 AM
-        Just("0 2 * * *".to_string()),
+        Just("0 0 2 * * * *".to_string()),
         // Every day at midnight
         Just("0 0 * * *".to_string()),
         // Every Monday at 3 AM
@@ -77,10 +77,7 @@ proptest! {
             // Setup: Create test backup manager
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.schedule = cron_expr.clone();
             config.verify_after_backup = false; // Disable verification for speed
 
@@ -242,10 +239,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
             let manager = Arc::new(BackupManager::new(config).await.unwrap());
             let scheduler = BackupScheduler::new(&cron_expr, manager).unwrap();
@@ -312,10 +306,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
             let manager = Arc::new(BackupManager::new(config).await.unwrap());
 
@@ -524,10 +515,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             // Setup: Create temporary storage
             let temp_dir = TempDir::new().unwrap();
-            let storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            let storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
             let storage = LocalStorage::new(storage_config).await.unwrap();
 
@@ -752,10 +740,7 @@ mod scheduler_tests {
     async fn test_rapid_start_stop_cycles() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
         let scheduler = BackupScheduler::new("*/5 * * * *", manager).unwrap();
@@ -775,10 +760,7 @@ mod scheduler_tests {
     async fn test_concurrent_scheduler_access() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
         let scheduler = Arc::new(BackupScheduler::new("*/5 * * * *", manager).unwrap());
@@ -814,13 +796,10 @@ mod scheduler_tests {
     async fn test_next_backup_time_consistency() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
-        let scheduler = BackupScheduler::new("0 2 * * *", manager).unwrap();
+        let scheduler = BackupScheduler::new("0 0 2 * * * *", manager).unwrap();
 
         // Get next backup time multiple times in quick succession
         let time1 = scheduler.next_backup_time();
@@ -861,10 +840,7 @@ mod encryption_tests {
     async fn test_backup_encryption_roundtrip() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
         // Generate a 32-byte encryption key
         let encryption_key = vec![42u8; 32];
@@ -929,20 +905,14 @@ mod encryption_tests {
 
         // Create manager with first key
         let mut config1 = BackupConfig::default();
-        config1.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config1.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
         let key1 = vec![1u8; 32];
         config1.encryption_key = Some(key1);
         let manager1 = BackupManager::new(config1).await.unwrap();
 
         // Create manager with different key
         let mut config2 = BackupConfig::default();
-        config2.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config2.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
         let key2 = vec![2u8; 32];
         config2.encryption_key = Some(key2);
         let manager2 = BackupManager::new(config2).await.unwrap();
@@ -969,10 +939,7 @@ mod encryption_tests {
     async fn test_encryption_corrupted_ciphertext_fails() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);
 
@@ -1019,10 +986,7 @@ mod encryption_tests {
         // Property 1: Invalid key size should be rejected
         for invalid_size in [0, 1, 16, 31, 33, 64] {
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             let invalid_key = vec![0u8; invalid_size];
             config.encryption_key = Some(invalid_key);
 
@@ -1046,10 +1010,7 @@ mod encryption_tests {
 
         // Property 3: Valid 32-byte key should be accepted
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
         let valid_key = vec![42u8; 32];
         config.encryption_key = Some(valid_key);
 
@@ -1058,10 +1019,7 @@ mod encryption_tests {
 
         // Property 4: No key provided should generate a valid key
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
         config.encryption_key = None;
 
         let manager_result = BackupManager::new(config).await;
@@ -1093,10 +1051,7 @@ mod encryption_tests {
     async fn test_encryption_with_compression() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);
         config.compression_enabled = true;
@@ -1151,10 +1106,7 @@ mod encryption_tests {
     async fn test_encryption_performance() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = BackupConfig::default();
-        config.storage_config = StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
-        });
+        config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);
 
@@ -1268,10 +1220,7 @@ proptest! {
             // Setup: Create temporary storage
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.retention_days = retention_days;
             config.verify_after_backup = false; // Disable for speed
 
@@ -1387,10 +1336,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.retention_days = 0; // Delete all backups
             config.verify_after_backup = false;
 
@@ -1442,10 +1388,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.retention_days = 3650; // 10 years
             config.verify_after_backup = false;
 
@@ -1490,10 +1433,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.retention_days = retention_days;
             config.verify_after_backup = false;
 
@@ -1567,10 +1507,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.retention_days = retention_days;
             config.verify_after_backup = false;
 
@@ -1706,10 +1643,7 @@ proptest! {
             // Setup: Create temporary storage
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = false; // Disable for speed
             config.compression_enabled = false; // Disable for simplicity
 
@@ -1841,10 +1775,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
             let manager = BackupManager::new(config).await.unwrap();
 
@@ -1891,10 +1822,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = false;
             config.compression_enabled = false;
 
@@ -1968,10 +1896,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = false;
             config.compression_enabled = false;
 
@@ -2047,10 +1972,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = false;
             config.compression_enabled = false;
 
@@ -2125,10 +2047,7 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = false;
             config.compression_enabled = false;
 
@@ -2238,10 +2157,7 @@ proptest! {
             // Setup: Create backup manager with verification enabled
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = true; // Enable automatic verification
             config.compression_enabled = true;
 
@@ -2367,10 +2283,7 @@ proptest! {
             // Setup
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.compression_enabled = true;
 
             let manager = BackupManager::new(config).await.unwrap();
@@ -2463,10 +2376,7 @@ proptest! {
             // Setup
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.compression_enabled = true;
 
             let manager = BackupManager::new(config).await.unwrap();
@@ -2530,10 +2440,7 @@ proptest! {
             // Setup
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.compression_enabled = true;
 
             let manager = BackupManager::new(config).await.unwrap();
@@ -2622,10 +2529,7 @@ proptest! {
             // Setup
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.compression_enabled = true;
 
             let manager = BackupManager::new(config).await.unwrap();
@@ -2712,10 +2616,7 @@ proptest! {
             // Setup
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
             let manager = BackupManager::new(config).await.unwrap();
 
@@ -2753,10 +2654,7 @@ proptest! {
             // Setup with compression disabled
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.compression_enabled = false; // Disable compression
 
             let manager = BackupManager::new(config).await.unwrap();

@@ -20,10 +20,7 @@ proptest! {
             // Setup: Create backup manager with verification enabled
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = true; // Enable automatic verification
             config.compression_enabled = true;
 
@@ -136,10 +133,7 @@ proptest! {
             // Setup: Create backup manager WITHOUT automatic verification
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = false; // Disable automatic verification
             config.compression_enabled = true;
 
@@ -207,10 +201,7 @@ proptest! {
             // Setup
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
 
             let manager = BackupManager::new(config).await.unwrap();
 
@@ -244,10 +235,7 @@ proptest! {
             // Setup
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.verify_after_backup = true;
             config.compression_enabled = true;
             config.retention_days = 365; // Keep all backups
@@ -327,10 +315,7 @@ proptest! {
             // Setup with compression disabled
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
-            });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
             config.compression_enabled = false; // Disable compression
             config.verify_after_backup = true;
 

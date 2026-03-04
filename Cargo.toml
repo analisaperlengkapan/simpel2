@@ -22,7 +22,6 @@ members = [
     "layanan/perlengkapan/crates/bantuan",
 
     # Infrastructure Services
-    # "layanan/authenc",  # Legacy - migrated to crates/
     "layanan/secreton",
 
     # Authenc sub-crates (10 crates)

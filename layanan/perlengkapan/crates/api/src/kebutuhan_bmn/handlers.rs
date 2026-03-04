@@ -694,8 +694,8 @@ pub async fn search_kebutuhan(
             per_page: params.per_page,
         },
         sort: SortOptions {
-            field: SortField::from_str(&params.sort_by).unwrap_or(SortField::Relevance),
-            direction: SortDirection::from_str(&params.sort_dir)
+            field: SortField::from_string(&params.sort_by).unwrap_or(SortField::Relevance),
+            direction: SortDirection::from_string(&params.sort_dir)
                 .unwrap_or(SortDirection::Descending),
         },
     };
