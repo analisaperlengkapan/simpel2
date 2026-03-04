@@ -8,7 +8,7 @@
 //! - Email verification workflow
 
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use authenc_types::{
     domain::*,
@@ -454,11 +454,10 @@ impl UserManagementServiceImpl {
             "Counting users"
         );
 
-        // As a fallback since we don't have count_users in the user_store trait,
-        // we'll get the full list and count it
-        // TODO: add count_users to user_store trait
-        let all_users = self.user_store.list_users(realm_id, 0, 1_000_000).await?;
-        Ok(all_users.len() as u64)
+        self.user_store.count_users(realm_id).await.map_err(|e| {
+            error!(error = %e, "Failed to count users");
+            AuthencError::DatabaseError(e.to_string())
+        })
     }
 
     /// List users in a realm with pagination
@@ -681,6 +680,10 @@ mod tests {
 
     #[async_trait]
     impl UserStore for MockUserStore {
+        async fn count_users(&self, _realm_id: RealmId) -> Result<u64> {
+            Ok(self.users.lock().await.len() as u64)
+        }
+
         async fn get_user(&self, id: UserId) -> Result<User> {
             let users = self.users.lock().await;
             users
