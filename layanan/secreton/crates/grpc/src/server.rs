@@ -992,6 +992,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<CreateNamespaceRequest>,
     ) -> Result<Response<CreateNamespaceResponse>, Status> {
+        let created_by = request.metadata().get("x-user").map(|v| v.to_str().unwrap_or("grpc-user")).unwrap_or("grpc-user").to_string();
         let req = request.into_inner();
 
         let namespace_type = match req.namespace_type {
@@ -1011,7 +1012,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             }
             secreton_core::namespace::NamespaceType::Wilayah => {
                 hierarchy
-                    .add_wilayah(req.id.clone(), req.name.clone(), "grpc-user".to_string())
+                    .add_wilayah(req.id.clone(), req.name.clone(), created_by)
                     .map_err(|e| Status::internal(e.to_string()))?
             }
             secreton_core::namespace::NamespaceType::Satker => {
@@ -1023,7 +1024,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
                         req.id.clone(),
                         req.name.clone(),
                         parent,
-                        "grpc-user".to_string(),
+                        created_by,
                     )
                     .map_err(|e| Status::internal(e.to_string()))?
             }
@@ -1401,9 +1402,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<GenerateDatabaseCredentialsRequest>,
     ) -> Result<Response<GenerateDatabaseCredentialsResponse>, Status> {
-        let user = request.metadata().get("x-user")
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("grpc_user");
+        let user = request.metadata().get("x-user").map(|v| v.to_str().unwrap_or("grpc_user")).unwrap_or("grpc_user").to_string();
         let req = request.into_inner();
 
         let (credentials, lease) = self
@@ -1413,7 +1412,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
                 &req.role_name,
                 req.ttl_seconds,
                 &self.services.lease_manager,
-                user,
+                &user,
             )
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
@@ -1660,6 +1659,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<CreatePolicyRequest>,
     ) -> Result<Response<CreatePolicyResponse>, Status> {
+        let user = request.metadata().get("x-user").map(|v| v.to_str().unwrap_or("grpc_user")).unwrap_or("grpc_user").to_string();
         let req = request.into_inner();
 
         let rules: Vec<secreton_core::models::PolicyRule> = req
@@ -1674,9 +1674,6 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         } else {
             req.namespace
         };
-
-        // Assume user extraction handles authentication context
-        let user = "grpc_user".to_string(); // In reality, get from context
 
         let policy = self
             .services

@@ -10,16 +10,14 @@ ignore = [
     # Add specific advisories to ignore here if needed
     # Example: "RUSTSEC-2020-0001",
     "RUSTSEC-2024-0437", # protobuf (via prometheus)
-    "RUSTSEC-2025-0066", # google-apis-common
-    "RUSTSEC-2024-0384", # instant
-    "RUSTSEC-2024-0436", # paste
-    "RUSTSEC-2023-0071", # rsa
-    "RUSTSEC-2025-0134", # rustls-pemfile
-    "RUSTSEC-2025-0141", # bincode
 ]
 
 [licenses]
 version = 2
+unlicensed = "deny"
+allow-osi-fsf-free = "both"
+copyleft = "deny"
+
 # Allow only permissive licenses
 allow = [
     "MIT",
@@ -32,6 +30,12 @@ allow = [
     "Unlicense",
     "Zlib",
     "0BSD",
+]
+
+deny = [
+    "GPL-2.0",
+    "GPL-3.0",
+    "AGPL-3.0",
 ]
 # Confidence threshold for license detection
 confidence-threshold = 0.8
@@ -48,6 +52,8 @@ license-files = [
 multiple-versions = "warn"
 # Deny wildcard dependencies
 wildcards = "deny"
+# Deny git dependencies
+allow-git = false
 # Specific crates to deny
 deny = [
     # Deny old crypto crates with known vulnerabilities
