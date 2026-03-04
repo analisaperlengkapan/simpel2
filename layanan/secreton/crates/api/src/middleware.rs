@@ -533,8 +533,8 @@ pub async fn auth_middleware(
     let mut policy_names: Vec<String> = user.policies.iter().cloned().collect();
 
     // If no explicit policies, check metadata for 'policy_names' or 'policies'
-    if policy_names.is_empty() {
-        if let Some(p) = user
+    if policy_names.is_empty()
+        && let Some(p) = user
             .metadata
             .get("policy_names")
             .or_else(|| user.metadata.get("policies"))
@@ -545,7 +545,6 @@ pub async fn auth_middleware(
                 .filter(|s| !s.is_empty())
                 .collect();
         }
-    }
 
     // If still no policies, fallback to role-based policies
     if policy_names.is_empty() {

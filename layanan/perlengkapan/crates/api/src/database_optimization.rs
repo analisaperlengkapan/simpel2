@@ -172,8 +172,8 @@ impl DatabaseOptimizer {
         // Simple heuristics for index suggestions
         if query_lower.contains("where") {
             // Extract table and column from WHERE clause
-            if let Some(table) = self.extract_table_name(&query_lower) {
-                if let Some(column) = self.extract_where_column(&query_lower) {
+            if let Some(table) = self.extract_table_name(&query_lower)
+                && let Some(column) = self.extract_where_column(&query_lower) {
                     return Some(IndexSuggestion {
                         table: table.to_string(),
                         columns: vec![column.to_string()],
@@ -181,7 +181,6 @@ impl DatabaseOptimizer {
                         reason: format!("Frequent WHERE clause on {}.{}", table, column),
                     });
                 }
-            }
         }
 
         None

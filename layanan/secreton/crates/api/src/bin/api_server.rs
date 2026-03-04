@@ -153,16 +153,92 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tls_config_opt = config.tls.clone();
     let grpc_enabled = config.grpc.enabled;
 
-    // Create gRPC service (shared state with REST)
-    // Here we can't easily pass `services` directly because grpc crate uses core's ServiceContainer
-    // while api crate uses api's ServiceContainer. Let's pass what we can or wait, actually we should align them.
-    // However, since we just updated `grpc` crate to use `secreton_core::services::container::ServiceContainer`,
-    // and `api` crate uses `secreton_api::services::ServiceContainer`, we might have a type mismatch.
-    // Let's pass a dummy for now and fix it if needed, or see if it complies.
-    let core_services = Arc::new(secreton_core::services::container::ServiceContainer::new_mock(
-        services.storage.clone(),
-        services.pool.clone(),
+    // Convert the api's ServiceContainer components to core's ServiceContainer for gRPC
+    let core_auth_config = secreton_core::config::api::AuthConfig::default();
+
+    let core_auth = Arc::new(
+        secreton_core::services::auth_service::AuthService::new(
+            services.storage.clone(),
+            services.crypto.clone(),
+            &core_auth_config,
+        )
+        .await
+        .unwrap(),
+    );
+
+    // We use a dummy AuditLogger since we can't easily convert the external one
+    let dummy_audit_backend = Arc::new(secreton_core::audit::MemoryBackend::default());
+    let dummy_audit = Arc::new(secreton_core::AuditLogger::new(vec![dummy_audit_backend]));
+
+    let core_engine = Arc::new(
+        secreton_core::services::secret_service::SecretService::new(
+            services.storage.clone(),
+            services.crypto.clone(),
+            dummy_audit.clone(),
+        )
+        .await
+        .unwrap(),
+    );
+
+    struct DefaultLeaseCleanerImpl;
+    #[async_trait::async_trait]
+    impl secreton_core::services::admin_service::LeaseCleaner for DefaultLeaseCleanerImpl {
+        async fn cleanup_expired(&self) -> Result<usize, secreton_core::services::lease::LeaseError> {
+            Ok(0)
+        }
+    }
+
+    let dummy_api_audit = Arc::new(secreton_core::audit::api_audit::AuditLogger::new(
+        1000 // default max events
     ));
+
+    let core_admin = Arc::new(
+        secreton_core::services::admin_service::AdminService::new(
+            services.storage.clone(),
+            core_auth.clone(),
+            dummy_api_audit.clone(),
+            Arc::new(DefaultLeaseCleanerImpl),
+        )
+        .await
+        .unwrap(),
+    );
+
+    let core_policy = Arc::new(secreton_core::services::policy_service::PolicyService::new(
+        services.storage.clone(),
+    ));
+
+    let core_services = Arc::new(secreton_core::services::container::ServiceContainer {
+        config: secreton_core::config::api::ApiConfig::default(),
+        storage: services.storage.clone(),
+        pool: services.pool.clone(),
+        crypto: services.crypto.clone(),
+        auth: core_auth,
+        engine: core_engine,
+        admin: core_admin,
+        audit: services.audit.clone(),
+        seal: services.seal.clone(),
+        namespace: services.namespace.clone(),
+        database_engine: services.database_engine.clone(),
+        totp_engine: services.totp_engine.clone(),
+        transform_engine: services.transform_engine.clone(),
+        ssh_engine: services.ssh_engine.clone(),
+        aws_engine: services.aws_engine.clone(),
+        gcp_engine: services.gcp_engine.clone(),
+        azure_engine: services.azure_engine.clone(),
+        identity_service: services.identity_service.clone(),
+        identity_engine: services.identity_engine.clone(),
+        kmip_engine: services.kmip_engine.clone(),
+        ldap_engine: services.ldap_engine.clone(),
+        rabbitmq_engine: services.rabbitmq_engine.clone(),
+        kafka_engine: services.kafka_engine.clone(),
+        rotation_engine: services.rotation_engine.clone(),
+        lease_manager: services.lease_manager.clone(),
+        policy_service: core_policy,
+        wrapping_service: services.wrapping_service.clone(),
+        hsm: services.hsm.clone(),
+        mfa: services.mfa.clone(),
+    });
+
     let grpc_service = SecretonGrpcService::new(
         services.storage.clone(),
         Arc::clone(&transit_engine),

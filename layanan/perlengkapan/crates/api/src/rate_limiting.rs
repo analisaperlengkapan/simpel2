@@ -252,7 +252,7 @@ pub async fn rate_limit_middleware(
         .extensions()
         .get::<crate::middleware::Claims>()
         .map(|claims| claims.user_id)
-        .unwrap_or_else(|| Uuid::nil()); // Use nil UUID for unauthenticated requests
+        .unwrap_or_else(Uuid::nil); // Use nil UUID for unauthenticated requests
 
     // Check rate limit
     match rate_limiter.check_rate_limit(user_id).await {

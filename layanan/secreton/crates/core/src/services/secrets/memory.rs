@@ -421,7 +421,7 @@ impl MemorySecretEngine {
         let secret = Secret {
             id: engine_entry.id.as_u128() as i64,
             path: engine_entry.path.clone(),
-            version: engine_entry.version as u32,
+            version: engine_entry.version,
             data,
             metadata: SecretMetadata {
                 security_level,

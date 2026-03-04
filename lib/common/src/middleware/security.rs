@@ -7,11 +7,10 @@
 //! - Input validation
 
 use axum::{
-    body::Body,
     extract::{Request, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -218,16 +217,14 @@ pub async fn input_validation_middleware(
     next: Next,
 ) -> Result<Response, StatusCode> {
     // Check Content-Length header
-    if let Some(content_length) = headers.get(header::CONTENT_LENGTH) {
-        if let Ok(length_str) = content_length.to_str() {
-            if let Ok(length) = length_str.parse::<usize>() {
+    if let Some(content_length) = headers.get(header::CONTENT_LENGTH)
+        && let Ok(length_str) = content_length.to_str()
+            && let Ok(length) = length_str.parse::<usize>() {
                 // Limit request body size to 10MB
                 if length > 10 * 1024 * 1024 {
                     return Err(StatusCode::PAYLOAD_TOO_LARGE);
                 }
             }
-        }
-    }
 
     // Validate Content-Type for POST/PUT/PATCH
     let method = request.method();

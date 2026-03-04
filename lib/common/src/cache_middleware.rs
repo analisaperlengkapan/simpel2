@@ -5,14 +5,12 @@
 #[cfg(feature = "axum")]
 use crate::cache::{AsyncLruCache, SensitivityLevel};
 #[cfg(feature = "axum")]
-use crate::error::{CommonError, Result};
-#[cfg(feature = "axum")]
 use axum::{
     body::Body,
     extract::{Request, State},
     http::{HeaderValue, StatusCode, header},
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 #[cfg(feature = "axum")]
 use bytes::Bytes;

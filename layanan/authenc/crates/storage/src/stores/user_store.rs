@@ -330,7 +330,7 @@ impl UserStore for PostgresUserStore {
 
 /// Convert a database row to a User struct
 fn row_to_user(row: Row) -> Result<User> {
-    use authenc_types::{Permission, Role, SecurityContext};
+    use authenc_types::SecurityContext;
 
     let satker_code: Option<String> = row.try_get("satker_code").ok();
 

@@ -163,11 +163,10 @@ impl MfaService {
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Invalidate cached MFA status to ensure fresh data
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.invalidate_mfa_status(user_id).await {
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.invalidate_mfa_status(user_id).await {
                 tracing::warn!("Failed to invalidate MFA status cache after setup: {}", e);
             }
-        }
 
         Ok(())
     }
@@ -175,12 +174,11 @@ impl MfaService {
     /// Verify MFA code during authentication
     pub async fn verify_mfa(&self, user_id: Uuid, code: &str) -> Result<()> {
         // Check for OTP replay attack if cache is available
-        if let Some(cache) = &self.mfa_cache {
-            if cache.is_otp_recently_used(user_id, code).await? {
+        if let Some(cache) = &self.mfa_cache
+            && cache.is_otp_recently_used(user_id, code).await? {
                 tracing::warn!("OTP replay attack detected for user: {}", user_id);
                 return Err(AuthencError::invalid_otp_code());
             }
-        }
 
         // Use secreton MfaManager for verification with replay protection
         self.secreton_client
@@ -188,12 +186,11 @@ impl MfaService {
             .await?;
 
         // Mark OTP as used in cache to prevent replay
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.mark_otp_as_used(user_id, code).await {
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.mark_otp_as_used(user_id, code).await {
                 tracing::warn!("Failed to mark OTP as used in cache: {}", e);
                 // Don't fail the verification, just log the warning
             }
-        }
 
         // Update last used timestamp in database
         let client = self
@@ -211,11 +208,10 @@ impl MfaService {
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Invalidate cached MFA status to ensure fresh data on next request
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.invalidate_mfa_status(user_id).await {
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.invalidate_mfa_status(user_id).await {
                 tracing::warn!("Failed to invalidate MFA status cache: {}", e);
             }
-        }
 
         Ok(())
     }
@@ -223,23 +219,21 @@ impl MfaService {
     /// Get MFA status for a user
     pub async fn get_mfa_status(&self, user_id: Uuid) -> Result<MfaStatus> {
         // Try to get from cache first
-        if let Some(cache) = &self.mfa_cache {
-            if let Some(cached_status) = cache.get_mfa_status(user_id).await? {
+        if let Some(cache) = &self.mfa_cache
+            && let Some(cached_status) = cache.get_mfa_status(user_id).await? {
                 tracing::debug!("MFA status cache hit for user: {}", user_id);
                 return Ok(cached_status);
             }
-        }
 
         // Cache miss or no cache - fetch from database using optimized function
         let status = self.get_mfa_status_from_db(user_id).await?;
 
         // Cache the result for future requests
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.cache_mfa_status(user_id, &status).await {
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.cache_mfa_status(user_id, &status).await {
                 tracing::warn!("Failed to cache MFA status: {}", e);
                 // Don't fail the request, just log the warning
             }
-        }
 
         Ok(status)
     }
@@ -270,11 +264,10 @@ impl MfaService {
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Invalidate cached MFA status
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.invalidate_mfa_status(user_id).await {
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.invalidate_mfa_status(user_id).await {
                 tracing::warn!("Failed to invalidate MFA status cache after disable: {}", e);
             }
-        }
 
         Ok(())
     }
@@ -336,7 +329,7 @@ impl MfaService {
     /// Get remaining recovery codes count for a user
     pub async fn get_recovery_codes_count(&self, user_id: Uuid) -> Result<usize> {
         // Use secreton MfaManager to get recovery codes status
-        let status = self
+        let _status = self
             .secreton_client
             .get_mfa_status(&user_id.to_string())
             .await
@@ -382,7 +375,7 @@ impl MfaService {
             let db_results = self.batch_get_mfa_status_from_db(&missing_ids).await?;
 
             // Cache the results we fetched from database
-            let cache_items: Vec<(Uuid, MfaStatus)> = db_results.iter().cloned().collect();
+            let cache_items: Vec<(Uuid, MfaStatus)> = db_results.to_vec();
             if let Err(e) = cache.batch_cache_mfa_status(&cache_items).await {
                 tracing::warn!("Failed to batch cache MFA status: {}", e);
             }
@@ -417,8 +410,8 @@ impl MfaService {
         for row in rows {
             let user_id: Uuid = row.get(0);
             let enabled: bool = row.get(1);
-            let setup_at: Option<DateTime<Utc>> = row.get(2);
-            let last_used: Option<DateTime<Utc>> = row.get(3);
+            let _setup_at: Option<DateTime<Utc>> = row.get(2);
+            let _last_used: Option<DateTime<Utc>> = row.get(3);
 
             // For batch operations, we'll use a default backup codes count
             // In a real implementation, this could be optimized further
@@ -456,8 +449,8 @@ impl MfaService {
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         let enabled: bool = row.get(0);
-        let setup_at: Option<DateTime<Utc>> = row.get(1);
-        let last_used: Option<DateTime<Utc>> = row.get(2);
+        let _setup_at: Option<DateTime<Utc>> = row.get(1);
+        let _last_used: Option<DateTime<Utc>> = row.get(2);
 
         // Get backup codes count from secreton if enabled
         let backup_codes_remaining = if enabled {
@@ -524,7 +517,7 @@ impl MfaService {
             .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
-        let query = if let Some(satker) = satker_code {
+        let query = if let Some(_satker) = satker_code {
             "SELECT total_users, mfa_enabled_users, mfa_setup_complete, mfa_active_30d, mfa_active_7d, mfa_active_1d FROM mfa_statistics WHERE satker_code = $1"
         } else {
             "SELECT SUM(total_users), SUM(mfa_enabled_users), SUM(mfa_setup_complete), SUM(mfa_active_30d), SUM(mfa_active_7d), SUM(mfa_active_1d) FROM mfa_statistics"

@@ -71,7 +71,7 @@ impl PemakaianBmnService {
         let (days_until_expiry, is_expiring_soon) = {
             let today = chrono::Utc::now().date_naive();
             let days = (izin.tanggal_selesai - today).num_days();
-            let expiring = days >= 0 && days <= 30;
+            let expiring = (0..=30).contains(&days);
             (Some(days), expiring)
         };
 
@@ -373,13 +373,12 @@ impl PemakaianBmnService {
             .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
         // Validate date range if both dates provided
-        if let (Some(start), Some(end)) = (request.tanggal_mulai, request.tanggal_selesai) {
-            if end <= start {
+        if let (Some(start), Some(end)) = (request.tanggal_mulai, request.tanggal_selesai)
+            && end <= start {
                 return Err(AppError::BadRequest(
                     "Tanggal selesai harus lebih besar dari tanggal mulai".to_string(),
                 ));
             }
-        }
 
         info!("Updating permit {} by user {}", id, user_id);
 

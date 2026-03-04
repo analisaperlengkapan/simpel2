@@ -56,12 +56,11 @@ impl MfaCache {
 
     /// Get cached MFA status for a user
     pub async fn get_mfa_status(&self, user_id: Uuid) -> Result<Option<MfaStatus>> {
-        if let Some(entry) = self.status_cache.get(&user_id) {
-            if Instant::now() < entry.expires_at {
+        if let Some(entry) = self.status_cache.get(&user_id)
+            && Instant::now() < entry.expires_at {
                 return Ok(Some(entry.value.clone()));
             }
             // Entry expired, will be cleaned up
-        }
         Ok(None)
     }
 

@@ -92,7 +92,7 @@ impl KebutuhanBmnService {
         }
 
         // Validate tahun matches dates
-        if request.tahun != request.tgl_mulai.year() as i32 {
+        if request.tahun != request.tgl_mulai.year() {
             warn!(
                 "Tahun {} doesn't match tgl_mulai year {}",
                 request.tahun,
@@ -157,13 +157,12 @@ impl KebutuhanBmnService {
         }
 
         // Validate date range if both provided
-        if let (Some(tgl_mulai), Some(tgl_selesai)) = (request.tgl_mulai, request.tgl_selesai) {
-            if tgl_selesai < tgl_mulai {
+        if let (Some(tgl_mulai), Some(tgl_selesai)) = (request.tgl_mulai, request.tgl_selesai)
+            && tgl_selesai < tgl_mulai {
                 return Err(AppError::BadRequest(
                     "Tanggal selesai harus setelah tanggal mulai".to_string(),
                 ));
             }
-        }
 
         info!("Updating pengajuan kebutuhan BMN: {}", id);
         self.repository.update_pengajuan(id, request, user_id).await

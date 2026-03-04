@@ -493,7 +493,7 @@ impl EmailService {
             "body": body,
         });
 
-        let mut req = client.post(&format!("{}/send", api_url)).json(&payload);
+        let mut req = client.post(format!("{}/send", api_url)).json(&payload);
 
         if let Some(key) = api_key {
             req = req.header("x-api-key", key);

@@ -27,8 +27,7 @@ pub async fn create_flow(db: &Database, flow: &serde_json::Value) -> Result<serd
                 &flow
                     .get("realm_id")
                     .and_then(|v| v.as_str())
-                    .map(|s| Uuid::parse_str(s).ok())
-                    .flatten(),
+                    .and_then(|s| Uuid::parse_str(s).ok()),
                 &flow.get("alias").and_then(|v| v.as_str()).unwrap_or(""),
                 &flow.get("description").and_then(|v| v.as_str()),
                 &flow
@@ -231,14 +230,12 @@ pub async fn create_execution(
                 &execution
                     .get("flow_id")
                     .and_then(|v| v.as_str())
-                    .map(|s| Uuid::parse_str(s).ok())
-                    .flatten(),
+                    .and_then(|s| Uuid::parse_str(s).ok()),
                 &execution.get("authenticator").and_then(|v| v.as_str()),
                 &execution
                     .get("authenticator_config")
                     .and_then(|v| v.as_str())
-                    .map(|s| Uuid::parse_str(s).ok())
-                    .flatten(),
+                    .and_then(|s| Uuid::parse_str(s).ok()),
                 &execution
                     .get("authenticator_flow")
                     .and_then(|v| v.as_bool())
@@ -254,8 +251,7 @@ pub async fn create_execution(
                 &execution
                     .get("parent_flow")
                     .and_then(|v| v.as_str())
-                    .map(|s| Uuid::parse_str(s).ok())
-                    .flatten(),
+                    .and_then(|s| Uuid::parse_str(s).ok()),
                 &now,
                 &now,
             ],
@@ -308,19 +304,16 @@ pub async fn create_session(
                 &session
                     .get("realm_id")
                     .and_then(|v| v.as_str())
-                    .map(|s| Uuid::parse_str(s).ok())
-                    .flatten(),
+                    .and_then(|s| Uuid::parse_str(s).ok()),
                 &session
                     .get("user_id")
                     .and_then(|v| v.as_str())
-                    .map(|s| Uuid::parse_str(s).ok())
-                    .flatten(),
+                    .and_then(|s| Uuid::parse_str(s).ok()),
                 &session.get("client_id").and_then(|v| v.as_str()),
                 &session
                     .get("flow_id")
                     .and_then(|v| v.as_str())
-                    .map(|s| Uuid::parse_str(s).ok())
-                    .flatten(),
+                    .and_then(|s| Uuid::parse_str(s).ok()),
                 &session
                     .get("auth_state")
                     .and_then(|v| v.as_str())

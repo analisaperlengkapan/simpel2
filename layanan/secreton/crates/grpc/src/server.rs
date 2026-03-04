@@ -19,9 +19,6 @@ use crate::generated::common::v1::*;
 use crate::generated::secreton::v1::secreton_service_server;
 use crate::generated::secreton::v1::*;
 use crate::tls::GrpcTlsConfig;
-// use secreton_core::services::container::ServiceContainer;
-// Instead we should probably use the ServiceContainer passed from api since this is what we get.
-// Or we can import from core.
 use secreton_core::services::container::ServiceContainer;
 
 // Snapshot types are imported from generated protos
@@ -1051,7 +1048,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         let updated_namespace = hierarchy.get_namespace(&namespace.id)
             .ok_or_else(|| Status::internal("Failed to get updated namespace"))?;
 
-        let namespace_info = self.namespace_to_grpc_info(&updated_namespace, &hierarchy);
+        let namespace_info = self.namespace_to_grpc_info(updated_namespace, &hierarchy);
 
         Ok(Response::new(CreateNamespaceResponse {
             namespace: Some(namespace_info),
@@ -1109,7 +1106,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         let namespace = hierarchy.get_namespace(&req.id).unwrap();
 
         Ok(Response::new(UpdateNamespaceResponse {
-            namespace: Some(self.namespace_to_grpc_info(&namespace, &hierarchy)),
+            namespace: Some(self.namespace_to_grpc_info(namespace, &hierarchy)),
         }))
     }
 
@@ -1120,7 +1117,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
     ) -> Result<Response<DeleteNamespaceResponse>, Status> {
         let req = request.into_inner();
 
-        let mut hierarchy = self.services.namespace.hierarchy();
+        let hierarchy = self.services.namespace.hierarchy();
 
         if hierarchy.get_namespace(&req.id).is_none() {
             return Err(Status::not_found(format!("Namespace {} not found", req.id)));
@@ -1160,10 +1157,10 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             let usage = &q.current_usage;
             let mut exceeded = false;
 
-            if let Some(max) = q.max_secrets { if usage.secrets_count >= max { exceeded = true; } }
-            if let Some(max) = q.max_storage_bytes { if usage.storage_bytes >= max { exceeded = true; } }
-            if let Some(max) = q.max_leases { if usage.leases_count >= max { exceeded = true; } }
-            if let Some(max) = q.max_policies { if usage.policies_count >= max { exceeded = true; } }
+            if let Some(max) = q.max_secrets && usage.secrets_count >= max { exceeded = true; }
+            if let Some(max) = q.max_storage_bytes && usage.storage_bytes >= max { exceeded = true; }
+            if let Some(max) = q.max_leases && usage.leases_count >= max { exceeded = true; }
+            if let Some(max) = q.max_policies && usage.policies_count >= max { exceeded = true; }
 
             exceeded
         };
@@ -1237,7 +1234,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<RevokeLeasePrefixRequest>,
     ) -> Result<Response<RevokeLeasePrefixResponse>, Status> {
-        let req = request.into_inner();
+        let _req = request.into_inner();
 
         // `revoke_prefix` does not exist on `LeaseManager`. We might have to fetch and revoke or just return unimplemented.
         Err(Status::unimplemented("revoke_lease_prefix not yet supported by lease manager"))

@@ -78,16 +78,14 @@ fn load_key_from_file(path: &str) -> Result<SigningKey, String> {
     let key_bytes = std::fs::read(path).map_err(|e| format!("Failed to read key file: {}", e))?;
 
     // Try base64 decode first (if file contains base64 string)
-    if let Ok(key_str) = String::from_utf8(key_bytes.clone()) {
-        if let Ok(decoded) = base64ct::Base64::decode_vec(key_str.trim()) {
-            if decoded.len() == 32 {
+    if let Ok(key_str) = String::from_utf8(key_bytes.clone())
+        && let Ok(decoded) = base64ct::Base64::decode_vec(key_str.trim())
+            && decoded.len() == 32 {
                 let key_array: [u8; 32] = decoded
                     .try_into()
                     .map_err(|_| "Failed to convert to 32-byte array".to_string())?;
                 return Ok(SigningKey::from_bytes(&key_array));
             }
-        }
-    }
 
     // Otherwise treat as raw bytes
     if key_bytes.len() != 32 {

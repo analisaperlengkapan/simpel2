@@ -274,17 +274,15 @@ impl MfaSecurityMonitor {
         tracking_info.failed_attempts += 1;
         tracking_info.last_activity = now;
 
-        if let Some(ua) = user_agent {
-            if !tracking_info.user_agents.contains(&ua) {
+        if let Some(ua) = user_agent
+            && !tracking_info.user_agents.contains(&ua) {
                 tracking_info.user_agents.push(ua);
             }
-        }
 
-        if let Some(uid) = user_id {
-            if !tracking_info.targeted_users.contains(&uid) {
+        if let Some(uid) = user_id
+            && !tracking_info.targeted_users.contains(&uid) {
                 tracking_info.targeted_users.push(uid);
             }
-        }
 
         // Check for excessive failed attempts
         let should_alert_excessive = {
@@ -332,7 +330,7 @@ impl MfaSecurityMonitor {
     pub async fn record_successful_mfa(
         &self,
         user_id: Uuid,
-        ip: &str,
+        _ip: &str,
         location: Option<String>,
     ) -> Result<(), AuthencError> {
         let mut user_patterns = self.user_patterns.write().await;
@@ -393,7 +391,7 @@ impl MfaSecurityMonitor {
     }
 
     /// Record an MFA setup for monitoring
-    pub async fn record_mfa_setup(&self, ip: &str, user_id: Uuid) -> Result<(), AuthencError> {
+    pub async fn record_mfa_setup(&self, ip: &str, _user_id: Uuid) -> Result<(), AuthencError> {
         let mut ip_tracking = self.ip_tracking.write().await;
         let now = Instant::now();
 
@@ -654,7 +652,7 @@ impl MfaSecurityMonitor {
     /// Start background cleanup task
     fn start_cleanup_task(&self) {
         let ip_tracking = self.ip_tracking.clone();
-        let user_patterns = self.user_patterns.clone();
+        let _user_patterns = self.user_patterns.clone();
         let recent_alerts = self.recent_alerts.clone();
 
         tokio::spawn(async move {
@@ -814,7 +812,7 @@ impl MfaSecurityMonitor {
             "CRITICAL"
         } else if anomalies.len() > 1 {
             "HIGH"
-        } else if anomalies.len() > 0 {
+        } else if !anomalies.is_empty() {
             "MEDIUM"
         } else {
             "LOW"

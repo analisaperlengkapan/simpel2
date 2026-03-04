@@ -336,7 +336,7 @@ impl SearchEngine {
         search_fields: &[&str],
         query: &SearchQuery,
     ) -> (String, Vec<String>) {
-        let mut sql = format!("SELECT *, ");
+        let mut sql = "SELECT *, ".to_string();
 
         // Add relevance score calculation
         let relevance_parts: Vec<String> = search_fields
@@ -375,13 +375,12 @@ impl SearchEngine {
             param_index += 1;
         }
 
-        if let Some(ref status_list) = query.filters.status {
-            if !status_list.is_empty() {
+        if let Some(ref status_list) = query.filters.status
+            && !status_list.is_empty() {
                 sql.push_str(&format!(" AND status = ANY(${})", param_index));
                 params.push(format!("{{{}}}", status_list.join(",")));
                 param_index += 1;
             }
-        }
 
         if let Some(ref kode) = query.filters.kode_barang {
             sql.push_str(&format!(" AND kode_barang LIKE ${}", param_index));
@@ -633,13 +632,12 @@ impl SearchEngineDb {
             param_idx += 1;
         }
 
-        if let Some(ref status_list) = query.filters.status {
-            if !status_list.is_empty() {
+        if let Some(ref status_list) = query.filters.status
+            && !status_list.is_empty() {
                 sql.push_str(&format!(" AND k.status_kode = ANY(${})", param_idx));
                 params.push(Box::new(status_list.clone()));
                 param_idx += 1;
             }
-        }
 
         if let Some(ref kode) = query.filters.kode_barang {
             sql.push_str(&format!(" AND k.kode_barang ILIKE ${}", param_idx));
@@ -744,8 +742,8 @@ impl SearchEngineDb {
             param_idx += 1;
         }
 
-        if let Some(ref priority_levels) = query.filters.priority_level {
-            if !priority_levels.is_empty() {
+        if let Some(ref priority_levels) = query.filters.priority_level
+            && !priority_levels.is_empty() {
                 sql.push_str(&format!(" AND b.prioritas = ANY(${})", param_idx));
                 // Convert priority levels to integers
                 let priority_ints: Vec<i32> = priority_levels
@@ -755,7 +753,6 @@ impl SearchEngineDb {
                 params.push(Box::new(priority_ints));
                 param_idx += 1;
             }
-        }
 
         // Add sorting
         sql.push_str(&format!(" ORDER BY {}", query.sort.to_sql()));

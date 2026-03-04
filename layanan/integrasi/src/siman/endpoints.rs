@@ -232,11 +232,7 @@ pub async fn get_row_count(
                 Some(arr)
             } else if let Some(arr) = data.get("data").and_then(|v| v.as_array()) {
                 Some(arr)
-            } else if let Some(arr) = data.get("results").and_then(|v| v.as_array()) {
-                Some(arr)
-            } else {
-                None
-            };
+            } else { data.get("results").and_then(|v| v.as_array()).map(|arr| arr) };
 
             if let Some(array) = array {
                 if let Some(first) = array.first() {
@@ -690,11 +686,7 @@ pub async fn fetch_all_assets_with_pagination(
             Some(arr)
         } else if let Some(arr) = data.get("data").and_then(|v| v.as_array()) {
             Some(arr)
-        } else if let Some(arr) = data.get("results").and_then(|v| v.as_array()) {
-            Some(arr)
-        } else {
-            None
-        };
+        } else { data.get("results").and_then(|v| v.as_array()).map(|arr| arr) };
 
         if let Some(array) = array {
             if let Some(first) = array.first() {

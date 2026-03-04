@@ -256,7 +256,7 @@ impl SimanSyncService {
             info!("  → Syncing category: {}", category.description());
 
             let mut client_guard = client.lock().await;
-            match fetch_all_assets_with_pagination(&mut *client_guard, &storage, category).await {
+            match fetch_all_assets_with_pagination(&mut client_guard, &storage, category).await {
                 Ok((success, failed)) => {
                     total_success += success;
                     total_failed += failed;
@@ -321,7 +321,7 @@ impl SimanSyncService {
             info!("  → Syncing category: {}", category.description());
 
             let mut client_guard = client.lock().await;
-            match fetch_all_assets_with_pagination(&mut *client_guard, &storage, category).await {
+            match fetch_all_assets_with_pagination(&mut client_guard, &storage, category).await {
                 Ok((success, failed)) => {
                     total_success += success;
                     total_failed += failed;

@@ -541,11 +541,10 @@ impl EnhancedCryptoEngine {
 
     async fn get_cached_validation(&self, token: &str) -> Option<CachedValidation> {
         let cache = self.validation_cache.read().await;
-        if let Some(cached) = cache.get(token) {
-            if cached.expires_at > Utc::now() {
+        if let Some(cached) = cache.get(token)
+            && cached.expires_at > Utc::now() {
                 return Some(cached.clone());
             }
-        }
         None
     }
 
