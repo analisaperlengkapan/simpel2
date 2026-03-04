@@ -366,6 +366,21 @@ impl UserStore for PostgresUserStore {
         users
     }
 
+    async fn count_users(&self, realm_id: RealmId) -> Result<u64> {
+        debug!("Counting users in realm: {}", realm_id);
+
+        let query = r#"
+            SELECT COUNT(*)
+            FROM users
+            WHERE realm_id = $1
+        "#;
+
+        let row = self.db.query_one(query, &[&realm_id.0]).await?;
+        let count: i64 = row.get(0);
+
+        Ok(count as u64)
+    }
+
     async fn username_exists(&self, username: &str, realm_id: RealmId) -> Result<bool> {
         debug!(
             "Checking if username exists: {} in realm: {}",
