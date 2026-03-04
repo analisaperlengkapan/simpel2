@@ -541,9 +541,17 @@ pub struct OperationStats {
     pub total_bytes_encrypted: u64,
     pub total_bytes_decrypted: u64,
     pub total_bytes_signed: u64,
+    #[serde(default)]
+    pub total_bytes_verified: u64,
     pub average_encryption_time_ms: f64,
     pub average_decryption_time_ms: f64,
     pub average_signing_time_ms: f64,
+    #[serde(default)]
+    pub average_key_creation_time_ms: f64,
+    #[serde(default)]
+    pub average_key_rotation_time_ms: f64,
+    #[serde(default)]
+    pub average_verification_time_ms: f64,
     pub start_time: DateTime<Utc>,
     pub last_operation: Option<DateTime<Utc>>,
 }
@@ -561,23 +569,29 @@ impl OperationStats {
             total_bytes_encrypted: 0,
             total_bytes_decrypted: 0,
             total_bytes_signed: 0,
+            total_bytes_verified: 0,
             average_encryption_time_ms: 0.0,
             average_decryption_time_ms: 0.0,
             average_signing_time_ms: 0.0,
+            average_key_creation_time_ms: 0.0,
+            average_key_rotation_time_ms: 0.0,
+            average_verification_time_ms: 0.0,
             start_time: Utc::now(),
             last_operation: None,
         }
     }
 
-    pub fn record_key_creation(&mut self, _duration: std::time::Duration) {
-        // TODO: Use duration for timing statistics
+    pub fn record_key_creation(&mut self, duration: std::time::Duration) {
         self.key_creations += 1;
+        let count = self.key_creations;
+        Self::update_average_time(&mut self.average_key_creation_time_ms, duration, count);
         self.last_operation = Some(Utc::now());
     }
 
-    pub fn record_key_rotation(&mut self, _duration: std::time::Duration) {
-        // TODO: Use duration for timing statistics
+    pub fn record_key_rotation(&mut self, duration: std::time::Duration) {
         self.key_rotations += 1;
+        let count = self.key_rotations;
+        Self::update_average_time(&mut self.average_key_rotation_time_ms, duration, count);
         self.last_operation = Some(Utc::now());
     }
 
@@ -607,15 +621,17 @@ impl OperationStats {
 
     pub fn record_verification(
         &mut self,
-        _duration: std::time::Duration,
-        _bytes: usize,
+        duration: std::time::Duration,
+        bytes: usize,
         valid: bool,
     ) {
-        // TODO: Use duration and bytes for detailed statistics
         self.verifications += 1;
+        self.total_bytes_verified += bytes as u64;
         if valid {
             self.successful_verifications += 1;
         }
+        let count = self.verifications;
+        Self::update_average_time(&mut self.average_verification_time_ms, duration, count);
         self.last_operation = Some(Utc::now());
     }
 
