@@ -9,12 +9,12 @@ use crate::client::MonsaktiClient;
 use crate::config::Config;
 use crate::mysimkari;
 // use crate::siman;
-use crate::storage_from_env;
 use crate::siman::endpoints::fetch_all_assets_with_pagination;
+use crate::storage_from_env;
 use anyhow::Result;
 use std::sync::Arc;
-use tokio_postgres::Client;
 use tokio_cron_scheduler::{Job, JobScheduler};
+use tokio_postgres::Client;
 use tracing::{error, info, warn};
 
 /// Source of data for manual synchronization
@@ -248,7 +248,8 @@ async fn fetch_mysimkari_data(config: Config, db_client: Option<Arc<Client>>) ->
     if let Some(satker_array) = satker_response.as_array() {
         info!("  ✓ Satker: {} records", satker_array.len());
         if let Some(db) = client.get_db_client_arc() {
-            crate::db::save_to_database(&db, "mysimkari_satker", "satker", &satker_response).await?;
+            crate::db::save_to_database(&db, "mysimkari_satker", "satker", &satker_response)
+                .await?;
         }
 
         // Fetch pegawai data for first 5 satker as sample
@@ -264,7 +265,13 @@ async fn fetch_mysimkari_data(config: Config, db_client: Option<Arc<Client>>) ->
                                 pegawai_array.len()
                             );
                             if let Some(db) = client.get_db_client_arc() {
-                                crate::db::save_to_database(&db, "mysimkari_pegawai", "pegawai", &pegawai_response).await?;
+                                crate::db::save_to_database(
+                                    &db,
+                                    "mysimkari_pegawai",
+                                    "pegawai",
+                                    &pegawai_response,
+                                )
+                                .await?;
                             }
                         }
                     }
@@ -277,7 +284,8 @@ async fn fetch_mysimkari_data(config: Config, db_client: Option<Arc<Client>>) ->
     } else {
         info!("  ✓ Satker: 1 record");
         if let Some(db) = client.get_db_client_arc() {
-            crate::db::save_to_database(&db, "mysimkari_satker", "satker", &satker_response).await?;
+            crate::db::save_to_database(&db, "mysimkari_satker", "satker", &satker_response)
+                .await?;
         }
     }
 

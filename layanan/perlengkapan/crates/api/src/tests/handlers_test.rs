@@ -625,7 +625,6 @@ mod tests {
         assert_eq!(json.0.data.pihak_lama, "Handler Lama");
     }
 
-
     #[tokio::test]
     async fn test_handler_get_dashboard_stats() {
         let mut mock_repo = MockRepository::new();
@@ -903,5 +902,4 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap().0.data.pihak_lama, "Lama");
     }
-
 }

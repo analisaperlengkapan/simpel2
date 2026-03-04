@@ -168,16 +168,18 @@ pub fn UserDetailPage() -> impl IntoView {
 
     // Derived signals for user info (avoids FnOnce issue)
     let display_name = move || {
-        user.get().map(|u| {
-            let n = format!(
-                "{} {}",
-                u.first_name.clone().unwrap_or_default(),
-                u.last_name.clone().unwrap_or_default()
-            )
-            .trim()
-            .to_string();
-            if n.is_empty() { u.username.clone() } else { n }
-        }).unwrap_or_default()
+        user.get()
+            .map(|u| {
+                let n = format!(
+                    "{} {}",
+                    u.first_name.clone().unwrap_or_default(),
+                    u.last_name.clone().unwrap_or_default()
+                )
+                .trim()
+                .to_string();
+                if n.is_empty() { u.username.clone() } else { n }
+            })
+            .unwrap_or_default()
     };
     let user_username = move || user.get().map(|u| u.username.clone()).unwrap_or_default();
     let user_email = move || user.get().map(|u| u.email.clone()).unwrap_or_default();
@@ -187,7 +189,11 @@ pub fn UserDetailPage() -> impl IntoView {
     let user_roles = move || user.get().map(|u| u.roles.clone()).unwrap_or_default();
     let user_roles_len = move || user_roles().len();
     let user_created = move || user.get().map(|u| u.created_at.clone()).unwrap_or_default();
-    let user_last_login = move || user.get().and_then(|u| u.last_login.clone()).unwrap_or_else(|| "—".to_string());
+    let user_last_login = move || {
+        user.get()
+            .and_then(|u| u.last_login.clone())
+            .unwrap_or_else(|| "—".to_string())
+    };
     let avatar_letter = move || {
         display_name()
             .chars()

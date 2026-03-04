@@ -112,7 +112,9 @@ impl ResourceServerStoreTrait for ResourceServerStore {
                 ],
             )
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to create resource server: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to create resource server: {}", e))
+            })?;
 
         ResourceServer::try_from(row)
     }
@@ -120,10 +122,7 @@ impl ResourceServerStoreTrait for ResourceServerStore {
     async fn get_resource_server(&self, id: Uuid) -> Result<Option<ResourceServer>, AuthencError> {
         let row = self
             .database
-            .query_opt(
-                "SELECT * FROM resource_servers WHERE id = $1",
-                &[&id],
-            )
+            .query_opt("SELECT * FROM resource_servers WHERE id = $1", &[&id])
             .await
             .map_err(|e| AuthencError::database(format!("Failed to get resource server: {}", e)))?;
 
@@ -235,10 +234,7 @@ impl ResourceServerStoreTrait for ResourceServerStore {
 
     async fn delete_resource_server(&self, id: Uuid) -> Result<(), AuthencError> {
         self.database
-            .execute(
-                "DELETE FROM resource_servers WHERE id = $1",
-                &[&id],
-            )
+            .execute("DELETE FROM resource_servers WHERE id = $1", &[&id])
             .await
             .map_err(|e| {
                 AuthencError::database(format!("Failed to delete resource server: {}", e))

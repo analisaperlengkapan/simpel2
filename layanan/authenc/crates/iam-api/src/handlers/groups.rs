@@ -217,7 +217,13 @@ pub async fn update_group(
 ) -> ApiResult<Json<GroupResponse>> {
     let svc = require_group_service(&state)?;
     let group = svc
-        .update(group_id, req.name, req.parent_id, req.description, req.attributes)
+        .update(
+            group_id,
+            req.name,
+            req.parent_id,
+            req.description,
+            req.attributes,
+        )
         .await
         .map_err(crate::error::ApiError)?;
 

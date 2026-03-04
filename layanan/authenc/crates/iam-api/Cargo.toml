@@ -22,6 +22,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+rand.workspace = true
+data-encoding.workspace = true
+urlencoding.workspace = true
+authenc-grpc = { version = "0.1.0", path = "../grpc" }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

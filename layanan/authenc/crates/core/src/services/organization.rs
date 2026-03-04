@@ -1,9 +1,9 @@
 //! Organization service for multi-tenancy
 
 use authenc_storage::Database;
+use authenc_storage::operations::organizations;
 use authenc_types::domain::{Organization, OrganizationMember};
 use authenc_types::{AuthencError, Result};
-use authenc_storage::operations::organizations;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -155,7 +155,14 @@ impl OrganizationService {
         let stored_org = organizations::create_organization(&self.db, &organization).await?;
 
         // Add creator as owner
-        organizations::add_member(&self.db, stored_org.id, created_by, OrganizationRole::Owner.as_str(), Some(created_by)).await?;
+        organizations::add_member(
+            &self.db,
+            stored_org.id,
+            created_by,
+            OrganizationRole::Owner.as_str(),
+            Some(created_by),
+        )
+        .await?;
 
         Ok(stored_org)
     }
@@ -176,7 +183,9 @@ impl OrganizationService {
         organization_id: &Uuid,
         updates: &OrganizationUpdate,
     ) -> Result<()> {
-        let mut org = self.get_organization(organization_id).await?
+        let mut org = self
+            .get_organization(organization_id)
+            .await?
             .ok_or_else(|| AuthencError::resource_not_found("Organization not found"))?;
 
         if let Some(name) = &updates.display_name {
@@ -217,7 +226,14 @@ impl OrganizationService {
         role: OrganizationRole,
         invited_by: Option<Uuid>,
     ) -> Result<()> {
-        organizations::add_member(&self.db, *organization_id, *user_id, role.as_str(), invited_by).await
+        organizations::add_member(
+            &self.db,
+            *organization_id,
+            *user_id,
+            role.as_str(),
+            invited_by,
+        )
+        .await
     }
 
     /// Remove member from organization
@@ -233,7 +249,8 @@ impl OrganizationService {
         user_id: &Uuid,
         new_role: OrganizationRole,
     ) -> Result<()> {
-        organizations::update_member_role(&self.db, organization_id, user_id, new_role.as_str()).await
+        organizations::update_member_role(&self.db, organization_id, user_id, new_role.as_str())
+            .await
     }
 
     /// Get organization members
@@ -257,7 +274,9 @@ impl OrganizationService {
     ) -> Result<bool> {
         let members = organizations::get_organization_members(&self.db, organization_id).await?;
         let required_role_str = role.as_str();
-        Ok(members.iter().any(|m| m.user_id == *user_id && m.role == required_role_str))
+        Ok(members
+            .iter()
+            .any(|m| m.user_id == *user_id && m.role == required_role_str))
     }
 
     /// Create invitation
@@ -391,7 +410,13 @@ impl OrganizationService {
         identity_provider_id: &Uuid,
         priority: i32,
     ) -> Result<()> {
-        organizations::link_identity_provider(&self.db, *organization_id, *identity_provider_id, priority).await
+        organizations::link_identity_provider(
+            &self.db,
+            *organization_id,
+            *identity_provider_id,
+            priority,
+        )
+        .await
     }
 
     /// Unlink identity provider from organization
@@ -400,7 +425,8 @@ impl OrganizationService {
         organization_id: &Uuid,
         identity_provider_id: &Uuid,
     ) -> Result<()> {
-        organizations::unlink_identity_provider(&self.db, *organization_id, *identity_provider_id).await
+        organizations::unlink_identity_provider(&self.db, *organization_id, *identity_provider_id)
+            .await
     }
 
     /// Generate secure invitation token

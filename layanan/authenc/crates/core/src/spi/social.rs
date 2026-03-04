@@ -298,9 +298,7 @@ impl SocialProvider for DefaultSocialProvider {
                     .unwrap_or("Bearer")
                     .to_string(),
                 expires_in: token_data["expires_in"].as_u64(),
-                refresh_token: token_data["refresh_token"]
-                    .as_str()
-                    .map(|s| s.to_string()),
+                refresh_token: token_data["refresh_token"].as_str().map(|s| s.to_string()),
                 scope: token_data["scope"].as_str().map(|s| s.to_string()),
                 id_token: token_data["id_token"].as_str().map(|s| s.to_string()),
             })
@@ -398,9 +396,7 @@ impl SocialProvider for DefaultSocialProvider {
                     .unwrap_or("Bearer")
                     .to_string(),
                 expires_in: token_data["expires_in"].as_u64(),
-                refresh_token: token_data["refresh_token"]
-                    .as_str()
-                    .map(|s| s.to_string()),
+                refresh_token: token_data["refresh_token"].as_str().map(|s| s.to_string()),
                 scope: token_data["scope"].as_str().map(|s| s.to_string()),
                 id_token: token_data["id_token"].as_str().map(|s| s.to_string()),
             })

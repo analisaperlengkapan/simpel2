@@ -1,7 +1,7 @@
 /// Database operations for scopes
 use crate::Database;
-use authenc_types::{AuthencError, Result};
 use authenc_types::domain::scope::{CreateScopeRequest, Scope, UpdateScopeRequest};
+use authenc_types::{AuthencError, Result};
 use chrono::Utc;
 use tracing::error;
 use uuid::Uuid;

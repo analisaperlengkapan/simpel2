@@ -23,7 +23,7 @@ pub async fn load_config() {
     #[cfg(target_arch = "wasm32")]
     {
         use gloo_net::http::Request;
-        
+
         // Coba load dari config.json
         if let Ok(response) = Request::get("/portal/config.json").send().await {
             if response.ok() {

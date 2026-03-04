@@ -1,8 +1,4 @@
-use crate::{
-    errors::AppResult,
-    models::*,
-    repository::PerlengkapanRepository,
-};
+use crate::{errors::AppResult, models::*, repository::PerlengkapanRepository};
 use async_trait::async_trait;
 use mockall::mock;
 use uuid::Uuid;
@@ -496,7 +492,6 @@ mod unit_tests {
         assert_eq!(result.pihak_lama, "Lama");
         assert_eq!(result.status, "proses");
     }
-
 }
 
 // Register handler tests

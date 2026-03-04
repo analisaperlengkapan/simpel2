@@ -37,7 +37,8 @@ pub async fn prometheus_metrics(State(_state): State<Arc<ApiState>>) -> impl Int
     use metrics_exporter_prometheus::PrometheusBuilder;
     use std::sync::OnceLock;
 
-    static PROMETHEUS_HANDLE: OnceLock<metrics_exporter_prometheus::PrometheusHandle> = OnceLock::new();
+    static PROMETHEUS_HANDLE: OnceLock<metrics_exporter_prometheus::PrometheusHandle> =
+        OnceLock::new();
 
     let handle = PROMETHEUS_HANDLE.get_or_init(|| {
         PrometheusBuilder::new()

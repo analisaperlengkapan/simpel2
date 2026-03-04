@@ -205,7 +205,10 @@ pub async fn captcha_verify_handler(
     }
 
     // Verify answer (case-insensitive)
-    let correct = req.answer.trim().eq_ignore_ascii_case(challenge.answer.trim());
+    let correct = req
+        .answer
+        .trim()
+        .eq_ignore_ascii_case(challenge.answer.trim());
 
     if correct {
         challenge.verified = true;
@@ -351,9 +354,7 @@ fn generate_text_recognition_challenge(difficulty: u8) -> (String, String) {
     };
 
     // Generate random alphanumeric characters (avoiding confusing chars like 0/O, 1/l/I)
-    let chars: Vec<char> = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        .chars()
-        .collect();
+    let chars: Vec<char> = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".chars().collect();
 
     let text: String = (0..length)
         .map(|_| chars[rng.gen_range(0..chars.len())])

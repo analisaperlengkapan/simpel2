@@ -1079,14 +1079,18 @@ impl AuthencApiClient {
     /// Get group members
     #[cfg(target_arch = "wasm32")]
     pub async fn iam_get_group_members(&self, id: &str) -> Result<Vec<String>, String> {
-        let resp = self.get(&format!("/api/v1/iam/groups/{}/members", id)).await?;
+        let resp = self
+            .get(&format!("/api/v1/iam/groups/{}/members", id))
+            .await?;
         Self::parse_response(resp).await
     }
 
     /// Get subgroups
     #[cfg(target_arch = "wasm32")]
     pub async fn iam_get_subgroups(&self, id: &str) -> Result<Vec<GroupInfo>, String> {
-        let resp = self.get(&format!("/api/v1/iam/groups/{}/subgroups", id)).await?;
+        let resp = self
+            .get(&format!("/api/v1/iam/groups/{}/subgroups", id))
+            .await?;
         Self::parse_response(resp).await
     }
 
@@ -1402,7 +1406,6 @@ impl AuthencApiClient {
         })
     }
 
-
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn iam_list_identity_providers(&self) -> Result<Vec<IdentityProviderInfo>, String> {
         Ok(vec![])
@@ -1481,7 +1484,8 @@ impl AuthencApiClient {
             name: "mock".to_string(),
             parent_id: None,
             description: None,
-        }).await
+        })
+        .await
     }
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn iam_delete_group(&self, _id: &str) -> Result<(), String> {
