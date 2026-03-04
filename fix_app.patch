@@ -1,0 +1,12 @@
+<<<<<<< SEARCH
+                let is_active_clone = is_active.clone();
+                on_cleanup(move || {
+                    is_active_clone.set(false);
+                });
+=======
+                let is_active_clone = is_active.clone();
+                // Fix: Replace Rc<Cell<bool>> with a more thread-safe approach or ignore on_cleanup if not needed for reactivity
+                // For web targets (wasm32), Rc<Cell> is usually fine but reactive_graph's on_cleanup requires Send+Sync.
+                // We can use a thread-local or avoid it if we just want to remove the class.
+                // Given this is a simple active state flag, let's just use Leptos's reactivity correctly if it's a Signal.
+                // Wait, let's check what `is_active` is.

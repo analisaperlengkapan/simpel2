@@ -2,6 +2,7 @@
 //!
 //! Displayed after successful logout to confirm session termination
 
+use crate::components::layout::AuthLayout;
 use leptos::prelude::*;
 
 /// Logged out confirmation page
@@ -35,8 +36,8 @@ use leptos::prelude::*;
 #[component]
 pub fn LoggedOutPage() -> impl IntoView {
     view! {
-        <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-            <div class="max-w-md w-full space-y-8 p-8">
+        <AuthLayout>
+            <div class="max-w-md w-full mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8 my-auto">
                 <div class="text-center">
                     // Success icon (SVG — no FontAwesome dependency)
                     <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 mb-6">
@@ -100,6 +101,6 @@ pub fn LoggedOutPage() -> impl IntoView {
                     </div>
                 </div>
             </div>
-        </div>
+        </AuthLayout>
     }
 }
