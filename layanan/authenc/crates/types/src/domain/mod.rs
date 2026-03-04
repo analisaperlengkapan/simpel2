@@ -81,6 +81,7 @@ pub use resource_server::*;
 
 // Re-export audit and event types
 pub use audit::*;
+pub use audit_log::*;
 pub use compliance::*;
 pub use events::*;
 

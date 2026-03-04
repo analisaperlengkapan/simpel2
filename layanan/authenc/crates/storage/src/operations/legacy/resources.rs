@@ -1,7 +1,7 @@
 /// Database operations for resources
 use crate::Database;
-use authenc_types::{AuthencError, Result};
 use authenc_types::domain::resource::{CreateResourceRequest, Resource, UpdateResourceRequest};
+use authenc_types::{AuthencError, Result};
 use chrono::Utc;
 use tracing::error;
 use uuid::Uuid;
@@ -18,7 +18,7 @@ pub async fn create_resource(
 
     let uris = request.uris.unwrap_or_default();
     let scopes = request.scopes.unwrap_or_default();
-    let attributes_json = serde_json::to_value(request.attributes.unwrap_or_default())
+    let attributes_json = serde_json::to_value(&request.attributes.unwrap_or_default())
         .map_err(|e| AuthencError::validation(format!("Invalid attributes: {}", e)))?;
 
     let query = r#"

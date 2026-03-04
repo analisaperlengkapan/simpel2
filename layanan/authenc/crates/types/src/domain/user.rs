@@ -83,10 +83,11 @@ impl SecretonAccessPolicy {
     /// Check if access to a secret path is allowed
     pub fn can_access_path(&self, path: &str, satker_code: &str) -> bool {
         // Check denied paths first
-        if let Some(denied) = &self.denied_paths
-            && denied.iter().any(|p| path.starts_with(p)) {
+        if let Some(denied) = &self.denied_paths {
+            if denied.iter().any(|p| path.starts_with(p)) {
                 return false;
             }
+        }
 
         // Check if satker is allowed
         if !self.allowed_satker_secrets.iter().any(|s| s == satker_code) {
@@ -370,7 +371,8 @@ impl Role {
             if scope == "global" || scope == "pusat" {
                 return true;
             }
-            if let Some(scope_satker) = scope.strip_prefix("satker:") {
+            if scope.starts_with("satker:") {
+                let scope_satker = &scope[7..];
                 return scope_satker == satker_code;
             }
             // Fallback for migration compatibility
@@ -379,18 +381,20 @@ impl Role {
             }
         } else {
             // If scope is None, check for legacy attributes
-            if let Some(attrs) = &self.attributes
-                && let Some(legacy_scope) = attrs.get("role_scope").and_then(|v| v.as_str()) {
+            if let Some(attrs) = &self.attributes {
+                if let Some(legacy_scope) = attrs.get("role_scope").and_then(|v| v.as_str()) {
                     if legacy_scope == "global" || legacy_scope == "pusat" {
                         return true;
                     }
-                    if let Some(scope_satker) = legacy_scope.strip_prefix("satker:") {
+                    if legacy_scope.starts_with("satker:") {
+                        let scope_satker = &legacy_scope[7..];
                         return scope_satker == satker_code;
                     }
                     if legacy_scope == satker_code {
                         return true;
                     }
                 }
+            }
         }
         false
     }
@@ -464,7 +468,8 @@ impl Permission {
         if let Some(scope) = &self.scope {
             // Simplified check - assumes scope is either global or satker prefix
             if scope != "global" && scope != "pusat" {
-                if let Some(scope_satker) = scope.strip_prefix("satker:") {
+                if scope.starts_with("satker:") {
+                    let scope_satker = &scope[7..];
                     if scope_satker != satker_code {
                         return false;
                     }

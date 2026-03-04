@@ -146,8 +146,8 @@ impl DefaultSsoService {
             .await
             .map_err(|e| AuthencError::internal(format!("Failed to fetch realm: {}", e)))?;
 
-        Realm::try_from(row)
-            .map_err(|e| AuthencError::internal(format!("Failed to parse realm: {}", e)))
+        Ok(Realm::try_from(row)
+            .map_err(|e| AuthencError::internal(format!("Failed to parse realm: {}", e)))?)
     }
 
     /// Generate authorization URL for provider

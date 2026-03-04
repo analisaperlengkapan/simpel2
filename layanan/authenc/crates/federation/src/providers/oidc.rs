@@ -430,9 +430,11 @@ impl IdentityProvider for OidcIdentityProvider {
                 .form(&params)
                 .send()
                 .await
-                && let Ok(introspection) = response.json::<TokenIntrospection>().await {
+            {
+                if let Ok(introspection) = response.json::<TokenIntrospection>().await {
                     return Ok(introspection.active);
                 }
+            }
         }
 
         Ok(false)

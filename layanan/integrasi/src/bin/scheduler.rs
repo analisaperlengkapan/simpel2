@@ -100,7 +100,10 @@ async fn main() -> Result<()> {
             "mysimkari" => layanan_integrasi::scheduler::DataSource::Mysimkari,
             "siman" => layanan_integrasi::scheduler::DataSource::Siman,
             _ => {
-                error!("Invalid source: {}. Use 'all', 'monsakti', 'mysimkari', or 'siman'.", source);
+                error!(
+                    "Invalid source: {}. Use 'all', 'monsakti', 'mysimkari', or 'siman'.",
+                    source
+                );
                 return Ok(());
             }
         };

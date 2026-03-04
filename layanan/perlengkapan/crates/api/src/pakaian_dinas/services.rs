@@ -209,12 +209,13 @@ impl PakaianDinasService {
                 ));
             }
 
-            if let (Some(start), Some(end)) = (request.tgl_mulai, request.tgl_selesai)
-                && start > end {
+            if let (Some(start), Some(end)) = (request.tgl_mulai, request.tgl_selesai) {
+                if start > end {
                     return Err(bad_request(
                         "Tanggal mulai tidak boleh lebih besar dari tanggal selesai",
                     ));
                 }
+            }
         }
 
         // Validate spesifikasi_ids is not empty
@@ -230,12 +231,13 @@ impl PakaianDinasService {
         }
 
         // If pilihan_satker = "sebagian", satker_ids must not be empty
-        if request.pilihan_satker == "sebagian"
-            && (request.satker_ids.is_none() || request.satker_ids.as_ref().unwrap().is_empty()) {
+        if request.pilihan_satker == "sebagian" {
+            if request.satker_ids.is_none() || request.satker_ids.as_ref().unwrap().is_empty() {
                 return Err(bad_request(
                     "Satker harus dipilih jika pilihan satker = 'sebagian'",
                 ));
             }
+        }
 
         self.repository.create_pengajuan(request, user_id).await
     }

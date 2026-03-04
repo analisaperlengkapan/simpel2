@@ -924,7 +924,7 @@ fn generate_excel(entity_type: &str, data: Vec<serde_json::Value>) -> AppResult<
         .write_string(0, 0, "Export Date")
         .map_err(|e| AppError::Internal(format!("Failed to write metadata: {}", e)))?;
     metadata_sheet
-        .write_string(0, 1, chrono::Utc::now().to_rfc3339())
+        .write_string(0, 1, &chrono::Utc::now().to_rfc3339())
         .map_err(|e| AppError::Internal(format!("Failed to write metadata: {}", e)))?;
     metadata_sheet
         .write_string(1, 0, "Total Rows")

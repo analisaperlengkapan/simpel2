@@ -213,25 +213,27 @@ impl XmlSignature {
                             if let Some(attr) = e.attributes().find(|a| {
                                 a.as_ref()
                                     .map(|attr| {
-                                        String::from_utf8_lossy(attr.key.as_ref()) == "Algorithm"
+                                        String::from_utf8_lossy(&attr.key.as_ref()) == "Algorithm"
                                     })
                                     .unwrap_or(false)
-                            })
-                                && let Ok(attr) = attr {
+                            }) {
+                                if let Ok(attr) = attr {
                                     c14n_method = String::from_utf8_lossy(&attr.value).to_string();
                                 }
+                            }
                         }
                         "SignatureMethod" | "ds:SignatureMethod" if in_signed_info => {
                             if let Some(attr) = e.attributes().find(|a| {
                                 a.as_ref()
                                     .map(|attr| {
-                                        String::from_utf8_lossy(attr.key.as_ref()) == "Algorithm"
+                                        String::from_utf8_lossy(&attr.key.as_ref()) == "Algorithm"
                                     })
                                     .unwrap_or(false)
-                            })
-                                && let Ok(attr) = attr {
+                            }) {
+                                if let Ok(attr) = attr {
                                     sig_method = String::from_utf8_lossy(&attr.value).to_string();
                                 }
+                            }
                         }
                         "Reference" | "ds:Reference" if in_signed_info => {
                             in_reference = true;
@@ -245,27 +247,29 @@ impl XmlSignature {
                             if let Some(attr) = e.attributes().find(|a| {
                                 a.as_ref()
                                     .map(|attr| {
-                                        String::from_utf8_lossy(attr.key.as_ref()) == "URI"
+                                        String::from_utf8_lossy(&attr.key.as_ref()) == "URI"
                                     })
                                     .unwrap_or(false)
-                            })
-                                && let Ok(attr) = attr {
+                            }) {
+                                if let Ok(attr) = attr {
                                     current_ref.uri =
                                         String::from_utf8_lossy(&attr.value).to_string();
                                 }
+                            }
                         }
                         "DigestMethod" | "ds:DigestMethod" if in_reference => {
                             if let Some(attr) = e.attributes().find(|a| {
                                 a.as_ref()
                                     .map(|attr| {
-                                        String::from_utf8_lossy(attr.key.as_ref()) == "Algorithm"
+                                        String::from_utf8_lossy(&attr.key.as_ref()) == "Algorithm"
                                     })
                                     .unwrap_or(false)
-                            })
-                                && let Ok(attr) = attr {
+                            }) {
+                                if let Ok(attr) = attr {
                                     digest_method_uri =
                                         String::from_utf8_lossy(&attr.value).to_string();
                                 }
+                            }
                         }
                         "DigestValue" | "ds:DigestValue" if in_reference => {
                             in_digest_value = true;
@@ -468,11 +472,12 @@ fn extract_signed_info_xml(xml: &str) -> Result<String> {
     let end_tags = ["</SignedInfo>", "</ds:SignedInfo>"];
 
     for (start_tag, end_tag) in start_tags.iter().zip(end_tags.iter()) {
-        if let Some(start_pos) = xml.find(start_tag)
-            && let Some(end_pos) = xml.find(end_tag) {
+        if let Some(start_pos) = xml.find(start_tag) {
+            if let Some(end_pos) = xml.find(end_tag) {
                 let end_with_tag = end_pos + end_tag.len();
                 return Ok(xml[start_pos..end_with_tag].to_string());
             }
+        }
     }
 
     Err(anyhow!("SignedInfo element not found in XML"))
@@ -486,8 +491,10 @@ fn extract_element_by_uri(document: &str, uri: &str) -> Result<String> {
         return Ok(document.to_string());
     }
 
-    if let Some(id) = uri.strip_prefix('#') {
+    if uri.starts_with('#') {
         // Fragment identifier - extract element with ID
+        let id = &uri[1..];
+
         // Try different ID attributes
         let id_patterns = [
             format!(" ID=\"{}\"", id),
@@ -554,13 +561,14 @@ fn remove_signature_element(xml: &str) -> Result<String> {
     let end_tags = ["</Signature>", "</ds:Signature>"];
 
     for (start_tag, end_tag) in start_tags.iter().zip(end_tags.iter()) {
-        if let Some(start_pos) = xml.find(start_tag)
-            && let Some(end_pos) = xml[start_pos..].find(end_tag) {
+        if let Some(start_pos) = xml.find(start_tag) {
+            if let Some(end_pos) = xml[start_pos..].find(end_tag) {
                 let full_end = start_pos + end_pos + end_tag.len();
                 let mut result = xml[..start_pos].to_string();
                 result.push_str(&xml[full_end..]);
                 return Ok(result);
             }
+        }
     }
 
     // No signature found - return original
@@ -687,10 +695,11 @@ impl CertificateValidator {
 
             for path in &cert_paths {
                 if std::path::Path::new(path).exists() {
-                    if let Ok(certs) = std::fs::read(path)
-                        && let Ok(cert) = X509::from_pem(&certs) {
+                    if let Ok(certs) = std::fs::read(path) {
+                        if let Ok(cert) = X509::from_pem(&certs) {
                             let _ = builder.add_cert(cert);
                         }
+                    }
                     break;
                 }
             }
@@ -729,8 +738,8 @@ impl CertificateValidator {
     /// Validate a certificate
     pub fn validate_certificate(&self, cert: &X509) -> Result<CertificateValidationResult> {
         // Check expiration
-        if self.enable_expiration_check
-            && let Err(e) = self.check_expiration(cert) {
+        if self.enable_expiration_check {
+            if let Err(e) = self.check_expiration(cert) {
                 let msg = e.to_string();
                 if msg.contains("not yet valid") {
                     return Ok(CertificateValidationResult::NotYetValid);
@@ -738,6 +747,7 @@ impl CertificateValidator {
                     return Ok(CertificateValidationResult::Expired);
                 }
             }
+        }
 
         // Validate certificate chain
         match self.validate_certificate_chain(cert) {
@@ -779,21 +789,23 @@ impl CertificateValidator {
         // Check NotBefore
         let not_before = cert.not_before();
         let not_before_str = not_before.to_string();
-        if let Ok(not_before_time) = parse_asn1_time(&not_before_str)
-            && now < not_before_time {
+        if let Ok(not_before_time) = parse_asn1_time(&not_before_str) {
+            if now < not_before_time {
                 return Err(anyhow!(
                     "Certificate not yet valid (NotBefore: {})",
                     not_before_str
                 ));
             }
+        }
 
         // Check NotAfter
         let not_after = cert.not_after();
         let not_after_str = not_after.to_string();
-        if let Ok(not_after_time) = parse_asn1_time(&not_after_str)
-            && now >= not_after_time {
+        if let Ok(not_after_time) = parse_asn1_time(&not_after_str) {
+            if now >= not_after_time {
                 return Err(anyhow!("Certificate expired (NotAfter: {})", not_after_str));
             }
+        }
 
         Ok(())
     }
@@ -813,14 +825,17 @@ impl CertificateValidator {
         for ext in x509_cert.extensions() {
             if ext.oid == x509_parser::oid_registry::OID_X509_EXT_KEY_USAGE {
                 // Parse extension value
-                if let ParsedExtension::KeyUsage(ku) = ext.parsed_extension() {
-                    // Check digitalSignature bit
-                    if !ku.digital_signature() {
-                        tracing::warn!("Certificate missing digitalSignature key usage");
-                        return Ok(false);
+                match ext.parsed_extension() {
+                    ParsedExtension::KeyUsage(ku) => {
+                        // Check digitalSignature bit
+                        if !ku.digital_signature() {
+                            tracing::warn!("Certificate missing digitalSignature key usage");
+                            return Ok(false);
+                        }
+                        tracing::debug!("Certificate has valid digitalSignature key usage");
+                        return Ok(true);
                     }
-                    tracing::debug!("Certificate has valid digitalSignature key usage");
-                    return Ok(true);
+                    _ => {}
                 }
             }
         }
@@ -915,8 +930,8 @@ fn parse_asn1_time(time_str: &str) -> Result<DateTime<Utc>> {
 impl XmlSignature {
     /// Get the X.509 certificate from KeyInfo (if present)
     pub fn get_certificate(&self) -> Option<X509> {
-        if let Some(ref key_info) = self.key_info
-            && let Some(ref cert_pem) = key_info.x509_certificate {
+        if let Some(ref key_info) = self.key_info {
+            if let Some(ref cert_pem) = key_info.x509_certificate {
                 // Certificate is base64-encoded in XML, need to decode and parse
                 let cert_data = format!(
                     "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----",
@@ -927,6 +942,7 @@ impl XmlSignature {
                     return Some(cert);
                 }
             }
+        }
         None
     }
 }
@@ -993,10 +1009,11 @@ impl XmlSecurityValidator {
         }
 
         // Check for external entities (XXE attack)
-        if self.limits.disable_external_entities
-            && xml.contains("<!ENTITY") && (xml.contains("SYSTEM") || xml.contains("PUBLIC")) {
+        if self.limits.disable_external_entities {
+            if xml.contains("<!ENTITY") && (xml.contains("SYSTEM") || xml.contains("PUBLIC")) {
                 return Err(anyhow!("External entities not allowed (XXE prevention)"));
             }
+        }
 
         // Parse and validate structure
         let mut reader = Reader::from_str(xml);
@@ -1075,11 +1092,13 @@ impl XmlSecurityValidator {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
                     // Check for ID attribute
-                    for attr in e.attributes().flatten() {
-                        let key = String::from_utf8_lossy(attr.key.as_ref()).to_lowercase();
-                        if key == "id" || key.ends_with(":id") {
-                            let id_value = String::from_utf8_lossy(&attr.value).to_string();
-                            *id_counts.entry(id_value.clone()).or_insert(0) += 1;
+                    for attr in e.attributes() {
+                        if let Ok(attr) = attr {
+                            let key = String::from_utf8_lossy(attr.key.as_ref()).to_lowercase();
+                            if key == "id" || key.ends_with(":id") {
+                                let id_value = String::from_utf8_lossy(&attr.value).to_string();
+                                *id_counts.entry(id_value.clone()).or_insert(0) += 1;
+                            }
                         }
                     }
                 }
@@ -1108,8 +1127,8 @@ impl XmlSecurityValidator {
         // Validate each reference in the signature
         for reference in &signature.signed_info.references {
             let uri = &reference.uri;
-            if let Some(id) = uri.strip_prefix('#') {
-                // Remove '#' prefix
+            if uri.starts_with('#') {
+                let id = &uri[1..]; // Remove '#' prefix
 
                 // Check that the referenced ID exists
                 if !id_map.contains_key(id) {
@@ -1309,14 +1328,15 @@ impl CrlManager {
         }
 
         // Check content length
-        if let Some(content_length) = response.content_length()
-            && content_length > self.max_crl_size as u64 {
+        if let Some(content_length) = response.content_length() {
+            if content_length > self.max_crl_size as u64 {
                 return Err(anyhow!(
                     "CRL too large: {} bytes (max: {} bytes)",
                     content_length,
                     self.max_crl_size
                 ));
             }
+        }
 
         let crl_data = response
             .bytes()
@@ -1453,7 +1473,8 @@ impl CrlManager {
                     let trimmed = part.trim();
                     if (trimmed.starts_with("http://") || trimmed.starts_with("https://"))
                         && (trimmed.contains(".crl") || trimmed.contains("/crl"))
-                        && trimmed.len() < 512
+                    {
+                        if trimmed.len() < 512
                             && trimmed
                                 .chars()
                                 .all(|c| c.is_ascii() && !c.is_control() || c == '/')
@@ -1461,6 +1482,7 @@ impl CrlManager {
                             urls.push(trimmed.to_string());
                             tracing::debug!("Found CRL distribution point: {}", trimmed);
                         }
+                    }
                 }
             }
         }
@@ -1656,7 +1678,8 @@ impl OcspClient {
                     let trimmed = part.trim();
                     if (trimmed.starts_with("http://") || trimmed.starts_with("https://"))
                         && trimmed.to_lowercase().contains("ocsp")
-                        && trimmed.len() < 512
+                    {
+                        if trimmed.len() < 512
                             && trimmed
                                 .chars()
                                 .all(|c| c.is_ascii() && !c.is_control() || c == '/')
@@ -1664,6 +1687,7 @@ impl OcspClient {
                             tracing::debug!("Found OCSP URL in AIA extension: {}", trimmed);
                             return Ok(trimmed.to_string());
                         }
+                    }
                 }
             }
         }
@@ -1813,10 +1837,11 @@ impl OcspClient {
     fn get_cached_response(&self, cache_key: &str) -> Option<Vec<u8>> {
         let cache = self.response_cache.lock().unwrap();
 
-        if let Some((response, expiration)) = cache.get(cache_key)
-            && SystemTime::now() < *expiration {
+        if let Some((response, expiration)) = cache.get(cache_key) {
+            if SystemTime::now() < *expiration {
                 return Some(response.clone());
             }
+        }
 
         None
     }

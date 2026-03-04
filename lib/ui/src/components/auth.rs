@@ -2,6 +2,7 @@
 //!
 //! Provides reusable authentication UI components
 
+use crate::components::layout::*;
 use crate::hooks::use_auth::use_auth;
 use leptos::prelude::*;
 
@@ -39,7 +40,7 @@ pub fn LoginRedirectPage(
         }
     });
 
-    let _auth_clone = auth;
+    let auth_clone = auth;
     let handle_login = move || {
         // BYPASS: redirect directly to dashboard for testing
         if let Some(window) = web_sys::window() {
@@ -104,7 +105,6 @@ pub fn LoginRedirectPage(
         </div>
     }
 }
-
 
 /// Protected route wrapper component
 ///

@@ -14,10 +14,8 @@ use validator::Validate;
 /// Workflow status codes for BMN usage permits
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]
-#[derive(Default)]
 pub enum PemakaianBmnStatus {
     /// New permit request in draft state
-    #[default]
     Draft = 3000,
     /// Submitted for approval
     Submitted = 3001,
@@ -112,6 +110,11 @@ impl PemakaianBmnStatus {
     }
 }
 
+impl Default for PemakaianBmnStatus {
+    fn default() -> Self {
+        Self::Draft
+    }
+}
 
 // ============================================================================
 // BMN Type Enum

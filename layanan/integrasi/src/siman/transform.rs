@@ -285,7 +285,7 @@ impl SimanTransformer {
     pub fn to_database_json_batch(assets: &[TransformedAsset]) -> Value {
         let json_array: Vec<Value> = assets
             .iter()
-            .map(Self::to_database_json)
+            .map(|asset| Self::to_database_json(asset))
             .collect();
 
         Value::Array(json_array)

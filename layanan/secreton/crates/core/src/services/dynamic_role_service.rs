@@ -150,10 +150,11 @@ impl<B: DynamicRoleBackend + 'static> DynamicRoleStore for PostgresDynamicRoleSe
         // Check cache first
         {
             let cached = self.cache.user_role_types.read().await;
-            if let Some(ref data) = *cached
-                && !data.is_expired(self.cache.ttl_seconds) {
+            if let Some(ref data) = *cached {
+                if !data.is_expired(self.cache.ttl_seconds) {
                     return Ok(data.data.clone());
                 }
+            }
         }
 
         // Fetch from database
@@ -203,10 +204,11 @@ impl<B: DynamicRoleBackend + 'static> DynamicRoleStore for PostgresDynamicRoleSe
         // Check cache first
         {
             let cached = self.cache.capabilities.read().await;
-            if let Some(ref data) = *cached
-                && !data.is_expired(self.cache.ttl_seconds) {
+            if let Some(ref data) = *cached {
+                if !data.is_expired(self.cache.ttl_seconds) {
                     return Ok(data.data.clone());
                 }
+            }
         }
 
         // Fetch from database
@@ -257,10 +259,11 @@ impl<B: DynamicRoleBackend + 'static> DynamicRoleStore for PostgresDynamicRoleSe
         // Check cache first
         {
             let cached = self.cache.auth_method_types.read().await;
-            if let Some(ref data) = *cached
-                && !data.is_expired(self.cache.ttl_seconds) {
+            if let Some(ref data) = *cached {
+                if !data.is_expired(self.cache.ttl_seconds) {
                     return Ok(data.data.clone());
                 }
+            }
         }
 
         // Fetch from database
@@ -315,10 +318,11 @@ impl<B: DynamicRoleBackend + 'static> DynamicRoleStore for PostgresDynamicRoleSe
         // Check cache first
         {
             let cached = self.cache.token_types.read().await;
-            if let Some(ref data) = *cached
-                && !data.is_expired(self.cache.ttl_seconds) {
+            if let Some(ref data) = *cached {
+                if !data.is_expired(self.cache.ttl_seconds) {
                     return Ok(data.data.clone());
                 }
+            }
         }
 
         // Fetch from database
@@ -371,10 +375,11 @@ impl<B: DynamicRoleBackend + 'static> DynamicRoleStore for PostgresDynamicRoleSe
         // Check cache first
         {
             let cached = self.cache.ssh_key_types.read().await;
-            if let Some(ref data) = *cached
-                && !data.is_expired(self.cache.ttl_seconds) {
+            if let Some(ref data) = *cached {
+                if !data.is_expired(self.cache.ttl_seconds) {
                     return Ok(data.data.clone());
                 }
+            }
         }
 
         // Fetch from database

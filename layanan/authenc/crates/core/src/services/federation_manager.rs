@@ -266,7 +266,9 @@ impl FederationManager {
         realm_id: Uuid,
     ) -> Result<FederationAuthResult> {
         // 1. Get provider configuration
-        let config = self.get_provider_config_by_alias(provider_alias, realm_id).await?;
+        let config = self
+            .get_provider_config_by_alias(provider_alias, realm_id)
+            .await?;
 
         // 2. Parse social provider config from stored JSON
         let social_config: crate::spi::social::SocialProviderConfig =
@@ -278,27 +280,17 @@ impl FederationManager {
         let provider = crate::spi::social::DefaultSocialProvider::new(social_config);
 
         // 4. Exchange authorization code for token
-        let token = crate::spi::social::SocialProvider::exchange_code(
-            &provider,
-            auth_code,
-            redirect_uri,
-        )
-        .await?;
+        let token =
+            crate::spi::social::SocialProvider::exchange_code(&provider, auth_code, redirect_uri)
+                .await?;
 
         // 5. Fetch user profile from provider
-        let profile = crate::spi::social::SocialProvider::get_user_profile(
-            &provider,
-            &token,
-        )
-        .await?;
+        let profile =
+            crate::spi::social::SocialProvider::get_user_profile(&provider, &token).await?;
 
         // 6. Find or create identity link
         let existing_link = self
-            .find_identity_link(
-                provider_alias,
-                &profile.provider_user_id,
-                realm_id,
-            )
+            .find_identity_link(provider_alias, &profile.provider_user_id, realm_id)
             .await?;
 
         if let Some(link) = existing_link {
@@ -306,9 +298,9 @@ impl FederationManager {
             self.update_authentication_stats(&link.id).await?;
 
             if config.store_token {
-                let expires_at = token.expires_in.map(|e| {
-                    chrono::Utc::now() + chrono::Duration::seconds(e as i64)
-                });
+                let expires_at = token
+                    .expires_in
+                    .map(|e| chrono::Utc::now() + chrono::Duration::seconds(e as i64));
                 self.update_identity_link_token(
                     &link.id,
                     &token.access_token,
@@ -340,9 +332,9 @@ impl FederationManager {
                 .await?;
 
             // Create identity link
-            let expires_at = token.expires_in.map(|e| {
-                chrono::Utc::now() + chrono::Duration::seconds(e as i64)
-            });
+            let expires_at = token
+                .expires_in
+                .map(|e| chrono::Utc::now() + chrono::Duration::seconds(e as i64));
             let link = self
                 .create_identity_link(
                     user.id,
@@ -357,7 +349,9 @@ impl FederationManager {
                     },
                     expires_at,
                     token.refresh_token.as_deref(),
-                    Some(Some(serde_json::to_value(&profile.attributes).unwrap_or_default())),
+                    Some(Some(
+                        serde_json::to_value(&profile.attributes).unwrap_or_default(),
+                    )),
                 )
                 .await?;
 
@@ -637,7 +631,7 @@ impl FederationManager {
             username,
             email,
             String::new(), // No satker_code for social users
-            None,           // No password for federated users
+            None,          // No password for federated users
             Some(realm_id),
         );
 

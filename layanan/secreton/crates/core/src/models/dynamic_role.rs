@@ -304,14 +304,15 @@ impl PolicyRule {
         }
 
         // Check denied parameters
-        if let serde_json::Value::Object(denied) = &self.denied_parameters
-            && let serde_json::Value::Object(params_obj) = params {
+        if let serde_json::Value::Object(denied) = &self.denied_parameters {
+            if let serde_json::Value::Object(params_obj) = params {
                 for key in denied.keys() {
                     if params_obj.contains_key(key) {
                         return false;
                     }
                 }
             }
+        }
 
         true
     }
@@ -348,7 +349,8 @@ fn glob_match(pattern: &str, text: &str) -> bool {
         return text.starts_with(prefix);
     }
 
-    if let Some(prefix) = pattern.strip_suffix('*') {
+    if pattern.ends_with('*') {
+        let prefix = &pattern[..pattern.len() - 1];
         return text.starts_with(prefix);
     }
 

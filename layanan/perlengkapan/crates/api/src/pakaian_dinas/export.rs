@@ -90,7 +90,7 @@ pub async fn generate_rekap_xlsx(
             .write_string_with_format(
                 current_row,
                 0,
-                format!("{} ({})", group_name, ukuran_group),
+                &format!("{} ({})", group_name, ukuran_group),
                 &group_header_format,
             )
             .map_err(|e| bad_request(&e.to_string()))?;

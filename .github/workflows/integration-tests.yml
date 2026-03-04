@@ -92,10 +92,18 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - layanan/authenc
-          - layanan/integrasi
-          - layanan/perlengkapan
-          - layanan/secreton
+          - infra/authenc
+          - layanan/badiklat
+          - layanan/datun
+          - layanan/intel
+          - layanan/pemulihan_aset
+          - layanan/pengawasan
+          - layanan/pidsus
+          - layanan/pidum
+          - layanan/pidmil
+          - layanan/pembinaan/keuangan
+          - layanan/pembinaan/perencanaan
+          - layanan/pembinaan/perlengkapan
 
     steps:
       - name: Fix permissions
@@ -322,7 +330,7 @@ jobs:
           cache-key: grpc-integration
 
       - name: Test authenc service
-        working-directory: layanan/authenc
+        working-directory: infra/authenc
         run: |
           cargo test --features integration-tests -- --test-threads=1 --nocapture
         env:
@@ -330,8 +338,8 @@ jobs:
           RUST_LOG: debug
 
       - name: Test secreton service
-        if: hashFiles('layanan/secreton/Cargo.toml') != ''
-        working-directory: layanan/secreton
+        if: hashFiles('infra/secreton/Cargo.toml') != ''
+        working-directory: infra/secreton
         run: |
           cargo test --features integration-tests -- --test-threads=1 --nocapture
         env:
@@ -343,7 +351,7 @@ jobs:
           echo "Testing gRPC communication between services..."
 
           # Start authenc service
-          cd layanan/authenc
+          cd infra/authenc
           cargo build --release
           nohup ../../target/release/authenc > authenc.log 2>&1 &
           echo $! > authenc.pid
@@ -360,9 +368,9 @@ jobs:
       - name: Cleanup services
         if: always()
         run: |
-          if [ -f layanan/authenc/authenc.pid ]; then
-            kill $(cat layanan/authenc/authenc.pid) || true
-            rm layanan/authenc/authenc.pid
+          if [ -f infra/authenc/authenc.pid ]; then
+            kill $(cat infra/authenc/authenc.pid) || true
+            rm infra/authenc/authenc.pid
           fi
 
   module-integration:

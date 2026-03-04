@@ -1,9 +1,9 @@
 //! Dashboard Home — premium glassmorphism stat cards + quick navigation grid.
 //! Stat cards integrate with `GET /dashboard/stats` backend endpoint.
 
-use leptos::prelude::*;
 use crate::api::dashboard::fetch_dashboard_stats;
 use crate::components::role_switcher::get_active_role;
+use leptos::prelude::*;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Stat Card
@@ -89,7 +89,9 @@ fn format_number(n: i64) -> String {
     let s = n.to_string();
     let mut result = String::new();
     for (i, c) in s.chars().rev().enumerate() {
-        if i != 0 && i % 3 == 0 { result.push('.'); }
+        if i != 0 && i % 3 == 0 {
+            result.push('.');
+        }
         result.push(c);
     }
     result.chars().rev().collect()

@@ -232,12 +232,23 @@ pub async fn get_row_count(
                 Some(arr)
             } else if let Some(arr) = data.get("data").and_then(|v| v.as_array()) {
                 Some(arr)
-            } else { data.get("results").and_then(|v| v.as_array()).map(|arr| arr) };
+            } else if let Some(arr) = data.get("results").and_then(|v| v.as_array()) {
+                Some(arr)
+            } else {
+                None
+            };
 
             if let Some(array) = array {
                 if let Some(first) = array.first() {
                     // Try to extract from various possible field names (handle string/number and case sensitivity)
-                    for key in &["row_count", "total", "ROW_COUNT", "TOTAL", "RCOUNT", "rcount"] {
+                    for key in &[
+                        "row_count",
+                        "total",
+                        "ROW_COUNT",
+                        "TOTAL",
+                        "RCOUNT",
+                        "rcount",
+                    ] {
                         if let Some(val) = first.get(*key) {
                             if let Some(count) = val.as_i64() {
                                 return Ok(count);
@@ -686,11 +697,16 @@ pub async fn fetch_all_assets_with_pagination(
             Some(arr)
         } else if let Some(arr) = data.get("data").and_then(|v| v.as_array()) {
             Some(arr)
-        } else { data.get("results").and_then(|v| v.as_array()).map(|arr| arr) };
+        } else if let Some(arr) = data.get("results").and_then(|v| v.as_array()) {
+            Some(arr)
+        } else {
+            None
+        };
 
         if let Some(array) = array {
             if let Some(first) = array.first() {
-                let val = first.get("row_count")
+                let val = first
+                    .get("row_count")
                     .or_else(|| first.get("total"))
                     .or_else(|| first.get("ROW_COUNT"))
                     .or_else(|| first.get("TOTAL"))
@@ -698,8 +714,10 @@ pub async fn fetch_all_assets_with_pagination(
                     .or_else(|| first.get("rcount"));
 
                 val.and_then(|v| {
-                    v.as_i64().or_else(|| v.as_str().and_then(|s| s.parse::<i64>().ok()))
-                }).unwrap_or(0)
+                    v.as_i64()
+                        .or_else(|| v.as_str().and_then(|s| s.parse::<i64>().ok()))
+                })
+                .unwrap_or(0)
             } else {
                 0
             }

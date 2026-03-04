@@ -20,7 +20,7 @@ pub mod protocol_mappers {
         let now = Utc::now();
 
         let config_json = serde_json::to_value(&request.config)
-            .map_err(|e| AuthencError::internal(format!("Failed to serialize config: {}", e)))?;
+            .map_err(|e| AuthencError::internal(&format!("Failed to serialize config: {}", e)))?;
 
         let query = r#"
             INSERT INTO protocol_mappers (
@@ -187,7 +187,7 @@ pub mod protocol_mappers {
 
         if let Some(ref config) = request.config {
             let _config_json = serde_json::to_value(config).map_err(|e| {
-                AuthencError::internal(format!("Failed to serialize config: {}", e))
+                AuthencError::internal(&format!("Failed to serialize config: {}", e))
             })?;
             updates.push(format!("config = ${}", param_index));
             // We need to store the JSON value for later use in params
@@ -216,7 +216,7 @@ pub mod protocol_mappers {
         let query = if request.config.is_some() {
             let _config_json =
                 serde_json::to_value(request.config.as_ref().unwrap()).map_err(|e| {
-                    AuthencError::internal(format!("Failed to serialize config: {}", e))
+                    AuthencError::internal(&format!("Failed to serialize config: {}", e))
                 })?;
 
             r#"
@@ -253,7 +253,7 @@ pub mod protocol_mappers {
         // Execute based on which fields are being updated
         let row: tokio_postgres::Row = if let Some(ref config) = request.config {
             let config_json = serde_json::to_value(config).map_err(|e| {
-                AuthencError::internal(format!("Failed to serialize config: {}", e))
+                AuthencError::internal(&format!("Failed to serialize config: {}", e))
             })?;
             db.query_one(query, &[&config_json, &now, &id]).await?
         } else if request.name.is_some() && request.enabled.is_some() {
@@ -349,7 +349,7 @@ pub mod protocol_mappers {
             }
 
             let config_json = serde_json::to_value(&mapper.config).map_err(|e| {
-                AuthencError::internal(format!("Failed to serialize config: {}", e))
+                AuthencError::internal(&format!("Failed to serialize config: {}", e))
             })?;
 
             let query = r#"

@@ -506,7 +506,7 @@ impl AuditLogger {
         "#;
 
         let limit = filter.limit.unwrap_or(100);
-        let limit_i64 = limit;
+        let limit_i64 = limit as i64;
 
         let rows: Vec<Row> = client
             .query(query, &[&limit_i64])
@@ -595,7 +595,7 @@ impl AuditLogger {
         let context = if request_id.is_some() || ip_address.is_some() || user_agent.is_some() {
             Some(RequestContext {
                 request_id: request_id
-                    .map(crate::correlation::CorrelationId::new_from_string)
+                    .map(|id| crate::correlation::CorrelationId::new_from_string(id))
                     .unwrap_or_default(),
                 ip_address,
                 user_agent,

@@ -424,7 +424,12 @@ pub async fn auth_middleware(
     let normalized_path = path.trim_end_matches('/');
     let whitelisted = is_whitelisted(normalized_path);
 
-    tracing::warn!("🔒 AUTH_MIDDLEWARE: path='{}', normalized='{}', whitelisted={}", path, normalized_path, whitelisted);
+    tracing::warn!(
+        "🔒 AUTH_MIDDLEWARE: path='{}', normalized='{}', whitelisted={}",
+        path,
+        normalized_path,
+        whitelisted
+    );
 
     if whitelisted {
         return Ok(next.run(request).await);
@@ -533,8 +538,8 @@ pub async fn auth_middleware(
     let mut policy_names: Vec<String> = user.policies.iter().cloned().collect();
 
     // If no explicit policies, check metadata for 'policy_names' or 'policies'
-    if policy_names.is_empty()
-        && let Some(p) = user
+    if policy_names.is_empty() {
+        if let Some(p) = user
             .metadata
             .get("policy_names")
             .or_else(|| user.metadata.get("policies"))
@@ -545,6 +550,7 @@ pub async fn auth_middleware(
                 .filter(|s| !s.is_empty())
                 .collect();
         }
+    }
 
     // If still no policies, fallback to role-based policies
     if policy_names.is_empty() {
@@ -1809,7 +1815,12 @@ mod middleware_tests {
 fn is_whitelisted(path: &str) -> bool {
     tracing::warn!("🔍 IS_WHITELISTED CHECK: path='{}'", path);
     // Health and metrics (infrastructure)
-    if path == "/health" || path == "/ready" || path == "/live" || path == "/version" || path == "/metrics" {
+    if path == "/health"
+        || path == "/ready"
+        || path == "/live"
+        || path == "/version"
+        || path == "/metrics"
+    {
         return true;
     }
 

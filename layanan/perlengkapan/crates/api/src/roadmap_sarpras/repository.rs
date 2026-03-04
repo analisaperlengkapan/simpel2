@@ -70,7 +70,7 @@ impl RoadmapRepository {
 
         let rows = self.db.query(&query, &param_refs).await?;
 
-        Ok(rows.iter().map(YearlyData::from_row).collect())
+        Ok(rows.iter().map(|r| YearlyData::from_row(r)).collect())
     }
 
     /// Save a forecast snapshot for later comparison.
@@ -131,7 +131,7 @@ impl RoadmapRepository {
             params.push(Box::new(sid));
             idx += 1;
         } else {
-            conditions.push("satker_id IS NULL".to_string());
+            conditions.push(format!("satker_id IS NULL"));
         }
 
         if let Some(kb) = kode_barang {
@@ -139,7 +139,7 @@ impl RoadmapRepository {
             params.push(Box::new(kb.to_string()));
             idx += 1;
         } else {
-            conditions.push("kode_barang IS NULL".to_string());
+            conditions.push(format!("kode_barang IS NULL"));
         }
 
         let where_clause = if conditions.is_empty() {
@@ -168,7 +168,7 @@ impl RoadmapRepository {
 
         let rows = self.db.query(&query, &param_refs).await?;
 
-        Ok(rows.iter().map(ForecastSnapshot::from_row).collect())
+        Ok(rows.iter().map(|r| ForecastSnapshot::from_row(r)).collect())
     }
 
     /// Create the snapshot table if it doesn't exist yet.

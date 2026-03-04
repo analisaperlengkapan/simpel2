@@ -252,7 +252,7 @@ pub async fn rate_limit_middleware(
         .extensions()
         .get::<crate::middleware::Claims>()
         .map(|claims| claims.user_id)
-        .unwrap_or_else(Uuid::nil); // Use nil UUID for unauthenticated requests
+        .unwrap_or_else(|| Uuid::nil()); // Use nil UUID for unauthenticated requests
 
     // Check rate limit
     match rate_limiter.check_rate_limit(user_id).await {
@@ -397,15 +397,23 @@ mod tests {
 
     #[test]
     fn test_rate_limit_config_from_env() {
-        unsafe { std::env::set_var("RATE_LIMIT_REQUESTS_PER_SECOND", "50"); }
-        unsafe { std::env::set_var("RATE_LIMIT_BURST_SIZE", "100"); }
+        unsafe {
+            std::env::set_var("RATE_LIMIT_REQUESTS_PER_SECOND", "50");
+        }
+        unsafe {
+            std::env::set_var("RATE_LIMIT_BURST_SIZE", "100");
+        }
 
         let config = RateLimitConfig::from_env();
 
         assert_eq!(config.requests_per_second, 50);
         assert_eq!(config.burst_size, 100);
 
-        unsafe { std::env::remove_var("RATE_LIMIT_REQUESTS_PER_SECOND"); }
-        unsafe { std::env::remove_var("RATE_LIMIT_BURST_SIZE"); }
+        unsafe {
+            std::env::remove_var("RATE_LIMIT_REQUESTS_PER_SECOND");
+        }
+        unsafe {
+            std::env::remove_var("RATE_LIMIT_BURST_SIZE");
+        }
     }
 }

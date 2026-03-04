@@ -308,19 +308,6 @@ impl WrappingService {
     /// - `InvalidNamespace` if namespace doesn't match
     #[instrument(skip(self), fields(token = %token, namespace = %namespace))]
     pub async fn unwrap(&self, token: &str, namespace: &str) -> Result<JsonValue, WrappingError> {
-        let (data, _) = self.unwrap_with_info(token, namespace).await?;
-        Ok(data)
-    }
-
-    /// Unwrap a token to retrieve the original data and its metadata
-    ///
-    /// This is a one-time operation. The token will be deleted after successful unwrapping.
-    #[instrument(skip(self), fields(token = %token, namespace = %namespace))]
-    pub async fn unwrap_with_info(
-        &self,
-        token: &str,
-        namespace: &str,
-    ) -> Result<(JsonValue, WrappedTokenInfo), WrappingError> {
         // Get token from cache or database
         let wrapped_token = self.get_token(token).await?;
 
@@ -339,8 +326,7 @@ impl WrappingService {
         }
 
         // Check if expired
-        let now = Utc::now();
-        if now > wrapped_token.expires_at {
+        if Utc::now() > wrapped_token.expires_at {
             warn!(
                 token = %token,
                 expired_at = %wrapped_token.expires_at,
@@ -362,17 +348,6 @@ impl WrappingService {
             WrappingError::SerializationFailed(format!("Failed to deserialize data: {}", e))
         })?;
 
-        // Extract metadata before token deletion
-        let info = WrappedTokenInfo {
-            token: wrapped_token.token.clone(),
-            created_at: wrapped_token.created_at,
-            expires_at: wrapped_token.expires_at,
-            ttl_remaining: (wrapped_token.expires_at - now).num_seconds().max(0),
-            namespace: wrapped_token.namespace.clone(),
-            status: wrapped_token.status.clone(),
-            data_size: wrapped_token.data_size,
-        };
-
         // Mark as unwrapped and delete (one-time use enforcement)
         self.delete_token(token).await?;
 
@@ -389,7 +364,7 @@ impl WrappingService {
             "Successfully unwrapped token (one-time use)"
         );
 
-        Ok((data, info))
+        Ok(data)
     }
 
     /// Lookup token metadata without unwrapping

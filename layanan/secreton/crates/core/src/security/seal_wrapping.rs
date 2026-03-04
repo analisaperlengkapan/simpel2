@@ -868,7 +868,9 @@ impl SealWrappingEngine {
             metrics.successful_wraps += 1;
             let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
             let new_time = duration.as_millis() as u64;
-            metrics.avg_latency_ms = ((metrics.avg_latency_ms * ((successful_ops - 1))) + new_time) / successful_ops;
+            metrics.avg_latency_ms = ((metrics.avg_latency_ms * (successful_ops - 1) as u64)
+                + new_time)
+                / successful_ops as u64;
         }
 
         let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
@@ -890,7 +892,9 @@ impl SealWrappingEngine {
             metrics.successful_unwraps += 1;
             let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;
             let new_time = duration.as_millis() as u64;
-            metrics.avg_latency_ms = ((metrics.avg_latency_ms * ((successful_ops - 1))) + new_time) / successful_ops;
+            metrics.avg_latency_ms = ((metrics.avg_latency_ms * (successful_ops - 1) as u64)
+                + new_time)
+                / successful_ops as u64;
         }
 
         let successful_ops = metrics.successful_wraps + metrics.successful_unwraps;

@@ -116,7 +116,7 @@ impl MigrationRunner {
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
 
-            if path.extension().is_some_and(|ext| ext == "sql") {
+            if path.extension().map_or(false, |ext| ext == "sql") {
                 let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
                 // Parse version from filename (supports both "008_name.sql" and "V009__name.sql" formats)

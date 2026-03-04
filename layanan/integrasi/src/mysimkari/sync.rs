@@ -13,7 +13,6 @@ use tracing::{error, info, warn};
 
 /// Sync status for MySIMKARI
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
 pub struct MySIMKARISyncStatus {
     pub last_full_sync: Option<DateTime<Utc>>,
     pub last_incremental_sync: Option<DateTime<Utc>>,
@@ -24,6 +23,19 @@ pub struct MySIMKARISyncStatus {
     pub sync_in_progress: bool,
 }
 
+impl Default for MySIMKARISyncStatus {
+    fn default() -> Self {
+        Self {
+            last_full_sync: None,
+            last_incremental_sync: None,
+            last_sync_success: false,
+            last_sync_error: None,
+            total_satker_synced: 0,
+            total_pegawai_synced: 0,
+            sync_in_progress: false,
+        }
+    }
+}
 
 /// MySIMKARI sync service with scheduler
 pub struct MySIMKARISyncService {
@@ -91,10 +103,10 @@ impl MySIMKARISyncService {
                 let mut status_guard = status.lock().await;
 
                 match Self::execute_full_sync(
-                    &mut client_guard,
+                    &mut *client_guard,
                     &circuit_breaker,
                     &storage,
-                    &mut status_guard,
+                    &mut *status_guard,
                 )
                 .await
                 {
@@ -124,10 +136,10 @@ impl MySIMKARISyncService {
                 let mut status_guard = status.lock().await;
 
                 match Self::execute_incremental_sync(
-                    &mut client_guard,
+                    &mut *client_guard,
                     &circuit_breaker,
                     &storage,
-                    &mut status_guard,
+                    &mut *status_guard,
                 )
                 .await
                 {
@@ -145,10 +157,10 @@ impl MySIMKARISyncService {
         let mut status = self.status.lock().await;
 
         Self::execute_full_sync(
-            &mut client,
+            &mut *client,
             &self.circuit_breaker,
             &self.storage,
-            &mut status,
+            &mut *status,
         )
         .await
     }
@@ -159,10 +171,10 @@ impl MySIMKARISyncService {
         let mut status = self.status.lock().await;
 
         Self::execute_incremental_sync(
-            &mut client,
+            &mut *client,
             &self.circuit_breaker,
             &self.storage,
-            &mut status,
+            &mut *status,
         )
         .await
     }

@@ -19,7 +19,8 @@ use crate::generated::common::v1::*;
 use crate::generated::secreton::v1::secreton_service_server;
 use crate::generated::secreton::v1::*;
 use crate::tls::GrpcTlsConfig;
-use secreton_core::services::container::ServiceContainer;
+// ServiceContainer not yet available in grpc crate
+// use crate::services::ServiceContainer;
 
 // Snapshot types are imported from generated protos
 
@@ -32,23 +33,24 @@ pub struct SecretonGrpcService {
     transit: Arc<TransitEngine>,
     /// gRPC request counter
     request_counter: Option<Arc<std::sync::atomic::AtomicU64>>,
-    /// Service container for namespace and other services
-    services: Arc<ServiceContainer>,
+    // TODO: Re-enable when ServiceContainer is available in grpc crate
+    // /// Service container for namespace and other services
+    // services: Arc<ServiceContainer>,
 }
 
 impl SecretonGrpcService {
-    /// Create a new gRPC service with full service container
+    /// Create a new gRPC service
     pub fn new(
         storage: Arc<dyn StorageBackend>,
         transit: Arc<TransitEngine>,
         request_counter: Option<Arc<std::sync::atomic::AtomicU64>>,
-        services: Arc<ServiceContainer>,
     ) -> Self {
         Self {
             storage,
             transit,
             request_counter,
-            services,
+            // TODO: Re-enable when ServiceContainer is available
+            // services: Arc::new(ServiceContainer::new_mock(storage, pool)),
         }
     }
 
@@ -57,6 +59,20 @@ impl SecretonGrpcService {
             counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
     }
+
+    // TODO: Re-enable when ServiceContainer is available in grpc crate
+    // /// Create gRPC service with full service container
+    // pub fn with_services(
+    //     storage: Arc<dyn StorageBackend>,
+    //     transit: Arc<TransitEngine>,
+    //     services: Arc<ServiceContainer>,
+    // ) -> Self {
+    //     Self {
+    //         storage,
+    //         transit,
+    //         services,
+    //     }
+    // }
 
     /// Start the gRPC server without TLS
     pub async fn serve(self, addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
@@ -930,12 +946,17 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
     // Namespace Management Methods
     // ============================================================================
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn list_namespaces(
         &self,
-        request: Request<ListNamespacesRequest>,
+        _request: Request<ListNamespacesRequest>,
     ) -> Result<Response<ListNamespacesResponse>, Status> {
-        let req = request.into_inner();
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented(
+            "Namespace management not yet available",
+        ));
+
+        /* let req = request.into_inner();
 
         let hierarchy = self.services.namespace.hierarchy();
         let mut namespaces: Vec<&secreton_core::namespace::Namespace> = hierarchy.list_all();
@@ -952,7 +973,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         }
 
         if let Some(parent) = &req.parent {
-            namespaces.retain(|ns| ns.parent.as_ref() == Some(&parent.clone()));
+            namespaces.retain(|ns| ns.parent.as_ref() == Some(parent));
         }
 
         if let Some(is_active) = req.is_active {
@@ -982,15 +1003,20 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             namespaces: namespace_infos,
             total,
         }))
+        */
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn create_namespace(
         &self,
-        request: Request<CreateNamespaceRequest>,
+        _request: Request<CreateNamespaceRequest>,
     ) -> Result<Response<CreateNamespaceResponse>, Status> {
-        let created_by = request.metadata().get("x-user").map(|v| v.to_str().unwrap_or("grpc-user")).unwrap_or("grpc-user").to_string();
-        let req = request.into_inner();
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented(
+            "Namespace management not yet available",
+        ));
+
+        /* let req = request.into_inner();
 
         let namespace_type = match req.namespace_type {
             1 => secreton_core::namespace::NamespaceType::Pusat,
@@ -999,19 +1025,15 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             _ => return Err(Status::invalid_argument("Invalid namespace type")),
         };
 
-        // Note: The logic here assumes `add_wilayah` and `add_satker` return `secreton_core::namespace::Namespace`
-        // We will execute them inside the update loop if needed
         let mut hierarchy = self.services.namespace.hierarchy();
 
         let namespace = match namespace_type {
             secreton_core::namespace::NamespaceType::Pusat => {
-                return Err(Status::invalid_argument("Cannot create Pusat namespace via gRPC endpoint"));
+                return Err(Status::invalid_argument("Cannot create Pusat namespace"));
             }
-            secreton_core::namespace::NamespaceType::Wilayah => {
-                hierarchy
-                    .add_wilayah(req.id.clone(), req.name.clone(), created_by)
-                    .map_err(|e| Status::internal(e.to_string()))?
-            }
+            secreton_core::namespace::NamespaceType::Wilayah => hierarchy
+                .add_wilayah(req.id.clone(), req.name.clone(), "grpc-user".to_string())
+                .map_err(|e| Status::internal(e.to_string()))?,
             secreton_core::namespace::NamespaceType::Satker => {
                 let parent = req
                     .parent
@@ -1021,13 +1043,12 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
                         req.id.clone(),
                         req.name.clone(),
                         parent,
-                        created_by,
+                        "grpc-user".to_string(),
                     )
                     .map_err(|e| Status::internal(e.to_string()))?
             }
-        };
+        ;
 
-        // Update hierarchy mutably to add policies and quotas
         if let Some(ns) = hierarchy.get_namespace_mut(&namespace.id) {
             for policy in req.policies {
                 ns.add_policy(policy);
@@ -1044,208 +1065,101 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         self.services.namespace.update_hierarchy(hierarchy.clone());
 
-        // We fetch the updated namespace info
-        let updated_namespace = hierarchy.get_namespace(&namespace.id)
-            .ok_or_else(|| Status::internal("Failed to get updated namespace"))?;
-
-        let namespace_info = self.namespace_to_grpc_info(updated_namespace, &hierarchy);
+        let namespace_info = self.namespace_to_grpc_info(&namespace, &hierarchy);
 
         Ok(Response::new(CreateNamespaceResponse {
             namespace: Some(namespace_info),
         }))
+        */
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn get_namespace(
         &self,
-        request: Request<GetNamespaceRequest>,
+        _request: Request<GetNamespaceRequest>,
     ) -> Result<Response<GetNamespaceResponse>, Status> {
-        let req = request.into_inner();
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented(
+            "Namespace management not yet available",
+        ));
+
+        /* let req = request.into_inner();
         let hierarchy = self.services.namespace.hierarchy();
 
         let namespace = hierarchy
-            .get_namespace(&req.id)
-            .ok_or_else(|| Status::not_found(format!("Namespace {} not found", req.id)))?;
-
-        Ok(Response::new(GetNamespaceResponse {
-            namespace: Some(self.namespace_to_grpc_info(namespace, &hierarchy)),
-        }))
+        ...
+        */
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn update_namespace(
         &self,
-        request: Request<UpdateNamespaceRequest>,
+        _request: Request<UpdateNamespaceRequest>,
     ) -> Result<Response<UpdateNamespaceResponse>, Status> {
-        let req = request.into_inner();
-        let mut hierarchy = self.services.namespace.hierarchy();
-
-        if let Some(ns) = hierarchy.get_namespace_mut(&req.id) {
-            if let Some(name) = req.name {
-                ns.name = name;
-            }
-            if let Some(is_active) = req.is_active {
-                ns.is_active = is_active;
-            }
-            if !req.policies.is_empty() {
-                ns.policies = req.policies;
-            }
-            if let Some(quotas) = req.quotas {
-                ns.update_quotas(self.grpc_quotas_to_core(quotas));
-            }
-            for (key, value) in req.metadata {
-                ns.metadata.insert(key, value);
-            }
-            ns.updated_at = chrono::Utc::now();
-        } else {
-            return Err(Status::not_found(format!("Namespace {} not found", req.id)));
-        }
-
-        self.services.namespace.update_hierarchy(hierarchy.clone());
-
-        let namespace = hierarchy.get_namespace(&req.id).unwrap();
-
-        Ok(Response::new(UpdateNamespaceResponse {
-            namespace: Some(self.namespace_to_grpc_info(namespace, &hierarchy)),
-        }))
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented(
+            "Namespace management not yet available",
+        ));
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn delete_namespace(
         &self,
-        request: Request<DeleteNamespaceRequest>,
+        _request: Request<DeleteNamespaceRequest>,
     ) -> Result<Response<DeleteNamespaceResponse>, Status> {
-        let req = request.into_inner();
-
-        let hierarchy = self.services.namespace.hierarchy();
-
-        if hierarchy.get_namespace(&req.id).is_none() {
-            return Err(Status::not_found(format!("Namespace {} not found", req.id)));
-        }
-
-        // `NamespaceHierarchy` doesn't seem to have a `remove_namespace` method yet,
-        // but we can try to remove it or return unimplemented if the core service doesn't support deletion.
-        return Err(Status::unimplemented("Namespace deletion not yet fully implemented in core hierarchy"));
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented(
+            "Namespace management not yet available",
+        ));
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn get_namespace_stats(
         &self,
-        request: Request<GetNamespaceStatsRequest>,
+        _request: Request<GetNamespaceStatsRequest>,
     ) -> Result<Response<GetNamespaceStatsResponse>, Status> {
-        let req = request.into_inner();
-        let hierarchy = self.services.namespace.hierarchy();
-
-        let namespace = hierarchy
-            .get_namespace(&req.id)
-            .ok_or_else(|| Status::not_found(format!("Namespace {} not found", req.id)))?;
-
-        let children_count = hierarchy.get_descendants(&req.id).len() as i32;
-
-        let usage_percentage = if let Some(max_secrets) = namespace.quotas.max_secrets {
-            if max_secrets > 0 {
-                (namespace.quotas.current_usage.secrets_count as f64 / max_secrets as f64) * 100.0
-            } else {
-                0.0
-            }
-        } else {
-            0.0
-        };
-
-        let is_quota_exceeded = {
-            let q = &namespace.quotas;
-            let usage = &q.current_usage;
-            let mut exceeded = false;
-
-            if let Some(max) = q.max_secrets && usage.secrets_count >= max { exceeded = true; }
-            if let Some(max) = q.max_storage_bytes && usage.storage_bytes >= max { exceeded = true; }
-            if let Some(max) = q.max_leases && usage.leases_count >= max { exceeded = true; }
-            if let Some(max) = q.max_policies && usage.policies_count >= max { exceeded = true; }
-
-            exceeded
-        };
-
-        Ok(Response::new(GetNamespaceStatsResponse {
-            namespace_id: req.id.clone(),
-            quota_usage: Some(QuotaUsage {
-                secrets_count: namespace.quotas.current_usage.secrets_count as i64,
-                storage_bytes: namespace.quotas.current_usage.storage_bytes as i64,
-                leases_count: namespace.quotas.current_usage.leases_count as i64,
-                policies_count: namespace.quotas.current_usage.policies_count as i64,
-            }),
-            quota_limits: Some(self.core_quotas_to_grpc(&namespace.quotas)),
-            usage_percentage,
-            is_quota_exceeded,
-            children_count,
-            total_descendants: children_count, // Using descendants length as total descendants
-            active_leases: namespace.quotas.current_usage.leases_count as i64,
-            active_policies: namespace.quotas.current_usage.policies_count as i32,
-        }))
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented(
+            "Namespace management not yet available",
+        ));
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn renew_lease(
         &self,
-        request: Request<RenewLeaseRequest>,
+        _request: Request<RenewLeaseRequest>,
     ) -> Result<Response<RenewLeaseResponse>, Status> {
-        let req = request.into_inner();
-
-        let lease = self
-            .services
-            .lease_manager
-            .renew_lease(&req.lease_id, req.increment.unwrap_or(0))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let lease_duration = (lease.expired_at - chrono::Utc::now()).num_seconds().max(0);
-
-        Ok(Response::new(RenewLeaseResponse {
-            lease_id: lease.id,
-            expired_at: lease.expired_at.timestamp(),
-            lease_duration,
-            renewable: lease.renewable,
-            renew_count: lease.renew_count,
-            max_renewals: lease.max_renewals,
-        }))
+        // TODO: Implement when ServiceContainer is available
+        Err(Status::unimplemented("Lease management not yet available"))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn revoke_lease(
         &self,
-        request: Request<RevokeLeaseRequest>,
+        _request: Request<RevokeLeaseRequest>,
     ) -> Result<Response<RevokeLeaseResponse>, Status> {
-        let req = request.into_inner();
-
-        let revoked_ids = self.services
-            .lease_manager
-            .revoke_lease(&req.lease_id)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(RevokeLeaseResponse {
-            lease_id: req.lease_id,
-            revoked_count: revoked_ids.len() as i32,
-            revoked_ids,
-        }))
+        // TODO: Implement when ServiceContainer is available
+        Err(Status::unimplemented("Lease management not yet available"))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn revoke_lease_prefix(
         &self,
-        request: Request<RevokeLeasePrefixRequest>,
+        _request: Request<RevokeLeasePrefixRequest>,
     ) -> Result<Response<RevokeLeasePrefixResponse>, Status> {
-        let _req = request.into_inner();
-
-        // `revoke_prefix` does not exist on `LeaseManager`. We might have to fetch and revoke or just return unimplemented.
-        Err(Status::unimplemented("revoke_lease_prefix not yet supported by lease manager"))
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented("Lease management not yet available"));
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn lookup_lease(
         &self,
-        request: Request<LookupLeaseRequest>,
+        _request: Request<LookupLeaseRequest>,
     ) -> Result<Response<LookupLeaseResponse>, Status> {
-        let req = request.into_inner();
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented("Lease management not yet available"));
+
+        /* let req = request.into_inner();
 
         info!("Looking up lease: {}", req.lease_id);
 
@@ -1279,45 +1193,39 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         };
 
         Ok(Response::new(response))
+        */
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn list_leases(
         &self,
-        request: Request<ListLeasesRequest>,
+        _request: Request<ListLeasesRequest>,
     ) -> Result<Response<ListLeasesResponse>, Status> {
-        let req = request.into_inner();
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented("Lease management not yet available"));
+
+        /* let req = request.into_inner();
 
         info!("Listing leases");
 
         let limit = req.limit.unwrap_or(50) as i64;
         let offset = req.offset.unwrap_or(0) as i64;
 
-        let total = self
-            .services
-            .lease_manager
-            .count_leases(
-                req.user_id.clone(),
-                req.namespace.clone(),
-                req.resource_type.clone(),
-                req.status.clone(),
-            )
-            .await
-            .map_err(|e| Status::internal(format!("Failed to count leases: {}", e)))?;
-
         let leases = self
             .services
             .lease_manager
             .list_leases(
-                req.user_id.clone(),
-                req.namespace.clone(),
-                req.resource_type.clone(),
-                req.status.clone(),
+                req.user_id,
+                req.namespace,
+                req.resource_type,
+                req.status,
                 Some(limit),
                 Some(offset),
             )
             .await
             .map_err(|e| Status::internal(format!("Failed to list leases: {}", e)))?;
+
+        let total = leases.len() as i64;
 
         let lease_responses: Vec<LookupLeaseResponse> = leases
             .into_iter()
@@ -1346,13 +1254,12 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             })
             .collect();
 
-        let total_i64 = total as i64;
-        let has_next = offset + limit < total_i64;
+        let has_next = offset + limit < total;
         let has_previous = offset > 0;
 
         let response = ListLeasesResponse {
             leases: lease_responses,
-            total: total_i64,
+            total,
             limit: limit as i32,
             offset: offset as i32,
             has_next,
@@ -1360,6 +1267,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         };
 
         Ok(Response::new(response))
+        */
     }
 
     #[instrument(skip(self, _request))]
@@ -1367,7 +1275,10 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         _request: Request<GetLeaseStatsRequest>,
     ) -> Result<Response<GetLeaseStatsResponse>, Status> {
-        info!("Getting lease statistics");
+        // TODO: Implement when ServiceContainer is available
+        return Err(Status::unimplemented("Lease management not yet available"));
+
+        /* info!("Getting lease statistics");
 
         let stats = self
             .services
@@ -1388,373 +1299,135 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         };
 
         Ok(Response::new(response))
+        */
     }
 
     // ============================================================================
-    // Database Secrets Engine Methods
+    // Database Secrets Engine Methods (Stub implementations for future tasks)
     // ============================================================================
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn generate_database_credentials(
         &self,
-        request: Request<GenerateDatabaseCredentialsRequest>,
+        _request: Request<GenerateDatabaseCredentialsRequest>,
     ) -> Result<Response<GenerateDatabaseCredentialsResponse>, Status> {
-        let user = request.metadata().get("x-user").map(|v| v.to_str().unwrap_or("grpc_user")).unwrap_or("grpc_user").to_string();
-        let req = request.into_inner();
-
-        let (credentials, lease) = self
-            .services
-            .database_engine
-            .generate_credentials_ensure_lease(
-                &req.role_name,
-                req.ttl_seconds,
-                &self.services.lease_manager,
-                &user,
-            )
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let grpc_credentials = DatabaseCredentials {
-            username: credentials.username,
-            password: credentials.password,
-            connection_url: credentials.connection_url,
-            database: String::new(), // We don't have db name here unless we fetch the role
-            role: credentials.role_name,
-        };
-
-        Ok(Response::new(GenerateDatabaseCredentialsResponse {
-            lease_id: lease.id,
-            lease_duration: (lease.expired_at - chrono::Utc::now()).num_seconds().max(0),
-            renewable: lease.renewable,
-            credentials: Some(grpc_credentials),
-        }))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn create_database_role(
         &self,
-        request: Request<CreateDatabaseRoleRequest>,
+        _request: Request<CreateDatabaseRoleRequest>,
     ) -> Result<Response<CreateDatabaseRoleResponse>, Status> {
-        let req = request.into_inner();
-
-        let role = secreton_core::services::secrets::database::DatabaseRole {
-            name: req.role_name.clone(),
-            db_name: req.db_name.clone(),
-            default_ttl: req.default_ttl,
-            max_ttl: req.max_ttl,
-            creation_statements: req.creation_statements,
-            revocation_statements: req.revocation_statements,
-            rotation_statements: req.rotation_statements,
-            renew_statements: req.renew_statements,
-        };
-
-        self.services
-            .database_engine
-            .create_role(role)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreateDatabaseRoleResponse {
-            name: req.role_name,
-            db_name: req.db_name,
-            default_ttl: req.default_ttl,
-            max_ttl: req.max_ttl,
-        }))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn get_database_role(
         &self,
-        request: Request<GetDatabaseRoleRequest>,
+        _request: Request<GetDatabaseRoleRequest>,
     ) -> Result<Response<GetDatabaseRoleResponse>, Status> {
-        let req = request.into_inner();
-
-        let role = self
-            .services
-            .database_engine
-            .get_role(&req.role_name)
-            .await
-            .ok_or_else(|| Status::not_found("Role not found"))?;
-
-        Ok(Response::new(GetDatabaseRoleResponse {
-            role: Some(DatabaseRoleInfo {
-                name: role.name,
-                db_name: role.db_name,
-                default_ttl: role.default_ttl,
-                max_ttl: role.max_ttl,
-                creation_statements: role.creation_statements,
-                revocation_statements: role.revocation_statements,
-                rotation_statements: role.rotation_statements,
-                renew_statements: role.renew_statements,
-            }),
-        }))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn list_database_roles(
         &self,
-        request: Request<ListDatabaseRolesRequest>,
+        _request: Request<ListDatabaseRolesRequest>,
     ) -> Result<Response<ListDatabaseRolesResponse>, Status> {
-        let req = request.into_inner();
-
-        let roles = self.services.database_engine.list_roles().await;
-
-        let total = roles.len() as i32;
-
-        // Apply basic pagination
-        let offset = req.offset.unwrap_or(0) as usize;
-        let limit = req.limit.unwrap_or(50) as usize;
-
-        let paginated_roles = roles
-            .into_iter()
-            .skip(offset)
-            .take(limit)
-            .collect();
-
-        Ok(Response::new(ListDatabaseRolesResponse {
-            role_names: paginated_roles,
-            total,
-        }))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn update_database_role(
         &self,
-        request: Request<UpdateDatabaseRoleRequest>,
+        _request: Request<UpdateDatabaseRoleRequest>,
     ) -> Result<Response<UpdateDatabaseRoleResponse>, Status> {
-        let req = request.into_inner();
-
-        let role = secreton_core::services::secrets::database::DatabaseRole {
-            name: req.role_name.clone(),
-            db_name: req.db_name.clone(),
-            default_ttl: req.default_ttl,
-            max_ttl: req.max_ttl,
-            creation_statements: req.creation_statements,
-            revocation_statements: req.revocation_statements,
-            rotation_statements: req.rotation_statements,
-            renew_statements: req.renew_statements,
-        };
-
-        // For now, create_role functions as update_role in engine if it exists
-        self.services
-            .database_engine
-            .create_role(role)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(UpdateDatabaseRoleResponse {
-            name: req.role_name,
-            db_name: req.db_name,
-            default_ttl: req.default_ttl,
-            max_ttl: req.max_ttl,
-        }))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn delete_database_role(
         &self,
-        request: Request<DeleteDatabaseRoleRequest>,
+        _request: Request<DeleteDatabaseRoleRequest>,
     ) -> Result<Response<DeleteDatabaseRoleResponse>, Status> {
-        let req = request.into_inner();
-
-        let success = self
-            .services
-            .database_engine
-            .delete_role(&req.role_name)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteDatabaseRoleResponse {
-            success,
-            message: if success {
-                "Role deleted successfully".to_string()
-            } else {
-                "Role not found".to_string()
-            },
-        }))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn configure_database_connection(
         &self,
-        request: Request<ConfigureDatabaseConnectionRequest>,
+        _request: Request<ConfigureDatabaseConnectionRequest>,
     ) -> Result<Response<ConfigureDatabaseConnectionResponse>, Status> {
-        let req = request.into_inner();
-
-        let db_type = match DatabaseType::try_from(req.db_type) {
-            Ok(DatabaseType::Postgresql) => secreton_core::services::secrets::database::DatabaseType::PostgreSQL,
-            Ok(DatabaseType::Mysql) => secreton_core::services::secrets::database::DatabaseType::MySQL,
-            Ok(DatabaseType::Mongodb) => secreton_core::services::secrets::database::DatabaseType::MongoDB,
-            Ok(DatabaseType::Redis) => secreton_core::services::secrets::database::DatabaseType::Redis,
-            Ok(DatabaseType::Cassandra) => secreton_core::services::secrets::database::DatabaseType::Cassandra,
-            Ok(DatabaseType::Mssql) => secreton_core::services::secrets::database::DatabaseType::MSSQL,
-            _ => return Err(Status::invalid_argument("Unsupported database type")),
-        };
-
-        let config = secreton_core::services::secrets::database::DatabaseConnection {
-            name: req.name.clone(),
-            db_type,
-            connection_url: req.connection_url,
-            max_open_connections: req.max_open_connections,
-            max_idle_connections: req.max_idle_connections,
-            max_connection_lifetime: req.max_connection_lifetime,
-            verify_connection: req.verify_connection,
-            root_rotation_statements: req.root_rotation_statements,
-            username: None, // Can be parsed from connection_url if needed
-            password: None,
-        };
-
-        self.services
-            .database_engine
-            .configure_connection(config)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(ConfigureDatabaseConnectionResponse {
-            name: req.name,
-            db_type: req.db_type,
-            verified: req.verify_connection,
-        }))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
     // ============================================================================
-    // Policy Management Methods
+    // Policy Management Methods (Stub implementations for future tasks)
     // ============================================================================
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn list_policies(
         &self,
-        request: Request<ListPoliciesRequest>,
+        _request: Request<ListPoliciesRequest>,
     ) -> Result<Response<ListPoliciesResponse>, Status> {
-        let req = request.into_inner();
-
-        let limit = req.limit.map(|v| v as u32);
-        let offset = req.offset.map(|v| v as u32);
-
-        let (policies, total) = self
-            .services
-            .policy_service
-            .list_policies(req.namespace, limit, offset)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let grpc_policies = policies
-            .into_iter()
-            .map(|p| self.policy_def_to_grpc(p))
-            .collect();
-
-        Ok(Response::new(ListPoliciesResponse {
-            policies: grpc_policies,
-            total: total.try_into().unwrap_or(i64::MAX),
-            limit: req.limit.unwrap_or(50),
-            offset: req.offset.unwrap_or(0),
-        }))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn create_policy(
         &self,
-        request: Request<CreatePolicyRequest>,
+        _request: Request<CreatePolicyRequest>,
     ) -> Result<Response<CreatePolicyResponse>, Status> {
-        let user = request.metadata().get("x-user").map(|v| v.to_str().unwrap_or("grpc_user")).unwrap_or("grpc_user").to_string();
-        let req = request.into_inner();
-
-        let rules: Vec<secreton_core::models::PolicyRule> = req
-            .rules
-            .into_iter()
-            .map(|r| self.grpc_rule_to_core(r))
-            .collect();
-
-        // Convert empty string namespace to default namespace
-        let namespace = if req.namespace.is_empty() {
-            "default".to_string()
-        } else {
-            req.namespace
-        };
-
-        let policy = self
-            .services
-            .policy_service
-            .create_policy(req.name, namespace, req.description, rules, user)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreatePolicyResponse {
-            policy: Some(self.policy_def_to_grpc(policy)),
-        }))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn get_policy(
         &self,
-        request: Request<GetPolicyRequest>,
+        _request: Request<GetPolicyRequest>,
     ) -> Result<Response<GetPolicyResponse>, Status> {
-        let namespace = request.metadata().get("x-namespace").map(|v| v.to_str().unwrap_or("default")).unwrap_or("default").to_string();
-        let req = request.into_inner();
-
-        let policy = self
-            .services
-            .policy_service
-            .get_policy(&req.name, &namespace)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(GetPolicyResponse {
-            policy: Some(self.policy_def_to_grpc(policy)),
-        }))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn update_policy(
         &self,
-        request: Request<UpdatePolicyRequest>,
+        _request: Request<UpdatePolicyRequest>,
     ) -> Result<Response<UpdatePolicyResponse>, Status> {
-        let namespace = request.metadata().get("x-namespace").map(|v| v.to_str().unwrap_or("default")).unwrap_or("default").to_string();
-        let user = request.metadata().get("x-user").map(|v| v.to_str().unwrap_or("grpc_user")).unwrap_or("grpc_user").to_string();
-        let req = request.into_inner();
-
-        let rules: Vec<secreton_core::models::PolicyRule> = req
-            .rules
-            .into_iter()
-            .map(|r| self.grpc_rule_to_core(r))
-            .collect();
-
-        let rules_opt = if rules.is_empty() { None } else { Some(rules) };
-
-        let policy = self
-            .services
-            .policy_service
-            .update_policy(
-                &req.name,
-                &namespace,
-                req.description,
-                rules_opt,
-                req.is_active,
-                user,
-            )
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(UpdatePolicyResponse {
-            policy: Some(self.policy_def_to_grpc(policy)),
-        }))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn delete_policy(
         &self,
-        request: Request<DeletePolicyRequest>,
+        _request: Request<DeletePolicyRequest>,
     ) -> Result<Response<DeletePolicyResponse>, Status> {
-        let namespace = request.metadata().get("x-namespace").map(|v| v.to_str().unwrap_or("default")).unwrap_or("default").to_string();
-        let req = request.into_inner();
-
-        self.services
-            .policy_service
-            .delete_policy(&req.name, &namespace)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeletePolicyResponse { success: true, message: "Policy deleted".to_string() }))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1762,97 +1435,43 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         _request: Request<TestPolicyRequest>,
     ) -> Result<Response<TestPolicyResponse>, Status> {
-        // Currently missing implementation for `test_policy` in `secreton_core::services::policy_service`
-        // We will return unimplemented or implement it later.
         Err(Status::unimplemented(
-            "Test policy not yet fully implemented in core services",
+            "Policy management not yet implemented",
         ))
     }
 
     // ============================================================================
-    // Response Wrapping Methods
+    //sponse Wrapping Methods (Stub implementations for future tasks)
     // ============================================================================
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn wrap_data(
         &self,
-        request: Request<WrapDataRequest>,
+        _request: Request<WrapDataRequest>,
     ) -> Result<Response<WrapDataResponse>, Status> {
-        let req = request.into_inner();
-
-        let wrap_req = secreton_core::services::wrapping::WrapRequest {
-            data: serde_json::from_str(&req.data_json)
-                .map_err(|_| Status::invalid_argument("Invalid JSON data"))?,
-            ttl: std::time::Duration::from_secs(req.ttl),
-            namespace: req.namespace,
-        };
-
-        let response = self
-            .services
-            .wrapping_service
-            .wrap(wrap_req)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(WrapDataResponse {
-            token: response.token,
-            created_at: response.created_at.timestamp(),
-            expires_at: response.expires_at.timestamp(),
-            ttl: response.ttl,
-            accessor: String::new(), // Not present in WrapResponse
-        }))
+        Err(Status::unimplemented(
+            "Response wrapping not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn unwrap_token(
         &self,
-        request: Request<UnwrapTokenRequest>,
+        _request: Request<UnwrapTokenRequest>,
     ) -> Result<Response<UnwrapTokenResponse>, Status> {
-        let req = request.into_inner();
-
-        let (data, info) = self
-            .services
-            .wrapping_service
-            .unwrap_with_info(&req.token, &req.namespace)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(UnwrapTokenResponse {
-            data_json: data.to_string(),
-            created_at: info.created_at.timestamp(),
-            expired_at: info.expires_at.timestamp(),
-        }))
+        Err(Status::unimplemented(
+            "Response wrapping not yet implemented",
+        ))
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn lookup_wrapping_token(
         &self,
-        request: Request<LookupWrappingTokenRequest>,
+        _request: Request<LookupWrappingTokenRequest>,
     ) -> Result<Response<LookupWrappingTokenResponse>, Status> {
-        let req = request.into_inner();
-
-        let info = self
-            .services
-            .wrapping_service
-            .lookup(&req.token, &req.namespace)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let status_str = match info.status {
-            secreton_core::services::wrapping::TokenStatus::Active => "Active",
-            secreton_core::services::wrapping::TokenStatus::Unwrapped => "Unwrapped",
-            secreton_core::services::wrapping::TokenStatus::Expired => "Expired",
-        };
-
-        Ok(Response::new(LookupWrappingTokenResponse {
-            token: info.token,
-            created_at: info.created_at.timestamp(),
-            expires_at: info.expires_at.timestamp(),
-            ttl_remaining: info.ttl_remaining,
-            namespace: info.namespace,
-            status: status_str.to_string(),
-            data_size: info.data_size as i64,
-        }))
+        Err(Status::unimplemented(
+            "Response wrapping not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1860,9 +1479,8 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         _request: Request<RewrapTokenRequest>,
     ) -> Result<Response<RewrapTokenResponse>, Status> {
-        // rewrap not currently supported directly in core WrappingService
         Err(Status::unimplemented(
-            "Response token rewrapping not yet supported",
+            "Response wrapping not yet implemented",
         ))
     }
 }
@@ -1871,55 +1489,6 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 // Helper and Snapshot Methods (not part of gRPC trait)
 // ================================================================================
 impl SecretonGrpcService {
-    // ============================================================================
-    // Helper Methods for Policy Conversion
-    // ============================================================================
-
-    fn policy_def_to_grpc(&self, p: secreton_core::services::policy_service::PolicyDefinition) -> PolicyInfo {
-        PolicyInfo {
-            id: 0, // No ID in PolicyDefinition
-            name: p.name,
-            namespace: p.namespace,
-            description: p.description,
-            rules: p.rules.into_iter().map(|r| self.core_rule_to_grpc(r)).collect(),
-            version: p.version as i32,
-            is_active: p.is_active,
-            created_at: p.created_at.timestamp(),
-            updated_at: p.updated_at.timestamp(),
-            created_by: p.created_by,
-            updated_by: p.updated_by,
-            stats: None,
-        }
-    }
-
-    fn core_rule_to_grpc(&self, r: secreton_core::models::PolicyRule) -> PolicyRule {
-        PolicyRule {
-            effect: r.effect,
-            action: r.action,
-            path: r.path,
-            condition_json: r.condition.map(|c| c.to_string()),
-            control_group: r.control_group.map(|cg| ControlGroup {
-                required_approvals: cg.required_approvals,
-                approved_by: cg.approved_by,
-            }),
-            mfa: r.mfa,
-        }
-    }
-
-    fn grpc_rule_to_core(&self, r: PolicyRule) -> secreton_core::models::PolicyRule {
-        secreton_core::models::PolicyRule {
-            effect: r.effect,
-            action: r.action,
-            path: r.path,
-            condition: r.condition_json.and_then(|c| serde_json::from_str(&c).ok()),
-            control_group: r.control_group.map(|cg| secreton_core::models::ControlGroup {
-                required_approvals: cg.required_approvals,
-                approved_by: cg.approved_by,
-            }),
-            mfa: r.mfa,
-        }
-    }
-
     // ============================================================================
     // Helper Methods for Namespace Conversion
     // ============================================================================

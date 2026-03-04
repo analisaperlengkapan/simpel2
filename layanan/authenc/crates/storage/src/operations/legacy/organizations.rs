@@ -1,8 +1,11 @@
 /// Database operations for organizations
 use crate::Database;
+use authenc_types::domain::organization::{
+    Organization, OrganizationInvitation, OrganizationMember,
+};
 use authenc_types::{AuthencError, Result};
-use authenc_types::domain::organization::{Organization, OrganizationInvitation, OrganizationMember};
 use chrono::Utc;
+use std::str::FromStr;
 use tracing::error;
 use uuid::Uuid;
 

@@ -32,9 +32,9 @@ pub async fn initialize_database(config: &AppConfig) -> Result<Arc<authenc_stora
 pub async fn initialize_audit_store(
     database: Arc<authenc_storage::Database>,
 ) -> Result<Arc<crate::services::pg_audit_log_store::PgAuditLogStore>> {
-    let audit_log_store = Arc::new(
-        crate::services::pg_audit_log_store::PgAuditLogStore::new(database)
-    );
+    let audit_log_store = Arc::new(crate::services::pg_audit_log_store::PgAuditLogStore::new(
+        database,
+    ));
     Ok(audit_log_store)
 }
 

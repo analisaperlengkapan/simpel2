@@ -527,7 +527,7 @@ END $$;
 
 COMMENT ON SCHEMA integrasi IS 'Integration service: MonSAKTI + MySIMKARI + SIMAN data';
 COMMENT ON TABLE api_log IS 'Unified audit log: API calls, batch ops, sync, token events';
-COMMENT ON TABLE monsakti_tokens IS 'Active API tokens per module';
+COMMENT ON TABLE api_tokens IS 'Active API tokens per module';
 COMMENT ON TABLE siman_aset IS 'SIMAN v2.0: All 15 jenis aset in a single table';
 COMMENT ON TABLE mysimkari_satker IS 'MySIMKARI: Satuan kerja master data';
 COMMENT ON TABLE mysimkari_pegawai IS 'MySIMKARI: Pegawai master data';

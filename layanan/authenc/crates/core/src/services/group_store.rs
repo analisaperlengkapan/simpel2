@@ -2,8 +2,8 @@
 
 use authenc_storage::Database;
 use authenc_storage::operations::groups;
-use authenc_types::domain::group::Group;
 use authenc_types::Result;
+use authenc_types::domain::group::Group;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -81,7 +81,12 @@ impl GroupStore {
     }
 
     /// Get members of a group (user IDs)
-    pub async fn members(&self, group_id: Uuid, first: Option<i64>, max: Option<i64>) -> Result<Vec<Uuid>> {
+    pub async fn members(
+        &self,
+        group_id: Uuid,
+        first: Option<i64>,
+        max: Option<i64>,
+    ) -> Result<Vec<Uuid>> {
         groups::get_group_members(&self.db, group_id, first, max).await
     }
 

@@ -6,13 +6,16 @@
 use async_trait::async_trait;
 
 use crate::{
+    domain,          // Domain models module
     domain_types::*, // Strongly-typed IDs (UserId, RealmId, etc.) and OAuth2 types
     result::Result,
 };
 
 // Explicitly import domain types to avoid ambiguity with legacy types
 use crate::domain::oidc_client::OidcClient as DomainOidcClient;
+use crate::domain::permission::Permission;
 use crate::domain::realm::Realm;
+use crate::domain::role::Role;
 use crate::domain::session::Session;
 use crate::domain::user::User;
 use crate::domain::user::{CreateUserRequest, UpdateUserRequest};

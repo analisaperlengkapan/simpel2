@@ -22,10 +22,8 @@ use validator::Validate;
 ///   Validator Pusat approves or rejects (no revision back)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]
-#[derive(Default)]
 pub enum KebutuhanBmnStatus {
     /// New request in draft state (Validator Pusat creates period)
-    #[default]
     Draft = 2000,
     /// Operator Satker inputting goods + attachments
     InputBarang = 2001,
@@ -164,6 +162,11 @@ impl KebutuhanBmnStatus {
     }
 }
 
+impl Default for KebutuhanBmnStatus {
+    fn default() -> Self {
+        Self::Draft
+    }
+}
 
 // ============================================================================
 // Satker Selection Type
@@ -172,9 +175,7 @@ impl KebutuhanBmnStatus {
 /// Options for satker selection in a request
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-#[derive(Default)]
 pub enum PilihanSatker {
-    #[default]
     Semua,
     Sebagian,
 }
@@ -195,6 +196,11 @@ impl PilihanSatker {
     }
 }
 
+impl Default for PilihanSatker {
+    fn default() -> Self {
+        Self::Semua
+    }
+}
 
 // ============================================================================
 // Main Entity: Pengajuan Kebutuhan BMN

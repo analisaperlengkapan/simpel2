@@ -172,8 +172,8 @@ impl DatabaseOptimizer {
         // Simple heuristics for index suggestions
         if query_lower.contains("where") {
             // Extract table and column from WHERE clause
-            if let Some(table) = self.extract_table_name(&query_lower)
-                && let Some(column) = self.extract_where_column(&query_lower) {
+            if let Some(table) = self.extract_table_name(&query_lower) {
+                if let Some(column) = self.extract_where_column(&query_lower) {
                     return Some(IndexSuggestion {
                         table: table.to_string(),
                         columns: vec![column.to_string()],
@@ -181,6 +181,7 @@ impl DatabaseOptimizer {
                         reason: format!("Frequent WHERE clause on {}.{}", table, column),
                     });
                 }
+            }
         }
 
         None
@@ -398,7 +399,9 @@ mod tests {
     #[test]
     fn test_extract_table_name() {
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
+            deadpool_postgres::Config::new()
+                .create_pool(None, tokio_postgres::NoTls)
+                .unwrap(),
             Arc::new(CacheManager::new()),
         );
 
@@ -410,7 +413,9 @@ mod tests {
     #[test]
     fn test_extract_where_column() {
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
+            deadpool_postgres::Config::new()
+                .create_pool(None, tokio_postgres::NoTls)
+                .unwrap(),
             Arc::new(CacheManager::new()),
         );
 
@@ -422,7 +427,9 @@ mod tests {
     #[test]
     fn test_optimize_query() {
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
+            deadpool_postgres::Config::new()
+                .create_pool(None, tokio_postgres::NoTls)
+                .unwrap(),
             Arc::new(CacheManager::new()),
         );
 

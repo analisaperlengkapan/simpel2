@@ -100,7 +100,6 @@ pub struct AuthRequest {
 
 /// Authentication response
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
 pub struct AuthResponse {
     /// Whether authentication was successful
     pub success: bool,
@@ -126,6 +125,23 @@ pub struct AuthResponse {
     pub error: Option<String>,
 }
 
+impl Default for AuthResponse {
+    fn default() -> Self {
+        Self {
+            success: false,
+            user_id: None,
+            username: None,
+            email: None,
+            groups: Vec::new(),
+            roles: Vec::new(),
+            attributes: HashMap::new(),
+            token: None,
+            refresh_token: None,
+            expires_at: None,
+            error: None,
+        }
+    }
+}
 
 /// User information from identity provider
 #[derive(Debug, Clone, Serialize, Deserialize)]

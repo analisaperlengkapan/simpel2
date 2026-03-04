@@ -9,15 +9,10 @@ yanked = "deny"
 ignore = [
     # Add specific advisories to ignore here if needed
     # Example: "RUSTSEC-2020-0001",
-    "RUSTSEC-2024-0437", # protobuf (via prometheus)
 ]
 
 [licenses]
 version = 2
-unlicensed = "deny"
-allow-osi-fsf-free = "both"
-copyleft = "deny"
-
 # Allow only permissive licenses
 allow = [
     "MIT",
@@ -31,12 +26,18 @@ allow = [
     "Zlib",
     "0BSD",
 ]
-
+# Deny copyleft licenses
 deny = [
     "GPL-2.0",
     "GPL-3.0",
     "AGPL-3.0",
 ]
+# Warn on licenses that need review
+copyleft = "deny"
+# Allow OSI-approved and FSF-approved licenses
+allow-osi-fsf-free = "both"
+# Require license information for all dependencies
+unlicensed = "deny"
 # Confidence threshold for license detection
 confidence-threshold = 0.8
 
@@ -52,7 +53,7 @@ license-files = [
 multiple-versions = "warn"
 # Deny wildcard dependencies
 wildcards = "deny"
-# Deny git dependencies
+# Allow git dependencies (for development)
 allow-git = false
 # Specific crates to deny
 deny = [
