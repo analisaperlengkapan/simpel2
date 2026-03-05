@@ -351,7 +351,7 @@ jobs:
           echo "Testing gRPC communication between services..."
 
           # Start authenc service
-          cd infra/authenc
+          cd layanan/authenc
           cargo build --release
           nohup ../../target/release/authenc > authenc.log 2>&1 &
           echo $! > authenc.pid
