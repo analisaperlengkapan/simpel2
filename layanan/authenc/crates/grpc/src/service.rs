@@ -644,18 +644,19 @@ impl AuthencService for AuthencGrpcService {
             error!("MFA service not configured");
             Status::unimplemented("MFA service not configured")
         })?;
+    // Clean up TOTP secret first (safer failure mode: MFA stays enabled if this fails)
+        mfa_service
+            .disable_totp(user_id)
+            .await
+            .map_err(Self::error_to_status)?;
 
-        // Disable MFA
+        // Disable MFA flag on user
         self.user_service
             .disable_mfa(user_id)
             .await
             .map_err(Self::error_to_status)?;
 
-        // Clean up TOTP secret
-        mfa_service
-            .disable_totp(user_id)
-            .await
-            .map_err(Self::error_to_status)?;
+        Ok(Response::new(DisableMfaResponse { success: true }))
 
         Ok(Response::new(DisableMfaResponse { success: true }))
     }
