@@ -302,9 +302,7 @@ impl UserStore for PostgresUserStore {
         if let Some(ref mfa_enabled) = req.mfa_enabled {
             params.push(mfa_enabled);
         }
-        if let Some(ref email_verified) = req.email_verified {
-            params.push(email_verified);
-        }
+
         if !req.clear_totp_secret.unwrap_or(false) {
             if let Some(ref totp_secret) = req.totp_secret {
                 params.push(totp_secret);
