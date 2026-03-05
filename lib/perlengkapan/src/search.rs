@@ -382,7 +382,7 @@ impl SearchEngine {
                 param_index += 1;
             }
         }
-
+        let _ = param_index;
 
         if let Some(ref kode) = query.filters.kode_barang {
             sql.push_str(&format!(" AND kode_barang LIKE ${}", param_index));

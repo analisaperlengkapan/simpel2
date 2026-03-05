@@ -92,9 +92,18 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - layanan/authenc
-          - layanan/perlengkapan
-          - layanan/secreton
+          - infra/authenc
+          - layanan/badiklat
+          - layanan/datun
+          - layanan/intel
+          - layanan/pemulihan_aset
+          - layanan/pengawasan
+          - layanan/pidsus
+          - layanan/pidum
+          - layanan/pidmil
+          - layanan/pembinaan/keuangan
+          - layanan/pembinaan/perencanaan
+          - layanan/pembinaan/perlengkapan
 
     steps:
       - name: Fix permissions
@@ -321,7 +330,7 @@ jobs:
           cache-key: grpc-integration
 
       - name: Test authenc service
-        working-directory: infra/authenc
+        working-directory: layanan/authenc
         run: |
           cargo test --features integration-tests -- --test-threads=1 --nocapture
         env:
@@ -359,9 +368,9 @@ jobs:
       - name: Cleanup services
         if: always()
         run: |
-          if [ -f infra/authenc/authenc.pid ]; then
-            kill $(cat infra/authenc/authenc.pid) || true
-            rm infra/authenc/authenc.pid
+          if [ -f layanan/authenc/authenc.pid ]; then
+            kill $(cat layanan/authenc/authenc.pid) || true
+            rm layanan/authenc/authenc.pid
           fi
 
   module-integration:
