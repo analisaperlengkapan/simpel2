@@ -21,7 +21,7 @@ concurrency:
 jobs:
   audit-and-deny:
     name: Dependency Audit & Policy
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
 
   sast-semgrep:
     name: SAST - Semgrep
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
 
   secrets-gitleaks:
     name: Secrets Scanning
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

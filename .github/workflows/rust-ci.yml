@@ -30,7 +30,7 @@ env:
 jobs:
   check-and-test:
     name: Check, Lint & Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
 
   build:
     name: Build Release Binaries
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [check-and-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:

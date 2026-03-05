@@ -26,7 +26,7 @@ env:
 jobs:
   check-and-build:
     name: Build WASM
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -70,7 +70,7 @@ jobs:
 
   lint-wasm:
     name: Lint WASM Components
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
