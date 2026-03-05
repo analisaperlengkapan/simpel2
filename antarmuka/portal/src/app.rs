@@ -245,14 +245,14 @@ pub fn App() -> impl IntoView {
                 <Route path=StaticSegment("logged-out") view=LoggedOutPage />
 
                 // MFA routes (semi-public, temp-token based)
-                <Route path=(StaticSegment("mfa"), StaticSegment("setup")) view=MfaSetupPage />
-                <Route path=(StaticSegment("mfa"), StaticSegment("verify")) view=MfaVerificationPage />
-                <Route path=(StaticSegment("mfa"), StaticSegment("backup-verify")) view=MfaBackupVerificationPage />
+                <Route path=StaticSegment("mfa/setup") view=MfaSetupPage />
+                <Route path=StaticSegment("mfa/verify") view=MfaVerificationPage />
+                <Route path=StaticSegment("mfa/backup-verify") view=MfaBackupVerificationPage />
 
                 // ══════════════════════════════════════════════
                 // PROTECTED ROUTES (with MainLayout wrapper)
                 // ══════════════════════════════════════════════
-                <Route path=(StaticSegment("mfa"), StaticSegment("backup-codes")) view=move || {
+                <Route path=StaticSegment("mfa/backup-codes") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
                             <MfaBackupCodesPage user_session=session on_logout=make_logout() />

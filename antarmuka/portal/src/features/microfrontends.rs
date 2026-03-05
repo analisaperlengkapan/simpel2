@@ -140,7 +140,76 @@ impl MicrofrontendRegistry {
     /// Get all registered applications
     pub fn get_all_apps() -> Vec<MicrofrontendApp> {
         vec![
+            // Prosecution apps
+            MicrofrontendApp {
+                id: "pidum".to_string(),
+                name: "PIDUM".to_string(),
+                description: "Penyidikan dan Penuntutan Pidana Umum".to_string(),
+                icon: "⚖️".to_string(),
+                url: "http://localhost:8082".to_string(),
+                color: AppColor::Red,
+                category: AppCategory::Prosecution,
+                required_role: None,
+                status: AppStatus::Active,
+            },
+            MicrofrontendApp {
+                id: "pidsus".to_string(),
+                name: "PIDSUS".to_string(),
+                description: "Penyidikan dan Penuntutan Pidana Khusus".to_string(),
+                icon: "🔍".to_string(),
+                url: "http://localhost:8083".to_string(),
+                color: AppColor::Orange,
+                category: AppCategory::Prosecution,
+                required_role: None,
+                status: AppStatus::Active,
+            },
+            MicrofrontendApp {
+                id: "pidmil".to_string(),
+                name: "PIDMIL".to_string(),
+                description: "Penyidikan dan Penuntutan Pidana Militer".to_string(),
+                icon: "🎖️".to_string(),
+                url: "http://localhost:8084".to_string(),
+                color: AppColor::Indigo,
+                category: AppCategory::Prosecution,
+                required_role: None,
+                status: AppStatus::Active,
+            },
+            // Training
+            MicrofrontendApp {
+                id: "badiklat".to_string(),
+                name: "BADIKLAT".to_string(),
+                description: "Badan Pendidikan dan Pelatihan Kejaksaan".to_string(),
+                icon: "🎓".to_string(),
+                url: "http://localhost:8081".to_string(),
+                color: AppColor::Blue,
+                category: AppCategory::Training,
+                required_role: None,
+                status: AppStatus::Active,
+            },
+            // Legal
+            MicrofrontendApp {
+                id: "datun".to_string(),
+                name: "DATUN".to_string(),
+                description: "Perdata dan Tata Usaha Negara".to_string(),
+                icon: "📜".to_string(),
+                url: "http://localhost:8085".to_string(),
+                color: AppColor::Purple,
+                category: AppCategory::Legal,
+                required_role: None,
+                status: AppStatus::Active,
+            },
             // Asset management
+            MicrofrontendApp {
+                id: "pemulihan_aset".to_string(),
+                name: "Pemulihan Aset".to_string(),
+                description: "Sistem Pemulihan dan Pengelolaan Aset Negara".to_string(),
+                icon: "💰".to_string(),
+                url: "http://localhost:8089".to_string(),
+                color: AppColor::Green,
+                category: AppCategory::Asset,
+                required_role: None,
+                status: AppStatus::Active,
+            },
             MicrofrontendApp {
                 id: "perlengkapan".to_string(),
                 name: "Perlengkapan".to_string(),
@@ -151,6 +220,41 @@ impl MicrofrontendRegistry {
                 category: AppCategory::Asset,
                 required_role: None,
                 status: AppStatus::Active,
+            },
+            // Intelligence
+            MicrofrontendApp {
+                id: "intel".to_string(),
+                name: "INTEL".to_string(),
+                description: "Intelijen Kejaksaan".to_string(),
+                icon: "🕵️".to_string(),
+                url: "http://localhost:8086".to_string(),
+                color: AppColor::Indigo,
+                category: AppCategory::Intelligence,
+                required_role: Some("supervisor".to_string()),
+                status: AppStatus::Active,
+            },
+            // Supervision
+            MicrofrontendApp {
+                id: "pengawasan".to_string(),
+                name: "Pengawasan".to_string(),
+                description: "Sistem Pengawasan dan Monitoring".to_string(),
+                icon: "👁️".to_string(),
+                url: "http://localhost:8087".to_string(),
+                color: AppColor::Yellow,
+                category: AppCategory::Supervision,
+                required_role: Some("supervisor".to_string()),
+                status: AppStatus::Active,
+            },
+            MicrofrontendApp {
+                id: "pembinaan".to_string(),
+                name: "Pembinaan".to_string(),
+                description: "Sistem Pembinaan dan Pengembangan".to_string(),
+                icon: "🌱".to_string(),
+                url: "http://localhost:8088".to_string(),
+                color: AppColor::Pink,
+                category: AppCategory::Supervision,
+                required_role: None,
+                status: AppStatus::Beta,
             },
         ]
     }
