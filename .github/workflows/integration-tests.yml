@@ -92,7 +92,7 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - infra/authenc
+          - layanan/authenc
           - layanan/badiklat
           - layanan/datun
           - layanan/intel
