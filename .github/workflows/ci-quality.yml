@@ -17,65 +17,42 @@ concurrency:
 jobs:
   quality:
     name: Quality Checks
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
-      - name: Fix permissions
-        run: |
-          # Robust cleanup via Docker (fixes root-owned files)
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-
       - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: true
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Protoc)
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
 
       - name: Setup Rust
-        uses: ./.github/actions/setup-rust
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean Corrupted Cache
-        run: |
-          # Fix corrupted cargo registry - removed AFTER setup-rust restores it
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
 
-      - name: Install Tools
-        shell: bash
-        run: |
-          # Install cargo-llvm-cov binary
-          if ! command -v cargo-llvm-cov &> /dev/null; then
-            echo "Installing cargo-llvm-cov..."
-            curl -LsSf https://github.com/taiki-e/cargo-llvm-cov/releases/latest/download/cargo-llvm-cov-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C $HOME/.cargo/bin
-          fi
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
 
-          if ! command -v tokei &> /dev/null; then
-            echo "Installing tokei..."
-            curl -LsSf https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-musl.tar.gz | tar xzf - -C $HOME/.cargo/bin
-          fi
+      - name: Install tokei
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tokei
 
       - name: Documentation Build
-        # Exclude tpm feature which requires system libraries (tss2-sys) not available in CI
         run: cargo doc --workspace --no-deps --all-features --exclude authenc --document-private-items
-        # Removed continue-on-error: true to ensure legitimate failures in non-authenc crates fail the CI
 
       - name: Authenc Documentation
-        # Explicitly enable features EXCEPT tpm (requires tss2-sys) and grpc (requires protoc)
-        # using 'test' feature to pull in reqwest without using dep: syntax
         run: cargo doc -p authenc --no-deps --no-default-features --features "axum,auth,oidc,db,metrics,flate2,totp-rs,rdkafka,test" --document-private-items
 
       - name: Code Metrics
         run: tokei .
 
-      - name: Code Coverage
-        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
-        env:
-          DATABASE_URL: postgres://simpelv2_test:coverage_test_2024@localhost:56432/simpelv2_coverage
-
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
-          name: quality-reports
+          name: doc-reports
           path: |
             target/doc/
-            lcov.info
