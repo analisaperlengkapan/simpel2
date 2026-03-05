@@ -8,7 +8,7 @@
 //! - Email verification workflow
 
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use authenc_types::{
     domain::*,
@@ -427,8 +427,6 @@ impl UserManagementServiceImpl {
             enabled: Some(false),
             email_verified: None,
             mfa_enabled: None,
-            clear_totp_secret: None,
-            totp_secret: None,
             attributes: None,
         };
 
@@ -437,27 +435,6 @@ impl UserManagementServiceImpl {
         info!(user_id = %user_id, "User deleted successfully (soft delete)");
 
         Ok(())
-    }
-
-    /// Count users
-    ///
-    /// # Arguments
-    ///
-    /// * `realm_id` - Realm ID
-    ///
-    /// # Returns
-    ///
-    /// Total number of users
-    pub async fn count_users(&self, realm_id: RealmId) -> Result<u64> {
-        debug!(
-            realm_id = %realm_id,
-            "Counting users"
-        );
-
-        self.user_store.count_users(realm_id).await.map_err(|e| {
-            error!(error = %e, "Failed to count users");
-            AuthencError::DatabaseError(e.to_string())
-        })
     }
 
     /// List users in a realm with pagination
@@ -556,8 +533,6 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: Some(true),
             mfa_enabled: None,
-            clear_totp_secret: None,
-            totp_secret: None,
             attributes: None,
         };
 
@@ -577,7 +552,7 @@ impl UserManagementServiceImpl {
     /// # Arguments
     ///
     /// * `user_id` - User ID
-    pub async fn enable_mfa(&self, user_id: UserId, totp_secret: String) -> Result<User> {
+    pub async fn enable_mfa(&self, user_id: UserId) -> Result<User> {
         debug!(user_id = %user_id, "Enabling MFA");
 
         let update_request = UpdateUserRequest {
@@ -596,9 +571,7 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: None,
             mfa_enabled: Some(true),
-            totp_secret: Some(totp_secret),
             attributes: None,
-            clear_totp_secret: None,
         };
 
         let user = self.user_store.update_user(user_id, update_request).await?;
@@ -636,8 +609,6 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: None,
             mfa_enabled: Some(false),
-            clear_totp_secret: Some(true),
-            totp_secret: None,
             attributes: None,
         };
 
@@ -680,10 +651,6 @@ mod tests {
 
     #[async_trait]
     impl UserStore for MockUserStore {
-        async fn count_users(&self, _realm_id: RealmId) -> Result<u64> {
-            Ok(self.users.lock().await.len() as u64)
-        }
-
         async fn get_user(&self, id: UserId) -> Result<User> {
             let users = self.users.lock().await;
             users
@@ -862,8 +829,6 @@ mod tests {
             enabled: None,
             email_verified: None,
             mfa_enabled: None,
-            totp_secret: None,
-            clear_totp_secret: None,
             attributes: None,
         }
     }
@@ -885,8 +850,6 @@ mod tests {
             enabled: None,
             email_verified: None,
             mfa_enabled: None,
-            totp_secret: None,
-            clear_totp_secret: None,
             attributes: None,
         }
     }
@@ -1236,10 +1199,7 @@ mod tests {
 
         // Enable MFA
         let mfa_user = service
-            .enable_mfa(
-                UserId::from_uuid(user.id),
-                "mock_totp_secret_for_test".to_string(),
-            )
+            .enable_mfa(UserId::from_uuid(user.id))
             .await
             .unwrap();
         assert!(mfa_user.mfa_enabled);
@@ -1264,10 +1224,7 @@ mod tests {
             .await
             .unwrap();
         let mfa_user = service
-            .enable_mfa(
-                UserId::from_uuid(user.id),
-                "mock_totp_secret_for_test".to_string(),
-            )
+            .enable_mfa(UserId::from_uuid(user.id))
             .await
             .unwrap();
         assert!(mfa_user.mfa_enabled);

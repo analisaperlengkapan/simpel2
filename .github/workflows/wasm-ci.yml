@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: ["portal", "perlengkapan"]
+        module: ["daskrimti/portal", badiklat, datun, intel, pemulihan_aset, pengawasan, pidmil, pidsus, pidum, "pembinaan/keuangan", "pembinaan/perencanaan", "pembinaan/perlengkapan"]
 
     steps:
 
@@ -113,7 +113,6 @@ jobs:
 
           # Fix corrupted cargo registry
           rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/curve25519-dalek-derive-0.1.1 || true
 
       - name: Checkout repository
         uses: actions/checkout@v6

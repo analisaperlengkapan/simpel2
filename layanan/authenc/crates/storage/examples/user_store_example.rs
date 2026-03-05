@@ -105,8 +105,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 require_password_change: None,
                 phone_verified: None,
                 attributes: None,
-                totp_secret: None,
-                clear_totp_secret: None,
             };
 
             let updated_user = user_store
