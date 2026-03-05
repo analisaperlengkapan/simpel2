@@ -338,8 +338,8 @@ jobs:
           RUST_LOG: debug
 
       - name: Test secreton service
-        if: hashFiles('infra/secreton/Cargo.toml') != ''
-        working-directory: infra/secreton
+        if: hashFiles('layanan/secreton/Cargo.toml') != ''
+        working-directory: layanan/secreton
         run: |
           cargo test --features integration-tests -- --test-threads=1 --nocapture
         env:
