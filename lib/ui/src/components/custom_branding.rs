@@ -28,7 +28,7 @@ impl Default for BrandingConfig {
         Self {
             unit_name: "Kejaksaan Agung RI".to_string(),
             logo_url: Some("/portal/assets/kejaksaan-logo.png".to_string()),
-            logo_dark_url: Some("/portal/assets/kejaksaan-logo.png".to_string()),
+            logo_dark_url: Some("/portal/assets/kejaksaan-logo-dark.png".to_string()),
             primary_color: "#DC2626".to_string(), // Kejaksaan Red
             secondary_color: "#1E40AF".to_string(), // Government Blue
             accent_color: "#F59E0B".to_string(),  // Gold
