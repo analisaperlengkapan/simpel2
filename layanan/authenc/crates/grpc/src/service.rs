@@ -4,7 +4,7 @@ use crate::proto::authenc::v1::authenc_service_server::AuthencService;
 use crate::proto::authenc::v1::*;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
-use tracing::debug;
+use tracing::{debug, error, info};
 
 use authenc_core::services::{
     AuditService, AuthenticationServiceImpl, OAuth2ServiceImpl, RealmManagementServiceImpl,
@@ -470,8 +470,6 @@ impl AuthencService for AuthencGrpcService {
             require_password_change: None,
             mfa_enabled: None,
             attributes: None,
-            totp_secret: None,
-            clear_totp_secret: None,
         };
 
         // Update user
@@ -592,12 +590,9 @@ impl AuthencService for AuthencGrpcService {
             .await
             .map_err(Self::error_to_status)?;
 
-        // Use the secret generated from the MFA service
-        let encoded_secret = mfa_setup.secret.clone();
-
         // Enable MFA flag on user
         self.user_service
-            .enable_mfa(user_id, encoded_secret)
+            .enable_mfa(user_id)
             .await
             .map_err(Self::error_to_status)?;
 
@@ -644,9 +639,21 @@ impl AuthencService for AuthencGrpcService {
         let user_id = UserId::from_string(&req.user_id)
             .map_err(|e| Status::invalid_argument(format!("Invalid user_id: {}", e)))?;
 
+        // Ensure MFA service is configured
+        let mfa_service = self.mfa_service.as_ref().ok_or_else(|| {
+            error!("MFA service not configured");
+            Status::unimplemented("MFA service not configured")
+        })?;
+
         // Disable MFA
         self.user_service
             .disable_mfa(user_id)
+            .await
+            .map_err(Self::error_to_status)?;
+
+        // Clean up TOTP secret
+        mfa_service
+            .disable_totp(user_id)
             .await
             .map_err(Self::error_to_status)?;
 

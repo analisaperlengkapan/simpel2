@@ -94,8 +94,6 @@ fn empty_update_request() -> UpdateUserRequest {
         password: None,
         mfa_enabled: None,
         attributes: None,
-        totp_secret: None,
-        clear_totp_secret: None,
     }
 }
 

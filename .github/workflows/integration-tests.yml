@@ -92,9 +92,18 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - layanan/authenc
-          - layanan/perlengkapan
-          - layanan/secreton
+          - infra/authenc
+          - layanan/badiklat
+          - layanan/datun
+          - layanan/intel
+          - layanan/pemulihan_aset
+          - layanan/pengawasan
+          - layanan/pidsus
+          - layanan/pidum
+          - layanan/pidmil
+          - layanan/pembinaan/keuangan
+          - layanan/pembinaan/perencanaan
+          - layanan/pembinaan/perlengkapan
 
     steps:
       - name: Fix permissions
@@ -267,7 +276,7 @@ jobs:
       #     REDIS_URL: ${{ env.REDIS_URL }}
 
       - name: Build Portal Frontend
-        working-directory: antarmuka/portal
+        working-directory: antarmuka/daskrimti/portal
         run: trunk build --release
 
       - name: Run E2E Tests

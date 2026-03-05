@@ -225,12 +225,6 @@ impl UserStore for PostgresUserStore {
             updates.push(format!("mfa_enabled = ${}", param_index));
             param_index += 1;
         }
-        if let Some(true) = req.clear_totp_secret {
-            updates.push("totp_secret = NULL".to_string());
-        } else if req.totp_secret.is_some() {
-            updates.push(format!("totp_secret = ${}", param_index));
-            param_index += 1;
-        }
 
         if updates.is_empty() {
             // No updates requested, just return the current user
@@ -292,16 +286,11 @@ impl UserStore for PostgresUserStore {
         if let Some(ref require_password_change) = req.require_password_change {
             params.push(require_password_change);
         }
-        if let Some(ref password_hash) = req.password {
-            params.push(password_hash);
+        if let Some(ref password) = req.password {
+            params.push(password);
         }
         if let Some(ref mfa_enabled) = req.mfa_enabled {
             params.push(mfa_enabled);
-        }
-        if req.clear_totp_secret != Some(true) {
-            if let Some(ref totp_secret) = req.totp_secret {
-                params.push(totp_secret);
-            }
         }
 
         let now = Utc::now();
@@ -364,21 +353,6 @@ impl UserStore for PostgresUserStore {
         let users: Result<Vec<User>> = rows.into_iter().map(row_to_user).collect();
 
         users
-    }
-
-    async fn count_users(&self, realm_id: RealmId) -> Result<u64> {
-        debug!("Counting users in realm: {}", realm_id);
-
-        let query = r#"
-            SELECT COUNT(*)
-            FROM users
-            WHERE realm_id = $1
-        "#;
-
-        let row = self.db.query_one(query, &[&realm_id.0]).await?;
-        let count: i64 = row.get(0);
-
-        Ok(count as u64)
     }
 
     async fn username_exists(&self, username: &str, realm_id: RealmId) -> Result<bool> {
@@ -546,8 +520,6 @@ mod tests {
                 password: None,
                 mfa_enabled: None,
                 attributes: None,
-                totp_secret: None,
-                clear_totp_secret: None,
             };
 
             assert!(req.email.is_none());
@@ -574,8 +546,6 @@ mod tests {
                 password: None,
                 mfa_enabled: Some(true),
                 attributes: None,
-                totp_secret: None,
-                clear_totp_secret: None,
             };
 
             assert_eq!(req.email, Some("newemail@example.com".to_string()));
