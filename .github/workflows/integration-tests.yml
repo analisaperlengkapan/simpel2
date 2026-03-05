@@ -330,16 +330,16 @@ jobs:
           cache-key: grpc-integration
 
       - name: Test authenc service
-        working-directory: infra/authenc
-        run: |
-          cargo test --features integration-tests -- --test-threads=1 --nocapture
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          RUST_LOG: debug
+        working-directory: layanan/authenc
+          run: |
+            cargo test --features integration-tests -- --test-threads=1 --nocapture
+          env:
+            DATABASE_URL: ${{ env.DATABASE_URL }}
+            RUST_LOG: debug
 
-      - name: Test secreton service
-        if: hashFiles('infra/secreton/Cargo.toml') != ''
-        working-directory: infra/secreton
+        - name: Test secreton service
+          if: hashFiles('layanan/secreton/Cargo.toml') != ''
+          working-directory: layanan/secreton
         run: |
           cargo test --features integration-tests -- --test-threads=1 --nocapture
         env:
