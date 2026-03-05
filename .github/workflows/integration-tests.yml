@@ -276,7 +276,7 @@ jobs:
       #     REDIS_URL: ${{ env.REDIS_URL }}
 
       - name: Build Portal Frontend
-        working-directory: antarmuka/daskrimti/portal
+        working-directory: antarmuka/portal
         run: trunk build --release
 
       - name: Run E2E Tests
