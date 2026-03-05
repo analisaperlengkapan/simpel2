@@ -77,7 +77,10 @@ proptest! {
             // Setup: Create temporary storage
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
+            });
             config.retention_days = retention_days;
             config.verify_after_backup = false; // Disable for speed
             config.database_url = None; // Disable PostgreSQL dump for testing
@@ -196,7 +199,10 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
+            });
             config.retention_days = 0; // Delete all backups
             config.verify_after_backup = false;
             config.database_url = None; // Disable PostgreSQL dump for testing
@@ -251,7 +257,10 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
+            });
             config.retention_days = 3650; // 10 years
             config.verify_after_backup = false;
             config.database_url = None; // Disable PostgreSQL dump for testing
@@ -299,7 +308,10 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
+            });
             config.retention_days = retention_days;
             config.verify_after_backup = false;
             config.database_url = None; // Disable PostgreSQL dump for testing
@@ -376,7 +388,10 @@ proptest! {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let temp_dir = TempDir::new().unwrap();
             let mut config = BackupConfig::default();
-            config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+            config.storage_config = StorageConfig::Local(LocalStorageConfig {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                Ok(())
+            });
             config.retention_days = retention_days;
             config.verify_after_backup = false;
             config.database_url = None; // Disable PostgreSQL dump for testing

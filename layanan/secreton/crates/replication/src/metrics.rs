@@ -130,7 +130,7 @@ impl ReplicationMetrics {
         *self.secondary_sequence.write().await = secondary_seq;
 
         REPLICATION_PRIMARY_SEQUENCE
-            .with_label_values::<&str>(&[])
+            .with_label_values(&[])
             .set(primary_seq as i64);
 
         REPLICATION_SECONDARY_SEQUENCE
@@ -161,7 +161,7 @@ impl ReplicationMetrics {
         let status = if success { "success" } else { "failure" };
 
         REPLICATION_OPERATIONS_TOTAL
-            .with_label_values(&[self.node_id.as_str(), operation_type, status])
+            .with_label_values(&[&self.node_id, operation_type, status])
             .inc();
     }
 
@@ -175,7 +175,7 @@ impl ReplicationMetrics {
     /// Record operation latency
     pub fn record_latency(&self, operation_type: &str, latency_seconds: f64) {
         REPLICATION_OPERATION_LATENCY
-            .with_label_values(&[self.node_id.as_str(), operation_type])
+            .with_label_values(&[&self.node_id, operation_type])
             .observe(latency_seconds);
     }
 

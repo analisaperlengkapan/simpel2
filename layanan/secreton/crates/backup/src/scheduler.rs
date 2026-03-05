@@ -162,7 +162,7 @@ mod tests {
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
 
         // Valid cron expression
-        let scheduler = BackupScheduler::new("0 0 2 * * * *", manager.clone());
+        let scheduler = BackupScheduler::new("0 2 * * *", manager.clone());
         assert!(scheduler.is_ok());
 
         // Invalid cron expression
@@ -180,7 +180,7 @@ mod tests {
             });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
-        let scheduler = BackupScheduler::new("0 0 2 * * * *", manager).unwrap();
+        let scheduler = BackupScheduler::new("0 2 * * *", manager).unwrap();
 
         let next = scheduler.next_backup_time();
         assert!(next.is_some());
@@ -199,7 +199,7 @@ mod tests {
             });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
-        let scheduler = BackupScheduler::new("0 0 2 * * * *", manager).unwrap();
+        let scheduler = BackupScheduler::new("0 2 * * *", manager).unwrap();
 
         // Initially not running
         assert!(!scheduler.is_running().await);

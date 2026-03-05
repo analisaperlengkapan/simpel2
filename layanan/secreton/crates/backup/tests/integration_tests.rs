@@ -10,7 +10,10 @@ use tokio::time::{Duration, sleep};
 async fn create_test_manager() -> (BackupManager, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let mut config = BackupConfig::default();
-    config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+    config.storage_config = StorageConfig::Local(LocalStorageConfig {
+        path: temp_dir.path().to_string_lossy().to_string(),
+        Ok(())
+    });
     config.verify_after_backup = true;
     config.compression_enabled = true;
 
@@ -188,7 +191,10 @@ async fn test_encryption_key_validation() {
 
     // Invalid key length should fail
     let mut config = BackupConfig::default();
-    config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+    config.storage_config = StorageConfig::Local(LocalStorageConfig {
+        path: temp_dir.path().to_string_lossy().to_string(),
+        Ok(())
+    });
     config.encryption_key = Some(vec![0u8; 16]); // Wrong length
 
     let result = BackupManager::new(config).await;
@@ -200,7 +206,10 @@ async fn test_backup_with_custom_encryption_key() {
     let temp_dir = TempDir::new().unwrap();
 
     let mut config = BackupConfig::default();
-    config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+    config.storage_config = StorageConfig::Local(LocalStorageConfig {
+        path: temp_dir.path().to_string_lossy().to_string(),
+        Ok(())
+    });
     config.encryption_key = Some(vec![0u8; 32]); // Valid key
 
     let manager = BackupManager::new(config).await.unwrap();
@@ -217,7 +226,10 @@ async fn test_backup_without_compression() {
     let temp_dir = TempDir::new().unwrap();
 
     let mut config = BackupConfig::default();
-    config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+    config.storage_config = StorageConfig::Local(LocalStorageConfig {
+        path: temp_dir.path().to_string_lossy().to_string(),
+        Ok(())
+    });
     config.compression_enabled = false;
 
     let manager = BackupManager::new(config).await.unwrap();

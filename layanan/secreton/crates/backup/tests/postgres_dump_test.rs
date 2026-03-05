@@ -17,7 +17,10 @@ use tempfile::TempDir;
 async fn create_test_manager(database_url: Option<String>) -> (BackupManager, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let mut config = BackupConfig::default();
-    config.storage_config = StorageConfig::Local(LocalStorageConfig { path: temp_dir.path().to_string_lossy().to_string() });
+    config.storage_config = StorageConfig::Local(LocalStorageConfig {
+        path: temp_dir.path().to_string_lossy().to_string(),
+        Ok(())
+    });
     config.database_url = database_url;
 
     let manager = BackupManager::new(config).await.unwrap();

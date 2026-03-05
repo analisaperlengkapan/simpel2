@@ -1,6 +1,3 @@
-#![allow(clippy::collapsible_if)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::regex_creation_in_loops)]
 //! Search Engine for Perlengkapan
 //!
 //! Provides full-text search with filters, pagination, and relevance ranking
@@ -219,7 +216,7 @@ pub enum SortField {
 
 impl SortField {
     /// Parse from string
-    pub fn from_string(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "relevance" => Some(SortField::Relevance),
             "created_at" | "created" => Some(SortField::CreatedAt),
@@ -242,7 +239,7 @@ pub enum SortDirection {
 
 impl SortDirection {
     /// Parse from string
-    pub fn from_string(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "asc" | "ascending" => Some(SortDirection::Ascending),
             "desc" | "descending" => Some(SortDirection::Descending),
@@ -339,7 +336,7 @@ impl SearchEngine {
         search_fields: &[&str],
         query: &SearchQuery,
     ) -> (String, Vec<String>) {
-        let mut sql = "SELECT *, ".to_string();
+        let mut sql = format!("SELECT *, ");
 
         // Add relevance score calculation
         let relevance_parts: Vec<String> = search_fields
@@ -369,29 +366,34 @@ impl SearchEngine {
         if let Some(satker_id) = query.filters.satker_id {
             sql.push_str(&format!(" AND satker_id = ${}", param_index));
             params.push(satker_id.to_string());
-            }
+            param_index += 1;
+        }
 
         if let Some(tahun) = query.filters.tahun_anggaran {
             sql.push_str(&format!(" AND tahun_anggaran = ${}", param_index));
             params.push(tahun.to_string());
-            }
+            param_index += 1;
+        }
 
         if let Some(ref status_list) = query.filters.status {
             if !status_list.is_empty() {
                 sql.push_str(&format!(" AND status = ANY(${})", param_index));
                 params.push(format!("{{{}}}", status_list.join(",")));
-                }
+                param_index += 1;
+            }
         }
 
         if let Some(ref kode) = query.filters.kode_barang {
             sql.push_str(&format!(" AND kode_barang LIKE ${}", param_index));
             params.push(format!("%{}%", kode));
-            }
+            param_index += 1;
+        }
 
         if let Some(is_sbsk) = query.filters.is_sbsk {
             sql.push_str(&format!(" AND is_sbsk = ${}", param_index));
             params.push(is_sbsk.to_string());
-            }
+            param_index += 1;
+        }
 
         // Add ORDER BY
         sql.push_str(&format!(" ORDER BY {}", query.sort.to_sql()));
@@ -622,39 +624,46 @@ impl SearchEngineDb {
         if let Some(satker_id) = query.filters.satker_id {
             sql.push_str(&format!(" AND k.satker_id = ${}", param_idx));
             params.push(Box::new(satker_id));
-            }
+            param_idx += 1;
+        }
 
         if let Some(tahun) = query.filters.tahun_anggaran {
             sql.push_str(&format!(" AND k.tahun = ${}", param_idx));
             params.push(Box::new(tahun));
-            }
+            param_idx += 1;
+        }
 
         if let Some(ref status_list) = query.filters.status {
             if !status_list.is_empty() {
                 sql.push_str(&format!(" AND k.status_kode = ANY(${})", param_idx));
                 params.push(Box::new(status_list.clone()));
-                }
+                param_idx += 1;
+            }
         }
 
         if let Some(ref kode) = query.filters.kode_barang {
             sql.push_str(&format!(" AND k.kode_barang ILIKE ${}", param_idx));
             params.push(Box::new(format!("%{}%", kode)));
-            }
+            param_idx += 1;
+        }
 
         if let Some(is_sbsk) = query.filters.is_sbsk {
             sql.push_str(&format!(" AND k.is_sbsk = ${}", param_idx));
             params.push(Box::new(is_sbsk));
-            }
+            param_idx += 1;
+        }
 
         if let Some(ref date_from) = query.filters.date_from {
             sql.push_str(&format!(" AND k.created_at >= ${}", param_idx));
             params.push(Box::new(date_from.clone()));
-            }
+            param_idx += 1;
+        }
 
         if let Some(ref date_to) = query.filters.date_to {
             sql.push_str(&format!(" AND k.created_at <= ${}", param_idx));
             params.push(Box::new(date_to.clone()));
-            }
+            param_idx += 1;
+        }
 
         // Add sorting
         sql.push_str(&format!(" ORDER BY {}", query.sort.to_sql()));
@@ -732,7 +741,8 @@ impl SearchEngineDb {
         if let Some(ref kode) = query.filters.kode_barang {
             sql.push_str(&format!(" AND b.kode_barang ILIKE ${}", param_idx));
             params.push(Box::new(format!("%{}%", kode)));
-            }
+            param_idx += 1;
+        }
 
         if let Some(ref priority_levels) = query.filters.priority_level {
             if !priority_levels.is_empty() {
@@ -743,7 +753,8 @@ impl SearchEngineDb {
                     .filter_map(|p| p.parse().ok())
                     .collect();
                 params.push(Box::new(priority_ints));
-                }
+                param_idx += 1;
+            }
         }
 
         // Add sorting

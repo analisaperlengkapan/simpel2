@@ -347,67 +347,67 @@ pub fn App() -> impl IntoView {
                         <crate::pages::admin::AdminOverviewPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("users")) view=move || view! {
+                <Route path=StaticSegment("admin/users") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::UsersManagementPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("users"), ParamSegment("id")) view=move || view! {
+                <Route path=(StaticSegment("admin/users"), ParamSegment("id")) view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::UserDetailPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("realms")) view=move || view! {
+                <Route path=StaticSegment("admin/realms") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::RealmsManagementPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("clients")) view=move || view! {
+                <Route path=StaticSegment("admin/clients") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::ClientsManagementPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("clients"), ParamSegment("id")) view=move || view! {
+                <Route path=(StaticSegment("admin/clients"), ParamSegment("id")) view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::ClientDetailPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("roles")) view=move || view! {
+                <Route path=StaticSegment("admin/roles") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::RolesManagementPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("federation")) view=move || view! {
+                <Route path=StaticSegment("admin/federation") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::FederationManagementPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("permissions")) view=move || view! {
+                <Route path=StaticSegment("admin/permissions") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::PermissionsManagementPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("audit")) view=move || view! {
+                <Route path=StaticSegment("admin/audit") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::AuditLogsPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("groups")) view=move || view! {
+                <Route path=StaticSegment("admin/groups") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::GroupsManagementPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("realm-settings")) view=move || view! {
+                <Route path=StaticSegment("admin/realm-settings") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::RealmSettingsPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("auth-flows")) view=move || view! {
+                <Route path=StaticSegment("admin/auth-flows") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::AuthFlowsPage />
                     </WithAdminAuth>
                 } />
-                <Route path=(StaticSegment("admin"), StaticSegment("linked-accounts")) view=move || view! {
+                <Route path=StaticSegment("admin/linked-accounts") view=move || view! {
                     <WithAdminAuth user_session=user_session on_login_success=set_user_session>
                         <crate::pages::admin::LinkedAccountsPage />
                     </WithAdminAuth>

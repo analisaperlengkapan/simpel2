@@ -142,8 +142,8 @@ WITH RECURSIVE hierarchy AS (
         status,
         parent_id,
         0 AS level,
-        ARRAY[id]::VARCHAR[] AS ancestors,
-        id::VARCHAR AS path
+        ARRAY[id] AS ancestors,
+        id::TEXT AS path
     FROM leases
     WHERE parent_id IS NULL
 
@@ -159,8 +159,8 @@ WITH RECURSIVE hierarchy AS (
         l.status,
         l.parent_id,
         h.level + 1,
-        h.ancestors || l.id::VARCHAR,
-        (h.path || ' -> ' || l.id)::VARCHAR
+        h.ancestors || l.id,
+        h.path || ' -> ' || l.id
     FROM leases l
     INNER JOIN hierarchy h ON l.parent_id = h.id
 )

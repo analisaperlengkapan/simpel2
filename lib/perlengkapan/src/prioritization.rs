@@ -104,7 +104,7 @@ pub enum SatkerType {
 
 impl SatkerType {
     /// Parse satker type from string
-    pub fn from_string(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
             "CABJARI" => Some(SatkerType::Cabjari),
             "KEJARI_C" | "KEJARI C" => Some(SatkerType::KejariC),

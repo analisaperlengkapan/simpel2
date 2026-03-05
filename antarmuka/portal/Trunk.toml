@@ -1,7 +1,7 @@
 [build]
 target = "index.html"
 dist = "dist"
-release = false
+release = true
 wasm_opt = false
 public_url = "/portal/"
 

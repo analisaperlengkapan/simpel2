@@ -140,6 +140,7 @@ impl MicrofrontendRegistry {
     /// Get all registered applications
     pub fn get_all_apps() -> Vec<MicrofrontendApp> {
         vec![
+            // Asset management
             MicrofrontendApp {
                 id: "perlengkapan".to_string(),
                 name: "Perlengkapan".to_string(),
@@ -170,7 +171,12 @@ impl MicrofrontendRegistry {
     /// Get all categories
     pub fn get_all_categories() -> Vec<AppCategory> {
         vec![
+            AppCategory::Prosecution,
+            AppCategory::Training,
+            AppCategory::Legal,
             AppCategory::Asset,
+            AppCategory::Intelligence,
+            AppCategory::Supervision,
         ]
     }
 }

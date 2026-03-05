@@ -110,7 +110,7 @@ WITH RECURSIVE hierarchy AS (
         name,
         namespace_type,
         0 AS level,
-        ARRAY[id]::VARCHAR[] AS ancestors
+        ARRAY[id] AS ancestors
     FROM namespaces
     WHERE parent_id IS NULL
 
@@ -124,7 +124,7 @@ WITH RECURSIVE hierarchy AS (
         n.name,
         n.namespace_type,
         h.level + 1,
-        h.ancestors || n.id::VARCHAR
+        h.ancestors || n.id
     FROM namespaces n
     INNER JOIN hierarchy h ON n.parent_id = h.id
 )

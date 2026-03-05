@@ -8,7 +8,7 @@ pub struct BackupConfig {
     /// Enable automated backups
     pub enabled: bool,
 
-    /// Cron schedule for automated backups (e.g., "0 0 2 * * * *" for daily at 2 AM)
+    /// Cron schedule for automated backups (e.g., "0 2 * * *" for daily at 2 AM)
     pub schedule: String,
 
     /// Retention period in days
@@ -199,7 +199,7 @@ impl Default for BackupConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            schedule: "0 0 2 * * * *".to_string(), // Daily at 2 AM
+            schedule: "0 2 * * *".to_string(), // Daily at 2 AM
             retention_days: 30,
             storage_type: StorageType::Local,
             storage_config: StorageConfig::Local(LocalStorageConfig {
