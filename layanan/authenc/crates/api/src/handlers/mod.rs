@@ -105,6 +105,4 @@ pub use client_registration::{
     update_client_configuration_handler,
 };
 
-pub use captcha::{
-    captcha_challenge_handler, captcha_image_handler, captcha_verify_handler,
-};
+pub use captcha::{captcha_challenge_handler, captcha_image_handler, captcha_verify_handler};

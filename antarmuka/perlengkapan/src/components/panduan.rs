@@ -5,32 +5,57 @@ use leptos::prelude::*;
 #[component]
 pub fn PanduanPengguna() -> impl IntoView {
     let guides = vec![
-        ("Dashboard", "fas fa-home", "Melihat ringkasan statistik, akses cepat ke modul, dan status aset terkini.", vec![
-            "Stat cards menampilkan data real-time dari backend",
-            "Klik modul untuk navigasi langsung",
-            "Ganti role aktif via menu profil di kanan atas",
-        ]),
-        ("Bank Aset", "fas fa-boxes", "Katalog lengkap BMN dengan pencarian, filter, dan cetak QR Code.", vec![
-            "Gunakan filter untuk menyaring berdasarkan kategori, kondisi, atau satker",
-            "Klik baris aset untuk melihat detail lengkap",
-            "Cetak QR Code untuk pelabelan fisik",
-        ]),
-        ("Kebutuhan BMN", "fas fa-clipboard-list", "Pengajuan analisis kebutuhan barang milik negara.", vec![
-            "Buat pengajuan baru via menu 'Buat Baru'",
-            "Isi formulir analisis kebutuhan dengan lengkap",
-            "Pantau status pengajuan di halaman 'Daftar'",
-            "Unduh laporan rekap di halaman 'Laporan'",
-        ]),
-        ("Pakaian Dinas", "fas fa-tshirt", "Pengajuan dan distribusi pakaian dinas pegawai.", vec![
-            "Data ukuran pegawai dikelola di menu 'Ukuran'",
-            "Pengajuan pakaian dinas melalui menu 'Pengajuan'",
-            "Lihat jenis pakaian tersedia di menu 'Jenis'",
-        ]),
-        ("Pengelolaan BMN", "fas fa-cogs", "Pemakaian dan penghapusan BMN.", vec![
-            "Ajukan izin pemakaian BMN via 'Pemakaian BMN'",
-            "Proses penghapusan aset rusak/hilang via 'Penghapusan'",
-            "Monitor status persetujuan workflow secara real-time",
-        ]),
+        (
+            "Dashboard",
+            "fas fa-home",
+            "Melihat ringkasan statistik, akses cepat ke modul, dan status aset terkini.",
+            vec![
+                "Stat cards menampilkan data real-time dari backend",
+                "Klik modul untuk navigasi langsung",
+                "Ganti role aktif via menu profil di kanan atas",
+            ],
+        ),
+        (
+            "Bank Aset",
+            "fas fa-boxes",
+            "Katalog lengkap BMN dengan pencarian, filter, dan cetak QR Code.",
+            vec![
+                "Gunakan filter untuk menyaring berdasarkan kategori, kondisi, atau satker",
+                "Klik baris aset untuk melihat detail lengkap",
+                "Cetak QR Code untuk pelabelan fisik",
+            ],
+        ),
+        (
+            "Kebutuhan BMN",
+            "fas fa-clipboard-list",
+            "Pengajuan analisis kebutuhan barang milik negara.",
+            vec![
+                "Buat pengajuan baru via menu 'Buat Baru'",
+                "Isi formulir analisis kebutuhan dengan lengkap",
+                "Pantau status pengajuan di halaman 'Daftar'",
+                "Unduh laporan rekap di halaman 'Laporan'",
+            ],
+        ),
+        (
+            "Pakaian Dinas",
+            "fas fa-tshirt",
+            "Pengajuan dan distribusi pakaian dinas pegawai.",
+            vec![
+                "Data ukuran pegawai dikelola di menu 'Ukuran'",
+                "Pengajuan pakaian dinas melalui menu 'Pengajuan'",
+                "Lihat jenis pakaian tersedia di menu 'Jenis'",
+            ],
+        ),
+        (
+            "Pengelolaan BMN",
+            "fas fa-cogs",
+            "Pemakaian dan penghapusan BMN.",
+            vec![
+                "Ajukan izin pemakaian BMN via 'Pemakaian BMN'",
+                "Proses penghapusan aset rusak/hilang via 'Penghapusan'",
+                "Monitor status persetujuan workflow secara real-time",
+            ],
+        ),
     ];
 
     view! {

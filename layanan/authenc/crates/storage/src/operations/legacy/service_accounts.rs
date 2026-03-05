@@ -1,7 +1,7 @@
 /// Database operations for service accounts
 use crate::Database;
-use authenc_types::{AuthencError, Result};
 use authenc_types::domain::service_account::ServiceAccount;
+use authenc_types::{AuthencError, Result};
 use chrono::{DateTime, Utc};
 use tracing::{error, info, warn};
 use uuid::Uuid;

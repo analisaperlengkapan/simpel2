@@ -23,7 +23,7 @@ pub async fn mock_fetch_kebutuhan_bmn_list() -> Result<Vec<KebutuhanBmnItem>, St
             nama_satker: Some("Satker B".to_string()),
             status_label: Some("Diajukan".to_string()),
             jumlah: 5,
-        }
+        },
     ])
 }
 

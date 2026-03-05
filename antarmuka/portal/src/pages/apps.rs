@@ -7,10 +7,7 @@ use leptos::prelude::*;
 
 /// Applications page
 #[component]
-pub fn AppsPage(
-    user_session: UserSession,
-    on_logout: Box<dyn Fn()>,
-) -> impl IntoView {
+pub fn AppsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
     let (selected_category, set_selected_category) = signal(None::<AppCategory>);
 

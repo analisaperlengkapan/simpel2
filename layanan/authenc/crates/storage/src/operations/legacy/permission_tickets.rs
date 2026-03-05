@@ -1,9 +1,9 @@
 /// Database operations for permission tickets
 use crate::Database;
-use authenc_types::{AuthencError, Result};
 use authenc_types::domain::permission_ticket::{
     CreatePermissionTicketRequest, PermissionTicket, PermissionTicketFilter,
 };
+use authenc_types::{AuthencError, Result};
 use chrono::Utc;
 use tracing::error;
 use uuid::Uuid;

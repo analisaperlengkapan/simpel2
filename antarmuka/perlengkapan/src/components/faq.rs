@@ -5,14 +5,38 @@ use leptos::prelude::*;
 #[component]
 pub fn FaqPage() -> impl IntoView {
     let faqs = vec![
-        ("Bagaimana cara mengajukan kebutuhan BMN?", "Buka menu 'Kebutuhan BMN' → 'Buat Baru', isi formulir analisis kebutuhan, lalu submit. Pengajuan akan diproses sesuai alur persetujuan (Operator → Validator Wilayah → Validator Pusat)."),
-        ("Bagaimana cara mengganti role aktif?", "Klik ikon profil di pojok kanan atas header, lalu pilih role yang diinginkan dari daftar yang tersedia. Perubahan langsung berlaku tanpa perlu reload."),
-        ("Apa saja role yang tersedia?", "Ada 4 role: Operator Satker (input data operasional), Validator Wilayah (verifikasi tingkat wilayah), Validator Pusat (persetujuan & penerbitan SK), dan Admin (pengelolaan sistem)."),
-        ("Bagaimana cara cetak QR Code aset?", "Buka menu 'Bank Aset' → 'Cetak QR Code'. Pilih aset yang ingin dicetak QR-nya dengan checkbox, lalu klik tombol 'Cetak'."),
-        ("Bagaimana proses penghapusan BMN?", "Buka menu 'Pengelolaan BMN' → 'Penghapusan' → 'Buat'. Isi formulir penghapusan, lampirkan dokumen pendukung. Pengajuan akan melalui alur workflow sampai terbit SK penghapusan."),
-        ("Bagaimana cara melihat laporan?", "Setiap modul memiliki sub-menu 'Laporan'. Laporan bisa di-filter berdasarkan tahun dan status, serta di-export ke format XLSX atau PDF."),
-        ("Data SIMAN tidak sinkron, bagaimana?", "Sinkronisasi data SIMAN dilakukan secara otomatis oleh sistem. Jika ada ketidaksesuaian, hubungi tim support melalui menu 'Bantuan' → 'Helpdesk'."),
-        ("Bagaimana cara mengajukan pakaian dinas?", "Pastikan data ukuran pegawai sudah terisi di menu 'Pakaian Dinas' → 'Ukuran'. Kemudian buat pengajuan melalui menu 'Pengajuan'."),
+        (
+            "Bagaimana cara mengajukan kebutuhan BMN?",
+            "Buka menu 'Kebutuhan BMN' → 'Buat Baru', isi formulir analisis kebutuhan, lalu submit. Pengajuan akan diproses sesuai alur persetujuan (Operator → Validator Wilayah → Validator Pusat).",
+        ),
+        (
+            "Bagaimana cara mengganti role aktif?",
+            "Klik ikon profil di pojok kanan atas header, lalu pilih role yang diinginkan dari daftar yang tersedia. Perubahan langsung berlaku tanpa perlu reload.",
+        ),
+        (
+            "Apa saja role yang tersedia?",
+            "Ada 4 role: Operator Satker (input data operasional), Validator Wilayah (verifikasi tingkat wilayah), Validator Pusat (persetujuan & penerbitan SK), dan Admin (pengelolaan sistem).",
+        ),
+        (
+            "Bagaimana cara cetak QR Code aset?",
+            "Buka menu 'Bank Aset' → 'Cetak QR Code'. Pilih aset yang ingin dicetak QR-nya dengan checkbox, lalu klik tombol 'Cetak'.",
+        ),
+        (
+            "Bagaimana proses penghapusan BMN?",
+            "Buka menu 'Pengelolaan BMN' → 'Penghapusan' → 'Buat'. Isi formulir penghapusan, lampirkan dokumen pendukung. Pengajuan akan melalui alur workflow sampai terbit SK penghapusan.",
+        ),
+        (
+            "Bagaimana cara melihat laporan?",
+            "Setiap modul memiliki sub-menu 'Laporan'. Laporan bisa di-filter berdasarkan tahun dan status, serta di-export ke format XLSX atau PDF.",
+        ),
+        (
+            "Data SIMAN tidak sinkron, bagaimana?",
+            "Sinkronisasi data SIMAN dilakukan secara otomatis oleh sistem. Jika ada ketidaksesuaian, hubungi tim support melalui menu 'Bantuan' → 'Helpdesk'.",
+        ),
+        (
+            "Bagaimana cara mengajukan pakaian dinas?",
+            "Pastikan data ukuran pegawai sudah terisi di menu 'Pakaian Dinas' → 'Ukuran'. Kemudian buat pengajuan melalui menu 'Pengajuan'.",
+        ),
     ];
 
     let open_idx = RwSignal::new(None::<usize>);

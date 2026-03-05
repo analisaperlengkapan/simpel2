@@ -1,9 +1,9 @@
 //! IAM API state with admin service dependencies
 
+use authenc_core::services::group_store::GroupStore;
 use authenc_core::services::{
     OAuth2ServiceImpl, RealmManagementServiceImpl, UserManagementServiceImpl,
 };
-use authenc_core::services::group_store::GroupStore;
 use authenc_crypto::jwt::JwtService;
 use std::sync::Arc;
 

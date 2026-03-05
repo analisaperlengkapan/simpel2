@@ -106,7 +106,6 @@ pub fn LoginRedirectPage(
     }
 }
 
-
 /// Protected route wrapper component
 ///
 /// Wraps content that requires authentication. If user is not authenticated,

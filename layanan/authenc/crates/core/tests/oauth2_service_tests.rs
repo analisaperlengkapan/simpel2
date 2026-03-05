@@ -18,7 +18,8 @@ use async_trait::async_trait;
 use authenc_core::services::oauth2_service::OAuth2ServiceImpl;
 use authenc_types::{
     AuthorizationRequest, AuthorizationResponse, ClientId, RealmId, TokenClaims, TokenRequest,
-    TokenResponse, UserId, domain::*, domain_types::*, error::AuthencError, result::Result, traits::*,
+    TokenResponse, UserId, domain::*, domain_types::*, error::AuthencError, result::Result,
+    traits::*,
 };
 use chrono::{Duration, Utc};
 use std::collections::HashMap;
@@ -48,7 +49,10 @@ impl MockClientStore {
 
 #[async_trait]
 impl ClientStore for MockClientStore {
-    async fn get_client(&self, id: ClientId) -> Result<authenc_types::domain::oidc_client::OidcClient> {
+    async fn get_client(
+        &self,
+        id: ClientId,
+    ) -> Result<authenc_types::domain::oidc_client::OidcClient> {
         let clients = self.clients.lock().await;
         clients
             .values()
@@ -94,7 +98,10 @@ impl ClientStore for MockClientStore {
         unimplemented!()
     }
 
-    async fn list_clients(&self, _realm_id: RealmId) -> Result<Vec<authenc_types::domain::oidc_client::OidcClient>> {
+    async fn list_clients(
+        &self,
+        _realm_id: RealmId,
+    ) -> Result<Vec<authenc_types::domain::oidc_client::OidcClient>> {
         unimplemented!()
     }
 
@@ -214,7 +221,11 @@ impl TokenGenerator for MockTokenGenerator {
 // Helper Functions
 // ============================================================================
 
-fn create_test_client(client_id: &str, _client_secret: Option<String>, _public: bool) -> authenc_types::domain::oidc_client::OidcClient {
+fn create_test_client(
+    client_id: &str,
+    _client_secret: Option<String>,
+    _public: bool,
+) -> authenc_types::domain::oidc_client::OidcClient {
     let now = Utc::now();
     authenc_types::domain::oidc_client::OidcClient {
         id: uuid::Uuid::new_v4().to_string(),
@@ -383,10 +394,7 @@ async fn test_authorization_code_flow_missing_pkce() {
 
     let result = service.authorize(auth_request).await;
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        AuthencError::OAuth2Error(_)
-    ));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 #[tokio::test]
@@ -411,10 +419,7 @@ async fn test_authorization_invalid_redirect_uri() {
 
     let result = service.authorize(auth_request).await;
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        AuthencError::OAuth2Error(_)
-    ));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 #[tokio::test]
@@ -521,10 +526,7 @@ async fn test_client_credentials_flow_invalid_secret() {
 
     let result = service.token(token_request).await;
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        AuthencError::OAuth2Error(_)
-    ));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 #[tokio::test]
@@ -549,10 +551,7 @@ async fn test_client_credentials_flow_public_client_not_allowed() {
 
     let result = service.token(token_request).await;
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        AuthencError::OAuth2Error(_)
-    ));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 // ============================================================================
@@ -646,7 +645,7 @@ async fn test_refresh_token_flow_expired_token() {
         scope: "openid profile".to_string(),
         expires_at: Utc::now() - Duration::hours(1), // Expired 1 hour ago
         created_at: Utc::now() - Duration::days(8),
-    realm_id: RealmId::new(),
+        realm_id: RealmId::new(),
         revoked: false,
     };
     refresh_token_store
@@ -753,10 +752,7 @@ async fn test_redirect_uri_validation_not_in_whitelist() {
 
     let result = service.validate_redirect_uri(&client, "https://evil.com/callback");
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        AuthencError::OAuth2Error(_)
-    ));
+    assert!(matches!(result.unwrap_err(), AuthencError::OAuth2Error(_)));
 }
 
 #[tokio::test]
@@ -821,5 +817,3 @@ async fn test_scope_validation_empty_scope() {
 // ============================================================================
 // Client Authentication Tests
 // ============================================================================
-
-

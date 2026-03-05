@@ -59,9 +59,9 @@ fn WithAdminAuth(
             if session.role.is_admin() {
                 children.with_value(|c| c().into_any())
             } else {
-                 view! { <crate::components::guards::ForbiddenPage /> }.into_any()
+                view! { <crate::components::guards::ForbiddenPage /> }.into_any()
             }
-        },
+        }
         None => view! {
             <LoginPage on_login_success=on_login_success />
         }
@@ -113,8 +113,8 @@ pub fn App() -> impl IntoView {
         use gloo_timers::future::TimeoutFuture;
         use leptos::prelude::Effect;
         use leptos::prelude::on_cleanup;
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
 
         Effect::new(move |_| {
             if let Some(_session) = user_session.get() {
@@ -123,13 +123,15 @@ pub fn App() -> impl IntoView {
                 let is_active_clone = is_active.clone();
 
                 on_cleanup(move || {
-                    is_active_clone.store(false, Ordering::Relaxed);
+                    is_active_clone.store(false, Ordering::SeqCst);
                 });
 
                 // Spawn async task for token refresh monitoring
                 spawn_local(async move {
                     'monitor: loop {
-                        if !is_active.load(Ordering::Relaxed) { break; }
+                        if !is_active.load(Ordering::SeqCst) {
+                            break;
+                        }
 
                         if let Some(mut current_session) = AuthService::load_session() {
                             // Check if session is expired
@@ -155,7 +157,8 @@ pub fn App() -> impl IntoView {
                                         // Reload session to update UI
                                         set_user_session.set(AuthService::load_session());
                                         // Update current_session for accurate countdown calculation
-                                        if let Some(refreshed_session) = AuthService::load_session() {
+                                        if let Some(refreshed_session) = AuthService::load_session()
+                                        {
                                             current_session = refreshed_session;
                                         }
                                     }
@@ -190,11 +193,15 @@ pub fn App() -> impl IntoView {
                             break;
                         }
 
-                        if !is_active.load(Ordering::Relaxed) { break; }
+                        if !is_active.load(Ordering::SeqCst) {
+                            break;
+                        }
 
                         // Wait 30 seconds, decrementing countdown every second if active
                         for _ in 0..30 {
-                            if !is_active.load(Ordering::Relaxed) { break; }
+                            if !is_active.load(Ordering::SeqCst) {
+                                break;
+                            }
                             TimeoutFuture::new(1_000).await;
 
                             let current = timeout_countdown.get_untracked();

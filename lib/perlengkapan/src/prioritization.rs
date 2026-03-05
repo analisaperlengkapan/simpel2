@@ -104,7 +104,7 @@ pub enum SatkerType {
 
 impl SatkerType {
     /// Parse satker type from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
             "CABJARI" => Some(SatkerType::Cabjari),
             "KEJARI_C" | "KEJARI C" => Some(SatkerType::KejariC),
@@ -238,10 +238,10 @@ mod tests {
 
     #[test]
     fn test_satker_type_parsing() {
-        assert_eq!(SatkerType::from_str("CABJARI"), Some(SatkerType::Cabjari));
-        assert_eq!(SatkerType::from_str("KEJARI_C"), Some(SatkerType::KejariC));
-        assert_eq!(SatkerType::from_str("KEJATI"), Some(SatkerType::Kejati));
-        assert_eq!(SatkerType::from_str("INVALID"), None);
+        assert_eq!(SatkerType::parse_str("CABJARI"), Some(SatkerType::Cabjari));
+        assert_eq!(SatkerType::parse_str("KEJARI_C"), Some(SatkerType::KejariC));
+        assert_eq!(SatkerType::parse_str("KEJATI"), Some(SatkerType::Kejati));
+        assert_eq!(SatkerType::parse_str("INVALID"), None);
     }
 
     #[test]

@@ -71,10 +71,30 @@ struct RoleDef {
 }
 
 const ROLES: &[RoleDef] = &[
-    RoleDef { key: "operator_satker",   label: "Operator Satker",   icon: "fas fa-keyboard",     accent: "#60a5fa" },
-    RoleDef { key: "validator_wilayah", label: "Validator Wilayah", icon: "fas fa-check-double", accent: "#fbbf24" },
-    RoleDef { key: "validator_pusat",   label: "Validator Pusat",   icon: "fas fa-stamp",        accent: "#34d399" },
-    RoleDef { key: "admin",             label: "Admin",             icon: "fas fa-user-shield",  accent: "#f87171" },
+    RoleDef {
+        key: "operator_satker",
+        label: "Operator Satker",
+        icon: "fas fa-keyboard",
+        accent: "#60a5fa",
+    },
+    RoleDef {
+        key: "validator_wilayah",
+        label: "Validator Wilayah",
+        icon: "fas fa-check-double",
+        accent: "#fbbf24",
+    },
+    RoleDef {
+        key: "validator_pusat",
+        label: "Validator Pusat",
+        icon: "fas fa-stamp",
+        accent: "#34d399",
+    },
+    RoleDef {
+        key: "admin",
+        label: "Admin",
+        icon: "fas fa-user-shield",
+        accent: "#f87171",
+    },
 ];
 
 /// Inline role switcher — renders role buttons as a flat list (for embedding in ProfileMenu).
