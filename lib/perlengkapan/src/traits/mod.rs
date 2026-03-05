@@ -2,6 +2,10 @@
 //!
 //! These traits define the interfaces that perlengkapan services must implement.
 
+#[cfg(feature = "backend")]
+use crate::{Asset, DashboardStats};
+#[cfg(feature = "backend")]
+use uuid::Uuid;
 
 /// Trait for asset repository operations
 #[cfg(feature = "backend")]
