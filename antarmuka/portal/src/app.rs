@@ -113,8 +113,8 @@ pub fn App() -> impl IntoView {
         use gloo_timers::future::TimeoutFuture;
         use leptos::prelude::Effect;
         use leptos::prelude::on_cleanup;
-        use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
 
         Effect::new(move |_| {
             if let Some(_session) = user_session.get() {
@@ -123,13 +123,13 @@ pub fn App() -> impl IntoView {
                 let is_active_clone = is_active.clone();
 
                 on_cleanup(move || {
-                    is_active_clone.store(false, Ordering::SeqCst);
+                    is_active_clone.store(false, Ordering::Relaxed);
                 });
 
                 // Spawn async task for token refresh monitoring
                 spawn_local(async move {
                     'monitor: loop {
-                        if !is_active.load(Ordering::SeqCst) {
+                        if !is_active.load(Ordering::Relaxed) {
                             break;
                         }
 
@@ -193,13 +193,13 @@ pub fn App() -> impl IntoView {
                             break;
                         }
 
-                        if !is_active.load(Ordering::SeqCst) {
+                        if !is_active.load(Ordering::Relaxed) {
                             break;
                         }
 
                         // Wait 30 seconds, decrementing countdown every second if active
                         for _ in 0..30 {
-                            if !is_active.load(Ordering::SeqCst) {
+                            if !is_active.load(Ordering::Relaxed) {
                                 break;
                             }
                             TimeoutFuture::new(1_000).await;

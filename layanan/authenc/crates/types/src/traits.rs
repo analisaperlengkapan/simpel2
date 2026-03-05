@@ -52,6 +52,9 @@ pub trait UserStore: Send + Sync {
     async fn list_users(&self, realm_id: RealmId, offset: usize, limit: usize)
     -> Result<Vec<User>>;
 
+    /// Count users in a realm
+    async fn count_users(&self, realm_id: RealmId) -> Result<u64>;
+
     /// Check if a username exists in a realm
     async fn username_exists(&self, username: &str, realm_id: RealmId) -> Result<bool>;
 

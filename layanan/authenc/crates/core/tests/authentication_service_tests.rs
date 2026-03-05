@@ -73,6 +73,10 @@ impl UserStore for MockUserStore {
         unimplemented!()
     }
 
+    async fn count_users(&self, _realm_id: RealmId) -> Result<u64> {
+        Ok(self.users.lock().await.len() as u64)
+    }
+
     async fn list_users(
         &self,
         _realm_id: RealmId,

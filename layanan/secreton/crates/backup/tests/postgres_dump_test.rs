@@ -19,7 +19,6 @@ async fn create_test_manager(database_url: Option<String>) -> (BackupManager, Te
     let mut config = BackupConfig::default();
     config.storage_config = StorageConfig::Local(LocalStorageConfig {
         path: temp_dir.path().to_string_lossy().to_string(),
-        Ok(())
     });
     config.database_url = database_url;
 

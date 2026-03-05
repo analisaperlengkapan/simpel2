@@ -39,6 +39,7 @@ jobs:
         run: |
           # Fix corrupted cargo registry - removed AFTER setup-rust restores it
           rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/curve25519-dalek-derive-0.1.1 || true
 
       - name: Install Tools
         shell: bash

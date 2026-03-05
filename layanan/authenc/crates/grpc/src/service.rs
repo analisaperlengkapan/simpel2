@@ -470,6 +470,8 @@ impl AuthencService for AuthencGrpcService {
             require_password_change: None,
             mfa_enabled: None,
             attributes: None,
+            totp_secret: None,
+            clear_totp_secret: None,
         };
 
         // Update user
@@ -590,9 +592,12 @@ impl AuthencService for AuthencGrpcService {
             .await
             .map_err(Self::error_to_status)?;
 
+        // Use the secret generated from the MFA service
+        let encoded_secret = mfa_setup.secret.clone();
+
         // Enable MFA flag on user
         self.user_service
-            .enable_mfa(user_id)
+            .enable_mfa(user_id, encoded_secret)
             .await
             .map_err(Self::error_to_status)?;
 

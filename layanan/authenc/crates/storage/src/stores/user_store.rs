@@ -189,6 +189,48 @@ impl UserStore for PostgresUserStore {
             updates.push(format!("phone_number = ${}", param_index));
             param_index += 1;
         }
+        if req.username.is_some() {
+            updates.push(format!("username = ${}", param_index));
+            param_index += 1;
+        }
+        if req.satker_code.is_some() {
+            updates.push(format!("satker_code = ${}", param_index));
+            param_index += 1;
+        }
+        if req.nip.is_some() {
+            updates.push(format!("nip = ${}", param_index));
+            param_index += 1;
+        }
+        if req.nama.is_some() {
+            updates.push(format!("nama = ${}", param_index));
+            param_index += 1;
+        }
+        if req.jabatan.is_some() {
+            updates.push(format!("jabatan = ${}", param_index));
+            param_index += 1;
+        }
+        if req.phone_verified.is_some() {
+            updates.push(format!("phone_verified = ${}", param_index));
+            param_index += 1;
+        }
+        if req.require_password_change.is_some() {
+            updates.push(format!("require_password_change = ${}", param_index));
+            param_index += 1;
+        }
+        if req.password.is_some() {
+            updates.push(format!("password_hash = ${}", param_index));
+            param_index += 1;
+        }
+        if req.mfa_enabled.is_some() {
+            updates.push(format!("mfa_enabled = ${}", param_index));
+            param_index += 1;
+        }
+        if let Some(true) = req.clear_totp_secret {
+            updates.push("totp_secret = NULL".to_string());
+        } else if req.totp_secret.is_some() {
+            updates.push(format!("totp_secret = ${}", param_index));
+            param_index += 1;
+        }
 
         if updates.is_empty() {
             // No updates requested, just return the current user
@@ -228,6 +270,38 @@ impl UserStore for PostgresUserStore {
         }
         if let Some(ref phone_number) = req.phone_number {
             params.push(phone_number);
+        }
+        if let Some(ref username) = req.username {
+            params.push(username);
+        }
+        if let Some(ref satker_code) = req.satker_code {
+            params.push(satker_code);
+        }
+        if let Some(ref nip) = req.nip {
+            params.push(nip);
+        }
+        if let Some(ref nama) = req.nama {
+            params.push(nama);
+        }
+        if let Some(ref jabatan) = req.jabatan {
+            params.push(jabatan);
+        }
+        if let Some(ref phone_verified) = req.phone_verified {
+            params.push(phone_verified);
+        }
+        if let Some(ref require_password_change) = req.require_password_change {
+            params.push(require_password_change);
+        }
+        if let Some(ref password_hash) = req.password {
+            params.push(password_hash);
+        }
+        if let Some(ref mfa_enabled) = req.mfa_enabled {
+            params.push(mfa_enabled);
+        }
+        if req.clear_totp_secret != Some(true) {
+            if let Some(ref totp_secret) = req.totp_secret {
+                params.push(totp_secret);
+            }
         }
 
         let now = Utc::now();
@@ -290,6 +364,21 @@ impl UserStore for PostgresUserStore {
         let users: Result<Vec<User>> = rows.into_iter().map(row_to_user).collect();
 
         users
+    }
+
+    async fn count_users(&self, realm_id: RealmId) -> Result<u64> {
+        debug!("Counting users in realm: {}", realm_id);
+
+        let query = r#"
+            SELECT COUNT(*)
+            FROM users
+            WHERE realm_id = $1
+        "#;
+
+        let row = self.db.query_one(query, &[&realm_id.0]).await?;
+        let count: i64 = row.get(0);
+
+        Ok(count as u64)
     }
 
     async fn username_exists(&self, username: &str, realm_id: RealmId) -> Result<bool> {
@@ -457,6 +546,8 @@ mod tests {
                 password: None,
                 mfa_enabled: None,
                 attributes: None,
+                totp_secret: None,
+                clear_totp_secret: None,
             };
 
             assert!(req.email.is_none());
@@ -483,6 +574,8 @@ mod tests {
                 password: None,
                 mfa_enabled: Some(true),
                 attributes: None,
+                totp_secret: None,
+                clear_totp_secret: None,
             };
 
             assert_eq!(req.email, Some("newemail@example.com".to_string()));
