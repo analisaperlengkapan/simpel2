@@ -92,18 +92,9 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - infra/authenc
-          - layanan/badiklat
-          - layanan/datun
-          - layanan/intel
-          - layanan/pemulihan_aset
-          - layanan/pengawasan
-          - layanan/pidsus
-          - layanan/pidum
-          - layanan/pidmil
-          - layanan/pembinaan/keuangan
-          - layanan/pembinaan/perencanaan
-          - layanan/pembinaan/perlengkapan
+          - layanan/authenc
+          - layanan/perlengkapan
+          - layanan/secreton
 
     steps:
       - name: Fix permissions
