@@ -95,9 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. Get client by ID
     println!("4. Retrieving client by ID...");
-    let retrieved_client = client_store
-        .get_client(ClientId(Uuid::parse_str(&public_client.id).unwrap()))
-        .await?;
+    let retrieved_client = client_store.get_client(ClientId(Uuid::parse_str(&public_client.id).unwrap())).await?;
     println!(
         "   Retrieved: {} ({})\n",
         retrieved_client.name, retrieved_client.client_id
@@ -135,10 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("7. Updating client secret...");
     let new_secret_hash = "hashed_secret_value_here"; // In practice, hash with Argon2
     client_store
-        .update_client_secret(
-            ClientId(Uuid::parse_str(&confidential_client.id).unwrap()),
-            new_secret_hash.to_string(),
-        )
+        .update_client_secret(ClientId(Uuid::parse_str(&confidential_client.id).unwrap()), new_secret_hash.to_string())
         .await?;
     println!("   Client secret updated successfully\n");
 
@@ -157,17 +152,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 9. Delete a client (soft delete)
     println!("9. Deleting a client...");
-    client_store
-        .delete_client(ClientId(Uuid::parse_str(&public_client.id).unwrap()))
-        .await?;
+    client_store.delete_client(ClientId(Uuid::parse_str(&public_client.id).unwrap())).await?;
     println!("   Client deleted successfully\n");
 
     // 10. Verify deletion
     println!("10. Verifying deletion...");
-    match client_store
-        .get_client(ClientId(Uuid::parse_str(&public_client.id).unwrap()))
-        .await
-    {
+    match client_store.get_client(ClientId(Uuid::parse_str(&public_client.id).unwrap())).await {
         Ok(_) => println!("   ERROR: Client still exists!"),
         Err(e) => println!("   Confirmed deleted: {}\n", e),
     }

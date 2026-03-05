@@ -140,7 +140,10 @@ pub async fn login_handler(
     State(state): State<Arc<ApiState>>,
     Json(request): Json<LoginRequest>,
 ) -> impl axum::response::IntoResponse {
-    use authenc_types::{AuthResult, Credentials, RealmId, traits::AuthenticationService};
+    use authenc_types::{
+        AuthResult, Credentials, RealmId,
+        traits::AuthenticationService,
+    };
 
     // Default to master realm if none provided (master realm = all-zeros UUID)
     let realm_id = RealmId::from_uuid(
@@ -155,10 +158,7 @@ pub async fn login_handler(
     };
 
     match state.auth_service.authenticate(credentials, realm_id).await {
-        Ok(AuthResult::Success {
-            user_id,
-            session_id,
-        }) => {
+        Ok(AuthResult::Success { user_id, session_id }) => {
             let uid = user_id.as_uuid().to_string();
             let sid = session_id.0.to_string();
 
@@ -212,10 +212,7 @@ pub async fn login_handler(
                 .into_response()
         }
 
-        Ok(AuthResult::MfaRequired {
-            user_id: _,
-            mfa_token,
-        }) => (
+        Ok(AuthResult::MfaRequired { user_id: _, mfa_token }) => (
             axum::http::StatusCode::OK,
             axum::Json(LoginResponse {
                 access_token: String::new(),
@@ -380,9 +377,9 @@ pub async fn get_current_user_handler(
     let user_id = UserId::from_uuid(user_uuid);
     match state.user_service.get_user(user_id).await {
         Ok(user) => {
-            let realm_id = user.realm_id.unwrap_or_else(|| {
-                Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
-            });
+            let realm_id = user
+                .realm_id
+                .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap());
             // Build display name from first + last name
             let name = match (&user.first_name, &user.last_name) {
                 (Some(f), Some(l)) => Some(format!("{} {}", f, l)),

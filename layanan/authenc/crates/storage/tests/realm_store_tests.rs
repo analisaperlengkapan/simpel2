@@ -116,10 +116,7 @@ fn test_realm_display_name() {
     realm.display_name = Some("User Friendly Display Name".to_string());
 
     assert_ne!(realm.name, realm.display_name.as_deref().unwrap_or(""));
-    assert_eq!(
-        realm.display_name.as_deref(),
-        Some("User Friendly Display Name")
-    );
+    assert_eq!(realm.display_name.as_deref(), Some("User Friendly Display Name"));
 }
 
 #[test]

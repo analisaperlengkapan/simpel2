@@ -2,7 +2,7 @@
 //!
 //! Dark navy + gold Kejaksaan theme, single-page application.
 
-#![recursion_limit = "512"]
+#![recursion_limit="512"]
 mod api;
 mod components;
 mod pages;
@@ -18,31 +18,31 @@ use pages::not_found::NotFound;
 use pages::placeholder::PlaceholderPage;
 
 // Migrated business components
-use components::admin_users::{AdminRolesPage, AdminUsersPage};
-use components::analisis_form::AnalisisForm;
-use components::analisis_list::AnalisisList;
 use components::aset_list::AsetList;
-use components::faq::FaqPage;
-use components::helpdesk::HelpdeskPage;
-use components::kebutuhan_bmn_detail::KebutuhanBmnDetail;
-use components::kebutuhan_bmn_form::KebutuhanBmnForm;
 use components::kebutuhan_bmn_list::KebutuhanBmnList;
+use components::kebutuhan_bmn_form::KebutuhanBmnForm;
+use components::kebutuhan_bmn_detail::KebutuhanBmnDetail;
 use components::kebutuhan_bmn_satker::KebutuhanBmnSatkerDetail;
-use components::laporan_kebutuhan_bmn::LaporanKebutuhanBmn;
-use components::mapping_kodefikasi_dashboard::MappingKodefikasiDashboard;
 use components::pakaian_dinas_jenis_list::PakaianDinasJenisList;
-use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
 use components::pakaian_dinas_ukuran::UkuranPegawai;
-use components::panduan::PanduanPengguna;
-use components::pemakaian_bmn_detail::PemakaianBmnDetail;
-use components::pemakaian_bmn_form::PemakaianBmnForm;
+use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pemakaian_bmn_list::PemakaianBmnList;
+use components::pemakaian_bmn_form::PemakaianBmnForm;
+use components::pemakaian_bmn_detail::PemakaianBmnDetail;
 use components::pemakaian_bmn_monitoring::PemakaianBmnMonitoring;
+use components::penghapusan_list::PenghapusanList;
 use components::penghapusan_bmn_detail::PenghapusanBmnDetail;
 use components::penghapusan_form::PenghapusanForm;
-use components::penghapusan_list::PenghapusanList;
+use components::analisis_list::AnalisisList;
+use components::analisis_form::AnalisisForm;
 use components::qrcode_generator::QrCodeGenerator;
+use components::laporan_kebutuhan_bmn::LaporanKebutuhanBmn;
+use components::admin_users::{AdminUsersPage, AdminRolesPage};
+use components::mapping_kodefikasi_dashboard::MappingKodefikasiDashboard;
+use components::panduan::PanduanPengguna;
+use components::faq::FaqPage;
+use components::helpdesk::HelpdeskPage;
 
 // ── Version ──────────────────────────────────────────────────────────────
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");

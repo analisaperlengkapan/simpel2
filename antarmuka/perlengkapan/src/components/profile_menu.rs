@@ -1,7 +1,7 @@
 //! Profile Menu — avatar dropdown with role switcher + logout.
 
-use super::role_switcher::{RoleSwitcher, get_active_role};
 use leptos::prelude::*;
+use super::role_switcher::{get_active_role, RoleSwitcher};
 
 /// Profile avatar button + dropdown with role switcher and logout.
 #[component]

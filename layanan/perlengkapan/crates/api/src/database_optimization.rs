@@ -399,9 +399,7 @@ mod tests {
     #[test]
     fn test_extract_table_name() {
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
+            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 
@@ -413,9 +411,7 @@ mod tests {
     #[test]
     fn test_extract_where_column() {
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
+            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 
@@ -427,9 +423,7 @@ mod tests {
     #[test]
     fn test_optimize_query() {
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
+            deadpool_postgres::Config::new().create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 

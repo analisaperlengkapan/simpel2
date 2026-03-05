@@ -1,7 +1,7 @@
 /// Database operations for resources
 use crate::Database;
-use authenc_types::domain::resource::{CreateResourceRequest, Resource, UpdateResourceRequest};
 use authenc_types::{AuthencError, Result};
+use authenc_types::domain::resource::{CreateResourceRequest, Resource, UpdateResourceRequest};
 use chrono::Utc;
 use tracing::error;
 use uuid::Uuid;

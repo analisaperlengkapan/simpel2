@@ -427,8 +427,6 @@ impl UserManagementServiceImpl {
             enabled: Some(false),
             email_verified: None,
             mfa_enabled: None,
-            totp_secret: None,
-            clear_totp_secret: None,
             attributes: None,
         };
 
@@ -535,8 +533,6 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: Some(true),
             mfa_enabled: None,
-            totp_secret: None,
-            clear_totp_secret: None,
             attributes: None,
         };
 
@@ -556,7 +552,7 @@ impl UserManagementServiceImpl {
     /// # Arguments
     ///
     /// * `user_id` - User ID
-    pub async fn enable_mfa(&self, user_id: UserId, totp_secret: String) -> Result<User> {
+    pub async fn enable_mfa(&self, user_id: UserId) -> Result<User> {
         debug!(user_id = %user_id, "Enabling MFA");
 
         let update_request = UpdateUserRequest {
@@ -575,8 +571,6 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: None,
             mfa_enabled: Some(true),
-            totp_secret: Some(totp_secret),
-            clear_totp_secret: None,
             attributes: None,
         };
 
@@ -615,8 +609,6 @@ impl UserManagementServiceImpl {
             enabled: None,
             email_verified: None,
             mfa_enabled: Some(false),
-            totp_secret: None,
-            clear_totp_secret: Some(true),
             attributes: None,
         };
 
@@ -837,8 +829,6 @@ mod tests {
             enabled: None,
             email_verified: None,
             mfa_enabled: None,
-            totp_secret: None,
-            clear_totp_secret: None,
             attributes: None,
         }
     }
@@ -859,13 +849,7 @@ mod tests {
             password: Some(password.to_string()),
             enabled: None,
             email_verified: None,
-totp_secret: None,
-clear_totp_secret: None,
-totp_secret: None,
-clear_totp_secret: None,
             mfa_enabled: None,
-            totp_secret: None,
-            clear_totp_secret: None,
             attributes: None,
         }
     }
@@ -1215,7 +1199,7 @@ clear_totp_secret: None,
 
         // Enable MFA
         let mfa_user = service
-            .enable_mfa(UserId::from_uuid(user.id), "secret".to_string())
+            .enable_mfa(UserId::from_uuid(user.id))
             .await
             .unwrap();
         assert!(mfa_user.mfa_enabled);
@@ -1240,7 +1224,7 @@ clear_totp_secret: None,
             .await
             .unwrap();
         let mfa_user = service
-            .enable_mfa(UserId::from_uuid(user.id), "secret".to_string())
+            .enable_mfa(UserId::from_uuid(user.id))
             .await
             .unwrap();
         assert!(mfa_user.mfa_enabled);

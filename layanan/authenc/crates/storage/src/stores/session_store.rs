@@ -285,10 +285,7 @@ fn row_to_session(row: Row) -> Result<Session> {
         expires_at: row.get("expires_at"),
         created_at: row.get("created_at"),
         last_accessed: row.get("last_activity_at"), // Note: DB column is last_activity_at
-        ip_address: row
-            .try_get::<_, std::net::IpAddr>("ip_address")
-            .map(|ip| ip.to_string())
-            .ok(),
+        ip_address: row.try_get::<_, std::net::IpAddr>("ip_address").map(|ip| ip.to_string()).ok(),
         user_agent: row.try_get("user_agent").ok(),
         revoked: row.try_get("revoked").unwrap_or(false),
         mfa_verified: row.try_get("mfa_verified").unwrap_or(false),

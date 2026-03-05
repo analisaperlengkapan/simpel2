@@ -1,7 +1,7 @@
 /// Database operations for device management
 use crate::Database;
-use authenc_types::domain::device::{Device, DeviceInfo};
 use authenc_types::{AuthencError, Result};
+use authenc_types::domain::device::{Device, DeviceInfo};
 use chrono::Utc;
 use tracing::error;
 use uuid::Uuid;

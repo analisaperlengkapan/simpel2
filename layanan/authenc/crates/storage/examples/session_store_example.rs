@@ -63,9 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Update last accessed time
     println!("3. Updating session last accessed time...");
-    session_store
-        .update_last_accessed(SessionId(session.id))
-        .await?;
+    session_store.update_last_accessed(SessionId(session.id)).await?;
     println!("✓ Session last accessed time updated\n");
 
     // 4. List all active sessions for the user
@@ -94,9 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 7. Invalidate a specific session
     println!("7. Invalidating first session...");
-    session_store
-        .invalidate_session(SessionId(session.id))
-        .await?;
+    session_store.invalidate_session(SessionId(session.id)).await?;
     println!("✓ Session invalidated\n");
 
     // 8. Verify session is gone

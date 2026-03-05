@@ -179,17 +179,11 @@ impl Config {
         };
 
         // SIMAN
-        let siman_client_id = std::env::var("SIMAN_CLIENT_ID")
-            .ok()
-            .map(|s| s.trim().to_string());
-        let siman_client_secret = std::env::var("SIMAN_CLIENT_SECRET")
-            .ok()
-            .map(|s| s.trim().to_string());
+        let siman_client_id = std::env::var("SIMAN_CLIENT_ID").ok().map(|s| s.trim().to_string());
+        let siman_client_secret = std::env::var("SIMAN_CLIENT_SECRET").ok().map(|s| s.trim().to_string());
         let siman_token_url =
             std::env::var("SIMAN_TOKEN_URL").unwrap_or_else(|_| default_siman_token_url());
-        let siman_ba_key = std::env::var("SIMAN_BA_KEY")
-            .ok()
-            .map(|s| s.trim().to_string());
+        let siman_ba_key = std::env::var("SIMAN_BA_KEY").ok().map(|s| s.trim().to_string());
         let siman_base_url =
             std::env::var("SIMAN_BASE_URL").unwrap_or_else(|_| default_siman_base_url());
         let siman_concurrency_limit = std::env::var("SIMAN_CONCURRENCY_LIMIT")

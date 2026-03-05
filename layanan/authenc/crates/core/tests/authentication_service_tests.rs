@@ -12,7 +12,9 @@
 
 use async_trait::async_trait;
 use authenc_core::services::authentication_service::AuthenticationServiceImpl;
-use authenc_types::{domain::*, domain_types::*, error::AuthencError, result::Result, traits::*};
+use authenc_types::{
+    domain::*, domain_types::*, error::AuthencError, result::Result, traits::*,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -527,16 +529,10 @@ async fn test_validate_session_success() {
     user_store.add_user(user.clone()).await;
 
     // Create a session
-    let session = session_store
-        .create_session(UserId::from_uuid(user.id))
-        .await
-        .unwrap();
+    let session = session_store.create_session(UserId::from_uuid(user.id)).await.unwrap();
 
     // Validate session
-    let validated_user = auth_service
-        .validate_session(SessionId::from_uuid(session.id))
-        .await
-        .unwrap();
+    let validated_user = auth_service.validate_session(SessionId::from_uuid(session.id)).await.unwrap();
     assert_eq!(validated_user.id, user.id);
     assert_eq!(validated_user.username, user.username);
 }
@@ -586,9 +582,7 @@ async fn test_validate_session_expired() {
     drop(sessions);
 
     // Validate expired session
-    let result = auth_service
-        .validate_session(SessionId::from_uuid(session.id))
-        .await;
+    let result = auth_service.validate_session(SessionId::from_uuid(session.id)).await;
 
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), AuthencError::TokenExpired));
@@ -603,10 +597,7 @@ async fn test_validate_session_disabled_user() {
     user_store.add_user(user.clone()).await;
 
     // Create a session
-    let session = session_store
-        .create_session(UserId::from_uuid(user.id))
-        .await
-        .unwrap();
+    let session = session_store.create_session(UserId::from_uuid(user.id)).await.unwrap();
 
     // Disable user
     user.enabled = false;
@@ -615,9 +606,7 @@ async fn test_validate_session_disabled_user() {
     drop(users);
 
     // Validate session with disabled user
-    let result = auth_service
-        .validate_session(SessionId::from_uuid(session.id))
-        .await;
+    let result = auth_service.validate_session(SessionId::from_uuid(session.id)).await;
 
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), AuthencError::UserDisabled));
@@ -636,10 +625,7 @@ async fn test_logout_success() {
     user_store.add_user(user.clone()).await;
 
     // Create a session
-    let session = session_store
-        .create_session(UserId::from_uuid(user.id))
-        .await
-        .unwrap();
+    let session = session_store.create_session(UserId::from_uuid(user.id)).await.unwrap();
 
     // Verify session exists
     let sessions = session_store.sessions.lock().await;
@@ -647,10 +633,7 @@ async fn test_logout_success() {
     drop(sessions);
 
     // Logout
-    auth_service
-        .logout(SessionId::from_uuid(session.id))
-        .await
-        .unwrap();
+    auth_service.logout(SessionId::from_uuid(session.id)).await.unwrap();
 
     // Verify session removed
     let sessions = session_store.sessions.lock().await;
@@ -703,10 +686,10 @@ async fn test_authentication_empty_password() {
     let user = create_test_user("testuser", "password123", true, false, realm_id);
     user_store.add_user(user).await;
 
-    let credentials = Credentials {
-        username: "testuser".to_string(),
-        password: "".to_string(),
-    };
+        let credentials = Credentials {
+            username: "testuser".to_string(),
+            password: "".to_string(),
+        };
 
     let result = auth_service
         .authenticate(credentials, realm_id)

@@ -82,9 +82,7 @@ mod handler_verification {
     #[test]
     fn test_totp_handlers_exist() {
         // Verify TOTP handlers are accessible
-        use authenc_api::handlers::totp::{
-            disable_totp_handler, enable_totp_handler, verify_totp_handler,
-        };
+        use authenc_api::handlers::totp::{enable_totp_handler, disable_totp_handler, verify_totp_handler};
         assert!(true);
     }
 

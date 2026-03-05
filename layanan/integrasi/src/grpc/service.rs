@@ -907,10 +907,7 @@ impl IntegrasiServiceImpl {
         let items: Vec<SimanAsset> = match self
             .state
             .db_client
-            .query(
-                query,
-                &[&jenis_aset.to_string(), &(per_page as i64), &offset],
-            )
+            .query(query, &[&jenis_aset.to_string(), &(per_page as i64), &offset])
             .await
         {
             Ok(rows) => rows

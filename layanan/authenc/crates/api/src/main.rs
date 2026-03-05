@@ -27,8 +27,8 @@ use tracing::info;
 use url::Url;
 
 use authenc_api::{
-    AppConfig, AxumApp, CorsConfig, CsrfConfig, Environment,
-    session_store::SessionStore as WebAuthnSessionStore, state::ApiState,
+    session_store::SessionStore as WebAuthnSessionStore, state::ApiState, AppConfig, AxumApp,
+    CorsConfig, CsrfConfig, Environment,
 };
 
 // ============================================================================
@@ -132,7 +132,11 @@ impl JwtTokenGenerator {
 }
 
 impl TokenGenerator for JwtTokenGenerator {
-    fn generate_access_token(&self, user_id: UserId, scope: &str) -> Result<String> {
+    fn generate_access_token(
+        &self,
+        user_id: UserId,
+        scope: &str,
+    ) -> Result<String> {
         let uid = user_id.as_uuid().to_string();
         self.jwt_service
             .generate_access_token(&uid, None, Some(scope.to_string()), None)
@@ -175,13 +179,13 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://authenc:authenc@localhost:5432/authenc".to_string());
-    let jwt_issuer =
-        std::env::var("JWT_ISSUER").unwrap_or_else(|_| "http://10.1.7.121/api/v1/auth".to_string());
+    let jwt_issuer = std::env::var("JWT_ISSUER")
+        .unwrap_or_else(|_| "http://10.1.7.121/api/v1/auth".to_string());
     let jwt_secret_hex = std::env::var("JWT_SECRET").unwrap_or_default();
     let webauthn_rp_id =
         std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
-    let webauthn_rp_origin =
-        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "http://localhost:8088".to_string());
+    let webauthn_rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
+        .unwrap_or_else(|_| "http://localhost:8088".to_string());
     let webauthn_rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPEL Authenc".to_string());
     let port: u16 = std::env::var("PORT")
@@ -209,8 +213,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     // JWT service
     let signing_key_bytes: [u8; 32] = if !jwt_secret_hex.is_empty() {
-        let bytes =
-            hex::decode(&jwt_secret_hex).map_err(|e| format!("Invalid JWT_SECRET hex: {}", e))?;
+        let bytes = hex::decode(&jwt_secret_hex)
+            .map_err(|e| format!("Invalid JWT_SECRET hex: {}", e))?;
         if bytes.len() != 32 {
             return Err("JWT_SECRET must be 32 bytes (64 hex chars)".into());
         }

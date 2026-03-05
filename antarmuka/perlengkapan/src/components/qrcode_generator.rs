@@ -1,7 +1,7 @@
 //! QR Code Generator — batch QR code printing for BMN assets.
 
-use crate::api::{Asset, fetch_assets};
 use leptos::prelude::*;
+use crate::api::{Asset, fetch_assets};
 
 #[component]
 pub fn QrCodeGenerator() -> impl IntoView {

@@ -1,9 +1,9 @@
+use uuid::Uuid;
 use crate::error::AppError;
 use crate::template_models::DocumentTemplate;
 use chrono::Utc;
 use rust_xlsxwriter::*;
 use serde_json::Value;
-use uuid::Uuid;
 
 pub struct ExcelGenerator;
 

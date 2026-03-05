@@ -140,9 +140,7 @@ pub fn GroupsManagementPage() -> impl IntoView {
         let all = groups.get();
         if query.is_empty() {
             // Show only root groups (no parent_id)
-            all.into_iter()
-                .filter(|g| g.parent_id.is_none())
-                .collect::<Vec<_>>()
+            all.into_iter().filter(|g| g.parent_id.is_none()).collect::<Vec<_>>()
         } else {
             all.into_iter()
                 .filter(|g| g.name.to_lowercase().contains(&query))

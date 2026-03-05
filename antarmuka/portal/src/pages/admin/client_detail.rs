@@ -105,9 +105,7 @@ pub fn ClientDetailPage() -> impl IntoView {
             let cid = client_id();
             spawn_local(async move {
                 match api.iam_regenerate_client_secret(&cid).await {
-                    Ok(_) => {
-                        set_success.set(Some("Client secret berhasil di-regenerasi".to_string()))
-                    }
+                    Ok(_) => set_success.set(Some("Client secret berhasil di-regenerasi".to_string())),
                     Err(e) => set_error.set(Some(format!("Gagal regenerasi secret: {}", e))),
                 }
             });
@@ -115,43 +113,13 @@ pub fn ClientDetailPage() -> impl IntoView {
     }
 
     // Derived signals
-    let client_name = move || {
-        client
-            .get()
-            .and_then(|c| c.name.clone())
-            .unwrap_or_else(|| "Unnamed Client".to_string())
-    };
-    let client_client_id = move || {
-        client
-            .get()
-            .map(|c| c.client_id.clone())
-            .unwrap_or_default()
-    };
-    let client_type = move || {
-        client
-            .get()
-            .map(|c| c.client_type.clone())
-            .unwrap_or_default()
-    };
+    let client_name = move || client.get().and_then(|c| c.name.clone()).unwrap_or_else(|| "Unnamed Client".to_string());
+    let client_client_id = move || client.get().map(|c| c.client_id.clone()).unwrap_or_default();
+    let client_type = move || client.get().map(|c| c.client_type.clone()).unwrap_or_default();
     let client_enabled = move || client.get().map(|c| c.enabled).unwrap_or(false);
-    let client_description = move || {
-        client
-            .get()
-            .and_then(|c| c.description.clone())
-            .unwrap_or_else(|| "—".to_string())
-    };
-    let client_created = move || {
-        client
-            .get()
-            .map(|c| c.created_at.clone())
-            .unwrap_or_default()
-    };
-    let client_uris = move || {
-        client
-            .get()
-            .map(|c| c.redirect_uris.clone())
-            .unwrap_or_default()
-    };
+    let client_description = move || client.get().and_then(|c| c.description.clone()).unwrap_or_else(|| "—".to_string());
+    let client_created = move || client.get().map(|c| c.created_at.clone()).unwrap_or_default();
+    let client_uris = move || client.get().map(|c| c.redirect_uris.clone()).unwrap_or_default();
     let client_id_display = move || client.get().map(|c| c.id.clone()).unwrap_or_default();
 
     let on_logout = {

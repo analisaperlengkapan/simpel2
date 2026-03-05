@@ -74,8 +74,7 @@ async fn test_siman_pagination_performance() {
     // Each request takes 50ms.
     // Serial: 5 * 50ms = 250ms + overhead.
     // Concurrent: ~50ms + overhead.
-    let result: Result<Vec<serde_json::Value>, _> =
-        fetch_all_aset_paginated(&mut client, SimanAssetCategory::AlatBesar, 1000).await;
+    let result: Result<Vec<serde_json::Value>, _> = fetch_all_aset_paginated(&mut client, SimanAssetCategory::AlatBesar, 1000).await;
     let duration = start.elapsed();
 
     assert!(result.is_ok(), "Fetching failed: {:?}", result.err());

@@ -19,9 +19,9 @@ use std::sync::Arc;
 use axum::Router;
 use layanan_integrasi::{
     Config,
+    scheduler::IntegrationScheduler,
     grpc::{server::GrpcServerConfig, start_grpc_server},
     monitoring::{MonitoringState, create_monitoring_router},
-    scheduler::IntegrationScheduler,
 };
 use tokio::net::TcpListener;
 use tokio_postgres::NoTls;

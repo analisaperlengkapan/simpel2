@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use crate::{
     cache_strategy::CacheManager,
-    dashboard,
     dashboard::services::DashboardService,
     grpc_clients::{AuthencClient, SecretonClient},
     kebutuhan_bmn::KebutuhanBmnService,
@@ -13,6 +12,7 @@ use crate::{
     rate_limiting::RateLimiter,
     roadmap_sarpras::RoadmapService,
     services::PerlengkapanService,
+    dashboard,
 };
 
 #[derive(Clone)]

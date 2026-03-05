@@ -424,12 +424,7 @@ pub async fn auth_middleware(
     let normalized_path = path.trim_end_matches('/');
     let whitelisted = is_whitelisted(normalized_path);
 
-    tracing::warn!(
-        "🔒 AUTH_MIDDLEWARE: path='{}', normalized='{}', whitelisted={}",
-        path,
-        normalized_path,
-        whitelisted
-    );
+    tracing::warn!("🔒 AUTH_MIDDLEWARE: path='{}', normalized='{}', whitelisted={}", path, normalized_path, whitelisted);
 
     if whitelisted {
         return Ok(next.run(request).await);
@@ -1815,12 +1810,7 @@ mod middleware_tests {
 fn is_whitelisted(path: &str) -> bool {
     tracing::warn!("🔍 IS_WHITELISTED CHECK: path='{}'", path);
     // Health and metrics (infrastructure)
-    if path == "/health"
-        || path == "/ready"
-        || path == "/live"
-        || path == "/version"
-        || path == "/metrics"
-    {
+    if path == "/health" || path == "/ready" || path == "/live" || path == "/version" || path == "/metrics" {
         return true;
     }
 

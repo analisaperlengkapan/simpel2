@@ -216,7 +216,7 @@ pub enum SortField {
 
 impl SortField {
     /// Parse from string
-    pub fn parse_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "relevance" => Some(SortField::Relevance),
             "created_at" | "created" => Some(SortField::CreatedAt),
@@ -239,7 +239,7 @@ pub enum SortDirection {
 
 impl SortDirection {
     /// Parse from string
-    pub fn parse_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "asc" | "ascending" => Some(SortDirection::Ascending),
             "desc" | "descending" => Some(SortDirection::Descending),
@@ -336,7 +336,7 @@ impl SearchEngine {
         search_fields: &[&str],
         query: &SearchQuery,
     ) -> (String, Vec<String>) {
-        let mut sql = "SELECT *, ".to_string();
+        let mut sql = format!("SELECT *, ");
 
         // Add relevance score calculation
         let relevance_parts: Vec<String> = search_fields
@@ -382,7 +382,6 @@ impl SearchEngine {
                 param_index += 1;
             }
         }
-        let _ = param_index;
 
         if let Some(ref kode) = query.filters.kode_barang {
             sql.push_str(&format!(" AND kode_barang LIKE ${}", param_index));
@@ -393,6 +392,7 @@ impl SearchEngine {
         if let Some(is_sbsk) = query.filters.is_sbsk {
             sql.push_str(&format!(" AND is_sbsk = ${}", param_index));
             params.push(is_sbsk.to_string());
+            param_index += 1;
         }
 
         // Add ORDER BY
@@ -405,6 +405,7 @@ impl SearchEngine {
             query.pagination.offset()
         ));
 
+        let _ = param_index;
         (sql, params)
     }
 
@@ -443,11 +444,11 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
 
     let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
-    for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
-        row[0] = i;
+    for i in 0..=len1 {
+        matrix[i][0] = i;
     }
-    for (j, val) in matrix[0].iter_mut().enumerate().take(len2 + 1) {
-        *val = j;
+    for j in 0..=len2 {
+        matrix[0][j] = j;
     }
 
     for (i, c1) in s1.chars().enumerate() {
@@ -464,7 +465,6 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -509,29 +509,26 @@ mod tests {
 
     #[test]
     fn test_sort_field_parsing() {
+        assert_eq!(SortField::from_str("relevance"), Some(SortField::Relevance));
         assert_eq!(
-            SortField::parse_str("relevance"),
-            Some(SortField::Relevance)
-        );
-        assert_eq!(
-            SortField::parse_str("created_at"),
+            SortField::from_str("created_at"),
             Some(SortField::CreatedAt)
         );
-        assert_eq!(SortField::parse_str("priority"), Some(SortField::Priority));
-        assert_eq!(SortField::parse_str("invalid"), None);
+        assert_eq!(SortField::from_str("priority"), Some(SortField::Priority));
+        assert_eq!(SortField::from_str("invalid"), None);
     }
 
     #[test]
     fn test_sort_direction_parsing() {
         assert_eq!(
-            SortDirection::parse_str("asc"),
+            SortDirection::from_str("asc"),
             Some(SortDirection::Ascending)
         );
         assert_eq!(
-            SortDirection::parse_str("desc"),
+            SortDirection::from_str("desc"),
             Some(SortDirection::Descending)
         );
-        assert_eq!(SortDirection::parse_str("invalid"), None);
+        assert_eq!(SortDirection::from_str("invalid"), None);
     }
 
     #[test]
@@ -644,7 +641,6 @@ impl SearchEngineDb {
                 param_idx += 1;
             }
         }
-        let _ = param_idx;
 
         if let Some(ref kode) = query.filters.kode_barang {
             sql.push_str(&format!(" AND k.kode_barang ILIKE ${}", param_idx));
@@ -667,6 +663,7 @@ impl SearchEngineDb {
         if let Some(ref date_to) = query.filters.date_to {
             sql.push_str(&format!(" AND k.created_at <= ${}", param_idx));
             params.push(Box::new(date_to.clone()));
+            param_idx += 1;
         }
 
         // Add sorting
@@ -684,6 +681,8 @@ impl SearchEngineDb {
             .iter()
             .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
             .collect();
+
+        let _ = param_idx;
 
         let rows = client.query(&sql, &param_refs).await?;
 
@@ -760,7 +759,6 @@ impl SearchEngineDb {
                 param_idx += 1;
             }
         }
-        let _ = param_idx;
 
         // Add sorting
         sql.push_str(&format!(" ORDER BY {}", query.sort.to_sql()));
@@ -777,6 +775,8 @@ impl SearchEngineDb {
             .iter()
             .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
             .collect();
+
+        let _ = param_idx;
 
         let rows = client.query(&sql, &param_refs).await?;
 
@@ -813,13 +813,10 @@ impl SearchEngineDb {
         let terms: Vec<&str> = search_query.split_whitespace().collect();
         let mut highlighted = text.to_string();
 
-        // Combine terms into a single regex to avoid loop compilation
-        if !terms.is_empty() {
-            let escaped_terms: Vec<String> = terms.iter().map(|t| regex::escape(t)).collect();
-            let pattern_str = format!("(?i)({})", escaped_terms.join("|"));
-            let pattern =
-                regex::Regex::new(&pattern_str).unwrap_or_else(|_| regex::Regex::new("").unwrap());
-
+        for term in terms {
+            // Case-insensitive replacement
+            let pattern = regex::Regex::new(&format!("(?i)({})", regex::escape(term)))
+                .unwrap_or_else(|_| regex::Regex::new("").unwrap());
             highlighted = pattern
                 .replace_all(&highlighted, "<mark>$1</mark>")
                 .to_string();
@@ -859,7 +856,7 @@ impl SearchEngineDb {
 
 #[cfg(all(test, feature = "backend"))]
 mod backend_tests {
-    // use super::*;
+    use super::*;
 
     // Note: These tests require a running PostgreSQL database
     // Run with: cargo test --features backend

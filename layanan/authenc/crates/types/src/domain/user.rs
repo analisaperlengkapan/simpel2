@@ -828,8 +828,6 @@ pub struct CreateUserRequest {
 /// Request to update an existing user
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateUserRequest {
-    pub totp_secret: Option<String>,
-    pub clear_totp_secret: Option<bool>,
     /// New username
     pub username: Option<String>,
     /// New email

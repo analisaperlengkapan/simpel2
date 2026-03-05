@@ -253,8 +253,6 @@ impl UserStorageProvider for DefaultUserStorageProvider {
             require_password_change: Some(user.require_password_change),
             password: None,
             mfa_enabled: None,
-            totp_secret: user.totp_secret.clone(),
-            clear_totp_secret: None,
             attributes: user.attributes.clone(),
         };
         self.user_store.update_user(user.id, request).await
@@ -472,10 +470,7 @@ impl GroupStorageProvider for DefaultGroupStorageProvider {
 
     async fn get_group_by_name(&self, name: &str) -> Result<Option<Group>> {
         // Search all groups in nil realm and find by name
-        let all_groups = self
-            .group_store
-            .list_by_realm(Uuid::nil(), None, Some(1000))
-            .await?;
+        let all_groups = self.group_store.list_by_realm(Uuid::nil(), None, Some(1000)).await?;
         Ok(all_groups.into_iter().find(|g| g.name == name))
     }
 
@@ -484,10 +479,7 @@ impl GroupStorageProvider for DefaultGroupStorageProvider {
         query: &str,
         _context: &StorageQueryContext,
     ) -> Result<Vec<Group>> {
-        let all_groups = self
-            .group_store
-            .list_by_realm(Uuid::nil(), None, Some(1000))
-            .await?;
+        let all_groups = self.group_store.list_by_realm(Uuid::nil(), None, Some(1000)).await?;
         if query.is_empty() {
             Ok(all_groups)
         } else {
@@ -499,10 +491,7 @@ impl GroupStorageProvider for DefaultGroupStorageProvider {
     }
 
     async fn count_groups(&self, _context: &StorageQueryContext) -> Result<i64> {
-        let all_groups = self
-            .group_store
-            .list_by_realm(Uuid::nil(), None, Some(1000))
-            .await?;
+        let all_groups = self.group_store.list_by_realm(Uuid::nil(), None, Some(1000)).await?;
         Ok(all_groups.len() as i64)
     }
 

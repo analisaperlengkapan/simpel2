@@ -1,7 +1,7 @@
 /// Database operations for group management
 use crate::Database;
-use authenc_types::domain::group::Group;
 use authenc_types::{AuthencError, Result};
+use authenc_types::domain::group::Group;
 use chrono::Utc;
 use tracing::{error, warn};
 use uuid::Uuid;

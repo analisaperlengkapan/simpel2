@@ -1,9 +1,7 @@
 /// Database operations for social accounts
 use crate::Database;
 use authenc_types::Result;
-use authenc_types::domain::social_account::{
-    CreateSocialAccountRequest, SocialAccount, SocialProvider,
-};
+use authenc_types::domain::social_account::{CreateSocialAccountRequest, SocialAccount, SocialProvider};
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -117,7 +115,9 @@ pub async fn get_social_account_by_provider(
         WHERE provider = $1 AND provider_user_id = $2 AND deleted_at IS NULL
     "#;
 
-    let row = db.query_opt(query, &[&provider, &provider_user_id]).await?;
+    let row = db
+        .query_opt(query, &[&provider, &provider_user_id])
+        .await?;
     match row {
         Some(row) => {
             let provider_str: String = row.get(2);
@@ -142,7 +142,11 @@ pub async fn get_social_account_by_provider(
     }
 }
 
-pub async fn has_social_account(db: &Database, user_id: Uuid, provider: &str) -> Result<bool> {
+pub async fn has_social_account(
+    db: &Database,
+    user_id: Uuid,
+    provider: &str,
+) -> Result<bool> {
     let query = r#"
         SELECT COUNT(*) FROM user_social_accounts
         WHERE user_id = $1 AND provider = $2 AND deleted_at IS NULL
@@ -286,7 +290,8 @@ pub async fn remove_social_account_by_provider(
         WHERE user_id = $1 AND provider = $2 AND deleted_at IS NULL
     "#;
 
-    db.execute(query, &[&user_id, &provider, &now]).await?;
+    db.execute(query, &[&user_id, &provider, &now])
+        .await?;
 
     Ok(())
 }

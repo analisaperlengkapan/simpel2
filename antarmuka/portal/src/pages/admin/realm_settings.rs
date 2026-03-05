@@ -52,14 +52,8 @@ impl RealmSettingsTab {
 
     fn all() -> &'static [RealmSettingsTab] {
         &[
-            Self::General,
-            Self::Login,
-            Self::Email,
-            Self::Themes,
-            Self::Keys,
-            Self::Sessions,
-            Self::Tokens,
-            Self::Security,
+            Self::General, Self::Login, Self::Email, Self::Themes,
+            Self::Keys, Self::Sessions, Self::Tokens, Self::Security,
             Self::Localization,
         ]
     }
