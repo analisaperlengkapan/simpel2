@@ -645,6 +645,14 @@ impl AuthencService for AuthencGrpcService {
             .await
             .map_err(Self::error_to_status)?;
 
+        // Clean up TOTP secret
+        if let Some(mfa_service) = self.mfa_service.as_ref() {
+            mfa_service
+                .disable_totp(user_id)
+                .await
+                .map_err(Self::error_to_status)?;
+        }
+
         Ok(Response::new(DisableMfaResponse { success: true }))
     }
 
