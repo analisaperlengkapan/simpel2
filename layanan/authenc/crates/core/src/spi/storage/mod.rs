@@ -253,6 +253,8 @@ impl UserStorageProvider for DefaultUserStorageProvider {
             require_password_change: Some(user.require_password_change),
             password: None,
             mfa_enabled: None,
+            totp_secret: user.totp_secret.clone(),
+            clear_totp_secret: None,
             attributes: user.attributes.clone(),
         };
         self.user_store.update_user(user.id, request).await

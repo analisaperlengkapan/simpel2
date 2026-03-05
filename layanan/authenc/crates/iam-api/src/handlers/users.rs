@@ -188,3 +188,18 @@ pub async fn disable_user_mfa(
         "disable_mfa not yet implemented".to_string(),
     )))
 }
+
+use authenc_types::domain::user::User;
+fn to_user_response(user: User) -> UserResponse {
+    UserResponse {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        enabled: user.enabled,
+        email_verified: user.email_verified,
+        mfa_enabled: user.mfa_enabled,
+        realm_id: user.realm_id.unwrap_or_default(),
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+    }
+}

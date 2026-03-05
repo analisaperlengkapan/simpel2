@@ -91,3 +91,15 @@ pub async fn delete_realm(
         "delete_realm not yet implemented".to_string(),
     )))
 }
+
+use authenc_types::domain::realm::Realm;
+fn to_realm_response(realm: Realm) -> RealmResponse {
+    RealmResponse {
+        id: realm.id,
+        name: realm.name,
+        display_name: realm.display_name,
+        enabled: realm.enabled,
+        created_at: realm.created_at,
+        updated_at: realm.updated_at,
+    }
+}
