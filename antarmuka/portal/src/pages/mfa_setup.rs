@@ -387,10 +387,12 @@ struct ApiError {
     message: String,
 }
 
-/// Get authenc API base URL
+/// Get authenc API base URL (origin for same-origin requests via gateway)
 #[allow(dead_code)]
 fn get_authenc_api_url() -> String {
-    std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
+    web_sys::window()
+        .and_then(|w| w.location().origin().ok())
+        .unwrap_or_else(|| "http://localhost:8080".to_string())
 }
 
 /// Get authentication token from storage

@@ -72,6 +72,15 @@ fn WithAdminAuth(
 /// Main application component with session management
 #[component]
 pub fn App() -> impl IntoView {
+    // Load runtime configuration (authenc URL etc.) from config.json
+    #[cfg(target_arch = "wasm32")]
+    {
+        use leptos::task::spawn_local;
+        spawn_local(async {
+            crate::utils::config::load_config().await;
+        });
+    }
+
     // Setup global search providers
     setup_search_providers();
 

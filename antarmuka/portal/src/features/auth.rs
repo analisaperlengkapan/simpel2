@@ -108,10 +108,22 @@ pub struct LoginResponse {
 pub struct AuthService;
 
 impl AuthService {
-    /// Get authenc API base URL from environment or default
+    /// Get authenc API base URL from window.location.origin (same-origin pattern).
+    /// This ensures the URL always matches the user's access URL, avoiding
+    /// cross-origin or mixed-content issues from hardcoded config values.
     fn get_api_url() -> String {
-        let config = crate::utils::config::get_config();
-        config.authenc_url
+        #[cfg(target_arch = "wasm32")]
+        {
+            let origin = web_sys::window()
+                .and_then(|w| w.location().origin().ok())
+                .unwrap_or_else(|| "http://localhost:8080".to_string());
+            format!("{}/api/v1/auth", origin)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let config = crate::utils::config::get_config();
+            config.authenc_url
+        }
     }
 
     /// Validate login credentials via authenc API

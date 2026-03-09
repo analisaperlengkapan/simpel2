@@ -91,6 +91,20 @@ export default defineConfig({
         'tests/portal-auth-e2e.spec.ts',
       ],
     },
+    // Portal screenshot E2E (all pages, staging gateway)
+    {
+      name: 'portal-screenshots',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: process.env.PORTAL_URL || 'http://10.1.7.121',
+        screenshot: 'on',
+        video: 'on-first-retry',
+        viewport: { width: 1920, height: 1080 },
+      },
+      testMatch: [
+        'tests/portal-screenshots-e2e.spec.ts',
+      ],
+    },
     // Integration tests: layanan-integrasi ↔ authenc (gRPC + REST API)
     {
       name: 'integrasi',
