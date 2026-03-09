@@ -1,4 +1,4 @@
 {
-  "portal_url": "/portal",
-  "authenc_url": "/api/v1/auth"
+    "portal_url": "/portal",
+    "authenc_url": "/api/v1/auth"
 }
