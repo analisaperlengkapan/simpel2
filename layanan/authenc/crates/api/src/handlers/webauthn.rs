@@ -212,9 +212,12 @@ pub async fn start_authentication_handler(
         .webauthn_service
         .start_authentication(request.user_id)
         .await
-        .map_err(|e| ErrorResponse {
-            error: "authentication_failed".to_string(),
-            message: format!("Failed to start passkey authentication: {}", e),
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Failed to start passkey authentication");
+            ErrorResponse {
+                error: "authentication_failed".to_string(),
+                message: "Gagal memulai autentikasi passkey. Silakan coba lagi.".to_string(),
+            }
         })?;
 
     // Generate session ID
@@ -255,18 +258,22 @@ pub async fn finish_authentication_handler(
         .webauthn_service
         .finish_authentication(&request.credential, &session)
         .await
-        .map_err(|e| ErrorResponse {
-            error: "authentication_failed".to_string(),
-            message: format!("Failed to complete passkey authentication: {}", e),
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Failed to complete passkey authentication");
+            ErrorResponse {
+                error: "authentication_failed".to_string(),
+                message: "Gagal menyelesaikan autentikasi passkey. Silakan coba lagi.".to_string(),
+            }
         })?;
 
     // Extract user ID from result
     let user_id = match result {
         authenc_webauthn::AuthenticationResult::Success { user_id, .. } => user_id,
         authenc_webauthn::AuthenticationResult::Failed { reason } => {
+            tracing::warn!(reason = %reason, "Passkey authentication failed");
             return Err(ErrorResponse {
                 error: "authentication_failed".to_string(),
-                message: reason,
+                message: "Autentikasi passkey gagal. Silakan coba lagi.".to_string(),
             });
         }
     };
@@ -282,17 +289,23 @@ pub async fn finish_authentication_handler(
             Some("openid profile email".to_string()), // scope
             Some(session_id.clone()),
         )
-        .map_err(|e| ErrorResponse {
-            error: "token_generation_failed".to_string(),
-            message: format!("Failed to generate access token: {}", e),
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to generate access token");
+            ErrorResponse {
+                error: "token_generation_failed".to_string(),
+                message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+            }
         })?;
 
     let refresh_token = state
         .jwt_service
         .generate_refresh_token(&user_id.0.to_string(), &session_id)
-        .map_err(|e| ErrorResponse {
-            error: "token_generation_failed".to_string(),
-            message: format!("Failed to generate refresh token: {}", e),
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to generate refresh token");
+            ErrorResponse {
+                error: "token_generation_failed".to_string(),
+                message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+            }
         })?;
 
     Ok(Json(FinishAuthenticationResponse {

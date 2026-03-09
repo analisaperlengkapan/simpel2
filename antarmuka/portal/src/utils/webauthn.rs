@@ -2,6 +2,7 @@
 //!
 //! Provides safe Rust wrappers around the browser's Web Authentication API
 //! for passkey registration and authentication from WASM.
+//! Uses proper web_sys bindings (CSP-compliant, no eval).
 
 use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
@@ -81,205 +82,427 @@ pub fn is_webauthn_supported() -> bool {
 /// Check if platform authenticator (biometrics) is available
 #[cfg(target_arch = "wasm32")]
 pub async fn is_platform_authenticator_available() -> bool {
-    let result: Result<bool, _> = async {
-        let window = web_sys::window().ok_or("No window")?;
+    if let Some(window) = web_sys::window() {
         let nav = window.navigator();
-        // Use JS eval to check PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable
-        let promise = js_sys::Reflect::get(
-            &js_sys::Reflect::get(&JsValue::from(nav), &JsValue::from_str("credentials"))
-                .map_err(|_| "No credentials")?,
-            &JsValue::from_str("create"),
+        let creds = js_sys::Reflect::get(
+            &JsValue::from(nav),
+            &JsValue::from_str("credentials"),
         );
-        // Fallback: just check if the API exists
-        if promise.is_err() {
-            return Ok::<bool, String>(false);
+        if let Ok(c) = creds {
+            return !c.is_undefined() && !c.is_null();
         }
-        Ok::<bool, String>(true)
     }
-    .await;
-    result.unwrap_or(false)
+    false
+}
+
+// ── Base64url helpers (CSP-safe, no eval) ─────────────────────────────
+
+#[cfg(target_arch = "wasm32")]
+fn b64url_decode(input: &str) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(input)
+        .map_err(|e| format!("base64url decode error: {}", e))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn b64url_encode(input: &[u8]) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(input)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn b64url_to_array_buffer(b64url: &str) -> Result<JsValue, String> {
+    let bytes = b64url_decode(b64url)?;
+    let uint8 = js_sys::Uint8Array::new_with_length(bytes.len() as u32);
+    uint8.copy_from(&bytes);
+    Ok(uint8.buffer().into())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn array_buffer_to_b64url(buffer: &js_sys::ArrayBuffer) -> String {
+    let uint8 = js_sys::Uint8Array::new(buffer);
+    let mut bytes = vec![0u8; uint8.length() as usize];
+    uint8.copy_to(&mut bytes);
+    b64url_encode(&bytes)
+}
+
+// ── Helpers: set JS object properties ─────────────────────────────────
+
+#[cfg(target_arch = "wasm32")]
+fn js_set(obj: &js_sys::Object, key: &str, val: &JsValue) -> Result<(), String> {
+    js_sys::Reflect::set(obj, &JsValue::from_str(key), val)
+        .map_err(|_| format!("Failed to set property '{}'", key))?;
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn json_str(v: &serde_json::Value) -> Option<&str> {
+    v.as_str()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn json_u64_or(v: &serde_json::Value, default: u64) -> u64 {
+    v.as_u64().unwrap_or(default)
 }
 
 /// Create a new credential (passkey registration)
 ///
-/// Takes the server-provided creation options (as JSON) and invokes
-/// the browser's `navigator.credentials.create()` API.
+/// Uses web_sys::CredentialsContainer::create() — CSP-compliant, no eval.
 #[cfg(target_arch = "wasm32")]
 pub async fn create_credential(
     options_json: &serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    // We need to call navigator.credentials.create() with proper ArrayBuffer types.
-    // The server sends base64url-encoded values that need converting.
+    use wasm_bindgen_futures::JsFuture;
 
-    let js_code = format!(
-        r#"
-        (async function() {{
-            const options = {};
+    let pk = options_json
+        .get("publicKey")
+        .or_else(|| options_json.get("public_key"))
+        .unwrap_or(options_json);
 
-            // Decode base64url to ArrayBuffer
-            function b64urlToBuffer(b64url) {{
-                const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
-                const padding = '='.repeat((4 - b64.length % 4) % 4);
-                const bin = atob(b64 + padding);
-                const buf = new Uint8Array(bin.length);
-                for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-                return buf.buffer;
-            }}
+    // ── rp ────────────────────────────────────────────────────────────
+    let rp = js_sys::Object::new();
+    if let Some(rp_json) = pk.get("rp") {
+        if let Some(name) = json_str(rp_json.get("name").unwrap_or(&serde_json::Value::Null)) {
+            js_set(&rp, "name", &JsValue::from_str(name))?;
+        }
+        if let Some(id) = rp_json.get("id").and_then(|v| v.as_str()) {
+            js_set(&rp, "id", &JsValue::from_str(id))?;
+        }
+    }
 
-            // Encode ArrayBuffer to base64url
-            function bufferToB64url(buffer) {{
-                const bytes = new Uint8Array(buffer);
-                let binary = '';
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-                return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-            }}
+    // ── user ──────────────────────────────────────────────────────────
+    let user = js_sys::Object::new();
+    if let Some(u) = pk.get("user") {
+        let user_id_str = u
+            .get("id")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing user.id")?;
+        js_set(&user, "id", &b64url_to_array_buffer(user_id_str)?)?;
+        if let Some(name) = u.get("name").and_then(|v| v.as_str()) {
+            js_set(&user, "name", &JsValue::from_str(name))?;
+        }
+        let display_name = u
+            .get("displayName")
+            .or_else(|| u.get("display_name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        js_set(&user, "displayName", &JsValue::from_str(display_name))?;
+    }
 
-            // Build createCredentialOptions
-            const publicKey = options.publicKey || options;
+    // ── challenge ─────────────────────────────────────────────────────
+    let challenge_str = pk
+        .get("challenge")
+        .and_then(|v| v.as_str())
+        .ok_or("Missing challenge")?;
+    let challenge = b64url_to_array_buffer(challenge_str)?;
 
-            const createOptions = {{
-                publicKey: {{
-                    rp: publicKey.rp,
-                    user: {{
-                        id: b64urlToBuffer(publicKey.user.id),
-                        name: publicKey.user.name,
-                        displayName: publicKey.user.displayName || publicKey.user.display_name
-                    }},
-                    challenge: b64urlToBuffer(publicKey.challenge),
-                    pubKeyCredParams: (publicKey.pubKeyCredParams || publicKey.pub_key_cred_params || []).map(p => ({{
-                        type: p.type,
-                        alg: p.alg
-                    }})),
-                    timeout: publicKey.timeout || 60000,
-                    attestation: publicKey.attestation || 'none',
-                    authenticatorSelection: publicKey.authenticatorSelection || publicKey.authenticator_selection || {{
-                        authenticatorAttachment: 'platform',
-                        residentKey: 'preferred',
-                        userVerification: 'preferred'
-                    }},
-                    excludeCredentials: (publicKey.excludeCredentials || publicKey.exclude_credentials || []).map(c => ({{
-                        type: c.type,
-                        id: b64urlToBuffer(c.id),
-                        transports: c.transports
-                    }}))
-                }}
-            }};
+    // ── pubKeyCredParams ──────────────────────────────────────────────
+    let params_json = pk
+        .get("pubKeyCredParams")
+        .or_else(|| pk.get("pub_key_cred_params"))
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let params = js_sys::Array::new();
+    for p in &params_json {
+        let obj = js_sys::Object::new();
+        if let Some(t) = p.get("type").and_then(|v| v.as_str()) {
+            js_set(&obj, "type", &JsValue::from_str(t))?;
+        }
+        if let Some(alg) = p.get("alg").and_then(|v| v.as_i64()) {
+            js_set(&obj, "alg", &JsValue::from_f64(alg as f64))?;
+        }
+        params.push(&obj);
+    }
 
-            const credential = await navigator.credentials.create(createOptions);
+    // ── authenticatorSelection ────────────────────────────────────────
+    let auth_sel = js_sys::Object::new();
+    if let Some(sel) = pk
+        .get("authenticatorSelection")
+        .or_else(|| pk.get("authenticator_selection"))
+    {
+        if let Some(v) = sel
+            .get("authenticatorAttachment")
+            .or_else(|| sel.get("authenticator_attachment"))
+            .and_then(|v| v.as_str())
+        {
+            js_set(&auth_sel, "authenticatorAttachment", &JsValue::from_str(v))?;
+        }
+        if let Some(v) = sel
+            .get("residentKey")
+            .or_else(|| sel.get("resident_key"))
+            .and_then(|v| v.as_str())
+        {
+            js_set(&auth_sel, "residentKey", &JsValue::from_str(v))?;
+        }
+        if let Some(v) = sel
+            .get("userVerification")
+            .or_else(|| sel.get("user_verification"))
+            .and_then(|v| v.as_str())
+        {
+            js_set(&auth_sel, "userVerification", &JsValue::from_str(v))?;
+        }
+    } else {
+        js_set(
+            &auth_sel,
+            "authenticatorAttachment",
+            &JsValue::from_str("platform"),
+        )?;
+        js_set(&auth_sel, "residentKey", &JsValue::from_str("preferred"))?;
+        js_set(
+            &auth_sel,
+            "userVerification",
+            &JsValue::from_str("preferred"),
+        )?;
+    }
 
-            return JSON.stringify({{
-                id: credential.id,
-                rawId: bufferToB64url(credential.rawId),
-                type: credential.type,
-                response: {{
-                    attestationObject: bufferToB64url(credential.response.attestationObject),
-                    clientDataJSON: bufferToB64url(credential.response.clientDataJSON)
-                }}
-            }});
-        }})()
-        "#,
-        serde_json::to_string(options_json).map_err(|e| format!("Serialize error: {}", e))?
-    );
+    // ── excludeCredentials ────────────────────────────────────────────
+    let exclude_json = pk
+        .get("excludeCredentials")
+        .or_else(|| pk.get("exclude_credentials"))
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let exclude = js_sys::Array::new();
+    for c in &exclude_json {
+        let obj = js_sys::Object::new();
+        if let Some(t) = c.get("type").and_then(|v| v.as_str()) {
+            js_set(&obj, "type", &JsValue::from_str(t))?;
+        }
+        if let Some(id) = c.get("id").and_then(|v| v.as_str()) {
+            js_set(&obj, "id", &b64url_to_array_buffer(id)?)?;
+        }
+        if let Some(transports) = c.get("transports").and_then(|v| v.as_array()) {
+            let arr = js_sys::Array::new();
+            for t in transports {
+                if let Some(s) = t.as_str() {
+                    arr.push(&JsValue::from_str(s));
+                }
+            }
+            js_set(&obj, "transports", &arr)?;
+        }
+        exclude.push(&obj);
+    }
 
-    let result = eval_async(&js_code).await?;
-    let result_str = result
-        .as_string()
-        .ok_or("Expected string result from WebAuthn create")?;
-    serde_json::from_str(&result_str).map_err(|e| format!("Parse credential error: {}", e))
+    // ── Build publicKey options object ────────────────────────────────
+    let public_key = js_sys::Object::new();
+    js_set(&public_key, "rp", &rp)?;
+    js_set(&public_key, "user", &user)?;
+    js_set(&public_key, "challenge", &challenge)?;
+    js_set(&public_key, "pubKeyCredParams", &params)?;
+    js_set(
+        &public_key,
+        "timeout",
+        &JsValue::from_f64(json_u64_or(
+            pk.get("timeout").unwrap_or(&serde_json::Value::Null),
+            60000,
+        ) as f64),
+    )?;
+    let attestation = pk
+        .get("attestation")
+        .and_then(|v| v.as_str())
+        .unwrap_or("none");
+    js_set(&public_key, "attestation", &JsValue::from_str(attestation))?;
+    js_set(&public_key, "authenticatorSelection", &auth_sel)?;
+    js_set(&public_key, "excludeCredentials", &exclude)?;
+
+    // Wrap in CredentialCreationOptions-like object
+    let create_options = js_sys::Object::new();
+    js_set(&create_options, "publicKey", &public_key)?;
+
+    // ── Call navigator.credentials.create() ───────────────────────────
+    let window = web_sys::window().ok_or("No window object")?;
+    let nav = window.navigator();
+    let credentials: web_sys::CredentialsContainer = nav
+        .credentials();
+    let promise = credentials
+        .create_with_options(
+            &web_sys::CredentialCreationOptions::from(JsValue::from(create_options)),
+        )
+        .map_err(|e| format!("credentials.create() failed: {:?}", e))?;
+    let js_result = JsFuture::from(promise)
+        .await
+        .map_err(|e| format!("Passkey creation cancelled or failed: {:?}", e))?;
+
+    // ── Extract response from PublicKeyCredential ─────────────────────
+    let cred: web_sys::PublicKeyCredential = js_result
+        .dyn_into()
+        .map_err(|_| "Result is not a PublicKeyCredential")?;
+
+    let raw_id = js_sys::Reflect::get(&cred, &JsValue::from_str("rawId"))
+        .map_err(|_| "No rawId")?;
+    let raw_id_buf: js_sys::ArrayBuffer = raw_id.dyn_into().map_err(|_| "rawId not ArrayBuffer")?;
+
+    let response = cred.response();
+    let attest_resp: web_sys::AuthenticatorAttestationResponse = response
+        .dyn_into()
+        .map_err(|_| "Not an attestation response")?;
+
+    let attestation_obj = attest_resp.attestation_object();
+    let client_data = js_sys::Reflect::get(&attest_resp, &JsValue::from_str("clientDataJSON"))
+        .map_err(|_| "No clientDataJSON")?;
+    let client_data_buf: js_sys::ArrayBuffer =
+        client_data.dyn_into().map_err(|_| "clientDataJSON not ArrayBuffer")?;
+
+    Ok(serde_json::json!({
+        "id": cred.id(),
+        "rawId": array_buffer_to_b64url(&raw_id_buf),
+        "type": cred.type_(),
+        "response": {
+            "attestationObject": array_buffer_to_b64url(&attestation_obj),
+            "clientDataJSON": array_buffer_to_b64url(&client_data_buf)
+        }
+    }))
 }
 
 /// Get an existing credential (passkey authentication)
 ///
-/// Takes the server-provided request options (as JSON) and invokes
-/// the browser's `navigator.credentials.get()` API.
+/// Uses web_sys::CredentialsContainer::get() — CSP-compliant, no eval.
 #[cfg(target_arch = "wasm32")]
 pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_json::Value, String> {
-    let js_code = format!(
-        r#"
-        (async function() {{
-            const options = {};
-
-            function b64urlToBuffer(b64url) {{
-                const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
-                const padding = '='.repeat((4 - b64.length % 4) % 4);
-                const bin = atob(b64 + padding);
-                const buf = new Uint8Array(bin.length);
-                for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-                return buf.buffer;
-            }}
-
-            function bufferToB64url(buffer) {{
-                const bytes = new Uint8Array(buffer);
-                let binary = '';
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-                return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-            }}
-
-            const publicKey = options.publicKey || options;
-
-            const getOptions = {{
-                publicKey: {{
-                    challenge: b64urlToBuffer(publicKey.challenge),
-                    timeout: publicKey.timeout || 60000,
-                    rpId: publicKey.rpId || publicKey.rp_id,
-                    userVerification: publicKey.userVerification || publicKey.user_verification || 'preferred',
-                    allowCredentials: (publicKey.allowCredentials || publicKey.allow_credentials || []).map(c => ({{
-                        type: c.type,
-                        id: b64urlToBuffer(c.id),
-                        transports: c.transports
-                    }}))
-                }}
-            }};
-
-            const assertion = await navigator.credentials.get(getOptions);
-
-            const result = {{
-                id: assertion.id,
-                rawId: bufferToB64url(assertion.rawId),
-                type: assertion.type,
-                response: {{
-                    authenticatorData: bufferToB64url(assertion.response.authenticatorData),
-                    clientDataJSON: bufferToB64url(assertion.response.clientDataJSON),
-                    signature: bufferToB64url(assertion.response.signature)
-                }}
-            }};
-
-            if (assertion.response.userHandle) {{
-                result.response.userHandle = bufferToB64url(assertion.response.userHandle);
-            }}
-
-            return JSON.stringify(result);
-        }})()
-        "#,
-        serde_json::to_string(options_json).map_err(|e| format!("Serialize error: {}", e))?
-    );
-
-    let result = eval_async(&js_code).await?;
-    let result_str = result
-        .as_string()
-        .ok_or("Expected string result from WebAuthn get")?;
-    serde_json::from_str(&result_str).map_err(|e| format!("Parse assertion error: {}", e))
-}
-
-/// Helper: evaluate async JavaScript and return the result
-#[cfg(target_arch = "wasm32")]
-async fn eval_async(code: &str) -> Result<JsValue, String> {
     use wasm_bindgen_futures::JsFuture;
 
-    let result = js_sys::eval(code).map_err(|e| format!("JS eval error: {:?}", e))?;
+    let pk = options_json
+        .get("publicKey")
+        .or_else(|| options_json.get("public_key"))
+        .unwrap_or(options_json);
 
-    // If the result is a Promise, await it
-    if result.is_instance_of::<js_sys::Promise>() {
-        let promise = js_sys::Promise::from(result);
-        JsFuture::from(promise)
-            .await
-            .map_err(|e| format!("JS promise error: {:?}", e))
-    } else {
-        Ok(result)
+    // ── challenge ─────────────────────────────────────────────────────
+    let challenge_str = pk
+        .get("challenge")
+        .and_then(|v| v.as_str())
+        .ok_or("Missing challenge")?;
+    let challenge = b64url_to_array_buffer(challenge_str)?;
+
+    // ── allowCredentials ──────────────────────────────────────────────
+    let allow_json = pk
+        .get("allowCredentials")
+        .or_else(|| pk.get("allow_credentials"))
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let allow = js_sys::Array::new();
+    for c in &allow_json {
+        let obj = js_sys::Object::new();
+        if let Some(t) = c.get("type").and_then(|v| v.as_str()) {
+            js_set(&obj, "type", &JsValue::from_str(t))?;
+        }
+        if let Some(id) = c.get("id").and_then(|v| v.as_str()) {
+            js_set(&obj, "id", &b64url_to_array_buffer(id)?)?;
+        }
+        if let Some(transports) = c.get("transports").and_then(|v| v.as_array()) {
+            let arr = js_sys::Array::new();
+            for t in transports {
+                if let Some(s) = t.as_str() {
+                    arr.push(&JsValue::from_str(s));
+                }
+            }
+            js_set(&obj, "transports", &arr)?;
+        }
+        allow.push(&obj);
     }
+
+    // ── Build publicKey options object ────────────────────────────────
+    let public_key = js_sys::Object::new();
+    js_set(&public_key, "challenge", &challenge)?;
+    js_set(
+        &public_key,
+        "timeout",
+        &JsValue::from_f64(json_u64_or(
+            pk.get("timeout").unwrap_or(&serde_json::Value::Null),
+            60000,
+        ) as f64),
+    )?;
+    if let Some(rp_id) = pk
+        .get("rpId")
+        .or_else(|| pk.get("rp_id"))
+        .and_then(|v| v.as_str())
+    {
+        js_set(&public_key, "rpId", &JsValue::from_str(rp_id))?;
+    }
+    let uv = pk
+        .get("userVerification")
+        .or_else(|| pk.get("user_verification"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("preferred");
+    js_set(&public_key, "userVerification", &JsValue::from_str(uv))?;
+    js_set(&public_key, "allowCredentials", &allow)?;
+
+    // Wrap in CredentialRequestOptions-like object
+    let get_options = js_sys::Object::new();
+    js_set(&get_options, "publicKey", &public_key)?;
+
+    // ── Call navigator.credentials.get() ──────────────────────────────
+    let window = web_sys::window().ok_or("No window object")?;
+    let nav = window.navigator();
+    let credentials: web_sys::CredentialsContainer = nav.credentials();
+    let promise = credentials
+        .get_with_options(
+            &web_sys::CredentialRequestOptions::from(JsValue::from(get_options)),
+        )
+        .map_err(|e| format!("credentials.get() failed: {:?}", e))?;
+    let js_result = JsFuture::from(promise)
+        .await
+        .map_err(|e| format!("Passkey authentication cancelled or failed: {:?}", e))?;
+
+    // ── Extract response from PublicKeyCredential ─────────────────────
+    let cred: web_sys::PublicKeyCredential = js_result
+        .dyn_into()
+        .map_err(|_| "Result is not a PublicKeyCredential")?;
+
+    let raw_id = js_sys::Reflect::get(&cred, &JsValue::from_str("rawId"))
+        .map_err(|_| "No rawId")?;
+    let raw_id_buf: js_sys::ArrayBuffer = raw_id.dyn_into().map_err(|_| "rawId not ArrayBuffer")?;
+
+    let response = cred.response();
+    let assertion_resp: web_sys::AuthenticatorAssertionResponse = response
+        .dyn_into()
+        .map_err(|_| "Not an assertion response")?;
+
+    let auth_data = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("authenticatorData"))
+        .map_err(|_| "No authenticatorData")?;
+    let auth_data_buf: js_sys::ArrayBuffer =
+        auth_data.dyn_into().map_err(|_| "authenticatorData not ArrayBuffer")?;
+
+    let client_data = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("clientDataJSON"))
+        .map_err(|_| "No clientDataJSON")?;
+    let client_data_buf: js_sys::ArrayBuffer =
+        client_data.dyn_into().map_err(|_| "clientDataJSON not ArrayBuffer")?;
+
+    let signature = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("signature"))
+        .map_err(|_| "No signature")?;
+    let signature_buf: js_sys::ArrayBuffer =
+        signature.dyn_into().map_err(|_| "signature not ArrayBuffer")?;
+
+    let mut result = serde_json::json!({
+        "id": cred.id(),
+        "rawId": array_buffer_to_b64url(&raw_id_buf),
+        "type": cred.type_(),
+        "response": {
+            "authenticatorData": array_buffer_to_b64url(&auth_data_buf),
+            "clientDataJSON": array_buffer_to_b64url(&client_data_buf),
+            "signature": array_buffer_to_b64url(&signature_buf)
+        }
+    });
+
+    // userHandle is optional
+    if let Ok(uh) =
+        js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("userHandle"))
+    {
+        if !uh.is_null() && !uh.is_undefined() {
+            if let Ok(uh_buf) = uh.dyn_into::<js_sys::ArrayBuffer>() {
+                result["response"]["userHandle"] =
+                    serde_json::Value::String(array_buffer_to_b64url(&uh_buf));
+            }
+        }
+    }
+
+    Ok(result)
 }
 
-// Non-WASM stubs
+// ── Non-WASM stubs ────────────────────────────────────────────────────
+
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn is_platform_authenticator_available() -> bool {
     false

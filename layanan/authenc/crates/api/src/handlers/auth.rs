@@ -140,7 +140,10 @@ pub async fn login_handler(
     State(state): State<Arc<ApiState>>,
     Json(request): Json<LoginRequest>,
 ) -> impl axum::response::IntoResponse {
-    use authenc_types::{AuthResult, Credentials, RealmId, traits::AuthenticationService};
+    use authenc_types::{
+        AuthFailureReason, AuthResult, Credentials, RealmId,
+        traits::AuthenticationService,
+    };
 
     // Default to master realm if none provided (master realm = all-zeros UUID)
     let realm_id = RealmId::from_uuid(
@@ -231,23 +234,59 @@ pub async fn login_handler(
         )
             .into_response(),
 
-        Ok(AuthResult::Failed { reason }) => (
-            axum::http::StatusCode::UNAUTHORIZED,
-            axum::Json(ErrorResponse {
-                error: "authentication_failed".to_string(),
-                message: reason.to_string(),
-            }),
-        )
-            .into_response(),
+        Ok(AuthResult::Failed { reason }) => {
+            // Log actual reason server-side only — never expose to client
+            tracing::warn!(
+                username = %request.username,
+                reason = %reason,
+                "Authentication failed"
+            );
 
-        Err(e) => (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(ErrorResponse {
-                error: "internal_error".to_string(),
-                message: e.to_string(),
-            }),
-        )
-            .into_response(),
+            let message = match &reason {
+                AuthFailureReason::InvalidCredentials => {
+                    "Username atau password salah".to_string()
+                }
+                AuthFailureReason::UserDisabled => {
+                    "Akun Anda telah dinonaktifkan. Silakan hubungi administrator.".to_string()
+                }
+                AuthFailureReason::AccountLocked => {
+                    "Akun dikunci sementara karena terlalu banyak percobaan gagal. Silakan coba lagi nanti.".to_string()
+                }
+                AuthFailureReason::RealmDisabled => {
+                    "Layanan autentikasi tidak tersedia saat ini.".to_string()
+                }
+                AuthFailureReason::InternalError(_) => {
+                    "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string()
+                }
+            };
+
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                axum::Json(ErrorResponse {
+                    error: "authentication_failed".to_string(),
+                    message,
+                }),
+            )
+                .into_response()
+        }
+
+        Err(e) => {
+            // Log actual error server-side only — never expose to client
+            tracing::error!(
+                username = %request.username,
+                error = %e,
+                "Internal error during authentication"
+            );
+
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(ErrorResponse {
+                    error: "internal_error".to_string(),
+                    message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+                }),
+            )
+                .into_response()
+        }
     }
 }
 

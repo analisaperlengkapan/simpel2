@@ -220,14 +220,30 @@ impl AuthService {
                         }
                     } else {
                         let status = response.status();
-                        let error_text = response
-                            .text()
-                            .await
-                            .unwrap_or_else(|_| "Unknown error".to_string());
-                        LoginResult::Error(format!(
-                            "Login failed: HTTP {} - {}",
-                            status, error_text
-                        ))
+                        // Parse error response JSON to extract user-friendly message
+                        let error_msg = match response.json::<serde_json::Value>().await {
+                            Ok(json) => json
+                                .get("message")
+                                .and_then(|m| m.as_str())
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| {
+                                    if status == 401 {
+                                        "Username atau password salah".to_string()
+                                    } else {
+                                        "Terjadi kesalahan sistem. Silakan coba lagi nanti."
+                                            .to_string()
+                                    }
+                                }),
+                            Err(_) => {
+                                if status == 401 {
+                                    "Username atau password salah".to_string()
+                                } else {
+                                    "Terjadi kesalahan sistem. Silakan coba lagi nanti."
+                                        .to_string()
+                                }
+                            }
+                        };
+                        LoginResult::Error(error_msg)
                     }
                 }
                 Err(e) => LoginResult::Error(format!("Network error: {}", e)),
