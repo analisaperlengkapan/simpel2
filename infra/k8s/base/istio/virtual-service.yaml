@@ -1,6 +1,7 @@
-# Istio VirtualService for SIMPEL
-# IMPORTANT: Routes are ordered from most specific to least specific
-# IMPORTANT: VirtualService must be in istio-system or use namespace-qualified gateway reference
+# Istio VirtualService for SIMPEL (Base)
+# Routes ordered from most specific to least specific
+# Note: This base is overridden by overlay-specific staging-istio.yaml / production-istio.yaml
+# applied separately to istio-system namespace
 
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -24,25 +25,56 @@ spec:
         redirectCode: 302
 
     # ============================================
-    # Backend API routes (most specific - /api/*)
+    # CAPTCHA Routes → Authenc
     # ============================================
-    # Authentication routes (frontend → layanan-portal → authenc gRPC)
+    - match:
+        - uri:
+            prefix: /api/captcha
+      route:
+        - destination:
+            host: authenc
+            port:
+              number: 8088
+
+    # ============================================
+    # Backend API routes
+    # ============================================
+    - match:
+        - uri:
+            prefix: /api/v1/auth
+      route:
+        - destination:
+            host: authenc
+            port:
+              number: 8088
+
+    - match:
+        - uri:
+            prefix: /api/v1/iam
+      route:
+        - destination:
+            host: authenc
+            port:
+              number: 8088
+
+    - match:
+        - uri:
+            prefix: /api/v1/oauth2
+      route:
+        - destination:
+            host: authenc
+            port:
+              number: 8088
+
     - match:
         - uri:
             prefix: /api/auth
       route:
         - destination:
-            host: layanan-portal
+            host: authenc
             port:
-              number: 3010
-    - match:
-        - uri:
-            prefix: /api/portal
-      route:
-        - destination:
-            host: layanan-portal
-            port:
-              number: 3010
+              number: 8088
+
     - match:
         - uri:
             prefix: /api/perlengkapan
@@ -53,9 +85,8 @@ spec:
               number: 3020
 
     # ============================================
-    # Microfrontend routes (specific paths)
+    # Microfrontend routes
     # ============================================
-    # Perlengkapan frontend at /perlengkapan (Istio strips prefix, nginx serves SPA)
     - match:
         - uri:
             prefix: /perlengkapan
@@ -66,7 +97,7 @@ spec:
             host: perlengkapan
             port:
               number: 8080
-    # Portal frontend at /portal (Istio strips prefix, nginx serves SPA)
+
     - match:
         - uri:
             prefix: /portal
@@ -79,7 +110,7 @@ spec:
               number: 8080
 
     # ============================================
-    # Default catch-all route (MUST BE LAST)
+    # Default catch-all → /portal
     # ============================================
     - redirect:
         uri: /portal

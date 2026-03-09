@@ -78,5 +78,28 @@ export default defineConfig({
         'tests/ui-admin-role-management.spec.ts',
       ],
     },
+    // Portal authentication E2E tests (real authenc backend, captcha solving)
+    {
+      name: 'portal-auth',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: process.env.PORTAL_URL || 'http://localhost:18080',
+        screenshot: 'on',
+        video: 'on-first-retry',
+      },
+      testMatch: [
+        'tests/portal-auth-e2e.spec.ts',
+      ],
+    },
+    // Integration tests: layanan-integrasi ↔ authenc (gRPC + REST API)
+    {
+      name: 'integrasi',
+      use: {
+        baseURL: process.env.AUTHENC_URL || 'http://localhost:18088',
+      },
+      testMatch: [
+        'tests/integrasi-authenc-e2e.spec.ts',
+      ],
+    },
   ],
 });

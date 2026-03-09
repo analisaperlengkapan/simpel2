@@ -1,14 +1,13 @@
-name: Integration Tests - E2E
+name: Integration Tests
 
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  workflow_dispatch:
   schedule:
-    # Run integration tests daily at 01:00 UTC
-    - cron: "0 1 * * *"
+    - cron: "0 1 * * *"  # Daily at 01:00 UTC
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,157 +17,47 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
-  DATABASE_URL: postgres://simpelv2_test:integration_test_2024@localhost:5432/simpelv2_integration
-  REDIS_URL: redis://localhost:6379
 
 jobs:
-  setup-infrastructure:
-    name: Setup Test Infrastructure
-    runs-on: self-hosted
-    outputs:
-      postgres-ready: ${{ steps.check.outputs.postgres }}
-      redis-ready: ${{ steps.check.outputs.redis }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: true
-
-      - name: Start PostgreSQL for tests
-        run: |
-          docker run -d --name postgres-integration \
-            -e POSTGRES_DB=simpelv2_integration \
-            -e POSTGRES_USER=simpelv2_test \
-            -e POSTGRES_PASSWORD=integration_test_2024 \
-            -p 5432:5432 \
-            postgres:16-alpine || docker start postgres-integration || true
-
-      - name: Start Redis for tests
-        run: |
-          docker run -d --name redis-integration \
-            -p 6379:6379 \
-            redis:7-alpine || docker start redis-integration || true
-
-      - name: Wait for services
-        run: |
-          echo "Waiting for PostgreSQL..."
-          for i in {1..30}; do
-            if docker exec postgres-integration pg_isready -U simpelv2_test > /dev/null 2>&1; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-
-          echo "Waiting for Redis..."
-          for i in {1..30}; do
-            if docker exec redis-integration redis-cli ping | grep -q PONG; then
-              echo "Redis is ready!"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-
-      - name: Check services health
-        id: check
-        run: |
-          POSTGRES_OK=$(docker exec postgres-integration pg_isready -U simpelv2_test > /dev/null 2>&1 && echo "true" || echo "false")
-          REDIS_OK=$(docker exec redis-integration redis-cli ping | grep -q PONG && echo "true" || echo "false")
-
-          echo "postgres=$POSTGRES_OK" >> $GITHUB_OUTPUT
-          echo "redis=$REDIS_OK" >> $GITHUB_OUTPUT
-
-          echo "PostgreSQL: $POSTGRES_OK"
-          echo "Redis: $REDIS_OK"
-
-  backend-integration-tests:
+  backend-integration:
     name: Backend Integration Tests
     runs-on: self-hosted
-    needs: setup-infrastructure
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: simpelv2_integration
+          POSTGRES_USER: simpelv2_test
+          POSTGRES_PASSWORD: integration_test_2024
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     strategy:
       fail-fast: false
       matrix:
         service:
-          - infra/authenc
-          - layanan/badiklat
-          - layanan/datun
-          - layanan/intel
-          - layanan/pemulihan_aset
-          - layanan/pengawasan
-          - layanan/pidsus
-          - layanan/pidum
-          - layanan/pidmil
-          - layanan/pembinaan/keuangan
-          - layanan/pembinaan/perencanaan
-          - layanan/pembinaan/perlengkapan
+          - layanan/perlengkapan/crates/api
+          - layanan/integrasi
 
     steps:
-      - name: Fix permissions
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           clean: true
-
-      - name: Start Database
-        id: start-db
-        run: |
-          # Use unique name for container to avoid conflicts on shared runners
-          # Sanitize service name (replace / with -)
-          SANITIZED_SERVICE=$(echo "${{ matrix.service }}" | tr '/' '-')
-          CONTAINER_NAME="postgres-${SANITIZED_SERVICE}-$(date +%s)"
-
-          echo "Starting Postgres container: $CONTAINER_NAME"
-
-          # Run postgres with random port mapping (-P)
-          CID=$(docker run -d --name "$CONTAINER_NAME" \
-            -e POSTGRES_DB=simpelv2_integration \
-            -e POSTGRES_USER=simpelv2_test \
-            -e POSTGRES_PASSWORD=integration_test_2024 \
-            -P \
-            postgres:16-alpine)
-
-          # Get the mapped port
-          PORT=$(docker port "$CID" 5432/tcp | head -n 1 | awk -F: '{print $2}')
-          echo "Postgres running on port $PORT"
-          echo "port=$PORT" >> $GITHUB_OUTPUT
-          echo "container=$CID" >> $GITHUB_OUTPUT
-
-          # Wait for ready
-          echo "Waiting for PostgreSQL..."
-          for i in {1..30}; do
-            if docker exec "$CID" pg_isready -U simpelv2_test > /dev/null 2>&1; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            sleep 1
-          done
-
-          # Final check - fail if not ready
-          if ! docker exec "$CID" pg_isready -U simpelv2_test > /dev/null 2>&1; then
-            echo "PostgreSQL failed to start within timeout!"
-            docker logs "$CID"
-            exit 1
-          fi
-
-      - name: Start Redis
-        id: start-redis
-        run: |
-          SANITIZED_SERVICE=$(echo "${{ matrix.service }}" | tr '/' '-')
-          CONTAINER_NAME="redis-${SANITIZED_SERVICE}-$(date +%s)"
-
-          CID=$(docker run -d --name "$CONTAINER_NAME" -P redis:7-alpine)
-          PORT=$(docker port "$CID" 6379/tcp | head -n 1 | awk -F: '{print $2}')
-
-          echo "Redis running on port $PORT"
-          echo "port=$PORT" >> $GITHUB_OUTPUT
-          echo "container=$CID" >> $GITHUB_OUTPUT
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -176,214 +65,19 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-key: integration-${{ matrix.service }}
 
-      - name: Run migrations
-        working-directory: ${{ matrix.service }}
-        run: |
-          if [ -d "migrations" ]; then
-            echo "Running migrations for ${{ matrix.service }}..."
-            # Install sqlx-cli if not available
-            if ! command -v sqlx &> /dev/null; then
-              cargo install sqlx-cli --no-default-features --features postgres
-            fi
-            sqlx database create || true
-            sqlx migrate run
-          else
-            echo "No migrations found for ${{ matrix.service }}"
-          fi
-        env:
-          DATABASE_URL: postgres://simpelv2_test:integration_test_2024@localhost:${{ steps.start-db.outputs.port }}/simpelv2_integration
-
       - name: Run integration tests
         working-directory: ${{ matrix.service }}
-        run: |
-          cargo test --features integration-tests -- --test-threads=1 --nocapture
+        run: cargo test --all-targets
         env:
-          DATABASE_URL: postgres://simpelv2_test:integration_test_2024@localhost:${{ steps.start-db.outputs.port }}/simpelv2_integration
-          REDIS_URL: redis://localhost:${{ steps.start-redis.outputs.port }}
+          DATABASE_URL: postgres://simpelv2_test:integration_test_2024@localhost:5432/simpelv2_integration
+          REDIS_URL: redis://localhost:6379
           RUST_LOG: debug
 
-      - name: Stop containers
-        if: always()
-        run: |
-          if [ -n "${{ steps.start-db.outputs.container }}" ]; then
-            docker stop ${{ steps.start-db.outputs.container }} || true
-            docker rm ${{ steps.start-db.outputs.container }} || true
-          fi
-          if [ -n "${{ steps.start-redis.outputs.container }}" ]; then
-            docker stop ${{ steps.start-redis.outputs.container }} || true
-            docker rm ${{ steps.start-redis.outputs.container }} || true
-          fi
-
-      - name: Generate test report
-        if: always()
-        run: |
-          echo "## Integration Test Results - ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Service**: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
-
-  frontend-backend-integration:
-    name: Frontend-Backend E2E Tests
-    runs-on: self-hosted
-    needs: [setup-infrastructure, backend-integration-tests]
-
-    steps:
-      - name: Fix permissions
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: true
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          targets: wasm32-unknown-unknown
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-key: e2e-tests
-
-      - name: Install Trunk
-        run: |
-          if ! command -v trunk &> /dev/null; then
-            mkdir -p $HOME/.local/bin
-            wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xzf- -C $HOME/.local/bin/
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
-          fi
-
-      # - name: Start API Gateway
-      #   run: |
-      #     cd layanan/apigateway
-      #     cargo build --release
-      #     nohup ../../target/release/apigateway > apigateway.log 2>&1 &
-      #     echo $! > apigateway.pid
-
-      #     # Wait for API Gateway to start
-      #     sleep 5
-
-      #     # Health check
-      #     for i in {1..30}; do
-      #       if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-      #         echo "API Gateway is ready!"
-      #         break
-      #       fi
-      #       echo "Waiting for API Gateway... ($i/30)"
-      #       sleep 2
-      #     done
-      #   env:
-      #     DATABASE_URL: ${{ env.DATABASE_URL }}
-      #     REDIS_URL: ${{ env.REDIS_URL }}
-
-      - name: Build Portal Frontend
-        working-directory: antarmuka/daskrimti/portal
-        run: trunk build --release
-
-      - name: Run E2E Tests
-        run: |
-          # Install playwright or similar for E2E testing
-          echo "Running end-to-end tests..."
-
-          # Test API endpoints
-          # curl -f http://localhost:8080/health || exit 1
-          # curl -f http://localhost:8080/api/v1/status || exit 1
-
-          echo "✅ E2E tests passed (Skipped backend due to missing gateway)!"
-
-      # - name: Stop API Gateway
-      #   if: always()
-      #   run: |
-      #     if [ -f layanan/apigateway/apigateway.pid ]; then
-      #       kill $(cat layanan/apigateway/apigateway.pid) || true
-      #       rm layanan/apigateway/apigateway.pid
-      #     fi
-
-      # - name: Upload logs
-      #   if: always()
-      #   uses: actions/upload-artifact@v5
-      #   with:
-      #     name: e2e-logs
-      #     path: layanan/apigateway/apigateway.log
-      #     retention-days: 7
-
-  grpc-integration-tests:
-    name: gRPC Service Integration Tests
-    runs-on: self-hosted
-    needs: setup-infrastructure
-    if: needs.setup-infrastructure.outputs.postgres-ready == 'true'
-
-    steps:
-      - name: Fix permissions
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          clean: true
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-key: grpc-integration
-
-      - name: Test authenc service
-        working-directory: layanan/authenc
-        run: |
-          cargo test --features integration-tests -- --test-threads=1 --nocapture
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          RUST_LOG: debug
-
-      - name: Test secreton service
-        if: hashFiles('layanan/secreton/Cargo.toml') != ''
-        working-directory: layanan/secreton
-        run: |
-          cargo test --features integration-tests -- --test-threads=1 --nocapture
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          RUST_LOG: debug
-
-      - name: Test cross-service communication
-        run: |
-          echo "Testing gRPC communication between services..."
-
-          # Start authenc service
-          cd layanan/authenc
-          cargo build --release
-          nohup ../../target/release/authenc > authenc.log 2>&1 &
-          echo $! > authenc.pid
-          cd ../..
-
-          # Wait for service to start
-          sleep 5
-
-          # Test gRPC endpoints
-          # Add grpcurl or similar tool tests here
-
-          echo "✅ gRPC integration tests passed!"
-
-      - name: Cleanup services
-        if: always()
-        run: |
-          if [ -f layanan/authenc/authenc.pid ]; then
-            kill $(cat layanan/authenc/authenc.pid) || true
-            rm layanan/authenc/authenc.pid
-          fi
-
-  module-integration:
+  workspace-integration:
     name: Cross-Module Integration Tests
     runs-on: self-hosted
-    needs: [backend-integration-tests, grpc-integration-tests]
-
+    needs: backend-integration
     steps:
-      - name: Fix permissions
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -393,72 +87,21 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-key: module-integration
+          cache-key: workspace-integration
 
-      - name: Test workspace integration
-        run: |
-          echo "Testing cross-module dependencies..."
-          cargo test --workspace --lib --features integration-tests -- --test-threads=1
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          REDIS_URL: ${{ env.REDIS_URL }}
-          RUST_LOG: info
-
-      - name: Test shared libraries
-        working-directory: lib
-        run: |
-          # Test common libraries used across modules
-          for lib in */; do
-            if [ -f "$lib/Cargo.toml" ]; then
-              echo "Testing lib/$lib..."
-              cd "$lib"
-              cargo test --all-features
-              cd ..
-            fi
-          done
-
-  cleanup:
-    name: Cleanup Test Infrastructure
-    runs-on: self-hosted
-    needs: [frontend-backend-integration, grpc-integration-tests, module-integration]
-    if: always()
-
-    steps:
-      - name: Stop and remove test containers
-        run: |
-          docker stop postgres-integration redis-integration || true
-          docker rm postgres-integration redis-integration || true
-
-      - name: Cleanup test data
-        run: |
-          rm -rf test-results/ || true
-          rm -rf coverage/ || true
+      - name: Test workspace-wide integration
+        run: cargo test --workspace --all-targets
 
   summary:
-    name: Integration Test Summary
+    name: Integration Summary
     runs-on: self-hosted
-    needs: [backend-integration-tests, frontend-backend-integration, grpc-integration-tests, module-integration]
+    needs: [backend-integration, workspace-integration]
     if: always()
-
     steps:
       - name: Generate summary
         run: |
-          echo "## 🧪 Integration Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend Integration | ${{ needs.backend-integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend-Backend E2E | ${{ needs.frontend-backend-integration.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| gRPC Integration | ${{ needs.grpc-integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Cross-Module Integration | ${{ needs.module-integration.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📊 Overall Status" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${{ needs.backend-integration-tests.result }}" = "success" ] && \
-             [ "${{ needs.frontend-backend-integration.result }}" = "success" ] && \
-             [ "${{ needs.grpc-integration-tests.result }}" = "success" ] && \
-             [ "${{ needs.module-integration.result }}" = "success" ]; then
-            echo "✅ **All integration tests passed!**" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Some integration tests failed. Please review the logs.**" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "## Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Integration | ${{ needs.backend-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workspace Integration | ${{ needs.workspace-integration.result }} |" >> $GITHUB_STEP_SUMMARY

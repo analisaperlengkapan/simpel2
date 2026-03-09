@@ -6,6 +6,7 @@
 use axum::{extract::State, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
@@ -727,34 +728,62 @@ pub async fn rekey_update(
 }
 
 /// Generate root token with JWT
-async fn generate_root_token(_state: &AppState) -> Result<String, String> {
-    use jsonwebtoken::{EncodingKey, Header, encode};
+async fn generate_root_token(state: &AppState) -> Result<String, String> {
+    use jsonwebtoken::{EncodingKey, Header, Algorithm, encode};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize)]
     struct RootTokenClaims {
         sub: String,
-        exp: i64,
-        iat: i64,
+        iss: String,
+        aud: String,
+        exp: usize,
+        iat: usize,
+        jti: String,
+        roles: Vec<String>,
         policies: Vec<String>,
         token_type: String,
+        username: String,
+        email: String,
+        full_name: Option<String>,
+        is_superuser: bool,
+        is_active: bool,
+        mfa_enabled: bool,
+        namespace: String,
     }
 
     let now = chrono::Utc::now();
+    let expiration = now + chrono::Duration::days(365);
+
     let claims = RootTokenClaims {
         sub: crate::services::auth::ROOT_USER_ID.to_string(),
-        exp: (now + chrono::Duration::days(365)).timestamp(),
-        iat: now.timestamp(),
+        iss: state.config.auth.jwt.issuer.clone(),
+        aud: state.config.auth.jwt.audience.clone(),
+        exp: expiration.timestamp() as usize,
+        iat: now.timestamp() as usize,
+        jti: uuid::Uuid::new_v4().to_string(),
+        roles: vec!["root".to_string(), "admin".to_string()],
         policies: vec!["root".to_string()],
         token_type: "root".to_string(),
+        username: "root".to_string(),
+        email: "root@secreton.local".to_string(),
+        full_name: Some("Root User".to_string()),
+        is_superuser: true,
+        is_active: true,
+        mfa_enabled: false,
+        namespace: "root".to_string(),
     };
 
-    // Use a secure key from config or generate one
-    // In production, this should be from a secure key store
-    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
+    // Use the JWT secret from config (matching what validate_token uses)
+    let secret = &state.config.auth.jwt.secret;
+
+    let algorithm = Algorithm::from_str(&state.config.auth.jwt.algorithm)
+        .unwrap_or(Algorithm::HS256);
+
+    let header = Header::new(algorithm);
 
     let token = encode(
-        &Header::default(),
+        &header,
         &claims,
         &EncodingKey::from_secret(secret.as_bytes()),
     )

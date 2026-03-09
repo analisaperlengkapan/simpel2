@@ -529,24 +529,8 @@ fn CaptchaContainer(
                                 ().into_any()
                             }}
 
-                            {if behavioral_analysis {
-                                view! {
-                                    <div class="behavioral-info bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-3 mt-2">
-                                        <div class="flex items-center justify-between mb-2">
-                                            <div class="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
-                                                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                                <span>"Behavioral analysis active"</span>
-                                            </div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-500">
-                                                "Session: " {&session_id[..8]} "..."
-                                            </div>
-                                        </div>
-                                    </div>
-                                }.into_any()
-                            } else {
-                                let _: () = view! {};
-                                ().into_any()
-                            }}
+                            // Behavioral analysis runs silently (no debug UI shown)
+                            {let _: () = view! {}; ().into_any()}
                         </div>
                     }.into_any()
                 }

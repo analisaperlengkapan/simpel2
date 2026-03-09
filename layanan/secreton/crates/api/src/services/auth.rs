@@ -398,14 +398,17 @@ impl AuthService {
         };
 
         // Enforce token type
-        if claims.token_type != "access" {
+        if claims.token_type != "access" && claims.token_type != "root" {
             return Err(AuthError::InvalidToken);
         }
 
-        // Check if session exists (is valid/active)
-        // If session retrieval fails (e.g. not found), we consider the token invalid/revoked
-        if self.get_session(&claims.jti).await.is_err() {
-            return Err(AuthError::InvalidToken);
+        // Root tokens (generated during init) don't have sessions — skip session check
+        if claims.token_type != "root" {
+            // Check if session exists (is valid/active)
+            // If session retrieval fails (e.g. not found), we consider the token invalid/revoked
+            if self.get_session(&claims.jti).await.is_err() {
+                return Err(AuthError::InvalidToken);
+            }
         }
 
         // Reconstruct user from claims

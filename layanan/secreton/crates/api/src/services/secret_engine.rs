@@ -324,6 +324,19 @@ impl SecretService {
         self.storage.store(&entry).await?;
         self.storage.store(&version_entry).await?;
 
+        // Generate and store actual cryptographic key material for encrypt/decrypt
+        let key_material = secreton_crypto::generate_key(
+            secreton_crypto::AlgorithmId::Aes256Gcm,
+        )?;
+        let material_entry = secreton_storage::SecretEntry::new(
+            format!("keys/{}/material", key_name),
+            key_material,
+            serde_json::json!({}),
+            SecurityLevel::TopSecret,
+            user_id.to_string(),
+        );
+        self.storage.store(&material_entry).await?;
+
         Ok(key_info)
     }
 
@@ -404,8 +417,15 @@ impl SecretService {
             })
             .await;
 
-        // Get or generate encryption key
-        let key = secreton_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
+        // Retrieve stored encryption key material for this key
+        let material_entry = self
+            .storage
+            .get_by_path(&format!("keys/{}/material", key_id))
+            .await?
+            .ok_or_else(|| SecretServiceError::KeyNotFound {
+                key_id: key_id.to_string(),
+            })?;
+        let key = material_entry.encrypted_data;
 
         // Encrypt using crypto service
         let encrypted_data =
@@ -462,8 +482,15 @@ impl SecretService {
                 SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e))
             })?;
 
-        // Get decryption key (in production, retrieve from key storage)
-        let key = secreton_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
+        // Retrieve stored encryption key material for this key
+        let material_entry = self
+            .storage
+            .get_by_path(&format!("keys/{}/material", key_id))
+            .await?
+            .ok_or_else(|| SecretServiceError::KeyNotFound {
+                key_id: key_id.to_string(),
+            })?;
+        let key = material_entry.encrypted_data;
 
         // Decrypt using crypto service
         let plaintext_bytes = self.crypto.decrypt(&encrypted_data, &key)?;
