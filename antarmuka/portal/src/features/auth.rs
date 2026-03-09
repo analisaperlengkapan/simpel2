@@ -476,14 +476,30 @@ impl AuthService {
             use wasm_bindgen_futures::spawn_local;
 
             spawn_local(async move {
-                let config = crate::utils::config::get_config();
-                let authenc_url = config.authenc_url;
-                let portal_url = config.portal_url;
+                // derive base URLs from the browser origin rather than relying
+                // on the potentially stale config value.  The API client path is
+                // computed separately so we only need the root for the OIDC
+                // logout endpoint.
+                let origin = web_sys::window()
+                    .and_then(|w| w.location().origin().ok())
+                    .unwrap_or_else(|| "http://localhost:8080".to_string());
+
+                // portal_url from config may be relative ("/portal").  Prefix the
+                // origin in that case so we always end up with an absolute URI for
+                // redirect_uri compliance.
+                let portal_url_raw = crate::utils::config::get_config().portal_url;
+                let portal_url = if portal_url_raw.starts_with('/') {
+                    format!("{}{}", origin, portal_url_raw)
+                } else {
+                    portal_url_raw
+                };
                 let redirect_uri = format!("{}/logged-out", portal_url);
 
+                // authenc logout endpoint lives under the server root rather than
+                // the API path; use origin directly.
                 let logout_url = format!(
                     "{}/v1/oidc/logout?post_logout_redirect_uri={}",
-                    authenc_url,
+                    origin,
                     urlencoding::encode(&redirect_uri)
                 );
 

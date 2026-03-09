@@ -30,12 +30,20 @@ spec:
     # ============================================
     # Root redirect: / → /portal
     # ============================================
+    # route the root path directly to the portal backend rather than issuing
+    # a client-side redirect.  this avoids situations where the client may try
+    # to connect to the wrong port or encounter a slow 302 that eventually
+    # produces ERR_CONNECTION_REFUSED.
     - match:
         - uri:
             exact: /
-      redirect:
+      rewrite:
         uri: /portal
-        redirectCode: 302
+      route:
+        - destination:
+            host: portal.simpelv2-staging.svc.cluster.local
+            port:
+              number: 8080
 
     # ============================================
     # CAPTCHA Routes → Authenc (direct)
@@ -206,6 +214,16 @@ spec:
             port:
               number: 8088
       timeout: 30s
+      corsPolicy:
+        allowOrigins:
+          - exact: "http://10.1.7.121"
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+        allowHeaders:
+          - content-type
+        maxAge: "86400s"
 
     # ============================================
     # Secreton Secrets API
@@ -230,9 +248,9 @@ spec:
             exact: /health
       route:
         - destination:
-            host: authenc.simpelv2-staging.svc.cluster.local
+            host: perlengkapan.simpelv2-staging.svc.cluster.local
             port:
-              number: 8088
+              number: 8080
 
     # ============================================
     # Portal Frontend at /portal

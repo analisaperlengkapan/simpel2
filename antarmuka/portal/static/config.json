@@ -1,4 +1,4 @@
 {
-    "portal_url": "/portal",
+    "portal_url": "http://localhost:8080/portal",
     "authenc_url": "/api/v1/auth"
 }

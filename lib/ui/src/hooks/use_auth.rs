@@ -120,21 +120,24 @@ impl AuthContext {
         #[cfg(target_arch = "wasm32")]
         {
             spawn_local(async move {
-                let authenc_url = std::env::var("AUTHENC_URL").unwrap_or_else(|_| {
-                    if let Some(window) = window() {
-                        format!(
-                            "{}/api/auth",
-                            window
-                                .location()
-                                .origin()
-                                .unwrap_or_else(|_| "http://localhost:8080".to_string())
-                        )
-                    } else {
-                        "http://localhost:8080".to_string()
-                    }
-                });
+                // derive base origin (server root) instead of relying on an
+                // environment variable that may include an API path.  This keeps the
+                // OIDC logout URL and the API client URL separate and avoids the
+                // double "/api/..." problem.
+                let origin = window()
+                    .and_then(|w| w.location().origin().ok())
+                    .unwrap_or_else(|| "http://localhost:8080".to_string());
+                let authenc_url = std::env::var("AUTHENC_URL").unwrap_or_else(|_| origin.clone());
 
-                let portal_url = get_portal_url();
+                // make portal URL absolute if configured relatively
+                let portal_url = {
+                    let raw = get_portal_url();
+                    if raw.starts_with('/') {
+                        format!("{}{}", origin, raw)
+                    } else {
+                        raw
+                    }
+                };
                 let redirect_uri = format!("{}/logged-out", portal_url);
 
                 let logout_url = format!(

@@ -144,7 +144,12 @@ updates:
   # DOCKER — Container base images
   # ─────────────────────────────────────────────────────
   - package-ecosystem: "docker"
-    directory: "/"
+    # scan all Dockerfiles in the repo, not just the root
+    directories:
+      - "/"
+      - "/antarmuka/*"
+      - "/layanan/*"
+      - "/infra/*"
     schedule:
       interval: "weekly"
       day: "wednesday"

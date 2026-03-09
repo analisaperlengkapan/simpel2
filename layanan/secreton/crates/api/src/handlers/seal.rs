@@ -753,7 +753,11 @@ async fn generate_root_token(state: &AppState) -> Result<String, String> {
     }
 
     let now = chrono::Utc::now();
-    let expiration = now + chrono::Duration::days(365);
+    // root tokens are extremely powerful; limit their lifetime to 24h to
+    // reduce blast radius in case of compromise.  Previously this was set to
+    // 365 days which made revocation impossible without rotating the signing
+    // secret.
+    let expiration = now + chrono::Duration::hours(24);
 
     let claims = RootTokenClaims {
         sub: crate::services::auth::ROOT_USER_ID.to_string(),
