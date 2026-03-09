@@ -102,7 +102,7 @@ pub fn AudioChallenge(
                      "🔊 Audio Challenge"
                  </h3>
                  <p class="text-sm text-blue-700 dark:text-blue-300">
-                     "Listen carefully and type your answer below"
+                     "Dengarkan dengan seksama dan ketik jawaban Anda di bawah"
                  </p>
              </div>
 
@@ -116,7 +116,7 @@ pub fn AudioChallenge(
                          size=ButtonSize::Large
                          disabled=audio_playing.get()
                      >
-                         {if audio_playing.get() { "🔊 Playing..." } else { "▶️ Play Audio" }}
+                         {if audio_playing.get() { "🔊 Memutar..." } else { "▶️ Putar Audio" }}
                      </Button>
 
                      {if audio_playing.get() {
@@ -139,7 +139,7 @@ pub fn AudioChallenge(
 
                  <div class="speed-controls">
                      <label class="block text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">
-                         "Playback Speed"
+                         "Kecepatan Putar"
                      </label>
                      <div class="flex items-center space-x-2">
                          <Button
@@ -168,7 +168,7 @@ pub fn AudioChallenge(
 
                  <div class="text-alternative bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-600 rounded p-3">
                      <p class="text-sm text-gray-700 dark:text-gray-300">
-                         <strong>"Text version:"</strong> " " {audio_text.get()}
+                         <strong>"Versi teks:"</strong> " " {audio_text.get()}
                      </p>
                  </div>
              </div>

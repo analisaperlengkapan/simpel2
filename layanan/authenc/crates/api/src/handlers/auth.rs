@@ -554,7 +554,10 @@ mod tests {
             token_type: "Bearer".to_string(),
             expires_in: 900,
             mfa_token: None,
+            temp_token: None,
             mfa_required: false,
+            mfa_setup_required: false,
+            message: "Login successful".to_string(),
         };
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("access_token"));

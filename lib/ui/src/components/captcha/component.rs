@@ -52,6 +52,10 @@ pub fn Captcha(
         signal(super::validation_feedback::ValidationStatus::Idle);
     let (input_value, set_input_value) = signal(String::new());
 
+    // trigger used to force refresh of a new challenge whenever
+    // the counter increments (e.g. after wrong answers)
+    let (refresh_trigger, set_refresh_trigger) = signal(0);
+
     // Initialize with provided difficulty
     if let Some(diff) = difficulty {
         set_state.update(|s| s.difficulty = diff);
@@ -69,6 +73,7 @@ pub fn Captcha(
         // Use state for challenge_id
         let challenge_id_val = state.get().challenge_id.unwrap_or_default();
         let session_id_val = session_id_verify.clone();
+        let set_refresh = set_refresh_trigger.clone();
 
         // Clone callbacks for async block
         let on_success_clone = on_success;
@@ -170,9 +175,12 @@ pub fn Captcha(
                 set_state.update(|s| {
                     s.attempts += 1;
                     if s.attempts >= 3 {
-                        s.error = Some("Too many failed attempts. Please refresh.".to_string());
+                        s.error = Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
                     }
                 });
+
+                // force a refresh right away so a new set of characters is shown
+                set_refresh.update(|n| *n += 1);
 
                 if let Some(failure_callback) = on_failure_clone {
                     failure_callback.run(error_msg);
@@ -180,9 +188,6 @@ pub fn Captcha(
             }
         });
     };
-
-    // Challenge generation effect - wrap in Resource for reactive updates
-    let (refresh_trigger, set_refresh_trigger) = signal(0);
 
     Effect::new(move |_| {
         // Track refresh trigger
@@ -339,12 +344,11 @@ pub fn Captcha(
         set_refresh_trigger.update(|n| *n += 1);
     };
 
-    // Keyboard navigation elements
+    // Keyboard navigation elements (audio button removed)
     let nav_elements = vec![
         "captcha-challenge".to_string(),
         "captcha-input".to_string(),
         "refresh-button".to_string(),
-        "audio-button".to_string(),
         "submit-button".to_string(),
     ];
 
@@ -433,20 +437,13 @@ fn CaptchaContainer(
 
             <div class="captcha-header mb-4">
                 <h3 id="captcha-title" class="text-lg font-bold text-gray-900 dark:text-white">
-                    "Verify You're Human"
+                    "Verifikasi Keamanan"
                 </h3>
                 <p id="captcha-description" class="text-sm font-medium text-gray-600 dark:text-gray-300">
-                    "Complete the challenge below"
+                    "Selesaikan tantangan di bawah ini"
                 </p>
             </div>
 
-            // Difficulty indicator
-            <DifficultyIndicator
-                current_difficulty=state.get().difficulty
-                max_difficulty=10
-                attempts=state.get().attempts
-                max_attempts=3
-            />
 
             // Validation status indicator
             <ValidationStatusIndicator
@@ -460,7 +457,7 @@ fn CaptchaContainer(
                     view! {
                         <div class="captcha-loading flex items-center justify-center py-8">
                             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                            <span class="ml-2 text-gray-600 dark:text-gray-400">"Loading challenge..."</span>
+                            <span class="ml-2 text-gray-600 dark:text-gray-400">"Memuat tantangan..."</span>
                         </div>
                     }.into_any()
                 } else if let Some(error) = current_state.error {
@@ -475,7 +472,7 @@ fn CaptchaContainer(
                             variant=ButtonVariant::Secondary
                             size=ButtonSize::Medium
                         >
-                            "Try Again"
+                            "Coba Lagi"
                         </Button>
                     }.into_any()
                 } else {
@@ -575,31 +572,6 @@ pub fn ChallengeDisplay(
     view! {
         <div class="challenge-display border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 bg-gray-50 dark:bg-gray-900">
             <div class="challenge-header flex items-center justify-between mb-4">
-                <div class="challenge-info">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {format!("{:?} Challenge", challenge_type)}
-                    </span>
-
-                </div>
-
-                {if accessibility_enabled && challenge_type != ChallengeType::Audio {
-                    let play_audio = play_audio.clone();
-                    view! {
-                        <Button
-                            on_click=Box::new(move || {
-                                play_audio(leptos::ev::MouseEvent::new("click").unwrap())
-                            })
-                            variant=ButtonVariant::Ghost
-                            size=ButtonSize::Small
-                            disabled=audio_playing.get()
-                        >
-                            {if audio_playing.get() { "🔊 Playing..." } else { "🔊 Audio" }}
-                        </Button>
-                    }.into_any()
-                } else {
-                    let _: () = view! {};
-                    ().into_any()
-                }}
             </div>
 
             <div class="challenge-content">
@@ -614,11 +586,38 @@ pub fn ChallengeDisplay(
                                     <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
                                         {parsed.instructions.clone()}
                                     </div>
-                                    <div class="text-display bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg p-6 flex items-center justify-center">
-                                        <span class="text-4xl font-mono font-bold tracking-widest text-blue-800 dark:text-blue-200 select-none"
-                                            style="letter-spacing: 0.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">
-                                            {parsed.text_to_recognize.clone().unwrap_or_default()}
-                                        </span>
+                                    <div class="text-display rounded-lg p-2 flex items-center justify-center select-none"
+                                        style="user-select: none; -webkit-user-select: none; pointer-events: none;">
+                                        {move || {
+                                            if let Some(ref svg_markup) = parsed.svg {
+                                                // Render server-generated SVG with noise/distortion
+                                                view! {
+                                                    <div
+                                                        class="captcha-svg-container"
+                                                        style="user-select: none; -webkit-user-select: none; pointer-events: none; width: 100%; max-width: 100%; overflow: hidden;"
+                                                        inner_html=svg_markup.clone()
+                                                    ></div>
+                                                }.into_any()
+                                            } else {
+                                                // Fallback: render individual characters with CSS distortion
+                                                let text = parsed.text_to_recognize.clone().unwrap_or_default();
+                                                let chars: Vec<char> = text.chars().collect();
+                                                view! {
+                                                    <div class="flex space-x-1 select-none" style="letter-spacing: 0.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">
+                                                        {chars.into_iter().map(|ch| {
+                                                            let rot = js_sys::Math::random() * 30.0 - 15.0;
+                                                            let style_str = format!("transform: rotate({rot:.1}deg); display: inline-block;");
+                                                            view! {
+                                                                <span class="text-4xl font-mono font-bold text-blue-800 dark:text-blue-200 inline-block"
+                                                                    style=style_str>
+                                                                    {ch.to_string()}
+                                                                </span>
+                                                            }
+                                                        }).collect::<Vec<_>>()}
+                                                    </div>
+                                                }.into_any()
+                                            }
+                                        }}
                                     </div>
                                 </div>
                             }.into_any(),
@@ -859,11 +858,13 @@ pub fn ChallengeInput(
                 on_submit.run(token);
             } else {
                 set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
+                // Immediately refresh the challenge to prevent brute-force
+                refresh_challenge(leptos::ev::MouseEvent::new("click").unwrap());
                 let mut should_notify_parent = false;
                 set_state.update(|s| {
                     s.attempts += 1;
                     if s.attempts >= 3 {
-                        s.error = Some("Too many failed attempts. Please refresh.".to_string());
+                        s.error = Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
                         should_notify_parent = true;
                     }
                 });
@@ -873,7 +874,7 @@ pub fn ChallengeInput(
                 if should_notify_parent {
                     if let Some(failure_callback) = on_failure {
                         failure_callback
-                            .run("Too many failed attempts. Please refresh.".to_string());
+                            .run("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
                     }
                 }
             }
@@ -907,13 +908,13 @@ pub fn ChallengeInput(
                             "text_recognition" => view! {
                                 <div class="text-input-challenge">
                                     <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                        "Type the characters you see above:"
+                                        "Ketik karakter yang Anda lihat di atas (perhatikan huruf besar/kecil):"
                                     </div>
                                     <div class="flex space-x-2">
                                         <input
                                             type="text"
-                                            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white font-mono text-lg uppercase tracking-widest"
-                                            placeholder="Enter the text..."
+                                            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white font-mono text-lg tracking-widest"
+                                            placeholder="Masukkan teks..."
                                             value=input_value
                                             on:input=handle_input_change
                                             disabled=is_submitting.get()
@@ -926,7 +927,7 @@ pub fn ChallengeInput(
                                             variant=ButtonVariant::Primary
                                             disabled=is_submitting.get() || input_value.get().trim().is_empty()
                                         >
-                                            {if is_submitting.get() { "Verifying..." } else { "Submit" }}
+                                            {if is_submitting.get() { "Memverifikasi..." } else { "Kirim" }}
                                         </Button>
                                     </div>
                                 </div>
@@ -934,13 +935,13 @@ pub fn ChallengeInput(
                             "image_selection" => view! {
                                 <div class="image-selection-input">
                                     <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                        "Selected images will be highlighted. Click Submit when done."
+                                        "Gambar terpilih akan disorot. Klik Kirim jika sudah selesai."
                                     </div>
                                     <div class="flex space-x-2">
                                         <input
                                             type="text"
                                             class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
-                                            placeholder="Enter selected image numbers (e.g., 1,3,5)..."
+                                            placeholder="Masukkan nomor gambar (cth: 1,3,5)..."
                                             value=input_value
                                             on:input=handle_input_change
                                             disabled=is_submitting.get()
@@ -950,7 +951,7 @@ pub fn ChallengeInput(
                                             variant=ButtonVariant::Primary
                                             disabled=is_submitting.get() || input_value.get().trim().is_empty()
                                         >
-                                            {if is_submitting.get() { "Verify" } else { "Submit" }}
+                                            {if is_submitting.get() { "Memverifikasi" } else { "Kirim" }}
                                         </Button>
                                     </div>
                                 </div>
@@ -965,7 +966,7 @@ pub fn ChallengeInput(
                                                 <input
                                                     type="text"
                                                     class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
-                                                    placeholder="Enter your answer..."
+                                                    placeholder="Masukkan jawaban Anda..."
                                                     value=input_value
                                                     on:input=handle_input_change
                                                     disabled=is_submitting.get()
@@ -975,7 +976,7 @@ pub fn ChallengeInput(
                                                     variant=ButtonVariant::Primary
                                                     disabled=is_submitting.get() || input_value.get().trim().is_empty()
                                                 >
-                                                    {if is_submitting.get() { "Verifying..." } else { "Submit" }}
+                                                    {if is_submitting.get() { "Memverifikasi..." } else { "Kirim" }}
                                                 </Button>
                                             </div>
                                         </div>
@@ -985,7 +986,7 @@ pub fn ChallengeInput(
                                     view! {
                                         <div class="visual-answer-options">
                                             <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                                "Select the correct answer:"
+                                                "Pilih jawaban yang benar:"
                                             </div>
                                             <div class="grid grid-cols-2 gap-3">
                                                 {options.into_iter().map(|option| {
@@ -1013,7 +1014,7 @@ pub fn ChallengeInput(
                                 <input
                                     type="text"
                                     class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
-                                    placeholder="Enter your answer..."
+                                    placeholder="Masukkan jawaban Anda..."
                                     value=input_value
                                     on:input=handle_input_change
                                     disabled=is_submitting.get()
@@ -1023,7 +1024,7 @@ pub fn ChallengeInput(
                                     variant=ButtonVariant::Primary
                                     disabled=is_submitting.get() || input_value.get().trim().is_empty()
                                 >
-                                    {if is_submitting.get() { "Verifying..." } else { "Submit" }}
+                                    {if is_submitting.get() { "Memverifikasi..." } else { "Kirim" }}
                                 </Button>
                             </div>
                         </div>
@@ -1036,17 +1037,17 @@ pub fn ChallengeInput(
                 match validation_status.get() {
                     ValidationStatus::Success => view! {
                         <div class="mt-2 p-2 bg-green-100 border border-green-300 rounded text-green-700">
-                            "✅ Verification successful!"
+                            "\u{2705} Verifikasi berhasil!"
                         </div>
                     }.into_any(),
                     ValidationStatus::Failed(msg) => view! {
                         <div class="mt-2 p-2 bg-red-100 border border-red-300 rounded text-red-700">
-                            "❌ " {msg}
+                            "\u{274c} " {msg}
                         </div>
                     }.into_any(),
                     ValidationStatus::Validating => view! {
                         <div class="mt-2 p-2 bg-blue-100 border border-blue-300 rounded text-blue-700">
-                            "🔄 Validating..."
+                            "\u{1f504} Memvalidasi..."
                         </div>
                     }.into_any(),
                     _ => {
@@ -1056,39 +1057,10 @@ pub fn ChallengeInput(
                 }
             }}
 
-            {if accessibility_enabled {
-                view! {
-                    <div class="accessibility-options mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            "Accessibility Options:"
-                        </div>
-                        <div class="flex space-x-2">
-                            <Button
-                                on_click=Box::new(move || {
-                                    // Switch to audio challenge
-                                    set_state.update(|s| s.challenge_type = ChallengeType::Audio);
-                                })
-                                variant=ButtonVariant::Ghost
-                                size=ButtonSize::Small
-                            >
-                                "🔊 Audio Challenge"
-                            </Button>
-                            <Button
-                                on_click=Box::new(move || {
-                                    refresh_challenge(leptos::ev::MouseEvent::new("click").unwrap())
-                                })
-                                variant=ButtonVariant::Ghost
-                                size=ButtonSize::Small
-                            >
-                                "🔄 New Challenge"
-                            </Button>
-                        </div>
-                    </div>
-                }.into_any()
-            } else {
+            { /* accessibility options removed per updated requirements */
                 let _: () = view! {};
                 ().into_any()
-            }}
+            }
         </div>
     }
 }

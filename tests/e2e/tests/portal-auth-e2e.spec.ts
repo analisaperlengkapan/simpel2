@@ -129,7 +129,7 @@ async function solveCaptchaViaApi(page: Page): Promise<{
 }> {
   // Step 1: Get challenge
   const challengeResp = await page.request.post(`${AUTHENC_URL}/api/captcha/challenge`, {
-    data: { challenge_type: 'Visual', difficulty: 3 },
+    data: { challenge_type: 'text_recognition', difficulty: 2 },
     headers: { 'Content-Type': 'application/json' },
   });
   expect(challengeResp.ok()).toBeTruthy();
@@ -280,11 +280,11 @@ async function navigateToLogin(page: Page): Promise<void> {
 
 /** Fill captcha answer and submit within the captcha component, wait for verify response */
 async function solveCaptchaInUI(page: Page, answer: string): Promise<void> {
-  const captchaInput = page.locator('input[placeholder="Enter the text..."]');
+  const captchaInput = page.locator('input[placeholder="Masukkan teks..."]');
   await expect(captchaInput).toBeVisible({ timeout: 5000 });
   await captchaInput.fill(answer);
 
-  const captchaSubmit = page.locator('.captcha-container button', { hasText: 'Submit' });
+  const captchaSubmit = page.locator('.captcha-container button', { hasText: 'Kirim' });
 
   // Wait for the verify response AND the button click simultaneously
   const [verifyResponse] = await Promise.all([
@@ -348,8 +348,8 @@ test.describe('Portal Authentication - Real E2E', () => {
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
-    // Captcha heading: "Verify You're Human"
-    await expect(page.getByText("Verify You're Human")).toBeVisible({ timeout: 15000 });
+    // Captcha heading: "Verifikasi Keamanan"
+    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
     await expect(page.locator('.captcha-container')).toBeVisible();
 
     // Verify the captcha answer was intercepted (poll briefly — proxy callback may lag)
@@ -358,7 +358,46 @@ test.describe('Portal Authentication - Real E2E', () => {
     }).toPass({ timeout: 5000 });
   });
 
-  // ────────── Test 3: Captcha solving via API ──────────
+  // ────────── Test 3: Captcha refreshes on incorrect submission ──────────
+
+  test('captcha refreshes when wrong answer is entered', async ({ page }) => {
+    const { getCaptchaAnswer } = await setupAllProxies(page);
+    await navigateToLogin(page);
+
+    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
+    await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
+
+    const firstAnswer = getCaptchaAnswer();
+    expect(firstAnswer).toBeTruthy();
+
+    // enter an obviously incorrect answer and submit
+    const captchaInput = page.locator('input[placeholder="Masukkan teks..."]');
+    await captchaInput.fill('wrong');
+
+    // Wait for the verify response AND set up listener for the subsequent challenge request
+    const challengeResponsePromise = page.waitForResponse(
+      (resp) => resp.url().includes('/api/captcha/challenge') && resp.request().method() === 'POST',
+      { timeout: 15000 },
+    );
+
+    const [verifyResp] = await Promise.all([
+      page.waitForResponse(
+        (resp) => resp.url().includes('/api/captcha/verify') && resp.request().method() === 'POST',
+        { timeout: 15000 },
+      ),
+      page.getByRole('button', { name: /Kirim|Memverifikasi/i }).click(),
+    ]);
+    // Verify response should indicate failure (wrong answer returns success=false but HTTP 200)
+    expect(verifyResp.status()).toBe(200);
+
+    // after failed submission the UI requests a new challenge — wait for it
+    await challengeResponsePromise;
+
+    // the intercepted answer should now be different
+    await expect.poll(() => getCaptchaAnswer(), { timeout: 5000 }).not.toBe(firstAnswer);
+  });
+
+  // ────────── Test 4: Captcha solving via API ──────────
 
   test('captcha can be solved via API', async ({ page }) => {
     const result = await solveCaptchaViaApi(page);
@@ -377,7 +416,7 @@ test.describe('Portal Authentication - Real E2E', () => {
     await navigateToLogin(page);
 
     // Wait for captcha to load
-    await expect(page.getByText("Verify You're Human")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
     // Wait for captcha answer to be extracted from the intercepted response
     await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
@@ -414,7 +453,7 @@ test.describe('Portal Authentication - Real E2E', () => {
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
-    await expect(page.getByText("Verify You're Human")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
     await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
     // Fill credentials
@@ -449,7 +488,7 @@ test.describe('Portal Authentication - Real E2E', () => {
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
-    await expect(page.getByText("Verify You're Human")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
     expect(getCaptchaAnswer()).toBeTruthy();
 
     // Fill wrong password first
@@ -502,7 +541,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   test('API: login succeeds with correct credentials + captcha token', async ({ request }) => {
     // Step 1: Get captcha challenge
     const challengeResp = await request.post(`${AUTHENC_URL}/api/captcha/challenge`, {
-      data: { challenge_type: 'Visual', difficulty: 3 },
+      data: { challenge_type: 'text_recognition', difficulty: 2 },
     });
     expect(challengeResp.ok()).toBeTruthy();
     const challenge = await challengeResp.json();
@@ -543,7 +582,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   test('API: login fails with incorrect password', async ({ request }) => {
     // Get and solve captcha
     const challengeResp = await request.post(`${AUTHENC_URL}/api/captcha/challenge`, {
-      data: { challenge_type: 'Visual', difficulty: 3 },
+      data: { challenge_type: 'text_recognition', difficulty: 2 },
     });
     const challenge = await challengeResp.json();
     const answer = extractCaptchaAnswer(challenge.challenge_data);

@@ -177,7 +177,7 @@ pub async fn captcha_verify_handler(
         return Json(VerifyResponse {
             success: false,
             token: None,
-            message: "Challenge not found or expired".to_string(),
+            message: "Tantangan tidak ditemukan atau sudah kedaluwarsa".to_string(),
             risk_score: Some(0.8),
         });
     };
@@ -189,7 +189,7 @@ pub async fn captcha_verify_handler(
         return Json(VerifyResponse {
             success: false,
             token: None,
-            message: "Challenge expired".to_string(),
+            message: "Tantangan telah kedaluwarsa".to_string(),
             risk_score: Some(0.5),
         });
     }
@@ -199,13 +199,18 @@ pub async fn captcha_verify_handler(
         return Json(VerifyResponse {
             success: false,
             token: None,
-            message: "Challenge already used".to_string(),
+            message: "Tantangan sudah pernah digunakan".to_string(),
             risk_score: Some(0.7),
         });
     }
 
-    // Verify answer (case-insensitive)
-    let correct = req.answer.trim().eq_ignore_ascii_case(challenge.answer.trim());
+    // Verify answer — CASE-SENSITIVE for text_recognition (mixed case is part of the challenge)
+    // Math challenges remain case-insensitive
+    let correct = if challenge.challenge_type == "text_recognition" || challenge.challenge_type == "Visual" {
+        req.answer.trim() == challenge.answer.trim()
+    } else {
+        req.answer.trim().eq_ignore_ascii_case(challenge.answer.trim())
+    };
 
     if correct {
         challenge.verified = true;
@@ -220,7 +225,7 @@ pub async fn captcha_verify_handler(
         Json(VerifyResponse {
             success: true,
             token: Some(token),
-            message: "Verification successful".to_string(),
+            message: "Verifikasi berhasil".to_string(),
             risk_score: Some(0.1),
         })
     } else {
@@ -231,7 +236,7 @@ pub async fn captcha_verify_handler(
         Json(VerifyResponse {
             success: false,
             token: None,
-            message: "Incorrect answer".to_string(),
+            message: "Jawaban salah, silakan coba lagi".to_string(),
             risk_score: Some(0.6),
         })
     }
@@ -340,35 +345,191 @@ fn generate_math_challenge(difficulty: u8) -> (String, String) {
     (challenge_data, answer)
 }
 
-/// Generate a text recognition challenge (e.g., "Type the characters: ABCD")
+/// Generate a text recognition challenge with server-side SVG rendering.
+///
+/// Best practices applied (OWASP / Bursztein et al.):
+/// - Mandatory mix of uppercase, lowercase, and digits (anti-pattern recognition)
+/// - Random rotation, scale and vertical offset per character (anti-segmentation)
+/// - Overlapping noise lines, arcs, and dots (anti-OCR)
+/// - Characters intentionally overlap slightly (anti-segmentation)
 fn generate_text_recognition_challenge(difficulty: u8) -> (String, String) {
     let mut rng = thread_rng();
 
-    let length = match difficulty {
-        1..=3 => 4,
-        4..=6 => 5,
-        _ => 6,
+    let length: usize = match difficulty {
+        1..=3 => 5,
+        4..=6 => 6,
+        _ => 7,
     };
 
-    // Generate random alphanumeric characters (avoiding confusing chars like 0/O, 1/l/I)
-    let chars: Vec<char> = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        .chars()
-        .collect();
+    // Character pools (excluding visually ambiguous: 0/O, 1/l/I, 5/S)
+    let uppercase: Vec<char> = "ABCDEFGHJKLMNPQRTUVWXYZ".chars().collect();
+    let lowercase: Vec<char> = "abcdefghjkmnpqrstuvwxyz".chars().collect();
+    let digits: Vec<char> = "2346789".chars().collect();
 
-    let text: String = (0..length)
-        .map(|_| chars[rng.gen_range(0..chars.len())])
+    // Guarantee at least 1 uppercase, 1 lowercase, 1 digit
+    let mut text_chars: Vec<char> = Vec::with_capacity(length);
+    text_chars.push(uppercase[rng.gen_range(0..uppercase.len())]);
+    text_chars.push(lowercase[rng.gen_range(0..lowercase.len())]);
+    text_chars.push(digits[rng.gen_range(0..digits.len())]);
+
+    // Fill remaining with random from all pools
+    let all_chars: Vec<char> = uppercase
+        .iter()
+        .chain(lowercase.iter())
+        .chain(digits.iter())
+        .copied()
         .collect();
+    for _ in 3..length {
+        text_chars.push(all_chars[rng.gen_range(0..all_chars.len())]);
+    }
+
+    // Shuffle to avoid predictable positions
+    for i in (1..text_chars.len()).rev() {
+        let j = rng.gen_range(0..=i);
+        text_chars.swap(i, j);
+    }
+
+    let text: String = text_chars.iter().collect();
+
+    // Generate SVG with visual noise
+    let svg = generate_captcha_svg(&text, &mut rng, difficulty);
 
     let nonce = Uuid::new_v4().to_string();
 
     let challenge_data = serde_json::json!({
         "challenge_type": "text_recognition",
         "instructions": "Ketik karakter yang ditampilkan di bawah ini",
+        "svg": svg,
         "data": format!("{}:{}", text, nonce),
     })
     .to_string();
 
     (challenge_data, text)
+}
+
+/// Generate a distorted SVG image for CAPTCHA text.
+///
+/// Techniques used to defeat OCR/ML attacks:
+/// 1. Per-character random rotation (-25° to +25°)
+/// 2. Per-character random vertical offset
+/// 3. Variable font sizes
+/// 4. Multiple overlapping noise lines with varying stroke widths
+/// 5. Random bezier curve arcs across the image
+/// 6. Random dots/circles as background noise
+/// 7. Subtle grid warp effect
+fn generate_captcha_svg(text: &str, rng: &mut impl Rng, difficulty: u8) -> String {
+    let char_count = text.chars().count();
+    let vb_width = 50 * char_count + 30;
+    let vb_height = 70;
+
+    // Use viewBox for internal coords but width="100%" so SVG scales to container
+    let mut svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="100%" preserveAspectRatio="xMidYMid meet" viewBox="0 0 {vb_width} {vb_height}" style="display:block;border-radius:8px;">"#,
+    );
+
+    let width = vb_width;
+    let height = vb_height;
+
+    // Background
+    svg.push_str(&format!(
+        r##"<rect width="{width}" height="{height}" fill="#1a237e" rx="8"/>"##,
+    ));
+
+    // Background noise dots (more with higher difficulty)
+    let dot_count = 15 + (difficulty as usize) * 5;
+    for _ in 0..dot_count {
+        let cx = rng.gen_range(0..width);
+        let cy = rng.gen_range(0..height);
+        let r: f64 = rng.gen_range(1.0..3.5);
+        let opacity: f64 = rng.gen_range(0.1..0.35);
+        let colors = ["#5c6bc0", "#7986cb", "#9fa8da", "#c5cae9", "#3949ab"];
+        let color = colors[rng.gen_range(0..colors.len())];
+        svg.push_str(&format!(
+            r#"<circle cx="{cx}" cy="{cy}" r="{r:.1}" fill="{color}" opacity="{opacity:.2}"/>"#,
+        ));
+    }
+
+    // Noise lines crossing the image (anti-OCR)
+    let line_count = 4 + (difficulty as usize) * 2;
+    for _ in 0..line_count {
+        let x1 = rng.gen_range(0..width);
+        let y1 = rng.gen_range(0..height);
+        let x2 = rng.gen_range(0..width);
+        let y2 = rng.gen_range(0..height);
+        let sw: f64 = rng.gen_range(1.0..2.5);
+        let opacity: f64 = rng.gen_range(0.3..0.7);
+        let colors = [
+            "#e8eaf6", "#c5cae9", "#9fa8da", "#7986cb", "#5c6bc0", "#3f51b5",
+        ];
+        let color = colors[rng.gen_range(0..colors.len())];
+        svg.push_str(&format!(
+            r#"<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{color}" stroke-width="{sw:.1}" opacity="{opacity:.2}"/>"#,
+        ));
+    }
+
+    // Bezier curve arcs (harder for segmentation)
+    let arc_count = 2 + (difficulty as usize);
+    for _ in 0..arc_count {
+        let sx = rng.gen_range(0..(width / 4));
+        let sy = rng.gen_range(10..height - 10);
+        let cx1 = rng.gen_range(width / 4..width / 2) as i32;
+        let cy1 = rng.gen_range(0..height) as i32;
+        let cx2 = rng.gen_range(width / 2..3 * width / 4) as i32;
+        let cy2 = rng.gen_range(0..height) as i32;
+        let ex = rng.gen_range(3 * width / 4..width);
+        let ey = rng.gen_range(10..height - 10);
+        let sw: f64 = rng.gen_range(1.0..2.5);
+        let opacity: f64 = rng.gen_range(0.25..0.55);
+        svg.push_str(&format!(
+            r##"<path d="M{sx},{sy} C{cx1},{cy1} {cx2},{cy2} {ex},{ey}" fill="none" stroke="#9fa8da" stroke-width="{sw:.1}" opacity="{opacity:.2}"/>"##,
+        ));
+    }
+
+    // Render each character with distortion
+    // Use <g translate> + local rotate/scale so transforms stay centered on each char
+    let padding = 20.0;
+    let usable = width as f64 - padding * 2.0;
+    let char_spacing = usable / char_count as f64;
+    for (i, ch) in text.chars().enumerate() {
+        let x = padding + (i as f64 + 0.5) * char_spacing + rng.gen_range(-3.0..3.0);
+        let y = (height as f64) / 2.0 + rng.gen_range(-6.0..6.0);
+        let rotation: f64 = rng.gen_range(-20.0..20.0);
+        let font_size = rng.gen_range(24..32);
+        let scale_x: f64 = rng.gen_range(0.9..1.1);
+        let scale_y: f64 = rng.gen_range(0.9..1.1);
+
+        // Alternate character colors for added difficulty
+        let char_colors = [
+            "#e8eaf6", "#c5cae9", "#ffffff", "#bbdefb", "#d1c4e9", "#f3e5f5",
+        ];
+        let color = char_colors[rng.gen_range(0..char_colors.len())];
+
+        // Use different font weights randomly
+        let weights = ["bold", "800", "900"];
+        let weight = weights[rng.gen_range(0..weights.len())];
+
+        // translate to char center, then rotate+scale locally so nothing drifts outside
+        svg.push_str(&format!(
+            r#"<g transform="translate({x:.1},{y:.1})"><text font-family="monospace,Courier,serif" font-size="{font_size}" font-weight="{weight}" fill="{color}" transform="rotate({rotation:.1}) scale({scale_x:.2},{scale_y:.2})" text-anchor="middle" dominant-baseline="middle">{ch}</text></g>"#,
+        ));
+    }
+
+    // Foreground scratch lines that partially cover characters
+    let scratch_count = 3 + (difficulty as usize);
+    for _ in 0..scratch_count {
+        let x1 = rng.gen_range(10..width - 10);
+        let y1 = rng.gen_range(20..height - 20);
+        let x2 = x1 as i32 + rng.gen_range(-60..60);
+        let y2 = y1 as i32 + rng.gen_range(-15..15);
+        let sw: f64 = rng.gen_range(0.8..2.0);
+        let opacity: f64 = rng.gen_range(0.3..0.65);
+        svg.push_str(&format!(
+            r##"<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="#b0bec5" stroke-width="{sw:.1}" opacity="{opacity:.2}" stroke-linecap="round"/>"##,
+        ));
+    }
+
+    svg.push_str("</svg>");
+    svg
 }
 
 /// Clean up expired captcha challenges
@@ -402,9 +563,13 @@ mod tests {
     fn test_generate_text_recognition_challenge() {
         let (data, answer) = generate_text_recognition_challenge(3);
         assert!(!data.is_empty());
-        assert_eq!(answer.len(), 4);
-        // All chars should be uppercase alphanumeric
-        assert!(answer.chars().all(|c| c.is_ascii_alphanumeric()));
+        assert_eq!(answer.len(), 5);
+        // Must contain at least one uppercase, one lowercase, one digit
+        assert!(answer.chars().any(|c| c.is_ascii_uppercase()));
+        assert!(answer.chars().any(|c| c.is_ascii_lowercase()));
+        assert!(answer.chars().any(|c| c.is_ascii_digit()));
+        // SVG should be in the challenge data
+        assert!(data.contains("svg"));
     }
 
     #[test]

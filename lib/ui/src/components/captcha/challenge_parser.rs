@@ -22,6 +22,8 @@ pub struct ParsedChallenge {
     pub grid_size: usize,
     /// Text to recognize (for text_recognition)
     pub text_to_recognize: Option<String>,
+    /// Server-rendered SVG markup (for text_recognition)
+    pub svg: Option<String>,
 }
 
 /// Image data for image selection challenges
@@ -52,7 +54,7 @@ pub fn parse_challenge(data: Option<ChallengeResponse>) -> ParsedChallenge {
     let instructions = outer
         .get("instructions")
         .and_then(|v| v.as_str())
-        .unwrap_or("Complete the challenge")
+        .unwrap_or("Selesaikan tantangan")
         .to_string();
 
     // Parse inner data field (may be nested JSON string)
@@ -70,6 +72,10 @@ pub fn parse_challenge(data: Option<ChallengeResponse>) -> ParsedChallenge {
 
     match challenge_type.as_str() {
         "text_recognition" => {
+            // Extract SVG from server if available
+            if let Some(svg_str) = outer.get("svg").and_then(|v| v.as_str()) {
+                parsed.svg = Some(svg_str.to_string());
+            }
             // Extract text to recognize from data field
             // Format: "VAZF:4f668449-2db3-4df5-88ec-946c9c520fa1"
             if let Some(data_str) = outer.get("data").and_then(|v| v.as_str()) {
@@ -148,7 +154,7 @@ pub fn parse_challenge_question(data: Option<ChallengeResponse>) -> String {
     if !parsed.instructions.is_empty() {
         parsed.instructions
     } else {
-        "Complete the challenge".to_string()
+        "Selesaikan tantangan".to_string()
     }
 }
 

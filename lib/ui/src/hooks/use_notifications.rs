@@ -263,16 +263,15 @@ fn setup_websocket_connection(
     use web_sys::{CloseEvent, ErrorEvent, MessageEvent, WebSocket};
     // Derive WebSocket URL from window.location for same-origin connectivity
     let ws_url = {
-        {
-            let origin = web_sys::window()
-                .and_then(|w| w.location().origin().ok())
-                .unwrap_or_else(|| "http://localhost:3000".to_string());
-            // Convert http(s):// to ws(s)://
-            let ws_origin = origin
-                .replace("https://", "wss://")
-                .replace("http://", "ws://");
-            format!("{}/ws/notifications", ws_origin)
-        }
+        let origin = web_sys::window()
+            .and_then(|w| w.location().origin().ok())
+            .unwrap_or_else(|| "http://localhost:3000".to_string());
+        // Convert http(s):// to ws(s)://
+        let ws_origin = origin
+            .replace("https://", "wss://")
+            .replace("http://", "ws://");
+        format!("{}/ws/notifications", ws_origin)
+    };
 
     // Get access token from localStorage
     let access_token = if let Some(storage) = web_sys::window()
