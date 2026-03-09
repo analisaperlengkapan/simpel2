@@ -263,7 +263,6 @@ fn setup_websocket_connection(
     use web_sys::{CloseEvent, ErrorEvent, MessageEvent, WebSocket};
     // Derive WebSocket URL from window.location for same-origin connectivity
     let ws_url = {
-        #[cfg(target_arch = "wasm32")]
         {
             let origin = web_sys::window()
                 .and_then(|w| w.location().origin().ok())
@@ -274,12 +273,6 @@ fn setup_websocket_connection(
                 .replace("http://", "ws://");
             format!("{}/ws/notifications", ws_origin)
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            std::env::var("WS_NOTIFICATION_URL")
-                .unwrap_or_else(|_| "ws://localhost:3000/ws/notifications".to_string())
-        }
-    };
 
     // Get access token from localStorage
     let access_token = if let Some(storage) = web_sys::window()
