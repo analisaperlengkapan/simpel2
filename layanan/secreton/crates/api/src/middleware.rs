@@ -1837,7 +1837,7 @@ fn is_whitelisted(path: &str) -> bool {
     ];
 
     for sys_path in system_paths {
-        if check_path == sys_path || check_path.ends_with(sys_path) {
+        if check_path == sys_path {
             tracing::warn!("✅ Whitelisted system path: '{}'", path);
             return true;
         }

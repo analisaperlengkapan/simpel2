@@ -73,9 +73,12 @@ impl UserStore for PostgresUserStore {
             WHERE username = $1 AND realm_id = $2
         "#;
 
-        let row = self.db.query_one(query, &[&username, &realm_id.0]).await?;
+        let row = self.db.query_opt(query, &[&username, &realm_id.0]).await?;
 
-        row_to_user(row)
+        match row {
+            Some(r) => row_to_user(r),
+            None => Err(AuthencError::UserNotFound(username.to_string())),
+        }
     }
 
     async fn get_user_by_email(&self, email: &str, realm_id: RealmId) -> Result<User> {
@@ -87,9 +90,12 @@ impl UserStore for PostgresUserStore {
             WHERE email = $1 AND realm_id = $2
         "#;
 
-        let row = self.db.query_one(query, &[&email, &realm_id.0]).await?;
+        let row = self.db.query_opt(query, &[&email, &realm_id.0]).await?;
 
-        row_to_user(row)
+        match row {
+            Some(r) => row_to_user(r),
+            None => Err(AuthencError::UserNotFound(email.to_string())),
+        }
     }
 
     async fn create_user(&self, req: CreateUserRequest) -> Result<User> {

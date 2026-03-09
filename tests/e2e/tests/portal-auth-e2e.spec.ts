@@ -93,34 +93,31 @@ async function setupPortalAssetProxy(page: Page): Promise<void> {
 
 // ── Captcha Solver Helper ──────────────────────────────────────────────────
 
-interface CaptchaChallengeData {
-  challenge_type: string;
-  data: string;
-  instructions: string;
+interface CaptchaChallengeBody {
+  challenge_id?: string;
+  challenge_data?: string;
 }
 
 /**
- * Extract captcha answer from challenge_data.
- * For text_recognition: data is "XXXX:uuid", answer is the part before ':'
+ * Fetch the captcha answer from the debug endpoint.
+ * Requires CAPTCHA_DEBUG=true on the authenc server.
+ *
+ * GET /api/captcha/debug/{challenge_id}
  */
-function extractCaptchaAnswer(challengeDataJson: string): string | null {
+async function fetchCaptchaAnswer(page: Page, challengeId: string): Promise<string | null> {
   try {
-    const parsed: CaptchaChallengeData = JSON.parse(challengeDataJson);
-    if (parsed.challenge_type === 'text_recognition' && parsed.data) {
-      const parts = parsed.data.split(':');
-      if (parts.length >= 2) {
-        return parts[0]; // The text code before the UUID
-      }
-    }
+    const resp = await page.request.get(`${AUTHENC_URL}/api/captcha/debug/${challengeId}`);
+    if (!resp.ok()) return null;
+    const body = await resp.json();
+    return body.answer ?? null;
   } catch {
-    // Not valid JSON
+    return null;
   }
-  return null;
 }
 
 /**
- * Solve captcha by calling the authenc API directly, extracting the answer,
- * and returning the challenge details for verification.
+ * Solve captcha by calling the authenc API directly, fetching the answer
+ * from the debug endpoint, and verifying it.
  */
 async function solveCaptchaViaApi(page: Page): Promise<{
   challengeId: string;
@@ -136,10 +133,12 @@ async function solveCaptchaViaApi(page: Page): Promise<{
 
   const challenge = await challengeResp.json();
   const challengeId = challenge.challenge_id;
-  const answer = extractCaptchaAnswer(challenge.challenge_data);
+
+  // Step 2: Fetch the real answer from the debug endpoint
+  const answer = await fetchCaptchaAnswer(page, challengeId);
   expect(answer).toBeTruthy();
 
-  // Step 2: Verify challenge
+  // Step 3: Verify challenge
   const verifyResp = await page.request.post(`${AUTHENC_URL}/api/captcha/verify`, {
     data: {
       challenge_id: challengeId,
@@ -170,7 +169,7 @@ async function solveCaptchaViaApi(page: Page): Promise<{
 async function proxyToAuthenc(
   page: Page,
   route: Route,
-  onBody?: (body: unknown) => void,
+  onBody?: (body: unknown) => void | Promise<void>,
 ): Promise<void> {
   const request = route.request();
   const url = new URL(request.url());
@@ -208,7 +207,7 @@ async function proxyToAuthenc(
     // Optional callback to inspect the response body
     if (onBody) {
       try {
-        onBody(JSON.parse(body.toString()));
+        await onBody(JSON.parse(body.toString()));
       } catch { /* ignore parse errors for non-JSON responses */ }
     }
 
@@ -250,12 +249,12 @@ async function setupAllProxies(page: Page): Promise<{ getCaptchaAnswer: () => st
 
   // 2) Unified API proxy: catches all /api/** and proxies to authenc
   await page.route('**/api/**', async (route: Route) => {
-    await proxyToAuthenc(page, route, (body) => {
-      // Extract captcha answer from challenge responses
+    await proxyToAuthenc(page, route, async (body) => {
+      // When a captcha challenge response comes back, fetch the answer via debug endpoint
       if (route.request().url().includes('/api/captcha/challenge') && body && typeof body === 'object') {
-        const b = body as { challenge_data?: string };
-        if (b.challenge_data) {
-          captchaAnswer = extractCaptchaAnswer(b.challenge_data);
+        const b = body as CaptchaChallengeBody;
+        if (b.challenge_id) {
+          captchaAnswer = await fetchCaptchaAnswer(page, b.challenge_id);
         }
       }
     });
@@ -349,7 +348,7 @@ test.describe('Portal Authentication - Real E2E', () => {
     await navigateToLogin(page);
 
     // Captcha heading: "Verifikasi Keamanan"
-    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('.captcha-container')).toBeVisible();
 
     // Verify the captcha answer was intercepted (poll briefly — proxy callback may lag)
@@ -364,7 +363,7 @@ test.describe('Portal Authentication - Real E2E', () => {
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
-    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
     await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
     const firstAnswer = getCaptchaAnswer();
@@ -416,7 +415,7 @@ test.describe('Portal Authentication - Real E2E', () => {
     await navigateToLogin(page);
 
     // Wait for captcha to load
-    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
     // Wait for captcha answer to be extracted from the intercepted response
     await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
@@ -453,7 +452,7 @@ test.describe('Portal Authentication - Real E2E', () => {
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
-    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
     await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
     // Fill credentials
@@ -488,8 +487,8 @@ test.describe('Portal Authentication - Real E2E', () => {
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
-    await expect(page.getByText("Verifikasi Keamanan")).toBeVisible({ timeout: 15000 });
-    expect(getCaptchaAnswer()).toBeTruthy();
+    await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
+    await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
     // Fill wrong password first
     await page.locator('#username').fill(NIP_USER.username);
@@ -546,8 +545,11 @@ test.describe('Portal Authentication - Real E2E', () => {
     expect(challengeResp.ok()).toBeTruthy();
     const challenge = await challengeResp.json();
 
-    // Step 2: Extract and verify captcha
-    const answer = extractCaptchaAnswer(challenge.challenge_data);
+    // Step 2: Fetch answer from debug endpoint and verify captcha
+    const debugResp = await request.get(`${AUTHENC_URL}/api/captcha/debug/${challenge.challenge_id}`);
+    expect(debugResp.ok()).toBeTruthy();
+    const debugBody = await debugResp.json();
+    const answer = debugBody.answer;
     expect(answer).toBeTruthy();
 
     const verifyResp = await request.post(`${AUTHENC_URL}/api/captcha/verify`, {
@@ -585,7 +587,11 @@ test.describe('Portal Authentication - Real E2E', () => {
       data: { challenge_type: 'text_recognition', difficulty: 2 },
     });
     const challenge = await challengeResp.json();
-    const answer = extractCaptchaAnswer(challenge.challenge_data);
+
+    const debugResp = await request.get(`${AUTHENC_URL}/api/captcha/debug/${challenge.challenge_id}`);
+    expect(debugResp.ok()).toBeTruthy();
+    const debugBody = await debugResp.json();
+    const answer = debugBody.answer;
 
     const verifyResp = await request.post(`${AUTHENC_URL}/api/captcha/verify`, {
       data: {

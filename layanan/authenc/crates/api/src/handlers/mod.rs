@@ -106,5 +106,5 @@ pub use client_registration::{
 };
 
 pub use captcha::{
-    captcha_challenge_handler, captcha_image_handler, captcha_verify_handler,
+    captcha_challenge_handler, captcha_debug_answer_handler, captcha_image_handler, captcha_verify_handler,
 };

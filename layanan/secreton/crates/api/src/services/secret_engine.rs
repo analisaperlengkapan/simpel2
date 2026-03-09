@@ -258,8 +258,10 @@ impl SecretService {
     /// if the type is not recognised.
     fn algorithm_from_key_type(key_type: &str) -> Result<AlgorithmId, SecretServiceError> {
         match key_type.to_lowercase().as_str() {
-            "aes256-gcm" | "aes256-gcm96" | "aes256gcm" => Ok(AlgorithmId::Aes256Gcm),
+            "aes256-gcm" | "aes256-gcm96" | "aes256gcm" | "aes" | "aes256" => Ok(AlgorithmId::Aes256Gcm),
             "chacha20-poly1305" | "chacha20poly1305" | "chacha20" => Ok(AlgorithmId::ChaCha20Poly1305),
+            // Common aliases that map to a sensible default symmetric algorithm
+            "symmetric" | "encryption" | "transit" => Ok(AlgorithmId::Aes256Gcm),
             other => Err(SecretServiceError::InvalidKeyType(other.to_string())),
         }
     }
@@ -523,17 +525,9 @@ impl SecretService {
             })?;
         let key = material_entry.encrypted_data;
 
-        // Determine algorithm from metadata (fallback to AES-256-GCM if unset)
-        let alg = material_entry
-            .encryption_metadata
-            .get("algorithm")
-            .and_then(|v| v.as_str())
-            .and_then(|s| match s {
-                "AES-256-GCM" => Some(AlgorithmId::Aes256Gcm),
-                "ChaCha20-Poly1305" => Some(AlgorithmId::ChaCha20Poly1305),
-                _ => None,
-            })
-            .unwrap_or(AlgorithmId::Aes256Gcm);
+        // Algorithm is embedded in the EncryptedData struct from the
+        // encryption step, so the crypto.decrypt call does not need a
+        // separate algorithm parameter.
 
         // Decrypt using crypto service
         let plaintext_bytes = self.crypto.decrypt(&encrypted_data, &key)?;

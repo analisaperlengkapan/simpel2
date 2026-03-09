@@ -492,41 +492,39 @@ impl AuthService {
             use wasm_bindgen_futures::spawn_local;
 
             spawn_local(async move {
-                // derive base URLs from the browser origin rather than relying
-                // on the potentially stale config value.  The API client path is
-                // computed separately so we only need the root for the OIDC
-                // logout endpoint.
                 let origin = web_sys::window()
                     .and_then(|w| w.location().origin().ok())
                     .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-                // portal_url from config may be relative ("/portal").  Prefix the
-                // origin in that case so we always end up with an absolute URI for
-                // redirect_uri compliance.
-                let portal_url_raw = crate::utils::config::get_config().portal_url;
-                let portal_url = if portal_url_raw.starts_with('/') {
-                    format!("{}{}", origin, portal_url_raw)
-                } else {
-                    portal_url_raw
-                };
-                let redirect_uri = format!("{}/logged-out", portal_url);
-
-                // authenc logout endpoint lives under the server root rather than
-                // the API path; use origin directly.
+                // Use the standard auth logout endpoint which is routed
+                // through Istio to authenc via the /api/v1/auth prefix.
                 let logout_url = format!(
-                    "{}/v1/oidc/logout?post_logout_redirect_uri={}",
-                    origin,
-                    urlencoding::encode(&redirect_uri)
+                    "{}/api/v1/auth/logout",
+                    origin
                 );
 
-                // Make request with credentials to include SSO cookie
+                // Read the stored refresh token so the backend can invalidate
+                // the session.
+                let refresh_token = web_sys::window()
+                    .and_then(|w| w.local_storage().ok().flatten())
+                    .and_then(|s| s.get_item("refresh_token").ok().flatten())
+                    .unwrap_or_default();
+
+                // POST to /api/v1/auth/logout with the refresh token
                 if let Some(window) = web_sys::window() {
-                    use web_sys::{Request, RequestCredentials, RequestInit, RequestMode};
+                    use web_sys::{Headers, Request, RequestCredentials, RequestInit, RequestMode};
+
+                    let body = serde_json::json!({ "refresh_token": refresh_token }).to_string();
+
+                    let headers = Headers::new().unwrap();
+                    let _ = headers.set("Content-Type", "application/json");
 
                     let opts = RequestInit::new();
-                    opts.set_method("GET");
+                    opts.set_method("POST");
                     opts.set_mode(RequestMode::Cors);
                     opts.set_credentials(RequestCredentials::Include);
+                    opts.set_headers(&headers);
+                    opts.set_body(&wasm_bindgen::JsValue::from_str(&body));
 
                     if let Ok(request) = Request::new_with_str_and_init(&logout_url, &opts) {
                         let _ = wasm_bindgen_futures::JsFuture::from(

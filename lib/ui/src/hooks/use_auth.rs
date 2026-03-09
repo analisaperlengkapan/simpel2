@@ -120,40 +120,37 @@ impl AuthContext {
         #[cfg(target_arch = "wasm32")]
         {
             spawn_local(async move {
-                // derive base origin (server root) instead of relying on an
-                // environment variable that may include an API path.  This keeps the
-                // OIDC logout URL and the API client URL separate and avoids the
-                // double "/api/..." problem.
                 let origin = window()
                     .and_then(|w| w.location().origin().ok())
                     .unwrap_or_else(|| "http://localhost:8080".to_string());
-                let authenc_url = std::env::var("AUTHENC_URL").unwrap_or_else(|_| origin.clone());
-
-                // make portal URL absolute if configured relatively
-                let portal_url = {
-                    let raw = get_portal_url();
-                    if raw.starts_with('/') {
-                        format!("{}{}", origin, raw)
-                    } else {
-                        raw
-                    }
-                };
-                let redirect_uri = format!("{}/logged-out", portal_url);
 
                 let logout_url = format!(
-                    "{}/v1/oidc/logout?post_logout_redirect_uri={}",
-                    authenc_url,
-                    urlencoding::encode(&redirect_uri)
+                    "{}/api/v1/auth/logout",
+                    origin
                 );
 
-                // Make request with credentials to include SSO cookie
+                // Read the stored refresh token so the backend can invalidate
+                // the session.
+                let refresh_token = window()
+                    .and_then(|w| w.local_storage().ok().flatten())
+                    .and_then(|s| s.get_item("refresh_token").ok().flatten())
+                    .unwrap_or_default();
+
+                // POST to /api/v1/auth/logout with the refresh token
                 if let Some(window) = window() {
-                    use web_sys::{Request, RequestCredentials, RequestInit, RequestMode};
+                    use web_sys::{Headers, Request, RequestCredentials, RequestInit, RequestMode};
+
+                    let body = serde_json::json!({ "refresh_token": refresh_token }).to_string();
+
+                    let headers = Headers::new().unwrap();
+                    let _ = headers.set("Content-Type", "application/json");
 
                     let mut opts = RequestInit::new();
-                    opts.set_method("GET");
+                    opts.set_method("POST");
                     opts.set_mode(RequestMode::Cors);
                     opts.set_credentials(RequestCredentials::Include);
+                    opts.set_headers(&headers);
+                    opts.set_body(&wasm_bindgen::JsValue::from_str(&body));
 
                     if let Ok(request) = Request::new_with_str_and_init(&logout_url, &opts) {
                         let _ = wasm_bindgen_futures::JsFuture::from(

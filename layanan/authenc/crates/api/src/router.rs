@@ -215,6 +215,10 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
             get(handlers::captcha_image_handler),
         )
         .route(
+            "/api/captcha/debug/{challenge_id}",
+            get(handlers::captcha_debug_answer_handler),
+        )
+        .route(
             "/api/v1/captcha/challenge",
             post(handlers::captcha_challenge_handler),
         )

@@ -1032,30 +1032,7 @@ pub fn ChallengeInput(
                 }
             }}
 
-            // Validation feedback
-            {move || {
-                match validation_status.get() {
-                    ValidationStatus::Success => view! {
-                        <div class="mt-2 p-2 bg-green-100 border border-green-300 rounded text-green-700">
-                            "\u{2705} Verifikasi berhasil!"
-                        </div>
-                    }.into_any(),
-                    ValidationStatus::Failed(msg) => view! {
-                        <div class="mt-2 p-2 bg-red-100 border border-red-300 rounded text-red-700">
-                            "\u{274c} " {msg}
-                        </div>
-                    }.into_any(),
-                    ValidationStatus::Validating => view! {
-                        <div class="mt-2 p-2 bg-blue-100 border border-blue-300 rounded text-blue-700">
-                            "\u{1f504} Memvalidasi..."
-                        </div>
-                    }.into_any(),
-                    _ => {
-                        let _: () = view! {};
-                        ().into_any()
-                    }
-                }
-            }}
+            // Validation feedback is shown by ValidationStatusIndicator in CaptchaContainer
 
             { /* accessibility options removed per updated requirements */
                 let _: () = view! {};

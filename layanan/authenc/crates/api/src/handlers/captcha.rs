@@ -242,6 +242,39 @@ pub async fn captcha_verify_handler(
     }
 }
 
+/// Debug endpoint: return the stored answer for a challenge.
+///
+/// **Only available when `CAPTCHA_DEBUG=true` env var is set.**
+/// Used by E2E / integration tests that cannot read the answer from the SVG.
+///
+/// GET /api/captcha/debug/{challenge_id}
+pub async fn captcha_debug_answer_handler(
+    Path(challenge_id): Path<String>,
+) -> impl IntoResponse {
+    // Gate behind env var — must not be reachable in production
+    let enabled = std::env::var("CAPTCHA_DEBUG")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false);
+
+    if !enabled {
+        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "not found"}))).into_response();
+    }
+
+    match CHALLENGE_STORE.get(&challenge_id) {
+        Some(entry) => {
+            (StatusCode::OK, Json(serde_json::json!({
+                "challenge_id": challenge_id,
+                "answer": entry.answer,
+            }))).into_response()
+        }
+        None => {
+            (StatusCode::NOT_FOUND, Json(serde_json::json!({
+                "error": "challenge not found or expired",
+            }))).into_response()
+        }
+    }
+}
+
 /// Serve a captcha image (placeholder SVG)
 ///
 /// GET /api/captcha/image/{nonce}/{index}
@@ -400,7 +433,7 @@ fn generate_text_recognition_challenge(difficulty: u8) -> (String, String) {
         "challenge_type": "text_recognition",
         "instructions": "Ketik karakter yang ditampilkan di bawah ini",
         "svg": svg,
-        "data": format!("{}:{}", text, nonce),
+        "data": format!("challenge:{}", nonce),
     })
     .to_string();
 

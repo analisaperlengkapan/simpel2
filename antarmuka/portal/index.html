@@ -9,6 +9,13 @@
     <meta name="description" content="Portal Utama SIMPEL - Kejaksaan Agung Republik Indonesia">
     <meta name="theme-color" content="#1e3a5f">
 
+    <!-- Redirect bare root "/" to "/portal" before WASM loads -->
+    <script>
+        if (window.location.pathname === '/') {
+            window.location.replace('/portal');
+        }
+    </script>
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png">
 
@@ -121,6 +128,7 @@
         }
 
         @keyframes pulse {
+
             0%,
             100% {
                 opacity: 1;
