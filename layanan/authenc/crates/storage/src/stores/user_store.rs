@@ -546,7 +546,6 @@ impl UserStore for PostgresUserStore {
                 (q, r)
             }
             None => {
-            None => {
                 let q = r#"
                     SELECT *
                     FROM users
