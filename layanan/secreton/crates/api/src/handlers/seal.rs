@@ -782,7 +782,7 @@ async fn generate_root_token(state: &AppState) -> Result<String, String> {
     let secret = &state.config.auth.jwt.secret;
 
     let algorithm = Algorithm::from_str(&state.config.auth.jwt.algorithm)
-        .unwrap_or(Algorithm::HS256);
+        .map_err(|e| format!("Invalid JWT algorithm '{}': {}", state.config.auth.jwt.algorithm, e))?;
 
     let header = Header::new(algorithm);
 
