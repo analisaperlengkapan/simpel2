@@ -69,7 +69,7 @@ FROM realms r
 WHERE r.name = 'master'
 ON CONFLICT DO NOTHING;
 
--- Role: validator_pusat  
+-- Role: validator_pusat
 INSERT INTO roles (id, realm_id, name, description, composite, client_role, created_at, updated_at)
 SELECT
     gen_random_uuid(),
@@ -154,7 +154,7 @@ CROSS JOIN (VALUES
 WHERE r.name = 'validator_wilayah'
 ON CONFLICT (role_id, permission, resource) DO NOTHING;
 
--- Validator Pusat permissions  
+-- Validator Pusat permissions
 INSERT INTO role_permissions (role_id, permission, resource, actions, conditions)
 SELECT r.id, perm.permission, perm.resource, perm.actions, perm.conditions
 FROM roles r

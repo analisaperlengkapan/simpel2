@@ -240,7 +240,7 @@ pub use database::Database;
 pub use database::DatabaseTransaction;
 
 /// Prepared statement cache for query optimization
-pub use database::PreparedStatementCache;
+pub use prepared_cache::PreparedStatementCache;
 
 /// Connection pool status information
 pub use database::PoolStatus;

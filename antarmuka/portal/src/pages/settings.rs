@@ -1,284 +1,196 @@
-//! Settings page - User settings and preferences
+//! Settings page - User preferences and customization
 
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
 use lib_ui::components::{BrandingEditor, ThemeEditor};
 
-/// Settings page component - user preferences and customization
+/// Settings page component
 #[component]
 pub fn SettingsPage(
-    /// Current user session data
     user_session: UserSession,
-    /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    // State for showing theme editor modal
     let (show_theme_editor, set_show_theme_editor) = signal(false);
-
-    // State for showing branding editor modal
     let (show_branding_editor, set_show_branding_editor) = signal(false);
+
+    let mfa_enabled = user_session.mfa_enabled;
 
     view! {
         <MainLayout user_session=user_session.clone() on_logout=on_logout>
-            <div class="container mx-auto px-4 py-8">
-                // Page Header
-                <div class="mb-8">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        "Pengaturan"
-                    </h1>
-                    <p class="text-gray-600 dark:text-gray-400">
-                        "Kelola preferensi dan kustomisasi tampilan Anda"
-                    </p>
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">"Pengaturan"</h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">"Kelola preferensi dan kustomisasi tampilan"</p>
                 </div>
 
-                // Settings Grid
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    // Appearance Settings
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                        <div class="flex items-center mb-6">
-                            <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mr-4">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                                    "Tampilan"
-                                </h2>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    "Kustomisasi tema dan warna"
-                                </p>
-                            </div>
-                        </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-                        <div class="space-y-4">
-                            // Theme Editor Button
-                            <button
-                                on:click=move |_| set_show_theme_editor.set(true)
-                                class="w-full p-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl hover:shadow-md transition-all group border border-purple-200 dark:border-purple-800"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-                                            <span class="text-xl">"🎨"</span>
-                                        </div>
-                                        <div class="text-left">
-                                            <p class="font-semibold text-gray-900 dark:text-white">"Editor Tema"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Sesuaikan warna dan mode tema"</p>
-                                        </div>
-                                    </div>
-                                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                </div>
-                            </button>
+                    // ── Tampilan ──────────────────────────────────────
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                        <SectionHeader title="Tampilan" desc="Tema dan warna"
+                            icon_path="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
 
-                            // Branding Editor Button
-                            <button
-                                on:click=move |_| set_show_branding_editor.set(true)
-                                class="w-full p-4 bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-xl hover:shadow-md transition-all group border border-indigo-200 dark:border-indigo-800"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-indigo-500 rounded-lg flex items-center justify-center">
-                                            <span class="text-xl">"🏢"</span>
-                                        </div>
-                                        <div class="text-left">
-                                            <p class="font-semibold text-gray-900 dark:text-white">"Custom Branding"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kustomisasi logo dan warna unit kerja"</p>
-                                        </div>
-                                    </div>
-                                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                </div>
-                            </button>
-
-                            // Info Card
-                            <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                                <div class="flex items-start gap-3">
-                                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                    </svg>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
-                                            "Tentang Kustomisasi"
-                                        </p>
-                                        <p class="text-xs text-blue-800 dark:text-blue-300">
-                                            "Editor tema mengubah mode gelap/terang dan warna sistem. Custom branding memungkinkan setiap unit kerja memiliki logo dan skema warna sendiri dengan validasi aksesibilitas otomatis."
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="space-y-3 mt-4">
+                            <SettingsButton
+                                label="Editor Tema"
+                                desc="Mode gelap/terang dan warna"
+                                on_click=move |_| set_show_theme_editor.set(true)
+                            />
+                            <SettingsButton
+                                label="Custom Branding"
+                                desc="Logo dan warna unit kerja"
+                                on_click=move |_| set_show_branding_editor.set(true)
+                            />
                         </div>
                     </div>
 
-                    // Account Settings
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                        <div class="flex items-center mb-6">
-                            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-4">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                                    "Akun"
-                                </h2>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    "Informasi profil Anda"
-                                </p>
-                            </div>
-                        </div>
+                    // ── Akun ──────────────────────────────────────────
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                        <SectionHeader title="Akun" desc="Informasi profil"
+                            icon_path="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 
-                        <div class="space-y-4">
-                            // User Info
-                            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                                <div class="space-y-3">
-                                    <div>
-                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            "NIP"
-                                        </label>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
-                                            {user_session.nip.clone().unwrap_or_else(|| user_session.username.clone())}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            "Nama Lengkap"
-                                        </label>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
-                                            {user_session.name.clone()}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            "Jabatan"
-                                        </label>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
-                                            {user_session.jabatan.clone().unwrap_or_else(|| "-".to_string())}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            "Satuan Kerja"
-                                        </label>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
-                                            {user_session.satker_code.clone().unwrap_or_else(|| "-".to_string())}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            "Role"
-                                        </label>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
-                                            {user_session.role.display_name()}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
+                            <AccountField label="NIP" value=user_session.nip.clone().unwrap_or_else(|| user_session.username.clone()) />
+                            <AccountField label="Nama" value=user_session.name.clone() />
+                            <AccountField label="Jabatan" value=user_session.jabatan.clone().unwrap_or_else(|| "-".into()) />
+                            <AccountField label="Satuan Kerja" value=user_session.satker_code.clone().unwrap_or_else(|| "-".into()) />
+                            <AccountField label="Role" value=user_session.role.display_name() />
                         </div>
                     </div>
 
-                    // Security Settings
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                        <div class="flex items-center mb-6">
-                            <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center mr-4">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                                    "Keamanan"
-                                </h2>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    "Pengaturan keamanan akun"
-                                </p>
-                            </div>
-                        </div>
+                    // ── Keamanan ──────────────────────────────────────
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                        <SectionHeader title="Keamanan" desc="Autentikasi dan akses"
+                            icon_path="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 
-                        <div class="space-y-4">
-                            // MFA Status
-                            <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
-                                <div class="flex items-center justify-between">
+                        <div class="space-y-3 mt-4">
+                            // MFA status from real session data
+                            <div class="p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class=move || format!("w-8 h-8 rounded-lg flex items-center justify-center {}",
+                                        if mfa_enabled { "bg-green-100 dark:bg-green-900/30" } else { "bg-amber-100 dark:bg-amber-900/30" }
+                                    )>
+                                        <svg class=move || format!("w-4 h-4 {}",
+                                            if mfa_enabled { "text-green-600 dark:text-green-400" } else { "text-amber-600 dark:text-amber-400" }
+                                        ) fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white">"Autentikasi Multi-Faktor"</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            {if mfa_enabled { "MFA aktif — akun terlindungi" } else { "MFA belum aktif" }}
+                                        </p>
+                                    </div>
+                                </div>
+                                {if mfa_enabled {
+                                    view! {
+                                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">"Aktif"</span>
+                                    }.into_any()
+                                } else {
+                                    view! {
+                                        <a href="/portal/mfa/setup" class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200 transition-colors">"Aktifkan"</a>
+                                    }.into_any()
+                                }}
+                            </div>
+
+                            {mfa_enabled.then(|| view! {
+                                <a href="/portal/mfa/backup-codes" class="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                        <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
                                             </svg>
                                         </div>
                                         <div>
-                                            <p class="font-semibold text-gray-900 dark:text-white">"MFA Aktif"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Autentikasi dua faktor diaktifkan"</p>
+                                            <p class="text-sm font-medium text-gray-900 dark:text-white">"Kode Cadangan"</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">"Lihat kode pemulihan MFA"</p>
                                         </div>
                                     </div>
-                                    <span class="text-2xl">"✓"</span>
-                                </div>
-                            </div>
-
-                            // Backup Codes Link
-                            <a
-                                href="/portal/mfa/backup-codes"
-                                class="block p-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:shadow-md transition-all group border border-orange-200 dark:border-orange-800"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-                                            <span class="text-xl">"🔑"</span>
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-900 dark:text-white">"Kode Cadangan"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Lihat kode cadangan MFA"</p>
-                                        </div>
-                                    </div>
-                                    <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                     </svg>
+                                </a>
+                            })}
+
+                            <a href="/portal/password" class="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white">"Ubah Password"</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">"Ganti password akun"</p>
+                                    </div>
                                 </div>
-                            </a>
-                        </div>
-                    </div>
-
-                    // Notifications Settings
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                        <div class="flex items-center mb-6">
-                            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mr-4">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                 </svg>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                                    "Notifikasi"
-                                </h2>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    "Preferensi pemberitahuan"
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                                <p class="text-sm text-gray-600 dark:text-gray-400 text-center">
-                                    "Pengaturan notifikasi akan segera tersedia"
-                                </p>
-                            </div>
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
 
-            // Theme Editor Modal
+            // Modals
             <Show when=move || show_theme_editor.get()>
                 <ThemeEditor on_close=Callback::new(move |_| set_show_theme_editor.set(false)) />
             </Show>
-
-            // Branding Editor Modal
             <Show when=move || show_branding_editor.get()>
                 <BrandingEditor on_close=Callback::new(move |_| set_show_branding_editor.set(false)) />
             </Show>
         </MainLayout>
+    }
+}
+
+#[component]
+fn SectionHeader(title: &'static str, desc: &'static str, icon_path: &'static str) -> impl IntoView {
+    view! {
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <svg class="w-4.5 h-4.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d=icon_path />
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+fn AccountField(label: &'static str, value: String) -> impl IntoView {
+    view! {
+        <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</p>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{value}</p>
+        </div>
+    }
+}
+
+#[component]
+fn SettingsButton(
+    label: &'static str,
+    desc: &'static str,
+    on_click: impl Fn(leptos::ev::MouseEvent) + 'static,
+) -> impl IntoView {
+    view! {
+        <button
+            on:click=on_click
+            class="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left group"
+        >
+            <div>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
+            </div>
+            <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </button>
     }
 }
