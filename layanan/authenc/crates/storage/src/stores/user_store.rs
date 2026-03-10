@@ -546,10 +546,11 @@ impl UserStore for PostgresUserStore {
                 (q, r)
             }
             None => {
+            None => {
                 let q = r#"
                     SELECT *
                     FROM users
-                    WHERE realm_id = $1
+                    WHERE realm_id = $1 AND deleted_at IS NULL
                     ORDER BY created_at DESC
                     LIMIT $2 OFFSET $3
                 "#;
