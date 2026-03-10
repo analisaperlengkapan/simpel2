@@ -106,6 +106,13 @@ impl AuthContext {
 
     /// Logout user and redirect to portal
     pub fn logout(&self) {
+        // Read refresh token BEFORE clearing localStorage
+        #[cfg(target_arch = "wasm32")]
+        let saved_refresh_token = window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item("refresh_token").ok().flatten())
+            .unwrap_or_default();
+
         // Clear session immediately for responsive UI
         self.session.set(None);
 
@@ -126,12 +133,7 @@ impl AuthContext {
 
                 let logout_url = format!("{}/api/v1/auth/logout", origin);
 
-                // Read the stored refresh token so the backend can invalidate
-                // the session.
-                let refresh_token = window()
-                    .and_then(|w| w.local_storage().ok().flatten())
-                    .and_then(|s| s.get_item("refresh_token").ok().flatten())
-                    .unwrap_or_default();
+                let refresh_token = saved_refresh_token;
 
                 // POST to /api/v1/auth/logout with the refresh token
                 if let Some(window) = window() {

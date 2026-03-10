@@ -500,6 +500,35 @@ impl UserManagementServiceImpl {
         self.user_store.count_users(realm_id).await
     }
 
+    /// Count enabled (active) users in a realm
+    pub async fn count_enabled_users(&self, realm_id: RealmId) -> Result<i64> {
+        self.user_store.count_enabled_users(realm_id).await
+    }
+
+    /// List users with optional enabled filter pushed to DB
+    pub async fn list_users_filtered(
+        &self,
+        realm_id: RealmId,
+        enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        self.user_store
+            .list_users_filtered(realm_id, enabled, offset, limit)
+            .await
+    }
+
+    /// Count users with optional enabled filter pushed to DB
+    pub async fn count_users_filtered(
+        &self,
+        realm_id: RealmId,
+        enabled: Option<bool>,
+    ) -> Result<i64> {
+        self.user_store
+            .count_users_filtered(realm_id, enabled)
+            .await
+    }
+
     /// Search users with pagination and return count
     pub async fn search_users_paginated(
         &self,

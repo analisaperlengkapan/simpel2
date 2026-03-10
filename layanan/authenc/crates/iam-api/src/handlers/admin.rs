@@ -122,14 +122,7 @@ pub async fn get_system_stats(
     let realm_id = RealmId::from_uuid(Uuid::nil());
 
     let total_users = state.user_service.count_users(realm_id).await.unwrap_or(0);
-
-    // Count enabled users as active
-    let all_users = state
-        .user_service
-        .list_users(realm_id, 0, total_users as usize)
-        .await
-        .unwrap_or_default();
-    let active_users = all_users.iter().filter(|u| u.enabled).count() as i64;
+    let active_users = state.user_service.count_enabled_users(realm_id).await.unwrap_or(0);
 
     let stats = SystemStats {
         total_users,
@@ -154,12 +147,7 @@ pub async fn get_dashboard_data(
 ) -> ApiResult<Json<serde_json::Value>> {
     let realm_id = RealmId::from_uuid(Uuid::nil());
     let total_users = state.user_service.count_users(realm_id).await.unwrap_or(0);
-    let all_users = state
-        .user_service
-        .list_users(realm_id, 0, total_users as usize)
-        .await
-        .unwrap_or_default();
-    let active_users = all_users.iter().filter(|u| u.enabled).count() as i64;
+    let active_users = state.user_service.count_enabled_users(realm_id).await.unwrap_or(0);
 
     let dashboard = serde_json::json!({
         "total_users": total_users,
@@ -193,22 +181,15 @@ pub async fn list_users(
     } else {
         let total = state
             .user_service
-            .count_users(realm_id)
+            .count_users_filtered(realm_id, query.enabled)
             .await
             .map_err(ApiError)?;
         let users = state
             .user_service
-            .list_users(realm_id, offset, limit)
+            .list_users_filtered(realm_id, query.enabled, offset, limit)
             .await
             .map_err(ApiError)?;
         (users, total)
-    };
-
-    // Apply enabled filter client-side if specified
-    let users: Vec<_> = if let Some(enabled) = query.enabled {
-        users.into_iter().filter(|u| u.enabled == enabled).collect()
-    } else {
-        users
     };
 
     let user_responses: Vec<serde_json::Value> = users

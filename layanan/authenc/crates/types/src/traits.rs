@@ -83,6 +83,40 @@ pub trait UserStore: Send + Sync {
             .await?;
         Ok(users.len() as i64)
     }
+
+    /// Count enabled (active) users in a realm
+    async fn count_enabled_users(&self, realm_id: RealmId) -> Result<i64> {
+        let users = self.list_users(realm_id, 0, i64::MAX as usize).await?;
+        Ok(users.iter().filter(|u| u.enabled).count() as i64)
+    }
+
+    /// List users with optional enabled filter pushed to DB
+    async fn list_users_filtered(
+        &self,
+        realm_id: RealmId,
+        enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        let users = self.list_users(realm_id, offset, limit).await?;
+        match enabled {
+            Some(e) => Ok(users.into_iter().filter(|u| u.enabled == e).collect()),
+            None => Ok(users),
+        }
+    }
+
+    /// Count users with optional enabled filter
+    async fn count_users_filtered(&self, realm_id: RealmId, enabled: Option<bool>) -> Result<i64> {
+        match enabled {
+            Some(true) => self.count_enabled_users(realm_id).await,
+            Some(false) => {
+                let total = self.count_users(realm_id).await?;
+                let enabled = self.count_enabled_users(realm_id).await?;
+                Ok(total - enabled)
+            }
+            None => self.count_users(realm_id).await,
+        }
+    }
 }
 
 /// Trait for session storage operations

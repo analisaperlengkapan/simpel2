@@ -153,25 +153,18 @@ pub async fn list_users(
     } else {
         let total = state
             .user_service
-            .count_users(realm_id)
+            .count_users_filtered(realm_id, params.enabled)
             .await
             .map_err(crate::error::ApiError)?;
         let users = state
             .user_service
-            .list_users(realm_id, offset, limit)
+            .list_users_filtered(realm_id, params.enabled, offset, limit)
             .await
             .map_err(crate::error::ApiError)?;
         (users, total)
     };
 
-    // Apply enabled filter in-memory if specified
-    let filtered: Vec<_> = match params.enabled {
-        Some(enabled_filter) => users
-            .iter()
-            .filter(|u| u.enabled == enabled_filter)
-            .collect(),
-        None => users.iter().collect(),
-    };
+    let filtered: Vec<_> = users.iter().collect();
 
     let total_pages = if total > 0 {
         ((total as u32) + page_size - 1) / page_size

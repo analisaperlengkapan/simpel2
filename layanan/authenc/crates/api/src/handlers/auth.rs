@@ -292,89 +292,95 @@ pub async fn login_handler(
                 "Authentication failed"
             );
 
-            // Auto-provision: if user not found and username looks like NIP,
-            // try fetching from MySIMKARI and create a disabled account.
+            // Auto-provision: if username looks like NIP and the user does NOT
+            // already exist locally, try fetching from MySIMKARI and create a
+            // disabled account.  We always return the same generic error to
+            // prevent NIP enumeration.
             if matches!(reason, AuthFailureReason::InvalidCredentials) {
                 let username = &request.username;
                 let is_nip = username.len() == 18 && username.chars().all(|c| c.is_ascii_digit());
 
                 if is_nip {
-                    if let Some(ref integrasi) = state.integrasi_client {
-                        match integrasi.get_pegawai_by_nip(username).await {
-                            Ok(Some(pegawai)) => {
-                                // Create a disabled user from pegawai data
-                                let email = if pegawai.email.is_empty() {
-                                    format!("{}@kejaksaan.go.id", username)
-                                } else {
-                                    pegawai.email.clone()
-                                };
-                                let create_req = authenc_types::CreateUserRequest {
-                                    username: username.clone(),
-                                    email,
-                                    satker_code: pegawai.kode_satker.clone(),
-                                    password: Some(username.clone()), // NIP as default password
-                                    first_name: None,
-                                    last_name: None,
-                                    nip: Some(username.clone()),
-                                    nama: Some(pegawai.nama.clone()),
-                                    jabatan: Some(pegawai.jabatan.clone()),
-                                    phone_number: if pegawai.telepon.is_empty() {
-                                        None
+                    // Only attempt provisioning when the user does not exist locally.
+                    // This avoids unnecessary gRPC calls for existing users with wrong passwords.
+                    let user_exists = state
+                        .user_service
+                        .get_user_by_username(username, realm_id)
+                        .await
+                        .is_ok();
+
+                    if !user_exists {
+                        if let Some(ref integrasi) = state.integrasi_client {
+                            match integrasi.get_pegawai_by_nip(username).await {
+                                Ok(Some(pegawai)) => {
+                                    // Create a disabled user from pegawai data
+                                    let email = if pegawai.email.is_empty() {
+                                        format!("{}@kejaksaan.go.id", username)
                                     } else {
-                                        Some(pegawai.telepon.clone())
-                                    },
-                                    realm_id: Some(realm_id.0),
-                                    organization_id: None,
-                                    roles: None,
-                                    attributes: None,
-                                };
-                                match state.user_service.create_user(create_req).await {
-                                    Ok(user) => {
-                                        // Immediately disable & set require_password_change
-                                        let update_req = authenc_types::UpdateUserRequest {
-                                            enabled: Some(false),
-                                            require_password_change: Some(true),
-                                            ..Default::default()
-                                        };
-                                        let _ = state
-                                            .user_service
-                                            .update_user(
-                                                authenc_types::UserId::from_uuid(user.id),
-                                                update_req,
-                                            )
-                                            .await;
-                                        tracing::info!(
-                                            nip = %username,
-                                            user_id = %user.id,
-                                            "Auto-provisioned disabled account from MySIMKARI"
-                                        );
-                                        return (
-                                            axum::http::StatusCode::UNAUTHORIZED,
-                                            axum::Json(ErrorResponse {
-                                                error: "account_provisioned".to_string(),
-                                                message: "Akun Anda telah ditemukan di sistem kepegawaian dan sedang diproses. Silakan hubungi administrator untuk aktivasi akun.".to_string(),
-                                            }),
-                                        )
-                                            .into_response();
-                                    }
-                                    Err(e) => {
-                                        tracing::warn!(
-                                            nip = %username,
-                                            error = %e,
-                                            "Failed to auto-provision user from MySIMKARI"
-                                        );
+                                        pegawai.email.clone()
+                                    };
+                                    let create_req = authenc_types::CreateUserRequest {
+                                        username: username.clone(),
+                                        email,
+                                        satker_code: pegawai.kode_satker.clone(),
+                                        password: Some(username.clone()), // NIP as default password
+                                        first_name: None,
+                                        last_name: None,
+                                        nip: Some(username.clone()),
+                                        nama: Some(pegawai.nama.clone()),
+                                        jabatan: Some(pegawai.jabatan.clone()),
+                                        phone_number: if pegawai.telepon.is_empty() {
+                                            None
+                                        } else {
+                                            Some(pegawai.telepon.clone())
+                                        },
+                                        realm_id: Some(realm_id.0),
+                                        organization_id: None,
+                                        roles: None,
+                                        attributes: None,
+                                    };
+                                    match state.user_service.create_user(create_req).await {
+                                        Ok(user) => {
+                                            // Immediately disable & set require_password_change
+                                            let update_req = authenc_types::UpdateUserRequest {
+                                                enabled: Some(false),
+                                                require_password_change: Some(true),
+                                                ..Default::default()
+                                            };
+                                            let _ = state
+                                                .user_service
+                                                .update_user(
+                                                    authenc_types::UserId::from_uuid(user.id),
+                                                    update_req,
+                                                )
+                                                .await;
+                                            tracing::info!(
+                                                nip = %username,
+                                                user_id = %user.id,
+                                                "Auto-provisioned disabled account from MySIMKARI"
+                                            );
+                                            // Fall through to generic error — do NOT return a
+                                            // differentiated response to prevent NIP enumeration.
+                                        }
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                nip = %username,
+                                                error = %e,
+                                                "Failed to auto-provision user from MySIMKARI"
+                                            );
+                                        }
                                     }
                                 }
-                            }
-                            Ok(None) => {
-                                tracing::debug!(nip = %username, "NIP not found in MySIMKARI");
-                            }
-                            Err(e) => {
-                                tracing::warn!(
-                                    nip = %username,
-                                    error = %e,
-                                    "Failed to query MySIMKARI for auto-provisioning"
-                                );
+                                Ok(None) => {
+                                    tracing::debug!(nip = %username, "NIP not found in MySIMKARI");
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        nip = %username,
+                                        error = %e,
+                                        "Failed to query MySIMKARI for auto-provisioning"
+                                    );
+                                }
                             }
                         }
                     }
@@ -484,12 +490,39 @@ pub async fn refresh_token_handler(
     let uid = claims.sub.clone();
     let sid = claims.sid.as_deref().unwrap_or("").to_string();
 
-    // Generate new access token (keep same session_id)
-    let access_token = match state.jwt_service.generate_access_token(
+    // Fetch user from DB to build the same custom claims as the login handler
+    let mut custom_claims = std::collections::HashMap::new();
+    if let Ok(user_uuid) = uid.parse::<Uuid>() {
+        let user_id = authenc_types::UserId::from_uuid(user_uuid);
+        if let Ok(user) = state.user_service.get_user(user_id).await {
+            if let Some(ref nip) = user.nip {
+                custom_claims.insert("nip".into(), serde_json::json!(nip));
+            }
+            if let Some(ref nama) = user.nama {
+                custom_claims.insert("name".into(), serde_json::json!(nama));
+            }
+            custom_claims.insert("preferred_username".into(), serde_json::json!(user.username));
+            if let Some(ref jabatan) = user.jabatan {
+                custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
+            }
+            if !user.satker_code.is_empty() {
+                custom_claims.insert("satker_code".into(), serde_json::json!(user.satker_code));
+            }
+            if !user.email.is_empty() {
+                custom_claims.insert("email".into(), serde_json::json!(user.email));
+            }
+            let roles: Vec<String> = user.roles.iter().map(|r| r.name.clone()).collect();
+            custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
+        }
+    }
+
+    // Generate new access token with custom claims (keep same session_id)
+    let access_token = match state.jwt_service.generate_access_token_with_claims(
         &uid,
         None,
         Some("openid profile".to_string()),
         Some(sid.clone()),
+        custom_claims,
     ) {
         Ok(t) => t,
         Err(e) => {
@@ -583,7 +616,7 @@ pub async fn get_current_user_handler(
                     phone: user.phone_number,
                     avatar: None,
                     division: user.satker_code.into(),
-                    role: "user".to_string(),
+                    role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
                     permissions: Vec::new(),
                     email_verified: user.email_verified,
                     mfa_enabled: user.mfa_enabled,
@@ -704,7 +737,7 @@ pub async fn update_profile_handler(
         phone: user.phone_number,
         avatar: None,
         division: user.satker_code.into(),
-        role: "user".to_string(),
+        role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
         permissions: Vec::new(),
         email_verified: user.email_verified,
         mfa_enabled: user.mfa_enabled,

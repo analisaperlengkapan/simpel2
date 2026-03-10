@@ -35,9 +35,14 @@ COPY lib/common ./lib/common
 COPY layanan/authenc ./layanan/authenc
 
 # Build authenc binary (defined in crates/api/src/main.rs)
-# captcha-debug feature: enables GET /api/captcha/debug/{id} for E2E test automation
+# captcha-debug: use --build-arg CAPTCHA_DEBUG=1 for E2E test images only
+ARG CAPTCHA_DEBUG=0
 ENV RUSTFLAGS="-C target-feature=-crt-static"
-RUN cargo build --release --bin authenc --features authenc-api/captcha-debug
+RUN if [ "$CAPTCHA_DEBUG" = "1" ]; then \
+        cargo build --release --bin authenc --features authenc-api/captcha-debug; \
+    else \
+        cargo build --release --bin authenc; \
+    fi
 
 # Stage 2: Runtime - Use Ubuntu 24.04 for GLIBC compatibility (aligns with dev environment)
 FROM ubuntu:24.04

@@ -505,6 +505,83 @@ impl UserStore for PostgresUserStore {
         let row = self.db.query_one(query, &[&realm_id.0, &pattern]).await?;
         Ok(row.get(0))
     }
+
+    async fn count_enabled_users(&self, realm_id: RealmId) -> Result<i64> {
+        debug!("Counting enabled users in realm: {}", realm_id);
+
+        let query = r#"
+            SELECT COUNT(*) FROM users
+            WHERE realm_id = $1 AND deleted_at IS NULL AND enabled = true
+        "#;
+
+        let row = self.db.query_one(query, &[&realm_id.0]).await?;
+        Ok(row.get(0))
+    }
+
+    async fn list_users_filtered(
+        &self,
+        realm_id: RealmId,
+        enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        debug!(
+            "Listing users in realm: {} enabled={:?} (offset: {}, limit: {})",
+            realm_id, enabled, offset, limit
+        );
+
+        let (query, rows) = match enabled {
+            Some(e) => {
+                let q = r#"
+                    SELECT *
+                    FROM users
+                    WHERE realm_id = $1 AND deleted_at IS NULL AND enabled = $4
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3
+                "#;
+                let r = self
+                    .db
+                    .query(q, &[&realm_id.0, &(limit as i64), &(offset as i64), &e])
+                    .await?;
+                (q, r)
+            }
+            None => {
+                let q = r#"
+                    SELECT *
+                    FROM users
+                    WHERE realm_id = $1
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3
+                "#;
+                let r = self
+                    .db
+                    .query(q, &[&realm_id.0, &(limit as i64), &(offset as i64)])
+                    .await?;
+                (q, r)
+            }
+        };
+        let _ = query; // suppress unused warning
+        rows.into_iter().map(row_to_user).collect()
+    }
+
+    async fn count_users_filtered(&self, realm_id: RealmId, enabled: Option<bool>) -> Result<i64> {
+        debug!(
+            "Counting users in realm: {} enabled={:?}",
+            realm_id, enabled
+        );
+
+        match enabled {
+            Some(e) => {
+                let query = r#"
+                    SELECT COUNT(*) FROM users
+                    WHERE realm_id = $1 AND deleted_at IS NULL AND enabled = $2
+                "#;
+                let row = self.db.query_one(query, &[&realm_id.0, &e]).await?;
+                Ok(row.get(0))
+            }
+            None => self.count_users(realm_id).await,
+        }
+    }
 }
 
 /// Convert a database row to a User struct

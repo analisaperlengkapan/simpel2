@@ -65,12 +65,9 @@ temp
 **/*.tar.gz
 layanan/secreton/secreton_latest.tar
 
-# Large monorepo directories not needed for Secreton build
-antarmuka
-!antarmuka/portal
-!antarmuka/portal/**
-!antarmuka/perlengkapan
-!antarmuka/perlengkapan/**
+# Large monorepo directories not needed for most builds
+# Note: antarmuka dirs must remain available for portal/perlengkapan image builds
+# (their Dockerfiles use workspace root context and COPY . .)
 simpel_web-main
 tests
 
