@@ -262,6 +262,13 @@ impl SecretService {
             "chacha20-poly1305" | "chacha20poly1305" | "chacha20" => Ok(AlgorithmId::ChaCha20Poly1305),
             // Common aliases that map to a sensible default symmetric algorithm
             "symmetric" | "encryption" | "transit" => Ok(AlgorithmId::Aes256Gcm),
+            // Asymmetric / signing key types
+            "ed25519" => Ok(AlgorithmId::Ed25519),
+            "ecdsa-p256" | "ecdsa_p256" | "p256" => Ok(AlgorithmId::EcdsaP256),
+            "ecdsa-secp256k1" | "secp256k1" => Ok(AlgorithmId::EcdsaSecp256k1),
+            "x25519" => Ok(AlgorithmId::X25519),
+            // Sensible defaults for generic asymmetric requests
+            "asymmetric" | "signing" => Ok(AlgorithmId::Ed25519),
             other => Err(SecretServiceError::InvalidKeyType(other.to_string())),
         }
     }

@@ -70,6 +70,12 @@ pub enum AlgorithmId {
     Aes256Gcm,
     ChaCha20Poly1305,
 
+    // Asymmetric / signing
+    Ed25519,
+    EcdsaP256,
+    EcdsaSecp256k1,
+    X25519,
+
     // Hash functions
     Sha256,
     Sha3_256,
@@ -85,6 +91,10 @@ impl fmt::Display for AlgorithmId {
         let name = match self {
             AlgorithmId::Aes256Gcm => "AES-256-GCM",
             AlgorithmId::ChaCha20Poly1305 => "ChaCha20-Poly1305",
+            AlgorithmId::Ed25519 => "Ed25519",
+            AlgorithmId::EcdsaP256 => "ECDSA-P256",
+            AlgorithmId::EcdsaSecp256k1 => "ECDSA-secp256k1",
+            AlgorithmId::X25519 => "X25519",
             AlgorithmId::Sha256 => "SHA-256",
             AlgorithmId::Sha3_256 => "SHA3-256",
             AlgorithmId::Blake3 => "BLAKE3",
@@ -110,6 +120,10 @@ impl SecurityParams {
         let (key_size, iterations, salt_size) = match algorithm {
             AlgorithmId::Aes256Gcm => (32, None, Some(12)),
             AlgorithmId::ChaCha20Poly1305 => (32, None, Some(12)),
+            AlgorithmId::Ed25519 => (32, None, None),
+            AlgorithmId::EcdsaP256 => (32, None, None),
+            AlgorithmId::EcdsaSecp256k1 => (32, None, None),
+            AlgorithmId::X25519 => (32, None, None),
             AlgorithmId::Sha256 => (32, None, None),
             AlgorithmId::Sha3_256 => (32, None, None),
             AlgorithmId::Blake3 => (32, None, None),
@@ -129,6 +143,8 @@ impl SecurityParams {
     pub fn is_secure(&self) -> bool {
         match self.algorithm {
             AlgorithmId::Aes256Gcm | AlgorithmId::ChaCha20Poly1305 => self.key_size >= 32,
+            AlgorithmId::Ed25519 | AlgorithmId::X25519 => self.key_size >= 32,
+            AlgorithmId::EcdsaP256 | AlgorithmId::EcdsaSecp256k1 => self.key_size >= 32,
             AlgorithmId::Pbkdf2 => self.iterations.unwrap_or(0) >= 100_000 && self.key_size >= 32,
             AlgorithmId::Argon2id => self.iterations.unwrap_or(0) >= 3 && self.key_size >= 32,
             _ => true,

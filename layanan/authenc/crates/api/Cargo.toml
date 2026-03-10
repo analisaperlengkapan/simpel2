@@ -48,6 +48,9 @@ tracing-subscriber = { workspace = true }
 name = "authenc"
 path = "src/main.rs"
 
+[features]
+captcha-debug = []
+
 [dev-dependencies]
 tokio-test = { workspace = true }
 axum-test = { workspace = true }

@@ -56,6 +56,23 @@ function extractCaptchaAnswer(challengeDataJson: string): string | null {
     return null;
 }
 
+/**
+ * Fetch the captcha answer from the debug endpoint.
+ * Requires CAPTCHA_DEBUG=true on the authenc server (or --features captcha-debug).
+ *
+ * GET /api/captcha/debug/{challenge_id}
+ */
+async function fetchCaptchaDebugAnswer(challengeId: string): Promise<string | null> {
+    try {
+        const resp = await fetch(`${AUTHENC_URL}/api/captcha/debug/${challengeId}`);
+        if (!resp.ok) return null;
+        const body = await resp.json();
+        return body.answer ?? null;
+    } catch {
+        return null;
+    }
+}
+
 // ── Screenshot Helper ──────────────────────────────────────────────────────
 
 async function captureScreenshot(page: Page, name: string): Promise<void> {
@@ -79,8 +96,15 @@ async function setupCaptchaInterceptor(page: Page): Promise<{ getCaptchaAnswer: 
     await page.route('**/api/captcha/challenge', async (route: Route) => {
         const response = await route.fetch();
         const body = await response.json().catch(() => null);
-        if (body?.challenge_data) {
-            captchaAnswer = extractCaptchaAnswer(body.challenge_data);
+        if (body?.challenge_id) {
+            // Prefer the debug endpoint (accurate, case-sensitive)
+            const debugAnswer = await fetchCaptchaDebugAnswer(body.challenge_id);
+            if (debugAnswer) {
+                captchaAnswer = debugAnswer;
+            } else if (body.challenge_data) {
+                // Fallback to legacy parsing
+                captchaAnswer = extractCaptchaAnswer(body.challenge_data);
+            }
         }
         await route.fulfill({ response });
     });

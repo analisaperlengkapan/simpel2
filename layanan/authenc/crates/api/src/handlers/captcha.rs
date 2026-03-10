@@ -244,22 +244,14 @@ pub async fn captcha_verify_handler(
 
 /// Debug endpoint: return the stored answer for a challenge.
 ///
-/// **Only available when `CAPTCHA_DEBUG=true` env var is set.**
+/// **Only available when compiled with `--features captcha-debug`.**
 /// Used by E2E / integration tests that cannot read the answer from the SVG.
 ///
 /// GET /api/captcha/debug/{challenge_id}
+#[cfg(feature = "captcha-debug")]
 pub async fn captcha_debug_answer_handler(
     Path(challenge_id): Path<String>,
 ) -> impl IntoResponse {
-    // Gate behind env var — must not be reachable in production
-    let enabled = std::env::var("CAPTCHA_DEBUG")
-        .map(|v| v == "true" || v == "1")
-        .unwrap_or(false);
-
-    if !enabled {
-        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "not found"}))).into_response();
-    }
-
     match CHALLENGE_STORE.get(&challenge_id) {
         Some(entry) => {
             (StatusCode::OK, Json(serde_json::json!({
@@ -440,6 +432,18 @@ fn generate_text_recognition_challenge(difficulty: u8) -> (String, String) {
     (challenge_data, text)
 }
 
+/// Escape a character for safe inclusion in XML/SVG text content.
+fn xml_escape_char(ch: char) -> String {
+    match ch {
+        '&' => "&amp;".to_string(),
+        '<' => "&lt;".to_string(),
+        '>' => "&gt;".to_string(),
+        '"' => "&quot;".to_string(),
+        '\'' => "&#x27;".to_string(),
+        _ => ch.to_string(),
+    }
+}
+
 /// Generate a distorted SVG image for CAPTCHA text.
 ///
 /// Techniques used to defeat OCR/ML attacks:
@@ -542,8 +546,9 @@ fn generate_captcha_svg(text: &str, rng: &mut impl Rng, difficulty: u8) -> Strin
         let weight = weights[rng.gen_range(0..weights.len())];
 
         // translate to char center, then rotate+scale locally so nothing drifts outside
+        let safe_ch = xml_escape_char(ch);
         svg.push_str(&format!(
-            r#"<g transform="translate({x:.1},{y:.1})"><text font-family="monospace,Courier,serif" font-size="{font_size}" font-weight="{weight}" fill="{color}" transform="rotate({rotation:.1}) scale({scale_x:.2},{scale_y:.2})" text-anchor="middle" dominant-baseline="middle">{ch}</text></g>"#,
+            r#"<g transform="translate({x:.1},{y:.1})"><text font-family="monospace,Courier,serif" font-size="{font_size}" font-weight="{weight}" fill="{color}" transform="rotate({rotation:.1}) scale({scale_x:.2},{scale_y:.2})" text-anchor="middle" dominant-baseline="middle">{safe_ch}</text></g>"#,
         ));
     }
 
