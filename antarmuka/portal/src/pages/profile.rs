@@ -166,7 +166,7 @@ pub fn ProfilePage() -> impl IntoView {
                                         <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                                             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">"Ganti Password"</p>
                                             <div class="mt-1">
-                                                <a href="/password" class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium">
+                                                <a href="/portal/password" class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium">
                                                     "Ubah Password"
                                                 </a>
                                             </div>
