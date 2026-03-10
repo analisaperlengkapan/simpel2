@@ -1,857 +1,561 @@
-# 🤖 AGENTS.md - Secreton
+# AGENTS.md - Secreton
 
-> **AI Agent Guide** for working with the Secrets Management Service
+> AI Agent Guide for working with the Secreton codebase.
 
-## 🌍 Service Context
+## Service Context
 
-**Secreton** adalah Advanced Security Vault System untuk SIMPEL, dikembangkan oleh Cipherce dengan fokus pada Quantum-Safe Cryptography. Menyediakan:
+**Secreton** is the secrets management, transit encryption, and PKI service for SIMPEL. It is a Rust binary in the simpelv2 monorepo (`layanan/secreton/`). It exposes a REST API (Axum 0.8), a gRPC API (Tonic 0.14), and a CLI tool (clap).
 
-### Core Features
-- **Secret Storage**: Encrypted KV store untuk credentials, API keys, certificates
-- **Transit Engine**: Encryption/decryption as a service (like HashiCorp Vault Transit)
-- **Key Management**: Encryption keys, signing keys, automatic rotation
-- **PKI Engine**: Certificate authority, certificate issuance
-- **Format-Preserving Encryption (FPE)**: Encrypt data while preserving format
+**Binary:** `api_server` (crate `secreton-api`)  
+**Default ports:** 8200 (HTTP), 8201 (gRPC), 8300 (cluster)  
+**Config file:** `secreton.toml` (loaded from working directory or `--config` flag)
 
-### Security Architecture
-- **Encryption at Rest**: ChaCha20-Poly1305, AES-256-GCM
-- **Encryption in Transit**: mTLS (gRPC), TLS 1.3 (REST)
-- **Zero-knowledge**: Secreton never logs plaintext secrets
-- **Key Wrapping**: Master key wraps Data Encryption Keys (DEKs)
-- **Shamir's Secret Sharing**: Master key split across multiple custodians
-- **Hybrid Cryptography**: Classical + Post-Quantum algorithms (ML-KEM, ML-DSA)
+## Tech Stack
 
-### Enterprise Features
-- **HSM Integration**: PKCS#11 (Thales Luna, AWS CloudHSM, SoftHSM2, YubiHSM2)
-- **High Availability**: Raft consensus for distributed deployment
-- **Kubernetes Operator**: SecretonSecret CRD for auto-injection
-- **CLI Tool**: Full-featured command-line interface
-- **Agent/Sidecar**: Auto-renew secrets in pods
-- **Audit Trail**: Complete cryptographic audit logging
+| Component | Technology |
+|-----------|-----------|
+| Language | Rust Edition 2024, MSRV 1.90+ |
+| HTTP | Axum 0.8.x |
+| gRPC | Tonic 0.14 + Prost |
+| CLI | clap (derive) |
+| Database | PostgreSQL (tokio-postgres + deadpool-postgres) |
+| Symmetric Crypto | AES-256-GCM, ChaCha20-Poly1305, XChaCha20-Poly1305 |
+| Asymmetric Crypto | Ed25519, ECDSA-P256, ECDSA-secp256k1, X25519 |
+| Post-Quantum | ML-KEM, ML-DSA (via pqcrypto, hybrid mode) |
+| Hashing | SHA-256, SHA-384, SHA-512, SHA3-256, SHA3-384, SHA3-512, BLAKE3 |
+| Key Derivation | Argon2id, PBKDF2, HKDF, scrypt |
+| Secret Sharing | Shamir Secret Sharing |
+| HSM | PKCS#11 (optional) |
+| Consensus | Raft (feature-gated: `raft-consensus`) |
 
-**Compliance:**
-- FIPS 140-3 compatible (with HSM)
-- Zero-trust architecture
-- Quantum-safe ready (hybrid PQC)
-
-## 🔑 Tech Stack
-
-| Component | Technology | Version |
-|-----------|-----------|---------|
-| Language | Rust | Edition 2024, MSRV 1.90+ |
-| gRPC Framework | Tonic + Prost | 0.14.x |
-| HTTP Framework | Axum | 0.8.x |
-| Symmetric Encryption | ChaCha20-Poly1305, AES-256-GCM | |
-| Asymmetric | X25519 (key exchange), Ed25519 (signing) | |
-| Post-Quantum | ML-KEM (encryption), ML-DSA (signing) | pqcrypto |
-| Hashing | Blake3, SHA3-256, SHA-256 | |
-| Key Derivation | Argon2id, PBKDF2, HKDF | |
-| Storage Backend | PostgreSQL | tokio-postgres + deadpool |
-| Consensus | Raft | (under migration to OpenRaft) |
-| HSM | PKCS#11 | Optional |
-| K8s Operator | kube-rs | |
-
-## 🏗️ Architecture
+## Crate Map
 
 ```
-layanan/secreton/
-├── Cargo.toml              # Part of main simpelv2 workspace
-├── crates/                 # Multi-crate workspace
-│   │
-│   ├── types/              # Shared types (secreton-types)
-│   │   └── lib.rs          # SecurityLevel, Metadata, ResourceId, Tags
-│   │
-│   ├── core/               # Core business logic (secreton-core)
-│   │   ├── lib.rs          # Re-exports from secreton-types
-│   │   ├── audit/          # Audit logging
-│   │   ├── auth/           # Authentication (AuthProvider, PqSignature)
-│   │   ├── config/         # Configuration management
-│   │   ├── error.rs        # CoreError types
-│   │   ├── models/         # Data models (auth, policy, user)
-│   │   ├── namespace/      # Namespace isolation
-│   │   ├── pki/            # PKI/certificate management
-│   │   ├── resilience/     # Circuit breaker, retry patterns
-│   │   ├── security/       # Security utilities
-│   │   ├── services/       # Business services
-│   │   │   └── secrets/    # Secret engine
-│   │   ├── storage/        # Storage abstraction
-│   │   └── utils/          # Common utilities
-│   │
-│   ├── crypto/             # Cryptographic library (secreton-crypto)
-│   │   ├── lib.rs          # CryptoEngine, HybridCrypto, TransitEngine
-│   │   ├── encryption.rs   # AES-256-GCM, ChaCha20-Poly1305
-│   │   ├── fpe.rs          # Format-Preserving Encryption
-│   │   ├── hashing.rs      # Blake3, SHA3-256, SHA-256
-│   │   ├── hybrid.rs       # Classical + PQC hybrid crypto
-│   │   ├── key_derivation.rs  # Argon2id, PBKDF2, HKDF
-│   │   ├── kv_engine.rs    # KV encryption engine
-│   │   ├── pq_key_management.rs  # Post-quantum key management
-│   │   ├── pqc/            # Post-quantum cryptography
-│   │   ├── shamir.rs       # Shamir's Secret Sharing
-│   │   ├── storage_integration.rs  # CryptoStorageBridge
-│   │   └── transit/        # Transit engine (encrypt/decrypt service)
-│   │
-│   ├── storage/            # Storage backends (secreton-storage)
-│   │   ├── lib.rs
-│   │   ├── backends/       # PostgreSQL, etc.
-│   │   ├── cache.rs        # Caching layer
-│   │   ├── encrypted_storage.rs  # Encrypted at-rest
-│   │   ├── factory.rs      # Backend factory
-│   │   ├── memory.rs       # In-memory (testing)
-│   │   ├── raft/           # Raft consensus storage
-│   │   └── raft_backend.rs
-│   │
-│   ├── api/                # HTTP REST API (secreton-api)
-│   │   ├── lib.rs          # ApiState, routers
-│   │   ├── auth/           # Authentication handlers
-│   │   ├── config.rs       # API configuration
-│   │   ├── handlers/       # HTTP handlers
-│   │   ├── kv.rs           # KV engine routes
-│   │   ├── metrics.rs      # Prometheus metrics
-│   │   ├── middleware/     # Axum middleware
-│   │   ├── pki.rs          # PKI routes
-│   │   ├── transit.rs      # Transit engine routes
-│   │   └── services/       # Service layer
-│   │
-│   ├── grpc/               # gRPC service (secreton-grpc)
-│   │   ├── lib.rs          # Generated proto, exports
-│   │   ├── server.rs       # SecretonGrpcService
-│   │   ├── tls.rs          # mTLS configuration
-│   │   ├── interceptor.rs  # Auth interceptor
-│   │   └── generated/      # Proto-generated code (OUT_DIR)
-│   │
-│   ├── cli/                # CLI tool (secreton-cli)
-│   │   ├── main.rs         # CLI entry point
-│   │   ├── lib.rs          # CLI library
-│   │   ├── seal.rs         # Seal/unseal commands
-│   │   ├── token.rs        # Token management
-│   │   ├── policy.rs       # Policy commands
-│   │   ├── audit.rs        # Audit log viewer
-│   │   ├── backup.rs       # Backup/restore
-│   │   └── operator.rs     # K8s operator commands
-│   │
-│   ├── hsm/                # HSM integration (secreton-hsm)
-│   │   ├── lib.rs          # HsmBackend
-│   │   ├── backend.rs      # PKCS#11 implementation
-│   │   ├── config.rs       # HSM configuration
-│   │   ├── pkcs11.rs       # PKCS#11 bindings
-│   │   └── error.rs        # HSM errors
-│   │
-│   ├── k8s-operator/       # Kubernetes operator
-│   │   └── ...             # SecretonSecret CRD controller
-│   │
-│   └── agent/              # Secreton agent (sidecar)
-│       └── ...             # Auto-renew agent
-│
-├── proto/                  # gRPC proto definitions
-│   ├── secreton/v1/        # Secreton service protos
-│   └── common/v1/          # Common types
-│
-├── migrations/             # Database migrations
-├── deploy/                 # Deployment configs
-├── examples/               # Usage examples
-├── monitoring/             # Monitoring configs
-├── scripts/                # Operational scripts
-└── tests/                  # Integration tests
+crates/
+├── types/              # secreton-types    — Shared enums, newtypes (SecurityLevel, ResourceId, Metadata, Tags)
+├── core/               # secreton-core     — Business logic, config, audit, auth, namespace, PKI, resilience
+├── crypto/             # secreton-crypto   — RustCrypto wrappers: encryption, FPE, hashing, Shamir, transit, hybrid PQ
+├── storage/            # secreton-storage  — StorageBackend trait + impls: Raft, PostgreSQL, memory, file, encrypted, cached
+├── api/                # secreton-api      — Axum HTTP server, route definitions, middleware, services, metrics
+├── grpc/               # secreton-grpc     — Tonic gRPC server (secreton.v1 package, 36 RPCs)
+├── cli/                # secreton-cli      — CLI binary (clap): seal, secret, transit, policy, audit, backup, replication
+├── agent/              # secreton-agent    — Sidecar: auto-auth, token renewal, template rendering
+├── hsm/                # secreton-hsm      — HSM via PKCS#11: Thales Luna, AWS CloudHSM, SoftHSM2, YubiHSM2
+├── k8s-operator/       # secreton-k8s-operator — K8s CRD controller for SecretSync
+├── auto-unseal/        # secreton-auto-unseal  — Transit, AWS KMS, GCP KMS, Azure Key Vault unseal providers
+├── backup/             # secreton-backup   — Backup/restore scheduler, S3/local storage
+├── health/             # secreton-health   — Health check registry (Healthy/Degraded/Unhealthy)
+└── replication/        # secreton-replication — DR replication, failover, conflict resolution
 ```
 
-## 📏 Critical Conventions
+### Dependency graph (simplified)
 
-### 1. Configuration
+```
+api ─→ core, crypto, storage, grpc, health
+core ─→ types, crypto
+crypto ─→ types
+storage ─→ types
+grpc ─→ core, crypto, storage
+cli ─→ (HTTP client to api)
+agent ─→ (HTTP client to api)
+auto-unseal ─→ core, crypto
+backup ─→ core, storage, crypto
+k8s-operator ─→ (gRPC client to grpc)
+```
 
-**Main Configuration:** `crates/api/src/config.rs`
+## Application State
+
+The central state is `ServiceContainer` (in `crates/api/src/services/mod.rs`), wrapped in `Arc` as `AppState`.
 
 ```rust
-/// Main API configuration
-pub struct ApiConfig {
-    pub http: HttpConfig,            // HTTP server (bind address, timeouts)
-    pub grpc: GrpcConfig,            // gRPC server (bind address, enabled)
-    pub auth: AuthConfig,            // Authentication settings
-    pub rate_limit: RateLimitConfig, // Rate limiting
-    pub tls: Option<TlsConfig>,      // TLS certificates
-    pub monitoring: MonitoringConfig, // Prometheus, OpenTelemetry
-    pub cors: CorsConfig,            // CORS settings
-    pub logging: LoggingConfig,      // Log levels, format
-    pub hsm: HsmConfig,              // HSM/PKCS#11 settings
-    pub database: DatabaseConfig,    // PostgreSQL connection
-    pub storage: StorageConfig,      // Storage backend (Raft, etc.)
-}
-
-impl ApiConfig {
-    /// Load from BootstrapConfig + ApplicationConfig
-    pub fn from_bootstrap_and_application(
-        bootstrap: &BootstrapConfig,
-        app: &ApplicationConfig,
-    ) -> Result<Self, String>;
+pub struct ServiceContainer {
+    pub config: ApiConfig,
+    pub storage: Arc<dyn StorageBackend + Send + Sync>,
+    pub pool: deadpool_postgres::Pool,
+    pub crypto: Arc<CryptoEngine>,
+    pub auth: Arc<AuthService>,
+    pub engine: Arc<SecretService>,
+    pub admin: Arc<AdminService>,
+    pub audit: Arc<AuditLogger>,
+    pub seal: Arc<SealService>,
+    pub namespace: Arc<NamespaceService>,
+    pub database_engine: Arc<DatabaseSecretsEngine>,
+    pub totp_engine: Arc<TotpEngine>,
+    pub transform_engine: Arc<TransformEngine>,
+    pub transit_engine: Arc<TransitEngine>,
+    pub ssh_engine: Arc<SshEngine>,
+    pub pki_engine: Arc<PkiEngine>,
+    pub aws_engine: Arc<AwsEngine>,
+    pub gcp_engine: Arc<GcpEngine>,
+    pub azure_engine: Arc<AzureEngine>,
+    pub identity_service: Arc<IdentityService>,
+    pub identity_engine: Arc<IdentityEngine>,
+    pub kmip_engine: Arc<KmipEngine>,
+    pub ldap_engine: Arc<LdapEngine>,
+    pub rabbitmq_engine: Arc<RabbitMqEngine>,
+    pub kafka_engine: Arc<KafkaEngine>,
+    pub rotation_engine: Arc<AutoRotationEngine>,
+    pub lease_manager: Arc<LeaseManager>,
+    pub policy_service: Arc<PolicyService>,
+    pub wrapping_service: Arc<WrappingService>,
+    pub hsm: Option<Arc<HsmBackend>>,
+    pub mfa: Arc<MfaService>,
+    pub http_client: reqwest::Client,
 }
 ```
 
-**Core Configuration:** `crates/core/src/config/mod.rs`
+This is wrapped in `ApiState`:
 
 ```rust
-/// Bootstrap configuration (loaded first)
-pub struct BootstrapConfig {
-    pub http: HttpBootstrapConfig,
-    pub grpc: GrpcBootstrapConfig,
-    pub storage: StorageBootstrapConfig,
-}
-
-/// Application configuration (loaded after bootstrap)
-pub struct ApplicationConfig {
-    pub encryption: EncryptionConfig,
-    pub authentication: AuthenticationConfig,
-    pub policies: PoliciesConfig,
-    pub audit: AuditConfig,
+pub struct ApiState {
+    pub transit: TransitApiState,
+    pub kv: KVApiState,
+    pub pki: PkiApiState,
+    pub services: Arc<ServiceContainer>,
+    pub prometheus_handle: Option<PrometheusHandle>,
+    pub metrics: Arc<GlobalMetrics>,
 }
 ```
 
-**Environment Variables:**
-```bash
-# HTTP Server
-SECRETON_HTTP_ADDRESS=0.0.0.0:8200
-SECRETON_HTTP_TIMEOUT=30
+`ApiState` is the Axum router state passed via `.with_state(state)`.
 
-# gRPC Server
-SECRETON_GRPC_ADDRESS=0.0.0.0:50052
-SECRETON_GRPC_ENABLED=true
+## Router & Middleware
 
-# Storage
-SECRETON_STORAGE_BACKEND=postgres  # or: raft, memory
-DATABASE_URL=postgres://secreton:password@localhost:5432/secreton
+`create_api_router()` in `crates/api/src/lib.rs` builds the full router:
 
-# Raft (for HA setup)
-SECRETON_RAFT_NODE_ID=1
-SECRETON_RAFT_PEERS=node2:50053,node3:50054
+```
+Top-level (unauthenticated):
+  GET  /health
+  GET  /ready
+  GET  /live
+  GET  /version
+  GET  /metrics
+  GET  /metrics/prometheus
+  GET  /metrics/tls
 
-# HSM (Optional)
-SECRETON_HSM_ENABLED=false
-SECRETON_HSM_LIBRARY=/usr/lib/softhsm/libsofthsm2.so
-SECRETON_HSM_SLOT=0
-SECRETON_HSM_PIN=1234
-
-# TLS
-SECRETON_TLS_CERT=/certs/server.crt
-SECRETON_TLS_KEY=/certs/server.key
-SECRETON_TLS_CA=/certs/ca.crt  # For mTLS
-
-# Monitoring
-SECRETON_METRICS_ENABLED=true
-SECRETON_METRICS_ADDRESS=0.0.0.0:9090
+/v1 (protected):
+  Merged from:
+    1. Legacy routers:
+       /v1/transit  — create_transit_router()
+       /v1/kv       — create_kv_router()
+       /v1/pki      — create_pki_router()
+    2. Handler routers:
+       create_protected_router()   — auth, secret, admin, sys/*, dynamic, raft, etc.
+       create_unprotected_router() — sys/seal endpoints (init, unseal, seal-status)
 ```
 
-### 2. Transit Engine (Encryption-as-a-Service)
+**Middleware stack (outer → inner):**
 
-**File:** `crates/crypto/src/transit/mod.rs`
+1. `standard_cors` (lib-common) — CORS
+2. `correlation_id_middleware` (lib-common) — X-Correlation-ID
+3. `RequestLogger` (lib-common) — structured request logging
+4. `security_headers_middleware` (lib-common) — HSTS, CSP, X-Frame-Options
+5. `request_rate_middleware` — per-IP rate limiting
+6. _(on /v1 only)_
+   - `seal_check_middleware` — returns 503 if vault sealed
+   - `auth_middleware` — JWT validation
+   - `metrics_middleware` — per-endpoint latency/counters
 
-Transit Engine provides encryption/decryption operations without exposing keys:
+## Handler Modules
 
-```rust
-use secreton_crypto::transit::{
-    TransitEngine, TransitOperations,
-    EncryptRequest, EncryptResponse,
-    DecryptRequest, DecryptResponse,
-    KeyType, CreateKeyRequest,
-};
+All handlers in `crates/api/src/handlers/`:
 
-// Create transit engine
-let transit = TransitEngine::new(storage_backend);
+| Module | Prefix | Description |
+|--------|--------|-------------|
+| `health` | `/health`, `/ready`, `/live` | Health probes (unauthenticated) |
+| `seal` | `/v1/sys` | Init, seal, unseal, rekey (unauthenticated) |
+| `auth` | `/v1/auth` | Login, logout, token refresh/verify, MFA, OAuth, sessions |
+| `secret` | `/v1/secret` | CRUD, keys, encrypt/decrypt/sign/verify/hash, backup, audit |
+| `admin` | `/v1/admin` | Users, roles, config, maintenance, security scan, metrics |
+| `namespace` | `/v1/sys/namespaces` | Multi-tenant namespace CRUD + stats |
+| `lease` | `/v1/sys/leases` | Renew, revoke, lookup, stats |
+| `policy` | `/v1/sys/policies` | Policy CRUD + test |
+| `wrapping` | `/v1/sys/wrapping` | Wrap, unwrap, lookup, rewrap |
+| `rotation` | `/v1/sys/rotation` | Rotation policies, scheduler, history |
+| `totp` | `/v1/sys/totp` | TOTP key management, generate, validate |
+| `crypto` | `/v1/sys/crypto` | HMAC, random bytes, re-encrypt |
+| `transform` | `/v1/sys/transform` | FPE roles, encode/decode, tokenize/detokenize |
+| `pki` | `/v1/sys/pki` | Extended PKI: intermediate CA, OCSP, templates, renewal |
+| `ssh` | `/v1/sys/ssh` | SSH CA, roles, creds, sign user/host, OTP |
+| `aws` | `/v1/sys/aws` | Dynamic AWS IAM/STS credentials |
+| `gcp` | `/v1/sys/gcp` | Dynamic GCP service account credentials |
+| `azure` | `/v1/sys/azure` | Dynamic Azure credentials |
+| `identity` | `/v1/sys/identity` | OIDC provider, entities, groups |
+| `kmip` | `/v1/sys/kmip` | KMIP key operations |
+| `ldap` | `/v1/sys/ldap` | Dynamic LDAP credentials |
+| `rabbitmq` | `/v1/sys/rabbitmq` | Dynamic RabbitMQ credentials |
+| `kafka` | `/v1/sys/kafka` | Dynamic Kafka credentials |
+| `key_hierarchy` | `/v1/sys/key-hierarchy` | Key hierarchy management |
+| `inject` | `/v1/sys/inject` | Environment variable injection |
+| `webhook` | `/v1/sys/webhooks` | Webhook subscriptions and delivery |
+| `classification` | `/v1/secret` | Secret classification endpoints |
+| `revocation` | `/v1/secret` | Certificate/credential revocation |
+| `dynamic` | `/v1/dynamic` | Dynamic database credentials |
+| `metrics` | `/v1/metrics` (also `/metrics`) | JSON metrics snapshot |
 
-// Create a named encryption key
-transit.create_key(CreateKeyRequest {
-    name: "my-app-key".into(),
-    key_type: KeyType::ChaCha20Poly1305,
-    exportable: false,
-    allow_plaintext_backup: false,
-}).await?;
+There is also a `raft` handler (feature-gated behind `raft-consensus`):
 
-// Encrypt data (key never leaves transit engine)
-let response = transit.encrypt(EncryptRequest {
-    key_name: "my-app-key".into(),
-    plaintext: base64::encode("sensitive-data"),
-    context: None, // Optional AEAD context
-}).await?;
+| Module | Prefix | Description |
+|--------|--------|-------------|
+| `raft` | `/v1/raft` | Join, peers, status, election-stats, snapshot |
 
-// response.ciphertext is base64-encoded encrypted data
+## CLI Structure
 
-// Decrypt data
-let response = transit.decrypt(DecryptRequest {
-    key_name: "my-app-key".into(),
-    ciphertext: response.ciphertext,
-    context: None,
-}).await?;
+Binary: `secreton-cli` (in `crates/cli/src/main.rs`)
 
-// Key rotation (automatic re-encryption)
-transit.rotate_key(RotateKeyRequest {
-    name: "my-app-key".into(),
-}).await?;
+Top-level commands (from `Commands` enum):
+
+| Command | Type | Description |
+|---------|------|-------------|
+| `status` | standalone | System health check |
+| `login` | standalone | Authenticate (--method userpass\|token) |
+| `logout` | standalone | End session |
+| `config` | subcommand | `set`, `get`, `show` |
+| `policy` | subcommand | `list`, `read`, `write`, `delete`, `fmt`, `validate`, `test` |
+| `token` | subcommand | `create`, `lookup`, `renew`, `revoke`, `capabilities` |
+| `seal` | subcommand | `init`, `seal`, `unseal`, `status`, `rekey` (init/update/cancel/status) |
+| `auto-unseal` | subcommand | `configure`, `status`, `test`, `disable` |
+| `backup` | subcommand | `create`, `restore`, `verify`, `list` |
+| `operator` | subcommand | `diagnose` |
+| `audit` | subcommand | `list` (with `--user`, `--operation`, `--path`, `--start_time`, `--end_time`, `--limit`, `--format`) |
+| `replication` | subcommand | `enable`, `disable`, `status`, `promote`, `add-secondary`, `remove-secondary`, `lag` |
+| `transit` | subcommand | `create-key`, `list-keys`, `encrypt`, `decrypt` |
+| `secret` | subcommand | `put`, `get`, `list`, `delete` |
+
+CLI modules (in `crates/cli/src/`):
+
+```
+main.rs            — Cli struct, Commands enum, dispatch
+auth.rs            — login_command, logout_command
+seal.rs            — SealCommand enum, execute_seal_command
+token.rs           — TokenCommand enum, execute_token_command
+policy.rs          — PolicyCommand enum, execute_policy_command
+policy_parser/     — TOML policy file parsing and formatting
+  mod.rs
+  toml_parser.rs
+  formatter.rs
+audit.rs           — AuditCommand enum, execute_audit_command
+backup.rs          — BackupCommand enum, execute_backup_command
+operator.rs        — OperatorCommand enum, execute_operator_command
+replication.rs     — ReplicationCommand enum, execute_replication_command
+auto_unseal.rs     — AutoUnsealCommand enum, execute_auto_unseal_command
+config.rs          — CliConfig (server_url, default_namespace, token storage)
+http_client.rs     — AuthenticatedClient (adds auth header to requests)
+middleware.rs       — SealChecker (pre-flight seal status check)
+token_store.rs     — Persistent token storage (~/.secreton/token)
 ```
 
-### 3. Secret Storage Pattern (KV Engine)
+## gRPC API
 
-**File:** `crates/core/src/encryption.rs`
+Proto files in `proto/`:
 
-```rust
-use chacha20poly1305::{
-    ChaCha20Poly1305, Key, Nonce,
-    aead::{Aead, KeyInit, OsRng},
-};
+- `secreton.proto` (817 lines) — package `secreton.v1`, service `SecretonService` with 36 RPCs
+- `common.proto` (128 lines) — shared message types
 
-pub struct SecretEngine {
-    master_key: Key,
-    storage: Box<dyn Storage>,
-}
+RPCs grouped:
 
-impl SecretEngine {
-    pub async fn store_secret(
-        &self,
-        path: &str,
-        data: &[u8],
-        metadata: SecretMetadata,
-    ) -> Result<SecretVersion> {
-        // 1. Generate data encryption key (DEK)
-        let dek = ChaCha20Poly1305::generate_key(&mut OsRng);
+| Category | RPCs |
+|----------|------|
+| Secrets | StoreSecret, GetSecret, DeleteSecret, ListSecrets |
+| Transit | CreateKey, Encrypt, Decrypt, Sign, Verify, RotateKey |
+| Cluster | GetClusterStatus, ListPeers, AddNode, RemoveNode |
+| Snapshots | CreateSnapshot, ListSnapshots, RestoreSnapshot |
+| Namespaces | ListNamespaces, CreateNamespace, GetNamespace, UpdateNamespace, DeleteNamespace, GetNamespaceStats |
+| Dynamic | GenerateDatabaseCredentials, CreateDatabaseConnection, GetDatabaseConnection, DeleteDatabaseConnection, CreateDatabaseRole, GetDatabaseRole, DeleteDatabaseRole |
+| Leases | RenewLease, RevokeLease, RevokeLeasePrefix, LookupLease, ListLeases, GetLeaseStats |
+| Policies | ListPolicies, CreatePolicy, GetPolicy, UpdatePolicy, DeletePolicy, TestPolicy |
+| Wrapping | WrapData, UnwrapData, LookupWrappingToken, RewrapData |
+| Health | HealthCheck, GetMetrics |
 
-        // 2. Encrypt secret data with DEK
-        let cipher = ChaCha20Poly1305::new(&dek);
-        let nonce = Nonce::from_slice(b"unique nonce"); // Generate properly
-        let ciphertext = cipher.encrypt(nonce, data)
-            .map_err(|e| SecretonError::EncryptionFailed(e.to_string()))?;
+Generated code goes to `crates/grpc/src/generated/`.
 
-        // 3. Encrypt DEK with master key (key wrapping)
-        let master_cipher = ChaCha20Poly1305::new(&self.master_key);
-        let wrapped_dek = master_cipher.encrypt(nonce, dek.as_slice())
-            .map_err(|e| SecretonError::EncryptionFailed(e.to_string()))?;
+## Configuration
 
-        // 4. Store encrypted data + wrapped DEK
-        let version = self.storage.store(StoredSecret {
-            path: path.to_string(),
-            ciphertext,
-            wrapped_dek,
-            metadata,
-            created_at: Utc::now(),
-        }).await?;
+Primary config file: `secreton.toml` (see `secreton.toml.example` for all options).
 
-        // 5. Audit log (never log plaintext!)
-        audit_log(AuditEvent::SecretStored {
-            path: path.to_string(),
-            version: version.version,
-            user: metadata.created_by.clone(),
-        }).await;
+### Two-phase config loading
 
-        Ok(version)
-    }
+1. **BootstrapConfig** (`crates/core/src/config/mod.rs`) — loaded first:
+   - `storage` (backend type, raft config, postgres URL)
+   - `listener.http` (bind address, TLS)
+   - `listener.grpc` (bind address, enabled)
+   - `seal` (type, shamir params, KMS config)
 
-    pub async fn retrieve_secret(
-        &self,
-        path: &str,
-        version: Option<u32>,
-    ) -> Result<Vec<u8>> {
-        // 1. Fetch from storage
-        let stored = self.storage.get(path, version).await?;
+2. **ApplicationConfig** — loaded after bootstrap:
+   - `encryption`, `authentication`, `policies`, `audit`
 
-        // 2. Unwrap DEK with master key
-        let master_cipher = ChaCha20Poly1305::new(&self.master_key);
-        let dek_bytes = master_cipher.decrypt(nonce, stored.wrapped_dek.as_ref())
-            .map_err(|e| SecretonError::DecryptionFailed(e.to_string()))?;
-        let dek = Key::from_slice(&dek_bytes);
+3. **ApiConfig** (`crates/api/src/config.rs`) — derived from both:
+   - HTTP/gRPC server settings, auth, rate-limit, TLS, monitoring, CORS, logging, HSM, database, storage
 
-        // 3. Decrypt secret data with DEK
-        let cipher = ChaCha20Poly1305::new(dek);
-        let plaintext = cipher.decrypt(nonce, stored.ciphertext.as_ref())
-            .map_err(|e| SecretonError::DecryptionFailed(e.to_string()))?;
+### Key config sections in `secreton.toml`
 
-        // 4. Audit log (never log plaintext!)
-        audit_log(AuditEvent::SecretRetrieved {
-            path: path.to_string(),
-            version: stored.version,
-        }).await;
+```toml
+log_level = "info"       # trace|debug|info|warn|error
+log_format = "json"      # json|pretty
 
-        Ok(plaintext)
-    }
-}
+[storage]
+backend = "raft"         # raft|postgres|file|memory
+
+[storage.raft]
+path = "/var/lib/secreton/raft"
+node_id = "node1"
+
+[listener.http]
+address = "0.0.0.0:8200"
+tls_enabled = false
+
+[listener.grpc]
+enabled = true
+address = "0.0.0.0:8201"
+
+[seal]
+type = "shamir"
+[seal.shamir]
+shares = 5
+threshold = 3
+
+[telemetry]
+prometheus_enabled = true
 ```
 
-### 3. Sealing/Unsealing
+### Environment variable override
 
-**File:** `crates/crypto/src/seal.rs`
+Environment variables use prefix `SECRETON__` (double underscore as separator):
 
-```rust
-use lib_crypto::shamir::ShamirSecretSharing;
-
-pub struct SealManager {
-    config: SecretonConfig,
-}
-
-impl SealManager {
-    // Initialize on first run
-    pub async fn initialize(&self) -> Result<Vec<String>> {
-        // 1. Generate master key
-        let master_key = ChaCha20Poly1305::generate_key(&mut OsRng);
-
-        // 2. Split using Shamir's Secret Sharing
-        let sss = ShamirSecretSharing::new(
-            self.config.shamir_threshold,
-            self.config.shamir_shares,
-        );
-
-        let shares = sss.split(master_key.as_slice())?;
-
-        // 3. Encrypt and store sealed master key
-        // (encrypted with key derived from shares)
-        let sealed_key = seal_master_key(&master_key, &shares)?;
-        std::fs::write(&self.config.master_key_path, sealed_key)?;
-
-        // 4. Return shares to operators (display once!)
-        Ok(shares.into_iter()
-            .map(hex::encode)
-            .collect())
-    }
-
-    // Unseal on startup (requires threshold shares)
-    pub async fn unseal(&self, shares: Vec<String>) -> Result<Key> {
-        if shares.len() < self.config.shamir_threshold {
-            return Err(SecretonError::InsufficientShares);
-        }
-
-        // 1. Decode shares from hex
-        let decoded_shares: Vec<Vec<u8>> = shares
-            .into_iter()
-            .map(|s| hex::decode(s))
-            .collect::<Result<_, _>>()?;
-
-        // 2. Reconstruct master key using Shamir
-        let sss = ShamirSecretSharing::new(
-            self.config.shamir_threshold,
-            self.config.shamir_shares,
-        );
-
-        let master_key_bytes = sss.reconstruct(&decoded_shares)?;
-        let master_key = Key::from_slice(&master_key_bytes);
-
-        // 3. Verify by decrypting sealed master key
-        let sealed_key = std::fs::read(&self.config.master_key_path)?;
-        verify_master_key(master_key, &sealed_key)?;
-
-        Ok(*master_key)
-    }
-}
+```
+SECRETON__STORAGE__BACKEND=postgres
+SECRETON_STORAGE_URL=postgres://user:pass@host:5432/secreton
+SECRETON__LISTENER__HTTP__ADDRESS=0.0.0.0:8200
 ```
 
-### 4. gRPC Service
+## Database
 
-**File:** `crates/grpc/src/secret_service.rs`
+PostgreSQL migrations in `migrations/` (12 files):
 
-```rust
-use tonic::{Request, Response, Status};
+| Migration | Tables/Changes |
+|-----------|---------------|
+| `create_audit_logs` | Audit log tables |
+| `create_secret_manager_state` | Secret manager state |
+| `create_namespaces` | Namespace isolation |
+| `create_dynamic_roles` | Dynamic secret roles |
+| `create_leases` | Lease management |
+| `create_policies` | Policy storage |
+| `create_wrapping_tokens` | Response wrapping tokens |
+| `create_raft_snapshots` | Raft snapshot metadata |
+| `use_secreton_schema` | Schema namespacing |
+| `dynamic_role_system` | Dynamic role system |
+| `create_sealed_master_keys` | Sealed master key storage |
 
-pub mod secret_proto {
-    tonic::include_proto!("secret");
-}
+Initialize: `psql -f scripts/init-db.sql`
 
-use secret_proto::secret_service_server::{SecretService, SecretServiceServer};
-
-#[derive(Debug)]
-pub struct SecretServiceImpl {
-    engine: Arc<SecretEngine>,
-}
-
-#[tonic::async_trait]
-impl SecretService for SecretServiceImpl {
-    async fn store_secret(
-        &self,
-        request: Request<StoreSecretRequest>,
-    ) -> Result<Response<StoreSecretResponse>, Status> {
-        // 1. Authenticate request
-        let auth = authenticate_request(&request)?;
-
-        // 2. Authorize access to path
-        authorize_path(&auth, &request.get_ref().path, "write")?;
-
-        let req = request.into_inner();
-
-        // 3. Store secret
-        let version = self.engine
-            .store_secret(
-                &req.path,
-                &req.data,
-                SecretMetadata {
-                    created_by: auth.user_id,
-                    tags: req.tags,
-                },
-            )
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(StoreSecretResponse {
-            version: version.version,
-            created_at: version.created_at.to_rfc3339(),
-        }))
-    }
-
-    async fn get_secret(
-        &self,
-        request: Request<GetSecretRequest>,
-    ) -> Result<Response<GetSecretResponse>, Status> {
-        // 1. Authenticate
-        let auth = authenticate_request(&request)?;
-
-        // 2. Authorize
-        authorize_path(&auth, &request.get_ref().path, "read")?;
-
-        let req = request.into_inner();
-
-        // 3. Retrieve secret
-        let data = self.engine
-            .retrieve_secret(&req.path, req.version)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(GetSecretResponse {
-            data,
-        }))
-    }
-}
-```
-
-### 5. Kubernetes Operator
-
-**File:** `crates/k8s-operator/src/controller.rs`
-
-```rust
-use kube::{
-    api::{Api, ResourceExt},
-    runtime::controller::{Action, Controller},
-    Client,
-};
-
-// Custom Resource Definition
-#[derive(CustomResource, Deserialize, Serialize, Clone, Debug)]
-#[kube(group = "secreton.kejaksaan.go.id", version = "v1", kind = "SecretInjection")]
-pub struct SecretInjectionSpec {
-    pub secret_path: String,
-    pub target_namespace: String,
-    pub target_secret_name: String,
-}
-
-pub async fn reconcile(
-    injection: Arc<SecretInjection>,
-    ctx: Arc<Context>,
-) -> Result<Action> {
-    let client = &ctx.client;
-
-    // 1. Fetch secret from Secreton via gRPC
-    let secret_data = ctx.secreton_client
-        .get_secret(GetSecretRequest {
-            path: injection.spec.secret_path.clone(),
-            version: None,
-        })
-        .await?
-        .into_inner()
-        .data;
-
-    // 2. Create/update Kubernetes Secret
-    let k8s_secret = Secret {
-        metadata: ObjectMeta {
-            name: Some(injection.spec.target_secret_name.clone()),
-            namespace: Some(injection.spec.target_namespace.clone()),
-            ..Default::default()
-        },
-        data: Some(BTreeMap::from([
-            ("value".to_string(), ByteString(secret_data)),
-        ])),
-        ..Default::default()
-    };
-
-    let secrets: Api<Secret> = Api::namespaced(
-        client.clone(),
-        &injection.spec.target_namespace,
-    );
-
-    secrets.patch(
-        &injection.spec.target_secret_name,
-        &PatchParams::apply("secreton-operator"),
-        &Patch::Apply(&k8s_secret),
-    ).await?;
-
-    // 3. Requeue after 5 minutes (to sync updates)
-    Ok(Action::requeue(Duration::from_secs(300)))
-}
-```
-
-### 6. CLI Tool
-
-**File:** `crates/cli/src/main.rs`
+## Build & Run
 
 ```bash
-# Usage examples:
+# Build the API server
+cargo build -p secreton-api --bin api_server
 
-# Initialize Secreton (first time)
-secreton-cli init --shares 5 --threshold 3
+# Build with Raft support
+cargo build -p secreton-api --bin api_server --features raft-consensus
 
-# Unseal (provide 3 shares)
-secreton-cli unseal
-# Enter share 1: abc123...
-# Enter share 2: def456...
-# Enter share 3: ghi789...
-# ✅ Secreton unsealed successfully
+# Build CLI
+cargo build -p secreton-cli --bin secreton-cli
 
-# Store secret
-secreton-cli put database/password "my-secure-password"
-secreton-cli put jwt/signing-key @/path/to/key.pem
+# Run (dev, in-memory storage)
+cargo run -p secreton-api --bin api_server
 
-# Retrieve secret
-secreton-cli get database/password
-# my-secure-password
+# Run (with config file)
+SECRETON_CONFIG_PATH=secreton.toml cargo run -p secreton-api --bin api_server
 
-# List secrets
-secreton-cli list database/
+# Release build
+cargo build --release -p secreton-api --bin api_server --features raft-consensus
 
-# Delete secret
-secreton-cli delete database/old-password
+# Test
+cargo test -p secreton-core
+cargo test -p secreton-crypto
+cargo test -p secreton-api
+cargo test -p secreton-storage
 
-# Rotate secret
-secreton-cli rotate database/password --generate
-
-# View secret versions
-secreton-cli versions database/password
-
-# Rollback to previous version
-secreton-cli rollback database/password --version 2
+# Format & lint
+cargo fmt --all
+cargo clippy --workspace
 ```
 
-## 🚀 Common Tasks
+### Build profiles (defined in root `Cargo.toml`):
 
-### Initialize Secreton (First Time)
+| Profile | LTO | Strip | Overflow Checks |
+|---------|-----|-------|-----------------|
+| `dev` | off | no | yes |
+| `release` | thin | yes | no |
+| `security` | fat | yes | yes |
 
-```bash
-# 1. Run initialization
-secreton-cli init --shares 5 --threshold 3
+### Docker
 
-# Output:
-# Master Key Shares (STORE SECURELY!):
-# Share 1: a1b2c3d4e5f6...
-# Share 2: f6e5d4c3b2a1...
-# Share 3: 1a2b3c4d5e6f...
-# Share 4: 6f5e4d3c2b1a...
-# Share 5: abcdef123456...
+4-stage Dockerfile using cargo-chef for layer caching:
 
-# 2. Distribute shares to 5 operators
-# 3. Store shares in separate secure locations
-# 4. Require 3 shares to unseal
-```
+1. `chef` — Install cargo-chef
+2. `planner` — `cargo chef prepare`
+3. `builder` — `cargo chef cook` + `cargo build --release`
+4. `runtime` — `debian:bookworm-slim`, non-root user `secreton:1000`, tini entrypoint
 
-### Unseal Secreton on Startup
+Ports exposed: 8200, 8201, 8300
 
-```bash
-# Each operator provides their share
-secreton-cli unseal --share "a1b2c3d4e5f6..."
+## Deployment
 
-# Or interactive
-secreton-cli unseal
-# Enter share 1: a1b2c3d4e5f6...
-# Enter share 2: f6e5d4c3b2a1...
-# Enter share 3: 1a2b3c4d5e6f...
-# ✅ Secreton unsealed successfully
-```
+K8s manifests in `deploy/`:
 
-### Rotate Master Key
+- `deploy/staging/` — 6 YAML files (namespace, secrets, configmaps, postgres, statefulset, ingress-rbac, autoscaling)
+- `deploy/kubernetes/` — 6 YAML files (production)
+
+Current staging: StatefulSet in `simpelv2-staging` namespace on microk8s. Image: `localhost:32000/simpelv2/secreton:stag-v6`
+
+## Coding Patterns
+
+### Adding a new handler module
+
+1. Create `crates/api/src/handlers/myfeature.rs`
+2. Add `pub mod myfeature;` in `crates/api/src/handlers/mod.rs`
+3. Add routes in `create_protected_router()` or `create_unprotected_router()` (in `crates/api/src/handlers/mod.rs`)
+4. Inject dependencies via `AppState` → `ServiceContainer`
+
+### Handler pattern
 
 ```rust
-// crates/crypto/src/rotation.rs
-pub async fn rotate_master_key(
-    engine: &SecretEngine,
-    new_shares: usize,
-    new_threshold: usize,
-) -> Result<Vec<String>> {
-    // 1. Generate new master key
-    let new_master_key = ChaCha20Poly1305::generate_key(&mut OsRng);
+use axum::{Json, extract::State};
+use crate::{AppState, ApiResult, response::ApiResponse};
 
-    // 2. Re-encrypt all secrets with new key
-    let secrets = engine.storage.list_all().await?;
-    for secret in secrets {
-        let plaintext = engine.retrieve_secret(&secret.path, None).await?;
-        // Store with new key...
-    }
-
-    // 3. Split new key with Shamir
-    let sss = ShamirSecretSharing::new(new_threshold, new_shares);
-    let shares = sss.split(new_master_key.as_slice())?;
-
-    // 4. Return new shares
-    Ok(shares.into_iter().map(hex::encode).collect())
+pub async fn my_handler(
+    State(state): State<AppState>,
+    Json(req): Json<MyRequest>,
+) -> ApiResult<Json<ApiResponse<MyResponse>>> {
+    let result = state.services.engine.do_thing(&req).await
+        .map_err(|e| crate::error::ApiError::internal(e.to_string()))?;
+    Ok(Json(ApiResponse::success(result)))
 }
 ```
 
-### Integrate with Layanan Service
+### Adding a new engine/service
 
-```rust
-// In layanan-portal/src/main.rs
-use tonic::transport::Channel;
+1. Implement in `crates/core/src/services/` or a new crate
+2. Add `Arc<MyEngine>` field to `ServiceContainer`
+3. Initialize in `ServiceContainer::new()` (`crates/api/src/services/mod.rs`)
+4. Create handler module in `crates/api/src/handlers/`
+5. Wire routes
 
-// Create Secreton gRPC client
-let secreton_channel = Channel::from_static("https://secreton.internal:50052")
-    .tls_config(tonic::transport::ClientTlsConfig::new())?
-    .connect()
-    .await?;
+### Error handling
 
-let mut secreton_client = SecretServiceClient::new(secreton_channel);
+- `ApiError` / `ApiResult<T>` in `crates/api/src/error.rs`
+- `CoreError` in `crates/core/src/error.rs`
+- All handlers return `ApiResult<Json<ApiResponse<T>>>`
+- Standard HTTP status codes: 200, 201, 400, 401, 403, 404, 409, 500
 
-// Fetch database password from Secreton
-let response = secreton_client
-    .get_secret(GetSecretRequest {
-        path: "database/portal/password".to_string(),
-        version: None,
-    })
-    .await?;
+### Response format
 
-let db_password = String::from_utf8(response.into_inner().data)?;
+All responses use `ApiResponse<T>`:
 
-// Use in database connection
-let database_url = format!(
-    "postgres://portal:{}@localhost:5432/simpelv2",
-    db_password
-);
+```json
+{
+  "success": true,
+  "data": { ... },
+  "metadata": {
+    "request_id": "...",
+    "timestamp": "..."
+  }
+}
 ```
 
-## ⚠️ Common Pitfalls
+Error responses:
 
-### ❌ DON'T
+```json
+{
+  "success": false,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "..."
+  }
+}
+```
 
-1. **Log plaintext secrets**
-   ```rust
-   // ❌ BAD
-   tracing::info!("Stored secret: {}", plaintext);
+## Testing
 
-   // ✅ GOOD
-   tracing::info!("Stored secret at path: {}", path);
-   ```
-
-2. **Store master key in environment variable**
-   ```bash
-   # ❌ BAD
-   MASTER_KEY=abc123def456...
-
-   # ✅ GOOD - Use Shamir unsealing
-   secreton-cli unseal
-   ```
-
-3. **Use single share for unsealing**
-   ```rust
-   // ❌ BAD
-   SHAMIR_SHARES=1
-   SHAMIR_THRESHOLD=1
-
-   // ✅ GOOD
-   SHAMIR_SHARES=5
-   SHAMIR_THRESHOLD=3
-   ```
-
-4. **Skip encryption for "non-sensitive" secrets**
-   ```rust
-   // ❌ BAD - All secrets must be encrypted
-   if secret_type == "config" {
-       store_plaintext(data);
-   }
-
-   // ✅ GOOD - Encrypt everything
-   engine.store_secret(path, data, metadata).await?;
-   ```
-
-5. **Allow unauthenticated access**
-   ```rust
-   // ❌ BAD
-   REQUIRE_AUTHENTICATION=false
-
-   // ✅ GOOD
-   REQUIRE_AUTHENTICATION=true
-   ```
-
-### ✅ DO
-
-1. **Always encrypt secrets** at rest and in transit
-2. **Use Shamir's Secret Sharing** for master key
-3. **Audit all secret access** (read/write/delete)
-4. **Rotate secrets** regularly (automatic rotation)
-5. **Use versioning** for rollback capability
-6. **Require mTLS** for gRPC communication
-7. **Test disaster recovery** (unseal from shares)
-
-## 🔍 Troubleshooting
-
-### Unsealing Fails
-
-**Problem:** "Invalid shares" or "Insufficient shares"
-
-**Solution:**
 ```bash
-# Verify share count
-secreton-cli status
-# Required: 3 shares
-# Provided: 2 shares
+# Unit/integration tests
+cargo test --workspace
 
-# Verify shares are correct
-# Each share should be 64 hex characters
-echo $SHARE | wc -c  # Should be 64
+# Specific crate
+cargo test -p secreton-crypto
+cargo test -p secreton-api
+
+# E2E (requires running instance)
+bash test_e2e_v3.sh
+
+# Benchmarks
+cargo bench -p secreton --bench transit_bench
+cargo bench -p secreton --bench storage_bench
 ```
 
-### Secret Not Found
+Test suites in `tests/`:
 
-**Problem:** "Secret does not exist at path"
+| File | Coverage |
+|------|----------|
+| `test_compliance.rs` | Government compliance checks |
+| `test_config_deployment.rs` | Config loading, deployment validation |
+| `test_engine.rs` | Secret engine operations |
+| `test_crypto*.rs` | Crypto roundtrips, key management |
+| `test_integration*.rs` | API integration tests |
+| `test_lease*.rs` | Lease lifecycle |
+| `test_performance*.rs` | Performance benchmarks |
+| `test_pki*.rs` | PKI/certificate tests |
+| `test_post_quantum*.rs` | Hybrid PQ crypto |
+| `test_raft*.rs` | Raft consensus |
+| `test_seal*.rs` | Seal/unseal |
+| `test_security*.rs` | Security validation |
+| `test_storage*.rs` | Storage backend tests |
 
-**Solution:**
-```bash
-# List secrets to verify path
-secreton-cli list --recursive
+## Pitfalls
 
-# Check version
-secreton-cli versions database/password
+**DO NOT:**
+- Log plaintext secrets. Use `tracing::info!("Stored at path: {}", path)`, never log the value.
+- Specify dependency versions in member `Cargo.toml`. Use `dependency = { workspace = true }`.
+- Call Secreton directly from microfrontends. Route through layanan REST API → gRPC.
+- Use environment variables for production secrets. Use the seal/unseal mechanism.
+- Set Shamir shares=1, threshold=1. Minimum recommended: shares=5, threshold=3.
+- Skip the seal check middleware for authenticated endpoints.
 
-# Verify permissions
-secreton-cli acl get database/password
-```
+**DO:**
+- Add new workspace dependencies in the root `Cargo.toml` `[workspace.dependencies]` first.
+- Run `cargo fmt --all && cargo clippy --workspace` before commits.
+- Use `ApiResponse::success(data)` for all handler responses.
+- Audit all secret access (the `AuditLogger` handles this when using `ServiceContainer` methods).
+- Use the existing `ServiceContainer` initialization pattern when adding new engines.
+- Feature-gate experimental or heavy features (e.g., `raft-consensus`).
 
-### HSM Connection Failed
+## Key File Reference
 
-**Problem:** "Failed to connect to HSM"
+| Purpose | File |
+|---------|------|
+| API server entry point | `crates/api/src/bin/api_server.rs` |
+| Router setup | `crates/api/src/lib.rs` → `create_api_router()` |
+| All handler modules | `crates/api/src/handlers/mod.rs` |
+| ServiceContainer | `crates/api/src/services/mod.rs` |
+| API config | `crates/api/src/config.rs` |
+| Middleware | `crates/api/src/middleware/` |
+| Core config | `crates/core/src/config/mod.rs` |
+| CryptoEngine | `crates/crypto/src/lib.rs` |
+| StorageBackend trait | `crates/storage/src/lib.rs` |
+| CLI entry point | `crates/cli/src/main.rs` |
+| gRPC server | `crates/grpc/src/server.rs` |
+| Proto definitions | `proto/secreton.proto`, `proto/common.proto` |
+| Config example | `secreton.toml.example` |
+| DB init script | `scripts/init-db.sql` |
+| Migrations | `migrations/` |
 
-**Solution:**
-```bash
-# Check HSM library
-ls -l $HSM_LIBRARY_PATH
+## Related Docs
 
-# Test PKCS#11
-pkcs11-tool --module $HSM_LIBRARY_PATH --list-slots
-
-# Verify slot ID
-HSM_SLOT_ID=0  # Correct slot number
-```
-
-## 📚 Key Files Reference
-
-| File | Purpose |
-|------|---------|
-| `crates/core/src/encryption.rs` | Secret encryption/decryption |
-| `crates/crypto/src/seal.rs` | Sealing/unsealing logic |
-| `crates/crypto/src/shamir.rs` | Shamir's Secret Sharing |
-| `crates/grpc/src/secret_service.rs` | gRPC secret service |
-| `crates/cli/src/main.rs` | CLI tool |
-| `crates/k8s-operator/src/controller.rs` | K8s operator |
-
-## 🎓 Best Practices
-
-1. **Use Shamir's Secret Sharing** (5 shares, 3 threshold minimum)
-2. **Encrypt all secrets** with ChaCha20-Poly1305
-3. **Never log plaintext** secrets or keys
-4. **Require mTLS** for all gRPC communication
-5. **Audit all operations** to audit log
-6. **Rotate secrets** automatically (30-90 days)
-7. **Use versioning** for all secrets
-8. **Test disaster recovery** regularly
-9. **Distribute shares** to different operators
-10. **Use HSM** for production master key protection
-
----
-
-**Last Updated:** February 2, 2026
-**Maintainer:** SIMPEL Team
-**Related:** `/AGENTS.md`, `/layanan/authenc/AGENTS.md`
+| Document | Path |
+|----------|------|
+| Root AGENTS.md | `/AGENTS.md` |
+| Authenc AGENTS.md | `/layanan/authenc/AGENTS.md` |
+| lib-common | `/lib/common/AGENTS.md` |
+| Secreton README | `/layanan/secreton/README.md` |
+| Config reference | `/layanan/secreton/secreton.toml.example` |
+| Deployment manifests | `/layanan/secreton/deploy/` |

@@ -26,6 +26,9 @@ pub enum SecretServiceError {
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
 
+    #[error("Invalid key type: {0}")]
+    InvalidKeyType(String),
+
     #[error("Permission denied: {0}")]
     PermissionDenied(String),
 
@@ -250,6 +253,26 @@ impl SecretService {
         Ok(keys)
     }
 
+    /// Map a user-supplied key_type string into a crypto AlgorithmId.
+    /// Supports a few common synonyms and is case-insensitive.  Returns an error
+    /// if the type is not recognised.
+    fn algorithm_from_key_type(key_type: &str) -> Result<AlgorithmId, SecretServiceError> {
+        match key_type.to_lowercase().as_str() {
+            "aes256-gcm" | "aes256-gcm96" | "aes256gcm" | "aes" | "aes256" => Ok(AlgorithmId::Aes256Gcm),
+            "chacha20-poly1305" | "chacha20poly1305" | "chacha20" => Ok(AlgorithmId::ChaCha20Poly1305),
+            // Common aliases that map to a sensible default symmetric algorithm
+            "symmetric" | "encryption" | "transit" => Ok(AlgorithmId::Aes256Gcm),
+            // Asymmetric / signing key types
+            "ed25519" => Ok(AlgorithmId::Ed25519),
+            "ecdsa-p256" | "ecdsa_p256" | "p256" => Ok(AlgorithmId::EcdsaP256),
+            "ecdsa-secp256k1" | "secp256k1" => Ok(AlgorithmId::EcdsaSecp256k1),
+            "x25519" => Ok(AlgorithmId::X25519),
+            // Sensible defaults for generic asymmetric requests
+            "asymmetric" | "signing" => Ok(AlgorithmId::Ed25519),
+            other => Err(SecretServiceError::InvalidKeyType(other.to_string())),
+        }
+    }
+
     /// Create encryption key
     pub async fn create_key(
         &self,
@@ -276,6 +299,10 @@ impl SecretService {
             })
             .await;
 
+        // Determine algorithm based on the provided key_type string.  This
+        // will return an error if the caller supplied an unsupported value.
+        let algorithm = Self::algorithm_from_key_type(key_type)?;
+
         // Generate key ID
         let key_id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
@@ -298,22 +325,22 @@ impl SecretService {
             metadata: KeyMetadata::default(),
         };
 
-        // Serialize and store key metadata
+        // Serialize and store key metadata (use key_id in the path, not name)
         let metadata = serde_json::to_vec(&key_info).map_err(|e| {
             SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e))
         })?;
 
         let entry = secreton_storage::SecretEntry::new(
-            format!("keys/{}", key_name),
+            format!("keys/{}", key_id),
             metadata.clone(),
             serde_json::json!({}),
             SecurityLevel::Confidential,
             user_id.to_string(),
         );
 
-        // Also store versioned entry
+        // Also store versioned entry with key_id
         let mut version_entry = secreton_storage::SecretEntry::new(
-            format!("keys/{}/versions/{}", key_name, key_info.version),
+            format!("keys/{}/versions/{}", key_id, key_info.version),
             metadata,
             serde_json::json!({}),
             SecurityLevel::Confidential,
@@ -323,6 +350,18 @@ impl SecretService {
 
         self.storage.store(&entry).await?;
         self.storage.store(&version_entry).await?;
+
+        // Generate and store actual cryptographic key material for encrypt/decrypt
+        let key_material = secreton_crypto::generate_key(algorithm)?;
+        let material_entry = secreton_storage::SecretEntry::new(
+            format!("keys/{}/material", key_id),
+            key_material,
+            // record algorithm so callers can look it up later
+            serde_json::json!({"algorithm": algorithm.to_string()}),
+            SecurityLevel::TopSecret,
+            user_id.to_string(),
+        );
+        self.storage.store(&material_entry).await?;
 
         Ok(key_info)
     }
@@ -364,8 +403,9 @@ impl SecretService {
         })?;
 
         // We use the existing SecretEntry but update the payload
+        // store metadata under the stable key_id rather than the mutable name
         let mut entry = secreton_storage::SecretEntry::new(
-            format!("keys/{}", key_info.name),
+            format!("keys/{}", key_info.id),
             metadata_bytes,
             serde_json::json!({}),
             SecurityLevel::Confidential,
@@ -404,13 +444,33 @@ impl SecretService {
             })
             .await;
 
-        // Get or generate encryption key
-        let key = secreton_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
+        // Retrieve stored encryption key material for this key
+        let material_entry = self
+            .storage
+            .get_by_path(&format!("keys/{}/material", key_id))
+            .await?
+            .ok_or_else(|| SecretServiceError::KeyNotFound {
+                key_id: key_id.to_string(),
+            })?;
+        let key = material_entry.encrypted_data;
+
+        // Determine algorithm from metadata (fallback to AES-256-GCM for
+        // backwards compatibility).
+        let alg = material_entry
+            .encryption_metadata
+            .get("algorithm")
+            .and_then(|v| v.as_str())
+            .and_then(|s| match s {
+                "AES-256-GCM" => Some(AlgorithmId::Aes256Gcm),
+                "ChaCha20-Poly1305" => Some(AlgorithmId::ChaCha20Poly1305),
+                _ => None,
+            })
+            .unwrap_or(AlgorithmId::Aes256Gcm);
 
         // Encrypt using crypto service
-        let encrypted_data =
-            self.crypto
-                .encrypt(AlgorithmId::Aes256Gcm, plaintext.as_bytes(), &key)?;
+        let encrypted_data = self
+            .crypto
+            .encrypt(alg, plaintext.as_bytes(), &key)?;
 
         // Serialize encrypted data to JSON then base64
         let json_data = serde_json::to_vec(&encrypted_data).map_err(|e| {
@@ -462,8 +522,19 @@ impl SecretService {
                 SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e))
             })?;
 
-        // Get decryption key (in production, retrieve from key storage)
-        let key = secreton_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
+        // Retrieve stored encryption key material for this key
+        let material_entry = self
+            .storage
+            .get_by_path(&format!("keys/{}/material", key_id))
+            .await?
+            .ok_or_else(|| SecretServiceError::KeyNotFound {
+                key_id: key_id.to_string(),
+            })?;
+        let key = material_entry.encrypted_data;
+
+        // Algorithm is embedded in the EncryptedData struct from the
+        // encryption step, so the crypto.decrypt call does not need a
+        // separate algorithm parameter.
 
         // Decrypt using crypto service
         let plaintext_bytes = self.crypto.decrypt(&encrypted_data, &key)?;
@@ -958,6 +1029,45 @@ mod tests {
         let secret = secret.unwrap();
         assert_eq!(secret.path, "app/config");
         assert!(secret.data.contains_key("key1"));
+    }
+
+    #[tokio::test]
+    async fn test_key_algorithm_and_id_storage() {
+        // verify that create_key stores material under UUID and records algorithm
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
+        let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
+        let service = SecretService::new(storage.clone(), crypto.clone(), audit)
+            .await
+            .expect("Failed to create SecretService");
+
+        // create a key with explicit type
+        let key_info = service
+            .create_key("mykey", "chacha20-poly1305", KeyMetadata::default(), "u1")
+            .await
+            .expect("create_key failed");
+        assert_ne!(key_info.id, "mykey");
+        assert_eq!(key_info.key_type, "chacha20-poly1305");
+
+        // material should be stored at keys/{id}/material
+        let mat = storage
+            .get_by_path(&format!("keys/{}/material", key_info.id))
+            .await
+            .unwrap()
+            .expect("material missing");
+        assert_eq!(mat.encryption_metadata["algorithm"], "ChaCha20-Poly1305");
+
+        // use encrypt/decrypt and ensure algorithm is respected
+        let enc = service
+            .encrypt(&key_info.id, "hello", "u1")
+            .await
+            .expect("encrypt failed");
+        let dec = service
+            .decrypt(&key_info.id, &enc.ciphertext, "u1")
+            .await
+            .expect("decrypt failed");
+        assert_eq!(dec.plaintext, "hello");
     }
 
     #[tokio::test]

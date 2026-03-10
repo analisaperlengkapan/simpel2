@@ -1,13 +1,14 @@
 # SIMPEL Dependabot Configuration
-# Automated dependency management for Rust monorepo with microfrontend + microservices architecture
-# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Automated dependency management for Rust monorepo
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
 
 version: 2
 
 updates:
-  # ============================================================
-  # MAIN WORKSPACE - Root Cargo.toml (layanan/, antarmuka/, lib/)
-  # ============================================================
+  # ─────────────────────────────────────────────────────
+  # ROOT WORKSPACE — Cargo dependencies
+  # Covers: layanan/*, antarmuka/*, lib/*
+  # ─────────────────────────────────────────────────────
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
@@ -26,21 +27,20 @@ updates:
     rebase-strategy: "auto"
 
     groups:
-      # Async runtime & web framework stack
-      tokio-axum-stack:
+      # Async runtime & web framework
+      tokio-axum:
         patterns:
           - "tokio*"
           - "tower*"
           - "axum*"
           - "hyper*"
-          - "h2"
           - "tonic*"
         update-types:
           - "minor"
           - "patch"
 
       # Leptos frontend framework
-      leptos-stack:
+      leptos:
         patterns:
           - "leptos*"
           - "web-sys"
@@ -52,7 +52,7 @@ updates:
           - "patch"
 
       # Database & storage
-      database-stack:
+      database:
         patterns:
           - "tokio-postgres"
           - "deadpool*"
@@ -63,8 +63,8 @@ updates:
           - "minor"
           - "patch"
 
-      # Cryptography (security-critical, patch only)
-      crypto-stack:
+      # Cryptography — patch only for stability
+      crypto:
         patterns:
           - "blake3"
           - "sha2"
@@ -76,11 +76,12 @@ updates:
           - "chacha20*"
           - "poly1305*"
           - "aes-gcm*"
+          - "argon2*"
         update-types:
           - "patch"
 
-      # Observability & tracing
-      observability-stack:
+      # Observability
+      observability:
         patterns:
           - "tracing*"
           - "opentelemetry*"
@@ -91,7 +92,7 @@ updates:
           - "patch"
 
       # Serialization
-      serde-stack:
+      serde:
         patterns:
           - "serde*"
           - "bincode*"
@@ -103,115 +104,17 @@ updates:
           - "patch"
 
     ignore:
-      # Major versions require manual review for breaking changes
+      # Major versions require manual review
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-    # Cooldown to reduce noise from rapid releases
     cooldown:
       default-days: 3
       semver-patch-days: 1
 
-  # ============================================================
-  # SECRETON WORKSPACE - Secrets Management (infra/secreton/)
-  # Separate Cargo workspace - security-critical component
-  # ============================================================
-  - package-ecosystem: "cargo"
-    directory: "/infra/secreton"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "03:00"
-      timezone: "Asia/Jakarta"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "secreton"
-      - "security"
-      - "infra"
-    commit-message:
-      prefix: "deps(secreton)"
-
-    groups:
-      # Vault cryptography (patch only for security)
-      vault-crypto:
-        patterns:
-          - "*chacha*"
-          - "*poly1305*"
-          - "aes-gcm*"
-          - "curve25519*"
-          - "x25519*"
-          - "argon2*"
-          - "scrypt*"
-        update-types:
-          - "patch"
-
-      # Raft & storage
-      storage-stack:
-        patterns:
-          - "raft*"
-          - "sled*"
-          - "rocksdb*"
-        update-types:
-          - "patch"
-
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  # ============================================================
-  # AUTHENC WORKSPACE - Identity Provider (infra/authenc/)
-  # Separate Cargo workspace - authentication & authorization
-  # ============================================================
-  - package-ecosystem: "cargo"
-    directory: "/infra/authenc"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "04:00"
-      timezone: "Asia/Jakarta"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "authenc"
-      - "security"
-      - "infra"
-    commit-message:
-      prefix: "deps(authenc)"
-
-    groups:
-      # Authentication cryptography
-      auth-crypto:
-        patterns:
-          - "ed25519*"
-          - "x25519*"
-          - "argon2*"
-          - "jsonwebtoken"
-          - "bcrypt"
-          - "totp*"
-          - "p256"
-          - "p384"
-          - "p521"
-          - "ecdsa*"
-        update-types:
-          - "patch"
-
-      # OAuth & OIDC
-      oauth-stack:
-        patterns:
-          - "oauth2*"
-          - "openidconnect*"
-        update-types:
-          - "minor"
-          - "patch"
-
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  # ============================================================
-  # GITHUB ACTIONS - CI/CD workflows
-  # ============================================================
+  # ─────────────────────────────────────────────────────
+  # GITHUB ACTIONS — CI/CD workflow dependencies
+  # ─────────────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -228,19 +131,20 @@ updates:
       prefix: "ci"
 
     groups:
-      # Core GitHub Actions
       github-actions:
         patterns:
           - "actions/*"
           - "github/*"
+          - "docker/*"
         update-types:
           - "minor"
           - "patch"
 
-  # ============================================================
-  # DOCKER - Container images
-  # ============================================================
+  # ─────────────────────────────────────────────────────
+  # DOCKER — Container base images
+  # ─────────────────────────────────────────────────────
   - package-ecosystem: "docker"
+    # scan all Dockerfiles in the repo, not just the root
     directories:
       - "/"
       - "/antarmuka/*"
@@ -255,7 +159,6 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-      - "container"
     commit-message:
       prefix: "docker"
 
@@ -270,10 +173,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
-# ============================================================
+
+# ─────────────────────────────────────────────────────
 # NOTES:
-# - Security updates are handled immediately regardless of schedule
-# - Dependabot will create PRs for vulnerabilities as soon as discovered
-# - Use `cargo deny` for additional license and ban checks
+# - Security updates are raised immediately regardless of schedule
 # - Crypto dependencies limited to patch updates for stability
-# ============================================================
+# - Major version updates require manual review (ignored by default)
+# - All Rust crates are managed via the root workspace Cargo.toml
+# ─────────────────────────────────────────────────────

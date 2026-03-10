@@ -363,8 +363,8 @@ impl AuthService {
 
         let claims = token_data.claims;
 
-        // Enforce token type
-        if claims.token_type != "access" {
+        // Enforce token type (allow "access" for normal tokens and "root" for init root tokens)
+        if claims.token_type != "access" && claims.token_type != "root" {
             return Err(AuthError::InvalidToken);
         }
 

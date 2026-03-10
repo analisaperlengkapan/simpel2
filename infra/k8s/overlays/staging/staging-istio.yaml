@@ -1,10 +1,17 @@
 # Staging Istio Routing Configuration
 # Routes traffic via IP 10.1.7.121 to simpelv2-staging namespace
 # Apply separately: kubectl apply -f infra/k8s/overlays/staging/staging-istio.yaml
+#
+# Services routed:
+#   - portal (frontend) at /portal
+#   - perlengkapan (frontend) at /perlengkapan
+#   - authenc (identity + captcha) at /api/v1/auth/*, /api/captcha/*
+#   - layanan-perlengkapan (backend) at /api/perlengkapan/*
+#   - secreton (secrets) at /api/secrets/*
+#
+# REMOVED: layanan-portal (obsolete - portal calls authenc directly)
 
 ---
-# VirtualService for staging traffic routing
-# Routes traffic from 10.1.7.121 to simpelv2-staging namespace services
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -23,16 +30,44 @@ spec:
     # ============================================
     # Root redirect: / → /portal
     # ============================================
+    # route the root path directly to the portal backend rather than issuing
+    # a client-side redirect.  this avoids situations where the client may try
+    # to connect to the wrong port or encounter a slow 302 that eventually
+    # produces ERR_CONNECTION_REFUSED.
     - match:
         - uri:
             exact: /
-      redirect:
+      rewrite:
         uri: /portal
-        redirectCode: 302
+      route:
+        - destination:
+            host: portal.simpelv2-staging.svc.cluster.local
+            port:
+              number: 8080
 
     # ============================================
-    # Legacy CAPTCHA Routes (backwards compatibility)
+    # CAPTCHA Routes → Authenc (direct)
     # ============================================
+    - match:
+        - uri:
+            prefix: /api/captcha/
+      route:
+        - destination:
+            host: authenc.simpelv2-staging.svc.cluster.local
+            port:
+              number: 8088
+      timeout: 30s
+      corsPolicy:
+        allowOrigins:
+          - exact: "http://10.1.7.121"
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+        allowHeaders:
+          - content-type
+        maxAge: "86400s"
+
     - match:
         - uri:
             prefix: /captcha/
@@ -40,9 +75,9 @@ spec:
         uri: /api/captcha/
       route:
         - destination:
-            host: layanan-portal.simpelv2-staging.svc.cluster.local
+            host: authenc.simpelv2-staging.svc.cluster.local
             port:
-              number: 3010
+              number: 8088
       timeout: 30s
 
     - match:
@@ -52,23 +87,13 @@ spec:
         uri: /api/captcha/
       route:
         - destination:
-            host: layanan-portal.simpelv2-staging.svc.cluster.local
+            host: authenc.simpelv2-staging.svc.cluster.local
             port:
-              number: 3010
-      timeout: 30s
-
-    - match:
-        - uri:
-            prefix: /api/captcha/
-      route:
-        - destination:
-            host: layanan-portal.simpelv2-staging.svc.cluster.local
-            port:
-              number: 3010
+              number: 8088
       timeout: 30s
 
     # ============================================
-    # Perlengkapan Frontend
+    # Perlengkapan Frontend at /perlengkapan
     # ============================================
     - match:
         - uri:
@@ -91,28 +116,25 @@ spec:
               number: 8080
 
     # ============================================
-    # Backend API Routes
+    # Perlengkapan Backend API
+    # Routes /api/perlengkapan/* → layanan-perlengkapan /api/pembinaan/perlengkapan/*
+    # Also /api/pembinaan/perlengkapan/* passes through directly
     # ============================================
     - match:
         - uri:
-            prefix: /api/portal
+            prefix: /api/perlengkapan/
       rewrite:
-        uri: /api
+        uri: /api/pembinaan/perlengkapan/
       route:
         - destination:
-            host: layanan-portal.simpelv2-staging.svc.cluster.local
+            host: layanan-perlengkapan.simpelv2-staging.svc.cluster.local
             port:
-              number: 3010
+              number: 3020
       timeout: 30s
-      retries:
-        attempts: 3
-        perTryTimeout: 10s
 
     - match:
         - uri:
-            prefix: /api/perlengkapan
-      rewrite:
-        uri: /api
+            prefix: /api/pembinaan/perlengkapan
       route:
         - destination:
             host: layanan-perlengkapan.simpelv2-staging.svc.cluster.local
@@ -121,19 +143,124 @@ spec:
       timeout: 30s
 
     # ============================================
-    # Authentication Routes (via layanan-portal)
-    # Frontend → layanan-portal → authenc (gRPC)
+    # Authenc REST API (direct architecture)
+    # Portal WASM → authenc REST API
+    # ============================================
+    - match:
+        - uri:
+            prefix: /api/v1/auth
+      route:
+        - destination:
+            host: authenc.simpelv2-staging.svc.cluster.local
+            port:
+              number: 8088
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+      corsPolicy:
+        allowOrigins:
+          - exact: "http://10.1.7.121"
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+        allowHeaders:
+          - content-type
+          - authorization
+        maxAge: "86400s"
+
+    - match:
+        - uri:
+            prefix: /api/v1/iam
+      route:
+        - destination:
+            host: authenc.simpelv2-staging.svc.cluster.local
+            port:
+              number: 8088
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+      corsPolicy:
+        allowOrigins:
+          - exact: "http://10.1.7.121"
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+        allowHeaders:
+          - content-type
+          - authorization
+        maxAge: "86400s"
+
+    - match:
+        - uri:
+            prefix: /api/v1/oauth2
+      route:
+        - destination:
+            host: authenc.simpelv2-staging.svc.cluster.local
+            port:
+              number: 8088
+      timeout: 30s
+      corsPolicy:
+        allowOrigins:
+          - exact: "http://10.1.7.121"
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+        allowHeaders:
+          - content-type
+          - authorization
+        maxAge: "86400s"
+
+    - match:
+        - uri:
+            prefix: /api/v1/captcha
+      route:
+        - destination:
+            host: authenc.simpelv2-staging.svc.cluster.local
+            port:
+              number: 8088
+      timeout: 30s
+
+    - match:
+        - uri:
+            prefix: /api/v1/clients
+      route:
+        - destination:
+            host: authenc.simpelv2-staging.svc.cluster.local
+            port:
+              number: 8088
+      timeout: 30s
+
+    # ============================================
+    # Auth Routes → Authenc (replaces layanan-portal)
     # ============================================
     - match:
         - uri:
             prefix: /api/auth
       route:
         - destination:
-            host: layanan-portal.simpelv2-staging.svc.cluster.local
+            host: authenc.simpelv2-staging.svc.cluster.local
             port:
-              number: 3010
+              number: 8088
       timeout: 30s
+      corsPolicy:
+        allowOrigins:
+          - exact: "http://10.1.7.121"
+        allowMethods:
+          - POST
+          - GET
+          - OPTIONS
+        allowHeaders:
+          - content-type
+        maxAge: "86400s"
 
+    # ============================================
+    # Secreton Secrets API
+    # ============================================
     - match:
         - uri:
             prefix: /api/secrets
@@ -160,7 +287,7 @@ spec:
 
     # ============================================
     # Portal Frontend at /portal
-    # Istio strips /portal prefix, nginx serves SPA from root
+    # Istio strips /portal prefix, nginx serves SPA
     # ============================================
     - match:
         - uri:
@@ -174,7 +301,7 @@ spec:
               number: 8080
 
     # ============================================
-    # Portal (Legacy /daskrimti path)
+    # Legacy /daskrimti path → Portal
     # ============================================
     - match:
         - uri:
@@ -189,7 +316,6 @@ spec:
 
     # ============================================
     # Default: Redirect to /portal
-    # Any unmatched route redirects to portal
     # ============================================
     - redirect:
         uri: /portal

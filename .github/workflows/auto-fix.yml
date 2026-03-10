@@ -2,34 +2,24 @@ name: Auto-Fix - Cargo & Format
 
 on:
   schedule:
-    # Run weekly on Monday at 03:00 UTC (after Dependabot updates)
-    - cron: "0 3 * * 1"
-  workflow_dispatch: # Allow manual trigger
+    - cron: "0 3 * * 1"  # Weekly on Monday at 03:00 UTC
+  workflow_dispatch:
 
-# Prevent multiple auto-fix runs
 concurrency:
   group: auto-fix
   cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
-  RUST_VERSION: "1.90.0"
 
 jobs:
   auto-fix:
-    name: Auto-fix All Workspaces
+    name: Auto-fix Workspace
     runs-on: self-hosted
     permissions:
       contents: write
       pull-requests: write
-
     steps:
-      - name: Fix permissions
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine chown -R $(id -u):$(id -g) . || true
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/tokio-postgres-0.7.16 || true
-
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -45,147 +35,43 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-key: autofix
 
-      - name: Verify workspace structure
+      - name: Apply fixes
         run: |
-          echo "📁 Workspace structure:"
-          ls -la infra/
-          echo ""
-          echo "✅ authenc exists: $([ -d infra/authenc ] && echo 'yes' || echo 'no')"
-          echo "✅ secreton exists: $([ -d infra/secreton ] && echo 'yes' || echo 'no')"
-
-      - name: Fix root workspace
-        run: |
-          echo "🔧 Fixing root workspace..."
           cargo fix --workspace --all-targets --allow-dirty --allow-staged || true
           cargo clippy --fix --workspace --all-targets --allow-dirty --allow-staged || true
           cargo fmt --all
 
-      - name: Fix infra/authenc workspace
-        working-directory: infra/authenc
-        run: |
-          echo "🔧 Fixing infra/authenc workspace..."
-          cargo fix --all-targets --allow-dirty --allow-staged || true
-          cargo clippy --fix --all-targets --allow-dirty --allow-staged || true
-          cargo fmt --all
-
-      - name: Fix infra/secreton workspace
-        run: |
-          if [ -d "infra/secreton" ]; then
-            echo "🔧 Fixing infra/secreton workspace..."
-            cd infra/secreton
-            cargo fix --all-targets --allow-dirty --allow-staged || true
-            cargo clippy --fix --all-targets --allow-dirty --allow-staged || true
-            cargo fmt --all
-            cd ../..
-          else
-            echo "⚠️ infra/secreton directory not found, skipping..."
-          fi
+      - name: Validate fixes
+        run: cargo check --workspace --all-targets
 
       - name: Check for changes
-        id: check_changes
+        id: changes
         run: |
           if git diff --quiet; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "✅ No changes detected"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "📝 Changes detected:"
-            git status --short
           fi
-
-      - name: Validate changes with cargo check
-        if: steps.check_changes.outputs.has_changes == 'true'
-        run: |
-          echo "Validating root workspace..."
-          cargo check --workspace --all-targets --verbose
-
-          echo "Validating authenc workspace..."
-          cd infra/authenc && cargo check --all-targets --verbose && cd ../..
-
-          if [ -d "infra/secreton" ]; then
-            echo "Validating secreton workspace..."
-            cd infra/secreton && cargo check --all-targets --verbose && cd ../..
-          else
-            echo "⚠️ Skipping secreton validation (directory not found)"
-          fi
-
-      - name: Run tests
-        if: steps.check_changes.outputs.has_changes == 'true'
-        run: |
-          cargo test --workspace --all-targets --verbose || echo "⚠️ Some tests failed"
-        continue-on-error: true
 
       - name: Create Pull Request
-        if: steps.check_changes.outputs.has_changes == 'true'
+        if: steps.changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: |
-            chore(autofix): apply cargo fix, clippy, and fmt
-
-            Automatic fixes applied by weekly auto-fix workflow:
-            - cargo fix --workspace --allow-dirty --allow-staged
-            - cargo clippy --fix --workspace --allow-dirty --allow-staged
-            - cargo fmt --all
-
-            Applied to:
-            - Root workspace
-            - infra/authenc workspace
-            - infra/secreton workspace
+          commit-message: "chore(autofix): apply cargo fix, clippy, and fmt"
           branch: autofix/cargo-fixes-${{ github.run_number }}
           base: main
           delete-branch: true
           title: "[Auto-fix] Weekly cargo fix, clippy & format"
           body: |
-            ## 🤖 Automatic Code Fixes
+            ## Automatic Code Fixes
 
-            This PR contains automatic fixes applied by the weekly auto-fix workflow.
+            Fixes applied by the weekly auto-fix workflow:
+            - `cargo fix --workspace`
+            - `cargo clippy --fix --workspace`
+            - `cargo fmt --all`
 
-            ### Changes Applied
-            - ✅ `cargo fix --workspace --allow-dirty --allow-staged`
-            - ✅ `cargo clippy --fix --workspace --allow-dirty --allow-staged`
-            - ✅ `cargo fmt --all`
-
-            ### Workspaces Fixed
-            - 📦 Root workspace (layanan/*)
-            - 🔐 infra/authenc (IAM system with protobuf support)
-            - 🔒 infra/secreton (Vault system - if present)
-
-            ### Validation
-            - ✅ Cargo check passed for all workspaces
-            - ⚠️ Tests executed (some may fail, review needed)
-
-            ### Review Notes
-            Please review the changes carefully, especially:
-            - Breaking API changes
-            - Logic changes (not just formatting)
-            - Test failures
-
-            If everything looks good, merge this PR to keep the codebase clean and up-to-date.
-
-            ---
-
-            🔄 **Auto-generated by**: `.github/workflows/auto-fix.yml`
-            📅 **Run**: ${{ github.run_number }}
-            🕐 **Date**: ${{ github.event.repository.updated_at }}
+            **Auto-generated by**: `.github/workflows/auto-fix.yml`
           labels: |
             automated
             maintenance
-            cargo-fix
-          assignees: ${{ github.repository_owner }}
-          draft: false
-
-      - name: Summary
-        run: |
-          echo "## 🤖 Auto-fix Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.check_changes.outputs.has_changes }}" = "true" ]; then
-            echo "✅ Changes detected and PR created" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Files Changed" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            git diff --stat >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "✅ No changes needed - codebase is clean!" >> $GITHUB_STEP_SUMMARY
-          fi

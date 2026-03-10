@@ -398,14 +398,21 @@ impl AuthService {
         };
 
         // Enforce token type
-        if claims.token_type != "access" {
+        if claims.token_type != "access" && claims.token_type != "root" {
             return Err(AuthError::InvalidToken);
         }
 
-        // Check if session exists (is valid/active)
-        // If session retrieval fails (e.g. not found), we consider the token invalid/revoked
-        if self.get_session(&claims.jti).await.is_err() {
-            return Err(AuthError::InvalidToken);
+        // Root tokens (generated during init) don't have sessions — skip session check.
+        // **Security note:** this means there is no way to revoke a root token via the
+        // normal session store; the only way to invalidate them is to rotate the JWT
+        // signing key or wait for expiration.  The TTL for these tokens has been
+        // deliberately reduced to 24h to limit the risk of compromise.
+        if claims.token_type != "root" {
+            // Check if session exists (is valid/active)
+            // If session retrieval fails (e.g. not found), we consider the token invalid/revoked
+            if self.get_session(&claims.jti).await.is_err() {
+                return Err(AuthError::InvalidToken);
+            }
         }
 
         // Reconstruct user from claims

@@ -108,10 +108,22 @@ pub struct LoginResponse {
 pub struct AuthService;
 
 impl AuthService {
-    /// Get authenc API base URL from environment or default
+    /// Get authenc API base URL from window.location.origin (same-origin pattern).
+    /// This ensures the URL always matches the user's access URL, avoiding
+    /// cross-origin or mixed-content issues from hardcoded config values.
     fn get_api_url() -> String {
-        let config = crate::utils::config::get_config();
-        config.authenc_url
+        #[cfg(target_arch = "wasm32")]
+        {
+            let origin = web_sys::window()
+                .and_then(|w| w.location().origin().ok())
+                .unwrap_or_else(|| "http://localhost:8080".to_string());
+            format!("{}/api/v1/auth", origin)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let config = crate::utils::config::get_config();
+            config.authenc_url
+        }
     }
 
     /// Validate login credentials via authenc API
@@ -208,14 +220,30 @@ impl AuthService {
                         }
                     } else {
                         let status = response.status();
-                        let error_text = response
-                            .text()
-                            .await
-                            .unwrap_or_else(|_| "Unknown error".to_string());
-                        LoginResult::Error(format!(
-                            "Login failed: HTTP {} - {}",
-                            status, error_text
-                        ))
+                        // Parse error response JSON to extract user-friendly message
+                        let error_msg = match response.json::<serde_json::Value>().await {
+                            Ok(json) => json
+                                .get("message")
+                                .and_then(|m| m.as_str())
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| {
+                                    if status == 401 {
+                                        "Username atau password salah".to_string()
+                                    } else {
+                                        "Terjadi kesalahan sistem. Silakan coba lagi nanti."
+                                            .to_string()
+                                    }
+                                }),
+                            Err(_) => {
+                                if status == 401 {
+                                    "Username atau password salah".to_string()
+                                } else {
+                                    "Terjadi kesalahan sistem. Silakan coba lagi nanti."
+                                        .to_string()
+                                }
+                            }
+                        };
+                        LoginResult::Error(error_msg)
                     }
                 }
                 Err(e) => LoginResult::Error(format!("Network error: {}", e)),
@@ -464,25 +492,39 @@ impl AuthService {
             use wasm_bindgen_futures::spawn_local;
 
             spawn_local(async move {
-                let config = crate::utils::config::get_config();
-                let authenc_url = config.authenc_url;
-                let portal_url = config.portal_url;
-                let redirect_uri = format!("{}/logged-out", portal_url);
+                let origin = web_sys::window()
+                    .and_then(|w| w.location().origin().ok())
+                    .unwrap_or_else(|| "http://localhost:8080".to_string());
 
+                // Use the standard auth logout endpoint which is routed
+                // through Istio to authenc via the /api/v1/auth prefix.
                 let logout_url = format!(
-                    "{}/v1/oidc/logout?post_logout_redirect_uri={}",
-                    authenc_url,
-                    urlencoding::encode(&redirect_uri)
+                    "{}/api/v1/auth/logout",
+                    origin
                 );
 
-                // Make request with credentials to include SSO cookie
+                // Read the stored refresh token so the backend can invalidate
+                // the session.
+                let refresh_token = web_sys::window()
+                    .and_then(|w| w.local_storage().ok().flatten())
+                    .and_then(|s| s.get_item("refresh_token").ok().flatten())
+                    .unwrap_or_default();
+
+                // POST to /api/v1/auth/logout with the refresh token
                 if let Some(window) = web_sys::window() {
-                    use web_sys::{Request, RequestCredentials, RequestInit, RequestMode};
+                    use web_sys::{Headers, Request, RequestCredentials, RequestInit, RequestMode};
+
+                    let body = serde_json::json!({ "refresh_token": refresh_token }).to_string();
+
+                    let headers = Headers::new().unwrap();
+                    let _ = headers.set("Content-Type", "application/json");
 
                     let opts = RequestInit::new();
-                    opts.set_method("GET");
+                    opts.set_method("POST");
                     opts.set_mode(RequestMode::Cors);
                     opts.set_credentials(RequestCredentials::Include);
+                    opts.set_headers(&headers);
+                    opts.set_body(&wasm_bindgen::JsValue::from_str(&body));
 
                     if let Ok(request) = Request::new_with_str_and_init(&logout_url, &opts) {
                         let _ = wasm_bindgen_futures::JsFuture::from(

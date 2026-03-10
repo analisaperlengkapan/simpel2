@@ -127,8 +127,13 @@ configMapGenerator:
       - REDIS_URL=redis://redis-service.simpelv2-staging.svc.cluster.local:6379
       - PORTAL_BASE_URL=http://10.1.7.121
       - JWT_ISSUER=http://10.1.7.121/auth
-      - WEBAUTHN_RP_ID=localhost
-      - WEBAUTHN_RP_ORIGIN=http://localhost:8088
+      # WebAuthn requires a valid domain name (NOT IP address).
+      # To use passkey auth, access the portal via a hostname and set these accordingly.
+      # Example: WEBAUTHN_RP_ID=simpel-staging.kejaksaan.go.id
+      #          WEBAUTHN_RP_ORIGIN=https://simpel-staging.kejaksaan.go.id
+      - WEBAUTHN_RP_ID=simpel-staging.kejaksaan.go.id
+      - WEBAUTHN_RP_ORIGIN=https://simpel-staging.kejaksaan.go.id
+      - WEBAUTHN_RP_NAME=SIMPEL Kejaksaan RI
 
   - name: backend-config
     behavior: merge

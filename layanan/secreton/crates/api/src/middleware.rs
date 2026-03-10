@@ -1824,6 +1824,9 @@ fn is_whitelisted(path: &str) -> bool {
         return true;
     }
 
+    // Strip /v1 prefix if present (nest_service preserves full URI)
+    let check_path = path.strip_prefix("/v1").unwrap_or(path);
+
     // Standard system endpoints that must be available without authentication
     let system_paths = [
         "/sys/init",
@@ -1834,7 +1837,7 @@ fn is_whitelisted(path: &str) -> bool {
     ];
 
     for sys_path in system_paths {
-        if path == sys_path || path.ends_with(sys_path) {
+        if check_path == sys_path {
             tracing::warn!("✅ Whitelisted system path: '{}'", path);
             return true;
         }

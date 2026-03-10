@@ -112,6 +112,10 @@ The CAPTCHA system consists of the following components:
 ### Key Configuration Parameters
 
 #### Security Settings
+
+- `mixed_case` (bool) – whether text challenges include both upper‑ and lowercase characters. Default `true`, makes OCR/AI recognition harder.
+- `auto_refresh_on_failure` (bool) – frontend will refresh a challenge immediately when an incorrect answer is submitted. Default `true`.
+
 ```toml
 [captcha.security]
 encrypt_challenges = true
@@ -200,6 +204,11 @@ Alerts are sent to:
 - PagerDuty: (if configured)
 
 ## Troubleshooting
+
+### Challenge Refresh Behavior
+
+The frontend widget now automatically requests a new challenge immediately after any incorrect submission. This reduces the window for automated scripts to brute-force answers. If users report that the captcha changes rapidly, verify that the backend service is reachable and not returning errors (network issues can trigger a fresh challenge on each failed attempt).
+
 
 ### Common Issues
 

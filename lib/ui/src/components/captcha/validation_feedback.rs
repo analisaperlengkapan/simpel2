@@ -111,7 +111,7 @@ pub fn ValidationStatusIndicator(
                                 <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                                 <div>
                                     <div class="text-sm font-medium text-blue-900 dark:text-blue-100">
-                                        "Validating your response..."
+                                        "Memvalidasi jawaban Anda..."
                                     </div>
                                     <div class="text-xs text-blue-700 dark:text-blue-300">
                                         "Analyzing behavioral patterns and answer"
@@ -131,10 +131,10 @@ pub fn ValidationStatusIndicator(
                                 </div>
                                 <div>
                                     <div class="text-sm font-medium text-green-900 dark:text-green-100">
-                                        "Verification successful!"
+                                        "Verifikasi berhasil!"
                                     </div>
                                     <div class="text-xs text-green-700 dark:text-green-300">
-                                        "You have been verified as human"
+                                        "Anda telah diverifikasi sebagai manusia"
                                     </div>
                                 </div>
                             </div>
@@ -151,7 +151,7 @@ pub fn ValidationStatusIndicator(
                                 </div>
                                 <div class="flex-1">
                                     <div class="text-sm font-medium text-red-900 dark:text-red-100">
-                                        "Verification failed"
+                                        "Verifikasi gagal"
                                     </div>
                                     <div class="text-xs text-red-700 dark:text-red-300 mb-2">
                                         {message}
@@ -163,7 +163,7 @@ pub fn ValidationStatusIndicator(
                                                 variant=ButtonVariant::Danger
                                                 size=ButtonSize::Small
                                             >
-                                                "Try Again"
+                                                "Coba Lagi"
                                             </Button>
                                         }.into_any()
                                     } else {
@@ -185,10 +185,10 @@ pub fn ValidationStatusIndicator(
                                 </div>
                                 <div>
                                     <div class="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-                                        "Too many attempts"
+                                        "Terlalu banyak percobaan"
                                     </div>
                                     <div class="text-xs text-yellow-700 dark:text-yellow-300">
-                                        "Please wait " {seconds} " seconds before trying again"
+                                        "Silakan tunggu " {seconds} " detik sebelum mencoba lagi"
                                     </div>
                                 </div>
                             </div>

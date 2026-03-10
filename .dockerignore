@@ -15,6 +15,10 @@ node_modules
 **/node_modules
 dist
 **/dist
+!antarmuka/portal/dist
+!antarmuka/portal/dist/**
+!antarmuka/perlengkapan/dist
+!antarmuka/perlengkapan/dist/**
 .next
 **/.next
 out
@@ -63,6 +67,17 @@ layanan/secreton/secreton_latest.tar
 
 # Large monorepo directories not needed for Secreton build
 antarmuka
+!antarmuka/portal/dist
+!antarmuka/portal/dist/**
+!antarmuka/portal/nginx.conf
+!antarmuka/portal/entrypoint.sh
+!antarmuka/portal/Dockerfile
+!antarmuka/portal/Dockerfile.prebuilt
+!antarmuka/perlengkapan/dist
+!antarmuka/perlengkapan/dist/**
+!antarmuka/perlengkapan/nginx.conf
+!antarmuka/perlengkapan/entrypoint.sh
+!antarmuka/perlengkapan/Dockerfile
 simpel_web-main
 tests
 

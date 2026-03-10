@@ -23,13 +23,13 @@ The CAPTCHA system is integrated at three critical authentication points:
 ### 1. Login Flow
 - **Always Required**: CAPTCHA is shown on every login attempt
 - **Purpose**: Prevent automated brute-force attacks
-- **Difficulty**: Standard (level 3)
+- **Difficulty**: Standard (level 3) — the UI no longer displays the level, it is handled internally
 - **Location**: `/login` page
 
 ### 2. MFA Setup Flow
 - **Risk-Based**: CAPTCHA shown only for high-risk scenarios
 - **Purpose**: Prevent unauthorized MFA enrollment
-- **Difficulty**: Higher (level 5) due to sensitivity
+- **Difficulty**: Higher (level 5) due to sensitivity (still configurable via API, not shown to end user)
 - **Location**: `/mfa/setup` page
 
 ### 3. Password Reset Flow

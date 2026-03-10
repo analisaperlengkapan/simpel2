@@ -97,7 +97,7 @@ pub fn create_unified_router(
 /// This creates the router with all endpoint definitions.
 /// Middleware should be applied separately using `create_unified_router`.
 fn create_base_router(state: Arc<ApiState>) -> Router {
-    Router::new()
+    let router = Router::new()
         // ===== Health and Metrics Endpoints =====
         .route("/health", get(health_check))
         .route("/health/ready", get(health_ready))
@@ -213,8 +213,16 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
         .route(
             "/api/captcha/image/{nonce}/{index}",
             get(handlers::captcha_image_handler),
-        )
-        .route(
+        );
+
+        // Debug endpoint: only compiled in when `captcha-debug` feature is active
+        #[cfg(feature = "captcha-debug")]
+        let router = router.route(
+            "/api/captcha/debug/{challenge_id}",
+            get(handlers::captcha_debug_answer_handler),
+        );
+
+        router.route(
             "/api/v1/captcha/challenge",
             post(handlers::captcha_challenge_handler),
         )
@@ -284,6 +292,8 @@ async fn health_ready() -> &'static str {
 async fn health_live() -> &'static str {
     "Live"
 }
+
+
 
 #[cfg(test)]
 mod tests {

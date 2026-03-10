@@ -15,12 +15,6 @@ spec:
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
               readOnly: true
-            # Override index.html dari image dengan versi yang dipatch
-            # Fix: loading screen menggunakan TrunkApplicationStarted event
-            - name: nginx-config
-              mountPath: /usr/share/nginx/html/index.html
-              subPath: index.html
-              readOnly: true
             - name: nginx-cache
               mountPath: /var/cache/nginx
             - name: nginx-run

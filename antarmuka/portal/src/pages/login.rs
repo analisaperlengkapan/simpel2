@@ -87,20 +87,35 @@ pub fn LoginPage(
                                         }
                                     }
                                     Err(e) => {
+                                        leptos::logging::warn!("Passkey finish error: {}", e);
                                         set_error_message
-                                            .set(format!("Autentikasi passkey gagal: {}", e));
+                                            .set("Autentikasi passkey gagal. Silakan coba lagi atau gunakan password.".to_string());
                                         set_passkey_loading.set(false);
                                     }
                                 }
                             }
                             Err(e) => {
-                                set_error_message.set(format!("Verifikasi dibatalkan: {}", e));
+                                let msg = {
+                                    let err_str = format!("{}", e);
+                                    if err_str.contains("NotAllowedError") || err_str.contains("cancelled") {
+                                        "Autentikasi passkey dibatalkan oleh pengguna.".to_string()
+                                    } else if err_str.contains("SecurityError") || err_str.contains("invalid domain") {
+                                        "Passkey tidak dapat digunakan pada domain ini. Hubungi administrator.".to_string()
+                                    } else if err_str.contains("NotSupportedError") {
+                                        "Browser Anda tidak mendukung passkey. Silakan gunakan password.".to_string()
+                                    } else {
+                                        "Autentikasi passkey gagal. Silakan coba lagi atau gunakan password.".to_string()
+                                    }
+                                };
+                                leptos::logging::warn!("Passkey error: {}", e);
+                                set_error_message.set(msg);
                                 set_passkey_loading.set(false);
                             }
                         }
                     }
                     Err(e) => {
-                        set_error_message.set(format!("Gagal memulai autentikasi: {}", e));
+                        leptos::logging::warn!("Passkey start error: {}", e);
+                        set_error_message.set("Gagal memulai autentikasi passkey. Silakan coba lagi.".to_string());
                         set_passkey_loading.set(false);
                     }
                 }
