@@ -20,6 +20,18 @@ pub struct Claims {
     #[serde(default)]
     pub email: Option<String>,
 
+    /// NIP (Nomor Induk Pegawai)
+    #[serde(default)]
+    pub nip: Option<String>,
+
+    /// Jabatan (position/title)
+    #[serde(default)]
+    pub jabatan: Option<String>,
+
+    /// Kode Satker (work unit code)
+    #[serde(default)]
+    pub satker_code: Option<String>,
+
     /// Realm access (roles)
     #[serde(default)]
     pub realm_access: Option<RealmAccess>,

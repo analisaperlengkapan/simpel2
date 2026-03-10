@@ -58,7 +58,42 @@ impl UserStore for PostgresUserStore {
 
         let row = self.db.query_one(query, &[&id.0]).await?;
 
-        row_to_user(row)
+        let mut user = row_to_user(row)?;
+
+        // Load roles from user_roles + roles tables
+        let roles_query = r#"
+            SELECT r.id, r.name, r.description
+            FROM user_roles ur
+            JOIN roles r ON r.id = ur.role_id
+            WHERE ur.user_id = $1
+        "#;
+        if let Ok(role_rows) = self.db.query(roles_query, &[&id.0]).await {
+            user.roles = role_rows
+                .iter()
+                .map(|r| {
+                    let now = chrono::Utc::now();
+                    authenc_types::domain::user::Role {
+                        id: r.get("id"),
+                        name: r.get("name"),
+                        description: r.try_get("description").ok(),
+                        permissions: Vec::new(),
+                        managed_by: None,
+                        scope: None,
+                        realm_id: None,
+                        composite: false,
+                        client_role: false,
+                        client_id: None,
+                        priority: 0,
+                        active: true,
+                        attributes: None,
+                        created_at: now,
+                        updated_at: now,
+                    }
+                })
+                .collect();
+        }
+
+        Ok(user)
     }
 
     async fn get_user_by_username(&self, username: &str, realm_id: RealmId) -> Result<User> {
@@ -394,6 +429,81 @@ impl UserStore for PostgresUserStore {
 
         let exists: bool = row.get(0);
         Ok(exists)
+    }
+
+    async fn count_users(&self, realm_id: RealmId) -> Result<i64> {
+        debug!("Counting users in realm: {}", realm_id);
+
+        let query = r#"
+            SELECT COUNT(*) FROM users
+            WHERE realm_id = $1 AND deleted_at IS NULL
+        "#;
+
+        let row = self.db.query_one(query, &[&realm_id.0]).await?;
+        Ok(row.get(0))
+    }
+
+    async fn search_users(
+        &self,
+        realm_id: RealmId,
+        query_str: &str,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        debug!(
+            "Searching users in realm: {} query: {} (offset: {}, limit: {})",
+            realm_id, query_str, offset, limit
+        );
+
+        let pattern = format!("%{}%", query_str.to_lowercase());
+        let query = r#"
+            SELECT *
+            FROM users
+            WHERE realm_id = $1
+              AND deleted_at IS NULL
+              AND (
+                  LOWER(username) LIKE $2
+                  OR LOWER(email) LIKE $2
+                  OR LOWER(COALESCE(nip, '')) LIKE $2
+                  OR LOWER(COALESCE(nama, '')) LIKE $2
+              )
+            ORDER BY created_at DESC
+            LIMIT $3 OFFSET $4
+        "#;
+
+        let rows = self
+            .db
+            .query(
+                query,
+                &[&realm_id.0, &pattern, &(limit as i64), &(offset as i64)],
+            )
+            .await?;
+
+        rows.into_iter().map(row_to_user).collect()
+    }
+
+    async fn count_search_users(&self, realm_id: RealmId, query_str: &str) -> Result<i64> {
+        debug!(
+            "Counting search users in realm: {} query: {}",
+            realm_id, query_str
+        );
+
+        let pattern = format!("%{}%", query_str.to_lowercase());
+        let query = r#"
+            SELECT COUNT(*)
+            FROM users
+            WHERE realm_id = $1
+              AND deleted_at IS NULL
+              AND (
+                  LOWER(username) LIKE $2
+                  OR LOWER(email) LIKE $2
+                  OR LOWER(COALESCE(nip, '')) LIKE $2
+                  OR LOWER(COALESCE(nama, '')) LIKE $2
+              )
+        "#;
+
+        let row = self.db.query_one(query, &[&realm_id.0, &pattern]).await?;
+        Ok(row.get(0))
     }
 }
 

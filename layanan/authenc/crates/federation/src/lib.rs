@@ -37,8 +37,11 @@ pub mod social;
 pub mod saml;
 
 // User synchronization
-pub mod mysimkari_sync;
 pub mod user_sync;
+
+// gRPC client for layanan-integrasi
+pub mod integrasi_client;
+pub use integrasi_client::IntegrasiGrpcClient;
 
 // Re-export key types and traits
 pub use advanced::{

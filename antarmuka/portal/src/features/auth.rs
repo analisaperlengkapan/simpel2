@@ -30,6 +30,12 @@ pub struct UserSession {
     pub email: String,
     /// Profile picture URL
     pub avatar: Option<String>,
+    /// NIP (Nomor Induk Pegawai)
+    pub nip: Option<String>,
+    /// Jabatan (position/title)
+    pub jabatan: Option<String>,
+    /// Kode Satker (work unit code)
+    pub satker_code: Option<String>,
     /// User's division/unit
     pub division: String,
     /// CAPTCHA validation status
@@ -72,6 +78,8 @@ pub enum LoginResult {
     MfaSetupRequired(String), // temp_token
     /// MFA verification required - contains temp token
     MfaVerificationRequired(String), // temp_token
+    /// Password change required before using the system
+    PasswordChangeRequired(Box<UserSession>),
     /// Login failed with error message
     Error(String),
 }
@@ -100,6 +108,9 @@ pub struct LoginResponse {
     pub mfa_required: bool,
     /// Whether MFA setup is required
     pub mfa_setup_required: bool,
+    /// Whether password change is required
+    #[serde(default)]
+    pub require_password_change: bool,
     /// Response message
     pub message: String,
 }
@@ -200,7 +211,13 @@ impl AuthService {
                                     match Self::decode_jwt_claims(&access_token) {
                                         Ok(session) => {
                                             Self::save_session(&session);
-                                            LoginResult::Success(Box::new(session))
+                                            if login_resp.require_password_change {
+                                                LoginResult::PasswordChangeRequired(Box::new(
+                                                    session,
+                                                ))
+                                            } else {
+                                                LoginResult::Success(Box::new(session))
+                                            }
                                         }
                                         Err(e) => LoginResult::Error(format!(
                                             "Failed to decode token: {}",
@@ -238,8 +255,7 @@ impl AuthService {
                                 if status == 401 {
                                     "Username atau password salah".to_string()
                                 } else {
-                                    "Terjadi kesalahan sistem. Silakan coba lagi nanti."
-                                        .to_string()
+                                    "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string()
                                 }
                             }
                         };
@@ -310,6 +326,9 @@ impl AuthService {
             name: Self::generate_display_name(&credentials.username),
             email: format!("{}@kejaksaan.go.id", credentials.username),
             avatar: None,
+            nip: Some(credentials.username.clone()),
+            jabatan: Some("Kasubag Perlengkapan".to_string()),
+            satker_code: Some("0100000".to_string()),
             division: "Bagian Umum".to_string(),
             captcha_validated: credentials.captcha_token.is_some(),
             mfa_enabled: username_lower.ends_with("_verify"), // MFA enabled if verification was required
@@ -361,7 +380,12 @@ impl AuthService {
                 .email
                 .unwrap_or_else(|| format!("{}@kejaksaan.go.id", username)),
             avatar: None,
-            division: "Bagian Umum".to_string(),
+            nip: claims.nip.clone(),
+            jabatan: claims.jabatan.clone(),
+            satker_code: claims.satker_code.clone(),
+            division: claims
+                .satker_code
+                .unwrap_or_else(|| "Bagian Umum".to_string()),
             captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,
             mfa_setup_required: claims.mfa_setup_required,
@@ -498,10 +522,7 @@ impl AuthService {
 
                 // Use the standard auth logout endpoint which is routed
                 // through Istio to authenc via the /api/v1/auth prefix.
-                let logout_url = format!(
-                    "{}/api/v1/auth/logout",
-                    origin
-                );
+                let logout_url = format!("{}/api/v1/auth/logout", origin);
 
                 // Read the stored refresh token so the backend can invalidate
                 // the session.

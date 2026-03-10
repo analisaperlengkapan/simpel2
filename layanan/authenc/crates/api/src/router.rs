@@ -215,14 +215,15 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
             get(handlers::captcha_image_handler),
         );
 
-        // Debug endpoint: only compiled in when `captcha-debug` feature is active
-        #[cfg(feature = "captcha-debug")]
-        let router = router.route(
-            "/api/captcha/debug/{challenge_id}",
-            get(handlers::captcha_debug_answer_handler),
-        );
+    // Debug endpoint: only compiled in when `captcha-debug` feature is active
+    #[cfg(feature = "captcha-debug")]
+    let router = router.route(
+        "/api/captcha/debug/{challenge_id}",
+        get(handlers::captcha_debug_answer_handler),
+    );
 
-        router.route(
+    router
+        .route(
             "/api/v1/captcha/challenge",
             post(handlers::captcha_challenge_handler),
         )
@@ -292,8 +293,6 @@ async fn health_ready() -> &'static str {
 async fn health_live() -> &'static str {
     "Live"
 }
-
-
 
 #[cfg(test)]
 mod tests {

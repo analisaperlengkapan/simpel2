@@ -138,7 +138,15 @@ pub fn SettingsPage(
                                 <div class="space-y-3">
                                     <div>
                                         <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            "Nama"
+                                            "NIP"
+                                        </label>
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
+                                            {user_session.nip.clone().unwrap_or_else(|| user_session.username.clone())}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            "Nama Lengkap"
                                         </label>
                                         <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
                                             {user_session.name.clone()}
@@ -146,10 +154,18 @@ pub fn SettingsPage(
                                     </div>
                                     <div>
                                         <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            "Username"
+                                            "Jabatan"
                                         </label>
                                         <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
-                                            {user_session.username.clone()}
+                                            {user_session.jabatan.clone().unwrap_or_else(|| "-".to_string())}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            "Satuan Kerja"
+                                        </label>
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
+                                            {user_session.satker_code.clone().unwrap_or_else(|| "-".to_string())}
                                         </p>
                                     </div>
                                     <div>
@@ -158,14 +174,6 @@ pub fn SettingsPage(
                                         </label>
                                         <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
                                             {user_session.role.display_name()}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            "Divisi"
-                                        </label>
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-white mt-1">
-                                            {user_session.division.clone()}
                                         </p>
                                     </div>
                                 </div>

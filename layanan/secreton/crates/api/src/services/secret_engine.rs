@@ -258,8 +258,12 @@ impl SecretService {
     /// if the type is not recognised.
     fn algorithm_from_key_type(key_type: &str) -> Result<AlgorithmId, SecretServiceError> {
         match key_type.to_lowercase().as_str() {
-            "aes256-gcm" | "aes256-gcm96" | "aes256gcm" | "aes" | "aes256" => Ok(AlgorithmId::Aes256Gcm),
-            "chacha20-poly1305" | "chacha20poly1305" | "chacha20" => Ok(AlgorithmId::ChaCha20Poly1305),
+            "aes256-gcm" | "aes256-gcm96" | "aes256gcm" | "aes" | "aes256" => {
+                Ok(AlgorithmId::Aes256Gcm)
+            }
+            "chacha20-poly1305" | "chacha20poly1305" | "chacha20" => {
+                Ok(AlgorithmId::ChaCha20Poly1305)
+            }
             // Common aliases that map to a sensible default symmetric algorithm
             "symmetric" | "encryption" | "transit" => Ok(AlgorithmId::Aes256Gcm),
             // Asymmetric / signing key types
@@ -468,9 +472,7 @@ impl SecretService {
             .unwrap_or(AlgorithmId::Aes256Gcm);
 
         // Encrypt using crypto service
-        let encrypted_data = self
-            .crypto
-            .encrypt(alg, plaintext.as_bytes(), &key)?;
+        let encrypted_data = self.crypto.encrypt(alg, plaintext.as_bytes(), &key)?;
 
         // Serialize encrypted data to JSON then base64
         let json_data = serde_json::to_vec(&encrypted_data).map_err(|e| {

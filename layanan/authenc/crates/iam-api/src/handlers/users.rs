@@ -10,7 +10,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{error::ApiResult, state::IamApiState};
-use authenc_types::AuthencError;
+use authenc_types::{RealmId, UserId};
+
+/// Master realm UUID constant (from migration 001)
+const MASTER_REALM_ID: Uuid = Uuid::from_bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
 /// Query parameters for listing users
 #[derive(Debug, Deserialize)]
@@ -23,7 +26,7 @@ pub struct ListUsersQuery {
     #[serde(default = "default_page_size")]
     pub page_size: u32,
 
-    /// Search query (username, email, name)
+    /// Search query (username, email, nip, nama)
     pub search: Option<String>,
 
     /// Filter by enabled status
@@ -44,13 +47,13 @@ fn default_page_size() -> u32 {
 #[derive(Debug, Serialize)]
 pub struct PaginatedUsers {
     pub users: Vec<UserResponse>,
-    pub total: u64,
+    pub total: i64,
     pub page: u32,
     pub page_size: u32,
     pub total_pages: u32,
 }
 
-/// User response DTO
+/// User response DTO (enriched with pegawai fields)
 #[derive(Debug, Serialize)]
 pub struct UserResponse {
     pub id: Uuid,
@@ -59,7 +62,13 @@ pub struct UserResponse {
     pub enabled: bool,
     pub email_verified: bool,
     pub mfa_enabled: bool,
-    pub realm_id: Uuid,
+    pub nip: Option<String>,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
+    pub satker_code: String,
+    pub require_password_change: bool,
+    pub last_login_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub realm_id: Option<Uuid>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -69,9 +78,13 @@ pub struct UserResponse {
 pub struct CreateUserRequest {
     pub username: String,
     pub email: String,
-    pub password: String,
+    pub password: Option<String>,
     pub enabled: Option<bool>,
-    pub realm_id: Uuid,
+    pub realm_id: Option<Uuid>,
+    pub nip: Option<String>,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
+    pub satker_code: Option<String>,
 }
 
 /// Update user request
@@ -79,6 +92,11 @@ pub struct CreateUserRequest {
 pub struct UpdateUserRequest {
     pub email: Option<String>,
     pub enabled: Option<bool>,
+    pub nip: Option<String>,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
+    pub satker_code: Option<String>,
+    pub require_password_change: Option<bool>,
 }
 
 /// Reset password request
@@ -94,97 +112,237 @@ pub struct EnableMfaResponse {
     pub qr_code: String,
 }
 
-/// GET /api/v1/iam/users - List users with pagination
+/// Convert domain User to API UserResponse DTO
+fn user_to_response(user: &authenc_types::domain::user::User) -> UserResponse {
+    UserResponse {
+        id: user.id,
+        username: user.username.clone(),
+        email: user.email.clone(),
+        enabled: user.enabled,
+        email_verified: user.email_verified,
+        mfa_enabled: user.mfa_enabled,
+        nip: user.nip.clone(),
+        nama: user.nama.clone(),
+        jabatan: user.jabatan.clone(),
+        satker_code: user.satker_code.clone(),
+        require_password_change: user.require_password_change,
+        last_login_at: user.last_login_at,
+        realm_id: user.realm_id,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+    }
+}
+
+/// GET /api/v1/iam/users - List users with pagination and search
 pub async fn list_users(
-    State(_state): State<Arc<IamApiState>>,
+    State(state): State<Arc<IamApiState>>,
     Query(params): Query<ListUsersQuery>,
 ) -> ApiResult<Json<PaginatedUsers>> {
-    // TODO: Implement pagination and filtering in UserManagementService
-    // For now, return empty list
-    Ok(Json(PaginatedUsers {
-        users: vec![],
-        total: 0,
-        page: params.page,
-        page_size: params.page_size,
-        total_pages: 0,
-    }))
+    let realm_id = RealmId::from_uuid(params.realm_id.unwrap_or(MASTER_REALM_ID));
+    let page_size = params.page_size.min(100).max(1);
+    let page = params.page.max(1);
+    let offset = ((page - 1) * page_size) as usize;
+    let limit = page_size as usize;
+
+    let (users, total) = if let Some(ref search) = params.search {
+        state
+            .user_service
+            .search_users_paginated(realm_id, search, offset, limit)
+            .await
+            .map_err(crate::error::ApiError)?
+    } else {
+        let total = state
+            .user_service
+            .count_users(realm_id)
+            .await
+            .map_err(crate::error::ApiError)?;
+        let users = state
+            .user_service
+            .list_users(realm_id, offset, limit)
+            .await
+            .map_err(crate::error::ApiError)?;
+        (users, total)
+    };
+
+    // Apply enabled filter in-memory if specified
+    let filtered: Vec<_> = match params.enabled {
+        Some(enabled_filter) => users
+            .iter()
+            .filter(|u| u.enabled == enabled_filter)
+            .collect(),
+        None => users.iter().collect(),
+    };
+
+    let total_pages = if total > 0 {
+        ((total as u32) + page_size - 1) / page_size
+    } else {
+        0
+    };
+
+    let response = PaginatedUsers {
+        users: filtered.iter().map(|u| user_to_response(u)).collect(),
+        total,
+        page,
+        page_size,
+        total_pages,
+    };
+
+    Ok(Json(response))
 }
 
 /// POST /api/v1/iam/users - Create user
 pub async fn create_user(
-    State(_state): State<Arc<IamApiState>>,
-    Json(_req): Json<CreateUserRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Json(req): Json<CreateUserRequest>,
 ) -> ApiResult<(StatusCode, Json<UserResponse>)> {
-    // TODO: Call user_service.create_user()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "create_user not yet implemented".to_string(),
-    )))
+    let create_req = authenc_types::domain::CreateUserRequest {
+        username: req.username,
+        email: req.email,
+        password: req.password,
+        realm_id: Some(req.realm_id.unwrap_or(MASTER_REALM_ID)),
+        satker_code: req.satker_code.unwrap_or_default(),
+        first_name: None,
+        last_name: None,
+        nip: req.nip,
+        nama: req.nama,
+        jabatan: req.jabatan,
+        phone_number: None,
+        organization_id: None,
+        roles: None,
+        attributes: None,
+    };
+
+    let user = state
+        .user_service
+        .create_user(create_req)
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    Ok((StatusCode::CREATED, Json(user_to_response(&user))))
 }
 
 /// GET /api/v1/iam/users/{id} - Get user details
 pub async fn get_user(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<Json<UserResponse>> {
-    // TODO: Call user_service.get_user()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "get_user not yet implemented".to_string(),
-    )))
+    let user = state
+        .user_service
+        .get_user(UserId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    Ok(Json(user_to_response(&user)))
 }
 
 /// PUT /api/v1/iam/users/{id} - Update user
 pub async fn update_user(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
-    Json(_req): Json<UpdateUserRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
+    Json(req): Json<UpdateUserRequest>,
 ) -> ApiResult<Json<UserResponse>> {
-    // TODO: Call user_service.update_user()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "update_user not yet implemented".to_string(),
-    )))
+    let update_req = authenc_types::domain::UpdateUserRequest {
+        username: None,
+        email: req.email,
+        satker_code: req.satker_code,
+        first_name: None,
+        last_name: None,
+        nip: req.nip,
+        nama: req.nama,
+        jabatan: req.jabatan,
+        phone_number: None,
+        phone_verified: None,
+        require_password_change: req.require_password_change,
+        password: None,
+        enabled: req.enabled,
+        email_verified: None,
+        mfa_enabled: None,
+        attributes: None,
+    };
+
+    let user = state
+        .user_service
+        .update_user(UserId::from_uuid(id), update_req)
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    Ok(Json(user_to_response(&user)))
 }
 
-/// DELETE /api/v1/iam/users/{id} - Delete user
+/// DELETE /api/v1/iam/users/{id} - Delete user (soft delete)
 pub async fn delete_user(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
-    // TODO: Call user_service.delete_user()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "delete_user not yet implemented".to_string(),
-    )))
+    state
+        .user_service
+        .delete_user(UserId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// POST /api/v1/iam/users/{id}/password/reset - Reset user password
 pub async fn reset_user_password(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
-    Json(_req): Json<ResetPasswordRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
+    Json(req): Json<ResetPasswordRequest>,
 ) -> ApiResult<StatusCode> {
-    // TODO: Call user_service.reset_password()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "reset_password not yet implemented".to_string(),
-    )))
+    let update_req = authenc_types::domain::UpdateUserRequest {
+        username: None,
+        email: None,
+        satker_code: None,
+        first_name: None,
+        last_name: None,
+        nip: None,
+        nama: None,
+        jabatan: None,
+        phone_number: None,
+        phone_verified: None,
+        require_password_change: Some(true),
+        password: Some(req.new_password),
+        enabled: None,
+        email_verified: None,
+        mfa_enabled: None,
+        attributes: None,
+    };
+
+    state
+        .user_service
+        .update_user(UserId::from_uuid(id), update_req)
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// POST /api/v1/iam/users/{id}/mfa/enable - Enable MFA for user
 pub async fn enable_user_mfa(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
-) -> ApiResult<Json<EnableMfaResponse>> {
-    // TODO: Call mfa_service.setup_totp()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "enable_mfa not yet implemented".to_string(),
-    )))
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<serde_json::Value>> {
+    state
+        .user_service
+        .enable_mfa(UserId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    Ok(Json(serde_json::json!({
+        "message": "MFA enabled successfully"
+    })))
 }
 
 /// POST /api/v1/iam/users/{id}/mfa/disable - Disable MFA for user
 pub async fn disable_user_mfa(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
-    // TODO: Call mfa_service.disable_totp()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "disable_mfa not yet implemented".to_string(),
-    )))
+    state
+        .user_service
+        .disable_mfa(UserId::from_uuid(id))
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    Ok(StatusCode::NO_CONTENT)
 }

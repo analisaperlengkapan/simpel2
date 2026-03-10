@@ -57,6 +57,32 @@ pub trait UserStore: Send + Sync {
 
     /// Check if an email exists in a realm
     async fn email_exists(&self, email: &str, realm_id: RealmId) -> Result<bool>;
+
+    /// Count total users in a realm (for pagination)
+    async fn count_users(&self, realm_id: RealmId) -> Result<i64> {
+        let users = self.list_users(realm_id, 0, i64::MAX as usize).await?;
+        Ok(users.len() as i64)
+    }
+
+    /// Search users by query string (username, email, nip, nama)
+    async fn search_users(
+        &self,
+        realm_id: RealmId,
+        query: &str,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        // Default: fall back to list_users (no search)
+        self.list_users(realm_id, offset, limit).await
+    }
+
+    /// Count users matching a search query
+    async fn count_search_users(&self, realm_id: RealmId, query: &str) -> Result<i64> {
+        let users = self
+            .search_users(realm_id, query, 0, i64::MAX as usize)
+            .await?;
+        Ok(users.len() as i64)
+    }
 }
 
 /// Trait for session storage operations

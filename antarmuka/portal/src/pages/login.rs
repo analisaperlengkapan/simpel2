@@ -97,9 +97,13 @@ pub fn LoginPage(
                             Err(e) => {
                                 let msg = {
                                     let err_str = format!("{}", e);
-                                    if err_str.contains("NotAllowedError") || err_str.contains("cancelled") {
+                                    if err_str.contains("NotAllowedError")
+                                        || err_str.contains("cancelled")
+                                    {
                                         "Autentikasi passkey dibatalkan oleh pengguna.".to_string()
-                                    } else if err_str.contains("SecurityError") || err_str.contains("invalid domain") {
+                                    } else if err_str.contains("SecurityError")
+                                        || err_str.contains("invalid domain")
+                                    {
                                         "Passkey tidak dapat digunakan pada domain ini. Hubungi administrator.".to_string()
                                     } else if err_str.contains("NotSupportedError") {
                                         "Browser Anda tidak mendukung passkey. Silakan gunakan password.".to_string()
@@ -115,7 +119,9 @@ pub fn LoginPage(
                     }
                     Err(e) => {
                         leptos::logging::warn!("Passkey start error: {}", e);
-                        set_error_message.set("Gagal memulai autentikasi passkey. Silakan coba lagi.".to_string());
+                        set_error_message.set(
+                            "Gagal memulai autentikasi passkey. Silakan coba lagi.".to_string(),
+                        );
                         set_passkey_loading.set(false);
                     }
                 }
@@ -210,6 +216,16 @@ pub fn LoginPage(
 
                     // Redirect to MFA verification
                     nav("/mfa/verify", Default::default());
+                }
+                LoginResult::PasswordChangeRequired(session) => {
+                    // Login succeeded but user must change password first
+                    set_failed_attempts.set(0);
+                    AuthService::save_session(&session);
+                    on_login_success.set(Some(*session));
+                    set_is_loading.set(false);
+
+                    // Redirect to password change page
+                    nav("/password", Default::default());
                 }
                 LoginResult::Error(msg) => {
                     // Increment failed attempts

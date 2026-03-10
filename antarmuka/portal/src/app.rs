@@ -122,8 +122,8 @@ pub fn App() -> impl IntoView {
         use gloo_timers::future::TimeoutFuture;
         use leptos::prelude::Effect;
         use leptos::prelude::on_cleanup;
-        use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
 
         Effect::new(move |_| {
             if let Some(_session) = user_session.get() {
@@ -295,28 +295,10 @@ pub fn App() -> impl IntoView {
                     }
                 } />
 
-                <Route path=StaticSegment("pembinaan") view=move || {
-                    match user_session.get() {
-                        Some(session) => view! {
-                            <PembinaanPage user_session=session on_logout=make_logout() />
-                        }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
-                } />
-
                 <Route path=StaticSegment("notifications") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
                             <NotificationsPage user_session=session on_logout=make_logout() />
-                        }.into_any(),
-                        None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
-                    }
-                } />
-
-                <Route path=StaticSegment("monitoring") view=move || {
-                    match user_session.get() {
-                        Some(session) => view! {
-                            <MonitoringPage user_session=session on_logout=make_logout() />
                         }.into_any(),
                         None => view! { <LoginPage on_login_success=set_user_session /> }.into_any(),
                     }
@@ -579,26 +561,6 @@ fn setup_search_providers() {
             category: SearchCategory::Page,
             url: "/portal/notifications".to_string(),
             icon: "🔔".to_string(),
-            module: Some("Portal".to_string()),
-        },
-        SearchResult {
-            id: "monitoring".to_string(),
-            title: "Monitoring".to_string(),
-            description:
-                "Dashboard monitoring dengan metrik performa, error tracking, dan analytics"
-                    .to_string(),
-            category: SearchCategory::Page,
-            url: "/portal/monitoring".to_string(),
-            icon: "📈".to_string(),
-            module: Some("Portal".to_string()),
-        },
-        SearchResult {
-            id: "pembinaan".to_string(),
-            title: "Pembinaan".to_string(),
-            description: "Sistem pembinaan dan pengembangan SDM".to_string(),
-            category: SearchCategory::Page,
-            url: "/portal/pembinaan".to_string(),
-            icon: "🌱".to_string(),
             module: Some("Portal".to_string()),
         },
         SearchResult {

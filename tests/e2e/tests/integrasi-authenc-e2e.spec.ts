@@ -38,7 +38,7 @@ const NIP_USER = {
 
 const ADMIN_USER = {
   username: 'admin',
-  password: 'admin123',
+  password: 'admin',
 };
 
 /** Expected NIP user profile fields (from migration 044 seed data) */

@@ -71,6 +71,7 @@ mod auth_service_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() - 3600), // Expired 1 hour ago
             permissions: vec![],
+            ..Default::default()
         };
 
         assert!(!AuthService::is_session_valid(&expired_session));
@@ -94,6 +95,7 @@ mod auth_service_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600), // Expires in 1 hour
             permissions: vec![],
+            ..Default::default()
         };
 
         assert!(AuthService::is_session_valid(&valid_session));
@@ -117,6 +119,7 @@ mod auth_service_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: None, // No expiration
             permissions: vec![],
+            ..Default::default()
         };
 
         assert!(AuthService::is_session_valid(&session_no_expiry));
@@ -140,6 +143,7 @@ mod auth_service_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 240), // Expires in 4 minutes
             permissions: vec![],
+            ..Default::default()
         };
 
         assert!(AuthService::should_refresh_token(&session));
@@ -163,6 +167,7 @@ mod auth_service_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600), // Expires in 1 hour
             permissions: vec![],
+            ..Default::default()
         };
 
         assert!(!AuthService::should_refresh_token(&session));
@@ -186,6 +191,7 @@ mod auth_service_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec!["user:read".to_string(), "user:write".to_string()],
+            ..Default::default()
         };
 
         assert!(AuthService::has_permission(&session, "user:read"));
@@ -211,6 +217,7 @@ mod auth_service_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec!["admin:*".to_string()],
+            ..Default::default()
         };
 
         assert!(AuthService::has_permission(&session, "admin:read"));
@@ -234,7 +241,9 @@ mod auth_service_tests {
             LoginResult::Success(_) => {
                 panic!("Login should fail with empty username");
             }
-            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+            LoginResult::MfaSetupRequired(_)
+            | LoginResult::MfaVerificationRequired(_)
+            | LoginResult::PasswordChangeRequired(_) => {
                 panic!("Login should fail with empty username, not require MFA");
             }
         }
@@ -255,7 +264,9 @@ mod auth_service_tests {
             LoginResult::Success(_) => {
                 panic!("Login should fail with empty password");
             }
-            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+            LoginResult::MfaSetupRequired(_)
+            | LoginResult::MfaVerificationRequired(_)
+            | LoginResult::PasswordChangeRequired(_) => {
                 panic!("Login should fail with empty password, not require MFA");
             }
         }
@@ -287,7 +298,9 @@ mod auth_service_tests {
             LoginResult::Error(msg) => {
                 panic!("Login should succeed in mock mode: {}", msg);
             }
-            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+            LoginResult::MfaSetupRequired(_)
+            | LoginResult::MfaVerificationRequired(_)
+            | LoginResult::PasswordChangeRequired(_) => {
                 panic!("Mock login should return Success for 'admin', not MFA required");
             }
         }
@@ -320,7 +333,9 @@ mod auth_service_tests {
             LoginResult::Error(msg) => {
                 panic!("Login should succeed in mock mode: {}", msg);
             }
-            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+            LoginResult::MfaSetupRequired(_)
+            | LoginResult::MfaVerificationRequired(_)
+            | LoginResult::PasswordChangeRequired(_) => {
                 panic!("Mock login should return Success, not MFA required");
             }
         }
@@ -353,7 +368,9 @@ mod auth_service_tests {
             LoginResult::Error(msg) => {
                 panic!("Login should succeed in mock mode: {}", msg);
             }
-            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+            LoginResult::MfaSetupRequired(_)
+            | LoginResult::MfaVerificationRequired(_)
+            | LoginResult::PasswordChangeRequired(_) => {
                 panic!("Mock login should return Success, not MFA required");
             }
         }
@@ -399,6 +416,9 @@ mod auth_service_tests {
             LoginResult::MfaVerificationRequired(_) => {
                 panic!("Login should require MFA setup, not verification");
             }
+            LoginResult::PasswordChangeRequired(_) => {
+                panic!("Login should require MFA setup, not password change");
+            }
             LoginResult::Error(msg) => {
                 panic!("Login should require MFA setup: {}", msg);
             }
@@ -433,6 +453,9 @@ mod auth_service_tests {
             LoginResult::MfaSetupRequired(_) => {
                 panic!("Login should require MFA verification, not setup");
             }
+            LoginResult::PasswordChangeRequired(_) => {
+                panic!("Login should require MFA verification, not password change");
+            }
             LoginResult::Error(msg) => {
                 panic!("Login should require MFA verification: {}", msg);
             }
@@ -463,7 +486,9 @@ mod auth_service_tests {
                 assert!(!session.mfa_enabled);
                 assert!(!session.mfa_setup_required);
             }
-            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+            LoginResult::MfaSetupRequired(_)
+            | LoginResult::MfaVerificationRequired(_)
+            | LoginResult::PasswordChangeRequired(_) => {
                 panic!("Login should not require MFA for user_nomfa");
             }
             LoginResult::Error(msg) => {

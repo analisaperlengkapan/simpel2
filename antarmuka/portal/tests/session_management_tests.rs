@@ -33,6 +33,7 @@ mod session_management_tests {
             refresh_token: Some("test_refresh_token".to_string()),
             expires_at: Some(expires_at.timestamp()),
             permissions: vec!["user:read".to_string()],
+            ..Default::default()
         }
     }
 

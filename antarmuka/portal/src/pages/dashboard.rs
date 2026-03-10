@@ -476,15 +476,15 @@ fn QuickActions() -> impl IntoView {
                     </svg>
                 </div>
             </a>
-            <a href="/portal/monitoring" class="block p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-md transition-all group border border-green-200 dark:border-green-800">
+            <a href="/portal/profile" class="block p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-md transition-all group border border-green-200 dark:border-green-800">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                            <span class="text-xl">"📊"</span>
+                            <span class="text-xl">"👤"</span>
                         </div>
                         <div>
-                            <p class="font-semibold text-gray-900 dark:text-white">"Monitoring"</p>
-                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pantau sistem"</p>
+                            <p class="font-semibold text-gray-900 dark:text-white">"Profil"</p>
+                            <p class="text-xs text-gray-600 dark:text-gray-400">"Data pegawai"</p>
                         </div>
                     </div>
                     <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">

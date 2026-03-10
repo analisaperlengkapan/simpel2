@@ -124,10 +124,7 @@ impl AuthContext {
                     .and_then(|w| w.location().origin().ok())
                     .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-                let logout_url = format!(
-                    "{}/api/v1/auth/logout",
-                    origin
-                );
+                let logout_url = format!("{}/api/v1/auth/logout", origin);
 
                 // Read the stored refresh token so the backend can invalidate
                 // the session.

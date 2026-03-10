@@ -252,16 +252,16 @@ impl UserManagementServiceImpl {
             email: request.email.clone(),
             password: password_hash,
             realm_id: request.realm_id,
-            satker_code: String::new(),
-            first_name: None,
-            last_name: None,
-            nip: None,
-            nama: None,
-            jabatan: None,
-            phone_number: None,
-            organization_id: None,
-            roles: None,
-            attributes: None,
+            satker_code: request.satker_code.clone(),
+            first_name: request.first_name.clone(),
+            last_name: request.last_name.clone(),
+            nip: request.nip.clone(),
+            nama: request.nama.clone(),
+            jabatan: request.jabatan.clone(),
+            phone_number: request.phone_number.clone(),
+            organization_id: request.organization_id,
+            roles: request.roles.clone(),
+            attributes: request.attributes.clone(),
         };
 
         let user = self.user_store.create_user(create_request).await?;
@@ -490,21 +490,30 @@ impl UserManagementServiceImpl {
             "Searching users"
         );
 
-        // Get all users and filter (simple implementation)
-        // TODO: Implement database-level search for better performance
-        let all_users = self.user_store.list_users(realm_id, 0, 1000).await?;
+        self.user_store
+            .search_users(realm_id, query, 0, limit)
+            .await
+    }
 
-        let query_lower = query.to_lowercase();
-        let results: Vec<User> = all_users
-            .into_iter()
-            .filter(|user| {
-                user.username.to_lowercase().contains(&query_lower)
-                    || user.email.to_lowercase().contains(&query_lower)
-            })
-            .take(limit)
-            .collect();
+    /// Count total users in a realm (for pagination)
+    pub async fn count_users(&self, realm_id: RealmId) -> Result<i64> {
+        self.user_store.count_users(realm_id).await
+    }
 
-        Ok(results)
+    /// Search users with pagination and return count
+    pub async fn search_users_paginated(
+        &self,
+        realm_id: RealmId,
+        query: &str,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<User>, i64)> {
+        let total = self.user_store.count_search_users(realm_id, query).await?;
+        let users = self
+            .user_store
+            .search_users(realm_id, query, offset, limit)
+            .await?;
+        Ok((users, total))
     }
 
     /// Verify user email

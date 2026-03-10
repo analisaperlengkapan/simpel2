@@ -59,6 +59,11 @@ impl AuthenticationServiceImpl {
         }
     }
 
+    /// Verify a plaintext password against a stored hash
+    pub fn verify_password(&self, password: &str, hash: &str) -> Result<bool> {
+        self.password_hasher.verify(password, hash)
+    }
+
     /// Generate a temporary MFA token for MFA verification
     ///
     /// This is a placeholder implementation. In production, this should:

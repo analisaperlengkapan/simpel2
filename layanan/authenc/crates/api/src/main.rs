@@ -23,13 +23,14 @@ use authenc_webauthn::{WebAuthnConfig, WebAuthnService};
 use async_trait::async_trait;
 use chrono::Utc;
 use dashmap::DashMap;
-use tracing::info;
+use tracing::{info, warn};
 use url::Url;
 
 use authenc_api::{
     AppConfig, AxumApp, CorsConfig, CsrfConfig, Environment,
     session_store::SessionStore as WebAuthnSessionStore, state::ApiState,
 };
+use authenc_iam_api::{create_iam_router, state::IamApiState};
 
 // ============================================================================
 // In-memory OAuth2 stores
@@ -273,8 +274,14 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // WebAuthn session store (in-memory)
     let webauthn_session_store = WebAuthnSessionStore::new();
 
+    // Clone services shared between ApiState and IamApiState
+    let iam_user_service = user_service.clone();
+    let iam_realm_service = realm_service.clone();
+    let iam_oauth2_service = oauth2_service.clone();
+    let iam_jwt_service = jwt_service.clone();
+
     // API state
-    let state = ApiState::new(
+    let mut state = ApiState::new(
         jwt_service,
         auth_service,
         user_service,
@@ -287,6 +294,41 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         db,
     );
 
+    // Integrasi gRPC client (optional, enabled via INTEGRASI_GRPC_URL env var)
+    if let Ok(integrasi_url) = std::env::var("INTEGRASI_GRPC_URL") {
+        let integrasi_config = authenc_core::config::IntegrasiConfig {
+            grpc_url: integrasi_url,
+            sync_interval_minutes: 60,
+            sync_on_startup: false,
+            connection_timeout_secs: std::env::var("INTEGRASI_CONNECT_TIMEOUT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(10),
+            request_timeout_secs: std::env::var("INTEGRASI_REQUEST_TIMEOUT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(30),
+        };
+        match authenc_federation::IntegrasiGrpcClient::new_lazy(&integrasi_config) {
+            Ok(client) => {
+                info!("Integrasi gRPC client configured");
+                state = state.with_integrasi_client(Arc::new(client));
+            }
+            Err(e) => {
+                warn!("Failed to create integrasi gRPC client: {}", e);
+            }
+        }
+    }
+
+    // IAM API - create state and router for admin endpoints
+    let iam_state = IamApiState::new(
+        iam_user_service,
+        iam_realm_service,
+        iam_oauth2_service,
+        iam_jwt_service,
+    );
+    let iam_router = create_iam_router(Arc::new(iam_state));
+
     // App config - development CORS + disabled CSRF for API service
     let mut config = AppConfig::default();
     config.cors = CorsConfig::new(Environment::Development);
@@ -296,9 +338,22 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     };
 
     let app = AxumApp::new(state, config);
+    // Merge IAM admin routes into the main router
+    let router = app.into_router().merge(iam_router);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("Listening on {}", addr);
-    app.run(addr).await?;
+
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    info!("Server listening on {}", addr);
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(async {
+        tokio::signal::ctrl_c().await.ok();
+        info!("Graceful shutdown initiated");
+    })
+    .await?;
 
     Ok(())
 }

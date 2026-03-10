@@ -175,7 +175,8 @@ pub fn Captcha(
                 set_state.update(|s| {
                     s.attempts += 1;
                     if s.attempts >= 3 {
-                        s.error = Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
+                        s.error =
+                            Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
                     }
                 });
 
@@ -864,7 +865,8 @@ pub fn ChallengeInput(
                 set_state.update(|s| {
                     s.attempts += 1;
                     if s.attempts >= 3 {
-                        s.error = Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
+                        s.error =
+                            Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
                         should_notify_parent = true;
                     }
                 });

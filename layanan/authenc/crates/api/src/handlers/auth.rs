@@ -46,6 +46,8 @@ pub struct LoginResponse {
     pub mfa_required: bool,
     /// Whether MFA setup is required (first-time)
     pub mfa_setup_required: bool,
+    /// Whether password change is required before using the system
+    pub require_password_change: bool,
     /// Status message
     pub message: String,
 }
@@ -95,6 +97,15 @@ pub struct UserProfileResponse {
     /// Last name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
+    /// NIP (Nomor Induk Pegawai)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nip: Option<String>,
+    /// Nama lengkap pegawai
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nama: Option<String>,
+    /// Jabatan pegawai
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jabatan: Option<String>,
     /// Phone number
     #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
@@ -112,6 +123,8 @@ pub struct UserProfileResponse {
     pub email_verified: bool,
     /// Whether MFA is enabled
     pub mfa_enabled: bool,
+    /// Whether password change is required
+    pub require_password_change: bool,
     /// Realm ID
     pub realm_id: Uuid,
 }
@@ -141,8 +154,7 @@ pub async fn login_handler(
     Json(request): Json<LoginRequest>,
 ) -> impl axum::response::IntoResponse {
     use authenc_types::{
-        AuthFailureReason, AuthResult, Credentials, RealmId,
-        traits::AuthenticationService,
+        AuthFailureReason, AuthResult, Credentials, RealmId, traits::AuthenticationService,
     };
 
     // Default to master realm if none provided (master realm = all-zeros UUID)
@@ -165,11 +177,43 @@ pub async fn login_handler(
             let uid = user_id.as_uuid().to_string();
             let sid = session_id.0.to_string();
 
-            let access_token = match state.jwt_service.generate_access_token(
+            // Check if user must change password
+            let user = state.user_service.get_user(user_id).await.ok();
+            let require_password_change = user
+                .as_ref()
+                .map(|u| u.require_password_change)
+                .unwrap_or(false);
+
+            // Enrich JWT with pegawai data
+            let mut custom_claims = std::collections::HashMap::new();
+            if let Some(ref u) = user {
+                if let Some(ref nip) = u.nip {
+                    custom_claims.insert("nip".into(), serde_json::json!(nip));
+                }
+                if let Some(ref nama) = u.nama {
+                    custom_claims.insert("name".into(), serde_json::json!(nama));
+                }
+                custom_claims.insert("preferred_username".into(), serde_json::json!(u.username));
+                if let Some(ref jabatan) = u.jabatan {
+                    custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
+                }
+                if !u.satker_code.is_empty() {
+                    custom_claims.insert("satker_code".into(), serde_json::json!(u.satker_code));
+                }
+                if !u.email.is_empty() {
+                    custom_claims.insert("email".into(), serde_json::json!(u.email));
+                }
+                // Roles
+                let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
+                custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
+            }
+
+            let access_token = match state.jwt_service.generate_access_token_with_claims(
                 &uid,
                 None,
                 Some("openid profile".to_string()),
                 Some(sid.clone()),
+                custom_claims,
             ) {
                 Ok(t) => t,
                 Err(e) => {
@@ -209,7 +253,12 @@ pub async fn login_handler(
                     temp_token: None,
                     mfa_required: false,
                     mfa_setup_required: false,
-                    message: String::new(),
+                    require_password_change,
+                    message: if require_password_change {
+                        "Anda harus mengubah password sebelum melanjutkan.".to_string()
+                    } else {
+                        String::new()
+                    },
                 }),
             )
                 .into_response()
@@ -229,6 +278,7 @@ pub async fn login_handler(
                 temp_token: Some(mfa_token),
                 mfa_required: true,
                 mfa_setup_required: false,
+                require_password_change: false,
                 message: String::new(),
             }),
         )
@@ -241,6 +291,95 @@ pub async fn login_handler(
                 reason = %reason,
                 "Authentication failed"
             );
+
+            // Auto-provision: if user not found and username looks like NIP,
+            // try fetching from MySIMKARI and create a disabled account.
+            if matches!(reason, AuthFailureReason::InvalidCredentials) {
+                let username = &request.username;
+                let is_nip = username.len() == 18 && username.chars().all(|c| c.is_ascii_digit());
+
+                if is_nip {
+                    if let Some(ref integrasi) = state.integrasi_client {
+                        match integrasi.get_pegawai_by_nip(username).await {
+                            Ok(Some(pegawai)) => {
+                                // Create a disabled user from pegawai data
+                                let email = if pegawai.email.is_empty() {
+                                    format!("{}@kejaksaan.go.id", username)
+                                } else {
+                                    pegawai.email.clone()
+                                };
+                                let create_req = authenc_types::CreateUserRequest {
+                                    username: username.clone(),
+                                    email,
+                                    satker_code: pegawai.kode_satker.clone(),
+                                    password: Some(username.clone()), // NIP as default password
+                                    first_name: None,
+                                    last_name: None,
+                                    nip: Some(username.clone()),
+                                    nama: Some(pegawai.nama.clone()),
+                                    jabatan: Some(pegawai.jabatan.clone()),
+                                    phone_number: if pegawai.telepon.is_empty() {
+                                        None
+                                    } else {
+                                        Some(pegawai.telepon.clone())
+                                    },
+                                    realm_id: Some(realm_id.0),
+                                    organization_id: None,
+                                    roles: None,
+                                    attributes: None,
+                                };
+                                match state.user_service.create_user(create_req).await {
+                                    Ok(user) => {
+                                        // Immediately disable & set require_password_change
+                                        let update_req = authenc_types::UpdateUserRequest {
+                                            enabled: Some(false),
+                                            require_password_change: Some(true),
+                                            ..Default::default()
+                                        };
+                                        let _ = state
+                                            .user_service
+                                            .update_user(
+                                                authenc_types::UserId::from_uuid(user.id),
+                                                update_req,
+                                            )
+                                            .await;
+                                        tracing::info!(
+                                            nip = %username,
+                                            user_id = %user.id,
+                                            "Auto-provisioned disabled account from MySIMKARI"
+                                        );
+                                        return (
+                                            axum::http::StatusCode::UNAUTHORIZED,
+                                            axum::Json(ErrorResponse {
+                                                error: "account_provisioned".to_string(),
+                                                message: "Akun Anda telah ditemukan di sistem kepegawaian dan sedang diproses. Silakan hubungi administrator untuk aktivasi akun.".to_string(),
+                                            }),
+                                        )
+                                            .into_response();
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            nip = %username,
+                                            error = %e,
+                                            "Failed to auto-provision user from MySIMKARI"
+                                        );
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                tracing::debug!(nip = %username, "NIP not found in MySIMKARI");
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    nip = %username,
+                                    error = %e,
+                                    "Failed to query MySIMKARI for auto-provisioning"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
 
             let message = match &reason {
                 AuthFailureReason::InvalidCredentials => {
@@ -438,6 +577,9 @@ pub async fn get_current_user_handler(
                     name,
                     first_name: user.first_name,
                     last_name: user.last_name,
+                    nip: user.nip,
+                    nama: user.nama,
+                    jabatan: user.jabatan,
                     phone: user.phone_number,
                     avatar: None,
                     division: user.satker_code.into(),
@@ -445,6 +587,7 @@ pub async fn get_current_user_handler(
                     permissions: Vec::new(),
                     email_verified: user.email_verified,
                     mfa_enabled: user.mfa_enabled,
+                    require_password_change: user.require_password_change,
                     realm_id,
                 }),
             )
@@ -511,40 +654,120 @@ pub struct PasswordResetConfirmRequest {
 pub async fn update_profile_handler(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
-    Json(_request): Json<UpdateProfileRequest>,
+    Json(request): Json<UpdateProfileRequest>,
 ) -> Result<Json<UserProfileResponse>, ErrorResponse> {
-    let _user_id = auth_helpers::extract_user_from_token(&state, &headers)
+    let user_uuid = auth_helpers::extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
             error: "unauthorized".to_string(),
             message: e.message,
         })?;
 
-    // TODO: Implement profile update via user_service
-    Err(ErrorResponse {
-        error: "not_implemented".to_string(),
-        message: "Profile update endpoint not yet implemented".to_string(),
-    })
+    let user_id = authenc_types::UserId::from_uuid(user_uuid);
+
+    let update_req = authenc_types::UpdateUserRequest {
+        first_name: request.display_name.clone(),
+        email: request.email.clone(),
+        phone_number: request.phone.clone(),
+        ..Default::default()
+    };
+
+    let user = state
+        .user_service
+        .update_user(user_id, update_req)
+        .await
+        .map_err(|e| ErrorResponse {
+            error: "update_failed".to_string(),
+            message: e.to_string(),
+        })?;
+
+    let realm_id = user
+        .realm_id
+        .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap());
+    let name = match (&user.first_name, &user.last_name) {
+        (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+        (Some(f), None) => Some(f.clone()),
+        (None, Some(l)) => Some(l.clone()),
+        _ => user.nama.clone(),
+    };
+
+    Ok(Json(UserProfileResponse {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        nip: user.nip,
+        nama: user.nama,
+        jabatan: user.jabatan,
+        phone: user.phone_number,
+        avatar: None,
+        division: user.satker_code.into(),
+        role: "user".to_string(),
+        permissions: Vec::new(),
+        email_verified: user.email_verified,
+        mfa_enabled: user.mfa_enabled,
+        require_password_change: user.require_password_change,
+        realm_id,
+    }))
 }
 
 /// POST /api/v1/auth/me/password - Change password
 pub async fn change_password_handler(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
-    Json(_request): Json<ChangePasswordRequest>,
+    Json(request): Json<ChangePasswordRequest>,
 ) -> Result<StatusCode, ErrorResponse> {
-    let _user_id = auth_helpers::extract_user_from_token(&state, &headers)
+    let user_uuid = auth_helpers::extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
             error: "unauthorized".to_string(),
             message: e.message,
         })?;
 
-    // TODO: Implement password change via auth_service
-    Err(ErrorResponse {
-        error: "not_implemented".to_string(),
-        message: "Password change endpoint not yet implemented".to_string(),
-    })
+    let user_id = authenc_types::UserId::from_uuid(user_uuid);
+    let user = state.user_service.get_user(user_id).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to get user for password change");
+        ErrorResponse {
+            error: "internal_error".to_string(),
+            message: "Gagal memproses perubahan password.".to_string(),
+        }
+    })?;
+
+    // Verify current password
+    let stored_hash = user.password_hash.as_deref().unwrap_or("");
+    let valid = state
+        .auth_service
+        .verify_password(&request.current_password, stored_hash)
+        .unwrap_or(false);
+
+    if !valid {
+        return Err(ErrorResponse {
+            error: "invalid_password".to_string(),
+            message: "Password saat ini salah.".to_string(),
+        });
+    }
+
+    // Update password and clear require_password_change flag
+    let update_req = authenc_types::UpdateUserRequest {
+        password: Some(request.new_password),
+        require_password_change: Some(false),
+        ..Default::default()
+    };
+    state
+        .user_service
+        .update_user(user_id, update_req)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to update password");
+            ErrorResponse {
+                error: "internal_error".to_string(),
+                message: "Gagal mengubah password.".to_string(),
+            }
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// POST /api/v1/auth/password/reset - Request password reset
@@ -596,6 +819,7 @@ mod tests {
             temp_token: None,
             mfa_required: false,
             mfa_setup_required: false,
+            require_password_change: false,
             message: "Login successful".to_string(),
         };
         let json = serde_json::to_string(&response).unwrap();
