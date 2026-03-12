@@ -59,7 +59,7 @@ pub fn PermissionsManagementPage() -> impl IntoView {
     let (search, set_search) = signal(String::new());
 
     let on_logout = {
-        let state = state.clone();
+        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());

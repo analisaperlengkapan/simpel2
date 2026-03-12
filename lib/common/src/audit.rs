@@ -4,7 +4,6 @@
 //! query capabilities, and filtering.
 
 use crate::context::RequestContext;
-use crate::error::{CommonError, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -506,10 +505,9 @@ impl AuditLogger {
         "#;
 
         let limit = filter.limit.unwrap_or(100);
-        let limit_i64 = limit as i64;
 
         let rows: Vec<Row> = client
-            .query(query, &[&limit_i64])
+            .query(query, &[&limit])
             .await
             .map_err(|e| CommonError::Database(format!("Failed to query audit logs: {}", e)))?;
 
@@ -595,7 +593,7 @@ impl AuditLogger {
         let context = if request_id.is_some() || ip_address.is_some() || user_agent.is_some() {
             Some(RequestContext {
                 request_id: request_id
-                    .map(|id| crate::correlation::CorrelationId::new_from_string(id))
+                    .map(crate::correlation::CorrelationId::new_from_string)
                     .unwrap_or_default(),
                 ip_address,
                 user_agent,

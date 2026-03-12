@@ -88,7 +88,7 @@ pub fn AppsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl Int
                                     || app.name.to_lowercase().contains(&query)
                                     || app.description.to_lowercase().contains(&query);
                                 let matches_category = category.as_ref()
-                                    .map_or(true, |cat| &app.category == cat);
+                                    .is_none_or(|cat| &app.category == cat);
                                 matches_search && matches_category && app.status.is_available()
                             })
                             .collect();

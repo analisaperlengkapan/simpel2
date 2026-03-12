@@ -18,7 +18,7 @@ pub async fn create_resource(
 
     let uris = request.uris.unwrap_or_default();
     let scopes = request.scopes.unwrap_or_default();
-    let attributes_json = serde_json::to_value(&request.attributes.unwrap_or_default())
+    let attributes_json = serde_json::to_value(request.attributes.unwrap_or_default())
         .map_err(|e| AuthencError::validation(format!("Invalid attributes: {}", e)))?;
 
     let query = r#"

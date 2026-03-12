@@ -20,7 +20,7 @@ pub async fn grant_consent(
     let metadata = request
         .metadata
         .clone()
-        .unwrap_or_else(|| serde_json::Value::Null);
+        .unwrap_or(serde_json::Value::Null);
 
     let query = r#"
         INSERT INTO user_consents (id, user_id, client_id, scopes, granted_at, expires_at, metadata)
