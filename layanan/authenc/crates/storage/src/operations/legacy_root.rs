@@ -2286,7 +2286,6 @@ pub mod users {
                 phone_verified = COALESCE($9, phone_verified),
                 require_password_change = COALESCE($10, require_password_change),
                 attributes = COALESCE($11, attributes),
-                password_hash = COALESCE($13, password_hash),
                 updated_at = $12
             WHERE id = $1 AND deleted_at IS NULL
             RETURNING
@@ -2319,7 +2318,6 @@ pub mod users {
                         .as_ref()
                         .map(|v| serde_json::to_string(v).unwrap_or_default()),
                     &now,
-                    &request.password,
                 ],
             )
             .await?;
