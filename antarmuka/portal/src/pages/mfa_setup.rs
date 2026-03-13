@@ -443,7 +443,7 @@ async fn check_mfa_setup_risk() -> Result<f64, Box<dyn std::error::Error>> {
 
 /// Generate MFA setup data from authenc API
 async fn generate_mfa_setup(
-    captcha_token: Option<&str>,
+    _captcha_token: Option<&str>,
 ) -> Result<MfaSetupData, Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {

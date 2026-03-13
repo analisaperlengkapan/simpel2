@@ -208,8 +208,8 @@ impl AuthService {
                                 } else if let Some(access_token) = login_resp.access_token {
                                     // Full authentication complete
                                     Self::save_token(&access_token);
-                                    if let Some(refresh_token) = login_resp.refresh_token {
-                                        Self::save_refresh_token(&refresh_token);
+                                    if let Some(refresh_token) = &login_resp.refresh_token {
+                                        Self::save_refresh_token(refresh_token);
                                     }
 
                                     // Decode JWT to extract user info
