@@ -53,10 +53,8 @@ pub fn GroupsManagementPage() -> impl IntoView {
     }
 
     let handle_search = {
-        let load = load_groups.clone();
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
-            load();
         }
     };
 
