@@ -381,7 +381,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT *
             FROM users
-            WHERE realm_id = $1
+            WHERE realm_id = $1 AND deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
         "#;
@@ -455,7 +455,8 @@ impl UserStore for PostgresUserStore {
             realm_id, query_str, offset, limit
         );
 
-        let pattern = format!("%{}%", query_str.to_lowercase());
+        let escaped = query_str.to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        let pattern = format!("%{}%", escaped);
         let query = r#"
             SELECT *
             FROM users
@@ -488,7 +489,8 @@ impl UserStore for PostgresUserStore {
             realm_id, query_str
         );
 
-        let pattern = format!("%{}%", query_str.to_lowercase());
+        let escaped = query_str.to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        let pattern = format!("%{}%", escaped);
         let query = r#"
             SELECT COUNT(*)
             FROM users
