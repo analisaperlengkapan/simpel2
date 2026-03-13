@@ -752,7 +752,7 @@ pub async fn update_profile_handler(
         jabatan: user.jabatan,
         phone: user.phone_number,
         avatar: None,
-        division: user.jabatan.clone().or(Some("Bagian Umum".to_string())),
+        division: Some(user.satker_code.clone()).filter(|s| !s.is_empty()).or(Some("Bagian Umum".to_string())),
         role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
         permissions: Vec::new(),
         email_verified: user.email_verified,
