@@ -455,8 +455,7 @@ impl UserStore for PostgresUserStore {
             realm_id, query_str, offset, limit
         );
 
-        let escaped = query_str.to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
-        let pattern = format!("%{}%", escaped);
+        let pattern = format!("%{}%", query_str.to_lowercase());
         let query = r#"
             SELECT *
             FROM users
@@ -489,8 +488,7 @@ impl UserStore for PostgresUserStore {
             realm_id, query_str
         );
 
-        let escaped = query_str.to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
-        let pattern = format!("%{}%", escaped);
+        let pattern = format!("%{}%", query_str.to_lowercase());
         let query = r#"
             SELECT COUNT(*)
             FROM users

@@ -389,7 +389,7 @@ impl AuthService {
             jabatan: claims.jabatan.clone(),
             satker_code: claims.satker_code.clone(),
             division: claims
-                .satker_code
+                .jabatan
                 .unwrap_or_else(|| "Bagian Umum".to_string()),
             captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,
