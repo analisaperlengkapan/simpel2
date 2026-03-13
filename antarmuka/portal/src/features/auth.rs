@@ -213,10 +213,11 @@ impl AuthService {
                                     }
 
                                     // Decode JWT to extract user info
-                                    // Decode JWT to extract user info
                                     match Self::decode_jwt_claims(&access_token) {
                                         Ok(mut session) => {
-                                            session.refresh_token = login_resp.refresh_token;
+                                            if let Some(refresh) = &login_resp.refresh_token {
+                                                session.refresh_token = Some(refresh.clone());
+                                            }
                                             Self::save_session(&session);
                                             if login_resp.require_password_change {
                                                 LoginResult::PasswordChangeRequired(Box::new(
