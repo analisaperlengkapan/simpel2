@@ -4,6 +4,7 @@
 //! query capabilities, and filtering.
 
 use crate::context::RequestContext;
+use crate::error::{CommonError, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
