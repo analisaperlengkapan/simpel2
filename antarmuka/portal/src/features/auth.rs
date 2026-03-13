@@ -102,6 +102,8 @@ pub struct TokenResponse {
 pub struct LoginResponse {
     /// Access token (only present after full authentication)
     pub access_token: Option<String>,
+    /// Refresh token (only present after full authentication)
+    pub refresh_token: Option<String>,
     /// Temporary token (present when MFA verification needed)
     pub temp_token: Option<String>,
     /// Whether MFA verification is required
@@ -206,6 +208,9 @@ impl AuthService {
                                 } else if let Some(access_token) = login_resp.access_token {
                                     // Full authentication complete
                                     Self::save_token(&access_token);
+                                    if let Some(refresh_token) = login_resp.refresh_token {
+                                        Self::save_refresh_token(&refresh_token);
+                                    }
 
                                     // Decode JWT to extract user info
                                     match Self::decode_jwt_claims(&access_token) {
@@ -384,7 +389,7 @@ impl AuthService {
             jabatan: claims.jabatan.clone(),
             satker_code: claims.satker_code.clone(),
             division: claims
-                .satker_code
+                .jabatan
                 .unwrap_or_else(|| "Bagian Umum".to_string()),
             captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,

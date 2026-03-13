@@ -310,79 +310,95 @@ pub async fn login_handler(
                         .is_ok();
 
                     if !user_exists {
-                        if let Some(ref integrasi) = state.integrasi_client {
-                            match integrasi.get_pegawai_by_nip(username).await {
-                                Ok(Some(pegawai)) => {
-                                    // Create a disabled user from pegawai data
-                                    let email = if pegawai.email.is_empty() {
-                                        format!("{}@kejaksaan.go.id", username)
-                                    } else {
-                                        pegawai.email.clone()
-                                    };
-                                    let create_req = authenc_types::CreateUserRequest {
-                                        username: username.clone(),
-                                        email,
-                                        satker_code: pegawai.kode_satker.clone(),
-                                        password: Some(username.clone()), // NIP as default password
-                                        first_name: None,
-                                        last_name: None,
-                                        nip: Some(username.clone()),
-                                        nama: Some(pegawai.nama.clone()),
-                                        jabatan: Some(pegawai.jabatan.clone()),
-                                        phone_number: if pegawai.telepon.is_empty() {
-                                            None
+                        let state_clone = state.clone();
+                        let username_clone = username.clone();
+                        let realm_id_clone = realm_id;
+
+                        tokio::spawn(async move {
+                            if let Some(ref integrasi) = state_clone.integrasi_client {
+                                match integrasi.get_pegawai_by_nip(&username_clone).await {
+                                    Ok(Some(pegawai)) => {
+                                        // Create a disabled user from pegawai data
+                                        let email = if pegawai.email.is_empty() {
+                                            format!("{}@kejaksaan.go.id", username_clone)
                                         } else {
-                                            Some(pegawai.telepon.clone())
-                                        },
-                                        realm_id: Some(realm_id.0),
-                                        organization_id: None,
-                                        roles: None,
-                                        attributes: None,
-                                    };
-                                    match state.user_service.create_user(create_req).await {
-                                        Ok(user) => {
-                                            // Immediately disable & set require_password_change
-                                            let update_req = authenc_types::UpdateUserRequest {
-                                                enabled: Some(false),
-                                                require_password_change: Some(true),
-                                                ..Default::default()
-                                            };
-                                            let _ = state
-                                                .user_service
-                                                .update_user(
-                                                    authenc_types::UserId::from_uuid(user.id),
-                                                    update_req,
-                                                )
-                                                .await;
-                                            tracing::info!(
-                                                nip = %username,
-                                                user_id = %user.id,
-                                                "Auto-provisioned disabled account from MySIMKARI"
-                                            );
-                                            // Fall through to generic error — do NOT return a
-                                            // differentiated response to prevent NIP enumeration.
-                                        }
-                                        Err(e) => {
-                                            tracing::warn!(
-                                                nip = %username,
-                                                error = %e,
-                                                "Failed to auto-provision user from MySIMKARI"
-                                            );
+                                            pegawai.email.clone()
+                                        };
+                                        let create_req = authenc_types::CreateUserRequest {
+                                            username: username_clone.clone(),
+                                            email,
+                                            satker_code: pegawai.kode_satker.clone(),
+                                            password: Some(username_clone.clone()), // NIP as default password
+                                            first_name: None,
+                                            last_name: None,
+                                            nip: Some(username_clone.clone()),
+                                            nama: Some(pegawai.nama.clone()),
+                                            jabatan: Some(pegawai.jabatan.clone()),
+                                            phone_number: if pegawai.telepon.is_empty() {
+                                                None
+                                            } else {
+                                                Some(pegawai.telepon.clone())
+                                            },
+                                            realm_id: Some(realm_id_clone.0),
+                                            organization_id: None,
+                                            roles: None,
+                                            attributes: None,
+                                        };
+                                        match state_clone.user_service.create_user(create_req).await {
+                                            Ok(user) => {
+                                                // Immediately disable & set require_password_change
+                                                let update_req = authenc_types::UpdateUserRequest {
+                                                    enabled: Some(false),
+                                                    require_password_change: Some(true),
+                                                    ..Default::default()
+                                                };
+                                                match state_clone
+                                                    .user_service
+                                                    .update_user(
+                                                        authenc_types::UserId::from_uuid(user.id),
+                                                        update_req,
+                                                    )
+                                                    .await
+                                                {
+                                                    Ok(_) => {
+                                                        tracing::info!(
+                                                            nip = %username_clone,
+                                                            user_id = %user.id,
+                                                            "Auto-provisioned disabled account from MySIMKARI"
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        tracing::warn!(
+                                                            nip = %username_clone,
+                                                            error = %e,
+                                                            "Failed to disable auto-provisioned user, rolling back creation"
+                                                        );
+                                                        let _ = state_clone.user_service.delete_user(authenc_types::UserId::from_uuid(user.id)).await;
+                                                    }
+                                                }
+                                            }
+                                            Err(e) => {
+                                                tracing::warn!(
+                                                    nip = %username_clone,
+                                                    error = %e,
+                                                    "Failed to auto-provision user from MySIMKARI"
+                                                );
+                                            }
                                         }
                                     }
-                                }
-                                Ok(None) => {
-                                    tracing::debug!(nip = %username, "NIP not found in MySIMKARI");
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        nip = %username,
-                                        error = %e,
-                                        "Failed to query MySIMKARI for auto-provisioning"
-                                    );
+                                    Ok(None) => {
+                                        tracing::debug!(nip = %username_clone, "NIP not found in MySIMKARI");
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            nip = %username_clone,
+                                            error = %e,
+                                            "Failed to query MySIMKARI for auto-provisioning"
+                                        );
+                                    }
                                 }
                             }
-                        }
+                        });
                     }
                 }
             }
@@ -615,7 +631,7 @@ pub async fn get_current_user_handler(
                     jabatan: user.jabatan,
                     phone: user.phone_number,
                     avatar: None,
-                    division: user.satker_code.into(),
+                    division: user.jabatan.clone().or(Some("Bagian Umum".to_string())),
                     role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
                     permissions: Vec::new(),
                     email_verified: user.email_verified,
@@ -736,7 +752,7 @@ pub async fn update_profile_handler(
         jabatan: user.jabatan,
         phone: user.phone_number,
         avatar: None,
-        division: user.satker_code.into(),
+        division: user.jabatan.clone().or(Some("Bagian Umum".to_string())),
         role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
         permissions: Vec::new(),
         email_verified: user.email_verified,
