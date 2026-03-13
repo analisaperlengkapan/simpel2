@@ -184,7 +184,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let _navigate = leptos_router::hooks::use_navigate();
+                                    let navigate = leptos_router::hooks::use_navigate();
 
                                     spawn_local(async move {
                                         match verify_mfa_code(&temp_token, &code).await {

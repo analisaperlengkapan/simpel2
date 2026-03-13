@@ -67,9 +67,17 @@ pub fn AuditLogsPage() -> impl IntoView {
     }
 
     let handle_filter = {
+        let load = load_logs.clone();
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
-            set_page.set(1);
+
+            // Only explicitly load if we are already on page 1.
+            // If page > 1, setting page to 1 will trigger the Effect above.
+            if page.get() == 1 {
+                load();
+            } else {
+                set_page.set(1);
+            }
         }
     };
 

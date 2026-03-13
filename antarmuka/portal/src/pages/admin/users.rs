@@ -65,8 +65,14 @@ pub fn UsersManagementPage() -> impl IntoView {
         let load = load_users.clone();
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
-            set_page.set(1);
-            load();
+
+            // Only explicitly load if we are already on page 1.
+            // If page > 1, setting page to 1 will trigger the Effect above.
+            if page.get() == 1 {
+                load();
+            } else {
+                set_page.set(1);
+            }
         }
     };
 
