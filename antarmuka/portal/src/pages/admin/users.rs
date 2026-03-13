@@ -62,11 +62,9 @@ pub fn UsersManagementPage() -> impl IntoView {
     }
 
     let handle_search = {
-        let load = load_users.clone();
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
             set_page.set(1);
-            load();
         }
     };
 
