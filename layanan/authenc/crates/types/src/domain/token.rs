@@ -340,11 +340,10 @@ impl Token {
         }
 
         // Check usage limits
-        if let Some(max_usage) = self.max_usage {
-            if self.usage_count >= max_usage {
+        if let Some(max_usage) = self.max_usage
+            && self.usage_count >= max_usage {
                 return false;
             }
-        }
 
         // Check time restrictions
         if let Some(restrictions) = &self.secreton_permissions.time_restrictions {

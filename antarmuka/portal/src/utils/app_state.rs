@@ -9,6 +9,7 @@ use leptos::prelude::*;
 
 /// Central application state provided via Leptos context
 #[derive(Clone, Debug)]
+#[derive(Default)]
 pub struct AppState {
     /// Current user session (None if not authenticated)
     pub user: Option<UserSession>,
@@ -16,14 +17,6 @@ pub struct AppState {
     pub auth_token: Option<String>,
 }
 
-impl Default for AppState {
-    fn default() -> Self {
-        Self {
-            user: None,
-            auth_token: None,
-        }
-    }
-}
 
 impl AppState {
     /// Create AppState from an existing UserSession

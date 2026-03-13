@@ -136,7 +136,7 @@ impl SatkerHierarchy {
                 parent_map.insert(code.clone(), parent_code.clone());
                 children_map
                     .entry(parent_code.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(code.clone());
             } else {
                 roots.push(code.clone());

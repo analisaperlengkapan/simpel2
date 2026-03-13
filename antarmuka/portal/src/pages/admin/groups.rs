@@ -53,8 +53,10 @@ pub fn GroupsManagementPage() -> impl IntoView {
     }
 
     let handle_search = {
+        let load = load_groups.clone();
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
+            load();
         }
     };
 
@@ -125,7 +127,7 @@ pub fn GroupsManagementPage() -> impl IntoView {
     }
 
     let on_logout = {
-        let state = state.clone();
+        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());

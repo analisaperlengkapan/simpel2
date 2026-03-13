@@ -24,7 +24,7 @@
 ### Models
 - `crate::models::*` → `authenc_types::domain::*`
 - `crate::models::user::*` → `authenc_types::domain::user::*`
-- `crate::models::audit_log::AuditLog` → `authenc_types::domain::AuditLog`
+- `crate::models::audit_log::AuditLog` → `authenc_types::domain::audit_log::AuditLog`
 
 ### Utils
 - `crate::utils::crypto_monitor::CryptoMonitor` → NOT YET MIGRATED (needs implementation)

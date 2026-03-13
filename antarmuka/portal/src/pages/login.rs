@@ -96,7 +96,7 @@ pub fn LoginPage(
                             }
                             Err(e) => {
                                 let msg = {
-                                    let err_str = format!("{}", e);
+                                    let err_str = e.to_string();
                                     if err_str.contains("NotAllowedError")
                                         || err_str.contains("cancelled")
                                     {

@@ -4,6 +4,7 @@
 //! query capabilities, and filtering.
 
 use crate::context::RequestContext;
+#[cfg(feature = "db")]
 use crate::error::{CommonError, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
