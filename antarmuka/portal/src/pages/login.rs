@@ -73,7 +73,10 @@ pub fn LoginPage(
                                         match AuthService::decode_jwt_claims(
                                             &token_resp.access_token,
                                         ) {
-                                            Ok(session) => {
+                                            Ok(mut session) => {
+                                                if let Some(refresh) = &token_resp.refresh_token {
+                                                    session.refresh_token = Some(refresh.clone());
+                                                }
                                                 AuthService::save_session(&session);
                                                 on_login_success.set(Some(session));
                                                 set_passkey_loading.set(false);

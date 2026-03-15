@@ -27,7 +27,7 @@ const NIP_USER = {
 
 const ADMIN_USER = {
   username: 'admin',
-  password: 'admin',
+  password: '199203142014031001',
 };
 
 // ── CORS Headers for proxied responses ─────────────────────────────────────

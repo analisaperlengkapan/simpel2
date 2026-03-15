@@ -102,6 +102,8 @@ pub struct TokenResponse {
 pub struct LoginResponse {
     /// Access token (only present after full authentication)
     pub access_token: Option<String>,
+    /// Refresh token (only present after full authentication)
+    pub refresh_token: Option<String>,
     /// Temporary token (present when MFA verification needed)
     pub temp_token: Option<String>,
     /// Whether MFA verification is required
@@ -206,10 +208,16 @@ impl AuthService {
                                 } else if let Some(access_token) = login_resp.access_token {
                                     // Full authentication complete
                                     Self::save_token(&access_token);
+                                    if let Some(refresh_token) = &login_resp.refresh_token {
+                                        Self::save_refresh_token(refresh_token);
+                                    }
 
                                     // Decode JWT to extract user info
                                     match Self::decode_jwt_claims(&access_token) {
-                                        Ok(session) => {
+                                        Ok(mut session) => {
+                                            if let Some(refresh) = &login_resp.refresh_token {
+                                                session.refresh_token = Some(refresh.clone());
+                                            }
                                             Self::save_session(&session);
                                             if login_resp.require_password_change {
                                                 LoginResult::PasswordChangeRequired(Box::new(

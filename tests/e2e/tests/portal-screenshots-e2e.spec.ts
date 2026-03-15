@@ -28,7 +28,7 @@ const SCREENSHOT_DIR = path.join(__dirname, '..', 'test-results', 'screenshots')
 // Admin user (has access to all pages)
 const ADMIN_USER = {
     username: 'admin',
-    password: 'admin',
+    password: '199203142014031001',
 };
 
 // Regular NIP user

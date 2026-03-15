@@ -323,7 +323,7 @@ pub async fn login_handler(
                                         username: username.clone(),
                                         email,
                                         satker_code: pegawai.kode_satker.clone(),
-                                        password: Some(username.clone()), // NIP as default password
+                                        password: Some(format!("{}!A", username)), // NIP + !A as default password to pass validation
                                         first_name: None,
                                         last_name: None,
                                         nip: Some(username.clone()),
@@ -347,20 +347,30 @@ pub async fn login_handler(
                                                 require_password_change: Some(true),
                                                 ..Default::default()
                                             };
-                                            let _ = state
+                                            match state
                                                 .user_service
                                                 .update_user(
                                                     authenc_types::UserId::from_uuid(user.id),
                                                     update_req,
                                                 )
-                                                .await;
-                                            tracing::info!(
-                                                nip = %username,
-                                                user_id = %user.id,
-                                                "Auto-provisioned disabled account from MySIMKARI"
-                                            );
-                                            // Fall through to generic error — do NOT return a
-                                            // differentiated response to prevent NIP enumeration.
+                                                .await
+                                            {
+                                                Ok(_) => {
+                                                    tracing::info!(
+                                                        nip = %username,
+                                                        user_id = %user.id,
+                                                        "Auto-provisioned disabled account from MySIMKARI"
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    tracing::warn!(
+                                                        nip = %username,
+                                                        error = %e,
+                                                        "Failed to disable auto-provisioned user, rolling back creation"
+                                                    );
+                                                    let _ = state.user_service.delete_user(authenc_types::UserId::from_uuid(user.id)).await;
+                                                }
+                                            }
                                         }
                                         Err(e) => {
                                             tracing::warn!(
@@ -615,7 +625,7 @@ pub async fn get_current_user_handler(
                     jabatan: user.jabatan,
                     phone: user.phone_number,
                     avatar: None,
-                    division: user.satker_code.into(),
+                    division: Some(user.satker_code.clone()).filter(|s| !s.is_empty()),
                     role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
                     permissions: Vec::new(),
                     email_verified: user.email_verified,
@@ -736,7 +746,7 @@ pub async fn update_profile_handler(
         jabatan: user.jabatan,
         phone: user.phone_number,
         avatar: None,
-        division: user.satker_code.into(),
+        division: Some(user.satker_code.clone()).filter(|s| !s.is_empty()),
         role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
         permissions: Vec::new(),
         email_verified: user.email_verified,
