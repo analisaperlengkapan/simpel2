@@ -211,7 +211,7 @@ pub fn PieChart(
     let gradient = segments
         .iter()
         .map(|(point, _, start, end)| {
-            let color = point.color.as_ref().map(|c| c.as_str()).unwrap_or("gray");
+            let color = point.color.as_deref().unwrap_or("gray");
             format!("{} {}% {}%", color, start, end)
         })
         .collect::<Vec<_>>()
@@ -384,8 +384,7 @@ pub fn LineChart(
                                 />
                             }
                         })
-                        .collect_view();
-                    grid_lines
+                        .collect_view()
                 })}
 
                 // Line path

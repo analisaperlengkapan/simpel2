@@ -405,7 +405,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT EXISTS(
                 SELECT 1 FROM users
-                WHERE username = $1 AND realm_id = $2
+                WHERE username = $1 AND realm_id = $2 AND deleted_at IS NULL
             )
         "#;
 
@@ -421,7 +421,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT EXISTS(
                 SELECT 1 FROM users
-                WHERE email = $1 AND realm_id = $2
+                WHERE email = $1 AND realm_id = $2 AND deleted_at IS NULL
             )
         "#;
 

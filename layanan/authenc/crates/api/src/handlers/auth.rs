@@ -323,7 +323,7 @@ pub async fn login_handler(
                                         username: username.clone(),
                                         email,
                                         satker_code: pegawai.kode_satker.clone(),
-                                        password: Some(username.clone()), // NIP as default password
+                                        password: Some(format!("{}!A", username)), // NIP + !A as default password to pass validation
                                         first_name: None,
                                         last_name: None,
                                         nip: Some(username.clone()),

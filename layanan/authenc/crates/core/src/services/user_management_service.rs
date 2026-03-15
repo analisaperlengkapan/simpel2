@@ -773,6 +773,39 @@ mod tests {
             if let Some(mfa_enabled) = req.mfa_enabled {
                 user.mfa_enabled = mfa_enabled;
             }
+            if let Some(require_password_change) = req.require_password_change {
+                user.require_password_change = require_password_change;
+            }
+            if let Some(first_name) = req.first_name {
+                user.first_name = Some(first_name);
+            }
+            if let Some(last_name) = req.last_name {
+                user.last_name = Some(last_name);
+            }
+            if let Some(phone_number) = req.phone_number {
+                user.phone_number = Some(phone_number);
+            }
+            if let Some(username) = req.username {
+                user.username = username;
+            }
+            if let Some(satker_code) = req.satker_code {
+                user.satker_code = satker_code;
+            }
+            if let Some(nip) = req.nip {
+                user.nip = Some(nip);
+            }
+            if let Some(nama) = req.nama {
+                user.nama = Some(nama);
+            }
+            if let Some(jabatan) = req.jabatan {
+                user.jabatan = Some(jabatan);
+            }
+            if let Some(phone_verified) = req.phone_verified {
+                user.phone_verified = phone_verified;
+            }
+            if let Some(attributes) = req.attributes {
+                user.attributes = Some(attributes);
+            }
 
             user.updated_at = chrono::Utc::now();
 
