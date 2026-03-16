@@ -447,21 +447,27 @@ impl UserStore for PostgresUserStore {
         &self,
         realm_id: RealmId,
         query_str: &str,
+        enabled: Option<bool>,
         offset: usize,
         limit: usize,
     ) -> Result<Vec<User>> {
         debug!(
-            "Searching users in realm: {} query: {} (offset: {}, limit: {})",
-            realm_id, query_str, offset, limit
+            "Searching users in realm: {} query: {} enabled: {:?} (offset: {}, limit: {})",
+            realm_id, query_str, enabled, offset, limit
         );
 
-        let escaped = query_str.to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        let escaped = query_str
+            .to_lowercase()
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
         let pattern = format!("%{}%", escaped);
         let query = r#"
             SELECT *
             FROM users
             WHERE realm_id = $1
               AND deleted_at IS NULL
+              AND ($5::boolean IS NULL OR enabled = $5)
               AND (
                   LOWER(username) LIKE $2
                   OR LOWER(email) LIKE $2
@@ -476,26 +482,42 @@ impl UserStore for PostgresUserStore {
             .db
             .query(
                 query,
-                &[&realm_id.0, &pattern, &(limit as i64), &(offset as i64)],
+                &[
+                    &realm_id.0,
+                    &pattern,
+                    &(limit as i64),
+                    &(offset as i64),
+                    &enabled,
+                ],
             )
             .await?;
 
         rows.into_iter().map(row_to_user).collect()
     }
 
-    async fn count_search_users(&self, realm_id: RealmId, query_str: &str) -> Result<i64> {
+    async fn count_search_users(
+        &self,
+        realm_id: RealmId,
+        query_str: &str,
+        enabled: Option<bool>,
+    ) -> Result<i64> {
         debug!(
-            "Counting search users in realm: {} query: {}",
-            realm_id, query_str
+            "Counting search users in realm: {} query: {} enabled: {:?}",
+            realm_id, query_str, enabled
         );
 
-        let escaped = query_str.to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        let escaped = query_str
+            .to_lowercase()
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
         let pattern = format!("%{}%", escaped);
         let query = r#"
             SELECT COUNT(*)
             FROM users
             WHERE realm_id = $1
               AND deleted_at IS NULL
+              AND ($3::boolean IS NULL OR enabled = $3)
               AND (
                   LOWER(username) LIKE $2
                   OR LOWER(email) LIKE $2
@@ -504,7 +526,10 @@ impl UserStore for PostgresUserStore {
               )
         "#;
 
-        let row = self.db.query_one(query, &[&realm_id.0, &pattern]).await?;
+        let row = self
+            .db
+            .query_one(query, &[&realm_id.0, &pattern, &enabled])
+            .await?;
         Ok(row.get(0))
     }
 

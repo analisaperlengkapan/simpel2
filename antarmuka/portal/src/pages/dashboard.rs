@@ -77,10 +77,7 @@ async fn fetch_me() -> Result<MeResponse, String> {
 
 /// Dashboard page component
 #[component]
-pub fn DashboardPage(
-    user_session: UserSession,
-    on_logout: Box<dyn Fn()>,
-) -> impl IntoView {
+pub fn DashboardPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
     let is_admin = user_session.role.is_admin();
     let admin_stats = LocalResource::new(move || async move {
         if is_admin {
@@ -263,9 +260,18 @@ fn InfoCard(
 ) -> impl IntoView {
     let accent = accent.unwrap_or("blue");
     let (text_color, bg_color) = match accent {
-        "green" => ("text-green-600 dark:text-green-400", "bg-green-50 dark:bg-green-900/20"),
-        "amber" => ("text-amber-600 dark:text-amber-400", "bg-amber-50 dark:bg-amber-900/20"),
-        _ => ("text-blue-600 dark:text-blue-400", "bg-blue-50 dark:bg-blue-900/20"),
+        "green" => (
+            "text-green-600 dark:text-green-400",
+            "bg-green-50 dark:bg-green-900/20",
+        ),
+        "amber" => (
+            "text-amber-600 dark:text-amber-400",
+            "bg-amber-50 dark:bg-amber-900/20",
+        ),
+        _ => (
+            "text-blue-600 dark:text-blue-400",
+            "bg-blue-50 dark:bg-blue-900/20",
+        ),
     };
 
     view! {

@@ -203,16 +203,12 @@ pub mod protocol_mappers {
             None => None,
         };
 
-        let row: tokio_postgres::Row = db.query_one(
-            query,
-            &[
-                &request.name,
-                &config_json,
-                &request.enabled,
-                &now,
-                &id,
-            ]
-        ).await?;
+        let row: tokio_postgres::Row = db
+            .query_one(
+                query,
+                &[&request.name, &config_json, &request.enabled, &now, &id],
+            )
+            .await?;
 
         ProtocolMapper::try_from(row)
     }

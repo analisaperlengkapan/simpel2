@@ -8,15 +8,13 @@ use crate::utils::authenc_api::AuthencApiClient;
 use leptos::prelude::*;
 
 /// Central application state provided via Leptos context
-#[derive(Clone, Debug)]
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct AppState {
     /// Current user session (None if not authenticated)
     pub user: Option<UserSession>,
     /// JWT access token
     pub auth_token: Option<String>,
 }
-
 
 impl AppState {
     /// Create AppState from an existing UserSession

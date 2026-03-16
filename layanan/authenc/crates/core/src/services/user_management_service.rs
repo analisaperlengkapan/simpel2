@@ -491,7 +491,7 @@ impl UserManagementServiceImpl {
         );
 
         self.user_store
-            .search_users(realm_id, query, 0, limit)
+            .search_users(realm_id, query, None, 0, limit)
             .await
     }
 
@@ -534,13 +534,17 @@ impl UserManagementServiceImpl {
         &self,
         realm_id: RealmId,
         query: &str,
+        enabled: Option<bool>,
         offset: usize,
         limit: usize,
     ) -> Result<(Vec<User>, i64)> {
-        let total = self.user_store.count_search_users(realm_id, query).await?;
+        let total = self
+            .user_store
+            .count_search_users(realm_id, query, enabled)
+            .await?;
         let users = self
             .user_store
-            .search_users(realm_id, query, offset, limit)
+            .search_users(realm_id, query, enabled, offset, limit)
             .await?;
         Ok((users, total))
     }
@@ -848,34 +852,60 @@ mod tests {
 
         async fn count_users(&self, realm_id: RealmId) -> Result<i64> {
             let users = self.users.lock().await;
-            Ok(users.values().filter(|u| u.realm_id == Some(*realm_id.as_uuid())).count() as i64)
+            Ok(users
+                .values()
+                .filter(|u| u.realm_id == Some(*realm_id.as_uuid()))
+                .count() as i64)
         }
 
         async fn count_enabled_users(&self, realm_id: RealmId) -> Result<i64> {
             let users = self.users.lock().await;
-            Ok(users.values().filter(|u| u.realm_id == Some(*realm_id.as_uuid()) && u.enabled).count() as i64)
+            Ok(users
+                .values()
+                .filter(|u| u.realm_id == Some(*realm_id.as_uuid()) && u.enabled)
+                .count() as i64)
         }
 
-        async fn list_users_filtered(&self, realm_id: RealmId, enabled: Option<bool>, offset: usize, limit: usize) -> Result<Vec<User>> {
+        async fn list_users_filtered(
+            &self,
+            realm_id: RealmId,
+            enabled: Option<bool>,
+            offset: usize,
+            limit: usize,
+        ) -> Result<Vec<User>> {
             let users = self.users.lock().await;
             let mut realm_users: Vec<User> = users
                 .values()
-                .filter(|u| u.realm_id == Some(*realm_id.as_uuid()) && enabled.map_or(true, |e| u.enabled == e))
+                .filter(|u| {
+                    u.realm_id == Some(*realm_id.as_uuid())
+                        && enabled.map_or(true, |e| u.enabled == e)
+                })
                 .cloned()
                 .collect();
             realm_users.sort_by(|a, b| a.created_at.cmp(&b.created_at));
             Ok(realm_users.into_iter().skip(offset).take(limit).collect())
         }
 
-        async fn count_users_filtered(&self, realm_id: RealmId, enabled: Option<bool>) -> Result<i64> {
+        async fn count_users_filtered(
+            &self,
+            realm_id: RealmId,
+            enabled: Option<bool>,
+        ) -> Result<i64> {
             let users = self.users.lock().await;
-            Ok(users.values().filter(|u| u.realm_id == Some(*realm_id.as_uuid()) && enabled.map_or(true, |e| u.enabled == e)).count() as i64)
+            Ok(users
+                .values()
+                .filter(|u| {
+                    u.realm_id == Some(*realm_id.as_uuid())
+                        && enabled.map_or(true, |e| u.enabled == e)
+                })
+                .count() as i64)
         }
 
         async fn search_users(
             &self,
             realm_id: RealmId,
             query: &str,
+            enabled: Option<bool>,
             offset: usize,
             limit: usize,
         ) -> Result<Vec<User>> {
@@ -883,12 +913,21 @@ mod tests {
             let query_lower = query.to_lowercase();
             let mut matched_users: Vec<User> = users
                 .values()
-                .filter(|u| u.realm_id == Some(*realm_id.as_uuid()))
                 .filter(|u| {
-                    u.username.to_lowercase().contains(&query_lower) ||
-                    u.email.to_lowercase().contains(&query_lower) ||
-                    u.nip.as_ref().map(|n| n.to_lowercase().contains(&query_lower)).unwrap_or(false) ||
-                    u.nama.as_ref().map(|n| n.to_lowercase().contains(&query_lower)).unwrap_or(false)
+                    u.realm_id == Some(*realm_id.as_uuid())
+                        && enabled.map_or(true, |e| u.enabled == e)
+                })
+                .filter(|u| {
+                    u.username.to_lowercase().contains(&query_lower)
+                        || u.email.to_lowercase().contains(&query_lower)
+                        || u.nip
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&query_lower))
+                            .unwrap_or(false)
+                        || u.nama
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&query_lower))
+                            .unwrap_or(false)
                 })
                 .cloned()
                 .collect();
@@ -897,17 +936,31 @@ mod tests {
             Ok(matched_users.into_iter().skip(offset).take(limit).collect())
         }
 
-        async fn count_search_users(&self, realm_id: RealmId, query: &str) -> Result<i64> {
+        async fn count_search_users(
+            &self,
+            realm_id: RealmId,
+            query: &str,
+            enabled: Option<bool>,
+        ) -> Result<i64> {
             let users = self.users.lock().await;
             let query_lower = query.to_lowercase();
             Ok(users
                 .values()
-                .filter(|u| u.realm_id == Some(*realm_id.as_uuid()))
                 .filter(|u| {
-                    u.username.to_lowercase().contains(&query_lower) ||
-                    u.email.to_lowercase().contains(&query_lower) ||
-                    u.nip.as_ref().map(|n| n.to_lowercase().contains(&query_lower)).unwrap_or(false) ||
-                    u.nama.as_ref().map(|n| n.to_lowercase().contains(&query_lower)).unwrap_or(false)
+                    u.realm_id == Some(*realm_id.as_uuid())
+                        && enabled.map_or(true, |e| u.enabled == e)
+                })
+                .filter(|u| {
+                    u.username.to_lowercase().contains(&query_lower)
+                        || u.email.to_lowercase().contains(&query_lower)
+                        || u.nip
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&query_lower))
+                            .unwrap_or(false)
+                        || u.nama
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&query_lower))
+                            .unwrap_or(false)
                 })
                 .count() as i64)
         }

@@ -7,10 +7,7 @@ use lib_ui::components::{BrandingEditor, ThemeEditor};
 
 /// Settings page component
 #[component]
-pub fn SettingsPage(
-    user_session: UserSession,
-    on_logout: Box<dyn Fn()>,
-) -> impl IntoView {
+pub fn SettingsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
     let (show_theme_editor, set_show_theme_editor) = signal(false);
     let (show_branding_editor, set_show_branding_editor) = signal(false);
 
@@ -147,7 +144,11 @@ pub fn SettingsPage(
 }
 
 #[component]
-fn SectionHeader(title: &'static str, desc: &'static str, icon_path: &'static str) -> impl IntoView {
+fn SectionHeader(
+    title: &'static str,
+    desc: &'static str,
+    icon_path: &'static str,
+) -> impl IntoView {
     view! {
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">

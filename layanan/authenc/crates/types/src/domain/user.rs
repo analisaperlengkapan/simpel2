@@ -84,9 +84,10 @@ impl SecretonAccessPolicy {
     pub fn can_access_path(&self, path: &str, satker_code: &str) -> bool {
         // Check denied paths first
         if let Some(denied) = &self.denied_paths
-            && denied.iter().any(|p| path.starts_with(p)) {
-                return false;
-            }
+            && denied.iter().any(|p| path.starts_with(p))
+        {
+            return false;
+        }
 
         // Check if satker is allowed
         if !self.allowed_satker_secrets.iter().any(|s| s == satker_code) {
@@ -380,17 +381,18 @@ impl Role {
         } else {
             // If scope is None, check for legacy attributes
             if let Some(attrs) = &self.attributes
-                && let Some(legacy_scope) = attrs.get("role_scope").and_then(|v| v.as_str()) {
-                    if legacy_scope == "global" || legacy_scope == "pusat" {
-                        return true;
-                    }
-                    if let Some(scope_satker) = legacy_scope.strip_prefix("satker:") {
-                        return scope_satker == satker_code;
-                    }
-                    if legacy_scope == satker_code {
-                        return true;
-                    }
+                && let Some(legacy_scope) = attrs.get("role_scope").and_then(|v| v.as_str())
+            {
+                if legacy_scope == "global" || legacy_scope == "pusat" {
+                    return true;
                 }
+                if let Some(scope_satker) = legacy_scope.strip_prefix("satker:") {
+                    return scope_satker == satker_code;
+                }
+                if legacy_scope == satker_code {
+                    return true;
+                }
+            }
         }
         false
     }

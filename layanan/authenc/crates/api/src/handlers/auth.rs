@@ -136,11 +136,14 @@ pub struct ErrorResponse {
     pub error: String,
     /// Error message
     pub message: String,
+    /// HTTP status code
+    #[serde(skip)]
+    pub status_code: StatusCode,
 }
 
 impl IntoResponse for ErrorResponse {
     fn into_response(self) -> Response {
-        (StatusCode::BAD_REQUEST, Json(self)).into_response()
+        (self.status_code, Json(self)).into_response()
     }
 }
 
@@ -217,28 +220,22 @@ pub async fn login_handler(
             ) {
                 Ok(t) => t,
                 Err(e) => {
-                    return (
-                        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                        axum::Json(ErrorResponse {
-                            error: "token_error".to_string(),
-                            message: e.to_string(),
-                        }),
-                    )
-                        .into_response();
+                    return ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "token_error".to_string(),
+                        message: e.to_string(),
+                    }.into_response();
                 }
             };
 
             let refresh_token = match state.jwt_service.generate_refresh_token(&uid, &sid) {
                 Ok(t) => t,
                 Err(e) => {
-                    return (
-                        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                        axum::Json(ErrorResponse {
-                            error: "token_error".to_string(),
-                            message: e.to_string(),
-                        }),
-                    )
-                        .into_response();
+                    return ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "token_error".to_string(),
+                        message: e.to_string(),
+                    }.into_response();
                 }
             };
 
@@ -415,14 +412,11 @@ pub async fn login_handler(
                 }
             };
 
-            (
-                axum::http::StatusCode::UNAUTHORIZED,
-                axum::Json(ErrorResponse {
-                    error: "authentication_failed".to_string(),
-                    message,
-                }),
-            )
-                .into_response()
+            ErrorResponse {
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                error: "authentication_failed".to_string(),
+                message,
+            }.into_response()
         }
 
         Err(e) => {
@@ -433,14 +427,11 @@ pub async fn login_handler(
                 "Internal error during authentication"
             );
 
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(ErrorResponse {
-                    error: "internal_error".to_string(),
-                    message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
-                }),
-            )
-                .into_response()
+            ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                error: "internal_error".to_string(),
+                message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+            }.into_response()
         }
     }
 }
@@ -485,14 +476,11 @@ pub async fn refresh_token_handler(
     let claims = match state.jwt_service.verify_token(&request.refresh_token) {
         Ok(c) => c,
         Err(_) => {
-            return (
-                axum::http::StatusCode::UNAUTHORIZED,
-                axum::Json(ErrorResponse {
-                    error: "invalid_token".to_string(),
-                    message: "Refresh token is invalid or expired".to_string(),
-                }),
-            )
-                .into_response();
+            return ErrorResponse {
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                error: "invalid_token".to_string(),
+                message: "Refresh token is invalid or expired".to_string(),
+            }.into_response();
         }
     };
 
@@ -536,14 +524,11 @@ pub async fn refresh_token_handler(
     ) {
         Ok(t) => t,
         Err(e) => {
-            return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(ErrorResponse {
-                    error: "token_error".to_string(),
-                    message: e.to_string(),
-                }),
-            )
-                .into_response();
+            return ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                error: "token_error".to_string(),
+                message: e.to_string(),
+            }.into_response();
         }
     };
 
@@ -551,14 +536,11 @@ pub async fn refresh_token_handler(
     let refresh_token = match state.jwt_service.generate_refresh_token(&uid, &sid) {
         Ok(t) => t,
         Err(e) => {
-            return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(ErrorResponse {
-                    error: "token_error".to_string(),
-                    message: e.to_string(),
-                }),
-            )
-                .into_response();
+            return ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                error: "token_error".to_string(),
+                message: e.to_string(),
+            }.into_response();
         }
     };
 
@@ -587,14 +569,11 @@ pub async fn get_current_user_handler(
     let user_uuid = match auth_helpers::extract_user_from_token(&state, &headers).await {
         Ok(u) => u,
         Err(e) => {
-            return (
-                axum::http::StatusCode::UNAUTHORIZED,
-                axum::Json(ErrorResponse {
-                    error: "unauthorized".to_string(),
-                    message: e.message,
-                }),
-            )
-                .into_response();
+            return ErrorResponse {
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                error: "unauthorized".to_string(),
+                message: e.message,
+            }.into_response();
         }
     };
 
@@ -636,14 +615,11 @@ pub async fn get_current_user_handler(
             )
                 .into_response()
         }
-        Err(e) => (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(ErrorResponse {
-                error: "internal_error".to_string(),
-                message: e.to_string(),
-            }),
-        )
-            .into_response(),
+        Err(e) => ErrorResponse {
+            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            error: "internal_error".to_string(),
+            message: e.to_string(),
+        }.into_response(),
     }
 }
 
@@ -702,6 +678,7 @@ pub async fn update_profile_handler(
     let user_uuid = auth_helpers::extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "unauthorized".to_string(),
             message: e.message,
         })?;
@@ -720,6 +697,7 @@ pub async fn update_profile_handler(
         .update_user(user_id, update_req)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "update_failed".to_string(),
             message: e.to_string(),
         })?;
@@ -765,6 +743,7 @@ pub async fn change_password_handler(
     let user_uuid = auth_helpers::extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "unauthorized".to_string(),
             message: e.message,
         })?;
@@ -773,6 +752,7 @@ pub async fn change_password_handler(
     let user = state.user_service.get_user(user_id).await.map_err(|e| {
         tracing::error!(error = %e, "Failed to get user for password change");
         ErrorResponse {
+            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             error: "internal_error".to_string(),
             message: "Gagal memproses perubahan password.".to_string(),
         }
@@ -787,6 +767,7 @@ pub async fn change_password_handler(
 
     if !valid {
         return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "invalid_password".to_string(),
             message: "Password saat ini salah.".to_string(),
         });
@@ -805,6 +786,7 @@ pub async fn change_password_handler(
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to update password");
             ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "internal_error".to_string(),
                 message: "Gagal mengubah password.".to_string(),
             }
@@ -821,6 +803,7 @@ pub async fn password_reset_request_handler(
     // NOTE: No auth required — public endpoint
     // TODO: Implement password reset email flow
     Err(ErrorResponse {
+        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         error: "not_implemented".to_string(),
         message: "Password reset request endpoint not yet implemented".to_string(),
     })
@@ -834,6 +817,7 @@ pub async fn password_reset_confirm_handler(
     // NOTE: No auth required — uses reset token
     // TODO: Implement password reset confirmation
     Err(ErrorResponse {
+        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         error: "not_implemented".to_string(),
         message: "Password reset confirm endpoint not yet implemented".to_string(),
     })

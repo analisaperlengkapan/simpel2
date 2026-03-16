@@ -147,7 +147,7 @@ pub async fn list_users(
     let (users, total) = if let Some(ref search) = params.search {
         state
             .user_service
-            .search_users_paginated(realm_id, search, offset, limit)
+            .search_users_paginated(realm_id, search, params.enabled, offset, limit)
             .await
             .map_err(crate::error::ApiError)?
     } else {

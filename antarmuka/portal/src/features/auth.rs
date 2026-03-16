@@ -205,7 +205,9 @@ impl AuthService {
                                                 .to_string(),
                                         )
                                     }
-                                } else if let Some(access_token) = login_resp.access_token.filter(|t| !t.is_empty()) {
+                                } else if let Some(access_token) =
+                                    login_resp.access_token.filter(|t| !t.is_empty())
+                                {
                                     // Full authentication complete
                                     Self::save_token(&access_token);
                                     if let Some(refresh_token) = &login_resp.refresh_token {
