@@ -134,7 +134,7 @@ pub async fn verify_totp_handler(
     // 7. Return verification result
 
     // Placeholder implementation
-    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+    Err(ErrorResponse { status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         error: "not_implemented".to_string(),
         message: "TOTP verify endpoint requires MFA services migration (Task 12)".to_string(),
     })
