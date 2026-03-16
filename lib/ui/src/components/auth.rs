@@ -202,7 +202,7 @@ pub fn LogoutButton(
 ) -> impl IntoView {
     let auth = use_auth();
 
-    let _auth_clone = auth;
+    let auth_clone = auth;
     let handle_logout = move || {
         auth_clone.logout();
     };
