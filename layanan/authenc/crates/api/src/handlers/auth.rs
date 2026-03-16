@@ -729,7 +729,16 @@ pub async fn change_password_handler(
     })?;
 
     // Verify current password
-    let stored_hash = user.password_hash.as_deref().unwrap_or("");
+    let stored_hash = match user.password_hash.as_deref() {
+        Some(h) if !h.is_empty() => h,
+        _ => {
+            return Err(ErrorResponse {
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                error: "no_password".to_string(),
+                message: "Akun ini tidak memiliki password. Silakan gunakan metode autentikasi lain.".to_string(),
+            });
+        }
+    };
     let valid = state
         .auth_service
         .verify_password(&request.current_password, stored_hash)
