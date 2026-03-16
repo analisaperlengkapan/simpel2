@@ -286,13 +286,41 @@ pub async fn mfa_verify_handler(
     // Generate full JWT tokens (MFA verification succeeded)
     let session_id = Uuid::new_v4().to_string();
 
+    // Fetch user to build custom claims
+    let user = state.user_service.get_user(authenc_types::UserId::from_uuid(user_id)).await.ok();
+
+    // Build custom claims
+    let mut custom_claims = std::collections::HashMap::new();
+    if let Some(ref u) = user {
+        if let Some(ref nip) = u.nip {
+            custom_claims.insert("nip".into(), serde_json::json!(nip));
+        }
+        if let Some(ref nama) = u.nama {
+            custom_claims.insert("name".into(), serde_json::json!(nama));
+        }
+        custom_claims.insert("preferred_username".into(), serde_json::json!(u.username));
+        if let Some(ref jabatan) = u.jabatan {
+            custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
+        }
+        if !u.satker_code.is_empty() {
+            custom_claims.insert("satker_code".into(), serde_json::json!(u.satker_code));
+        }
+        if !u.email.is_empty() {
+            custom_claims.insert("email".into(), serde_json::json!(u.email));
+        }
+        // Roles
+        let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
+        custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
+    }
+
     let access_token = state
         .jwt_service
-        .generate_access_token(
+        .generate_access_token_with_claims(
             &user_id.to_string(),
             Some("simpel".to_string()),
             Some("openid profile email".to_string()),
             Some(session_id.clone()),
+            custom_claims,
         )
         .map_err(|e| MfaApiError::internal(format!("Failed to generate access token: {}", e)))?;
 
@@ -483,13 +511,41 @@ pub async fn mfa_verify_recovery_handler(
     // Generate full JWT tokens
     let session_id = Uuid::new_v4().to_string();
 
+    // Fetch user to build custom claims
+    let user = state.user_service.get_user(authenc_types::UserId::from_uuid(user_id)).await.ok();
+
+    // Build custom claims
+    let mut custom_claims = std::collections::HashMap::new();
+    if let Some(ref u) = user {
+        if let Some(ref nip) = u.nip {
+            custom_claims.insert("nip".into(), serde_json::json!(nip));
+        }
+        if let Some(ref nama) = u.nama {
+            custom_claims.insert("name".into(), serde_json::json!(nama));
+        }
+        custom_claims.insert("preferred_username".into(), serde_json::json!(u.username));
+        if let Some(ref jabatan) = u.jabatan {
+            custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
+        }
+        if !u.satker_code.is_empty() {
+            custom_claims.insert("satker_code".into(), serde_json::json!(u.satker_code));
+        }
+        if !u.email.is_empty() {
+            custom_claims.insert("email".into(), serde_json::json!(u.email));
+        }
+        // Roles
+        let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
+        custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
+    }
+
     let access_token = state
         .jwt_service
-        .generate_access_token(
+        .generate_access_token_with_claims(
             &user_id.to_string(),
             Some("simpel".to_string()),
             Some("openid profile email".to_string()),
             Some(session_id.clone()),
+            custom_claims,
         )
         .map_err(|e| MfaApiError::internal(format!("Failed to generate access token: {}", e)))?;
 
