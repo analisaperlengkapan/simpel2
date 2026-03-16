@@ -105,7 +105,7 @@ pub async fn disable_totp_handler(
     // 4. Audit log the MFA disable event
 
     // Placeholder implementation
-    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+    Err(ErrorResponse { status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         error: "not_implemented".to_string(),
         message: "TOTP disable endpoint requires MFA services migration (Task 12)".to_string(),
     })
