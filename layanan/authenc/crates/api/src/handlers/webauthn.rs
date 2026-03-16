@@ -300,7 +300,7 @@ pub async fn finish_authentication_handler(
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to generate access token");
             ErrorResponse {
-                status_code: axum::http::StatusCode::BAD_REQUEST,
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "token_generation_failed".to_string(),
                 message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
             }
