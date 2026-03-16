@@ -203,6 +203,7 @@ pub async fn create_user(
         organization_id: None,
         roles: None,
         attributes: None,
+        enabled: req.enabled,
     };
 
     let user = state

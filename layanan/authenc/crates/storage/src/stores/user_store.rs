@@ -789,6 +789,7 @@ mod tests {
                 organization_id: None,
                 roles: None,
                 attributes: None,
+            enabled: None,
             };
 
             assert_eq!(req.username, "testuser");

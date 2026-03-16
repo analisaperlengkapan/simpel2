@@ -72,6 +72,7 @@ fn test_create_request() -> CreateUserRequest {
         organization_id: None,
         roles: None,
         attributes: None,
+        enabled: None,
     }
 }
 

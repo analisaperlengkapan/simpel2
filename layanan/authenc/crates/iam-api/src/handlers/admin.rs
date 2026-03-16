@@ -293,6 +293,7 @@ pub async fn create_user(
         organization_id: None,
         roles: None,
         attributes: None,
+        enabled: body.enabled,
     };
 
     let user = state
