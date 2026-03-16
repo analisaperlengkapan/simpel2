@@ -51,7 +51,7 @@ pub fn SettingsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl
                             <AccountField label="NIP" value=user_session.nip.clone().unwrap_or_else(|| user_session.username.clone()) />
                             <AccountField label="Nama" value=user_session.name.clone() />
                             <AccountField label="Jabatan" value=user_session.jabatan.clone().unwrap_or_else(|| "-".into()) />
-                            <AccountField label="Satuan Kerja" value=user_session.satker_code.clone().unwrap_or_else(|| "-".into()) />
+                            <AccountField label="Satuan Kerja" value=user_session.division.clone() />
                             <AccountField label="Role" value=user_session.role.display_name() />
                         </div>
                     </div>
