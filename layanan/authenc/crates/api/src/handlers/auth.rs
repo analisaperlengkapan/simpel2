@@ -197,7 +197,7 @@ pub async fn login_handler(
             let access_token = match state.jwt_service.generate_access_token_with_claims(
                 &uid,
                 None,
-                Some("openid profile".to_string()),
+                Some("openid profile email".to_string()),
                 Some(sid.clone()),
                 custom_claims,
             ) {
@@ -488,7 +488,7 @@ pub async fn refresh_token_handler(
     let access_token = match state.jwt_service.generate_access_token_with_claims(
         &uid,
         None,
-        Some("openid profile".to_string()),
+        Some("openid profile email".to_string()),
         Some(sid.clone()),
         custom_claims,
     ) {

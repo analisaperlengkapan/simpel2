@@ -251,7 +251,7 @@ pub async fn mfa_verify_setup_handler(
 /// {
 ///   "access_token": "eyJ...",
 ///   "token_type": "Bearer",
-///   "expires_in": 3600,
+///   "expires_in": 900,
 ///   "refresh_token": "eyJ..."
 /// }
 /// ```
@@ -315,7 +315,7 @@ pub async fn mfa_verify_handler(
     Ok(Json(MfaVerifyResponse {
         access_token,
         token_type: "Bearer".to_string(),
-        expires_in: 3600,
+        expires_in: 900,
         refresh_token,
     }))
 }
@@ -523,7 +523,7 @@ pub async fn mfa_verify_recovery_handler(
     Ok(Json(MfaVerifyResponse {
         access_token,
         token_type: "Bearer".to_string(),
-        expires_in: 3600,
+        expires_in: 900,
         refresh_token,
     }))
 }
@@ -587,14 +587,14 @@ mod tests {
         let response = MfaVerifyResponse {
             access_token: "jwt_access".to_string(),
             token_type: "Bearer".to_string(),
-            expires_in: 3600,
+            expires_in: 900,
             refresh_token: "jwt_refresh".to_string(),
         };
 
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("access_token"));
         assert!(json.contains("Bearer"));
-        assert!(json.contains("3600"));
+        assert!(json.contains("900"));
     }
 
     #[test]
