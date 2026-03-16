@@ -7,7 +7,7 @@ use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos_router;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen_futures::spawn_local;
+use leptos::task::spawn_local;
 
 /// Backup code verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]

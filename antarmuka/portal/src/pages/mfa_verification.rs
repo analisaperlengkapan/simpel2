@@ -8,7 +8,7 @@ use leptos::prelude::*;
 use leptos_router;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen_futures::spawn_local;
+use leptos::task::spawn_local;
 
 /// MFA verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
