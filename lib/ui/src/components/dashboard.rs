@@ -368,7 +368,7 @@ pub fn LineChart(
             >
                 // Grid lines
                 {show_grid.then(|| {
-                    let grid_lines = (0..5)
+                    (0..5)
                         .map(|i| {
                             let y = padding + (chart_height / 4) * i;
                             view! {

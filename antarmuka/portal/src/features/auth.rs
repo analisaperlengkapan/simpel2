@@ -205,7 +205,7 @@ impl AuthService {
                                                 .to_string(),
                                         )
                                     }
-                                } else if let Some(access_token) = login_resp.access_token {
+                                } else if let Some(access_token) = login_resp.access_token.filter(|t| !t.is_empty()) {
                                     // Full authentication complete
                                     Self::save_token(&access_token);
                                     if let Some(refresh_token) = &login_resp.refresh_token {
@@ -391,9 +391,7 @@ impl AuthService {
             nip: claims.nip.clone(),
             jabatan: claims.jabatan.clone(),
             satker_code: claims.satker_code.clone(),
-            division: claims
-                .satker_code
-                .unwrap_or_else(|| "Bagian Umum".to_string()),
+            division: "Bagian Umum".to_string(),
             captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,
             mfa_setup_required: claims.mfa_setup_required,
