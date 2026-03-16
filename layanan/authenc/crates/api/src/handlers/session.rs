@@ -75,7 +75,7 @@ pub async fn list_sessions_handler(
     let claims = state
         .jwt_service
         .verify_token(&token)
-        .map_err(|e| ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+        .map_err(|e| ErrorResponse { status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "unauthorized".to_string(),
             message: format!("Invalid token: {}", e),
         })?;
