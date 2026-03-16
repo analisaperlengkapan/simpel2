@@ -122,7 +122,11 @@ pub async fn get_system_stats(
     let realm_id = RealmId::from_uuid(Uuid::nil());
 
     let total_users = state.user_service.count_users(realm_id).await.unwrap_or(0);
-    let active_users = state.user_service.count_enabled_users(realm_id).await.unwrap_or(0);
+    let active_users = state
+        .user_service
+        .count_enabled_users(realm_id)
+        .await
+        .unwrap_or(0);
 
     let stats = SystemStats {
         total_users,
@@ -147,7 +151,11 @@ pub async fn get_dashboard_data(
 ) -> ApiResult<Json<serde_json::Value>> {
     let realm_id = RealmId::from_uuid(Uuid::nil());
     let total_users = state.user_service.count_users(realm_id).await.unwrap_or(0);
-    let active_users = state.user_service.count_enabled_users(realm_id).await.unwrap_or(0);
+    let active_users = state
+        .user_service
+        .count_enabled_users(realm_id)
+        .await
+        .unwrap_or(0);
 
     let dashboard = serde_json::json!({
         "total_users": total_users,
@@ -175,7 +183,7 @@ pub async fn list_users(
     let (users, total) = if let Some(ref search) = query.search {
         state
             .user_service
-            .search_users_paginated(realm_id, search, offset, limit)
+            .search_users_paginated(realm_id, search, query.enabled, offset, limit)
             .await
             .map_err(ApiError)?
     } else {

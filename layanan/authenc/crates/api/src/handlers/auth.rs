@@ -136,11 +136,14 @@ pub struct ErrorResponse {
     pub error: String,
     /// Error message
     pub message: String,
+    /// HTTP status code
+    #[serde(skip)]
+    pub status_code: StatusCode,
 }
 
 impl IntoResponse for ErrorResponse {
     fn into_response(self) -> Response {
-        (StatusCode::BAD_REQUEST, Json(self)).into_response()
+        (self.status_code, Json(self)).into_response()
     }
 }
 
@@ -221,6 +224,7 @@ pub async fn login_handler(
                         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         axum::Json(ErrorResponse {
                             error: "token_error".to_string(),
+                            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                             message: e.to_string(),
                         }),
                     )
@@ -235,6 +239,7 @@ pub async fn login_handler(
                         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         axum::Json(ErrorResponse {
                             error: "token_error".to_string(),
+                            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                             message: e.to_string(),
                         }),
                     )
@@ -368,7 +373,14 @@ pub async fn login_handler(
                                                         error = %e,
                                                         "Failed to disable auto-provisioned user, rolling back creation"
                                                     );
-                                                    let _ = state.user_service.delete_user(authenc_types::UserId::from_uuid(user.id)).await;
+                                                    let _ = state
+                                                        .user_service
+                                                        .delete_user(
+                                                            authenc_types::UserId::from_uuid(
+                                                                user.id,
+                                                            ),
+                                                        )
+                                                        .await;
                                                 }
                                             }
                                         }
@@ -419,6 +431,7 @@ pub async fn login_handler(
                 axum::http::StatusCode::UNAUTHORIZED,
                 axum::Json(ErrorResponse {
                     error: "authentication_failed".to_string(),
+                    status_code: axum::http::StatusCode::UNAUTHORIZED,
                     message,
                 }),
             )
@@ -437,6 +450,7 @@ pub async fn login_handler(
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 axum::Json(ErrorResponse {
                     error: "internal_error".to_string(),
+                    status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                     message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
                 }),
             )
@@ -489,6 +503,7 @@ pub async fn refresh_token_handler(
                 axum::http::StatusCode::UNAUTHORIZED,
                 axum::Json(ErrorResponse {
                     error: "invalid_token".to_string(),
+                    status_code: axum::http::StatusCode::UNAUTHORIZED,
                     message: "Refresh token is invalid or expired".to_string(),
                 }),
             )
@@ -511,7 +526,10 @@ pub async fn refresh_token_handler(
             if let Some(ref nama) = user.nama {
                 custom_claims.insert("name".into(), serde_json::json!(nama));
             }
-            custom_claims.insert("preferred_username".into(), serde_json::json!(user.username));
+            custom_claims.insert(
+                "preferred_username".into(),
+                serde_json::json!(user.username),
+            );
             if let Some(ref jabatan) = user.jabatan {
                 custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
             }
@@ -540,6 +558,7 @@ pub async fn refresh_token_handler(
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 axum::Json(ErrorResponse {
                     error: "token_error".to_string(),
+                    status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                     message: e.to_string(),
                 }),
             )
@@ -555,6 +574,7 @@ pub async fn refresh_token_handler(
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 axum::Json(ErrorResponse {
                     error: "token_error".to_string(),
+                    status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                     message: e.to_string(),
                 }),
             )
@@ -591,6 +611,7 @@ pub async fn get_current_user_handler(
                 axum::http::StatusCode::UNAUTHORIZED,
                 axum::Json(ErrorResponse {
                     error: "unauthorized".to_string(),
+                    status_code: axum::http::StatusCode::UNAUTHORIZED,
                     message: e.message,
                 }),
             )
@@ -626,7 +647,11 @@ pub async fn get_current_user_handler(
                     phone: user.phone_number,
                     avatar: None,
                     division: Some(user.satker_code.clone()).filter(|s| !s.is_empty()),
-                    role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
+                    role: user
+                        .roles
+                        .first()
+                        .map(|r| r.name.clone())
+                        .unwrap_or_else(|| "user".to_string()),
                     permissions: Vec::new(),
                     email_verified: user.email_verified,
                     mfa_enabled: user.mfa_enabled,
@@ -640,6 +665,7 @@ pub async fn get_current_user_handler(
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(ErrorResponse {
                 error: "internal_error".to_string(),
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 message: e.to_string(),
             }),
         )
@@ -703,6 +729,7 @@ pub async fn update_profile_handler(
         .await
         .map_err(|e| ErrorResponse {
             error: "unauthorized".to_string(),
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             message: e.message,
         })?;
 
@@ -721,6 +748,7 @@ pub async fn update_profile_handler(
         .await
         .map_err(|e| ErrorResponse {
             error: "update_failed".to_string(),
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             message: e.to_string(),
         })?;
 
@@ -747,7 +775,11 @@ pub async fn update_profile_handler(
         phone: user.phone_number,
         avatar: None,
         division: Some(user.satker_code.clone()).filter(|s| !s.is_empty()),
-        role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
+        role: user
+            .roles
+            .first()
+            .map(|r| r.name.clone())
+            .unwrap_or_else(|| "user".to_string()),
         permissions: Vec::new(),
         email_verified: user.email_verified,
         mfa_enabled: user.mfa_enabled,
@@ -766,6 +798,7 @@ pub async fn change_password_handler(
         .await
         .map_err(|e| ErrorResponse {
             error: "unauthorized".to_string(),
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             message: e.message,
         })?;
 
@@ -774,6 +807,7 @@ pub async fn change_password_handler(
         tracing::error!(error = %e, "Failed to get user for password change");
         ErrorResponse {
             error: "internal_error".to_string(),
+            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             message: "Gagal memproses perubahan password.".to_string(),
         }
     })?;
@@ -788,6 +822,7 @@ pub async fn change_password_handler(
     if !valid {
         return Err(ErrorResponse {
             error: "invalid_password".to_string(),
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             message: "Password saat ini salah.".to_string(),
         });
     }
@@ -806,6 +841,7 @@ pub async fn change_password_handler(
             tracing::error!(error = %e, "Failed to update password");
             ErrorResponse {
                 error: "internal_error".to_string(),
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 message: "Gagal mengubah password.".to_string(),
             }
         })?;
@@ -822,6 +858,7 @@ pub async fn password_reset_request_handler(
     // TODO: Implement password reset email flow
     Err(ErrorResponse {
         error: "not_implemented".to_string(),
+        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         message: "Password reset request endpoint not yet implemented".to_string(),
     })
 }
@@ -835,6 +872,7 @@ pub async fn password_reset_confirm_handler(
     // TODO: Implement password reset confirmation
     Err(ErrorResponse {
         error: "not_implemented".to_string(),
+        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         message: "Password reset confirm endpoint not yet implemented".to_string(),
     })
 }

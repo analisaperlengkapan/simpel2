@@ -784,23 +784,25 @@ pub async fn query_users_advanced(
 
     // Full-text search across username, email, first_name, last_name
     if let Some(search_term) = search
-        && !search_term.is_empty() {
-            where_clauses.push(format!(
+        && !search_term.is_empty()
+    {
+        where_clauses.push(format!(
                 "(username ILIKE ${} OR email ILIKE ${} OR first_name ILIKE ${} OR last_name ILIKE ${})",
                 param_index, param_index, param_index, param_index
             ));
-            let search_pattern = format!("%{}%", search_term);
-            params.push(Box::new(search_pattern));
-            param_index += 1;
-        }
+        let search_pattern = format!("%{}%", search_term);
+        params.push(Box::new(search_pattern));
+        param_index += 1;
+    }
 
     // Email filter
     if let Some(email_pattern) = email_filter
-        && !email_pattern.is_empty() {
-            where_clauses.push(format!("email ILIKE ${}", param_index));
-            params.push(Box::new(format!("%{}%", email_pattern)));
-            param_index += 1;
-        }
+        && !email_pattern.is_empty()
+    {
+        where_clauses.push(format!("email ILIKE ${}", param_index));
+        params.push(Box::new(format!("%{}%", email_pattern)));
+        param_index += 1;
+    }
 
     // Enabled filter
     if let Some(enabled) = enabled_filter {

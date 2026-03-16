@@ -71,6 +71,7 @@ pub async fn validate_token_handler(
 
     // For now, return placeholder response
     Err(ErrorResponse {
+        status_code: axum::http::StatusCode::BAD_REQUEST,
         error: "not_implemented".to_string(),
         message: "Token validation endpoint not yet implemented".to_string(),
     })
@@ -127,6 +128,7 @@ pub async fn introspect_handler(
     // Similar to validate but requires client authentication
 
     Err(ErrorResponse {
+        status_code: axum::http::StatusCode::BAD_REQUEST,
         error: "not_implemented".to_string(),
         message: "Token introspection endpoint not yet implemented".to_string(),
     })

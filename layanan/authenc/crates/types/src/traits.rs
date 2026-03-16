@@ -66,6 +66,7 @@ pub trait UserStore: Send + Sync {
         &self,
         realm_id: RealmId,
         _query: &str,
+        _enabled: Option<bool>,
         offset: usize,
         limit: usize,
     ) -> Result<Vec<User>> {
@@ -74,9 +75,14 @@ pub trait UserStore: Send + Sync {
     }
 
     /// Count users matching a search query
-    async fn count_search_users(&self, realm_id: RealmId, query: &str) -> Result<i64> {
+    async fn count_search_users(
+        &self,
+        realm_id: RealmId,
+        query: &str,
+        enabled: Option<bool>,
+    ) -> Result<i64> {
         let users = self
-            .search_users(realm_id, query, 0, i64::MAX as usize)
+            .search_users(realm_id, query, enabled, 0, i64::MAX as usize)
             .await?;
         Ok(users.len() as i64)
     }

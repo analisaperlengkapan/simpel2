@@ -85,9 +85,7 @@ impl Database {
 
         info!("Database connection pool initialized successfully");
 
-        Ok(Self {
-            pool,
-        })
+        Ok(Self { pool })
     }
 
     /// Get a connection from the pool
@@ -242,9 +240,7 @@ impl Database {
             .await
             .map_err(|e| AuthencError::database(format!("Failed to begin transaction: {}", e)))?;
 
-        let db_tx = DatabaseTransaction {
-            tx,
-        };
+        let db_tx = DatabaseTransaction { tx };
 
         let result = f(db_tx).await?;
 
@@ -275,10 +271,9 @@ impl<'a> DatabaseTransaction<'a> {
         query: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<u64> {
-        let stmt = self.tx
-            .prepare_cached(query)
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to prepare statement in transaction: {}", e)))?;
+        let stmt = self.tx.prepare_cached(query).await.map_err(|e| {
+            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
+        })?;
 
         self.tx
             .execute(&stmt, params)
@@ -292,10 +287,9 @@ impl<'a> DatabaseTransaction<'a> {
         query: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Row> {
-        let stmt = self.tx
-            .prepare_cached(query)
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to prepare statement in transaction: {}", e)))?;
+        let stmt = self.tx.prepare_cached(query).await.map_err(|e| {
+            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
+        })?;
 
         self.tx
             .query_one(&stmt, params)
@@ -309,10 +303,9 @@ impl<'a> DatabaseTransaction<'a> {
         query: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Option<Row>> {
-        let stmt = self.tx
-            .prepare_cached(query)
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to prepare statement in transaction: {}", e)))?;
+        let stmt = self.tx.prepare_cached(query).await.map_err(|e| {
+            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
+        })?;
 
         self.tx
             .query_opt(&stmt, params)
@@ -326,10 +319,9 @@ impl<'a> DatabaseTransaction<'a> {
         query: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Vec<Row>> {
-        let stmt = self.tx
-            .prepare_cached(query)
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to prepare statement in transaction: {}", e)))?;
+        let stmt = self.tx.prepare_cached(query).await.map_err(|e| {
+            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
+        })?;
 
         self.tx
             .query(&stmt, params)

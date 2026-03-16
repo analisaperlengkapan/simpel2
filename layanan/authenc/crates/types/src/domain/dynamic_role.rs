@@ -646,7 +646,6 @@ pub trait DynamicRoleStore: Send + Sync {
 /// Helper module for migrating from hardcoded enums to dynamic roles
 pub mod migration {
 
-
     /// Map old OrganizationRole enum value to new role type code
     pub fn map_organization_role(old_value: &str) -> &str {
         match old_value.to_uppercase().as_str() {
