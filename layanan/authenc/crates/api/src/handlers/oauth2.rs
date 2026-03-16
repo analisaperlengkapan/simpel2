@@ -163,7 +163,7 @@ pub async fn authorize_handler(
     // 7. Redirect to redirect_uri with code and state
 
     Err(ErrorResponse {
-        status_code: axum::http::StatusCode::BAD_REQUEST,
+        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         error: "not_implemented".to_string(),
         message: "OAuth2 authorize endpoint not yet implemented".to_string(),
     })
@@ -193,7 +193,7 @@ pub async fn token_handler(
     // 5. Return token response
 
     Err(ErrorResponse {
-        status_code: axum::http::StatusCode::BAD_REQUEST,
+        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         error: "not_implemented".to_string(),
         message: "OAuth2 token endpoint not yet implemented".to_string(),
     })
@@ -261,7 +261,7 @@ pub async fn userinfo_handler(
     // 4. Return claims based on requested scopes
 
     Err(ErrorResponse {
-        status_code: axum::http::StatusCode::BAD_REQUEST,
+        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         error: "not_implemented".to_string(),
         message: "OIDC UserInfo endpoint not yet implemented".to_string(),
     })
