@@ -377,6 +377,12 @@ impl AuthService {
         let username = claims.preferred_username.unwrap_or(claims.sub.clone());
         let permissions = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
 
+        let division = match claims.satker_code.as_deref() {
+            Some("0100000") => "Bagian Umum".to_string(),
+            Some(code) => format!("Satuan Kerja {}", code),
+            None => "Bagian Umum".to_string(),
+        };
+
         Ok(UserSession {
             id: claims.sub,
             username: username.clone(),
@@ -391,7 +397,7 @@ impl AuthService {
             nip: claims.nip.clone(),
             jabatan: claims.jabatan.clone(),
             satker_code: claims.satker_code.clone(),
-            division: "Bagian Umum".to_string(),
+            division,
             captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,
             mfa_setup_required: claims.mfa_setup_required,

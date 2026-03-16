@@ -293,26 +293,28 @@ pub async fn create_user(
         .await
         .map_err(ApiError)?;
 
+    let mut final_user = user;
     // If enabled is specified as false, disable the user (default is enabled)
     if body.enabled == Some(false) {
-        let _ = state
+        final_user = state
             .user_service
             .update_user(
-                authenc_types::domain_types::UserId::from_uuid(user.id),
+                authenc_types::domain_types::UserId::from_uuid(final_user.id),
                 UpdateUserRequest {
                     enabled: Some(false),
                     ..Default::default()
                 },
             )
-            .await;
+            .await
+            .map_err(ApiError)?;
     }
 
     Ok(Json(serde_json::json!({
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "enabled": user.enabled,
-        "created_at": user.created_at,
+        "id": final_user.id,
+        "username": final_user.username,
+        "email": final_user.email,
+        "enabled": final_user.enabled,
+        "created_at": final_user.created_at,
     })))
 }
 
