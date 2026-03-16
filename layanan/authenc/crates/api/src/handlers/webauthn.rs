@@ -279,7 +279,7 @@ pub async fn finish_authentication_handler(
         authenc_webauthn::AuthenticationResult::Failed { reason } => {
             tracing::warn!(reason = %reason, "Passkey authentication failed");
             return Err(ErrorResponse {
-                status_code: axum::http::StatusCode::BAD_REQUEST,
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
                 error: "authentication_failed".to_string(),
                 message: "Autentikasi passkey gagal. Silakan coba lagi.".to_string(),
             });
