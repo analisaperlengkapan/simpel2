@@ -428,23 +428,13 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
         // ============================================================
         .route(
             "/api/v1/iam/admin/identity-providers",
-            get(admin::list_identity_providers),
+            get(admin::list_identity_providers).post(admin::create_identity_provider),
         )
         .route(
             "/api/v1/iam/admin/identity-providers/{id}",
-            get(admin::get_identity_provider),
-        )
-        .route(
-            "/api/v1/iam/admin/identity-providers",
-            post(admin::create_identity_provider),
-        )
-        .route(
-            "/api/v1/iam/admin/identity-providers/{id}",
-            put(admin::update_identity_provider),
-        )
-        .route(
-            "/api/v1/iam/admin/identity-providers/{id}",
-            delete(admin::delete_identity_provider),
+            get(admin::get_identity_provider)
+                .put(admin::update_identity_provider)
+                .delete(admin::delete_identity_provider),
         )
         .route(
             "/api/v1/iam/admin/identity-providers/{id}/test",
