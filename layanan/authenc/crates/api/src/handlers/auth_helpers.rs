@@ -138,6 +138,33 @@ pub fn verify_self_or_admin(
     Ok(())
 }
 
+/// Builds custom JWT claims for a user (NIP, name, jabatan, etc.)
+pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::collections::HashMap<String, serde_json::Value> {
+    let mut custom_claims = std::collections::HashMap::new();
+    if let Some(u) = user {
+        if let Some(ref nip) = u.nip {
+            custom_claims.insert("nip".into(), serde_json::json!(nip));
+        }
+        if let Some(ref nama) = u.nama {
+            custom_claims.insert("name".into(), serde_json::json!(nama));
+        }
+        custom_claims.insert("preferred_username".into(), serde_json::json!(u.username));
+        if let Some(ref jabatan) = u.jabatan {
+            custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
+        }
+        if !u.satker_code.is_empty() {
+            custom_claims.insert("satker_code".into(), serde_json::json!(u.satker_code));
+        }
+        if !u.email.is_empty() {
+            custom_claims.insert("email".into(), serde_json::json!(u.email));
+        }
+        // Roles
+        let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
+        custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
+    }
+    custom_claims
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
