@@ -289,13 +289,24 @@ pub async fn finish_authentication_handler(
     // Generate JWT tokens using JwtService
     let session_id = uuid::Uuid::new_v4().to_string();
 
+    // Fetch user to build custom claims
+    let user = state.user_service.get_user(user_id.clone()).await.ok();
+
+    if user.is_none() {
+        tracing::warn!("Failed to fetch user details for passkey token claims mapping");
+    }
+
+    // Build custom claims
+    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(user.as_ref());
+
     let access_token = state
         .jwt_service
-        .generate_access_token(
+        .generate_access_token_with_claims(
             &user_id.0.to_string(),
             None,                                     // realm
             Some("openid profile email".to_string()), // scope
             Some(session_id.clone()),
+            custom_claims,
         )
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to generate access token");

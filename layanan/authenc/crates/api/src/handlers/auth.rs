@@ -187,34 +187,17 @@ pub async fn login_handler(
                 .map(|u| u.require_password_change)
                 .unwrap_or(false);
 
-            // Enrich JWT with pegawai data
-            let mut custom_claims = std::collections::HashMap::new();
-            if let Some(ref u) = user {
-                if let Some(ref nip) = u.nip {
-                    custom_claims.insert("nip".into(), serde_json::json!(nip));
-                }
-                if let Some(ref nama) = u.nama {
-                    custom_claims.insert("name".into(), serde_json::json!(nama));
-                }
-                custom_claims.insert("preferred_username".into(), serde_json::json!(u.username));
-                if let Some(ref jabatan) = u.jabatan {
-                    custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
-                }
-                if !u.satker_code.is_empty() {
-                    custom_claims.insert("satker_code".into(), serde_json::json!(u.satker_code));
-                }
-                if !u.email.is_empty() {
-                    custom_claims.insert("email".into(), serde_json::json!(u.email));
-                }
-                // Roles
-                let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
-                custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
+            if user.is_none() {
+                tracing::warn!("Failed to fetch user details for token claims mapping");
             }
+
+            // Enrich JWT with pegawai data
+            let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(user.as_ref());
 
             let access_token = match state.jwt_service.generate_access_token_with_claims(
                 &uid,
                 None,
-                Some("openid profile".to_string()),
+                Some("openid profile email".to_string()),
                 Some(sid.clone()),
                 custom_claims,
             ) {
@@ -492,33 +475,20 @@ pub async fn refresh_token_handler(
     let mut custom_claims = std::collections::HashMap::new();
     if let Ok(user_uuid) = uid.parse::<Uuid>() {
         let user_id = authenc_types::UserId::from_uuid(user_uuid);
-        if let Ok(user) = state.user_service.get_user(user_id).await {
-            if let Some(ref nip) = user.nip {
-                custom_claims.insert("nip".into(), serde_json::json!(nip));
-            }
-            if let Some(ref nama) = user.nama {
-                custom_claims.insert("name".into(), serde_json::json!(nama));
-            }
-            custom_claims.insert("preferred_username".into(), serde_json::json!(user.username));
-            if let Some(ref jabatan) = user.jabatan {
-                custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
-            }
-            if !user.satker_code.is_empty() {
-                custom_claims.insert("satker_code".into(), serde_json::json!(user.satker_code));
-            }
-            if !user.email.is_empty() {
-                custom_claims.insert("email".into(), serde_json::json!(user.email));
-            }
-            let roles: Vec<String> = user.roles.iter().map(|r| r.name.clone()).collect();
-            custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
+        let user = state.user_service.get_user(user_id).await.ok();
+
+        if user.is_none() {
+            tracing::warn!("Failed to fetch user details for refresh token claims mapping");
         }
+
+        custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(user.as_ref());
     }
 
     // Generate new access token with custom claims (keep same session_id)
     let access_token = match state.jwt_service.generate_access_token_with_claims(
         &uid,
         None,
-        Some("openid profile".to_string()),
+        Some("openid profile email".to_string()),
         Some(sid.clone()),
         custom_claims,
     ) {
