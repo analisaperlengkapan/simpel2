@@ -1005,6 +1005,7 @@ mod tests {
             organization_id: None,
             roles: None,
             attributes: None,
+            enabled: None,
         }
     }
 

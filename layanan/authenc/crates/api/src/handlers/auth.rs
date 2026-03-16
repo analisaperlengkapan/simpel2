@@ -324,6 +324,7 @@ pub async fn login_handler(
                                             organization_id: None,
                                             roles: None,
                                             attributes: None,
+                                            enabled: Some(false), // Disable initially
                                         };
                                         match state.user_service.create_user(create_req).await {
                                             Ok(user) => {

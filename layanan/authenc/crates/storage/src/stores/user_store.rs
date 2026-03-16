@@ -242,6 +242,7 @@ impl UserStore for PostgresUserStore {
             RETURNING *
         "#;
 
+        let enabled = req.enabled.unwrap_or(true);
         let row = self
             .db
             .query_one(
@@ -251,7 +252,7 @@ impl UserStore for PostgresUserStore {
                     &req.username,
                     &req.email,
                     &req.password, // Note: This should be hashed before calling create_user
-                    &true,         // enabled by default
+                    &enabled,      // enabled by default
                     &false,        // email_verified = false by default
                     &false,        // mfa_enabled = false by default
                     &req.realm_id,
