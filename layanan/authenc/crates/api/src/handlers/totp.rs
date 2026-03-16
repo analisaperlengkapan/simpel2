@@ -80,7 +80,7 @@ pub async fn enable_totp_handler(
     // 6. Audit log the MFA enable event
 
     // Placeholder implementation
-    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+    Err(ErrorResponse { status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
         error: "not_implemented".to_string(),
         message: "TOTP enable endpoint requires MFA services migration (Task 12)".to_string(),
     })
