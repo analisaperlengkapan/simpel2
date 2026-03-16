@@ -212,22 +212,7 @@ pub async fn create_user(
         .await
         .map_err(crate::error::ApiError)?;
 
-    let mut final_user = user;
-    if req.enabled == Some(false) {
-        final_user = state
-            .user_service
-            .update_user(
-                UserId::from_uuid(final_user.id),
-                authenc_types::domain::UpdateUserRequest {
-                    enabled: Some(false),
-                    ..Default::default()
-                },
-            )
-            .await
-            .map_err(crate::error::ApiError)?;
-    }
-
-    Ok((StatusCode::CREATED, Json(user_to_response(&final_user))))
+    Ok((StatusCode::CREATED, Json(user_to_response(&user))))
 }
 
 /// GET /api/v1/iam/users/{id} - Get user details
