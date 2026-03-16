@@ -766,7 +766,13 @@ mod tests {
                 user.email = email;
             }
             if let Some(password) = req.password {
-                user.password_hash = Some(password);
+                // If it's already hashed by the service, store it as is.
+                // Otherwise, for tests passing plaintext, simulate hashing.
+                if password.starts_with("hashed_") || password.starts_with("$argon2id") {
+                    user.password_hash = Some(password);
+                } else {
+                    user.password_hash = Some(format!("hashed_{}", password));
+                }
             }
             if let Some(enabled) = req.enabled {
                 user.enabled = enabled;

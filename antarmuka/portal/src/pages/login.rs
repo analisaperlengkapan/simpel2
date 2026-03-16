@@ -78,6 +78,7 @@ pub fn LoginPage(
                                                     session.refresh_token = Some(refresh.clone());
                                                 }
                                                 AuthService::save_session(&session);
+                                                crate::utils::app_state::app_state_login(session.clone());
                                                 on_login_success.set(Some(session));
                                                 set_passkey_loading.set(false);
                                                 nav("/dashboard", Default::default());
@@ -179,6 +180,7 @@ pub fn LoginPage(
 
                     // Full authentication complete
                     AuthService::save_session(&session);
+                    crate::utils::app_state::app_state_login(*session.clone());
                     on_login_success.set(Some(*session));
 
                     // Hide loading spinner before navigating
@@ -224,6 +226,7 @@ pub fn LoginPage(
                     // Login succeeded but user must change password first
                     set_failed_attempts.set(0);
                     AuthService::save_session(&session);
+                    crate::utils::app_state::app_state_login(*session.clone());
                     on_login_success.set(Some(*session));
                     set_is_loading.set(false);
 
