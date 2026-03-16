@@ -118,7 +118,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                         </div>
                     </Show>
 
-                    <Show when=move || !is_locked.get() && !verification_success.get()>
+                    <Show when=move || !is_locked.get()>
                         <div class="space-y-6">
                             // User info
                             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">

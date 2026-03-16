@@ -7,7 +7,7 @@ use leptos::prelude::*;
 use lib_ui::components::captcha::Captcha;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use leptos::task::spawn_local;
+use wasm_bindgen_futures::spawn_local;
 
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
