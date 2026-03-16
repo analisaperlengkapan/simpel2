@@ -66,7 +66,7 @@ pub async fn list_sessions_handler(
     headers: HeaderMap,
 ) -> Result<Json<ListSessionsResponse>, ErrorResponse> {
     // Extract JWT token from Authorization header
-    let token = extract_token(&headers).ok_or_else(|| ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+    let token = extract_token(&headers).ok_or_else(|| ErrorResponse { status_code: axum::http::StatusCode::UNAUTHORIZED,
         error: "unauthorized".to_string(),
         message: "Missing or invalid Authorization header".to_string(),
     })?;
@@ -75,7 +75,7 @@ pub async fn list_sessions_handler(
     let claims = state
         .jwt_service
         .verify_token(&token)
-        .map_err(|e| ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+        .map_err(|e| ErrorResponse { status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "unauthorized".to_string(),
             message: format!("Invalid token: {}", e),
         })?;
@@ -102,7 +102,7 @@ pub async fn logout_handler(
     headers: HeaderMap,
 ) -> Result<Json<LogoutResponse>, ErrorResponse> {
     // Extract JWT token from Authorization header
-    let token = extract_token(&headers).ok_or_else(|| ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+    let token = extract_token(&headers).ok_or_else(|| ErrorResponse { status_code: axum::http::StatusCode::UNAUTHORIZED,
         error: "unauthorized".to_string(),
         message: "Missing or invalid Authorization header".to_string(),
     })?;
