@@ -131,7 +131,7 @@ pub async fn start_registration_handler(
     let user_id = extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
-            status_code: axum::http::StatusCode::BAD_REQUEST,
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "authentication_required".to_string(),
             message: e.message,
         })?;
@@ -300,7 +300,7 @@ pub async fn finish_authentication_handler(
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to generate access token");
             ErrorResponse {
-                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                status_code: axum::http::StatusCode::BAD_REQUEST,
                 error: "token_generation_failed".to_string(),
                 message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
             }
@@ -312,7 +312,7 @@ pub async fn finish_authentication_handler(
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to generate refresh token");
             ErrorResponse {
-                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                status_code: axum::http::StatusCode::BAD_REQUEST,
                 error: "token_generation_failed".to_string(),
                 message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
             }
@@ -338,7 +338,7 @@ pub async fn list_credentials_handler(
     let user_id = extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
-            status_code: axum::http::StatusCode::BAD_REQUEST,
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "authentication_required".to_string(),
             message: e.message,
         })?;
@@ -381,7 +381,7 @@ pub async fn delete_credential_handler(
     let user_id = extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
-            status_code: axum::http::StatusCode::BAD_REQUEST,
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "authentication_required".to_string(),
             message: e.message,
         })?;
@@ -413,7 +413,7 @@ pub async fn update_credential_handler(
     let user_id = extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
-            status_code: axum::http::StatusCode::BAD_REQUEST,
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "authentication_required".to_string(),
             message: e.message,
         })?;
