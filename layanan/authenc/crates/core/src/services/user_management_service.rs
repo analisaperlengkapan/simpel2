@@ -262,6 +262,7 @@ impl UserManagementServiceImpl {
             organization_id: request.organization_id,
             roles: request.roles.clone(),
             attributes: request.attributes.clone(),
+            enabled: request.enabled,
         };
 
         let user = self.user_store.create_user(create_request).await?;
