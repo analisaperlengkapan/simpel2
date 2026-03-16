@@ -9,7 +9,7 @@ use crate::utils::app_state::use_api_client;
 use crate::utils::webauthn;
 use leptos::prelude::*;
 use lib_ui::components::captcha::Captcha;
-use wasm_bindgen_futures::spawn_local;
+use leptos::task::spawn_local;
 use web_sys;
 
 /// Login page

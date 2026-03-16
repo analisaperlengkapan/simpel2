@@ -63,6 +63,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (attempts_remaining, set_attempts_remaining) = signal(3);
     let (is_locked, set_is_locked) = signal(false);
+    let app_state = crate::utils::app_state::use_app_state();
 
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
@@ -184,9 +185,8 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let navigate = leptos_router::hooks::use_navigate();
-
                                     spawn_local(async move {
+                                        let navigate = leptos_router::hooks::use_navigate();
                                         match verify_mfa_code(&temp_token, &code).await {
                                             Ok(response) => {
                                                 // Store access token and upgrade session
@@ -207,6 +207,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
 
                                                             // Save session
                                                             AuthService::save_session(&session);
+                                                            app_state.set(crate::utils::app_state::AppState::from_session(session.clone()));
 
                                                             // Clear temp token
                                                             AuthService::clear_temp_token();
