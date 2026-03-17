@@ -277,9 +277,6 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             set_setup_complete.set(true);
                                                             // Update session to mark MFA as enabled
                                                             crate::features::auth::AuthService::update_session_mfa_enabled();
-                                                            if let Some(session) = crate::features::auth::AuthService::load_session() {
-                                                                crate::utils::app_state::app_state_login(session);
-                                                            }
                                                             // Clear temp token as setup is complete
                                                             crate::features::auth::AuthService::clear_temp_token();
                                                             // Redirect to login after 2 seconds
