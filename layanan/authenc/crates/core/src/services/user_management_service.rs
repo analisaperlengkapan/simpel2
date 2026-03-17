@@ -411,27 +411,10 @@ impl UserManagementServiceImpl {
     pub async fn delete_user(&self, user_id: UserId) -> Result<()> {
         debug!(user_id = %user_id, "Deleting user (soft delete)");
 
-        // Soft delete: set enabled=false
-        let update_request = UpdateUserRequest {
-            username: None,
-            email: None,
-            satker_code: None,
-            first_name: None,
-            last_name: None,
-            nip: None,
-            nama: None,
-            jabatan: None,
-            phone_number: None,
-            phone_verified: None,
-            require_password_change: None,
-            password: None,
-            enabled: Some(false),
-            email_verified: None,
-            mfa_enabled: None,
-            attributes: None,
-        };
-
-        self.user_store.update_user(user_id, update_request).await?;
+        // Delegate to the store's delete_user which sets both enabled=false
+        // AND deleted_at, so the record is excluded from username_exists /
+        // email_exists queries (they filter on `deleted_at IS NULL`).
+        self.user_store.delete_user(user_id).await?;
 
         info!(user_id = %user_id, "User deleted successfully (soft delete)");
 

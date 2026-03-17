@@ -133,11 +133,15 @@ pub struct UserProfileResponse {
 }
 
 /// Map a raw satker_code to a human-readable division name.
+///
+/// The frontend profile page renders this with a "Satuan Kerja" label, so
+/// the default case returns just the raw code to avoid redundant text like
+/// "Satuan Kerja: Satuan Kerja 0200000".
 fn satker_code_to_division(satker_code: &str) -> Option<String> {
     match satker_code {
         "" => None,
         "0100000" => Some("Bagian Umum".to_string()),
-        code => Some(format!("Satuan Kerja {}", code)),
+        code => Some(code.to_string()),
     }
 }
 
