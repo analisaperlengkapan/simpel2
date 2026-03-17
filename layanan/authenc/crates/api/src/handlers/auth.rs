@@ -304,7 +304,7 @@ pub async fn login_handler(
                                         email,
                                         satker_code: pegawai.kode_satker.clone(),
                                         // Password needs uppercase, lowercase, digit, and length > 8
-                                        password: Some(format!("A1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
+                                        password: Some(format!("Aa1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
                                         first_name: None,
                                         last_name: None,
                                         nip: Some(username.clone()),
