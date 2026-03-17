@@ -181,7 +181,7 @@ pub fn LoginPage(
 
                     // Full authentication complete
                     AuthService::save_session(&session);
-                    app_state.set(crate::utils::app_state::AppState::from_session(*session.clone()));
+                    app_state.set(crate::utils::app_state::AppState::from_session((*session).clone()));
                     on_login_success.set(Some(*session));
 
                     // Hide loading spinner before navigating
@@ -227,7 +227,7 @@ pub fn LoginPage(
                     // Login succeeded but user must change password first
                     set_failed_attempts.set(0);
                     AuthService::save_session(&session);
-                    app_state.set(crate::utils::app_state::AppState::from_session(*session.clone()));
+                    app_state.set(crate::utils::app_state::AppState::from_session((*session).clone()));
                     on_login_success.set(Some(*session));
                     set_is_loading.set(false);
 

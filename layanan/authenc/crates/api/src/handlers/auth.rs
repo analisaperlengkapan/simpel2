@@ -330,7 +330,6 @@ pub async fn login_handler(
                                             Ok(user) => {
                                                 // Immediately disable & set require_password_change
                                                 let update_req = authenc_types::UpdateUserRequest {
-                                                    enabled: Some(false),
                                                     require_password_change: Some(true),
                                                     ..Default::default()
                                                 };
