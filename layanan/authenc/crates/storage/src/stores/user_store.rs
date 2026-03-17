@@ -16,7 +16,7 @@ use tracing::{debug, info};
 
 use crate::Database;
 
-/// Load roles for a user from the user_roles + roles tables.
+/// Load roles for a single user from the user_roles + roles tables.
 async fn load_user_roles(db: &Database, user_id: &uuid::Uuid) -> Vec<authenc_types::domain::user::Role> {
     let roles_query = r#"
         SELECT r.id, r.name, r.description
@@ -27,28 +27,72 @@ async fn load_user_roles(db: &Database, user_id: &uuid::Uuid) -> Vec<authenc_typ
     match db.query(roles_query, &[user_id]).await {
         Ok(role_rows) => role_rows
             .iter()
-            .map(|r| {
-                let now = chrono::Utc::now();
-                authenc_types::domain::user::Role {
-                    id: r.get("id"),
-                    name: r.get("name"),
-                    description: r.try_get("description").ok(),
-                    permissions: Vec::new(),
-                    managed_by: None,
-                    scope: None,
-                    realm_id: None,
-                    composite: false,
-                    client_role: false,
-                    client_id: None,
-                    priority: 0,
-                    active: true,
-                    attributes: None,
-                    created_at: now,
-                    updated_at: now,
-                }
-            })
+            .map(|r| row_to_role(r))
             .collect(),
         Err(_) => Vec::new(),
+    }
+}
+
+/// Load roles for multiple users in a single batch query, returning a map of user_id -> roles.
+async fn load_users_roles_batch(
+    db: &Database,
+    user_ids: &[uuid::Uuid],
+) -> std::collections::HashMap<uuid::Uuid, Vec<authenc_types::domain::user::Role>> {
+    use std::collections::HashMap;
+
+    if user_ids.is_empty() {
+        return HashMap::new();
+    }
+
+    // Build parameterized IN clause: $1, $2, $3, ...
+    let placeholders: Vec<String> = (1..=user_ids.len()).map(|i| format!("${}", i)).collect();
+    let roles_query = format!(
+        r#"
+        SELECT ur.user_id, r.id, r.name, r.description
+        FROM user_roles ur
+        JOIN roles r ON r.id = ur.role_id
+        WHERE ur.user_id IN ({})
+        "#,
+        placeholders.join(", ")
+    );
+
+    let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+        user_ids.iter().map(|id| id as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+
+    let mut roles_map: HashMap<uuid::Uuid, Vec<authenc_types::domain::user::Role>> = HashMap::new();
+
+    match db.query(&roles_query, &params).await {
+        Ok(role_rows) => {
+            for r in &role_rows {
+                let uid: uuid::Uuid = r.get("user_id");
+                roles_map.entry(uid).or_default().push(row_to_role(r));
+            }
+        }
+        Err(_) => {}
+    }
+
+    roles_map
+}
+
+/// Convert a role row into a Role domain object.
+fn row_to_role(r: &tokio_postgres::Row) -> authenc_types::domain::user::Role {
+    let now = chrono::Utc::now();
+    authenc_types::domain::user::Role {
+        id: r.get("id"),
+        name: r.get("name"),
+        description: r.try_get("description").ok(),
+        permissions: Vec::new(),
+        managed_by: None,
+        scope: None,
+        realm_id: None,
+        composite: false,
+        client_role: false,
+        client_id: None,
+        priority: 0,
+        active: true,
+        attributes: None,
+        created_at: now,
+        updated_at: now,
     }
 }
 
@@ -406,11 +450,14 @@ impl UserStore for PostgresUserStore {
             .query(query, &[&realm_id.0, &(limit as i64), &(offset as i64)])
             .await?;
 
-        let mut users = Vec::new();
-        for row in rows {
-            let mut user = row_to_user(row)?;
-            user.roles = load_user_roles(&self.db, &user.id).await;
-            users.push(user);
+        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
+
+        let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
+        let roles_map = load_users_roles_batch(&self.db, &user_ids).await;
+        for user in &mut users {
+            if let Some(roles) = roles_map.get(&user.id) {
+                user.roles = roles.clone();
+            }
         }
 
         Ok(users)
@@ -512,11 +559,14 @@ impl UserStore for PostgresUserStore {
             )
             .await?;
 
-        let mut users = Vec::new();
-        for row in rows {
-            let mut user = row_to_user(row)?;
-            user.roles = load_user_roles(&self.db, &user.id).await;
-            users.push(user);
+        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
+
+        let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
+        let roles_map = load_users_roles_batch(&self.db, &user_ids).await;
+        for user in &mut users {
+            if let Some(roles) = roles_map.get(&user.id) {
+                user.roles = roles.clone();
+            }
         }
 
         Ok(users)
@@ -616,11 +666,14 @@ impl UserStore for PostgresUserStore {
         };
         let _ = query; // suppress unused warning
 
-        let mut users = Vec::new();
-        for row in rows {
-            let mut user = row_to_user(row)?;
-            user.roles = load_user_roles(&self.db, &user.id).await;
-            users.push(user);
+        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
+
+        let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
+        let roles_map = load_users_roles_batch(&self.db, &user_ids).await;
+        for user in &mut users {
+            if let Some(roles) = roles_map.get(&user.id) {
+                user.roles = roles.clone();
+            }
         }
 
         Ok(users)
