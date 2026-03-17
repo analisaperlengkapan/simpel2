@@ -43,31 +43,16 @@ impl PostgresUserStore {
         info!("Initializing PostgresUserStore");
         Self { db }
     }
-}
 
-#[async_trait]
-impl UserStore for PostgresUserStore {
-    async fn get_user(&self, id: UserId) -> Result<User> {
-        debug!("Getting user by ID: {}", id);
-
-        let query = r#"
-            SELECT *
-            FROM users
-            WHERE id = $1
-        "#;
-
-        let row = self.db.query_one(query, &[&id.0]).await?;
-
-        let mut user = row_to_user(row)?;
-
-        // Load roles from user_roles + roles tables
+    /// Load roles from the `user_roles` + `roles` tables and attach them to the user.
+    async fn load_user_roles(&self, user: &mut User) {
         let roles_query = r#"
             SELECT r.id, r.name, r.description
             FROM user_roles ur
             JOIN roles r ON r.id = ur.role_id
             WHERE ur.user_id = $1
         "#;
-        if let Ok(role_rows) = self.db.query(roles_query, &[&id.0]).await {
+        if let Ok(role_rows) = self.db.query(roles_query, &[&user.id]).await {
             user.roles = role_rows
                 .iter()
                 .map(|r| {
@@ -92,6 +77,24 @@ impl UserStore for PostgresUserStore {
                 })
                 .collect();
         }
+    }
+}
+
+#[async_trait]
+impl UserStore for PostgresUserStore {
+    async fn get_user(&self, id: UserId) -> Result<User> {
+        debug!("Getting user by ID: {}", id);
+
+        let query = r#"
+            SELECT *
+            FROM users
+            WHERE id = $1
+        "#;
+
+        let row = self.db.query_one(query, &[&id.0]).await?;
+
+        let mut user = row_to_user(row)?;
+        self.load_user_roles(&mut user).await;
 
         Ok(user)
     }
@@ -113,40 +116,7 @@ impl UserStore for PostgresUserStore {
         match row {
             Some(r) => {
                 let mut user = row_to_user(r)?;
-
-                // Load roles from user_roles + roles tables
-                let roles_query = r#"
-                    SELECT r.id, r.name, r.description
-                    FROM user_roles ur
-                    JOIN roles r ON r.id = ur.role_id
-                    WHERE ur.user_id = $1
-                "#;
-                if let Ok(role_rows) = self.db.query(roles_query, &[&user.id]).await {
-                    user.roles = role_rows
-                        .iter()
-                        .map(|r| {
-                            let now = chrono::Utc::now();
-                            authenc_types::domain::user::Role {
-                                id: r.get("id"),
-                                name: r.get("name"),
-                                description: r.try_get("description").ok(),
-                                permissions: Vec::new(),
-                                managed_by: None,
-                                scope: None,
-                                realm_id: None,
-                                composite: false,
-                                client_role: false,
-                                client_id: None,
-                                priority: 0,
-                                active: true,
-                                attributes: None,
-                                created_at: now,
-                                updated_at: now,
-                            }
-                        })
-                        .collect();
-                }
-
+                self.load_user_roles(&mut user).await;
                 Ok(user)
             },
             None => Err(AuthencError::UserNotFound(username.to_string())),
@@ -167,40 +137,7 @@ impl UserStore for PostgresUserStore {
         match row {
             Some(r) => {
                 let mut user = row_to_user(r)?;
-
-                // Load roles from user_roles + roles tables
-                let roles_query = r#"
-                    SELECT r.id, r.name, r.description
-                    FROM user_roles ur
-                    JOIN roles r ON r.id = ur.role_id
-                    WHERE ur.user_id = $1
-                "#;
-                if let Ok(role_rows) = self.db.query(roles_query, &[&user.id]).await {
-                    user.roles = role_rows
-                        .iter()
-                        .map(|r| {
-                            let now = chrono::Utc::now();
-                            authenc_types::domain::user::Role {
-                                id: r.get("id"),
-                                name: r.get("name"),
-                                description: r.try_get("description").ok(),
-                                permissions: Vec::new(),
-                                managed_by: None,
-                                scope: None,
-                                realm_id: None,
-                                composite: false,
-                                client_role: false,
-                                client_id: None,
-                                priority: 0,
-                                active: true,
-                                attributes: None,
-                                created_at: now,
-                                updated_at: now,
-                            }
-                        })
-                        .collect();
-                }
-
+                self.load_user_roles(&mut user).await;
                 Ok(user)
             },
             None => Err(AuthencError::UserNotFound(email.to_string())),
@@ -415,39 +352,7 @@ impl UserStore for PostgresUserStore {
         let row = self.db.query_one(&query, &params).await?;
 
         let mut user = row_to_user(row)?;
-
-        // Load roles from user_roles + roles tables
-        let roles_query = r#"
-            SELECT r.id, r.name, r.description
-            FROM user_roles ur
-            JOIN roles r ON r.id = ur.role_id
-            WHERE ur.user_id = $1
-        "#;
-        if let Ok(role_rows) = self.db.query(roles_query, &[&user.id]).await {
-            user.roles = role_rows
-                .iter()
-                .map(|r| {
-                    let now = chrono::Utc::now();
-                    authenc_types::domain::user::Role {
-                        id: r.get("id"),
-                        name: r.get("name"),
-                        description: r.try_get("description").ok(),
-                        permissions: Vec::new(),
-                        managed_by: None,
-                        scope: None,
-                        realm_id: None,
-                        composite: false,
-                        client_role: false,
-                        client_id: None,
-                        priority: 0,
-                        active: true,
-                        attributes: None,
-                        created_at: now,
-                        updated_at: now,
-                    }
-                })
-                .collect();
-        }
+        self.load_user_roles(&mut user).await;
 
         info!("User updated successfully: {}", user.id);
         Ok(user)
@@ -823,7 +728,7 @@ mod tests {
                 organization_id: None,
                 roles: None,
                 attributes: None,
-            enabled: None,
+                enabled: None,
             };
 
             assert_eq!(req.username, "testuser");
