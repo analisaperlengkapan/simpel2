@@ -112,7 +112,10 @@ pub struct UserProfileResponse {
     /// Avatar URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
-    /// Division / organizational unit
+    /// Raw satker (work unit) code
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub satker_code: Option<String>,
+    /// Division / organizational unit (human-readable label derived from satker_code)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub division: Option<String>,
     /// Primary role
@@ -589,6 +592,7 @@ pub async fn get_current_user_handler(
                     jabatan: user.jabatan,
                     phone: user.phone_number,
                     avatar: None,
+                    satker_code: Some(user.satker_code).filter(|s| !s.is_empty()),
                     division,
                     role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
                     permissions: Vec::new(),
@@ -710,6 +714,7 @@ pub async fn update_profile_handler(
         jabatan: user.jabatan,
         phone: user.phone_number,
         avatar: None,
+        satker_code: Some(user.satker_code).filter(|s| !s.is_empty()),
         division,
         role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
         permissions: Vec::new(),
