@@ -135,7 +135,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                 "Your account is now secured with multi-factor authentication."
                             </p>
                             <div class="animate-pulse text-sm text-gray-500">
-                                "Redirecting to dashboard..."
+                                "Redirecting to login..."
                             </div>
                         </div>
                     </Show>
@@ -282,9 +282,9 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             }
                                                             // Clear temp token as setup is complete
                                                             crate::features::auth::AuthService::clear_temp_token();
-                                                            // Redirect to dashboard after 2 seconds
+                                                            // Redirect to login after 2 seconds
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
-                                                            navigate("/dashboard", Default::default());
+                                                            navigate("/login", Default::default());
                                                         }
                                                         Err(e) => {
                                                             set_error_message.set(format!("Verification failed: {}", e));
