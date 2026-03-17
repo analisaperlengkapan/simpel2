@@ -158,7 +158,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT *
             FROM users
-            WHERE username = $1 AND realm_id = $2
+            WHERE username = $1 AND realm_id = $2 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_opt(query, &[&username, &realm_id.0]).await?;
@@ -179,7 +179,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT *
             FROM users
-            WHERE email = $1 AND realm_id = $2
+            WHERE email = $1 AND realm_id = $2 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_opt(query, &[&email, &realm_id.0]).await?;
