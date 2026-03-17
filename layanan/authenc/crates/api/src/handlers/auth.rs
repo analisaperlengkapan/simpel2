@@ -361,9 +361,12 @@ pub async fn login_handler(
                                                         error = %e,
                                                         "Failed to set require_password_change for auto-provisioned user, rolling back creation"
                                                     );
-                                                    // Fallback mechanism deletes the user softly.
-                                                    // This is safe since the user was originally created as disabled, so
-                                                    // they won't be able to login even if the update request failed.
+                                                    // Soft-delete marks the record with deleted_at so
+                                                    // it won't block future provisioning attempts for
+                                                    // the same NIP (username_exists filters on
+                                                    // deleted_at IS NULL).  The user is already
+                                                    // disabled, so even if this delete fails the
+                                                    // account cannot be used to log in.
                                                     let _ = state.user_service.delete_user(authenc_types::UserId::from_uuid(user.id)).await;
                                                 }
                                             }

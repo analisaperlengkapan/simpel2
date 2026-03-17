@@ -411,12 +411,13 @@ impl UserStore for PostgresUserStore {
     async fn delete_user(&self, id: UserId) -> Result<()> {
         info!("Deleting user: {}", id);
 
-        // Soft delete: set enabled = false and add deleted_at timestamp
-        // Note: This requires a deleted_at column in the users table
-        // For now, we'll just set enabled = false
+        // Soft delete: set enabled = false and stamp deleted_at so the record
+        // is excluded from username_exists / email_exists queries (which filter
+        // on `deleted_at IS NULL`).  This prevents orphaned auto-provisioned
+        // records from blocking future provisioning attempts for the same NIP.
         let query = r#"
             UPDATE users
-            SET enabled = false, updated_at = $2
+            SET enabled = false, deleted_at = $2, updated_at = $2
             WHERE id = $1
         "#;
 
