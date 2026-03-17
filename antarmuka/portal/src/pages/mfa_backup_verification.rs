@@ -67,6 +67,8 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (remaining_codes, set_remaining_codes) = signal(None::<i32>);
     let (verification_success, set_verification_success) = signal(false);
 
+    let navigate = leptos_router::hooks::use_navigate();
+
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
 
@@ -207,6 +209,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
+                                    let nav = navigate.clone();
                                     spawn_local(async move {
                                         match verify_backup_code(&temp_token, &code).await {
                                             Ok(response) => {
@@ -240,8 +243,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                             // Redirect to dashboard after showing success
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
 
-                                                            let navigate = leptos_router::hooks::use_navigate();
-                                                            navigate("/dashboard", Default::default());
+                                                            nav("/dashboard", Default::default());
                                                         }
                                                         Err(e) => {
                                                             set_error_message.set(format!("Failed to decode token: {}", e));
@@ -305,7 +307,6 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                         type="button"
                                         class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
                                         on:click=move |_| {
-                                            let navigate = leptos_router::hooks::use_navigate();
                                             navigate("/mfa/verify", Default::default());
                                         }
                                     >
