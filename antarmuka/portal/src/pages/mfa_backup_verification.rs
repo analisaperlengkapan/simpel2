@@ -69,6 +69,14 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
     let navigate = leptos_router::hooks::use_navigate();
 
+    // Track whether this component is still mounted so the timer callback
+    // inside spawn_local can skip navigation after the user left the page.
+    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted_cleanup = mounted.clone();
+    on_cleanup(move || {
+        mounted_cleanup.set(false);
+    });
+
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
 
@@ -210,6 +218,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                     set_error_message.set(String::new());
 
                                     let nav = navigate.clone();
+                                    let is_mounted = mounted.clone();
                                     spawn_local(async move {
                                         match verify_backup_code(&temp_token, &code).await {
                                             Ok(response) => {
@@ -241,15 +250,12 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                             set_verification_success.set(true);
 
                                                             // Redirect to dashboard after showing success.
-                                                            // Guard the navigation: if the user already
-                                                            // navigated away during the timer the spawned
-                                                            // future is still alive (Leptos does not
-                                                            // auto-cancel it on unmount), so we only
-                                                            // navigate when we are still on the success
-                                                            // screen.
+                                                            // Guard: if the component unmounted during
+                                                            // the 2-second timer (e.g. user clicked
+                                                            // "Back to login"), skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
 
-                                                            if verification_success.get() {
+                                                            if is_mounted.get() {
                                                                 nav("/dashboard", Default::default());
                                                             }
                                                         }
