@@ -651,6 +651,7 @@ mod tests {
             organization_id: Some(Uuid::new_v4()),
             roles: None,
             attributes: Some(json!({"department": "engineering"})),
+            enabled: None,
         };
 
         assert_eq!(request.username, "testuser");

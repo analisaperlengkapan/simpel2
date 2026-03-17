@@ -277,114 +277,108 @@ pub async fn login_handler(
             // disabled account.  We always return the same generic error to
             // prevent NIP enumeration.
             if matches!(reason, AuthFailureReason::InvalidCredentials) {
-                let username = request.username.clone();
+                let username = &request.username;
                 let is_nip = username.len() == 18 && username.chars().all(|c| c.is_ascii_digit());
 
                 if is_nip {
-                    // Spawn background task to avoid timing side-channels
-                    let state = state.clone();
-                    let realm_id = realm_id;
+                    // Only attempt provisioning when the user does not exist locally.
+                    // This avoids unnecessary gRPC calls for existing users with wrong passwords.
+                    let user_exists = state
+                        .user_service
+                        .get_user_by_username(username, realm_id)
+                        .await
+                        .is_ok();
 
-                    tokio::spawn(async move {
-                        // Only attempt provisioning when the user does not exist locally.
-                        // This avoids unnecessary gRPC calls for existing users with wrong passwords.
-                        let user_exists = state
-                            .user_service
-                            .get_user_by_username(&username, realm_id)
-                            .await
-                            .is_ok();
-
-                        if !user_exists {
-                            if let Some(ref integrasi) = state.integrasi_client {
-                                match integrasi.get_pegawai_by_nip(&username).await {
-                                    Ok(Some(pegawai)) => {
-                                        // Create a disabled user from pegawai data
-                                        let email = if pegawai.email.is_empty() {
-                                            format!("{}@kejaksaan.go.id", username)
+                    if !user_exists {
+                        if let Some(ref integrasi) = state.integrasi_client {
+                            match integrasi.get_pegawai_by_nip(username).await {
+                                Ok(Some(pegawai)) => {
+                                    // Create a disabled user from pegawai data
+                                    let email = if pegawai.email.is_empty() {
+                                        format!("{}@kejaksaan.go.id", username)
+                                    } else {
+                                        pegawai.email.clone()
+                                    };
+                                    let create_req = authenc_types::CreateUserRequest {
+                                        username: username.clone(),
+                                        email,
+                                        satker_code: pegawai.kode_satker.clone(),
+                                        // Password needs uppercase, lowercase, digit, and length > 8
+                                        password: Some(format!("A1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
+                                        first_name: None,
+                                        last_name: None,
+                                        nip: Some(username.clone()),
+                                        nama: Some(pegawai.nama.clone()),
+                                        jabatan: Some(pegawai.jabatan.clone()),
+                                        phone_number: if pegawai.telepon.is_empty() {
+                                            None
                                         } else {
-                                            pegawai.email.clone()
-                                        };
-                                        let create_req = authenc_types::CreateUserRequest {
-                                            username: username.clone(),
-                                            email,
-                                            satker_code: pegawai.kode_satker.clone(),
-                                            // Password needs uppercase, lowercase, digit, and length > 8
-                                            password: Some(format!("A1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
-                                            first_name: None,
-                                            last_name: None,
-                                            nip: Some(username.clone()),
-                                            nama: Some(pegawai.nama.clone()),
-                                            jabatan: Some(pegawai.jabatan.clone()),
-                                            phone_number: if pegawai.telepon.is_empty() {
-                                                None
-                                            } else {
-                                                Some(pegawai.telepon.clone())
-                                            },
-                                            realm_id: Some(realm_id.0),
-                                            organization_id: None,
-                                            roles: None,
-                                            attributes: None,
-                                            enabled: Some(false), // Disable initially
-                                        };
-                                        match state.user_service.create_user(create_req).await {
-                                            Ok(user) => {
-                                                // Immediately disable & set require_password_change
-                                                let update_req = authenc_types::UpdateUserRequest {
-                                                    require_password_change: Some(true),
-                                                    ..Default::default()
-                                                };
-                                                match state
-                                                    .user_service
-                                                    .update_user(
-                                                        authenc_types::UserId::from_uuid(user.id),
-                                                        update_req,
-                                                    )
-                                                    .await
-                                                {
-                                                    Ok(_) => {
-                                                        tracing::info!(
-                                                            nip = %username,
-                                                            user_id = %user.id,
-                                                            "Auto-provisioned disabled account from MySIMKARI"
-                                                        );
-                                                    }
-                                                    Err(e) => {
-                                                        tracing::warn!(
-                                                            nip = %username,
-                                                            error = %e,
-                                                            "Failed to disable auto-provisioned user, rolling back creation"
-                                                        );
-                                                        // Fallback mechanism hard-deletes the user instead of soft-delete or marks require_password_change.
-                                                        // Soft-delete is what delete_user does. If we need to properly roll back,
-                                                        // since we can't hard delete from user_service easily, at least the user is still active but they must reset password, wait actually they shouldn't be active.
-                                                        // Best effort is delete_user (which soft-deletes) AND make sure require_password_change is still set if they're reactivated.
-                                                        let _ = state.user_service.delete_user(authenc_types::UserId::from_uuid(user.id)).await;
-                                                    }
+                                            Some(pegawai.telepon.clone())
+                                        },
+                                        realm_id: Some(realm_id.0),
+                                        organization_id: None,
+                                        roles: None,
+                                        attributes: None,
+                                        enabled: Some(false), // Disable initially
+                                    };
+                                    match state.user_service.create_user(create_req).await {
+                                        Ok(user) => {
+                                            // Immediately disable & set require_password_change
+                                            let update_req = authenc_types::UpdateUserRequest {
+                                                require_password_change: Some(true),
+                                                ..Default::default()
+                                            };
+                                            match state
+                                                .user_service
+                                                .update_user(
+                                                    authenc_types::UserId::from_uuid(user.id),
+                                                    update_req,
+                                                )
+                                                .await
+                                            {
+                                                Ok(_) => {
+                                                    tracing::info!(
+                                                        nip = %username,
+                                                        user_id = %user.id,
+                                                        "Auto-provisioned disabled account from MySIMKARI"
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    tracing::warn!(
+                                                        nip = %username,
+                                                        error = %e,
+                                                        "Failed to disable auto-provisioned user, rolling back creation"
+                                                    );
+                                                    // Fallback mechanism hard-deletes the user instead of soft-delete or marks require_password_change.
+                                                    // Soft-delete is what delete_user does. If we need to properly roll back,
+                                                    // since we can't hard delete from user_service easily, at least the user is still active but they must reset password, wait actually they shouldn't be active.
+                                                    // Best effort is delete_user (which soft-deletes) AND make sure require_password_change is still set if they're reactivated.
+                                                    let _ = state.user_service.delete_user(authenc_types::UserId::from_uuid(user.id)).await;
                                                 }
                                             }
-                                            Err(e) => {
-                                                tracing::warn!(
-                                                    nip = %username,
-                                                    error = %e,
-                                                    "Failed to auto-provision user from MySIMKARI"
-                                                );
-                                            }
+                                        }
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                nip = %username,
+                                                error = %e,
+                                                "Failed to auto-provision user from MySIMKARI"
+                                            );
                                         }
                                     }
-                                    Ok(None) => {
-                                        tracing::debug!(nip = %username, "NIP not found in MySIMKARI");
-                                    }
-                                    Err(e) => {
-                                        tracing::warn!(
-                                            nip = %username,
-                                            error = %e,
-                                            "Failed to query MySIMKARI for auto-provisioning"
-                                        );
-                                    }
+                                }
+                                Ok(None) => {
+                                    tracing::debug!(nip = %username, "NIP not found in MySIMKARI");
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        nip = %username,
+                                        error = %e,
+                                        "Failed to query MySIMKARI for auto-provisioning"
+                                    );
                                 }
                             }
                         }
-                    });
+                    }
                 }
             }
 

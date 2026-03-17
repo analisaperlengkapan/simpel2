@@ -414,7 +414,41 @@ impl UserStore for PostgresUserStore {
 
         let row = self.db.query_one(&query, &params).await?;
 
-        let user = row_to_user(row)?;
+        let mut user = row_to_user(row)?;
+
+        // Load roles from user_roles + roles tables
+        let roles_query = r#"
+            SELECT r.id, r.name, r.description
+            FROM user_roles ur
+            JOIN roles r ON r.id = ur.role_id
+            WHERE ur.user_id = $1
+        "#;
+        if let Ok(role_rows) = self.db.query(roles_query, &[&user.id]).await {
+            user.roles = role_rows
+                .iter()
+                .map(|r| {
+                    let now = chrono::Utc::now();
+                    authenc_types::domain::user::Role {
+                        id: r.get("id"),
+                        name: r.get("name"),
+                        description: r.try_get("description").ok(),
+                        permissions: Vec::new(),
+                        managed_by: None,
+                        scope: None,
+                        realm_id: None,
+                        composite: false,
+                        client_role: false,
+                        client_id: None,
+                        priority: 0,
+                        active: true,
+                        attributes: None,
+                        created_at: now,
+                        updated_at: now,
+                    }
+                })
+                .collect();
+        }
+
         info!("User updated successfully: {}", user.id);
         Ok(user)
     }

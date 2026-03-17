@@ -60,6 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         organization_id: None,
         roles: None,
         attributes: None,
+        enabled: None,
     };
 
     match user_store.create_user(create_request).await {
