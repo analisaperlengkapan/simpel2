@@ -132,17 +132,40 @@ pub struct UserProfileResponse {
     pub realm_id: Uuid,
 }
 
-/// Map a raw satker_code to a human-readable division name.
-///
-/// The frontend profile page renders this with a "Satuan Kerja" label, so
-/// the default case returns just the raw code to avoid redundant text like
-/// "Satuan Kerja: Satuan Kerja 0200000".
-fn satker_code_to_division(satker_code: &str) -> Option<String> {
-    match satker_code {
-        "" => None,
-        "0100000" => Some("Bagian Umum".to_string()),
-        code => Some(code.to_string()),
+/// Resolve a raw satker_code to the human-readable `nama_satker` via the
+/// integrasi gRPC service.  Falls back to returning the raw code when the
+/// service is unavailable or the code is unknown.
+async fn resolve_division(
+    integrasi_client: &Option<std::sync::Arc<authenc_federation::IntegrasiGrpcClient>>,
+    satker_code: &str,
+) -> Option<String> {
+    if satker_code.is_empty() {
+        return None;
     }
+
+    if let Some(ref client) = integrasi_client {
+        match client.get_satker_by_code(satker_code).await {
+            Ok(Some(satker)) if !satker.nama_satker.is_empty() => {
+                return Some(satker.nama_satker);
+            }
+            Ok(_) => {
+                tracing::debug!(
+                    kode_satker = %satker_code,
+                    "Satker code not found in integrasi, returning raw code"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    kode_satker = %satker_code,
+                    error = %e,
+                    "Failed to resolve satker name from integrasi, returning raw code"
+                );
+            }
+        }
+    }
+
+    // Fallback: return the raw code so the frontend still shows something
+    Some(satker_code.to_string())
 }
 
 /// API error response
@@ -583,7 +606,7 @@ pub async fn get_current_user_handler(
                 (None, Some(l)) => Some(l.clone()),
                 _ => user.nama.clone(),
             };
-            let division = satker_code_to_division(&user.satker_code);
+            let division = resolve_division(&state.integrasi_client, &user.satker_code).await;
 
             (
                 axum::http::StatusCode::OK,
@@ -707,7 +730,7 @@ pub async fn update_profile_handler(
         (None, Some(l)) => Some(l.clone()),
         _ => user.nama.clone(),
     };
-    let division = satker_code_to_division(&user.satker_code);
+    let division = resolve_division(&state.integrasi_client, &user.satker_code).await;
 
     Ok(Json(UserProfileResponse {
         id: user.id,
