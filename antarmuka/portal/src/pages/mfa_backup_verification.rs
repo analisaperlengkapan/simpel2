@@ -240,10 +240,18 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                             set_remaining_codes.set(Some(response.data.remaining_codes));
                                                             set_verification_success.set(true);
 
-                                                            // Redirect to dashboard after showing success
+                                                            // Redirect to dashboard after showing success.
+                                                            // Guard the navigation: if the user already
+                                                            // navigated away during the timer the spawned
+                                                            // future is still alive (Leptos does not
+                                                            // auto-cancel it on unmount), so we only
+                                                            // navigate when we are still on the success
+                                                            // screen.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
 
-                                                            nav("/dashboard", Default::default());
+                                                            if verification_success.get() {
+                                                                nav("/dashboard", Default::default());
+                                                            }
                                                         }
                                                         Err(e) => {
                                                             set_error_message.set(format!("Failed to decode token: {}", e));
