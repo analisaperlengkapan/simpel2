@@ -129,6 +129,15 @@ pub struct UserProfileResponse {
     pub realm_id: Uuid,
 }
 
+/// Map a raw satker_code to a human-readable division name.
+fn satker_code_to_division(satker_code: &str) -> Option<String> {
+    match satker_code {
+        "" => None,
+        "0100000" => Some("Bagian Umum".to_string()),
+        code => Some(format!("Satuan Kerja {}", code)),
+    }
+}
+
 /// API error response
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
@@ -304,7 +313,7 @@ pub async fn login_handler(
                                         email,
                                         satker_code: pegawai.kode_satker.clone(),
                                         // Password needs uppercase, lowercase, digit, and length > 8
-                                        password: Some(format!("A1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
+                                        password: Some(format!("Aa1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
                                         first_name: None,
                                         last_name: None,
                                         nip: Some(username.clone()),
@@ -564,11 +573,7 @@ pub async fn get_current_user_handler(
                 (None, Some(l)) => Some(l.clone()),
                 _ => user.nama.clone(),
             };
-            let division = match user.satker_code.as_str() {
-                "" => None,
-                "0100000" => Some("Bagian Umum".to_string()),
-                code => Some(format!("Satuan Kerja {}", code)),
-            };
+            let division = satker_code_to_division(&user.satker_code);
 
             (
                 axum::http::StatusCode::OK,
@@ -691,11 +696,7 @@ pub async fn update_profile_handler(
         (None, Some(l)) => Some(l.clone()),
         _ => user.nama.clone(),
     };
-    let division = match user.satker_code.as_str() {
-        "" => None,
-        "0100000" => Some("Bagian Umum".to_string()),
-        code => Some(format!("Satuan Kerja {}", code)),
-    };
+    let division = satker_code_to_division(&user.satker_code);
 
     Ok(Json(UserProfileResponse {
         id: user.id,
