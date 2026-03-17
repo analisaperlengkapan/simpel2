@@ -304,7 +304,7 @@ pub async fn login_handler(
                                         email,
                                         satker_code: pegawai.kode_satker.clone(),
                                         // Password needs uppercase, lowercase, digit, and length > 8
-                                        password: Some(format!("Aa1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
+                                        password: Some(format!("A1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
                                         first_name: None,
                                         last_name: None,
                                         nip: Some(username.clone()),
@@ -323,7 +323,7 @@ pub async fn login_handler(
                                     };
                                     match state.user_service.create_user(create_req).await {
                                         Ok(user) => {
-                                            // Immediately disable & set require_password_change
+                                            // Set require_password_change flag
                                             let update_req = authenc_types::UpdateUserRequest {
                                                 require_password_change: Some(true),
                                                 ..Default::default()
@@ -347,7 +347,7 @@ pub async fn login_handler(
                                                     tracing::warn!(
                                                         nip = %username,
                                                         error = %e,
-                                                        "Failed to disable auto-provisioned user, rolling back creation"
+                                                        "Failed to set require_password_change for auto-provisioned user, rolling back creation"
                                                     );
                                                     // Fallback mechanism hard-deletes the user instead of soft-delete or marks require_password_change.
                                                     // Soft-delete is what delete_user does. If we need to properly roll back,
