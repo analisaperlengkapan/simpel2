@@ -732,16 +732,13 @@ mod tests {
         }
 
         async fn create_user(&self, req: CreateUserRequest) -> Result<User> {
-            let mut user = User::new(
+            let user = User::new(
                 req.username.clone(),
                 req.email.clone(),
                 req.satker_code.clone(),
                 req.password, // Already hashed by service
                 req.realm_id,
             );
-            if let Some(enabled) = req.enabled {
-                user.enabled = enabled;
-            }
 
             let realm_id = user
                 .realm_id

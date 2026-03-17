@@ -66,7 +66,6 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (is_locked, set_is_locked) = signal(false);
     let (remaining_codes, set_remaining_codes) = signal(None::<i32>);
     let (verification_success, set_verification_success) = signal(false);
-    let app_state = crate::utils::app_state::use_app_state();
 
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
@@ -230,7 +229,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
                                                             // Save session
                                                             AuthService::save_session(&session);
-                                                            app_state.set(crate::utils::app_state::AppState::from_session(session.clone()));
+                                                            crate::utils::app_state::app_state_login(session.clone());
 
                                                             // Clear temp token
                                                             AuthService::clear_temp_token();

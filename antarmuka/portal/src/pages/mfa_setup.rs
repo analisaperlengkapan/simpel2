@@ -34,7 +34,6 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (captcha_token, setcaptcha_token) = signal(None::<String>);
     let (show_captcha, set_show_captcha) = signal(false);
     let (_risk_score, setrisk_score) = signal(0.0f64);
-    let app_state = crate::utils::app_state::use_app_state();
 
     let navigate = leptos_router::hooks::use_navigate();
     let navigate_clone = navigate.clone();
@@ -279,7 +278,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             // Update session to mark MFA as enabled
                                                             crate::features::auth::AuthService::update_session_mfa_enabled();
                                                             if let Some(session) = crate::features::auth::AuthService::load_session() {
-                                                                app_state.set(crate::utils::app_state::AppState::from_session(session));
+                                                                crate::utils::app_state::app_state_login(session);
                                                             }
                                                             // Clear temp token as setup is complete
                                                             crate::features::auth::AuthService::clear_temp_token();
