@@ -208,7 +208,6 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                     set_error_message.set(String::new());
 
                                     spawn_local(async move {
-                                        let navigate = leptos_router::hooks::use_navigate();
                                         match verify_backup_code(&temp_token, &code).await {
                                             Ok(response) => {
                                                 // Store access token and upgrade session
@@ -240,6 +239,8 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
                                                             // Redirect to dashboard after showing success
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
+
+                                                            let navigate = leptos_router::hooks::use_navigate();
                                                             navigate("/dashboard", Default::default());
                                                         }
                                                         Err(e) => {

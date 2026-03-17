@@ -129,18 +129,6 @@ pub struct UserProfileResponse {
     pub realm_id: Uuid,
 }
 
-/// Map a raw `satker_code` to a human-readable division name.
-///
-/// Returns `None` for empty codes, a known label for recognised codes,
-/// and a generic "Satuan Kerja {code}" fallback for everything else.
-fn satker_code_to_division(code: &str) -> Option<String> {
-    match code {
-        "" => None,
-        "0100000" => Some("Bagian Umum".to_string()),
-        other => Some(format!("Satuan Kerja {}", other)),
-    }
-}
-
 /// API error response
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
@@ -316,7 +304,7 @@ pub async fn login_handler(
                                         email,
                                         satker_code: pegawai.kode_satker.clone(),
                                         // Password needs uppercase, lowercase, digit, and length > 8
-                                        password: Some(format!("Aa1{}", uuid::Uuid::new_v4())), // Random secure password
+                                        password: Some(format!("A1{}", uuid::Uuid::new_v4().to_string())), // Random secure password
                                         first_name: None,
                                         last_name: None,
                                         nip: Some(username.clone()),
@@ -576,7 +564,11 @@ pub async fn get_current_user_handler(
                 (None, Some(l)) => Some(l.clone()),
                 _ => user.nama.clone(),
             };
-            let division = satker_code_to_division(&user.satker_code);
+            let division = match user.satker_code.as_str() {
+                "" => None,
+                "0100000" => Some("Bagian Umum".to_string()),
+                code => Some(format!("Satuan Kerja {}", code)),
+            };
 
             (
                 axum::http::StatusCode::OK,
@@ -699,7 +691,11 @@ pub async fn update_profile_handler(
         (None, Some(l)) => Some(l.clone()),
         _ => user.nama.clone(),
     };
-    let division = satker_code_to_division(&user.satker_code);
+    let division = match user.satker_code.as_str() {
+        "" => None,
+        "0100000" => Some("Bagian Umum".to_string()),
+        code => Some(format!("Satuan Kerja {}", code)),
+    };
 
     Ok(Json(UserProfileResponse {
         id: user.id,
