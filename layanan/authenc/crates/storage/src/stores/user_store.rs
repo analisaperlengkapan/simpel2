@@ -12,7 +12,7 @@ use authenc_types::{
 use chrono::Utc;
 use std::sync::Arc;
 use tokio_postgres::Row;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::Database;
 
@@ -29,7 +29,10 @@ async fn load_user_roles(db: &Database, user_id: &uuid::Uuid) -> Vec<authenc_typ
             .iter()
             .map(|r| row_to_role(r))
             .collect(),
-        Err(_) => Vec::new(),
+        Err(e) => {
+            warn!(user_id = %user_id, error = %e, "Failed to load roles for user");
+            Vec::new()
+        }
     }
 }
 
@@ -68,7 +71,9 @@ async fn load_users_roles_batch(
                 roles_map.entry(uid).or_default().push(row_to_role(r));
             }
         }
-        Err(_) => {}
+        Err(e) => {
+            warn!(error = %e, "Failed to batch-load roles for users");
+        }
     }
 
     roles_map
