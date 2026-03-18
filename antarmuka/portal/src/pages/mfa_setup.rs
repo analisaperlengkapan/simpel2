@@ -38,6 +38,14 @@ pub fn MfaSetupPage() -> impl IntoView {
     let navigate = leptos_router::hooks::use_navigate();
     let navigate_clone = navigate.clone();
 
+    // Track whether this component is still mounted so the timer callback
+    // inside spawn_local can skip navigation after the user left the page.
+    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted_cleanup = mounted.clone();
+    on_cleanup(move || {
+        mounted_cleanup.set(false);
+    });
+
     // Generate MFA setup data on component mount
     Effect::new(move |_| {
         spawn_local(async move {
@@ -270,6 +278,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                 let set_error_message = set_error_message;
                                                 let set_is_loading = set_is_loading;
                                                 let navigate = navigate_clone.clone();
+                                                let is_mounted = mounted.clone();
 
                                                 spawn_local(async move {
                                                     match verify_mfa_setup(&code).await {
@@ -279,9 +288,14 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             crate::features::auth::AuthService::update_session_mfa_enabled();
                                                             // Clear temp token as setup is complete
                                                             crate::features::auth::AuthService::clear_temp_token();
-                                                            // Redirect to login after 2 seconds
+                                                            // Redirect to login after 2 seconds.
+                                                            // Guard: if the component unmounted during
+                                                            // the timer (e.g. user navigated away),
+                                                            // skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
-                                                            navigate("/login", Default::default());
+                                                            if is_mounted.get() {
+                                                                navigate("/login", Default::default());
+                                                            }
                                                         }
                                                         Err(e) => {
                                                             set_error_message.set(format!("Verification failed: {}", e));
