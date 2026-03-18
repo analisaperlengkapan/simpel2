@@ -809,7 +809,19 @@ mod tests {
 
         async fn delete_user(&self, id: UserId) -> Result<()> {
             let mut users = self.users.lock().await;
-            users.remove(id.as_uuid());
+            if let Some(user) = users.remove(id.as_uuid()) {
+                // Clean up index maps so username_exists / email_exists return
+                // false after deletion — matching production behaviour where
+                // deleted_at IS NULL filters exclude soft-deleted records.
+                let realm_id = user
+                    .realm_id
+                    .map(RealmId::from_uuid)
+                    .unwrap_or_else(RealmId::new);
+                let mut by_username = self.users_by_username.lock().await;
+                by_username.remove(&(user.username.clone(), realm_id));
+                let mut by_email = self.users_by_email.lock().await;
+                by_email.remove(&(user.email.clone(), realm_id));
+            }
             Ok(())
         }
 
@@ -1258,9 +1270,14 @@ mod tests {
             .await
             .unwrap();
 
-        // Verify user is disabled
-        let deleted_user = service.get_user(UserId::from_uuid(user.id)).await.unwrap();
-        assert!(!deleted_user.enabled);
+        // Verify user is no longer findable (mock removes from store,
+        // matching production behaviour where deleted_at IS NULL filters
+        // exclude the record from username_exists / email_exists).
+        assert!(service.get_user(UserId::from_uuid(user.id)).await.is_err());
+
+        // Verify username is freed for re-use
+        let realm_id = RealmId::from_uuid(realm_uuid);
+        assert!(!user_store.username_exists("testuser", realm_id).await.unwrap());
     }
 
     #[tokio::test]

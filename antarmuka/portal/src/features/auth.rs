@@ -379,10 +379,12 @@ impl AuthService {
         let username = claims.preferred_username.unwrap_or(claims.sub.clone());
         let permissions = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
 
+        // Use the raw satker code as the division fallback.  The profile
+        // page resolves the human-readable name via the API's
+        // `resolve_division` helper; here we only have JWT claims.
         let division = match claims.satker_code.as_deref() {
-            Some("0100000") => "Bagian Umum".to_string(),
-            Some(code) => format!("Satuan Kerja {}", code),
-            None => "Bagian Umum".to_string(),
+            Some(code) if !code.is_empty() => code.to_string(),
+            _ => String::new(),
         };
 
         Ok(UserSession {
