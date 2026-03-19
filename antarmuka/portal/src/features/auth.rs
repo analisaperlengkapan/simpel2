@@ -339,7 +339,7 @@ impl AuthService {
             nip: Some(credentials.username.clone()),
             jabatan: Some("Kasubag Perlengkapan".to_string()),
             satker_code: Some("0100000".to_string()),
-            division: "Bagian Umum".to_string(),
+            division: "0100000".to_string(),
             captcha_validated: credentials.captcha_token.is_some(),
             mfa_enabled: username_lower.ends_with("_verify"), // MFA enabled if verification was required
             mfa_setup_required: false,                        // Setup complete in mock

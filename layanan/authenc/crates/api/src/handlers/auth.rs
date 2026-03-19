@@ -132,9 +132,22 @@ pub struct UserProfileResponse {
     pub realm_id: Uuid,
 }
 
+/// In-memory cache for satker_code → nama_satker mappings.
+/// Entries are cached for 10 minutes to avoid hitting the integrasi gRPC
+/// service on every `/me` or profile-update request.
+static SATKER_CACHE: std::sync::LazyLock<
+    tokio::sync::RwLock<std::collections::HashMap<String, (String, std::time::Instant)>>,
+> = std::sync::LazyLock::new(|| tokio::sync::RwLock::new(std::collections::HashMap::new()));
+
+/// How long a cached satker name stays valid.
+const SATKER_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(600);
+
 /// Resolve a raw satker_code to the human-readable `nama_satker` via the
 /// integrasi gRPC service.  Falls back to returning the raw code when the
 /// service is unavailable or the code is unknown.
+///
+/// Results are cached in-memory for [`SATKER_CACHE_TTL`] to avoid per-request
+/// gRPC overhead on high-traffic endpoints like `GET /api/v1/auth/me`.
 async fn resolve_division(
     integrasi_client: &Option<std::sync::Arc<authenc_federation::IntegrasiGrpcClient>>,
     satker_code: &str,
@@ -143,16 +156,27 @@ async fn resolve_division(
         return None;
     }
 
-    if let Some(ref client) = integrasi_client {
+    // Check cache first
+    {
+        let cache = SATKER_CACHE.read().await;
+        if let Some((name, inserted_at)) = cache.get(satker_code) {
+            if inserted_at.elapsed() < SATKER_CACHE_TTL {
+                return Some(name.clone());
+            }
+        }
+    }
+
+    let resolved = if let Some(ref client) = integrasi_client {
         match client.get_satker_by_code(satker_code).await {
             Ok(Some(satker)) if !satker.nama_satker.is_empty() => {
-                return Some(satker.nama_satker);
+                satker.nama_satker
             }
             Ok(_) => {
                 tracing::debug!(
                     kode_satker = %satker_code,
                     "Satker code not found in integrasi, returning raw code"
                 );
+                satker_code.to_string()
             }
             Err(e) => {
                 tracing::warn!(
@@ -160,12 +184,21 @@ async fn resolve_division(
                     error = %e,
                     "Failed to resolve satker name from integrasi, returning raw code"
                 );
+                satker_code.to_string()
             }
         }
+    } else {
+        // No integrasi client configured — return the raw code
+        satker_code.to_string()
+    };
+
+    // Store in cache
+    {
+        let mut cache = SATKER_CACHE.write().await;
+        cache.insert(satker_code.to_string(), (resolved.clone(), std::time::Instant::now()));
     }
 
-    // Fallback: return the raw code so the frontend still shows something
-    Some(satker_code.to_string())
+    Some(resolved)
 }
 
 /// API error response
