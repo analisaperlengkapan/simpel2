@@ -147,6 +147,33 @@ pub fn PasswordChangePage() -> impl IntoView {
                     // update localStorage immediately for a responsive UX.
                     if let Some(mut session) = crate::features::auth::AuthService::load_session() {
                         session.require_password_change = false;
+
+                        // Immediately refresh the JWT so the new token embeds
+                        // `require_password_change: false`.  Without this, the
+                        // stale JWT still carries the old claim and backend
+                        // endpoints like GET /me will return 403.
+                        if let Some(ref refresh_token) = session.refresh_token {
+                            match crate::features::auth::AuthService::refresh_token(refresh_token).await {
+                                Ok(token_response) => {
+                                    crate::features::auth::AuthService::update_session_token(&token_response);
+                                    // Reload the session which now has the fresh JWT
+                                    if let Some(refreshed) = crate::features::auth::AuthService::load_session() {
+                                        session = refreshed;
+                                        // Ensure the flag is cleared even if the
+                                        // new JWT hasn't propagated the DB change
+                                        // yet (edge case with replication lag).
+                                        session.require_password_change = false;
+                                    }
+                                }
+                                Err(e) => {
+                                    // Token refresh failed — continue with the
+                                    // local-only flag clear.  The next automatic
+                                    // refresh cycle will pick up the new JWT.
+                                    leptos::logging::warn!("Token refresh after password change failed: {}", e);
+                                }
+                            }
+                        }
+
                         crate::features::auth::AuthService::save_session(&session);
 
                         // Also update the reactive user_session signal so that
