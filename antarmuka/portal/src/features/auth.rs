@@ -44,6 +44,8 @@ pub struct UserSession {
     pub mfa_enabled: bool,
     /// MFA setup required (true if user needs to setup MFA)
     pub mfa_setup_required: bool,
+    /// Whether user must change password before using the system
+    pub require_password_change: bool,
     /// Session creation timestamp
     pub created_at: Option<String>,
     /// JWT access token
@@ -343,6 +345,7 @@ impl AuthService {
             captcha_validated: credentials.captcha_token.is_some(),
             mfa_enabled: username_lower.ends_with("_verify"), // MFA enabled if verification was required
             mfa_setup_required: false,                        // Setup complete in mock
+            require_password_change: false,
             created_at: Some(now.to_rfc3339()),
             access_token: Some("mock_access_token".to_string()),
             refresh_token: Some("mock_refresh_token".to_string()),
@@ -405,6 +408,7 @@ impl AuthService {
             captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,
             mfa_setup_required: claims.mfa_setup_required,
+            require_password_change: claims.require_password_change,
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             access_token: Some(token.to_string()),
             refresh_token: None,

@@ -133,6 +133,16 @@ pub fn PasswordChangePage() -> impl IntoView {
                     set_current_password.set(String::new());
                     set_new_password.set(String::new());
                     set_confirm_password.set(String::new());
+
+                    // Clear the require_password_change flag from the local
+                    // session so the user is no longer redirected back here.
+                    // The backend already cleared the flag in the DB; a token
+                    // refresh will eventually embed the updated claim, but we
+                    // update localStorage immediately for a responsive UX.
+                    if let Some(mut session) = crate::features::auth::AuthService::load_session() {
+                        session.require_password_change = false;
+                        crate::features::auth::AuthService::save_session(&session);
+                    }
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),
             }

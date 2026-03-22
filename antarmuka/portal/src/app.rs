@@ -24,6 +24,10 @@ use leptos_router::{
 
 /// Auth guard component that redirects to login if not authenticated.
 /// Used by self-service and admin routes to avoid match boilerplate.
+///
+/// When the session has `require_password_change = true` and the current
+/// route is NOT the password-change page, the guard redirects to `/password`
+/// so the user cannot access other pages until the password is changed.
 #[component]
 fn WithAuth(
     /// Current user session signal
@@ -32,10 +36,22 @@ fn WithAuth(
     on_login_success: WriteSignal<Option<UserSession>>,
     /// Child content rendered when authenticated
     children: ChildrenFn,
+    /// If true, skip the password-change redirect (used for the password page itself)
+    #[prop(optional)]
+    allow_password_change: bool,
 ) -> impl IntoView {
     let children = StoredValue::new_local(children);
     move || match user_session.get() {
-        Some(_session) => children.with_value(|c| c().into_any()),
+        Some(session) => {
+            if !allow_password_change && session.require_password_change {
+                // Redirect to password change page — user must change password first.
+                let nav = leptos_router::hooks::use_navigate();
+                nav("/password", Default::default());
+                view! { <div /> }.into_any()
+            } else {
+                children.with_value(|c| c().into_any())
+            }
+        }
         None => view! {
             <LoginPage on_login_success=on_login_success />
         }
@@ -44,6 +60,7 @@ fn WithAuth(
 }
 
 /// Auth guard component that only allows admin users.
+/// Also enforces the password-change redirect (same as [`WithAuth`]).
 #[component]
 fn WithAdminAuth(
     /// Current user session signal
@@ -56,6 +73,11 @@ fn WithAdminAuth(
     let children = StoredValue::new_local(children);
     move || match user_session.get() {
         Some(session) => {
+            if session.require_password_change {
+                let nav = leptos_router::hooks::use_navigate();
+                nav("/password", Default::default());
+                return view! { <div /> }.into_any();
+            }
             if session.role.is_admin() {
                 children.with_value(|c| c().into_any())
             } else {
@@ -270,6 +292,11 @@ pub fn App() -> impl IntoView {
                 // ══════════════════════════════════════════════
                 <Route path=StaticSegment("mfa/backup-codes") view=move || {
                     match user_session.get() {
+                        Some(session) if session.require_password_change => {
+                            let nav = leptos_router::hooks::use_navigate();
+                            nav("/password", Default::default());
+                            view! { <div /> }.into_any()
+                        }
                         Some(session) => view! {
                             <MfaBackupCodesPage user_session=session on_logout=make_logout() />
                         }.into_any(),
@@ -279,6 +306,11 @@ pub fn App() -> impl IntoView {
 
                 <Route path=StaticSegment("dashboard") view=move || {
                     match user_session.get() {
+                        Some(session) if session.require_password_change => {
+                            let nav = leptos_router::hooks::use_navigate();
+                            nav("/password", Default::default());
+                            view! { <div /> }.into_any()
+                        }
                         Some(session) => view! {
                             <DashboardPage user_session=session on_logout=make_logout() />
                         }.into_any(),
@@ -288,6 +320,11 @@ pub fn App() -> impl IntoView {
 
                 <Route path=StaticSegment("apps") view=move || {
                     match user_session.get() {
+                        Some(session) if session.require_password_change => {
+                            let nav = leptos_router::hooks::use_navigate();
+                            nav("/password", Default::default());
+                            view! { <div /> }.into_any()
+                        }
                         Some(session) => view! {
                             <AppsPage user_session=session on_logout=make_logout() />
                         }.into_any(),
@@ -297,6 +334,11 @@ pub fn App() -> impl IntoView {
 
                 <Route path=StaticSegment("notifications") view=move || {
                     match user_session.get() {
+                        Some(session) if session.require_password_change => {
+                            let nav = leptos_router::hooks::use_navigate();
+                            nav("/password", Default::default());
+                            view! { <div /> }.into_any()
+                        }
                         Some(session) => view! {
                             <NotificationsPage user_session=session on_logout=make_logout() />
                         }.into_any(),
@@ -306,6 +348,11 @@ pub fn App() -> impl IntoView {
 
                 <Route path=StaticSegment("settings") view=move || {
                     match user_session.get() {
+                        Some(session) if session.require_password_change => {
+                            let nav = leptos_router::hooks::use_navigate();
+                            nav("/password", Default::default());
+                            view! { <div /> }.into_any()
+                        }
                         Some(session) => view! {
                             <SettingsPage user_session=session on_logout=make_logout() />
                         }.into_any(),
@@ -327,7 +374,7 @@ pub fn App() -> impl IntoView {
                     </WithAuth>
                 } />
                 <Route path=StaticSegment("password") view=move || view! {
-                    <WithAuth user_session=user_session on_login_success=set_user_session>
+                    <WithAuth user_session=user_session on_login_success=set_user_session allow_password_change=true>
                         <crate::pages::password_change::PasswordChangePage />
                     </WithAuth>
                 } />

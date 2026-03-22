@@ -48,6 +48,10 @@ pub struct Claims {
     #[serde(default)]
     pub mfa_setup_required: bool,
 
+    /// Whether user must change password before using the system
+    #[serde(default)]
+    pub require_password_change: bool,
+
     /// Token expiration
     pub exp: usize,
 

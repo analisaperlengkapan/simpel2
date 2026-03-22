@@ -145,8 +145,16 @@ pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::coll
         if let Some(ref nip) = u.nip {
             custom_claims.insert("nip".into(), serde_json::json!(nip));
         }
-        if let Some(ref nama) = u.nama {
-            custom_claims.insert("name".into(), serde_json::json!(nama));
+        // Build display name using the same logic as GET /me:
+        // first_name + last_name, falling back to nama, then username.
+        let display_name = match (&u.first_name, &u.last_name) {
+            (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+            (Some(f), None) => Some(f.clone()),
+            (None, Some(l)) => Some(l.clone()),
+            _ => u.nama.clone(),
+        };
+        if let Some(ref name) = display_name {
+            custom_claims.insert("name".into(), serde_json::json!(name));
         }
         custom_claims.insert("preferred_username".into(), serde_json::json!(u.username));
         if let Some(ref jabatan) = u.jabatan {
@@ -161,6 +169,12 @@ pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::coll
         // MFA status
         custom_claims.insert("mfa_enabled".into(), serde_json::json!(u.mfa_enabled));
         custom_claims.insert("mfa_setup_required".into(), serde_json::json!(!u.mfa_enabled));
+        // Password change requirement — embedded in JWT so frontend route
+        // guards and middleware can enforce the redirect without an extra
+        // API round-trip.
+        if u.require_password_change {
+            custom_claims.insert("require_password_change".into(), serde_json::json!(true));
+        }
         // Roles
         let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
         custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
