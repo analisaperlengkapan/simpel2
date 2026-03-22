@@ -169,12 +169,12 @@ pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::coll
         // MFA status
         custom_claims.insert("mfa_enabled".into(), serde_json::json!(u.mfa_enabled));
         custom_claims.insert("mfa_setup_required".into(), serde_json::json!(!u.mfa_enabled));
-        // Password change requirement — embedded in JWT so frontend route
-        // guards and middleware can enforce the redirect without an extra
-        // API round-trip.
-        if u.require_password_change {
-            custom_claims.insert("require_password_change".into(), serde_json::json!(true));
-        }
+        // Password change requirement — always embedded in JWT so frontend
+        // route guards and middleware can enforce the redirect without an
+        // extra API round-trip.  We always emit the claim (even when false)
+        // so the frontend never has to rely on serde(default) to infer the
+        // value from a missing key.
+        custom_claims.insert("require_password_change".into(), serde_json::json!(u.require_password_change));
         // Roles
         let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
         custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
