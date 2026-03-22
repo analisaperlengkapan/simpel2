@@ -112,6 +112,10 @@ pub fn App() -> impl IntoView {
     // Global auth state - load from localStorage on mount
     let (user_session, set_user_session) = signal(AuthService::load_session());
 
+    // Provide the writer as context so child components (e.g. PasswordChangePage)
+    // can update the reactive session signal without prop-drilling.
+    provide_context(set_user_session);
+
     // Session timeout countdown (in seconds)
     #[allow(unused_variables)]
     let (timeout_countdown, set_timeout_countdown) = signal(0i64);

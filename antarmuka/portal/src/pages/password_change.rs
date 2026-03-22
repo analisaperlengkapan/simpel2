@@ -83,6 +83,12 @@ pub fn PasswordChangePage() -> impl IntoView {
     let state = use_app_state();
     let api = use_api_client();
 
+    // Obtain the top-level user_session writer so we can update the reactive
+    // signal after a successful password change.  Without this, route guards
+    // that read the signal would still see `require_password_change = true`
+    // and redirect the user back here in a loop.
+    let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
+
     let (current_password, set_current_password) = signal(String::new());
     let (new_password, set_new_password) = signal(String::new());
     let (confirm_password, set_confirm_password) = signal(String::new());
@@ -142,6 +148,15 @@ pub fn PasswordChangePage() -> impl IntoView {
                     if let Some(mut session) = crate::features::auth::AuthService::load_session() {
                         session.require_password_change = false;
                         crate::features::auth::AuthService::save_session(&session);
+
+                        // Also update the reactive user_session signal so that
+                        // route guards (WithAuth, WithAdminAuth, inline guards)
+                        // see the updated flag immediately without waiting for
+                        // a token refresh or page reload.
+                        if let Some(setter) = set_user_session {
+                            setter.set(Some(session.clone()));
+                        }
+                        crate::utils::app_state::app_state_login(session);
                     }
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),
