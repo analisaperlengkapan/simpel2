@@ -17,8 +17,8 @@ DROP TABLE IF EXISTS users CASCADE;
 -- Users table with all required columns
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    username VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     phone_number VARCHAR(255),
@@ -46,6 +46,10 @@ CREATE TABLE users (
     last_login_at TIMESTAMPTZ,
     login_count INTEGER NOT NULL DEFAULT 0
 );
+
+-- Partial unique indexes: only enforce uniqueness among live (non-deleted) rows
+CREATE UNIQUE INDEX idx_users_username_unique ON users (username) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_users_email_unique ON users (email) WHERE deleted_at IS NULL;
 
 -- WebAuthn challenges table
 CREATE TABLE IF NOT EXISTS webauthn_challenges (

@@ -341,7 +341,7 @@ impl UserStore for PostgresUserStore {
             r#"
             UPDATE users
             SET {}
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
             RETURNING *
             "#,
             updates.join(", ")
