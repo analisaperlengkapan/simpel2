@@ -136,7 +136,7 @@ pub async fn create_user(db: &Database, request: &CreateUserRequest) -> Result<U
                 &organization_id,
                 &request.attributes,
                 &true, // email_verified
-                &true, // enabled
+                &request.enabled.unwrap_or(true), // enabled
                 &realm_id,
                 &false, // federated (default to false for regular user creation)
                 &now,
@@ -538,6 +538,7 @@ pub async fn bulk_create_users(db: &Database, users: Vec<CreateUserRequest>) -> 
             serde_json::to_string(&user_req.attributes.clone().unwrap_or_default())
                 .map_err(|e| crate::error::AuthencError::database(e.to_string()))?;
 
+        let enabled = user_req.enabled.unwrap_or(true);
         let row = transaction
             .query_one(
                 query,
@@ -550,7 +551,7 @@ pub async fn bulk_create_users(db: &Database, users: Vec<CreateUserRequest>) -> 
                     &user_req.phone_number,
                     &false, // phone_verified - default false
                     &password_hash,
-                    &true, // enabled - default true
+                    &enabled, // enabled - default true
                     &user_req.realm_id,
                     &user_req.organization_id,
                     &attributes_json,

@@ -142,6 +142,34 @@ impl IntegrasiGrpcClient {
         Ok(response.into_inner().items)
     }
 
+    /// Get a single satker by its code, returning `None` when not found.
+    pub async fn get_satker_by_code(&self, kode_satker: &str) -> Result<Option<MysimkariSatker>> {
+        debug!(kode_satker = %kode_satker, "Fetching satker by code from integrasi");
+
+        let mut client = self.client.clone();
+        let request = GetMysimkariSatkerRequest {
+            kode_satker: kode_satker.to_string(),
+            pagination: Some(Pagination {
+                page: 1,
+                per_page: 1,
+                sort_by: String::new(),
+                ascending: true,
+            }),
+        };
+
+        let response = client
+            .get_mysimkari_satker(tonic::Request::new(request))
+            .await
+            .map_err(|e| {
+                AuthencError::internal(format!(
+                    "gRPC call get_mysimkari_satker failed: {}",
+                    e.message()
+                ))
+            })?;
+
+        Ok(response.into_inner().items.into_iter().next())
+    }
+
     /// Get satker list
     pub async fn get_satker_list(&self) -> Result<Vec<MysimkariSatker>> {
         debug!("Fetching satker list from integrasi");

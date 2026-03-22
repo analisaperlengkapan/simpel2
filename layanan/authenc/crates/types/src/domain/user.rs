@@ -820,6 +820,8 @@ pub struct CreateUserRequest {
     pub roles: Option<Vec<Uuid>>,
     /// Additional attributes
     pub attributes: Option<serde_json::Value>,
+    /// Whether user is enabled initially
+    pub enabled: Option<bool>,
 }
 
 /// Request to update an existing user

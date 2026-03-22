@@ -7,7 +7,7 @@ use leptos::prelude::*;
 use lib_ui::components::captcha::Captcha;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen_futures::spawn_local;
+use leptos::task::spawn_local;
 
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,6 +37,14 @@ pub fn MfaSetupPage() -> impl IntoView {
 
     let navigate = leptos_router::hooks::use_navigate();
     let navigate_clone = navigate.clone();
+
+    // Track whether this component is still mounted so the timer callback
+    // inside spawn_local can skip navigation after the user left the page.
+    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted_cleanup = mounted.clone();
+    on_cleanup(move || {
+        mounted_cleanup.set(false);
+    });
 
     // Generate MFA setup data on component mount
     Effect::new(move |_| {
@@ -135,7 +143,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                 "Your account is now secured with multi-factor authentication."
                             </p>
                             <div class="animate-pulse text-sm text-gray-500">
-                                "Redirecting to dashboard..."
+                                "Redirecting to login..."
                             </div>
                         </div>
                     </Show>
@@ -270,6 +278,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                 let set_error_message = set_error_message;
                                                 let set_is_loading = set_is_loading;
                                                 let navigate = navigate_clone.clone();
+                                                let is_mounted = mounted.clone();
 
                                                 spawn_local(async move {
                                                     match verify_mfa_setup(&code).await {
@@ -279,9 +288,14 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             crate::features::auth::AuthService::update_session_mfa_enabled();
                                                             // Clear temp token as setup is complete
                                                             crate::features::auth::AuthService::clear_temp_token();
-                                                            // Redirect to dashboard after 2 seconds
+                                                            // Redirect to login after 2 seconds.
+                                                            // Guard: if the component unmounted during
+                                                            // the timer (e.g. user navigated away),
+                                                            // skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
-                                                            navigate("/dashboard", Default::default());
+                                                            if is_mounted.get() {
+                                                                navigate("/login", Default::default());
+                                                            }
                                                         }
                                                         Err(e) => {
                                                             set_error_message.set(format!("Verification failed: {}", e));
@@ -443,7 +457,7 @@ async fn check_mfa_setup_risk() -> Result<f64, Box<dyn std::error::Error>> {
 
 /// Generate MFA setup data from authenc API
 async fn generate_mfa_setup(
-    _captcha_token: Option<&str>,
+    #[allow(unused_variables)] captcha_token: Option<&str>,
 ) -> Result<MfaSetupData, Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {

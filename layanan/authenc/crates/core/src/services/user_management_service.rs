@@ -262,6 +262,7 @@ impl UserManagementServiceImpl {
             organization_id: request.organization_id,
             roles: request.roles.clone(),
             attributes: request.attributes.clone(),
+            enabled: request.enabled,
         };
 
         let user = self.user_store.create_user(create_request).await?;
@@ -410,27 +411,10 @@ impl UserManagementServiceImpl {
     pub async fn delete_user(&self, user_id: UserId) -> Result<()> {
         debug!(user_id = %user_id, "Deleting user (soft delete)");
 
-        // Soft delete: set enabled=false
-        let update_request = UpdateUserRequest {
-            username: None,
-            email: None,
-            satker_code: None,
-            first_name: None,
-            last_name: None,
-            nip: None,
-            nama: None,
-            jabatan: None,
-            phone_number: None,
-            phone_verified: None,
-            require_password_change: None,
-            password: None,
-            enabled: Some(false),
-            email_verified: None,
-            mfa_enabled: None,
-            attributes: None,
-        };
-
-        self.user_store.update_user(user_id, update_request).await?;
+        // Delegate to the store's delete_user which sets both enabled=false
+        // AND deleted_at, so the record is excluded from username_exists /
+        // email_exists queries (they filter on `deleted_at IS NULL`).
+        self.user_store.delete_user(user_id).await?;
 
         info!(user_id = %user_id, "User deleted successfully (soft delete)");
 
@@ -731,13 +715,14 @@ mod tests {
         }
 
         async fn create_user(&self, req: CreateUserRequest) -> Result<User> {
-            let user = User::new(
+            let mut user = User::new(
                 req.username.clone(),
                 req.email.clone(),
                 req.satker_code.clone(),
                 req.password, // Already hashed by service
                 req.realm_id,
             );
+            user.enabled = req.enabled.unwrap_or(true);
 
             let realm_id = user
                 .realm_id
@@ -766,7 +751,13 @@ mod tests {
                 user.email = email;
             }
             if let Some(password) = req.password {
-                user.password_hash = Some(password);
+                // If it's already hashed by the service, store it as is.
+                // Otherwise, for tests passing plaintext, simulate hashing.
+                if password.starts_with("hashed_") || password.starts_with("$argon2id") {
+                    user.password_hash = Some(password);
+                } else {
+                    user.password_hash = Some(format!("hashed_{}", password));
+                }
             }
             if let Some(enabled) = req.enabled {
                 user.enabled = enabled;
@@ -818,7 +809,19 @@ mod tests {
 
         async fn delete_user(&self, id: UserId) -> Result<()> {
             let mut users = self.users.lock().await;
-            users.remove(id.as_uuid());
+            if let Some(user) = users.remove(id.as_uuid()) {
+                // Clean up index maps so username_exists / email_exists return
+                // false after deletion — matching production behaviour where
+                // deleted_at IS NULL filters exclude soft-deleted records.
+                let realm_id = user
+                    .realm_id
+                    .map(RealmId::from_uuid)
+                    .unwrap_or_else(RealmId::new);
+                let mut by_username = self.users_by_username.lock().await;
+                by_username.remove(&(user.username.clone(), realm_id));
+                let mut by_email = self.users_by_email.lock().await;
+                by_email.remove(&(user.email.clone(), realm_id));
+            }
             Ok(())
         }
 
@@ -999,6 +1002,7 @@ mod tests {
             organization_id: None,
             roles: None,
             attributes: None,
+            enabled: None,
         }
     }
 
@@ -1266,9 +1270,14 @@ mod tests {
             .await
             .unwrap();
 
-        // Verify user is disabled
-        let deleted_user = service.get_user(UserId::from_uuid(user.id)).await.unwrap();
-        assert!(!deleted_user.enabled);
+        // Verify user is no longer findable (mock removes from store,
+        // matching production behaviour where deleted_at IS NULL filters
+        // exclude the record from username_exists / email_exists).
+        assert!(service.get_user(UserId::from_uuid(user.id)).await.is_err());
+
+        // Verify username is freed for re-use
+        let realm_id = RealmId::from_uuid(realm_uuid);
+        assert!(!user_store.username_exists("testuser", realm_id).await.unwrap());
     }
 
     #[tokio::test]

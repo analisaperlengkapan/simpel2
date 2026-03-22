@@ -26,8 +26,8 @@ pub struct UserSession {
     pub email: String,
     /// Profile picture URL
     pub avatar: Option<String>,
-    /// User's division/unit
-    pub division: String,
+    /// Nama satuan kerja
+    pub satuan_kerja: String,
     /// CAPTCHA validation status
     pub captcha_validated: bool,
     /// MFA enabled status

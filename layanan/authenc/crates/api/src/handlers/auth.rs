@@ -112,9 +112,12 @@ pub struct UserProfileResponse {
     /// Avatar URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
-    /// Division / organizational unit
+    /// Raw satker (work unit) code
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub division: Option<String>,
+    pub satker_code: Option<String>,
+    /// Nama satuan kerja (human-readable label derived from satker_code)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub satuan_kerja: Option<String>,
     /// Primary role
     pub role: String,
     /// Permissions list
@@ -127,6 +130,91 @@ pub struct UserProfileResponse {
     pub require_password_change: bool,
     /// Realm ID
     pub realm_id: Uuid,
+}
+
+/// In-memory cache for satker_code → nama_satker mappings.
+/// Entries are cached for 10 minutes to avoid hitting the integrasi gRPC
+/// service on every `/me` or profile-update request.
+/// `(resolved_name, inserted_at, is_authoritative)` — `is_authoritative` is
+/// `true` when the name came from a successful gRPC lookup, `false` when it is
+/// a fallback (raw code due to error / not-found).
+static SATKER_CACHE: std::sync::LazyLock<
+    tokio::sync::RwLock<std::collections::HashMap<String, (String, std::time::Instant, bool)>>,
+> = std::sync::LazyLock::new(|| tokio::sync::RwLock::new(std::collections::HashMap::new()));
+
+/// How long a successfully-resolved cached satker name stays valid.
+const SATKER_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(600);
+
+/// How long a fallback (error / not-found) cached entry stays valid.
+/// Kept short so that a transient gRPC outage doesn't lock in raw codes
+/// for the full [`SATKER_CACHE_TTL`].
+const SATKER_CACHE_ERROR_TTL: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Resolve a raw satker_code to the human-readable `nama_satker` via the
+/// integrasi gRPC service.  Falls back to returning the raw code when the
+/// service is unavailable or the code is unknown.
+///
+/// Results are cached in-memory for [`SATKER_CACHE_TTL`] to avoid per-request
+/// gRPC overhead on high-traffic endpoints like `GET /api/v1/auth/me`.
+async fn resolve_satuan_kerja(
+    integrasi_client: &Option<std::sync::Arc<authenc_federation::IntegrasiGrpcClient>>,
+    satker_code: &str,
+) -> Option<String> {
+    if satker_code.is_empty() {
+        return None;
+    }
+
+    // Check cache first
+    {
+        let cache = SATKER_CACHE.read().await;
+        if let Some((name, inserted_at, is_authoritative)) = cache.get(satker_code) {
+            let ttl = if *is_authoritative {
+                SATKER_CACHE_TTL
+            } else {
+                SATKER_CACHE_ERROR_TTL
+            };
+            if inserted_at.elapsed() < ttl {
+                return Some(name.clone());
+            }
+        }
+    }
+
+    let (resolved, authoritative) = if let Some(ref client) = integrasi_client {
+        match client.get_satker_by_code(satker_code).await {
+            Ok(Some(satker)) if !satker.nama_satker.is_empty() => {
+                (satker.nama_satker, true)
+            }
+            Ok(_) => {
+                tracing::debug!(
+                    kode_satker = %satker_code,
+                    "Satker code not found in integrasi, returning raw code"
+                );
+                (satker_code.to_string(), false)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    kode_satker = %satker_code,
+                    error = %e,
+                    "Failed to resolve satker name from integrasi, returning raw code"
+                );
+                (satker_code.to_string(), false)
+            }
+        }
+    } else {
+        // No integrasi client configured — return the raw code
+        (satker_code.to_string(), false)
+    };
+
+    // Store in cache
+    {
+        let mut cache = SATKER_CACHE.write().await;
+        cache.insert(
+            satker_code.to_string(),
+            (resolved.clone(), std::time::Instant::now(), authoritative),
+        );
+    }
+
+    Some(resolved)
 }
 
 /// API error response
@@ -303,7 +391,8 @@ pub async fn login_handler(
                                         username: username.clone(),
                                         email,
                                         satker_code: pegawai.kode_satker.clone(),
-                                        password: Some(uuid::Uuid::new_v4().to_string()), // Random secure password
+                                        // Password needs uppercase, lowercase, digit, and length > 8
+                                        password: Some(format!("Aa1{}", uuid::Uuid::new_v4())), // Random secure password
                                         first_name: None,
                                         last_name: None,
                                         nip: Some(username.clone()),
@@ -318,12 +407,12 @@ pub async fn login_handler(
                                         organization_id: None,
                                         roles: None,
                                         attributes: None,
+                                        enabled: Some(false), // Disable initially
                                     };
                                     match state.user_service.create_user(create_req).await {
                                         Ok(user) => {
-                                            // Immediately disable & set require_password_change
+                                            // Set require_password_change flag
                                             let update_req = authenc_types::UpdateUserRequest {
-                                                enabled: Some(false),
                                                 require_password_change: Some(true),
                                                 ..Default::default()
                                             };
@@ -346,8 +435,14 @@ pub async fn login_handler(
                                                     tracing::warn!(
                                                         nip = %username,
                                                         error = %e,
-                                                        "Failed to disable auto-provisioned user, rolling back creation"
+                                                        "Failed to set require_password_change for auto-provisioned user, rolling back creation"
                                                     );
+                                                    // Soft-delete marks the record with deleted_at so
+                                                    // it won't block future provisioning attempts for
+                                                    // the same NIP (username_exists filters on
+                                                    // deleted_at IS NULL).  The user is already
+                                                    // disabled, so even if this delete fails the
+                                                    // account cannot be used to log in.
                                                     let _ = state.user_service.delete_user(authenc_types::UserId::from_uuid(user.id)).await;
                                                 }
                                             }
@@ -560,6 +655,8 @@ pub async fn get_current_user_handler(
                 (None, Some(l)) => Some(l.clone()),
                 _ => user.nama.clone(),
             };
+            let satuan_kerja = resolve_satuan_kerja(&state.integrasi_client, &user.satker_code).await;
+
             (
                 axum::http::StatusCode::OK,
                 axum::Json(UserProfileResponse {
@@ -574,7 +671,8 @@ pub async fn get_current_user_handler(
                     jabatan: user.jabatan,
                     phone: user.phone_number,
                     avatar: None,
-                    division: Some(user.satker_code.clone()).filter(|s| !s.is_empty()),
+                    satker_code: Some(user.satker_code).filter(|s| !s.is_empty()),
+                    satuan_kerja,
                     role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
                     permissions: Vec::new(),
                     email_verified: user.email_verified,
@@ -681,6 +779,7 @@ pub async fn update_profile_handler(
         (None, Some(l)) => Some(l.clone()),
         _ => user.nama.clone(),
     };
+    let satuan_kerja = resolve_satuan_kerja(&state.integrasi_client, &user.satker_code).await;
 
     Ok(Json(UserProfileResponse {
         id: user.id,
@@ -694,7 +793,8 @@ pub async fn update_profile_handler(
         jabatan: user.jabatan,
         phone: user.phone_number,
         avatar: None,
-        division: Some(user.satker_code.clone()).filter(|s| !s.is_empty()),
+        satker_code: Some(user.satker_code).filter(|s| !s.is_empty()),
+        satuan_kerja,
         role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
         permissions: Vec::new(),
         email_verified: user.email_verified,
