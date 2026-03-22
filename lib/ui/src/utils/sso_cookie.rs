@@ -119,7 +119,7 @@ impl From<SsoSession> for crate::hooks::use_auth::UserSession {
             name: sso.username.clone(), // Use username as display name
             email: sso.email.unwrap_or_default(),
             avatar: None,
-            division: String::new(), // Not available in SSO session
+            satuan_kerja: String::new(), // Not available in SSO session
             captcha_validated: true, // Assume validated if SSO session exists
             mfa_enabled: false,      // Not available in SSO session
             mfa_setup_required: false,

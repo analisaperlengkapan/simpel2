@@ -1,9 +1,55 @@
 //! Settings page - User preferences and customization
 
 use crate::components::layout::MainLayout;
-use crate::features::auth::UserSession;
+use crate::features::auth::{AuthService, UserSession};
 use leptos::prelude::*;
 use lib_ui::components::{BrandingEditor, ThemeEditor};
+
+/// Fetch the human-readable satuan kerja name from /api/v1/auth/me.
+/// Falls back to the raw satker_code from the session when the fetch fails.
+async fn fetch_satuan_kerja(fallback: String) -> String {
+    let token = match AuthService::get_token() {
+        Some(t) => t,
+        None => return fallback,
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let origin = web_sys::window()
+            .and_then(|w| w.location().origin().ok())
+            .unwrap_or_else(|| "http://localhost:8080".to_string());
+        let url = format!("{}/api/v1/auth/me", origin);
+
+        let resp = match gloo_net::http::Request::get(&url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .send()
+            .await
+        {
+            Ok(r) if r.ok() => r,
+            _ => return fallback,
+        };
+
+        #[derive(serde::Deserialize)]
+        struct MeResponse {
+            #[serde(default)]
+            satuan_kerja: Option<String>,
+        }
+
+        match resp.json::<MeResponse>().await {
+            Ok(me) => me
+                .satuan_kerja
+                .filter(|d| !d.is_empty())
+                .unwrap_or(fallback),
+            Err(_) => fallback,
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = token;
+        fallback
+    }
+}
 
 /// Settings page component
 #[component]
@@ -12,6 +58,27 @@ pub fn SettingsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl
     let (show_branding_editor, set_show_branding_editor) = signal(false);
 
     let mfa_enabled = user_session.mfa_enabled;
+
+    // The JWT-decoded session only has the raw satker code in `satuan_kerja`.
+    // Fetch the human-readable name from the backend asynchronously.
+    let raw_satuan_kerja = user_session.satuan_kerja.clone();
+    let satker_fallback = if raw_satuan_kerja.is_empty() {
+        "-".to_string()
+    } else {
+        raw_satuan_kerja.clone()
+    };
+    let (resolved_satuan_kerja, _set_resolved_satuan_kerja) = signal(satker_fallback.clone());
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use leptos::task::spawn_local;
+        let fallback = satker_fallback;
+        let set_resolved_satuan_kerja = _set_resolved_satuan_kerja;
+        spawn_local(async move {
+            let name = fetch_satuan_kerja(fallback).await;
+            set_resolved_satuan_kerja.set(name);
+        });
+    }
 
     view! {
         <MainLayout user_session=user_session.clone() on_logout=on_logout>
@@ -51,7 +118,7 @@ pub fn SettingsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl
                             <AccountField label="NIP" value=user_session.nip.clone().unwrap_or_else(|| user_session.username.clone()) />
                             <AccountField label="Nama" value=user_session.name.clone() />
                             <AccountField label="Jabatan" value=user_session.jabatan.clone().unwrap_or_else(|| "-".into()) />
-                            <AccountField label="Satuan Kerja" value=if user_session.division.is_empty() { "-".into() } else { user_session.division.clone() } />
+                            <AccountFieldReactive label="Satuan Kerja" value=resolved_satuan_kerja />
                             <AccountField label="Role" value=user_session.role.display_name() />
                         </div>
                     </div>
@@ -170,6 +237,18 @@ fn AccountField(label: &'static str, value: String) -> impl IntoView {
         <div>
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</p>
             <p class="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{value}</p>
+        </div>
+    }
+}
+
+/// Like [`AccountField`] but accepts a reactive signal so the value updates
+/// when an async fetch completes (e.g. resolving division name from the API).
+#[component]
+fn AccountFieldReactive(label: &'static str, value: ReadSignal<String>) -> impl IntoView {
+    view! {
+        <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</p>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{move || value.get()}</p>
         </div>
     }
 }

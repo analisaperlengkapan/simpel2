@@ -25,7 +25,7 @@ struct ProfileData {
     #[serde(default)]
     satker_code: Option<String>,
     #[serde(default)]
-    division: Option<String>,
+    satuan_kerja: Option<String>,
     role: String,
     #[serde(default)]
     email_verified: bool,
@@ -101,7 +101,7 @@ pub fn ProfilePage() -> impl IntoView {
                                             <Field label="NIP" value=display_nip />
                                             <Field label="Nama Lengkap" value=display_name />
                                             <Field label="Jabatan" value=data.jabatan.unwrap_or_else(|| "-".into()) />
-                                            <Field label="Satuan Kerja" value=data.division.unwrap_or_else(|| "-".into()) />
+                                            <Field label="Satuan Kerja" value=data.satuan_kerja.unwrap_or_else(|| "-".into()) />
                                         </div>
                                     </ProfileSection>
 

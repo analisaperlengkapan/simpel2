@@ -36,8 +36,8 @@ pub struct UserSession {
     pub jabatan: Option<String>,
     /// Kode Satker (work unit code)
     pub satker_code: Option<String>,
-    /// User's division/unit
-    pub division: String,
+    /// Nama satuan kerja
+    pub satuan_kerja: String,
     /// CAPTCHA validation status
     pub captcha_validated: bool,
     /// MFA enabled status
@@ -339,7 +339,7 @@ impl AuthService {
             nip: Some(credentials.username.clone()),
             jabatan: Some("Kasubag Perlengkapan".to_string()),
             satker_code: Some("0100000".to_string()),
-            division: "0100000".to_string(),
+            satuan_kerja: "0100000".to_string(),
             captcha_validated: credentials.captcha_token.is_some(),
             mfa_enabled: username_lower.ends_with("_verify"), // MFA enabled if verification was required
             mfa_setup_required: false,                        // Setup complete in mock
@@ -379,10 +379,10 @@ impl AuthService {
         let username = claims.preferred_username.unwrap_or(claims.sub.clone());
         let permissions = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
 
-        // Use the raw satker code as the division fallback.  The profile
+        // Use the raw satker code as the satuan_kerja fallback.  The profile
         // page resolves the human-readable name via the API's
-        // `resolve_division` helper; here we only have JWT claims.
-        let division = match claims.satker_code.as_deref() {
+        // `resolve_satuan_kerja` helper; here we only have JWT claims.
+        let satuan_kerja = match claims.satker_code.as_deref() {
             Some(code) if !code.is_empty() => code.to_string(),
             _ => String::new(),
         };
@@ -401,7 +401,7 @@ impl AuthService {
             nip: claims.nip.clone(),
             jabatan: claims.jabatan.clone(),
             satker_code: claims.satker_code.clone(),
-            division,
+            satuan_kerja,
             captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,
             mfa_setup_required: claims.mfa_setup_required,
