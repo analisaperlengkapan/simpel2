@@ -158,6 +158,9 @@ pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::coll
         if !u.email.is_empty() {
             custom_claims.insert("email".into(), serde_json::json!(u.email));
         }
+        // MFA status
+        custom_claims.insert("mfa_enabled".into(), serde_json::json!(u.mfa_enabled));
+        custom_claims.insert("mfa_setup_required".into(), serde_json::json!(!u.mfa_enabled));
         // Roles
         let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
         custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
