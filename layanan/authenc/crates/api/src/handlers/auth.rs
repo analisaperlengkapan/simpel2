@@ -638,11 +638,23 @@ pub async fn refresh_token_handler(
 ///
 /// Returns the profile of the currently authenticated user.
 /// Requires valid JWT token in Authorization header.
+///
+/// Blocked when `require_password_change` is set — the user must change
+/// their password first via `POST /api/v1/auth/me/password`.
 pub async fn get_current_user_handler(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
 ) -> impl axum::response::IntoResponse {
     use authenc_types::UserId;
+
+    // Enforce password-change requirement before allowing profile access
+    if let Err(e) = auth_helpers::check_password_change_required(&state, &headers) {
+        return ErrorResponse {
+            status_code: axum::http::StatusCode::FORBIDDEN,
+            error: "password_change_required".to_string(),
+            message: e.message,
+        }.into_response();
+    }
 
     let user_uuid = match auth_helpers::extract_user_from_token(&state, &headers).await {
         Ok(u) => u,
@@ -751,11 +763,20 @@ pub struct PasswordResetConfirmRequest {
 }
 
 /// PUT /api/v1/auth/me - Update current user profile
+///
+/// Blocked when `require_password_change` is set.
 pub async fn update_profile_handler(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
     Json(request): Json<UpdateProfileRequest>,
 ) -> Result<Json<UserProfileResponse>, ErrorResponse> {
+    // Enforce password-change requirement
+    auth_helpers::check_password_change_required(&state, &headers).map_err(|e| ErrorResponse {
+        status_code: axum::http::StatusCode::FORBIDDEN,
+        error: "password_change_required".to_string(),
+        message: e.message,
+    })?;
+
     let user_uuid = auth_helpers::extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {

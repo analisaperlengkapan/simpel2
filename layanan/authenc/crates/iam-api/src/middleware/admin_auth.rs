@@ -82,6 +82,20 @@ pub async fn admin_auth_middleware(
         return Err((StatusCode::FORBIDDEN, "Admin role required").into_response());
     }
 
+    // Block admin access when user must change password first
+    let must_change = claims
+        .custom
+        .get("require_password_change")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if must_change {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Anda harus mengubah password sebelum mengakses fitur admin.",
+        )
+            .into_response());
+    }
+
     // Extract username from JWT preferred_username claim
     let username = claims
         .custom

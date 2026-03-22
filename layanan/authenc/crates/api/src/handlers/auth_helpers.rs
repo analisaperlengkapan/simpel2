@@ -138,6 +138,39 @@ pub fn verify_self_or_admin(
     Ok(())
 }
 
+/// Check whether the authenticated user must change their password before
+/// accessing any endpoint other than the password-change endpoint itself.
+///
+/// Extracts the `require_password_change` claim from the JWT.  Returns
+/// `Err(AuthError)` when the flag is `true`, signalling the caller to reject
+/// the request with an appropriate HTTP 403 response.
+pub fn check_password_change_required(
+    state: &Arc<ApiState>,
+    headers: &HeaderMap,
+) -> Result<(), AuthError> {
+    let token = extract_bearer_token(headers)?;
+    let claims = state
+        .jwt_service
+        .verify_token(&token)
+        .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
+
+    // Check the custom `require_password_change` claim embedded by
+    // `build_user_custom_claims`.
+    let must_change = claims
+        .custom
+        .get("require_password_change")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    if must_change {
+        return Err(AuthError::unauthorized(
+            "Anda harus mengubah password sebelum mengakses fitur lain.",
+        ));
+    }
+
+    Ok(())
+}
+
 /// Builds custom JWT claims for a user (NIP, name, jabatan, etc.)
 pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::collections::HashMap<String, serde_json::Value> {
     let mut custom_claims = std::collections::HashMap::new();
