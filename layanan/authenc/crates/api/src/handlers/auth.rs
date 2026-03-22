@@ -647,21 +647,20 @@ pub async fn get_current_user_handler(
 ) -> impl axum::response::IntoResponse {
     use authenc_types::UserId;
 
-    // Enforce password-change requirement before allowing profile access
-    if let Err(e) = auth_helpers::check_password_change_required(&state, &headers) {
-        return ErrorResponse {
-            status_code: axum::http::StatusCode::FORBIDDEN,
-            error: "password_change_required".to_string(),
-            message: e.message,
-        }.into_response();
-    }
-
-    let user_uuid = match auth_helpers::extract_user_from_token(&state, &headers).await {
+    // Enforce password-change requirement and extract user ID in a single
+    // JWT verification pass (avoids verifying the token twice).
+    let user_uuid = match auth_helpers::extract_user_with_password_check(&state, &headers) {
         Ok(u) => u,
         Err(e) => {
+            // Distinguish password-change-required (403) from auth errors (401)
+            let (status, error_code) = if e.message.contains("password") {
+                (axum::http::StatusCode::FORBIDDEN, "password_change_required")
+            } else {
+                (axum::http::StatusCode::UNAUTHORIZED, "unauthorized")
+            };
             return ErrorResponse {
-                status_code: axum::http::StatusCode::UNAUTHORIZED,
-                error: "unauthorized".to_string(),
+                status_code: status,
+                error: error_code.to_string(),
                 message: e.message,
             }.into_response();
         }
@@ -770,19 +769,20 @@ pub async fn update_profile_handler(
     headers: HeaderMap,
     Json(request): Json<UpdateProfileRequest>,
 ) -> Result<Json<UserProfileResponse>, ErrorResponse> {
-    // Enforce password-change requirement
-    auth_helpers::check_password_change_required(&state, &headers).map_err(|e| ErrorResponse {
-        status_code: axum::http::StatusCode::FORBIDDEN,
-        error: "password_change_required".to_string(),
-        message: e.message,
-    })?;
-
-    let user_uuid = auth_helpers::extract_user_from_token(&state, &headers)
-        .await
-        .map_err(|e| ErrorResponse {
-            status_code: axum::http::StatusCode::UNAUTHORIZED,
-            error: "unauthorized".to_string(),
-            message: e.message,
+    // Enforce password-change requirement and extract user ID in a single
+    // JWT verification pass (avoids verifying the token twice).
+    let user_uuid = auth_helpers::extract_user_with_password_check(&state, &headers)
+        .map_err(|e| {
+            let (status, error_code) = if e.message.contains("password") {
+                (axum::http::StatusCode::FORBIDDEN, "password_change_required")
+            } else {
+                (axum::http::StatusCode::UNAUTHORIZED, "unauthorized")
+            };
+            ErrorResponse {
+                status_code: status,
+                error: error_code.to_string(),
+                message: e.message,
+            }
         })?;
 
     let user_id = authenc_types::UserId::from_uuid(user_uuid);

@@ -154,6 +154,14 @@ pub fn check_password_change_required(
         .verify_token(&token)
         .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
 
+    check_password_change_required_from_claims(&claims)
+}
+
+/// Same as [`check_password_change_required`] but accepts pre-verified claims
+/// to avoid double JWT verification when the caller also needs the user ID.
+pub fn check_password_change_required_from_claims(
+    claims: &authenc_crypto::jwt::TokenClaims,
+) -> Result<(), AuthError> {
     // Check the custom `require_password_change` claim embedded by
     // `build_user_custom_claims`.
     let must_change = claims
@@ -169,6 +177,26 @@ pub fn check_password_change_required(
     }
 
     Ok(())
+}
+
+/// Extract bearer token, verify it, check password-change requirement, and
+/// return the user UUID — all in a single JWT verification pass.
+///
+/// Use this instead of calling `check_password_change_required` followed by
+/// `extract_user_from_token` to avoid verifying the JWT twice.
+pub fn extract_user_with_password_check(
+    state: &Arc<ApiState>,
+    headers: &HeaderMap,
+) -> Result<Uuid, AuthError> {
+    let token = extract_bearer_token(headers)?;
+    let claims = state
+        .jwt_service
+        .verify_token(&token)
+        .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
+
+    check_password_change_required_from_claims(&claims)?;
+
+    Uuid::parse_str(&claims.sub).map_err(|_| AuthError::unauthorized("Invalid user ID in token"))
 }
 
 /// Builds custom JWT claims for a user (NIP, name, jabatan, etc.)

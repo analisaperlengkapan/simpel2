@@ -418,7 +418,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             UPDATE users
             SET enabled = false, deleted_at = $2, updated_at = $2
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
         "#;
 
         let now = Utc::now();
