@@ -248,6 +248,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                             // Show success with remaining codes count
                                                             set_remaining_codes.set(Some(response.data.remaining_codes));
                                                             set_verification_success.set(true);
+                                                            set_is_loading.set(false);
 
                                                             // Redirect to dashboard after showing success.
                                                             // Guard: if the component unmounted during

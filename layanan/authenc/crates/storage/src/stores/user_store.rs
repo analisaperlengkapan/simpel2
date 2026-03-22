@@ -138,7 +138,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT *
             FROM users
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_one(query, &[&id.0]).await?;
