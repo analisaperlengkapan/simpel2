@@ -653,7 +653,7 @@ pub async fn get_current_user_handler(
         Ok(u) => u,
         Err(e) => {
             // Distinguish password-change-required (403) from auth errors (401)
-            let (status, error_code) = if e.message.contains("password") {
+            let (status, error_code) = if e.error_code == auth_helpers::AuthErrorCode::PasswordChangeRequired {
                 (axum::http::StatusCode::FORBIDDEN, "password_change_required")
             } else {
                 (axum::http::StatusCode::UNAUTHORIZED, "unauthorized")
@@ -773,7 +773,7 @@ pub async fn update_profile_handler(
     // JWT verification pass (avoids verifying the token twice).
     let user_uuid = auth_helpers::extract_user_with_password_check(&state, &headers)
         .map_err(|e| {
-            let (status, error_code) = if e.message.contains("password") {
+            let (status, error_code) = if e.error_code == auth_helpers::AuthErrorCode::PasswordChangeRequired {
                 (axum::http::StatusCode::FORBIDDEN, "password_change_required")
             } else {
                 (axum::http::StatusCode::UNAUTHORIZED, "unauthorized")

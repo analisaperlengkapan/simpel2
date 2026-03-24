@@ -28,12 +28,32 @@ use crate::state::ApiState;
 #[derive(Debug)]
 pub struct AuthError {
     pub message: String,
+    /// Machine-readable error code for programmatic discrimination.
+    /// Avoids fragile `message.contains(…)` checks in callers.
+    pub error_code: AuthErrorCode,
+}
+
+/// Machine-readable error codes for [`AuthError`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthErrorCode {
+    /// Generic unauthorized (missing/invalid/expired token).
+    Unauthorized,
+    /// User must change password before accessing protected resources.
+    PasswordChangeRequired,
 }
 
 impl AuthError {
     pub fn unauthorized(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            error_code: AuthErrorCode::Unauthorized,
+        }
+    }
+
+    pub fn password_change_required(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            error_code: AuthErrorCode::PasswordChangeRequired,
         }
     }
 }
@@ -171,7 +191,7 @@ pub fn check_password_change_required_from_claims(
         .unwrap_or(false);
 
     if must_change {
-        return Err(AuthError::unauthorized(
+        return Err(AuthError::password_change_required(
             "Anda harus mengubah password sebelum mengakses fitur lain.",
         ));
     }

@@ -66,6 +66,11 @@ pub fn MfaVerificationPage() -> impl IntoView {
 
     let navigate = leptos_router::hooks::use_navigate();
 
+    // Obtain the top-level user_session writer so we can update the reactive
+    // signal after successful MFA verification.  Without this, route guards
+    // that read the signal would still see `None` and redirect to login.
+    let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
+
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
 
@@ -209,6 +214,12 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                             // Save session
                                                             AuthService::save_session(&session);
                                                             crate::utils::app_state::app_state_login(session.clone());
+
+                                                            // Update the reactive user_session signal so route
+                                                            // guards see the authenticated session immediately.
+                                                            if let Some(setter) = set_user_session {
+                                                                setter.set(Some(session.clone()));
+                                                            }
 
                                                             // Clear temp token
                                                             AuthService::clear_temp_token();
