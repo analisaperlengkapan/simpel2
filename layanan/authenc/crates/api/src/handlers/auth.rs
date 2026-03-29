@@ -886,6 +886,22 @@ pub async fn change_password_handler(
         });
     }
 
+    // Reject password reuse — the new password must differ from the current one.
+    // Without this check a user forced to change their password
+    // (require_password_change) could "change" to the same value and clear the
+    // flag without actually improving security.
+    let same_as_current = state
+        .auth_service
+        .verify_password(&request.new_password, stored_hash)
+        .unwrap_or(false);
+    if same_as_current {
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "password_reuse".to_string(),
+            message: "Password baru tidak boleh sama dengan password saat ini.".to_string(),
+        });
+    }
+
     // Update password and clear require_password_change flag
     let update_req = authenc_types::UpdateUserRequest {
         password: Some(request.new_password),

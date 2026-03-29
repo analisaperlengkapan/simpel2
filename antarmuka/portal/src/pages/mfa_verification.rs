@@ -224,8 +224,14 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                             // Clear temp token
                                                             AuthService::clear_temp_token();
 
-                                                            // Redirect to dashboard
-                                                            nav("/dashboard", Default::default());
+                                                            // Navigate directly to password-change page when
+                                                            // required, avoiding a double redirect via the
+                                                            // dashboard route guard.
+                                                            if session.require_password_change {
+                                                                nav("/password", Default::default());
+                                                            } else {
+                                                                nav("/dashboard", Default::default());
+                                                            }
                                                         }
                                                         Err(e) => {
                                                             set_error_message.set(format!("Failed to decode token: {}", e));

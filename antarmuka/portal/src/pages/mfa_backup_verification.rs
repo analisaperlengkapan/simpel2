@@ -261,14 +261,21 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                             set_verification_success.set(true);
                                                             set_is_loading.set(false);
 
-                                                            // Redirect to dashboard after showing success.
+                                                            // Redirect after showing success.
                                                             // Guard: if the component unmounted during
                                                             // the 2-second timer (e.g. user clicked
                                                             // "Back to login"), skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
 
                                                             if is_mounted.get() {
-                                                                nav("/dashboard", Default::default());
+                                                                // Navigate directly to password-change
+                                                                // page when required, avoiding a double
+                                                                // redirect via the dashboard route guard.
+                                                                if session.require_password_change {
+                                                                    nav("/password", Default::default());
+                                                                } else {
+                                                                    nav("/dashboard", Default::default());
+                                                                }
                                                             }
                                                         }
                                                         Err(e) => {

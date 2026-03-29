@@ -704,6 +704,11 @@ impl AuthService {
     }
 
     /// Update session with new token
+    ///
+    /// Re-decodes the JWT to refresh claim-derived fields (e.g.
+    /// `require_password_change`, `nip`, `jabatan`, `roles`) so that
+    /// route guards and UI components see up-to-date values after an
+    /// automatic token refresh.
     pub fn update_session_token(token_response: &TokenResponse) {
         if let Some(mut session) = Self::load_session() {
             session.access_token = Some(token_response.access_token.clone());
@@ -713,6 +718,26 @@ impl AuthService {
             let now = chrono::Utc::now();
             let expires_at = now + chrono::Duration::seconds(token_response.expires_in as i64);
             session.expires_at = Some(expires_at.timestamp());
+
+            // Re-decode JWT claims so that claim-derived fields (name,
+            // nip, jabatan, satker_code, require_password_change, roles,
+            // mfa_enabled, etc.) are refreshed from the new token.
+            // Without this, a stale `require_password_change: true` would
+            // keep redirecting the user to the password-change page even
+            // after the flag was cleared in the DB and the new JWT.
+            if let Ok(decoded) = Self::decode_jwt_claims(&token_response.access_token) {
+                session.name = decoded.name;
+                session.email = decoded.email;
+                session.role = decoded.role;
+                session.nip = decoded.nip;
+                session.jabatan = decoded.jabatan;
+                session.satker_code = decoded.satker_code;
+                session.satuan_kerja = decoded.satuan_kerja;
+                session.mfa_enabled = decoded.mfa_enabled;
+                session.mfa_setup_required = decoded.mfa_setup_required;
+                session.require_password_change = decoded.require_password_change;
+                session.permissions = decoded.permissions;
+            }
 
             Self::save_session(&session);
 
