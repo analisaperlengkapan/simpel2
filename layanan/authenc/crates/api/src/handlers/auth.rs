@@ -150,6 +150,13 @@ const SATKER_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(600
 /// for the full [`SATKER_CACHE_TTL`].
 const SATKER_CACHE_ERROR_TTL: std::time::Duration = std::time::Duration::from_secs(30);
 
+/// Maximum number of entries in the satker cache.  When the cache exceeds
+/// this size during a write, all expired entries are evicted.  If the cache
+/// is still over the limit after eviction, the oldest entries are removed.
+/// This prevents unbounded memory growth over the lifetime of a long-running
+/// server.
+const SATKER_CACHE_MAX_ENTRIES: usize = 2048;
+
 /// Resolve a raw satker_code to the human-readable `nama_satker` via the
 /// integrasi gRPC service.  Falls back to returning the raw code when the
 /// service is unavailable or the code is unknown.
@@ -205,13 +212,39 @@ async fn resolve_satuan_kerja(
         (satker_code.to_string(), false)
     };
 
-    // Store in cache
+    // Store in cache, evicting expired/oldest entries if over capacity
     {
         let mut cache = SATKER_CACHE.write().await;
         cache.insert(
             satker_code.to_string(),
             (resolved.clone(), std::time::Instant::now(), authoritative),
         );
+
+        // Evict expired entries when the cache exceeds the max size
+        if cache.len() > SATKER_CACHE_MAX_ENTRIES {
+            cache.retain(|_, (_, inserted_at, is_auth)| {
+                let ttl = if *is_auth {
+                    SATKER_CACHE_TTL
+                } else {
+                    SATKER_CACHE_ERROR_TTL
+                };
+                inserted_at.elapsed() < ttl
+            });
+
+            // If still over capacity after evicting expired entries, remove
+            // the oldest entries until we're back under the limit.
+            if cache.len() > SATKER_CACHE_MAX_ENTRIES {
+                let mut entries: Vec<(String, std::time::Instant)> = cache
+                    .iter()
+                    .map(|(k, (_, ts, _))| (k.clone(), *ts))
+                    .collect();
+                entries.sort_by_key(|(_, ts)| *ts);
+                let to_remove = cache.len() - SATKER_CACHE_MAX_ENTRIES;
+                for (key, _) in entries.into_iter().take(to_remove) {
+                    cache.remove(&key);
+                }
+            }
+        }
     }
 
     Some(resolved)
@@ -788,7 +821,12 @@ pub async fn update_profile_handler(
     let user_id = authenc_types::UserId::from_uuid(user_uuid);
 
     let update_req = authenc_types::UpdateUserRequest {
-        first_name: request.display_name.clone(),
+        // Map display_name to `nama` (full name) rather than `first_name`.
+        // The display-name logic in GET /me builds name as
+        // `first_name + " " + last_name`, falling back to `nama`.  Storing the
+        // full display name in `first_name` would produce incorrect results
+        // when `last_name` is also set (e.g. "New Name OldLastName").
+        nama: request.display_name.clone(),
         email: request.email.clone(),
         phone_number: request.phone.clone(),
         ..Default::default()
