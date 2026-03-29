@@ -45,6 +45,7 @@ pub struct UserSession {
     /// MFA setup required (true if user needs to setup MFA)
     pub mfa_setup_required: bool,
     /// Whether user must change password before using the system
+    #[serde(default)]
     pub require_password_change: bool,
     /// Session creation timestamp
     pub created_at: Option<String>,
