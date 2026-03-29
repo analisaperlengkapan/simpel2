@@ -26,6 +26,15 @@ pub struct UserSession {
     pub email: String,
     /// Profile picture URL
     pub avatar: Option<String>,
+    /// NIP (Nomor Induk Pegawai)
+    #[serde(default)]
+    pub nip: Option<String>,
+    /// Jabatan (position/title)
+    #[serde(default)]
+    pub jabatan: Option<String>,
+    /// Kode Satker (work unit code)
+    #[serde(default)]
+    pub satker_code: Option<String>,
     /// Nama satuan kerja
     pub satuan_kerja: String,
     /// CAPTCHA validation status
@@ -34,6 +43,9 @@ pub struct UserSession {
     pub mfa_enabled: bool,
     /// MFA setup required (true if user needs to setup MFA)
     pub mfa_setup_required: bool,
+    /// Whether user must change password before using the system
+    #[serde(default)]
+    pub require_password_change: bool,
     /// Session creation timestamp
     pub created_at: Option<String>,
     /// JWT access token
