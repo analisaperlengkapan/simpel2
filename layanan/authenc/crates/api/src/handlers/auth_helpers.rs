@@ -249,7 +249,15 @@ pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::coll
         }
         // MFA status
         custom_claims.insert("mfa_enabled".into(), serde_json::json!(u.mfa_enabled));
-        custom_claims.insert("mfa_setup_required".into(), serde_json::json!(!u.mfa_enabled));
+        // NOTE: mfa_setup_required is NOT simply `!mfa_enabled`.  Whether MFA
+        // setup is required depends on the realm's MFA policy (Optional /
+        // Required / RequiredForAdmins) which is evaluated during the login
+        // flow and surfaced via `LoginResponse.mfa_setup_required`.  Setting
+        // the JWT claim to `!mfa_enabled` would incorrectly mark every
+        // non-MFA user as needing setup even when the policy is Optional.
+        // We default to `false` here; the login handler overrides the
+        // session flag when MFA setup is actually required.
+        custom_claims.insert("mfa_setup_required".into(), serde_json::json!(false));
         // Password change requirement — always embedded in JWT so frontend
         // route guards and middleware can enforce the redirect without an
         // extra API round-trip.  We always emit the claim (even when false)
