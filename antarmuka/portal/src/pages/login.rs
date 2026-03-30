@@ -79,9 +79,16 @@ pub fn LoginPage(
                                                 }
                                                 AuthService::save_session(&session);
                                                 crate::utils::app_state::app_state_login(session.clone());
-                                                on_login_success.set(Some(session));
+                                                on_login_success.set(Some(session.clone()));
                                                 set_passkey_loading.set(false);
-                                                nav("/dashboard", Default::default());
+                                                // Navigate to password-change page when
+                                                // required, avoiding a double redirect
+                                                // via the dashboard route guard.
+                                                if session.require_password_change {
+                                                    nav("/password", Default::default());
+                                                } else {
+                                                    nav("/dashboard", Default::default());
+                                                }
                                             }
                                             Err(e) => {
                                                 set_error_message
