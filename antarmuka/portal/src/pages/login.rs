@@ -194,18 +194,16 @@ pub fn LoginPage(
                     // Hide loading spinner before navigating
                     set_is_loading.set(false);
 
-                    if redirect_to_perlengkapan {
+                    // Security-critical check first: forced password change
+                    // takes priority over any redirect target.
+                    if needs_password_change {
+                        nav("/password", Default::default());
+                    } else if redirect_to_perlengkapan {
                         // Hard redirect to Perlengkapan root
                         if let Some(window) = web_sys::window() {
                             let _ = window.location().set_href("/");
                         }
                         return;
-                    }
-
-                    // Navigate to password-change page when required,
-                    // avoiding a double redirect via the dashboard route guard.
-                    if needs_password_change {
-                        nav("/password", Default::default());
                     } else {
                         nav("/dashboard", Default::default());
                     }
