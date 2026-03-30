@@ -98,6 +98,8 @@ pub fn PasswordChangePage() -> impl IntoView {
     let (show_current, set_show_current) = signal(false);
     let (show_new, set_show_new) = signal(false);
 
+    let navigate = leptos_router::hooks::use_navigate();
+
     let password_strength = Signal::derive(move || {
         let pw = new_password.get();
         if pw.is_empty() {
@@ -123,6 +125,7 @@ pub fn PasswordChangePage() -> impl IntoView {
     let handle_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
         let api = api.clone();
+        let nav = navigate.clone();
         set_loading.set(true);
         set_error.set(None);
         set_success.set(None);
@@ -135,7 +138,7 @@ pub fn PasswordChangePage() -> impl IntoView {
 
             match api.change_password(&req).await {
                 Ok(()) => {
-                    set_success.set(Some("Kata sandi berhasil diubah".to_string()));
+                    set_success.set(Some("Kata sandi berhasil diubah. Mengalihkan ke dashboard...".to_string()));
                     set_current_password.set(String::new());
                     set_new_password.set(String::new());
                     set_confirm_password.set(String::new());
@@ -185,6 +188,11 @@ pub fn PasswordChangePage() -> impl IntoView {
                         }
                         crate::utils::app_state::app_state_login(session);
                     }
+
+                    // Navigate to dashboard after a short delay so the user
+                    // sees the success message before being redirected.
+                    gloo_timers::future::TimeoutFuture::new(1_500).await;
+                    nav("/dashboard", Default::default());
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),
             }
