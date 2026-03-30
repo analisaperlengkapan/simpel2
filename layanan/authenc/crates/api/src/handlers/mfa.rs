@@ -287,14 +287,14 @@ pub async fn mfa_verify_handler(
     let session_id = Uuid::new_v4().to_string();
 
     // Fetch user to build custom claims
-    let user = state.user_service.get_user(authenc_types::UserId::from_uuid(user_id)).await.ok();
-
-    if user.is_none() {
-        tracing::warn!("Failed to fetch user details for MFA token claims mapping");
-    }
+    let user = state.user_service.get_user(authenc_types::UserId::from_uuid(user_id)).await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to fetch user details for MFA token claims — refusing to issue JWT without claims");
+            MfaApiError::internal("Failed to fetch user details")
+        })?;
 
     // Build custom claims
-    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(user.as_ref());
+    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
 
     let access_token = state
         .jwt_service
@@ -495,14 +495,14 @@ pub async fn mfa_verify_recovery_handler(
     let session_id = Uuid::new_v4().to_string();
 
     // Fetch user to build custom claims
-    let user = state.user_service.get_user(authenc_types::UserId::from_uuid(user_id)).await.ok();
-
-    if user.is_none() {
-        tracing::warn!("Failed to fetch user details for MFA token claims mapping");
-    }
+    let user = state.user_service.get_user(authenc_types::UserId::from_uuid(user_id)).await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to fetch user details for MFA recovery token claims — refusing to issue JWT without claims");
+            MfaApiError::internal("Failed to fetch user details")
+        })?;
 
     // Build custom claims
-    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(user.as_ref());
+    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
 
     let access_token = state
         .jwt_service

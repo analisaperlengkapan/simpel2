@@ -302,18 +302,21 @@ pub async fn login_handler(
             let sid = session_id.0.to_string();
 
             // Check if user must change password
-            let user = state.user_service.get_user(user_id).await.ok();
-            let require_password_change = user
-                .as_ref()
-                .map(|u| u.require_password_change)
-                .unwrap_or(false);
-
-            if user.is_none() {
-                tracing::warn!("Failed to fetch user details for token claims mapping");
-            }
+            let user = match state.user_service.get_user(user_id).await {
+                Ok(u) => u,
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to fetch user details for token claims — refusing to issue JWT without claims");
+                    return ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "internal_error".to_string(),
+                        message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+                    }.into_response();
+                }
+            };
+            let require_password_change = user.require_password_change;
 
             // Enrich JWT with pegawai data
-            let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(user.as_ref());
+            let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
 
             let access_token = match state.jwt_service.generate_access_token_with_claims(
                 &uid,
@@ -613,17 +616,26 @@ pub async fn refresh_token_handler(
     let sid = claims.sid.as_deref().unwrap_or("").to_string();
 
     // Fetch user from DB to build the same custom claims as the login handler
-    let mut custom_claims = std::collections::HashMap::new();
-    if let Ok(user_uuid) = uid.parse::<Uuid>() {
+    let custom_claims = if let Ok(user_uuid) = uid.parse::<Uuid>() {
         let user_id = authenc_types::UserId::from_uuid(user_uuid);
-        let user = state.user_service.get_user(user_id).await.ok();
-
-        if user.is_none() {
-            tracing::warn!("Failed to fetch user details for refresh token claims mapping");
+        match state.user_service.get_user(user_id).await {
+            Ok(user) => crate::handlers::auth_helpers::build_user_custom_claims(Some(&user)),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to fetch user details for refresh token claims — refusing to issue JWT without claims");
+                return ErrorResponse {
+                    status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    error: "internal_error".to_string(),
+                    message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+                }.into_response();
+            }
         }
-
-        custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(user.as_ref());
-    }
+    } else {
+        return ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "invalid_token".to_string(),
+            message: "Invalid user ID in token".to_string(),
+        }.into_response();
+    };
 
     // Generate new access token with custom claims (keep same session_id)
     let access_token = match state.jwt_service.generate_access_token_with_claims(

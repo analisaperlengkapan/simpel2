@@ -171,7 +171,7 @@ pub async fn list_users(
     };
 
     let response = PaginatedUsers {
-        users: users.iter().map(|u| user_to_response(u)).collect(),
+        users: users.iter().map(user_to_response).collect(),
         total,
         page,
         page_size,

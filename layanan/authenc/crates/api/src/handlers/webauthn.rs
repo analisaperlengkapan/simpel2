@@ -290,14 +290,17 @@ pub async fn finish_authentication_handler(
     let session_id = uuid::Uuid::new_v4().to_string();
 
     // Fetch user to build custom claims
-    let user = state.user_service.get_user(user_id.clone()).await.ok();
-
-    if user.is_none() {
-        tracing::warn!("Failed to fetch user details for passkey token claims mapping");
-    }
+    let user = state.user_service.get_user(user_id.clone()).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to fetch user details for passkey token claims — refusing to issue JWT without claims");
+        ErrorResponse {
+            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            error: "internal_error".to_string(),
+            message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+        }
+    })?;
 
     // Build custom claims
-    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(user.as_ref());
+    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
 
     let access_token = state
         .jwt_service

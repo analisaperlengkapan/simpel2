@@ -640,7 +640,7 @@ impl UserStore for PostgresUserStore {
             realm_id, enabled, offset, limit
         );
 
-        let (query, rows) = match enabled {
+        let rows = match enabled {
             Some(e) => {
                 let q = r#"
                     SELECT *
@@ -649,11 +649,9 @@ impl UserStore for PostgresUserStore {
                     ORDER BY created_at DESC
                     LIMIT $2 OFFSET $3
                 "#;
-                let r = self
-                    .db
+                self.db
                     .query(q, &[&realm_id.0, &(limit as i64), &(offset as i64), &e])
-                    .await?;
-                (q, r)
+                    .await?
             }
             None => {
                 let q = r#"
@@ -663,14 +661,11 @@ impl UserStore for PostgresUserStore {
                     ORDER BY created_at DESC
                     LIMIT $2 OFFSET $3
                 "#;
-                let r = self
-                    .db
+                self.db
                     .query(q, &[&realm_id.0, &(limit as i64), &(offset as i64)])
-                    .await?;
-                (q, r)
+                    .await?
             }
         };
-        let _ = query; // suppress unused warning
 
         let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
 
