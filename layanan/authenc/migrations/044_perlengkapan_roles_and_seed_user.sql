@@ -218,7 +218,7 @@ SELECT
     NOW()
 FROM realms r
 WHERE r.name = 'master'
-ON CONFLICT (username) DO UPDATE SET
+ON CONFLICT (username) WHERE deleted_at IS NULL DO UPDATE SET
     enabled = true,
     password_hash = EXCLUDED.password_hash,
     updated_at = NOW();
