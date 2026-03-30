@@ -536,21 +536,20 @@ pub fn create_admin_routes() -> Router<Arc<IamApiState>> {
     Router::new()
         .route("/stats", get(get_system_stats))
         .route("/dashboard", get(get_dashboard_data))
-        .route("/users", get(list_users))
-        .route("/users", post(create_user))
-        .route("/users/{user_id}", get(get_user))
-        .route("/users/{user_id}", put(update_user))
-        .route("/users/{user_id}", delete(delete_user))
+        .route("/users", get(list_users).post(create_user))
+        .route(
+            "/users/{user_id}",
+            get(get_user).put(update_user).delete(delete_user),
+        )
         .route("/sessions", get(list_sessions))
         .route("/sessions/{session_id}", delete(terminate_session))
         .route("/audit-logs", get(list_audit_logs))
-        .route("/roles", get(list_roles))
-        .route("/roles", post(create_role))
-        .route("/roles/{role_id}", get(get_role))
-        .route("/roles/{role_id}", put(update_role))
-        .route("/roles/{role_id}", delete(delete_role))
-        .route("/policies", get(list_policies))
-        .route("/policies", post(create_policy))
+        .route("/roles", get(list_roles).post(create_role))
+        .route(
+            "/roles/{role_id}",
+            get(get_role).put(update_role).delete(delete_role),
+        )
+        .route("/policies", get(list_policies).post(create_policy))
         .route("/security-events", get(get_security_events))
         .route("/risk-analytics", get(get_risk_analytics))
 }

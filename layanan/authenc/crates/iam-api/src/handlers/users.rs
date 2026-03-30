@@ -164,8 +164,6 @@ pub async fn list_users(
         (users, total)
     };
 
-    let filtered: Vec<_> = users.iter().collect();
-
     let total_pages = if total > 0 {
         ((total as u32) + page_size - 1) / page_size
     } else {
@@ -173,7 +171,7 @@ pub async fn list_users(
     };
 
     let response = PaginatedUsers {
-        users: filtered.iter().map(|u| user_to_response(u)).collect(),
+        users: users.iter().map(|u| user_to_response(u)).collect(),
         total,
         page,
         page_size,

@@ -914,7 +914,10 @@ pub async fn change_password_handler(
     let valid = state
         .auth_service
         .verify_password(&request.current_password, stored_hash)
-        .unwrap_or(false);
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "Password verification error during password change");
+            false
+        });
 
     if !valid {
         return Err(ErrorResponse {
@@ -931,7 +934,10 @@ pub async fn change_password_handler(
     let same_as_current = state
         .auth_service
         .verify_password(&request.new_password, stored_hash)
-        .unwrap_or(false);
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "Password verification error during reuse check");
+            false
+        });
     if same_as_current {
         return Err(ErrorResponse {
             status_code: axum::http::StatusCode::BAD_REQUEST,
