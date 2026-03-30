@@ -100,6 +100,14 @@ pub fn PasswordChangePage() -> impl IntoView {
 
     let navigate = leptos_router::hooks::use_navigate();
 
+    // Track whether this component is still mounted so the timer callback
+    // inside spawn_local can skip navigation after the user left the page.
+    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted_cleanup = mounted.clone();
+    on_cleanup(move || {
+        mounted_cleanup.set(false);
+    });
+
     let password_strength = Signal::derive(move || {
         let pw = new_password.get();
         if pw.is_empty() {
@@ -126,6 +134,7 @@ pub fn PasswordChangePage() -> impl IntoView {
         ev.prevent_default();
         let api = api.clone();
         let nav = navigate.clone();
+        let is_mounted = mounted.clone();
         set_loading.set(true);
         set_error.set(None);
         set_success.set(None);
@@ -191,8 +200,12 @@ pub fn PasswordChangePage() -> impl IntoView {
 
                     // Navigate to dashboard after a short delay so the user
                     // sees the success message before being redirected.
+                    // Guard: if the component unmounted during the 1.5-second
+                    // timer (e.g. user navigated away), skip the navigation.
                     gloo_timers::future::TimeoutFuture::new(1_500).await;
-                    nav("/dashboard", Default::default());
+                    if is_mounted.get() {
+                        nav("/dashboard", Default::default());
+                    }
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),
             }
