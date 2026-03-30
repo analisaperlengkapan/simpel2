@@ -188,6 +188,7 @@ pub fn LoginPage(
                     // Full authentication complete
                     AuthService::save_session(&session);
                     crate::utils::app_state::app_state_login((*session).clone());
+                    let needs_password_change = session.require_password_change;
                     on_login_success.set(Some(*session));
 
                     // Hide loading spinner before navigating
@@ -201,7 +202,13 @@ pub fn LoginPage(
                         return;
                     }
 
-                    nav("/dashboard", Default::default());
+                    // Navigate to password-change page when required,
+                    // avoiding a double redirect via the dashboard route guard.
+                    if needs_password_change {
+                        nav("/password", Default::default());
+                    } else {
+                        nav("/dashboard", Default::default());
+                    }
                 }
                 LoginResult::MfaSetupRequired(temp_token) => {
                     // Reset failed attempts

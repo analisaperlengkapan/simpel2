@@ -768,13 +768,10 @@ pub async fn get_current_user_handler(
 #[derive(Debug, Deserialize)]
 pub struct UpdateProfileRequest {
     /// Display name
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     /// Email
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     /// Phone number
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
 }
 
@@ -793,7 +790,6 @@ pub struct PasswordResetRequest {
     /// Email address to send reset link
     pub email: String,
     /// Optional captcha token
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub captcha_token: Option<String>,
 }
 
