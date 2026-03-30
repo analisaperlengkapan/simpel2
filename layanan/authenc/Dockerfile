@@ -26,7 +26,7 @@ COPY Cargo.toml Cargo.lock ./
 # Patch Cargo.toml: delete old members list and add minimal set for authenc build
 # Note: layanan/authenc itself is excluded (legacy shell, no src/) - binary is in crates/api
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/authenc/crates/types", "layanan/authenc/crates/crypto", "layanan/authenc/crates/storage", "layanan/authenc/crates/core", "layanan/authenc/crates/api", "layanan/authenc/crates/webauthn"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/authenc/crates/types", "layanan/authenc/crates/crypto", "layanan/authenc/crates/storage", "layanan/authenc/crates/core", "layanan/authenc/crates/api", "layanan/authenc/crates/webauthn", "layanan/authenc/crates/federation", "layanan/authenc/crates/iam-api"]' Cargo.toml || true
 
 # Copy lib-common (workspace dependency)
 COPY lib/common ./lib/common
@@ -35,8 +35,14 @@ COPY lib/common ./lib/common
 COPY layanan/authenc ./layanan/authenc
 
 # Build authenc binary (defined in crates/api/src/main.rs)
+# captcha-debug: use --build-arg CAPTCHA_DEBUG=1 for E2E test images only
+ARG CAPTCHA_DEBUG=0
 ENV RUSTFLAGS="-C target-feature=-crt-static"
-RUN cargo build --release --bin authenc
+RUN if [ "$CAPTCHA_DEBUG" = "1" ]; then \
+        cargo build --release --bin authenc --features authenc-api/captcha-debug; \
+    else \
+        cargo build --release --bin authenc; \
+    fi
 
 # Stage 2: Runtime - Use Ubuntu 24.04 for GLIBC compatibility (aligns with dev environment)
 FROM ubuntu:24.04

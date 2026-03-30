@@ -5,7 +5,6 @@ use authenc_types::domain::organization::{
 };
 use authenc_types::{AuthencError, Result};
 use chrono::Utc;
-use std::str::FromStr;
 use tracing::error;
 use uuid::Uuid;
 

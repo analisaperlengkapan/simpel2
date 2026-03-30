@@ -83,10 +83,10 @@ impl SecretonAccessPolicy {
     /// Check if access to a secret path is allowed
     pub fn can_access_path(&self, path: &str, satker_code: &str) -> bool {
         // Check denied paths first
-        if let Some(denied) = &self.denied_paths {
-            if denied.iter().any(|p| path.starts_with(p)) {
-                return false;
-            }
+        if let Some(denied) = &self.denied_paths
+            && denied.iter().any(|p| path.starts_with(p))
+        {
+            return false;
         }
 
         // Check if satker is allowed
@@ -371,8 +371,7 @@ impl Role {
             if scope == "global" || scope == "pusat" {
                 return true;
             }
-            if scope.starts_with("satker:") {
-                let scope_satker = &scope[7..];
+            if let Some(scope_satker) = scope.strip_prefix("satker:") {
                 return scope_satker == satker_code;
             }
             // Fallback for migration compatibility
@@ -381,18 +380,17 @@ impl Role {
             }
         } else {
             // If scope is None, check for legacy attributes
-            if let Some(attrs) = &self.attributes {
-                if let Some(legacy_scope) = attrs.get("role_scope").and_then(|v| v.as_str()) {
-                    if legacy_scope == "global" || legacy_scope == "pusat" {
-                        return true;
-                    }
-                    if legacy_scope.starts_with("satker:") {
-                        let scope_satker = &legacy_scope[7..];
-                        return scope_satker == satker_code;
-                    }
-                    if legacy_scope == satker_code {
-                        return true;
-                    }
+            if let Some(attrs) = &self.attributes
+                && let Some(legacy_scope) = attrs.get("role_scope").and_then(|v| v.as_str())
+            {
+                if legacy_scope == "global" || legacy_scope == "pusat" {
+                    return true;
+                }
+                if let Some(scope_satker) = legacy_scope.strip_prefix("satker:") {
+                    return scope_satker == satker_code;
+                }
+                if legacy_scope == satker_code {
+                    return true;
                 }
             }
         }
@@ -468,8 +466,7 @@ impl Permission {
         if let Some(scope) = &self.scope {
             // Simplified check - assumes scope is either global or satker prefix
             if scope != "global" && scope != "pusat" {
-                if scope.starts_with("satker:") {
-                    let scope_satker = &scope[7..];
+                if let Some(scope_satker) = scope.strip_prefix("satker:") {
                     if scope_satker != satker_code {
                         return false;
                     }
@@ -823,10 +820,12 @@ pub struct CreateUserRequest {
     pub roles: Option<Vec<Uuid>>,
     /// Additional attributes
     pub attributes: Option<serde_json::Value>,
+    /// Whether user is enabled initially
+    pub enabled: Option<bool>,
 }
 
 /// Request to update an existing user
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UpdateUserRequest {
     /// New username
     pub username: Option<String>,

@@ -64,7 +64,11 @@ pub struct UserInfo {
     pub last_name: Option<String>,
     pub phone: Option<String>,
     pub avatar: Option<String>,
-    pub division: Option<String>,
+    /// Raw satker (work unit) code
+    #[serde(default)]
+    pub satker_code: Option<String>,
+    /// Nama satuan kerja (resolved from satker_code by the backend)
+    pub satuan_kerja: Option<String>,
     pub role: String,
     pub permissions: Vec<String>,
     pub mfa_enabled: bool,
@@ -1138,7 +1142,8 @@ impl AuthencApiClient {
             last_name: Some("User".to_string()),
             phone: None,
             avatar: None,
-            division: Some("IT".to_string()),
+            satker_code: Some("0100000".to_string()),
+            satuan_kerja: Some("Bagian Umum".to_string()),
             role: "admin".to_string(),
             permissions: vec!["admin:*".to_string()],
             mfa_enabled: false,

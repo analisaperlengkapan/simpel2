@@ -27,7 +27,7 @@ mod mfa_flow_tests {
             name: "New User".to_string(),
             email: "newuser@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Test Division".to_string(),
+            satuan_kerja: "Test Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: false,
             mfa_setup_required: true, // User needs to setup MFA
@@ -36,6 +36,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec![],
+            ..Default::default()
         };
 
         // Verify MFA setup is required
@@ -53,7 +54,7 @@ mod mfa_flow_tests {
             name: "User With MFA".to_string(),
             email: "user@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Test Division".to_string(),
+            satuan_kerja: "Test Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: true,
             mfa_setup_required: false,
@@ -62,6 +63,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec![],
+            ..Default::default()
         };
 
         // Verify MFA is enabled
@@ -80,7 +82,7 @@ mod mfa_flow_tests {
             name: "New User".to_string(),
             email: "newuser@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Test Division".to_string(),
+            satuan_kerja: "Test Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: false,
             mfa_setup_required: true,
@@ -89,6 +91,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec![],
+            ..Default::default()
         };
 
         // Verify initial state
@@ -114,7 +117,7 @@ mod mfa_flow_tests {
             name: "User".to_string(),
             email: "user@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Test Division".to_string(),
+            satuan_kerja: "Test Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: true,
             mfa_setup_required: false,
@@ -123,6 +126,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec![],
+            ..Default::default()
         };
 
         // Session should be valid
@@ -140,7 +144,7 @@ mod mfa_flow_tests {
             name: "Admin User".to_string(),
             email: "admin@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Admin Division".to_string(),
+            satuan_kerja: "Admin Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: true,
             mfa_setup_required: false,
@@ -149,6 +153,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec!["admin:*".to_string()],
+            ..Default::default()
         };
 
         // Supervisor user with MFA
@@ -159,7 +164,7 @@ mod mfa_flow_tests {
             name: "Supervisor User".to_string(),
             email: "supervisor@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Supervisor Division".to_string(),
+            satuan_kerja: "Supervisor Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: true,
             mfa_setup_required: false,
@@ -168,6 +173,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec!["user:read".to_string(), "user:write".to_string()],
+            ..Default::default()
         };
 
         // Regular user with MFA
@@ -178,7 +184,7 @@ mod mfa_flow_tests {
             name: "Regular User".to_string(),
             email: "user@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "User Division".to_string(),
+            satuan_kerja: "User Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: true,
             mfa_setup_required: false,
@@ -187,6 +193,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec!["user:read".to_string()],
+            ..Default::default()
         };
 
         // All roles should have MFA enabled in production
@@ -205,7 +212,7 @@ mod mfa_flow_tests {
             name: "User".to_string(),
             email: "user@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Test Division".to_string(),
+            satuan_kerja: "Test Satuan Kerja".to_string(),
             captcha_validated: false, // CAPTCHA not validated
             mfa_enabled: false,
             mfa_setup_required: true,
@@ -214,6 +221,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec![],
+            ..Default::default()
         };
 
         // CAPTCHA should be validated before MFA setup
@@ -231,7 +239,7 @@ mod mfa_flow_tests {
             name: "New User".to_string(),
             email: "newuser@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Test Division".to_string(),
+            satuan_kerja: "Test Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: false,
             mfa_setup_required: true,
@@ -240,6 +248,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec![],
+            ..Default::default()
         };
 
         // Verify state 1
@@ -274,7 +283,7 @@ mod mfa_flow_tests {
             name: "New User".to_string(),
             email: "newuser@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Test Division".to_string(),
+            satuan_kerja: "Test Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: false,
             mfa_setup_required: true, // Mandatory
@@ -283,6 +292,7 @@ mod mfa_flow_tests {
             refresh_token: Some("test_refresh".to_string()),
             expires_at: Some(chrono::Utc::now().timestamp() + 3600),
             permissions: vec![],
+            ..Default::default()
         };
 
         // Verify MFA setup is required

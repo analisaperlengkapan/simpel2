@@ -84,10 +84,7 @@ pub fn is_webauthn_supported() -> bool {
 pub async fn is_platform_authenticator_available() -> bool {
     if let Some(window) = web_sys::window() {
         let nav = window.navigator();
-        let creds = js_sys::Reflect::get(
-            &JsValue::from(nav),
-            &JsValue::from_str("credentials"),
-        );
+        let creds = js_sys::Reflect::get(&JsValue::from(nav), &JsValue::from_str("credentials"));
         if let Ok(c) = creds {
             return !c.is_undefined() && !c.is_null();
         }
@@ -294,10 +291,9 @@ pub async fn create_credential(
     js_set(
         &public_key,
         "timeout",
-        &JsValue::from_f64(json_u64_or(
-            pk.get("timeout").unwrap_or(&serde_json::Value::Null),
-            60000,
-        ) as f64),
+        &JsValue::from_f64(
+            json_u64_or(pk.get("timeout").unwrap_or(&serde_json::Value::Null), 60000) as f64,
+        ),
     )?;
     let attestation = pk
         .get("attestation")
@@ -314,12 +310,11 @@ pub async fn create_credential(
     // ── Call navigator.credentials.create() ───────────────────────────
     let window = web_sys::window().ok_or("No window object")?;
     let nav = window.navigator();
-    let credentials: web_sys::CredentialsContainer = nav
-        .credentials();
+    let credentials: web_sys::CredentialsContainer = nav.credentials();
     let promise = credentials
-        .create_with_options(
-            &web_sys::CredentialCreationOptions::from(JsValue::from(create_options)),
-        )
+        .create_with_options(&web_sys::CredentialCreationOptions::from(JsValue::from(
+            create_options,
+        )))
         .map_err(|e| format!("credentials.create() failed: {:?}", e))?;
     let js_result = JsFuture::from(promise)
         .await
@@ -330,8 +325,8 @@ pub async fn create_credential(
         .dyn_into()
         .map_err(|_| "Result is not a PublicKeyCredential")?;
 
-    let raw_id = js_sys::Reflect::get(&cred, &JsValue::from_str("rawId"))
-        .map_err(|_| "No rawId")?;
+    let raw_id =
+        js_sys::Reflect::get(&cred, &JsValue::from_str("rawId")).map_err(|_| "No rawId")?;
     let raw_id_buf: js_sys::ArrayBuffer = raw_id.dyn_into().map_err(|_| "rawId not ArrayBuffer")?;
 
     let response = cred.response();
@@ -342,8 +337,9 @@ pub async fn create_credential(
     let attestation_obj = attest_resp.attestation_object();
     let client_data = js_sys::Reflect::get(&attest_resp, &JsValue::from_str("clientDataJSON"))
         .map_err(|_| "No clientDataJSON")?;
-    let client_data_buf: js_sys::ArrayBuffer =
-        client_data.dyn_into().map_err(|_| "clientDataJSON not ArrayBuffer")?;
+    let client_data_buf: js_sys::ArrayBuffer = client_data
+        .dyn_into()
+        .map_err(|_| "clientDataJSON not ArrayBuffer")?;
 
     Ok(serde_json::json!({
         "id": cred.id(),
@@ -409,10 +405,9 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
     js_set(
         &public_key,
         "timeout",
-        &JsValue::from_f64(json_u64_or(
-            pk.get("timeout").unwrap_or(&serde_json::Value::Null),
-            60000,
-        ) as f64),
+        &JsValue::from_f64(
+            json_u64_or(pk.get("timeout").unwrap_or(&serde_json::Value::Null), 60000) as f64,
+        ),
     )?;
     if let Some(rp_id) = pk
         .get("rpId")
@@ -438,9 +433,9 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
     let nav = window.navigator();
     let credentials: web_sys::CredentialsContainer = nav.credentials();
     let promise = credentials
-        .get_with_options(
-            &web_sys::CredentialRequestOptions::from(JsValue::from(get_options)),
-        )
+        .get_with_options(&web_sys::CredentialRequestOptions::from(JsValue::from(
+            get_options,
+        )))
         .map_err(|e| format!("credentials.get() failed: {:?}", e))?;
     let js_result = JsFuture::from(promise)
         .await
@@ -451,8 +446,8 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
         .dyn_into()
         .map_err(|_| "Result is not a PublicKeyCredential")?;
 
-    let raw_id = js_sys::Reflect::get(&cred, &JsValue::from_str("rawId"))
-        .map_err(|_| "No rawId")?;
+    let raw_id =
+        js_sys::Reflect::get(&cred, &JsValue::from_str("rawId")).map_err(|_| "No rawId")?;
     let raw_id_buf: js_sys::ArrayBuffer = raw_id.dyn_into().map_err(|_| "rawId not ArrayBuffer")?;
 
     let response = cred.response();
@@ -462,18 +457,21 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
 
     let auth_data = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("authenticatorData"))
         .map_err(|_| "No authenticatorData")?;
-    let auth_data_buf: js_sys::ArrayBuffer =
-        auth_data.dyn_into().map_err(|_| "authenticatorData not ArrayBuffer")?;
+    let auth_data_buf: js_sys::ArrayBuffer = auth_data
+        .dyn_into()
+        .map_err(|_| "authenticatorData not ArrayBuffer")?;
 
     let client_data = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("clientDataJSON"))
         .map_err(|_| "No clientDataJSON")?;
-    let client_data_buf: js_sys::ArrayBuffer =
-        client_data.dyn_into().map_err(|_| "clientDataJSON not ArrayBuffer")?;
+    let client_data_buf: js_sys::ArrayBuffer = client_data
+        .dyn_into()
+        .map_err(|_| "clientDataJSON not ArrayBuffer")?;
 
     let signature = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("signature"))
         .map_err(|_| "No signature")?;
-    let signature_buf: js_sys::ArrayBuffer =
-        signature.dyn_into().map_err(|_| "signature not ArrayBuffer")?;
+    let signature_buf: js_sys::ArrayBuffer = signature
+        .dyn_into()
+        .map_err(|_| "signature not ArrayBuffer")?;
 
     let mut result = serde_json::json!({
         "id": cred.id(),
@@ -487,9 +485,7 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
     });
 
     // userHandle is optional
-    if let Ok(uh) =
-        js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("userHandle"))
-    {
+    if let Ok(uh) = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("userHandle")) {
         if !uh.is_null() && !uh.is_undefined() {
             if let Ok(uh_buf) = uh.dyn_into::<js_sys::ArrayBuffer>() {
                 result["response"]["userHandle"] =

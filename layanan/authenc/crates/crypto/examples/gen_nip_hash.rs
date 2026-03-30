@@ -1,4 +1,7 @@
-use argon2::{Algorithm, Argon2, ParamsBuilder, PasswordHasher, PasswordVerifier, Version, password_hash::{PasswordHash, SaltString}};
+use argon2::{
+    Algorithm, Argon2, ParamsBuilder, PasswordHasher, PasswordVerifier, Version,
+    password_hash::{PasswordHash, SaltString},
+};
 use rand::rngs::OsRng;
 
 fn main() {
@@ -7,7 +10,7 @@ fn main() {
     // Use PRODUCTION params (same as Argon2PasswordHasher::new())
     let params = ParamsBuilder::new()
         .m_cost(65536)
-        .t_cost(3)   // Production uses 3, not 10!
+        .t_cost(3) // Production uses 3, not 10!
         .p_cost(4)
         .build()
         .expect("Invalid params");
@@ -15,7 +18,9 @@ fn main() {
 
     // Generate hash
     let salt = SaltString::generate(&mut OsRng);
-    let password_hash = argon2.hash_password(password.as_bytes(), &salt).expect("Failed to hash");
+    let password_hash = argon2
+        .hash_password(password.as_bytes(), &salt)
+        .expect("Failed to hash");
     println!("New hash (t=3): {}", password_hash.to_string());
 
     // Also verify the admin hash (t=10) works

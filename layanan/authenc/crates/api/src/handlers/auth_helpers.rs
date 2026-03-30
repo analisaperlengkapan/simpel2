@@ -28,12 +28,32 @@ use crate::state::ApiState;
 #[derive(Debug)]
 pub struct AuthError {
     pub message: String,
+    /// Machine-readable error code for programmatic discrimination.
+    /// Avoids fragile `message.contains(…)` checks in callers.
+    pub error_code: AuthErrorCode,
+}
+
+/// Machine-readable error codes for [`AuthError`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthErrorCode {
+    /// Generic unauthorized (missing/invalid/expired token).
+    Unauthorized,
+    /// User must change password before accessing protected resources.
+    PasswordChangeRequired,
 }
 
 impl AuthError {
     pub fn unauthorized(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            error_code: AuthErrorCode::Unauthorized,
+        }
+    }
+
+    pub fn password_change_required(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            error_code: AuthErrorCode::PasswordChangeRequired,
         }
     }
 }
@@ -136,6 +156,119 @@ pub fn verify_self_or_admin(
         ));
     }
     Ok(())
+}
+
+/// Check whether the authenticated user must change their password before
+/// accessing any endpoint other than the password-change endpoint itself.
+///
+/// Extracts the `require_password_change` claim from the JWT.  Returns
+/// `Err(AuthError)` when the flag is `true`, signalling the caller to reject
+/// the request with an appropriate HTTP 403 response.
+pub fn check_password_change_required(
+    state: &Arc<ApiState>,
+    headers: &HeaderMap,
+) -> Result<(), AuthError> {
+    let token = extract_bearer_token(headers)?;
+    let claims = state
+        .jwt_service
+        .verify_token(&token)
+        .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
+
+    check_password_change_required_from_claims(&claims)
+}
+
+/// Same as [`check_password_change_required`] but accepts pre-verified claims
+/// to avoid double JWT verification when the caller also needs the user ID.
+pub fn check_password_change_required_from_claims(
+    claims: &authenc_crypto::jwt::TokenClaims,
+) -> Result<(), AuthError> {
+    // Check the custom `require_password_change` claim embedded by
+    // `build_user_custom_claims`.
+    let must_change = claims
+        .custom
+        .get("require_password_change")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    if must_change {
+        return Err(AuthError::password_change_required(
+            "Anda harus mengubah password sebelum mengakses fitur lain.",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Extract bearer token, verify it, check password-change requirement, and
+/// return the user UUID — all in a single JWT verification pass.
+///
+/// Use this instead of calling `check_password_change_required` followed by
+/// `extract_user_from_token` to avoid verifying the JWT twice.
+pub fn extract_user_with_password_check(
+    state: &Arc<ApiState>,
+    headers: &HeaderMap,
+) -> Result<Uuid, AuthError> {
+    let token = extract_bearer_token(headers)?;
+    let claims = state
+        .jwt_service
+        .verify_token(&token)
+        .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
+
+    check_password_change_required_from_claims(&claims)?;
+
+    Uuid::parse_str(&claims.sub).map_err(|_| AuthError::unauthorized("Invalid user ID in token"))
+}
+
+/// Builds custom JWT claims for a user (NIP, name, jabatan, etc.)
+pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::collections::HashMap<String, serde_json::Value> {
+    let mut custom_claims = std::collections::HashMap::new();
+    if let Some(u) = user {
+        if let Some(ref nip) = u.nip {
+            custom_claims.insert("nip".into(), serde_json::json!(nip));
+        }
+        // Build display name using the same logic as GET /me:
+        // first_name + last_name, falling back to nama, then username.
+        let display_name = match (&u.first_name, &u.last_name) {
+            (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+            (Some(f), None) => Some(f.clone()),
+            (None, Some(l)) => Some(l.clone()),
+            _ => u.nama.clone(),
+        };
+        if let Some(ref name) = display_name {
+            custom_claims.insert("name".into(), serde_json::json!(name));
+        }
+        custom_claims.insert("preferred_username".into(), serde_json::json!(u.username));
+        if let Some(ref jabatan) = u.jabatan {
+            custom_claims.insert("jabatan".into(), serde_json::json!(jabatan));
+        }
+        if !u.satker_code.is_empty() {
+            custom_claims.insert("satker_code".into(), serde_json::json!(u.satker_code));
+        }
+        if !u.email.is_empty() {
+            custom_claims.insert("email".into(), serde_json::json!(u.email));
+        }
+        // MFA status
+        custom_claims.insert("mfa_enabled".into(), serde_json::json!(u.mfa_enabled));
+        // NOTE: mfa_setup_required is NOT simply `!mfa_enabled`.  Whether MFA
+        // setup is required depends on the realm's MFA policy (Optional /
+        // Required / RequiredForAdmins) which is evaluated during the login
+        // flow and surfaced via `LoginResponse.mfa_setup_required`.  Setting
+        // the JWT claim to `!mfa_enabled` would incorrectly mark every
+        // non-MFA user as needing setup even when the policy is Optional.
+        // We default to `false` here; the login handler overrides the
+        // session flag when MFA setup is actually required.
+        custom_claims.insert("mfa_setup_required".into(), serde_json::json!(false));
+        // Password change requirement — always embedded in JWT so frontend
+        // route guards and middleware can enforce the redirect without an
+        // extra API round-trip.  We always emit the claim (even when false)
+        // so the frontend never has to rely on serde(default) to infer the
+        // value from a missing key.
+        custom_claims.insert("require_password_change".into(), serde_json::json!(u.require_password_change));
+        // Roles
+        let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
+        custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));
+    }
+    custom_claims
 }
 
 #[cfg(test)]

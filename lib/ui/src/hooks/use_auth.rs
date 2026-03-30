@@ -26,14 +26,26 @@ pub struct UserSession {
     pub email: String,
     /// Profile picture URL
     pub avatar: Option<String>,
-    /// User's division/unit
-    pub division: String,
+    /// NIP (Nomor Induk Pegawai)
+    #[serde(default)]
+    pub nip: Option<String>,
+    /// Jabatan (position/title)
+    #[serde(default)]
+    pub jabatan: Option<String>,
+    /// Kode Satker (work unit code)
+    #[serde(default)]
+    pub satker_code: Option<String>,
+    /// Nama satuan kerja
+    pub satuan_kerja: String,
     /// CAPTCHA validation status
     pub captcha_validated: bool,
     /// MFA enabled status
     pub mfa_enabled: bool,
     /// MFA setup required (true if user needs to setup MFA)
     pub mfa_setup_required: bool,
+    /// Whether user must change password before using the system
+    #[serde(default)]
+    pub require_password_change: bool,
     /// Session creation timestamp
     pub created_at: Option<String>,
     /// JWT access token
@@ -106,6 +118,13 @@ impl AuthContext {
 
     /// Logout user and redirect to portal
     pub fn logout(&self) {
+        // Read refresh token BEFORE clearing localStorage
+        #[cfg(target_arch = "wasm32")]
+        let saved_refresh_token = window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item("refresh_token").ok().flatten())
+            .unwrap_or_default();
+
         // Clear session immediately for responsive UI
         self.session.set(None);
 
@@ -124,17 +143,9 @@ impl AuthContext {
                     .and_then(|w| w.location().origin().ok())
                     .unwrap_or_else(|| "http://localhost:8080".to_string());
 
-                let logout_url = format!(
-                    "{}/api/v1/auth/logout",
-                    origin
-                );
+                let logout_url = format!("{}/api/v1/auth/logout", origin);
 
-                // Read the stored refresh token so the backend can invalidate
-                // the session.
-                let refresh_token = window()
-                    .and_then(|w| w.local_storage().ok().flatten())
-                    .and_then(|s| s.get_item("refresh_token").ok().flatten())
-                    .unwrap_or_default();
+                let refresh_token = saved_refresh_token;
 
                 // POST to /api/v1/auth/logout with the refresh token
                 if let Some(window) = window() {

@@ -10,7 +10,11 @@
 
 use crate::error::{ApiError, ApiResult};
 use crate::state::IamApiState;
-use authenc_types::AuthencError;
+use authenc_types::{
+    AuthencError,
+    domain::user::{CreateUserRequest, UpdateUserRequest},
+    domain_types::RealmId,
+};
 use axum::{
     Router,
     extract::{Path, Query, State},
@@ -113,95 +117,276 @@ pub struct SystemStats {
 
 /// Get system statistics
 pub async fn get_system_stats(
-    State(_state): State<Arc<IamApiState>>,
+    State(state): State<Arc<IamApiState>>,
 ) -> ApiResult<Json<SystemStats>> {
-    // TODO: Implement actual statistics gathering
+    let realm_id = RealmId::from_uuid(Uuid::nil());
+
+    let total_users = state.user_service.count_users(realm_id).await.unwrap_or(0);
+    let active_users = state
+        .user_service
+        .count_enabled_users(realm_id)
+        .await
+        .unwrap_or(0);
+
     let stats = SystemStats {
-        total_users: 100,
-        active_users: 25,
-        total_sessions: 50,
-        active_sessions: 30,
-        total_realms: 5,
-        total_policies: 20,
-        security_events_today: 3,
-        failed_login_attempts: 12,
-        uptime_seconds: 86400,
-        memory_usage_mb: 256,
-        cpu_usage_percent: 15.5,
+        total_users,
+        active_users,
+        total_sessions: 0,
+        active_sessions: 0,
+        total_realms: 1,
+        total_policies: 0,
+        security_events_today: 0,
+        failed_login_attempts: 0,
+        uptime_seconds: 0,
+        memory_usage_mb: 0,
+        cpu_usage_percent: 0.0,
     };
     Ok(Json(stats))
 }
 
 /// Get dashboard data
 pub async fn get_dashboard_data(
-    State(_state): State<Arc<IamApiState>>,
+    State(state): State<Arc<IamApiState>>,
     Query(_query): Query<ListUsersQuery>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    // TODO: Implement actual dashboard data
+    let realm_id = RealmId::from_uuid(Uuid::nil());
+    let total_users = state.user_service.count_users(realm_id).await.unwrap_or(0);
+    let active_users = state
+        .user_service
+        .count_enabled_users(realm_id)
+        .await
+        .unwrap_or(0);
+
     let dashboard = serde_json::json!({
-        "total_users": 100,
-        "active_users": 25,
-        "total_sessions": 50,
-        "security_events_today": 3,
-        "compliance_rate": 0.95
+        "total_users": total_users,
+        "active_users": active_users,
+        "total_sessions": 0,
+        "security_events_today": 0,
+        "compliance_rate": 0.0
     });
     Ok(Json(dashboard))
 }
 
 /// List users with filtering and pagination
 pub async fn list_users(
-    State(_state): State<Arc<IamApiState>>,
-    Query(_query): Query<ListUsersQuery>,
+    State(state): State<Arc<IamApiState>>,
+    Query(query): Query<ListUsersQuery>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    // TODO: Implement using user_service
-    Err(ApiError(AuthencError::NotImplemented(
-        "list_users not yet implemented".to_string(),
-    )))
+    let realm_id = query
+        .realm_id
+        .map(RealmId::from_uuid)
+        .unwrap_or_else(|| RealmId::from_uuid(Uuid::nil()));
+    let page = query.page.unwrap_or(1).max(1) as usize;
+    let limit = query.limit.unwrap_or(20).min(100) as usize;
+    let offset = (page - 1) * limit;
+
+    let (users, total) = if let Some(ref search) = query.search {
+        state
+            .user_service
+            .search_users_paginated(realm_id, search, query.enabled, offset, limit)
+            .await
+            .map_err(ApiError)?
+    } else {
+        let total = state
+            .user_service
+            .count_users_filtered(realm_id, query.enabled)
+            .await
+            .map_err(ApiError)?;
+        let users = state
+            .user_service
+            .list_users_filtered(realm_id, query.enabled, offset, limit)
+            .await
+            .map_err(ApiError)?;
+        (users, total)
+    };
+
+    let user_responses: Vec<serde_json::Value> = users
+        .into_iter()
+        .map(|u| {
+            serde_json::json!({
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "nip": u.nip,
+                "nama": u.nama,
+                "jabatan": u.jabatan,
+                "satker_code": u.satker_code,
+                "enabled": u.enabled,
+                "email_verified": u.email_verified,
+                "mfa_enabled": u.mfa_enabled,
+                "require_password_change": u.require_password_change,
+                "last_login_at": u.last_login_at,
+                "created_at": u.created_at,
+                "updated_at": u.updated_at,
+            })
+        })
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "users": user_responses,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    })))
 }
 
 /// Get user by ID
 pub async fn get_user(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_user_id): Path<Uuid>,
+    State(state): State<Arc<IamApiState>>,
+    Path(user_id): Path<Uuid>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    // TODO: Implement using user_service
-    Err(ApiError(AuthencError::NotImplemented(
-        "get_user not yet implemented".to_string(),
-    )))
+    let uid = authenc_types::domain_types::UserId::from_uuid(user_id);
+    let user = state.user_service.get_user(uid).await.map_err(ApiError)?;
+
+    Ok(Json(serde_json::json!({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "nip": user.nip,
+        "nama": user.nama,
+        "jabatan": user.jabatan,
+        "satker_code": user.satker_code,
+        "enabled": user.enabled,
+        "email_verified": user.email_verified,
+        "mfa_enabled": user.mfa_enabled,
+        "phone_number": user.phone_number,
+        "require_password_change": user.require_password_change,
+        "roles": user.roles.iter().map(|r| &r.name).collect::<Vec<_>>(),
+        "last_login_at": user.last_login_at,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    })))
+}
+
+/// Request body for creating a new user
+#[derive(Deserialize)]
+pub struct CreateUserBody {
+    pub username: String,
+    pub email: Option<String>,
+    pub password: Option<String>,
+    pub nip: Option<String>,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
+    pub satker_code: Option<String>,
+    pub phone_number: Option<String>,
+    pub realm_id: Option<Uuid>,
+    pub enabled: Option<bool>,
 }
 
 /// Create a new user
 pub async fn create_user(
-    State(_state): State<Arc<IamApiState>>,
-    Json(_request): Json<serde_json::Value>,
+    State(state): State<Arc<IamApiState>>,
+    Json(body): Json<CreateUserBody>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    // TODO: Implement using user_service
-    Err(ApiError(AuthencError::NotImplemented(
-        "create_user not yet implemented".to_string(),
-    )))
+    let req = CreateUserRequest {
+        username: body.username,
+        email: body.email.unwrap_or_default(),
+        satker_code: body.satker_code.unwrap_or_default(),
+        password: body.password,
+        first_name: None,
+        last_name: None,
+        nip: body.nip,
+        nama: body.nama,
+        jabatan: body.jabatan,
+        phone_number: body.phone_number,
+        realm_id: body.realm_id,
+        organization_id: None,
+        roles: None,
+        attributes: None,
+        enabled: body.enabled,
+    };
+
+    let user = state
+        .user_service
+        .create_user(req)
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(serde_json::json!({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "enabled": user.enabled,
+        "created_at": user.created_at,
+    })))
+}
+
+/// Request body for updating a user
+#[derive(Deserialize)]
+pub struct UpdateUserBody {
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub password: Option<String>,
+    pub nip: Option<String>,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
+    pub satker_code: Option<String>,
+    pub phone_number: Option<String>,
+    pub enabled: Option<bool>,
+    pub require_password_change: Option<bool>,
+    pub mfa_enabled: Option<bool>,
 }
 
 /// Update user
 pub async fn update_user(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_user_id): Path<Uuid>,
-    Json(_request): Json<serde_json::Value>,
+    State(state): State<Arc<IamApiState>>,
+    Path(user_id): Path<Uuid>,
+    Json(body): Json<UpdateUserBody>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    // TODO: Implement using user_service
-    Err(ApiError(AuthencError::NotImplemented(
-        "update_user not yet implemented".to_string(),
-    )))
+    let uid = authenc_types::domain_types::UserId::from_uuid(user_id);
+
+    let req = UpdateUserRequest {
+        username: body.username,
+        email: body.email,
+        satker_code: body.satker_code,
+        first_name: None,
+        last_name: None,
+        nip: body.nip,
+        nama: body.nama,
+        jabatan: body.jabatan,
+        phone_number: body.phone_number,
+        phone_verified: None,
+        require_password_change: body.require_password_change,
+        password: body.password,
+        enabled: body.enabled,
+        email_verified: None,
+        mfa_enabled: body.mfa_enabled,
+        attributes: None,
+    };
+
+    let user = state
+        .user_service
+        .update_user(uid, req)
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(serde_json::json!({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "nip": user.nip,
+        "nama": user.nama,
+        "jabatan": user.jabatan,
+        "satker_code": user.satker_code,
+        "enabled": user.enabled,
+        "mfa_enabled": user.mfa_enabled,
+        "require_password_change": user.require_password_change,
+        "updated_at": user.updated_at,
+    })))
 }
 
-/// Delete user
+/// Delete user (soft delete)
 pub async fn delete_user(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_user_id): Path<Uuid>,
+    State(state): State<Arc<IamApiState>>,
+    Path(user_id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
-    // TODO: Implement using user_service
-    Err(ApiError(AuthencError::NotImplemented(
-        "delete_user not yet implemented".to_string(),
-    )))
+    let uid = authenc_types::domain_types::UserId::from_uuid(user_id);
+    state
+        .user_service
+        .delete_user(uid)
+        .await
+        .map_err(ApiError)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// List user sessions
@@ -351,21 +536,20 @@ pub fn create_admin_routes() -> Router<Arc<IamApiState>> {
     Router::new()
         .route("/stats", get(get_system_stats))
         .route("/dashboard", get(get_dashboard_data))
-        .route("/users", get(list_users))
-        .route("/users", post(create_user))
-        .route("/users/{user_id}", get(get_user))
-        .route("/users/{user_id}", put(update_user))
-        .route("/users/{user_id}", delete(delete_user))
+        .route("/users", get(list_users).post(create_user))
+        .route(
+            "/users/{user_id}",
+            get(get_user).put(update_user).delete(delete_user),
+        )
         .route("/sessions", get(list_sessions))
         .route("/sessions/{session_id}", delete(terminate_session))
         .route("/audit-logs", get(list_audit_logs))
-        .route("/roles", get(list_roles))
-        .route("/roles", post(create_role))
-        .route("/roles/{role_id}", get(get_role))
-        .route("/roles/{role_id}", put(update_role))
-        .route("/roles/{role_id}", delete(delete_role))
-        .route("/policies", get(list_policies))
-        .route("/policies", post(create_policy))
+        .route("/roles", get(list_roles).post(create_role))
+        .route(
+            "/roles/{role_id}",
+            get(get_role).put(update_role).delete(delete_role),
+        )
+        .route("/policies", get(list_policies).post(create_policy))
         .route("/security-events", get(get_security_events))
         .route("/risk-analytics", get(get_risk_analytics))
 }

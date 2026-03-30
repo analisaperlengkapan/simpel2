@@ -131,6 +131,7 @@ pub async fn start_registration_handler(
     let user_id = extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "authentication_required".to_string(),
             message: e.message,
         })?;
@@ -146,6 +147,7 @@ pub async fn start_registration_handler(
         .start_registration(user_id, &username, &display_name)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "registration_failed".to_string(),
             message: format!("Failed to start passkey registration: {}", e),
         })?;
@@ -179,6 +181,7 @@ pub async fn finish_registration_handler(
         .remove_registration_session(&request.session_id)
         .await
         .ok_or_else(|| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "invalid_session".to_string(),
             message: "Registration session not found or expired".to_string(),
         })?;
@@ -189,6 +192,7 @@ pub async fn finish_registration_handler(
         .finish_registration(session.user_id, &request.credential, &session)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "registration_failed".to_string(),
             message: format!("Failed to complete passkey registration: {}", e),
         })?;
@@ -215,6 +219,7 @@ pub async fn start_authentication_handler(
         .map_err(|e| {
             tracing::warn!(error = %e, "Failed to start passkey authentication");
             ErrorResponse {
+                status_code: axum::http::StatusCode::BAD_REQUEST,
                 error: "authentication_failed".to_string(),
                 message: "Gagal memulai autentikasi passkey. Silakan coba lagi.".to_string(),
             }
@@ -249,6 +254,7 @@ pub async fn finish_authentication_handler(
         .remove_authentication_session(&request.session_id)
         .await
         .ok_or_else(|| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "invalid_session".to_string(),
             message: "Authentication session not found or expired".to_string(),
         })?;
@@ -261,6 +267,7 @@ pub async fn finish_authentication_handler(
         .map_err(|e| {
             tracing::warn!(error = %e, "Failed to complete passkey authentication");
             ErrorResponse {
+                status_code: axum::http::StatusCode::BAD_REQUEST,
                 error: "authentication_failed".to_string(),
                 message: "Gagal menyelesaikan autentikasi passkey. Silakan coba lagi.".to_string(),
             }
@@ -272,6 +279,7 @@ pub async fn finish_authentication_handler(
         authenc_webauthn::AuthenticationResult::Failed { reason } => {
             tracing::warn!(reason = %reason, "Passkey authentication failed");
             return Err(ErrorResponse {
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
                 error: "authentication_failed".to_string(),
                 message: "Autentikasi passkey gagal. Silakan coba lagi.".to_string(),
             });
@@ -281,17 +289,32 @@ pub async fn finish_authentication_handler(
     // Generate JWT tokens using JwtService
     let session_id = uuid::Uuid::new_v4().to_string();
 
+    // Fetch user to build custom claims
+    let user = state.user_service.get_user(user_id.clone()).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to fetch user details for passkey token claims — refusing to issue JWT without claims");
+        ErrorResponse {
+            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            error: "internal_error".to_string(),
+            message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
+        }
+    })?;
+
+    // Build custom claims
+    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
+
     let access_token = state
         .jwt_service
-        .generate_access_token(
+        .generate_access_token_with_claims(
             &user_id.0.to_string(),
             None,                                     // realm
             Some("openid profile email".to_string()), // scope
             Some(session_id.clone()),
+            custom_claims,
         )
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to generate access token");
             ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "token_generation_failed".to_string(),
                 message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
             }
@@ -303,6 +326,7 @@ pub async fn finish_authentication_handler(
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to generate refresh token");
             ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "token_generation_failed".to_string(),
                 message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
             }
@@ -328,6 +352,7 @@ pub async fn list_credentials_handler(
     let user_id = extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "authentication_required".to_string(),
             message: e.message,
         })?;
@@ -337,6 +362,7 @@ pub async fn list_credentials_handler(
         .list_credentials(UserId(user_id))
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "list_failed".to_string(),
             message: format!("Failed to list credentials: {}", e),
         })?;
@@ -369,6 +395,7 @@ pub async fn delete_credential_handler(
     let user_id = extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "authentication_required".to_string(),
             message: e.message,
         })?;
@@ -378,6 +405,7 @@ pub async fn delete_credential_handler(
         .delete_credential(UserId(user_id), credential_id)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "deletion_failed".to_string(),
             message: format!("Failed to delete credential: {}", e),
         })?;
@@ -399,6 +427,7 @@ pub async fn update_credential_handler(
     let user_id = extract_user_from_token(&state, &headers)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "authentication_required".to_string(),
             message: e.message,
         })?;
@@ -408,6 +437,7 @@ pub async fn update_credential_handler(
         .update_credential_nickname(UserId(user_id), credential_id, request.nickname)
         .await
         .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "update_failed".to_string(),
             message: format!("Failed to update credential: {}", e),
         })?;

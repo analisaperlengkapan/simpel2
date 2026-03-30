@@ -83,6 +83,12 @@ pub fn PasswordChangePage() -> impl IntoView {
     let state = use_app_state();
     let api = use_api_client();
 
+    // Obtain the top-level user_session writer so we can update the reactive
+    // signal after a successful password change.  Without this, route guards
+    // that read the signal would still see `require_password_change = true`
+    // and redirect the user back here in a loop.
+    let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
+
     let (current_password, set_current_password) = signal(String::new());
     let (new_password, set_new_password) = signal(String::new());
     let (confirm_password, set_confirm_password) = signal(String::new());
@@ -91,6 +97,16 @@ pub fn PasswordChangePage() -> impl IntoView {
     let (success, set_success) = signal(Option::<String>::None);
     let (show_current, set_show_current) = signal(false);
     let (show_new, set_show_new) = signal(false);
+
+    let navigate = leptos_router::hooks::use_navigate();
+
+    // Track whether this component is still mounted so the timer callback
+    // inside spawn_local can skip navigation after the user left the page.
+    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted_cleanup = mounted.clone();
+    on_cleanup(move || {
+        mounted_cleanup.set(false);
+    });
 
     let password_strength = Signal::derive(move || {
         let pw = new_password.get();
@@ -117,6 +133,8 @@ pub fn PasswordChangePage() -> impl IntoView {
     let handle_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
         let api = api.clone();
+        let nav = navigate.clone();
+        let is_mounted = mounted.clone();
         set_loading.set(true);
         set_error.set(None);
         set_success.set(None);
@@ -129,10 +147,65 @@ pub fn PasswordChangePage() -> impl IntoView {
 
             match api.change_password(&req).await {
                 Ok(()) => {
-                    set_success.set(Some("Kata sandi berhasil diubah".to_string()));
+                    set_success.set(Some("Kata sandi berhasil diubah. Mengalihkan ke dashboard...".to_string()));
                     set_current_password.set(String::new());
                     set_new_password.set(String::new());
                     set_confirm_password.set(String::new());
+
+                    // Clear the require_password_change flag from the local
+                    // session so the user is no longer redirected back here.
+                    // The backend already cleared the flag in the DB; a token
+                    // refresh will eventually embed the updated claim, but we
+                    // update localStorage immediately for a responsive UX.
+                    if let Some(mut session) = crate::features::auth::AuthService::load_session() {
+                        session.require_password_change = false;
+
+                        // Immediately refresh the JWT so the new token embeds
+                        // `require_password_change: false`.  Without this, the
+                        // stale JWT still carries the old claim and backend
+                        // endpoints like GET /me will return 403.
+                        if let Some(ref refresh_token) = session.refresh_token {
+                            match crate::features::auth::AuthService::refresh_token(refresh_token).await {
+                                Ok(token_response) => {
+                                    crate::features::auth::AuthService::update_session_token(&token_response);
+                                    // Reload the session which now has the fresh JWT
+                                    if let Some(refreshed) = crate::features::auth::AuthService::load_session() {
+                                        session = refreshed;
+                                        // Ensure the flag is cleared even if the
+                                        // new JWT hasn't propagated the DB change
+                                        // yet (edge case with replication lag).
+                                        session.require_password_change = false;
+                                    }
+                                }
+                                Err(e) => {
+                                    // Token refresh failed — continue with the
+                                    // local-only flag clear.  The next automatic
+                                    // refresh cycle will pick up the new JWT.
+                                    leptos::logging::warn!("Token refresh after password change failed: {}", e);
+                                }
+                            }
+                        }
+
+                        crate::features::auth::AuthService::save_session(&session);
+
+                        // Also update the reactive user_session signal so that
+                        // route guards (WithAuth, WithAdminAuth, inline guards)
+                        // see the updated flag immediately without waiting for
+                        // a token refresh or page reload.
+                        if let Some(setter) = set_user_session {
+                            setter.set(Some(session.clone()));
+                        }
+                        crate::utils::app_state::app_state_login(session);
+                    }
+
+                    // Navigate to dashboard after a short delay so the user
+                    // sees the success message before being redirected.
+                    // Guard: if the component unmounted during the 1.5-second
+                    // timer (e.g. user navigated away), skip the navigation.
+                    gloo_timers::future::TimeoutFuture::new(1_500).await;
+                    if is_mounted.get() {
+                        nav("/dashboard", Default::default());
+                    }
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),
             }
@@ -141,7 +214,7 @@ pub fn PasswordChangePage() -> impl IntoView {
     };
 
     let on_logout = {
-        let state = state.clone();
+        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());

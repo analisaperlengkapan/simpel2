@@ -56,20 +56,7 @@ pub struct VerifyTotpResponse {
     pub message: String,
 }
 
-/// API error response
-#[derive(Debug, Serialize)]
-pub struct ErrorResponse {
-    /// Error code
-    pub error: String,
-    /// Error message
-    pub message: String,
-}
-
-impl IntoResponse for ErrorResponse {
-    fn into_response(self) -> Response {
-        (StatusCode::BAD_REQUEST, Json(self)).into_response()
-    }
-}
+use super::auth::ErrorResponse;
 
 /// POST /api/v1/users/{id}/totp - Enable TOTP for user
 ///
@@ -93,7 +80,7 @@ pub async fn enable_totp_handler(
     // 6. Audit log the MFA enable event
 
     // Placeholder implementation
-    Err(ErrorResponse {
+    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
         error: "not_implemented".to_string(),
         message: "TOTP enable endpoint requires MFA services migration (Task 12)".to_string(),
     })
@@ -118,7 +105,7 @@ pub async fn disable_totp_handler(
     // 4. Audit log the MFA disable event
 
     // Placeholder implementation
-    Err(ErrorResponse {
+    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
         error: "not_implemented".to_string(),
         message: "TOTP disable endpoint requires MFA services migration (Task 12)".to_string(),
     })
@@ -147,7 +134,7 @@ pub async fn verify_totp_handler(
     // 7. Return verification result
 
     // Placeholder implementation
-    Err(ErrorResponse {
+    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
         error: "not_implemented".to_string(),
         message: "TOTP verify endpoint requires MFA services migration (Task 12)".to_string(),
     })

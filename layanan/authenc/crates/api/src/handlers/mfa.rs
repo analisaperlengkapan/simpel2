@@ -251,7 +251,7 @@ pub async fn mfa_verify_setup_handler(
 /// {
 ///   "access_token": "eyJ...",
 ///   "token_type": "Bearer",
-///   "expires_in": 3600,
+///   "expires_in": 900,
 ///   "refresh_token": "eyJ..."
 /// }
 /// ```
@@ -286,13 +286,24 @@ pub async fn mfa_verify_handler(
     // Generate full JWT tokens (MFA verification succeeded)
     let session_id = Uuid::new_v4().to_string();
 
+    // Fetch user to build custom claims
+    let user = state.user_service.get_user(authenc_types::UserId::from_uuid(user_id)).await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to fetch user details for MFA token claims — refusing to issue JWT without claims");
+            MfaApiError::internal("Failed to fetch user details")
+        })?;
+
+    // Build custom claims
+    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
+
     let access_token = state
         .jwt_service
-        .generate_access_token(
+        .generate_access_token_with_claims(
             &user_id.to_string(),
-            Some("simpel".to_string()),
+            None,
             Some("openid profile email".to_string()),
             Some(session_id.clone()),
+            custom_claims,
         )
         .map_err(|e| MfaApiError::internal(format!("Failed to generate access token: {}", e)))?;
 
@@ -304,7 +315,7 @@ pub async fn mfa_verify_handler(
     Ok(Json(MfaVerifyResponse {
         access_token,
         token_type: "Bearer".to_string(),
-        expires_in: 3600,
+        expires_in: 900,
         refresh_token,
     }))
 }
@@ -483,13 +494,24 @@ pub async fn mfa_verify_recovery_handler(
     // Generate full JWT tokens
     let session_id = Uuid::new_v4().to_string();
 
+    // Fetch user to build custom claims
+    let user = state.user_service.get_user(authenc_types::UserId::from_uuid(user_id)).await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to fetch user details for MFA recovery token claims — refusing to issue JWT without claims");
+            MfaApiError::internal("Failed to fetch user details")
+        })?;
+
+    // Build custom claims
+    let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
+
     let access_token = state
         .jwt_service
-        .generate_access_token(
+        .generate_access_token_with_claims(
             &user_id.to_string(),
-            Some("simpel".to_string()),
+            None,
             Some("openid profile email".to_string()),
             Some(session_id.clone()),
+            custom_claims,
         )
         .map_err(|e| MfaApiError::internal(format!("Failed to generate access token: {}", e)))?;
 
@@ -501,7 +523,7 @@ pub async fn mfa_verify_recovery_handler(
     Ok(Json(MfaVerifyResponse {
         access_token,
         token_type: "Bearer".to_string(),
-        expires_in: 3600,
+        expires_in: 900,
         refresh_token,
     }))
 }
@@ -565,14 +587,14 @@ mod tests {
         let response = MfaVerifyResponse {
             access_token: "jwt_access".to_string(),
             token_type: "Bearer".to_string(),
-            expires_in: 3600,
+            expires_in: 900,
             refresh_token: "jwt_refresh".to_string(),
         };
 
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("access_token"));
         assert!(json.contains("Bearer"));
-        assert!(json.contains("3600"));
+        assert!(json.contains("900"));
     }
 
     #[test]

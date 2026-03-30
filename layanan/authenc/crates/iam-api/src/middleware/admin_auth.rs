@@ -50,25 +50,64 @@ pub async fn admin_auth_middleware(
         .verify_token(token)
         .map_err(|e| (StatusCode::UNAUTHORIZED, format!("Invalid token: {}", e)).into_response())?;
 
-    // TODO: Extract roles from claims
-    // For now, assume roles are in the "roles" claim
-    let roles: Vec<String> = vec![]; // claims.roles or similar
+    let user_id = uuid::Uuid::parse_str(&claims.sub).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Invalid user ID in token",
+        )
+            .into_response()
+    })?;
+
+    // Extract roles from JWT realm_access.roles claim
+    let mut roles: Vec<String> = claims
+        .custom
+        .get("realm_access")
+        .and_then(|ra| ra.get("roles"))
+        .and_then(|r| serde_json::from_value::<Vec<String>>(r.clone()).ok())
+        .unwrap_or_default();
+
+    // If JWT has no roles, look up from DB via user_service
+    if roles.is_empty() {
+        if let Ok(user) = state
+            .user_service
+            .get_user(authenc_types::UserId::from_uuid(user_id))
+            .await
+        {
+            roles = user.roles.iter().map(|r| r.name.clone()).collect();
+        }
+    }
 
     // Check for admin role
     if !roles.contains(&"admin".to_string()) {
         return Err((StatusCode::FORBIDDEN, "Admin role required").into_response());
     }
 
+    // Block admin access when user must change password first
+    let must_change = claims
+        .custom
+        .get("require_password_change")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if must_change {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Anda harus mengubah password sebelum mengakses fitur admin.",
+        )
+            .into_response());
+    }
+
+    // Extract username from JWT preferred_username claim
+    let username = claims
+        .custom
+        .get("preferred_username")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&claims.sub)
+        .to_string();
+
     // Create AdminUser and insert into request extensions
     let admin_user = AdminUser {
-        user_id: uuid::Uuid::parse_str(&claims.sub).map_err(|_| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Invalid user ID in token",
-            )
-                .into_response()
-        })?,
-        username: claims.sub.clone(), // TODO: Get actual username
+        user_id,
+        username,
         roles,
     };
 

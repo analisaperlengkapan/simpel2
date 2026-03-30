@@ -20,7 +20,7 @@ pub mod protocol_mappers {
         let now = Utc::now();
 
         let config_json = serde_json::to_value(&request.config)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize config: {}", e)))?;
+            .map_err(|e| AuthencError::internal(format!("Failed to serialize config: {}", e)))?;
 
         let query = r#"
             INSERT INTO protocol_mappers (
@@ -174,106 +174,41 @@ pub mod protocol_mappers {
     ) -> Result<ProtocolMapper> {
         let now = Utc::now();
 
-        // Build dynamic update query
-        let mut updates = Vec::new();
-        let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = Vec::new();
-        let mut param_index = 1;
-
-        if let Some(ref name) = request.name {
-            updates.push(format!("name = ${}", param_index));
-            params.push(name);
-            param_index += 1;
-        }
-
-        if let Some(ref config) = request.config {
-            let _config_json = serde_json::to_value(config).map_err(|e| {
-                AuthencError::internal(&format!("Failed to serialize config: {}", e))
-            })?;
-            updates.push(format!("config = ${}", param_index));
-            // We need to store the JSON value for later use in params
-            // Since we can't store it directly, we'll handle it differently
-        }
-
-        if let Some(enabled) = request.enabled {
-            updates.push(format!("enabled = ${}", param_index));
-            params.push(&enabled);
-            param_index += 1;
-        }
-
-        if updates.is_empty() {
+        // Check if there are any fields to update
+        if request.name.is_none() && request.config.is_none() && request.enabled.is_none() {
             return Err(AuthencError::validation("No fields to update"));
         }
 
-        updates.push(format!("updated_at = ${}", param_index));
+        // We can't easily use dynamic building with ToSql parameter lists containing a mix of
+        // owned values (like our serialized JSON) and references without boxing or trait objects
+        // that complicate lifetimes.
+        //
+        // Instead, we will construct a single query with COALESCE for optional fields.
+        let query = r#"
+            UPDATE protocol_mappers
+            SET
+                name = COALESCE($1, name),
+                config = COALESCE($2, config),
+                enabled = COALESCE($3, enabled),
+                updated_at = $4
+            WHERE id = $5
+            RETURNING *
+        "#;
 
-        let _query = format!(
-            "UPDATE protocol_mappers SET {} WHERE id = ${} RETURNING *",
-            updates.join(", "),
-            param_index + 1
-        );
-
-        // For now, use a simpler approach with explicit fields
-        let query = if request.config.is_some() {
-            let _config_json =
-                serde_json::to_value(request.config.as_ref().unwrap()).map_err(|e| {
-                    AuthencError::internal(&format!("Failed to serialize config: {}", e))
-                })?;
-
-            r#"
-                UPDATE protocol_mappers
-                SET config = $1, updated_at = $2
-                WHERE id = $3
-                RETURNING *
-            "#
-        } else if request.name.is_some() && request.enabled.is_some() {
-            r#"
-                UPDATE protocol_mappers
-                SET name = $1, enabled = $2, updated_at = $3
-                WHERE id = $4
-                RETURNING *
-            "#
-        } else if request.name.is_some() {
-            r#"
-                UPDATE protocol_mappers
-                SET name = $1, updated_at = $2
-                WHERE id = $3
-                RETURNING *
-            "#
-        } else if request.enabled.is_some() {
-            r#"
-                UPDATE protocol_mappers
-                SET enabled = $1, updated_at = $2
-                WHERE id = $3
-                RETURNING *
-            "#
-        } else {
-            return Err(AuthencError::validation("No fields to update"));
+        // Serialize config if present
+        let config_json = match &request.config {
+            Some(config) => Some(serde_json::to_value(config).map_err(|e| {
+                AuthencError::internal(format!("Failed to serialize config: {}", e))
+            })?),
+            None => None,
         };
 
-        // Execute based on which fields are being updated
-        let row: tokio_postgres::Row = if let Some(ref config) = request.config {
-            let config_json = serde_json::to_value(config).map_err(|e| {
-                AuthencError::internal(&format!("Failed to serialize config: {}", e))
-            })?;
-            db.query_one(query, &[&config_json, &now, &id]).await?
-        } else if request.name.is_some() && request.enabled.is_some() {
-            db.query_one(
+        let row: tokio_postgres::Row = db
+            .query_one(
                 query,
-                &[
-                    request.name.as_ref().unwrap(),
-                    &request.enabled.unwrap(),
-                    &now,
-                    &id,
-                ],
+                &[&request.name, &config_json, &request.enabled, &now, &id],
             )
-            .await?
-        } else if request.name.is_some() {
-            db.query_one(query, &[request.name.as_ref().unwrap(), &now, &id])
-                .await?
-        } else {
-            db.query_one(query, &[&request.enabled.unwrap(), &now, &id])
-                .await?
-        };
+            .await?;
 
         ProtocolMapper::try_from(row)
     }
@@ -349,7 +284,7 @@ pub mod protocol_mappers {
             }
 
             let config_json = serde_json::to_value(&mapper.config).map_err(|e| {
-                AuthencError::internal(&format!("Failed to serialize config: {}", e))
+                AuthencError::internal(format!("Failed to serialize config: {}", e))
             })?;
 
             let query = r#"

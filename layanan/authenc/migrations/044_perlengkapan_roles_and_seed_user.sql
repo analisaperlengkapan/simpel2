@@ -69,7 +69,7 @@ FROM realms r
 WHERE r.name = 'master'
 ON CONFLICT DO NOTHING;
 
--- Role: validator_pusat  
+-- Role: validator_pusat
 INSERT INTO roles (id, realm_id, name, description, composite, client_role, created_at, updated_at)
 SELECT
     gen_random_uuid(),
@@ -154,7 +154,7 @@ CROSS JOIN (VALUES
 WHERE r.name = 'validator_wilayah'
 ON CONFLICT (role_id, permission, resource) DO NOTHING;
 
--- Validator Pusat permissions  
+-- Validator Pusat permissions
 INSERT INTO role_permissions (role_id, permission, resource, actions, conditions)
 SELECT r.id, perm.permission, perm.resource, perm.actions, perm.conditions
 FROM roles r
@@ -202,7 +202,8 @@ ON CONFLICT (role_id, permission, resource) DO NOTHING;
 -- ============================================================================
 
 -- Create the user (password: hashed NIP as initial password)
-INSERT INTO users (id, realm_id, username, email, first_name, last_name, enabled, email_verified, created_at, updated_at)
+-- The password_hash is a real Argon2id hash of '199203142014031001'
+INSERT INTO users (id, realm_id, username, email, first_name, last_name, enabled, email_verified, password_hash, created_at, updated_at)
 SELECT
     gen_random_uuid(),
     r.id,
@@ -212,12 +213,14 @@ SELECT
     'Perlengkapan',
     true,
     true,
+    '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M',
     NOW(),
     NOW()
 FROM realms r
 WHERE r.name = 'master'
-ON CONFLICT (username) DO UPDATE SET
+ON CONFLICT (username) WHERE deleted_at IS NULL DO UPDATE SET
     enabled = true,
+    password_hash = EXCLUDED.password_hash,
     updated_at = NOW();
 
 -- Set password credential (Argon2id hash of '199203142014031001')
@@ -227,8 +230,8 @@ SELECT
     gen_random_uuid(),
     u.id,
     'password',
-    -- Argon2id hash placeholder - will be properly set by authenc service on first login
-    '$argon2id$v=19$m=65536,t=3,p=4$c2ltcGVsdjJzYWx0$' || encode(digest('199203142014031001', 'sha256'), 'base64'),
+    -- Real Argon2id hash of '199203142014031001' (m=65536, t=3, p=4)
+    '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M',
     '{"algorithm": "argon2id", "hash_iterations": 3}',
     NOW()
 FROM users u

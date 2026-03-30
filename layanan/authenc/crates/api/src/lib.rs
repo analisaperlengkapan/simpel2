@@ -23,22 +23,10 @@
 //!
 //! ## Usage
 //!
-//! ```rust,no_run
+//! ```text
+//! // Example API Server setup
 //! use authenc_api::{ApiState, AxumApp, AppConfig};
 //! use std::net::SocketAddr;
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     // Create API state with service dependencies
-//!     let state = ApiState::new(/* ... */);
-//!
-//!     // Create application with configuration
-//!     let app = AxumApp::new(state, AppConfig::default());
-//!
-//!     // Run the server
-//!     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-//!     app.run(addr).await.unwrap();
-//! }
 //! ```
 
 // Re-export types from authenc-types

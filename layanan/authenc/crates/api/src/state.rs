@@ -7,6 +7,7 @@ use authenc_core::services::{
     RealmManagementServiceImpl, UserManagementServiceImpl,
 };
 use authenc_crypto::jwt::JwtService;
+use authenc_federation::IntegrasiGrpcClient;
 use authenc_storage::Database;
 use authenc_webauthn::WebAuthnService;
 
@@ -45,6 +46,9 @@ pub struct ApiState {
 
     /// Database connection for direct access when needed
     pub database: Arc<Database>,
+
+    /// gRPC client for layanan-integrasi (pegawai/satker data)
+    pub integrasi_client: Option<Arc<IntegrasiGrpcClient>>,
 }
 
 impl ApiState {
@@ -73,7 +77,14 @@ impl ApiState {
             mfa_service,
             session_store,
             database,
+            integrasi_client: None,
         }
+    }
+
+    /// Set integrasi gRPC client
+    pub fn with_integrasi_client(mut self, client: Arc<IntegrasiGrpcClient>) -> Self {
+        self.integrasi_client = Some(client);
+        self
     }
 }
 

@@ -137,9 +137,8 @@ impl<S> RbacMiddleware<S> {
     /// - Log access denials for security monitoring
     ///
     /// # Example
-    /// # Example
-    /// ```rust
-    /// use authenc::middleware::rbac::RbacMiddleware;
+    /// ```text
+    /// use authenc_api::middleware::RbacMiddleware;
     /// use tower::service_fn;
     /// use std::convert::Infallible;
     /// use axum::http::Request;

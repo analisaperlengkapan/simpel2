@@ -1,22 +1,18 @@
-//! Database connection pool and prepared statement cache
+//! Database connection pool
 //!
 //! This module provides the core database infrastructure for Authenc, including:
 //! - Connection pooling with deadpool-postgres (20 connections default)
-//! - Prepared statement caching for performance (<10ms p95 query latency)
+//! - Per-connection prepared statement caching via prepare_cached()
 //! - Transaction support for atomic operations
 
 use authenc_types::{AuthencError, Result};
 use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tokio_postgres::{NoTls, Row, Statement};
+use tokio_postgres::{NoTls, Row};
 use tracing::{debug, info};
 
-/// Database connection pool with prepared statement caching
+/// Database connection pool
 pub struct Database {
     pool: Pool,
-    prepared_cache: Arc<PreparedStatementCache>,
 }
 
 impl std::fmt::Debug for Database {
@@ -89,10 +85,7 @@ impl Database {
 
         info!("Database connection pool initialized successfully");
 
-        Ok(Self {
-            pool,
-            prepared_cache: Arc::new(PreparedStatementCache::new()),
-        })
+        Ok(Self { pool })
     }
 
     /// Get a connection from the pool
@@ -122,7 +115,10 @@ impl Database {
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<u64> {
         let client = self.get_connection().await?;
-        let stmt = self.prepared_cache.get_or_prepare(&client, query).await?;
+        let stmt = client
+            .prepare_cached(query)
+            .await
+            .map_err(|e| AuthencError::database(format!("Failed to prepare statement: {}", e)))?;
 
         client
             .execute(&stmt, params)
@@ -149,7 +145,10 @@ impl Database {
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Row> {
         let client = self.get_connection().await?;
-        let stmt = self.prepared_cache.get_or_prepare(&client, query).await?;
+        let stmt = client
+            .prepare_cached(query)
+            .await
+            .map_err(|e| AuthencError::database(format!("Failed to prepare statement: {}", e)))?;
 
         client
             .query_one(&stmt, params)
@@ -176,7 +175,10 @@ impl Database {
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Option<Row>> {
         let client = self.get_connection().await?;
-        let stmt = self.prepared_cache.get_or_prepare(&client, query).await?;
+        let stmt = client
+            .prepare_cached(query)
+            .await
+            .map_err(|e| AuthencError::database(format!("Failed to prepare statement: {}", e)))?;
 
         client
             .query_opt(&stmt, params)
@@ -203,7 +205,10 @@ impl Database {
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Vec<Row>> {
         let client = self.get_connection().await?;
-        let stmt = self.prepared_cache.get_or_prepare(&client, query).await?;
+        let stmt = client
+            .prepare_cached(query)
+            .await
+            .map_err(|e| AuthencError::database(format!("Failed to prepare statement: {}", e)))?;
 
         client
             .query(&stmt, params)
@@ -235,10 +240,7 @@ impl Database {
             .await
             .map_err(|e| AuthencError::database(format!("Failed to begin transaction: {}", e)))?;
 
-        let db_tx = DatabaseTransaction {
-            tx,
-            prepared_cache: Arc::clone(&self.prepared_cache),
-        };
+        let db_tx = DatabaseTransaction { tx };
 
         let result = f(db_tx).await?;
 
@@ -260,7 +262,6 @@ impl Database {
 /// Database transaction wrapper
 pub struct DatabaseTransaction<'a> {
     tx: deadpool_postgres::Transaction<'a>,
-    prepared_cache: Arc<PreparedStatementCache>,
 }
 
 impl<'a> DatabaseTransaction<'a> {
@@ -270,10 +271,9 @@ impl<'a> DatabaseTransaction<'a> {
         query: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<u64> {
-        let stmt = self
-            .prepared_cache
-            .get_or_prepare_tx(&self.tx, query)
-            .await?;
+        let stmt = self.tx.prepare_cached(query).await.map_err(|e| {
+            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
+        })?;
 
         self.tx
             .execute(&stmt, params)
@@ -287,10 +287,9 @@ impl<'a> DatabaseTransaction<'a> {
         query: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Row> {
-        let stmt = self
-            .prepared_cache
-            .get_or_prepare_tx(&self.tx, query)
-            .await?;
+        let stmt = self.tx.prepare_cached(query).await.map_err(|e| {
+            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
+        })?;
 
         self.tx
             .query_one(&stmt, params)
@@ -304,10 +303,9 @@ impl<'a> DatabaseTransaction<'a> {
         query: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Option<Row>> {
-        let stmt = self
-            .prepared_cache
-            .get_or_prepare_tx(&self.tx, query)
-            .await?;
+        let stmt = self.tx.prepare_cached(query).await.map_err(|e| {
+            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
+        })?;
 
         self.tx
             .query_opt(&stmt, params)
@@ -321,10 +319,9 @@ impl<'a> DatabaseTransaction<'a> {
         query: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Vec<Row>> {
-        let stmt = self
-            .prepared_cache
-            .get_or_prepare_tx(&self.tx, query)
-            .await?;
+        let stmt = self.tx.prepare_cached(query).await.map_err(|e| {
+            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
+        })?;
 
         self.tx
             .query(&stmt, params)
@@ -349,104 +346,6 @@ impl<'a> DatabaseTransaction<'a> {
     }
 }
 
-/// Prepared statement cache for query optimization
-///
-/// Caches prepared statements to avoid re-parsing SQL queries on every execution.
-/// This significantly improves performance for frequently executed queries.
-pub struct PreparedStatementCache {
-    cache: RwLock<HashMap<String, Statement>>,
-}
-
-impl PreparedStatementCache {
-    /// Create a new prepared statement cache
-    pub fn new() -> Self {
-        Self {
-            cache: RwLock::new(HashMap::new()),
-        }
-    }
-
-    /// Get a prepared statement from cache or prepare it
-    pub async fn get_or_prepare(
-        &self,
-        client: &deadpool_postgres::Object,
-        query: &str,
-    ) -> Result<Statement> {
-        // Check cache first (read lock)
-        {
-            let cache = self.cache.read().await;
-            if let Some(stmt) = cache.get(query) {
-                debug!("Using cached prepared statement for query");
-                return Ok(stmt.clone());
-            }
-        }
-
-        // Not in cache, prepare it (write lock)
-        let mut cache = self.cache.write().await;
-
-        // Double-check in case another task prepared it while we were waiting
-        if let Some(stmt) = cache.get(query) {
-            return Ok(stmt.clone());
-        }
-
-        debug!("Preparing new statement for query");
-        let stmt = client
-            .prepare(query)
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to prepare statement: {}", e)))?;
-
-        cache.insert(query.to_string(), stmt.clone());
-        Ok(stmt)
-    }
-
-    /// Get a prepared statement for a transaction
-    pub async fn get_or_prepare_tx<'a>(
-        &self,
-        tx: &deadpool_postgres::Transaction<'a>,
-        query: &str,
-    ) -> Result<Statement> {
-        // Check cache first
-        {
-            let cache = self.cache.read().await;
-            if let Some(stmt) = cache.get(query) {
-                return Ok(stmt.clone());
-            }
-        }
-
-        // Prepare within transaction
-        let mut cache = self.cache.write().await;
-
-        if let Some(stmt) = cache.get(query) {
-            return Ok(stmt.clone());
-        }
-
-        let stmt = tx.prepare(query).await.map_err(|e| {
-            AuthencError::database(format!("Failed to prepare statement in transaction: {}", e))
-        })?;
-
-        cache.insert(query.to_string(), stmt.clone());
-        Ok(stmt)
-    }
-
-    /// Clear the prepared statement cache
-    pub async fn clear(&self) {
-        let mut cache = self.cache.write().await;
-        cache.clear();
-        info!("Prepared statement cache cleared");
-    }
-
-    /// Get the number of cached statements
-    pub async fn size(&self) -> usize {
-        let cache = self.cache.read().await;
-        cache.len()
-    }
-}
-
-impl Default for PreparedStatementCache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Connection pool status
 #[derive(Debug, Clone)]
 pub struct PoolStatus {
@@ -461,12 +360,6 @@ pub struct PoolStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_prepared_cache_creation() {
-        let cache = PreparedStatementCache::new();
-        assert_eq!(cache.cache.try_read().unwrap().len(), 0);
-    }
 
     #[test]
     fn test_pool_status_creation() {

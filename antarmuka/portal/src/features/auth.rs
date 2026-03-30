@@ -30,14 +30,23 @@ pub struct UserSession {
     pub email: String,
     /// Profile picture URL
     pub avatar: Option<String>,
-    /// User's division/unit
-    pub division: String,
+    /// NIP (Nomor Induk Pegawai)
+    pub nip: Option<String>,
+    /// Jabatan (position/title)
+    pub jabatan: Option<String>,
+    /// Kode Satker (work unit code)
+    pub satker_code: Option<String>,
+    /// Nama satuan kerja
+    pub satuan_kerja: String,
     /// CAPTCHA validation status
     pub captcha_validated: bool,
     /// MFA enabled status
     pub mfa_enabled: bool,
     /// MFA setup required (true if user needs to setup MFA)
     pub mfa_setup_required: bool,
+    /// Whether user must change password before using the system
+    #[serde(default)]
+    pub require_password_change: bool,
     /// Session creation timestamp
     pub created_at: Option<String>,
     /// JWT access token
@@ -72,6 +81,8 @@ pub enum LoginResult {
     MfaSetupRequired(String), // temp_token
     /// MFA verification required - contains temp token
     MfaVerificationRequired(String), // temp_token
+    /// Password change required before using the system
+    PasswordChangeRequired(Box<UserSession>),
     /// Login failed with error message
     Error(String),
 }
@@ -94,12 +105,17 @@ pub struct TokenResponse {
 pub struct LoginResponse {
     /// Access token (only present after full authentication)
     pub access_token: Option<String>,
+    /// Refresh token (only present after full authentication)
+    pub refresh_token: Option<String>,
     /// Temporary token (present when MFA verification needed)
     pub temp_token: Option<String>,
     /// Whether MFA verification is required
     pub mfa_required: bool,
     /// Whether MFA setup is required
     pub mfa_setup_required: bool,
+    /// Whether password change is required
+    #[serde(default)]
+    pub require_password_change: bool,
     /// Response message
     pub message: String,
 }
@@ -192,15 +208,29 @@ impl AuthService {
                                                 .to_string(),
                                         )
                                     }
-                                } else if let Some(access_token) = login_resp.access_token {
+                                } else if let Some(access_token) =
+                                    login_resp.access_token.filter(|t| !t.is_empty())
+                                {
                                     // Full authentication complete
                                     Self::save_token(&access_token);
+                                    if let Some(refresh_token) = &login_resp.refresh_token {
+                                        Self::save_refresh_token(refresh_token);
+                                    }
 
                                     // Decode JWT to extract user info
                                     match Self::decode_jwt_claims(&access_token) {
-                                        Ok(session) => {
+                                        Ok(mut session) => {
+                                            if let Some(refresh) = &login_resp.refresh_token {
+                                                session.refresh_token = Some(refresh.clone());
+                                            }
                                             Self::save_session(&session);
-                                            LoginResult::Success(Box::new(session))
+                                            if login_resp.require_password_change {
+                                                LoginResult::PasswordChangeRequired(Box::new(
+                                                    session,
+                                                ))
+                                            } else {
+                                                LoginResult::Success(Box::new(session))
+                                            }
                                         }
                                         Err(e) => LoginResult::Error(format!(
                                             "Failed to decode token: {}",
@@ -238,8 +268,7 @@ impl AuthService {
                                 if status == 401 {
                                     "Username atau password salah".to_string()
                                 } else {
-                                    "Terjadi kesalahan sistem. Silakan coba lagi nanti."
-                                        .to_string()
+                                    "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string()
                                 }
                             }
                         };
@@ -310,10 +339,14 @@ impl AuthService {
             name: Self::generate_display_name(&credentials.username),
             email: format!("{}@kejaksaan.go.id", credentials.username),
             avatar: None,
-            division: "Bagian Umum".to_string(),
+            nip: Some(credentials.username.clone()),
+            jabatan: Some("Kasubag Perlengkapan".to_string()),
+            satker_code: Some("0100000".to_string()),
+            satuan_kerja: "0100000".to_string(),
             captcha_validated: credentials.captcha_token.is_some(),
             mfa_enabled: username_lower.ends_with("_verify"), // MFA enabled if verification was required
             mfa_setup_required: false,                        // Setup complete in mock
+            require_password_change: false,
             created_at: Some(now.to_rfc3339()),
             access_token: Some("mock_access_token".to_string()),
             refresh_token: Some("mock_refresh_token".to_string()),
@@ -350,6 +383,14 @@ impl AuthService {
         let username = claims.preferred_username.unwrap_or(claims.sub.clone());
         let permissions = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
 
+        // Use the raw satker code as the satuan_kerja fallback.  The profile
+        // page resolves the human-readable name via the API's
+        // `resolve_satuan_kerja` helper; here we only have JWT claims.
+        let satuan_kerja = match claims.satker_code.as_deref() {
+            Some(code) if !code.is_empty() => code.to_string(),
+            _ => String::new(),
+        };
+
         Ok(UserSession {
             id: claims.sub,
             username: username.clone(),
@@ -361,10 +402,14 @@ impl AuthService {
                 .email
                 .unwrap_or_else(|| format!("{}@kejaksaan.go.id", username)),
             avatar: None,
-            division: "Bagian Umum".to_string(),
+            nip: claims.nip.clone(),
+            jabatan: claims.jabatan.clone(),
+            satker_code: claims.satker_code.clone(),
+            satuan_kerja,
             captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,
             mfa_setup_required: claims.mfa_setup_required,
+            require_password_change: claims.require_password_change,
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             access_token: Some(token.to_string()),
             refresh_token: None,
@@ -471,7 +516,14 @@ impl AuthService {
 
     /// Logout user - calls backend and clears local state
     pub fn logout() {
-        // 1. Clear localStorage immediately for responsive UI
+        // 1. Read refresh token BEFORE clearing localStorage
+        #[cfg(target_arch = "wasm32")]
+        let saved_refresh_token = web_sys::window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item("refresh_token").ok().flatten())
+            .unwrap_or_default();
+
+        // 2. Clear localStorage immediately for responsive UI
         #[cfg(target_arch = "wasm32")]
         {
             if let Some(storage) = web_sys::window()
@@ -486,7 +538,7 @@ impl AuthService {
             }
         }
 
-        // 2. Call backend logout endpoint asynchronously
+        // 3. Call backend logout endpoint asynchronously
         #[cfg(target_arch = "wasm32")]
         {
             use wasm_bindgen_futures::spawn_local;
@@ -498,17 +550,9 @@ impl AuthService {
 
                 // Use the standard auth logout endpoint which is routed
                 // through Istio to authenc via the /api/v1/auth prefix.
-                let logout_url = format!(
-                    "{}/api/v1/auth/logout",
-                    origin
-                );
+                let logout_url = format!("{}/api/v1/auth/logout", origin);
 
-                // Read the stored refresh token so the backend can invalidate
-                // the session.
-                let refresh_token = web_sys::window()
-                    .and_then(|w| w.local_storage().ok().flatten())
-                    .and_then(|s| s.get_item("refresh_token").ok().flatten())
-                    .unwrap_or_default();
+                let refresh_token = saved_refresh_token;
 
                 // POST to /api/v1/auth/logout with the refresh token
                 if let Some(window) = web_sys::window() {
@@ -661,6 +705,11 @@ impl AuthService {
     }
 
     /// Update session with new token
+    ///
+    /// Re-decodes the JWT to refresh claim-derived fields (e.g.
+    /// `require_password_change`, `nip`, `jabatan`, `roles`) so that
+    /// route guards and UI components see up-to-date values after an
+    /// automatic token refresh.
     pub fn update_session_token(token_response: &TokenResponse) {
         if let Some(mut session) = Self::load_session() {
             session.access_token = Some(token_response.access_token.clone());
@@ -670,6 +719,26 @@ impl AuthService {
             let now = chrono::Utc::now();
             let expires_at = now + chrono::Duration::seconds(token_response.expires_in as i64);
             session.expires_at = Some(expires_at.timestamp());
+
+            // Re-decode JWT claims so that claim-derived fields (name,
+            // nip, jabatan, satker_code, require_password_change, roles,
+            // mfa_enabled, etc.) are refreshed from the new token.
+            // Without this, a stale `require_password_change: true` would
+            // keep redirecting the user to the password-change page even
+            // after the flag was cleared in the DB and the new JWT.
+            if let Ok(decoded) = Self::decode_jwt_claims(&token_response.access_token) {
+                session.name = decoded.name;
+                session.email = decoded.email;
+                session.role = decoded.role;
+                session.nip = decoded.nip;
+                session.jabatan = decoded.jabatan;
+                session.satker_code = decoded.satker_code;
+                session.satuan_kerja = decoded.satuan_kerja;
+                session.mfa_enabled = decoded.mfa_enabled;
+                session.mfa_setup_required = decoded.mfa_setup_required;
+                session.require_password_change = decoded.require_password_change;
+                session.permissions = decoded.permissions;
+            }
 
             Self::save_session(&session);
 

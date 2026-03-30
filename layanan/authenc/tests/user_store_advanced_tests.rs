@@ -113,6 +113,7 @@ async fn test_user_store_comprehensive_operations() {
             organization_id: None,
             roles: None,
             attributes: None,
+            enabled: None,
         },
         CreateUserRequest {
             username: format!("bob{}", unique_suffix),
@@ -129,6 +130,7 @@ async fn test_user_store_comprehensive_operations() {
             organization_id: None,
             roles: None,
             attributes: None,
+            enabled: None,
         },
     ];
 
@@ -349,6 +351,7 @@ async fn test_user_store_bulk_operations() {
             organization_id: None,
             roles: None,
             attributes: None,
+            enabled: None,
         };
         bulk_users.push(user_req);
     }

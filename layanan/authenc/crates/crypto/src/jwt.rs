@@ -208,6 +208,18 @@ impl JwtService {
         scope: Option<String>,
         session_id: Option<String>,
     ) -> Result<String> {
+        self.generate_access_token_with_claims(user_id, realm, scope, session_id, HashMap::new())
+    }
+
+    /// Generate an access token with custom claims (e.g. nip, nama, jabatan)
+    pub fn generate_access_token_with_claims(
+        &self,
+        user_id: &str,
+        realm: Option<String>,
+        scope: Option<String>,
+        session_id: Option<String>,
+        custom_claims: HashMap<String, serde_json::Value>,
+    ) -> Result<String> {
         let mut claims = TokenClaims::new(
             user_id.to_string(),
             self.issuer.clone(),
@@ -224,6 +236,10 @@ impl JwtService {
 
         if let Some(sid) = session_id {
             claims = claims.with_session_id(sid);
+        }
+
+        for (k, v) in custom_claims {
+            claims = claims.with_custom_claim(k, v);
         }
 
         self.generate_token(&claims)

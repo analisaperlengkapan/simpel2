@@ -206,11 +206,14 @@ pub async fn captcha_verify_handler(
 
     // Verify answer — CASE-SENSITIVE for text_recognition (mixed case is part of the challenge)
     // Math challenges remain case-insensitive
-    let correct = if challenge.challenge_type == "text_recognition" || challenge.challenge_type == "Visual" {
-        req.answer.trim() == challenge.answer.trim()
-    } else {
-        req.answer.trim().eq_ignore_ascii_case(challenge.answer.trim())
-    };
+    let correct =
+        if challenge.challenge_type == "text_recognition" || challenge.challenge_type == "Visual" {
+            req.answer.trim() == challenge.answer.trim()
+        } else {
+            req.answer
+                .trim()
+                .eq_ignore_ascii_case(challenge.answer.trim())
+        };
 
     if correct {
         challenge.verified = true;
@@ -249,21 +252,23 @@ pub async fn captcha_verify_handler(
 ///
 /// GET /api/captcha/debug/{challenge_id}
 #[cfg(feature = "captcha-debug")]
-pub async fn captcha_debug_answer_handler(
-    Path(challenge_id): Path<String>,
-) -> impl IntoResponse {
+pub async fn captcha_debug_answer_handler(Path(challenge_id): Path<String>) -> impl IntoResponse {
     match CHALLENGE_STORE.get(&challenge_id) {
-        Some(entry) => {
-            (StatusCode::OK, Json(serde_json::json!({
+        Some(entry) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
                 "challenge_id": challenge_id,
                 "answer": entry.answer,
-            }))).into_response()
-        }
-        None => {
-            (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            })),
+        )
+            .into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
                 "error": "challenge not found or expired",
-            }))).into_response()
-        }
+            })),
+        )
+            .into_response(),
     }
 }
 

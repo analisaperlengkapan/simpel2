@@ -231,6 +231,7 @@ impl UserStorageProvider for DefaultUserStorageProvider {
             organization_id: user.organization_id,
             roles: None,
             attributes: user.attributes.clone(),
+            enabled: Some(user.enabled),
         };
         self.user_store.add_user(request).await
     }

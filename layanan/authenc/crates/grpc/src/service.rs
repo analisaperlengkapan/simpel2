@@ -390,6 +390,7 @@ impl AuthencService for AuthencGrpcService {
             organization_id: None,
             roles: None,
             attributes: None,
+            enabled: None,
         };
 
         // Create user

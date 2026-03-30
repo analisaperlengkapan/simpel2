@@ -21,7 +21,7 @@ async fn test_rate_limiting() {
     let app = Router::new()
         .route("/test", get(|| async { "Hello, world!" }))
         .route("/health", get(|| async { "OK" }))
-        .with_state(state);
+        .layer(super::rate_limit::RateLimitLayer::new((*state).clone()));
 
     // First request should succeed
     let response = app

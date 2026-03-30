@@ -68,21 +68,21 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(users::list_users).post(users::create_user),
         )
         .route(
-            "/api/v1/iam/users/:id",
+            "/api/v1/iam/users/{id}",
             get(users::get_user)
                 .put(users::update_user)
                 .delete(users::delete_user),
         )
         .route(
-            "/api/v1/iam/users/:id/password/reset",
+            "/api/v1/iam/users/{id}/password/reset",
             post(users::reset_user_password),
         )
         .route(
-            "/api/v1/iam/users/:id/mfa/enable",
+            "/api/v1/iam/users/{id}/mfa/enable",
             post(users::enable_user_mfa),
         )
         .route(
-            "/api/v1/iam/users/:id/mfa/disable",
+            "/api/v1/iam/users/{id}/mfa/disable",
             post(users::disable_user_mfa),
         )
         // ============================================================
@@ -93,7 +93,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(realms::list_realms).post(realms::create_realm),
         )
         .route(
-            "/api/v1/iam/realms/:id",
+            "/api/v1/iam/realms/{id}",
             get(realms::get_realm)
                 .put(realms::update_realm)
                 .delete(realms::delete_realm),
@@ -106,13 +106,13 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(clients::list_clients).post(clients::create_client),
         )
         .route(
-            "/api/v1/iam/clients/:id",
+            "/api/v1/iam/clients/{id}",
             get(clients::get_client)
                 .put(clients::update_client)
                 .delete(clients::delete_client),
         )
         .route(
-            "/api/v1/iam/clients/:id/secret/regenerate",
+            "/api/v1/iam/clients/{id}/secret/regenerate",
             post(clients::regenerate_client_secret),
         )
         // ============================================================
@@ -123,13 +123,13 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(roles::list_roles).post(roles::create_role),
         )
         .route(
-            "/api/v1/iam/roles/:id",
+            "/api/v1/iam/roles/{id}",
             get(roles::get_role)
                 .put(roles::update_role)
                 .delete(roles::delete_role),
         )
         .route(
-            "/api/v1/iam/users/:user_id/roles/:role_id",
+            "/api/v1/iam/users/{user_id}/roles/{role_id}",
             post(roles::assign_role_to_user).delete(roles::remove_role_from_user),
         )
         // ============================================================
@@ -140,21 +140,21 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(groups::list_groups).post(groups::create_group),
         )
         .route(
-            "/api/v1/iam/groups/:id",
+            "/api/v1/iam/groups/{id}",
             get(groups::get_group_by_id)
                 .put(groups::update_group)
                 .delete(groups::delete_group),
         )
         .route(
-            "/api/v1/iam/groups/:id/members",
+            "/api/v1/iam/groups/{id}/members",
             get(groups::get_group_members).post(groups::add_group_member),
         )
         .route(
-            "/api/v1/iam/groups/:id/members/:user_id",
+            "/api/v1/iam/groups/{id}/members/{user_id}",
             delete(groups::remove_group_member),
         )
         .route(
-            "/api/v1/iam/groups/:id/subgroups",
+            "/api/v1/iam/groups/{id}/subgroups",
             get(groups::get_subgroups),
         )
         // ============================================================
@@ -165,25 +165,25 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(organizations::list_organizations).post(organizations::create_organization),
         )
         .route(
-            "/api/v1/iam/organizations/:id",
+            "/api/v1/iam/organizations/{id}",
             get(organizations::get_organization)
                 .put(organizations::update_organization)
                 .delete(organizations::delete_organization),
         )
         .route(
-            "/api/v1/iam/organizations/:id/members",
+            "/api/v1/iam/organizations/{id}/members",
             get(organizations::get_members).post(organizations::add_member),
         )
         .route(
-            "/api/v1/iam/organizations/:id/members/:user_id",
+            "/api/v1/iam/organizations/{id}/members/{user_id}",
             delete(organizations::remove_member),
         )
         .route(
-            "/api/v1/iam/organizations/:id/invitations",
+            "/api/v1/iam/organizations/{id}/invitations",
             post(organizations::create_invitation),
         )
         .route(
-            "/api/v1/iam/organizations/:id/settings",
+            "/api/v1/iam/organizations/{id}/settings",
             get(organizations::get_settings).put(organizations::update_settings),
         )
         // ============================================================
@@ -194,15 +194,15 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(satker::list_satkers).post(satker::create_satker),
         )
         .route(
-            "/api/v1/iam/satker/:id",
+            "/api/v1/iam/satker/{id}",
             get(satker::get_satker).put(satker::update_satker),
         )
         .route(
-            "/api/v1/iam/satker/:id/hierarchy",
+            "/api/v1/iam/satker/{id}/hierarchy",
             get(satker::get_satker_hierarchy),
         )
         .route(
-            "/api/v1/iam/satker/:id/authorization",
+            "/api/v1/iam/satker/{id}/authorization",
             post(satker::check_satker_access),
         )
         // ============================================================
@@ -221,7 +221,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             post(client_registration::register_client),
         )
         .route(
-            "/api/v1/iam/dcr/register/:client_id",
+            "/api/v1/iam/dcr/register/{client_id}",
             get(client_registration::get_client_configuration)
                 .put(client_registration::update_client_configuration)
                 .delete(client_registration::delete_client_registration),
@@ -234,7 +234,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(dcr_admin::list_initial_access_tokens).post(dcr_admin::create_initial_access_token),
         )
         .route(
-            "/api/v1/iam/dcr/initial-access-tokens/:id",
+            "/api/v1/iam/dcr/initial-access-tokens/{id}",
             delete(dcr_admin::revoke_initial_access_token),
         )
         .route(
@@ -242,7 +242,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(dcr_admin::list_dcr_policies).post(dcr_admin::create_dcr_policy),
         )
         .route(
-            "/api/v1/iam/dcr/policies/:id",
+            "/api/v1/iam/dcr/policies/{id}",
             get(dcr_admin::get_dcr_policy)
                 .put(dcr_admin::update_dcr_policy)
                 .delete(dcr_admin::delete_dcr_policy),
@@ -255,7 +255,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(client_policy::list_client_policies).post(client_policy::create_client_policy),
         )
         .route(
-            "/api/v1/iam/client-policies/:id",
+            "/api/v1/iam/client-policies/{id}",
             get(client_policy::get_client_policy)
                 .put(client_policy::update_client_policy)
                 .delete(client_policy::delete_client_policy),
@@ -265,11 +265,11 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(client_policy::list_client_policies),
         )
         .route(
-            "/api/v1/iam/clients/:client_id/policies",
+            "/api/v1/iam/clients/{client_id}/policies",
             get(client_policy::get_client_policy).post(client_policy::assign_client_policy),
         )
         .route(
-            "/api/v1/iam/clients/:client_id/policies/:policy_id",
+            "/api/v1/iam/clients/{client_id}/policies/{policy_id}",
             delete(client_policy::unassign_client_policy),
         )
         // ============================================================
@@ -280,7 +280,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(federation::list_identity_providers).post(federation::create_identity_provider),
         )
         .route(
-            "/api/v1/iam/identity-providers/:id",
+            "/api/v1/iam/identity-providers/{id}",
             put(federation::update_identity_provider).delete(federation::delete_identity_provider),
         )
         // ============================================================
@@ -302,17 +302,17 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(spi_management::list_spi_plugins).post(spi_management::register_spi_plugin),
         )
         .route(
-            "/api/v1/iam/spi/plugins/:id",
+            "/api/v1/iam/spi/plugins/{id}",
             get(spi_management::get_spi_plugin)
                 .put(spi_management::update_spi_plugin)
                 .delete(spi_management::unregister_spi_plugin),
         )
         .route(
-            "/api/v1/iam/spi/plugins/:id/enable",
+            "/api/v1/iam/spi/plugins/{id}/enable",
             post(spi_management::enable_plugin),
         )
         .route(
-            "/api/v1/iam/spi/plugins/:id/disable",
+            "/api/v1/iam/spi/plugins/{id}/disable",
             post(spi_management::disable_plugin),
         )
         // ============================================================
@@ -324,7 +324,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
                 .post(spi_federation::create_spi_federation_config),
         )
         .route(
-            "/api/v1/iam/spi/federation-providers/:id",
+            "/api/v1/iam/spi/federation-providers/{id}",
             get(spi_federation::get_spi_federation_config)
                 .put(spi_federation::update_spi_federation_config)
                 .delete(spi_federation::delete_spi_federation_config),
@@ -337,7 +337,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(uma::list_uma_resources).post(uma::create_uma_resource),
         )
         .route(
-            "/api/v1/iam/uma/resources/:id",
+            "/api/v1/iam/uma/resources/{id}",
             get(uma::get_uma_resource)
                 .put(uma::update_uma_resource)
                 .delete(uma::delete_uma_resource),
@@ -347,7 +347,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(uma::list_all_uma_policies).post(uma::create_uma_policy_standalone),
         )
         .route(
-            "/api/v1/iam/uma/policies/:id",
+            "/api/v1/iam/uma/policies/{id}",
             put(uma::update_uma_policy).delete(uma::delete_uma_policy),
         )
         .route(
@@ -355,7 +355,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(uma::list_uma_permissions).post(uma::create_uma_permission),
         )
         .route(
-            "/api/v1/iam/uma/permissions/:id",
+            "/api/v1/iam/uma/permissions/{id}",
             delete(uma::delete_uma_permission),
         )
         // ============================================================
@@ -366,7 +366,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(zero_trust::list_zero_trust_policies).post(zero_trust::create_zero_trust_policy),
         )
         .route(
-            "/api/v1/iam/zero-trust/policies/:id",
+            "/api/v1/iam/zero-trust/policies/{id}",
             get(zero_trust::get_zero_trust_policy)
                 .put(zero_trust::update_zero_trust_policy)
                 .delete(zero_trust::delete_zero_trust_policy),
@@ -376,7 +376,7 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(zero_trust::get_zero_trust_dashboard).post(zero_trust::register_device_trust),
         )
         .route(
-            "/api/v1/iam/zero-trust/device-trust/:id",
+            "/api/v1/iam/zero-trust/device-trust/{id}",
             get(zero_trust::get_device_trust_status)
                 .put(zero_trust::update_device_trust)
                 .delete(zero_trust::revoke_device_trust),
@@ -389,11 +389,11 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             get(oid4vc::list_credentials).post(oid4vc::issue_credential),
         )
         .route(
-            "/api/v1/iam/oid4vc/credentials/:id",
+            "/api/v1/iam/oid4vc/credentials/{id}",
             get(oid4vc::get_credential).delete(oid4vc::revoke_credential),
         )
         .route(
-            "/api/v1/iam/oid4vc/credentials/:id/verify",
+            "/api/v1/iam/oid4vc/credentials/{id}/verify",
             post(oid4vc::verify_credential),
         )
         // ============================================================
@@ -408,7 +408,10 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
         // Sessions Management (from admin.rs)
         // ============================================================
         .route("/api/v1/iam/sessions", get(admin::list_sessions))
-        .route("/api/v1/iam/sessions/:id", delete(admin::terminate_session))
+        .route(
+            "/api/v1/iam/sessions/{id}",
+            delete(admin::terminate_session),
+        )
         .route(
             "/api/v1/iam/sessions/terminate-all",
             post(admin::terminate_all_sessions),
@@ -425,26 +428,16 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
         // ============================================================
         .route(
             "/api/v1/iam/admin/identity-providers",
-            get(admin::list_identity_providers),
+            get(admin::list_identity_providers).post(admin::create_identity_provider),
         )
         .route(
-            "/api/v1/iam/admin/identity-providers/:id",
-            get(admin::get_identity_provider),
+            "/api/v1/iam/admin/identity-providers/{id}",
+            get(admin::get_identity_provider)
+                .put(admin::update_identity_provider)
+                .delete(admin::delete_identity_provider),
         )
         .route(
-            "/api/v1/iam/admin/identity-providers",
-            post(admin::create_identity_provider),
-        )
-        .route(
-            "/api/v1/iam/admin/identity-providers/:id",
-            put(admin::update_identity_provider),
-        )
-        .route(
-            "/api/v1/iam/admin/identity-providers/:id",
-            delete(admin::delete_identity_provider),
-        )
-        .route(
-            "/api/v1/iam/admin/identity-providers/:id/test",
+            "/api/v1/iam/admin/identity-providers/{id}/test",
             post(admin::test_identity_provider),
         )
         // ============================================================

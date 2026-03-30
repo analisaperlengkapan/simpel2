@@ -6,16 +6,13 @@
 use async_trait::async_trait;
 
 use crate::{
-    domain,          // Domain models module
     domain_types::*, // Strongly-typed IDs (UserId, RealmId, etc.) and OAuth2 types
     result::Result,
 };
 
 // Explicitly import domain types to avoid ambiguity with legacy types
 use crate::domain::oidc_client::OidcClient as DomainOidcClient;
-use crate::domain::permission::Permission;
 use crate::domain::realm::Realm;
-use crate::domain::role::Role;
 use crate::domain::session::Session;
 use crate::domain::user::User;
 use crate::domain::user::{CreateUserRequest, UpdateUserRequest};
@@ -57,6 +54,72 @@ pub trait UserStore: Send + Sync {
 
     /// Check if an email exists in a realm
     async fn email_exists(&self, email: &str, realm_id: RealmId) -> Result<bool>;
+
+    /// Count total users in a realm (for pagination)
+    async fn count_users(&self, realm_id: RealmId) -> Result<i64> {
+        let users = self.list_users(realm_id, 0, i64::MAX as usize).await?;
+        Ok(users.len() as i64)
+    }
+
+    /// Search users by query string (username, email, nip, nama)
+    async fn search_users(
+        &self,
+        realm_id: RealmId,
+        _query: &str,
+        _enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        // Default: fall back to list_users (no search)
+        self.list_users(realm_id, offset, limit).await
+    }
+
+    /// Count users matching a search query
+    async fn count_search_users(
+        &self,
+        realm_id: RealmId,
+        query: &str,
+        enabled: Option<bool>,
+    ) -> Result<i64> {
+        let users = self
+            .search_users(realm_id, query, enabled, 0, i64::MAX as usize)
+            .await?;
+        Ok(users.len() as i64)
+    }
+
+    /// Count enabled (active) users in a realm
+    async fn count_enabled_users(&self, realm_id: RealmId) -> Result<i64> {
+        let users = self.list_users(realm_id, 0, i64::MAX as usize).await?;
+        Ok(users.iter().filter(|u| u.enabled).count() as i64)
+    }
+
+    /// List users with optional enabled filter pushed to DB
+    async fn list_users_filtered(
+        &self,
+        realm_id: RealmId,
+        enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        let users = self.list_users(realm_id, offset, limit).await?;
+        match enabled {
+            Some(e) => Ok(users.into_iter().filter(|u| u.enabled == e).collect()),
+            None => Ok(users),
+        }
+    }
+
+    /// Count users with optional enabled filter
+    async fn count_users_filtered(&self, realm_id: RealmId, enabled: Option<bool>) -> Result<i64> {
+        match enabled {
+            Some(true) => self.count_enabled_users(realm_id).await,
+            Some(false) => {
+                let total = self.count_users(realm_id).await?;
+                let enabled = self.count_enabled_users(realm_id).await?;
+                Ok(total - enabled)
+            }
+            None => self.count_users(realm_id).await,
+        }
+    }
 }
 
 /// Trait for session storage operations

@@ -12,9 +12,94 @@ use authenc_types::{
 use chrono::Utc;
 use std::sync::Arc;
 use tokio_postgres::Row;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::Database;
+
+/// Load roles for a single user from the user_roles + roles tables.
+async fn load_user_roles(db: &Database, user_id: &uuid::Uuid) -> Vec<authenc_types::domain::user::Role> {
+    let roles_query = r#"
+        SELECT r.id, r.name, r.description
+        FROM user_roles ur
+        JOIN roles r ON r.id = ur.role_id
+        WHERE ur.user_id = $1
+    "#;
+    match db.query(roles_query, &[user_id]).await {
+        Ok(role_rows) => role_rows
+            .iter()
+            .map(|r| row_to_role(r))
+            .collect(),
+        Err(e) => {
+            warn!(user_id = %user_id, error = %e, "Failed to load roles for user");
+            Vec::new()
+        }
+    }
+}
+
+/// Load roles for multiple users in a single batch query, returning a map of user_id -> roles.
+async fn load_users_roles_batch(
+    db: &Database,
+    user_ids: &[uuid::Uuid],
+) -> std::collections::HashMap<uuid::Uuid, Vec<authenc_types::domain::user::Role>> {
+    use std::collections::HashMap;
+
+    if user_ids.is_empty() {
+        return HashMap::new();
+    }
+
+    // Build parameterized IN clause: $1, $2, $3, ...
+    let placeholders: Vec<String> = (1..=user_ids.len()).map(|i| format!("${}", i)).collect();
+    let roles_query = format!(
+        r#"
+        SELECT ur.user_id, r.id, r.name, r.description
+        FROM user_roles ur
+        JOIN roles r ON r.id = ur.role_id
+        WHERE ur.user_id IN ({})
+        "#,
+        placeholders.join(", ")
+    );
+
+    let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+        user_ids.iter().map(|id| id as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+
+    let mut roles_map: HashMap<uuid::Uuid, Vec<authenc_types::domain::user::Role>> = HashMap::new();
+
+    match db.query(&roles_query, &params).await {
+        Ok(role_rows) => {
+            for r in &role_rows {
+                let uid: uuid::Uuid = r.get("user_id");
+                roles_map.entry(uid).or_default().push(row_to_role(r));
+            }
+        }
+        Err(e) => {
+            warn!(error = %e, "Failed to batch-load roles for users");
+        }
+    }
+
+    roles_map
+}
+
+/// Convert a role row into a Role domain object.
+fn row_to_role(r: &tokio_postgres::Row) -> authenc_types::domain::user::Role {
+    let now = chrono::Utc::now();
+    authenc_types::domain::user::Role {
+        id: r.get("id"),
+        name: r.get("name"),
+        description: r.try_get("description").ok(),
+        permissions: Vec::new(),
+        managed_by: None,
+        scope: None,
+        realm_id: None,
+        composite: false,
+        client_role: false,
+        client_id: None,
+        priority: 0,
+        active: true,
+        attributes: None,
+        created_at: now,
+        updated_at: now,
+    }
+}
 
 /// PostgreSQL implementation of UserStore
 pub struct PostgresUserStore {
@@ -53,12 +138,15 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT *
             FROM users
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_one(query, &[&id.0]).await?;
 
-        row_to_user(row)
+        let mut user = row_to_user(row)?;
+        user.roles = load_user_roles(&self.db, &user.id).await;
+
+        Ok(user)
     }
 
     async fn get_user_by_username(&self, username: &str, realm_id: RealmId) -> Result<User> {
@@ -70,13 +158,17 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT *
             FROM users
-            WHERE username = $1 AND realm_id = $2
+            WHERE username = $1 AND realm_id = $2 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_opt(query, &[&username, &realm_id.0]).await?;
 
         match row {
-            Some(r) => row_to_user(r),
+            Some(r) => {
+                let mut user = row_to_user(r)?;
+                user.roles = load_user_roles(&self.db, &user.id).await;
+                Ok(user)
+            },
             None => Err(AuthencError::UserNotFound(username.to_string())),
         }
     }
@@ -87,13 +179,17 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT *
             FROM users
-            WHERE email = $1 AND realm_id = $2
+            WHERE email = $1 AND realm_id = $2 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_opt(query, &[&email, &realm_id.0]).await?;
 
         match row {
-            Some(r) => row_to_user(r),
+            Some(r) => {
+                let mut user = row_to_user(r)?;
+                user.roles = load_user_roles(&self.db, &user.id).await;
+                Ok(user)
+            },
             None => Err(AuthencError::UserNotFound(email.to_string())),
         }
     }
@@ -133,6 +229,7 @@ impl UserStore for PostgresUserStore {
             RETURNING *
         "#;
 
+        let enabled = req.enabled.unwrap_or(true);
         let row = self
             .db
             .query_one(
@@ -142,7 +239,7 @@ impl UserStore for PostgresUserStore {
                     &req.username,
                     &req.email,
                     &req.password, // Note: This should be hashed before calling create_user
-                    &true,         // enabled by default
+                    &enabled,      // enabled by default
                     &false,        // email_verified = false by default
                     &false,        // mfa_enabled = false by default
                     &req.realm_id,
@@ -244,7 +341,7 @@ impl UserStore for PostgresUserStore {
             r#"
             UPDATE users
             SET {}
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
             RETURNING *
             "#,
             updates.join(", ")
@@ -304,7 +401,9 @@ impl UserStore for PostgresUserStore {
 
         let row = self.db.query_one(&query, &params).await?;
 
-        let user = row_to_user(row)?;
+        let mut user = row_to_user(row)?;
+        user.roles = load_user_roles(&self.db, &user.id).await;
+
         info!("User updated successfully: {}", user.id);
         Ok(user)
     }
@@ -312,13 +411,14 @@ impl UserStore for PostgresUserStore {
     async fn delete_user(&self, id: UserId) -> Result<()> {
         info!("Deleting user: {}", id);
 
-        // Soft delete: set enabled = false and add deleted_at timestamp
-        // Note: This requires a deleted_at column in the users table
-        // For now, we'll just set enabled = false
+        // Soft delete: set enabled = false and stamp deleted_at so the record
+        // is excluded from username_exists / email_exists queries (which filter
+        // on `deleted_at IS NULL`).  This prevents orphaned auto-provisioned
+        // records from blocking future provisioning attempts for the same NIP.
         let query = r#"
             UPDATE users
-            SET enabled = false, updated_at = $2
-            WHERE id = $1
+            SET enabled = false, deleted_at = $2, updated_at = $2
+            WHERE id = $1 AND deleted_at IS NULL
         "#;
 
         let now = Utc::now();
@@ -346,7 +446,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT *
             FROM users
-            WHERE realm_id = $1
+            WHERE realm_id = $1 AND deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
         "#;
@@ -356,9 +456,17 @@ impl UserStore for PostgresUserStore {
             .query(query, &[&realm_id.0, &(limit as i64), &(offset as i64)])
             .await?;
 
-        let users: Result<Vec<User>> = rows.into_iter().map(row_to_user).collect();
+        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
 
-        users
+        let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
+        let roles_map = load_users_roles_batch(&self.db, &user_ids).await;
+        for user in &mut users {
+            if let Some(roles) = roles_map.get(&user.id) {
+                user.roles = roles.clone();
+            }
+        }
+
+        Ok(users)
     }
 
     async fn username_exists(&self, username: &str, realm_id: RealmId) -> Result<bool> {
@@ -370,7 +478,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT EXISTS(
                 SELECT 1 FROM users
-                WHERE username = $1 AND realm_id = $2
+                WHERE username = $1 AND realm_id = $2 AND deleted_at IS NULL
             )
         "#;
 
@@ -386,7 +494,7 @@ impl UserStore for PostgresUserStore {
         let query = r#"
             SELECT EXISTS(
                 SELECT 1 FROM users
-                WHERE email = $1 AND realm_id = $2
+                WHERE email = $1 AND realm_id = $2 AND deleted_at IS NULL
             )
         "#;
 
@@ -395,11 +503,206 @@ impl UserStore for PostgresUserStore {
         let exists: bool = row.get(0);
         Ok(exists)
     }
+
+    async fn count_users(&self, realm_id: RealmId) -> Result<i64> {
+        debug!("Counting users in realm: {}", realm_id);
+
+        let query = r#"
+            SELECT COUNT(*) FROM users
+            WHERE realm_id = $1 AND deleted_at IS NULL
+        "#;
+
+        let row = self.db.query_one(query, &[&realm_id.0]).await?;
+        Ok(row.get(0))
+    }
+
+    async fn search_users(
+        &self,
+        realm_id: RealmId,
+        query_str: &str,
+        enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        debug!(
+            "Searching users in realm: {} query: {} enabled: {:?} (offset: {}, limit: {})",
+            realm_id, query_str, enabled, offset, limit
+        );
+
+        let escaped = query_str
+            .to_lowercase()
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
+        let pattern = format!("%{}%", escaped);
+        let query = r#"
+            SELECT *
+            FROM users
+            WHERE realm_id = $1
+              AND deleted_at IS NULL
+              AND ($5::boolean IS NULL OR enabled = $5)
+              AND (
+                  LOWER(username) LIKE $2
+                  OR LOWER(email) LIKE $2
+                  OR LOWER(COALESCE(nip, '')) LIKE $2
+                  OR LOWER(COALESCE(nama, '')) LIKE $2
+              )
+            ORDER BY created_at DESC
+            LIMIT $3 OFFSET $4
+        "#;
+
+        let rows = self
+            .db
+            .query(
+                query,
+                &[
+                    &realm_id.0,
+                    &pattern,
+                    &(limit as i64),
+                    &(offset as i64),
+                    &enabled,
+                ],
+            )
+            .await?;
+
+        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
+
+        let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
+        let roles_map = load_users_roles_batch(&self.db, &user_ids).await;
+        for user in &mut users {
+            if let Some(roles) = roles_map.get(&user.id) {
+                user.roles = roles.clone();
+            }
+        }
+
+        Ok(users)
+    }
+
+    async fn count_search_users(
+        &self,
+        realm_id: RealmId,
+        query_str: &str,
+        enabled: Option<bool>,
+    ) -> Result<i64> {
+        debug!(
+            "Counting search users in realm: {} query: {} enabled: {:?}",
+            realm_id, query_str, enabled
+        );
+
+        let escaped = query_str
+            .to_lowercase()
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
+        let pattern = format!("%{}%", escaped);
+        let query = r#"
+            SELECT COUNT(*)
+            FROM users
+            WHERE realm_id = $1
+              AND deleted_at IS NULL
+              AND ($3::boolean IS NULL OR enabled = $3)
+              AND (
+                  LOWER(username) LIKE $2
+                  OR LOWER(email) LIKE $2
+                  OR LOWER(COALESCE(nip, '')) LIKE $2
+                  OR LOWER(COALESCE(nama, '')) LIKE $2
+              )
+        "#;
+
+        let row = self
+            .db
+            .query_one(query, &[&realm_id.0, &pattern, &enabled])
+            .await?;
+        Ok(row.get(0))
+    }
+
+    async fn count_enabled_users(&self, realm_id: RealmId) -> Result<i64> {
+        debug!("Counting enabled users in realm: {}", realm_id);
+
+        let query = r#"
+            SELECT COUNT(*) FROM users
+            WHERE realm_id = $1 AND deleted_at IS NULL AND enabled = true
+        "#;
+
+        let row = self.db.query_one(query, &[&realm_id.0]).await?;
+        Ok(row.get(0))
+    }
+
+    async fn list_users_filtered(
+        &self,
+        realm_id: RealmId,
+        enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        debug!(
+            "Listing users in realm: {} enabled={:?} (offset: {}, limit: {})",
+            realm_id, enabled, offset, limit
+        );
+
+        let rows = match enabled {
+            Some(e) => {
+                let q = r#"
+                    SELECT *
+                    FROM users
+                    WHERE realm_id = $1 AND deleted_at IS NULL AND enabled = $4
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3
+                "#;
+                self.db
+                    .query(q, &[&realm_id.0, &(limit as i64), &(offset as i64), &e])
+                    .await?
+            }
+            None => {
+                let q = r#"
+                    SELECT *
+                    FROM users
+                    WHERE realm_id = $1 AND deleted_at IS NULL
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3
+                "#;
+                self.db
+                    .query(q, &[&realm_id.0, &(limit as i64), &(offset as i64)])
+                    .await?
+            }
+        };
+
+        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
+
+        let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
+        let roles_map = load_users_roles_batch(&self.db, &user_ids).await;
+        for user in &mut users {
+            if let Some(roles) = roles_map.get(&user.id) {
+                user.roles = roles.clone();
+            }
+        }
+
+        Ok(users)
+    }
+
+    async fn count_users_filtered(&self, realm_id: RealmId, enabled: Option<bool>) -> Result<i64> {
+        debug!(
+            "Counting users in realm: {} enabled={:?}",
+            realm_id, enabled
+        );
+
+        match enabled {
+            Some(e) => {
+                let query = r#"
+                    SELECT COUNT(*) FROM users
+                    WHERE realm_id = $1 AND deleted_at IS NULL AND enabled = $2
+                "#;
+                let row = self.db.query_one(query, &[&realm_id.0, &e]).await?;
+                Ok(row.get(0))
+            }
+            None => self.count_users(realm_id).await,
+        }
+    }
 }
 
 /// Convert a database row to a User struct
 fn row_to_user(row: Row) -> Result<User> {
-    use authenc_types::{Permission, Role, SecurityContext};
+    use authenc_types::SecurityContext;
 
     let satker_code: Option<String> = row.try_get("satker_code").ok();
 
@@ -500,6 +803,7 @@ mod tests {
                 organization_id: None,
                 roles: None,
                 attributes: None,
+                enabled: None,
             };
 
             assert_eq!(req.username, "testuser");

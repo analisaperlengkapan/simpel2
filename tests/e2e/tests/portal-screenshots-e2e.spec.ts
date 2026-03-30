@@ -28,7 +28,7 @@ const SCREENSHOT_DIR = path.join(__dirname, '..', 'test-results', 'screenshots')
 // Admin user (has access to all pages)
 const ADMIN_USER = {
     username: 'admin',
-    password: 'admin123',
+    password: '199203142014031001',
 };
 
 // Regular NIP user
@@ -135,14 +135,14 @@ async function loginAs(
     await page.locator('#password').fill(user.password);
 
     // Wait for captcha to load and solve it
-    await expect(page.getByText("Verify You're Human")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
     await expect.poll(() => interceptor.getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
-    const captchaInput = page.locator('input[placeholder="Enter the text..."]');
+    const captchaInput = page.locator('input[placeholder="Masukkan teks..."]');
     await expect(captchaInput).toBeVisible({ timeout: 5000 });
     await captchaInput.fill(interceptor.getCaptchaAnswer()!);
 
-    const captchaSubmit = page.locator('.captcha-container button', { hasText: 'Submit' });
+    const captchaSubmit = page.locator('.captcha-container button', { hasText: 'Kirim' });
     await Promise.all([
         page.waitForResponse(
             (resp) => resp.url().includes('/api/captcha/verify') && resp.request().method() === 'POST',
@@ -214,7 +214,7 @@ test.describe('Portal Screenshots - Public Pages', () => {
             await passwordToggle.click();
         }
 
-        await expect(page.getByText("Verify You're Human")).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
         await captureScreenshot(page, '04-login-with-captcha');
     });
 
@@ -407,15 +407,15 @@ test.describe('Portal Screenshots - Login Flow Sequence', () => {
         await captureScreenshot(page, '40b-login-filled-credentials');
 
         // Wait for captcha and solve
-        await expect(page.getByText("Verify You're Human")).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
         await expect.poll(() => interceptor.getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
-        const captchaInput = page.locator('input[placeholder="Enter the text..."]');
+        const captchaInput = page.locator('input[placeholder="Masukkan teks..."]');
         await captchaInput.fill(interceptor.getCaptchaAnswer()!);
         await captureScreenshot(page, '40c-login-captcha-filled');
 
         // Solve captcha
-        const captchaSubmit = page.locator('.captcha-container button', { hasText: 'Submit' });
+        const captchaSubmit = page.locator('.captcha-container button', { hasText: 'Kirim' });
         await Promise.all([
             page.waitForResponse(
                 (resp) => resp.url().includes('/api/captcha/verify') && resp.request().method() === 'POST',
@@ -460,8 +460,8 @@ test.describe('Portal - Authenc Integration Verification', () => {
         const challenge = await challengeResp.json();
         expect(challenge.challenge_id).toBeTruthy();
 
-        // Extract answer
-        const answer = extractCaptchaAnswer(challenge.challenge_data);
+        // Extract answer via debug endpoint
+        const answer = await fetchCaptchaDebugAnswer(challenge.challenge_id);
         expect(answer).toBeTruthy();
 
         // Verify
@@ -484,7 +484,7 @@ test.describe('Portal - Authenc Integration Verification', () => {
             data: { challenge_type: 'Visual', difficulty: 3 },
         });
         const challenge = await challengeResp.json();
-        const answer = extractCaptchaAnswer(challenge.challenge_data);
+        const answer = await fetchCaptchaDebugAnswer(challenge.challenge_id);
 
         const verifyResp = await request.post(`${AUTHENC_URL}/api/captcha/verify`, {
             data: {
@@ -516,7 +516,7 @@ test.describe('Portal - Authenc Integration Verification', () => {
             data: { challenge_type: 'Visual', difficulty: 3 },
         });
         const challenge = await challengeResp.json();
-        const answer = extractCaptchaAnswer(challenge.challenge_data);
+        const answer = await fetchCaptchaDebugAnswer(challenge.challenge_id);
 
         const verifyResp = await request.post(`${AUTHENC_URL}/api/captcha/verify`, {
             data: {

@@ -24,7 +24,7 @@ mod session_management_tests {
             name: "Test User".to_string(),
             email: "test@kejaksaan.go.id".to_string(),
             avatar: None,
-            division: "Test Division".to_string(),
+            satuan_kerja: "Test Satuan Kerja".to_string(),
             captcha_validated: true,
             mfa_enabled: true,
             mfa_setup_required: false,
@@ -33,6 +33,7 @@ mod session_management_tests {
             refresh_token: Some("test_refresh_token".to_string()),
             expires_at: Some(expires_at.timestamp()),
             permissions: vec!["user:read".to_string()],
+            ..Default::default()
         }
     }
 

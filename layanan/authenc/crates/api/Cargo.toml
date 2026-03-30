@@ -11,6 +11,8 @@ authenc-core = { path = "../core" }
 authenc-crypto = { path = "../crypto" }
 authenc-storage = { path = "../storage" }
 authenc-webauthn = { path = "../webauthn" }
+authenc-federation = { path = "../federation" }
+authenc-iam-api = { path = "../iam-api" }
 
 # External dependencies (from workspace)
 tokio = { workspace = true }

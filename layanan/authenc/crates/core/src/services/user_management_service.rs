@@ -252,16 +252,17 @@ impl UserManagementServiceImpl {
             email: request.email.clone(),
             password: password_hash,
             realm_id: request.realm_id,
-            satker_code: String::new(),
-            first_name: None,
-            last_name: None,
-            nip: None,
-            nama: None,
-            jabatan: None,
-            phone_number: None,
-            organization_id: None,
-            roles: None,
-            attributes: None,
+            satker_code: request.satker_code.clone(),
+            first_name: request.first_name.clone(),
+            last_name: request.last_name.clone(),
+            nip: request.nip.clone(),
+            nama: request.nama.clone(),
+            jabatan: request.jabatan.clone(),
+            phone_number: request.phone_number.clone(),
+            organization_id: request.organization_id,
+            roles: request.roles.clone(),
+            attributes: request.attributes.clone(),
+            enabled: request.enabled,
         };
 
         let user = self.user_store.create_user(create_request).await?;
@@ -410,27 +411,10 @@ impl UserManagementServiceImpl {
     pub async fn delete_user(&self, user_id: UserId) -> Result<()> {
         debug!(user_id = %user_id, "Deleting user (soft delete)");
 
-        // Soft delete: set enabled=false
-        let update_request = UpdateUserRequest {
-            username: None,
-            email: None,
-            satker_code: None,
-            first_name: None,
-            last_name: None,
-            nip: None,
-            nama: None,
-            jabatan: None,
-            phone_number: None,
-            phone_verified: None,
-            require_password_change: None,
-            password: None,
-            enabled: Some(false),
-            email_verified: None,
-            mfa_enabled: None,
-            attributes: None,
-        };
-
-        self.user_store.update_user(user_id, update_request).await?;
+        // Delegate to the store's delete_user which sets both enabled=false
+        // AND deleted_at, so the record is excluded from username_exists /
+        // email_exists queries (they filter on `deleted_at IS NULL`).
+        self.user_store.delete_user(user_id).await?;
 
         info!(user_id = %user_id, "User deleted successfully (soft delete)");
 
@@ -490,21 +474,63 @@ impl UserManagementServiceImpl {
             "Searching users"
         );
 
-        // Get all users and filter (simple implementation)
-        // TODO: Implement database-level search for better performance
-        let all_users = self.user_store.list_users(realm_id, 0, 1000).await?;
+        self.user_store
+            .search_users(realm_id, query, None, 0, limit)
+            .await
+    }
 
-        let query_lower = query.to_lowercase();
-        let results: Vec<User> = all_users
-            .into_iter()
-            .filter(|user| {
-                user.username.to_lowercase().contains(&query_lower)
-                    || user.email.to_lowercase().contains(&query_lower)
-            })
-            .take(limit)
-            .collect();
+    /// Count total users in a realm (for pagination)
+    pub async fn count_users(&self, realm_id: RealmId) -> Result<i64> {
+        self.user_store.count_users(realm_id).await
+    }
 
-        Ok(results)
+    /// Count enabled (active) users in a realm
+    pub async fn count_enabled_users(&self, realm_id: RealmId) -> Result<i64> {
+        self.user_store.count_enabled_users(realm_id).await
+    }
+
+    /// List users with optional enabled filter pushed to DB
+    pub async fn list_users_filtered(
+        &self,
+        realm_id: RealmId,
+        enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<User>> {
+        self.user_store
+            .list_users_filtered(realm_id, enabled, offset, limit)
+            .await
+    }
+
+    /// Count users with optional enabled filter pushed to DB
+    pub async fn count_users_filtered(
+        &self,
+        realm_id: RealmId,
+        enabled: Option<bool>,
+    ) -> Result<i64> {
+        self.user_store
+            .count_users_filtered(realm_id, enabled)
+            .await
+    }
+
+    /// Search users with pagination and return count
+    pub async fn search_users_paginated(
+        &self,
+        realm_id: RealmId,
+        query: &str,
+        enabled: Option<bool>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<User>, i64)> {
+        let total = self
+            .user_store
+            .count_search_users(realm_id, query, enabled)
+            .await?;
+        let users = self
+            .user_store
+            .search_users(realm_id, query, enabled, offset, limit)
+            .await?;
+        Ok((users, total))
     }
 
     /// Verify user email
@@ -689,13 +715,14 @@ mod tests {
         }
 
         async fn create_user(&self, req: CreateUserRequest) -> Result<User> {
-            let user = User::new(
+            let mut user = User::new(
                 req.username.clone(),
                 req.email.clone(),
                 req.satker_code.clone(),
                 req.password, // Already hashed by service
                 req.realm_id,
             );
+            user.enabled = req.enabled.unwrap_or(true);
 
             let realm_id = user
                 .realm_id
@@ -724,7 +751,13 @@ mod tests {
                 user.email = email;
             }
             if let Some(password) = req.password {
-                user.password_hash = Some(password);
+                // If it's already hashed by the service, store it as is.
+                // Otherwise, for tests passing plaintext, simulate hashing.
+                if password.starts_with("hashed_") || password.starts_with("$argon2id") {
+                    user.password_hash = Some(password);
+                } else {
+                    user.password_hash = Some(format!("hashed_{}", password));
+                }
             }
             if let Some(enabled) = req.enabled {
                 user.enabled = enabled;
@@ -735,6 +768,39 @@ mod tests {
             if let Some(mfa_enabled) = req.mfa_enabled {
                 user.mfa_enabled = mfa_enabled;
             }
+            if let Some(require_password_change) = req.require_password_change {
+                user.require_password_change = require_password_change;
+            }
+            if let Some(first_name) = req.first_name {
+                user.first_name = Some(first_name);
+            }
+            if let Some(last_name) = req.last_name {
+                user.last_name = Some(last_name);
+            }
+            if let Some(phone_number) = req.phone_number {
+                user.phone_number = Some(phone_number);
+            }
+            if let Some(username) = req.username {
+                user.username = username;
+            }
+            if let Some(satker_code) = req.satker_code {
+                user.satker_code = satker_code;
+            }
+            if let Some(nip) = req.nip {
+                user.nip = Some(nip);
+            }
+            if let Some(nama) = req.nama {
+                user.nama = Some(nama);
+            }
+            if let Some(jabatan) = req.jabatan {
+                user.jabatan = Some(jabatan);
+            }
+            if let Some(phone_verified) = req.phone_verified {
+                user.phone_verified = phone_verified;
+            }
+            if let Some(attributes) = req.attributes {
+                user.attributes = Some(attributes);
+            }
 
             user.updated_at = chrono::Utc::now();
 
@@ -743,7 +809,19 @@ mod tests {
 
         async fn delete_user(&self, id: UserId) -> Result<()> {
             let mut users = self.users.lock().await;
-            users.remove(id.as_uuid());
+            if let Some(user) = users.remove(id.as_uuid()) {
+                // Clean up index maps so username_exists / email_exists return
+                // false after deletion — matching production behaviour where
+                // deleted_at IS NULL filters exclude soft-deleted records.
+                let realm_id = user
+                    .realm_id
+                    .map(RealmId::from_uuid)
+                    .unwrap_or_else(RealmId::new);
+                let mut by_username = self.users_by_username.lock().await;
+                by_username.remove(&(user.username.clone(), realm_id));
+                let mut by_email = self.users_by_email.lock().await;
+                by_email.remove(&(user.email.clone(), realm_id));
+            }
             Ok(())
         }
 
@@ -773,6 +851,121 @@ mod tests {
         async fn email_exists(&self, email: &str, realm_id: RealmId) -> Result<bool> {
             let users_by_email = self.users_by_email.lock().await;
             Ok(users_by_email.contains_key(&(email.to_string(), realm_id)))
+        }
+
+        async fn count_users(&self, realm_id: RealmId) -> Result<i64> {
+            let users = self.users.lock().await;
+            Ok(users
+                .values()
+                .filter(|u| u.realm_id == Some(*realm_id.as_uuid()))
+                .count() as i64)
+        }
+
+        async fn count_enabled_users(&self, realm_id: RealmId) -> Result<i64> {
+            let users = self.users.lock().await;
+            Ok(users
+                .values()
+                .filter(|u| u.realm_id == Some(*realm_id.as_uuid()) && u.enabled)
+                .count() as i64)
+        }
+
+        async fn list_users_filtered(
+            &self,
+            realm_id: RealmId,
+            enabled: Option<bool>,
+            offset: usize,
+            limit: usize,
+        ) -> Result<Vec<User>> {
+            let users = self.users.lock().await;
+            let mut realm_users: Vec<User> = users
+                .values()
+                .filter(|u| {
+                    u.realm_id == Some(*realm_id.as_uuid())
+                        && enabled.map_or(true, |e| u.enabled == e)
+                })
+                .cloned()
+                .collect();
+            realm_users.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+            Ok(realm_users.into_iter().skip(offset).take(limit).collect())
+        }
+
+        async fn count_users_filtered(
+            &self,
+            realm_id: RealmId,
+            enabled: Option<bool>,
+        ) -> Result<i64> {
+            let users = self.users.lock().await;
+            Ok(users
+                .values()
+                .filter(|u| {
+                    u.realm_id == Some(*realm_id.as_uuid())
+                        && enabled.map_or(true, |e| u.enabled == e)
+                })
+                .count() as i64)
+        }
+
+        async fn search_users(
+            &self,
+            realm_id: RealmId,
+            query: &str,
+            enabled: Option<bool>,
+            offset: usize,
+            limit: usize,
+        ) -> Result<Vec<User>> {
+            let users = self.users.lock().await;
+            let query_lower = query.to_lowercase();
+            let mut matched_users: Vec<User> = users
+                .values()
+                .filter(|u| {
+                    u.realm_id == Some(*realm_id.as_uuid())
+                        && enabled.map_or(true, |e| u.enabled == e)
+                })
+                .filter(|u| {
+                    u.username.to_lowercase().contains(&query_lower)
+                        || u.email.to_lowercase().contains(&query_lower)
+                        || u.nip
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&query_lower))
+                            .unwrap_or(false)
+                        || u.nama
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&query_lower))
+                            .unwrap_or(false)
+                })
+                .cloned()
+                .collect();
+
+            matched_users.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+            Ok(matched_users.into_iter().skip(offset).take(limit).collect())
+        }
+
+        async fn count_search_users(
+            &self,
+            realm_id: RealmId,
+            query: &str,
+            enabled: Option<bool>,
+        ) -> Result<i64> {
+            let users = self.users.lock().await;
+            let query_lower = query.to_lowercase();
+            Ok(users
+                .values()
+                .filter(|u| {
+                    u.realm_id == Some(*realm_id.as_uuid())
+                        && enabled.map_or(true, |e| u.enabled == e)
+                })
+                .filter(|u| {
+                    u.username.to_lowercase().contains(&query_lower)
+                        || u.email.to_lowercase().contains(&query_lower)
+                        || u.nip
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&query_lower))
+                            .unwrap_or(false)
+                        || u.nama
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&query_lower))
+                            .unwrap_or(false)
+                })
+                .count() as i64)
         }
     }
 
@@ -809,6 +1002,7 @@ mod tests {
             organization_id: None,
             roles: None,
             attributes: None,
+            enabled: None,
         }
     }
 
@@ -1076,9 +1270,14 @@ mod tests {
             .await
             .unwrap();
 
-        // Verify user is disabled
-        let deleted_user = service.get_user(UserId::from_uuid(user.id)).await.unwrap();
-        assert!(!deleted_user.enabled);
+        // Verify user is no longer findable (mock removes from store,
+        // matching production behaviour where deleted_at IS NULL filters
+        // exclude the record from username_exists / email_exists).
+        assert!(service.get_user(UserId::from_uuid(user.id)).await.is_err());
+
+        // Verify username is freed for re-use
+        let realm_id = RealmId::from_uuid(realm_uuid);
+        assert!(!user_store.username_exists("testuser", realm_id).await.unwrap());
     }
 
     #[tokio::test]

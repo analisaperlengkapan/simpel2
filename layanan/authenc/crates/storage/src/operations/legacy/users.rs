@@ -136,7 +136,7 @@ pub async fn create_user(db: &Database, request: &CreateUserRequest) -> Result<U
                 &organization_id,
                 &request.attributes,
                 &true, // email_verified
-                &true, // enabled
+                &request.enabled.unwrap_or(true), // enabled
                 &realm_id,
                 &false, // federated (default to false for regular user creation)
                 &now,
@@ -538,6 +538,7 @@ pub async fn bulk_create_users(db: &Database, users: Vec<CreateUserRequest>) -> 
             serde_json::to_string(&user_req.attributes.clone().unwrap_or_default())
                 .map_err(|e| crate::error::AuthencError::database(e.to_string()))?;
 
+        let enabled = user_req.enabled.unwrap_or(true);
         let row = transaction
             .query_one(
                 query,
@@ -550,7 +551,7 @@ pub async fn bulk_create_users(db: &Database, users: Vec<CreateUserRequest>) -> 
                     &user_req.phone_number,
                     &false, // phone_verified - default false
                     &password_hash,
-                    &true, // enabled - default true
+                    &enabled, // enabled - default true
                     &user_req.realm_id,
                     &user_req.organization_id,
                     &attributes_json,
@@ -783,25 +784,25 @@ pub async fn query_users_advanced(
     }
 
     // Full-text search across username, email, first_name, last_name
-    if let Some(search_term) = search {
-        if !search_term.is_empty() {
-            where_clauses.push(format!(
+    if let Some(search_term) = search
+        && !search_term.is_empty()
+    {
+        where_clauses.push(format!(
                 "(username ILIKE ${} OR email ILIKE ${} OR first_name ILIKE ${} OR last_name ILIKE ${})",
                 param_index, param_index, param_index, param_index
             ));
-            let search_pattern = format!("%{}%", search_term);
-            params.push(Box::new(search_pattern));
-            param_index += 1;
-        }
+        let search_pattern = format!("%{}%", search_term);
+        params.push(Box::new(search_pattern));
+        param_index += 1;
     }
 
     // Email filter
-    if let Some(email_pattern) = email_filter {
-        if !email_pattern.is_empty() {
-            where_clauses.push(format!("email ILIKE ${}", param_index));
-            params.push(Box::new(format!("%{}%", email_pattern)));
-            param_index += 1;
-        }
+    if let Some(email_pattern) = email_filter
+        && !email_pattern.is_empty()
+    {
+        where_clauses.push(format!("email ILIKE ${}", param_index));
+        params.push(Box::new(format!("%{}%", email_pattern)));
+        param_index += 1;
     }
 
     // Enabled filter

@@ -21,17 +21,17 @@ pub fn create_router(state: Arc<IamApiState>) -> Router {
             get(users::list_users).post(users::create_user),
         )
         .route(
-            "/api/v1/iam/users/:id",
+            "/api/v1/iam/users/{id}",
             get(users::get_user)
                 .put(users::update_user)
                 .delete(users::delete_user),
         )
         .route(
-            "/api/v1/iam/users/:id/password/reset",
+            "/api/v1/iam/users/{id}/password/reset",
             post(users::reset_user_password),
         )
         .route(
-            "/api/v1/iam/users/:id/mfa/enable",
+            "/api/v1/iam/users/{id}/mfa/enable",
             post(users::enable_user_mfa),
         )
         // Realm management endpoints
@@ -40,7 +40,7 @@ pub fn create_router(state: Arc<IamApiState>) -> Router {
             get(realms::list_realms).post(realms::create_realm),
         )
         .route(
-            "/api/v1/iam/realms/:id",
+            "/api/v1/iam/realms/{id}",
             get(realms::get_realm)
                 .put(realms::update_realm)
                 .delete(realms::delete_realm),
@@ -51,13 +51,13 @@ pub fn create_router(state: Arc<IamApiState>) -> Router {
             get(clients::list_clients).post(clients::create_client),
         )
         .route(
-            "/api/v1/iam/clients/:id",
+            "/api/v1/iam/clients/{id}",
             get(clients::get_client)
                 .put(clients::update_client)
                 .delete(clients::delete_client),
         )
         .route(
-            "/api/v1/iam/clients/:id/secret/regenerate",
+            "/api/v1/iam/clients/{id}/secret/regenerate",
             post(clients::regenerate_client_secret),
         )
         // Role management endpoints
@@ -66,11 +66,11 @@ pub fn create_router(state: Arc<IamApiState>) -> Router {
             get(roles::list_roles).post(roles::create_role),
         )
         .route(
-            "/api/v1/iam/roles/:id",
+            "/api/v1/iam/roles/{id}",
             put(roles::update_role).delete(roles::delete_role),
         )
         .route(
-            "/api/v1/iam/users/:user_id/roles/:role_id",
+            "/api/v1/iam/users/{user_id}/roles/{role_id}",
             post(roles::assign_role_to_user).delete(roles::remove_role_from_user),
         )
         // Federation management endpoints
@@ -79,7 +79,7 @@ pub fn create_router(state: Arc<IamApiState>) -> Router {
             get(federation::list_identity_providers).post(federation::create_identity_provider),
         )
         .route(
-            "/api/v1/iam/identity-providers/:id",
+            "/api/v1/iam/identity-providers/{id}",
             put(federation::update_identity_provider).delete(federation::delete_identity_provider),
         )
         // Audit log endpoints
@@ -94,29 +94,29 @@ pub fn create_router(state: Arc<IamApiState>) -> Router {
             get(groups::list_groups).post(groups::create_group),
         )
         .route(
-            "/api/v1/iam/groups/:id",
+            "/api/v1/iam/groups/{id}",
             get(groups::get_group_by_id)
                 .put(groups::update_group)
                 .delete(groups::delete_group),
         )
         .route(
-            "/api/v1/iam/groups/:id/subgroups",
+            "/api/v1/iam/groups/{id}/subgroups",
             get(groups::get_subgroups),
         )
         .route(
-            "/api/v1/iam/groups/:id/members",
+            "/api/v1/iam/groups/{id}/members",
             get(groups::get_group_members).post(groups::add_group_member),
         )
         .route(
-            "/api/v1/iam/groups/:group_id/members/:user_id",
+            "/api/v1/iam/groups/{group_id}/members/{user_id}",
             axum::routing::delete(groups::remove_group_member),
         )
         .route(
-            "/api/v1/iam/realms/:realm_id/groups",
+            "/api/v1/iam/realms/{realm_id}/groups",
             get(groups::get_groups),
         )
         .route(
-            "/api/v1/iam/users/:user_id/groups",
+            "/api/v1/iam/users/{user_id}/groups",
             get(groups::get_user_groups),
         )
         // Apply admin authentication middleware to all routes

@@ -4,6 +4,7 @@
 //! query capabilities, and filtering.
 
 use crate::context::RequestContext;
+#[cfg(feature = "db")]
 use crate::error::{CommonError, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -506,7 +507,7 @@ impl AuditLogger {
         "#;
 
         let limit = filter.limit.unwrap_or(100);
-        let limit_i64 = limit as i64;
+        let limit_i64 = limit;
 
         let rows: Vec<Row> = client
             .query(query, &[&limit_i64])
@@ -595,7 +596,7 @@ impl AuditLogger {
         let context = if request_id.is_some() || ip_address.is_some() || user_agent.is_some() {
             Some(RequestContext {
                 request_id: request_id
-                    .map(|id| crate::correlation::CorrelationId::new_from_string(id))
+                    .map(crate::correlation::CorrelationId::new_from_string)
                     .unwrap_or_default(),
                 ip_address,
                 user_agent,

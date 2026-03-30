@@ -7,7 +7,7 @@ use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos_router;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen_futures::spawn_local;
+use leptos::task::spawn_local;
 
 /// Backup code verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,6 +67,21 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (remaining_codes, set_remaining_codes) = signal(None::<i32>);
     let (verification_success, set_verification_success) = signal(false);
 
+    let navigate = leptos_router::hooks::use_navigate();
+
+    // Obtain the top-level user_session writer so we can update the reactive
+    // signal after successful MFA verification.  Without this, route guards
+    // that read the signal would still see `None` and redirect to login.
+    let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
+
+    // Track whether this component is still mounted so the timer callback
+    // inside spawn_local can skip navigation after the user left the page.
+    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted_cleanup = mounted.clone();
+    on_cleanup(move || {
+        mounted_cleanup.set(false);
+    });
+
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
 
@@ -117,7 +132,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                         </div>
                     </Show>
 
-                    <Show when=move || !is_locked.get()>
+                    <Show when=move || !is_locked.get() && !verification_success.get()>
                         <div class="space-y-6">
                             // User info
                             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
@@ -207,8 +222,8 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let navigate = leptos_router::hooks::use_navigate();
-
+                                    let nav = navigate.clone();
+                                    let is_mounted = mounted.clone();
                                     spawn_local(async move {
                                         match verify_backup_code(&temp_token, &code).await {
                                             Ok(response) => {
@@ -230,6 +245,13 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
                                                             // Save session
                                                             AuthService::save_session(&session);
+                                                            crate::utils::app_state::app_state_login(session.clone());
+
+                                                            // Update the reactive user_session signal so route
+                                                            // guards see the authenticated session immediately.
+                                                            if let Some(setter) = set_user_session {
+                                                                setter.set(Some(session.clone()));
+                                                            }
 
                                                             // Clear temp token
                                                             AuthService::clear_temp_token();
@@ -237,10 +259,24 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                             // Show success with remaining codes count
                                                             set_remaining_codes.set(Some(response.data.remaining_codes));
                                                             set_verification_success.set(true);
+                                                            set_is_loading.set(false);
 
-                                                            // Redirect to dashboard after showing success
+                                                            // Redirect after showing success.
+                                                            // Guard: if the component unmounted during
+                                                            // the 2-second timer (e.g. user clicked
+                                                            // "Back to login"), skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
-                                                            navigate("/dashboard", Default::default());
+
+                                                            if is_mounted.get() {
+                                                                // Navigate directly to password-change
+                                                                // page when required, avoiding a double
+                                                                // redirect via the dashboard route guard.
+                                                                if session.require_password_change {
+                                                                    nav("/password", Default::default());
+                                                                } else {
+                                                                    nav("/dashboard", Default::default());
+                                                                }
+                                                            }
                                                         }
                                                         Err(e) => {
                                                             set_error_message.set(format!("Failed to decode token: {}", e));
@@ -304,7 +340,6 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                         type="button"
                                         class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
                                         on:click=move |_| {
-                                            let navigate = leptos_router::hooks::use_navigate();
                                             navigate("/mfa/verify", Default::default());
                                         }
                                     >

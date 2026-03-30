@@ -729,7 +729,7 @@ pub async fn rekey_update(
 
 /// Generate root token with JWT
 async fn generate_root_token(state: &AppState) -> Result<String, String> {
-    use jsonwebtoken::{EncodingKey, Header, Algorithm, encode};
+    use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -781,8 +781,12 @@ async fn generate_root_token(state: &AppState) -> Result<String, String> {
     // Use the JWT secret from config (matching what validate_token uses)
     let secret = &state.config.auth.jwt.secret;
 
-    let algorithm = Algorithm::from_str(&state.config.auth.jwt.algorithm)
-        .map_err(|e| format!("Invalid JWT algorithm '{}': {}", state.config.auth.jwt.algorithm, e))?;
+    let algorithm = Algorithm::from_str(&state.config.auth.jwt.algorithm).map_err(|e| {
+        format!(
+            "Invalid JWT algorithm '{}': {}",
+            state.config.auth.jwt.algorithm, e
+        )
+    })?;
 
     let header = Header::new(algorithm);
 

@@ -372,7 +372,7 @@ impl TryFrom<tokio_postgres::Row> for ProtocolMapper {
 
         let config: ProtocolMapperConfiguration =
             serde_json::from_value(config_json).map_err(|e| {
-                crate::error::AuthencError::internal(&format!(
+                crate::error::AuthencError::internal(format!(
                     "Failed to parse mapper config: {}",
                     e
                 ))

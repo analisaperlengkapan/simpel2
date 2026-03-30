@@ -14,6 +14,7 @@ use leptos::task::spawn_local;
 
 /// Main CAPTCHA component
 #[component]
+#[allow(unused_variables)]
 pub fn Captcha(
     /// Callback when CAPTCHA is successfully completed
     #[prop(into)]
@@ -175,7 +176,8 @@ pub fn Captcha(
                 set_state.update(|s| {
                     s.attempts += 1;
                     if s.attempts >= 3 {
-                        s.error = Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
+                        s.error =
+                            Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
                     }
                 });
 
@@ -392,6 +394,7 @@ pub fn Captcha(
 
 /// CAPTCHA container component
 #[component]
+#[allow(unused_variables)]
 fn CaptchaContainer(
     class: Option<String>,
     announcements: ReadSignal<Vec<String>>,
@@ -537,6 +540,7 @@ fn CaptchaContainer(
 }
 /// Challenge display component
 #[component]
+#[allow(unused_variables)]
 pub fn ChallengeDisplay(
     challenge_type: ChallengeType,
     _difficulty: u8,
@@ -733,6 +737,7 @@ pub fn ChallengeDisplay(
 
 /// Challenge input component
 #[component]
+#[allow(unused_variables)]
 pub fn ChallengeInput(
     on_submit: Callback<String>,
     on_failure: Option<Callback<String>>,
@@ -864,7 +869,8 @@ pub fn ChallengeInput(
                 set_state.update(|s| {
                     s.attempts += 1;
                     if s.attempts >= 3 {
-                        s.error = Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
+                        s.error =
+                            Some("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
                         should_notify_parent = true;
                     }
                 });

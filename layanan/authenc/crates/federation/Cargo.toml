@@ -10,6 +10,11 @@ authenc-types = { path = "../types" }
 authenc-core = { path = "../core", features = ["ldap"] }
 authenc-storage = { path = "../storage" }
 
+# gRPC client dependencies
+tonic = { workspace = true }
+prost = { workspace = true }
+tonic-prost = { workspace = true }
+
 # External dependencies (from workspace)
 tokio = { workspace = true }
 tokio-postgres = { workspace = true }
@@ -38,6 +43,10 @@ sha2 = { workspace = true }
 # Federation-specific dependencies
 openidconnect = { workspace = true }
 # saml2 = { workspace = true }  # Add when implementing SAML
+
+[build-dependencies]
+tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

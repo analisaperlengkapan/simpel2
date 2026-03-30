@@ -9,7 +9,7 @@ use crate::utils::app_state::use_api_client;
 use crate::utils::webauthn;
 use leptos::prelude::*;
 use lib_ui::components::captcha::Captcha;
-use wasm_bindgen_futures::spawn_local;
+use leptos::task::spawn_local;
 use web_sys;
 
 /// Login page
@@ -73,11 +73,22 @@ pub fn LoginPage(
                                         match AuthService::decode_jwt_claims(
                                             &token_resp.access_token,
                                         ) {
-                                            Ok(session) => {
+                                            Ok(mut session) => {
+                                                if let Some(refresh) = &token_resp.refresh_token {
+                                                    session.refresh_token = Some(refresh.clone());
+                                                }
                                                 AuthService::save_session(&session);
-                                                on_login_success.set(Some(session));
+                                                crate::utils::app_state::app_state_login(session.clone());
+                                                on_login_success.set(Some(session.clone()));
                                                 set_passkey_loading.set(false);
-                                                nav("/dashboard", Default::default());
+                                                // Navigate to password-change page when
+                                                // required, avoiding a double redirect
+                                                // via the dashboard route guard.
+                                                if session.require_password_change {
+                                                    nav("/password", Default::default());
+                                                } else {
+                                                    nav("/dashboard", Default::default());
+                                                }
                                             }
                                             Err(e) => {
                                                 set_error_message
@@ -96,10 +107,14 @@ pub fn LoginPage(
                             }
                             Err(e) => {
                                 let msg = {
-                                    let err_str = format!("{}", e);
-                                    if err_str.contains("NotAllowedError") || err_str.contains("cancelled") {
+                                    let err_str = e.to_string();
+                                    if err_str.contains("NotAllowedError")
+                                        || err_str.contains("cancelled")
+                                    {
                                         "Autentikasi passkey dibatalkan oleh pengguna.".to_string()
-                                    } else if err_str.contains("SecurityError") || err_str.contains("invalid domain") {
+                                    } else if err_str.contains("SecurityError")
+                                        || err_str.contains("invalid domain")
+                                    {
                                         "Passkey tidak dapat digunakan pada domain ini. Hubungi administrator.".to_string()
                                     } else if err_str.contains("NotSupportedError") {
                                         "Browser Anda tidak mendukung passkey. Silakan gunakan password.".to_string()
@@ -115,7 +130,9 @@ pub fn LoginPage(
                     }
                     Err(e) => {
                         leptos::logging::warn!("Passkey start error: {}", e);
-                        set_error_message.set("Gagal memulai autentikasi passkey. Silakan coba lagi.".to_string());
+                        set_error_message.set(
+                            "Gagal memulai autentikasi passkey. Silakan coba lagi.".to_string(),
+                        );
                         set_passkey_loading.set(false);
                     }
                 }
@@ -170,20 +187,26 @@ pub fn LoginPage(
 
                     // Full authentication complete
                     AuthService::save_session(&session);
+                    crate::utils::app_state::app_state_login((*session).clone());
+                    let needs_password_change = session.require_password_change;
                     on_login_success.set(Some(*session));
 
                     // Hide loading spinner before navigating
                     set_is_loading.set(false);
 
-                    if redirect_to_perlengkapan {
+                    // Security-critical check first: forced password change
+                    // takes priority over any redirect target.
+                    if needs_password_change {
+                        nav("/password", Default::default());
+                    } else if redirect_to_perlengkapan {
                         // Hard redirect to Perlengkapan root
                         if let Some(window) = web_sys::window() {
                             let _ = window.location().set_href("/");
                         }
                         return;
+                    } else {
+                        nav("/dashboard", Default::default());
                     }
-
-                    nav("/dashboard", Default::default());
                 }
                 LoginResult::MfaSetupRequired(temp_token) => {
                     // Reset failed attempts
@@ -210,6 +233,17 @@ pub fn LoginPage(
 
                     // Redirect to MFA verification
                     nav("/mfa/verify", Default::default());
+                }
+                LoginResult::PasswordChangeRequired(session) => {
+                    // Login succeeded but user must change password first
+                    set_failed_attempts.set(0);
+                    AuthService::save_session(&session);
+                    crate::utils::app_state::app_state_login((*session).clone());
+                    on_login_success.set(Some(*session));
+                    set_is_loading.set(false);
+
+                    // Redirect to password change page
+                    nav("/password", Default::default());
                 }
                 LoginResult::Error(msg) => {
                     // Increment failed attempts
