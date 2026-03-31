@@ -228,6 +228,10 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
                                     let code_val = code.clone();
                                     let temp_token_val = temp_token.clone();
+                                    // Extract Arc and navigate fn while component is still alive
+                                    // so they survive beyond component disposal.
+                                    let mounted_flag = mounted.get_value();
+                                    let nav_fn = navigate.get_value();
                                     spawn_local(async move {
                                         match verify_backup_code(&temp_token_val, &code_val).await {
                                             Ok(response) => {
@@ -272,14 +276,14 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                             // "Back to login"), skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
 
-                                                            if mounted.get_value().load(Ordering::SeqCst) {
+                                                            if mounted_flag.load(Ordering::SeqCst) {
                                                                 // Navigate directly to password-change
                                                                 // page when required, avoiding a double
                                                                 // redirect via the dashboard route guard.
                                                                 if session.require_password_change {
-                                                                    navigate.get_value()("/password", Default::default());
+                                                                    nav_fn("/password", Default::default());
                                                                 } else {
-                                                                    navigate.get_value()("/dashboard", Default::default());
+                                                                    nav_fn("/dashboard", Default::default());
                                                                 }
                                                             }
                                                         }

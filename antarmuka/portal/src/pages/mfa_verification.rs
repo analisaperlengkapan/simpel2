@@ -203,6 +203,10 @@ pub fn MfaVerificationPage() -> impl IntoView {
 
                                     let code_val = code.clone();
                                     let temp_token_val = temp_token.clone();
+                                    // Extract Arc and navigate fn while component is still alive
+                                    // so they survive beyond component disposal.
+                                    let mounted_flag = mounted.get_value();
+                                    let nav_fn = navigate.get_value();
                                     spawn_local(async move {
                                         match verify_mfa_code(&temp_token_val, &code_val).await {
                                             Ok(response) => {
@@ -242,11 +246,11 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                             // Guard: if the component unmounted during
                                                             // the async call (e.g. user navigated away),
                                                             // skip the navigation to avoid a panic.
-                                                            if mounted.get_value().load(Ordering::SeqCst) {
+                                                            if mounted_flag.load(Ordering::SeqCst) {
                                                                 if session.require_password_change {
-                                                                    navigate.get_value()("/password", Default::default());
+                                                                    nav_fn("/password", Default::default());
                                                                 } else {
-                                                                    navigate.get_value()("/dashboard", Default::default());
+                                                                    nav_fn("/dashboard", Default::default());
                                                                 }
                                                             }
                                                         }

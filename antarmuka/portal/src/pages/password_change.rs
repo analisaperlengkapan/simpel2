@@ -134,12 +134,15 @@ pub fn PasswordChangePage() -> impl IntoView {
     let handle_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
         let api = api.clone();
-        let mounted = mounted;
         let set_loading = set_loading;
         let set_error = set_error;
         let set_success = set_success;
         let current_password_val = current_password.get();
         let new_password_val = new_password.get();
+        // Extract Arc and navigate fn while component is still alive
+        // so they survive beyond component disposal.
+        let mounted_flag = mounted.get_value();
+        let nav_fn = navigate.get_value();
 
         set_loading.set(true);
         set_error.set(None);
@@ -209,8 +212,8 @@ pub fn PasswordChangePage() -> impl IntoView {
                     // Guard: if the component unmounted during the 1.5-second
                     // timer (e.g. user navigated away), skip the navigation.
                     gloo_timers::future::TimeoutFuture::new(1_500).await;
-                    if mounted.get_value().load(Ordering::SeqCst) {
-                        navigate.get_value()("/dashboard", Default::default());
+                    if mounted_flag.load(Ordering::SeqCst) {
+                        nav_fn("/dashboard", Default::default());
                     }
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),

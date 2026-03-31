@@ -276,9 +276,11 @@ pub fn MfaSetupPage() -> impl IntoView {
                                             let set_setup_complete = set_setup_complete;
                                             let set_error_message = set_error_message;
                                             let set_is_loading = set_is_loading;
-                                            let navigate = navigate;
-                                            let mounted = mounted;
                                             let code_val = code.clone();
+                                            // Extract Arc and navigate fn while component is still alive
+                                            // so they survive beyond component disposal.
+                                            let mounted_flag = mounted.get_value();
+                                            let nav_fn = navigate.get_value();
 
                                             spawn_local(async move {
                                                 match verify_mfa_setup(&code_val).await {
@@ -293,8 +295,8 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                         // the timer (e.g. user navigated away),
                                                         // skip the navigation.
                                                         gloo_timers::future::TimeoutFuture::new(2000).await;
-                                                        if mounted.get_value().load(Ordering::SeqCst) {
-                                                            navigate.get_value()("/login", Default::default());
+                                                        if mounted_flag.load(Ordering::SeqCst) {
+                                                            nav_fn("/login", Default::default());
                                                         }
                                                     }
                                                     Err(e) => {
