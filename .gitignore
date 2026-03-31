@@ -101,7 +101,8 @@ yarn-error.log*
 # ============================
 # 🖼️ Screenshot Artifacts
 # ============================
-*.png
+tests/e2e/screenshots/*.png
+/*.png
 
 # ======================
 # ⚙️ Editor & OS Artifacts
