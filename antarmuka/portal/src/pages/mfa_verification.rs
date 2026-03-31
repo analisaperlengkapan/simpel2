@@ -72,6 +72,15 @@ pub fn MfaVerificationPage() -> impl IntoView {
     let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
     let _ = set_user_session;
 
+    // Track whether this component is still mounted so the async callback
+    // inside spawn_local can skip navigation after the user left the page.
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let mounted = StoredValue::new_local(Arc::new(AtomicBool::new(true)));
+    on_cleanup(move || {
+        mounted.get_value().store(false, Ordering::SeqCst);
+    });
+
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
 
@@ -230,10 +239,15 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                             // Navigate directly to password-change page when
                                                             // required, avoiding a double redirect via the
                                                             // dashboard route guard.
-                                                            if session.require_password_change {
-                                                                navigate.get_value()("/password", Default::default());
-                                                            } else {
-                                                                navigate.get_value()("/dashboard", Default::default());
+                                                            // Guard: if the component unmounted during
+                                                            // the async call (e.g. user navigated away),
+                                                            // skip the navigation to avoid a panic.
+                                                            if mounted.get_value().load(Ordering::SeqCst) {
+                                                                if session.require_password_change {
+                                                                    navigate.get_value()("/password", Default::default());
+                                                                } else {
+                                                                    navigate.get_value()("/dashboard", Default::default());
+                                                                }
                                                             }
                                                         }
                                                         Err(e) => {
