@@ -98,6 +98,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# ============================
+# 🖼️ Screenshot Artifacts
+# ============================
+*.png
+
 # ======================
 # ⚙️ Editor & OS Artifacts
 # ======================

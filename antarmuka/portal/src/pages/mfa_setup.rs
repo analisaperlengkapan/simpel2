@@ -33,7 +33,7 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (_verification_success, _set_verification_success) = signal(false);
     let (captcha_token, set_captcha_token) = signal(None::<String>);
     let (show_captcha, set_show_captcha) = signal(false);
-    let (_risk_score, _set_risk_score) = signal(0.0f64);
+    let (_risk_score, set_risk_score) = signal(0.0f64);
 
     let navigate = StoredValue::new_local(leptos_router::hooks::use_navigate());
 
@@ -52,7 +52,7 @@ pub fn MfaSetupPage() -> impl IntoView {
             // Check risk score to determine if CAPTCHA is needed
             match check_mfa_setup_risk().await {
                 Ok(score) => {
-                    _set_risk_score.set(score);
+                    set_risk_score.set(score);
                     // Show CAPTCHA if risk score > 0.5 (medium risk or higher)
                     if score > 0.5 {
                         set_show_captcha.set(true);

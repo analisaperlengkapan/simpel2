@@ -134,7 +134,6 @@ pub fn PasswordChangePage() -> impl IntoView {
     let handle_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
         let api = api.clone();
-        let _nav = navigate;
         let mounted = mounted;
         let set_loading = set_loading;
         let set_error = set_error;
