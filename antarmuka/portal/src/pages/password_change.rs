@@ -83,12 +83,6 @@ pub fn PasswordChangePage() -> impl IntoView {
     let state = use_app_state();
     let api = use_api_client();
 
-    // Obtain the top-level user_session writer so we can update the reactive
-    // signal after a successful password change.  Without this, route guards
-    // that read the signal would still see `require_password_change = true`
-    // and redirect the user back here in a loop.
-    let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
-
     let (current_password, set_current_password) = signal(String::new());
     let (new_password, set_new_password) = signal(String::new());
     let (confirm_password, set_confirm_password) = signal(String::new());
@@ -98,14 +92,21 @@ pub fn PasswordChangePage() -> impl IntoView {
     let (show_current, set_show_current) = signal(false);
     let (show_new, set_show_new) = signal(false);
 
-    let navigate = leptos_router::hooks::use_navigate();
+    // Obtain the top-level user_session writer so we can update the reactive
+    // signal after a successful password change.  Without this, route guards
+    // that read the signal would still see `require_password_change = true`
+    // and redirect the user back here in a loop.
+    let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
+
+    let navigate = StoredValue::new_local(leptos_router::hooks::use_navigate());
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
-    let mounted_cleanup = mounted.clone();
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let mounted = StoredValue::new_local(Arc::new(AtomicBool::new(true)));
     on_cleanup(move || {
-        mounted_cleanup.set(false);
+        mounted.get_value().store(false, Ordering::SeqCst);
     });
 
     let password_strength = Signal::derive(move || {
@@ -133,16 +134,22 @@ pub fn PasswordChangePage() -> impl IntoView {
     let handle_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
         let api = api.clone();
-        let nav = navigate.clone();
-        let is_mounted = mounted.clone();
+        let _nav = navigate;
+        let mounted = mounted;
+        let set_loading = set_loading;
+        let set_error = set_error;
+        let set_success = set_success;
+        let current_password_val = current_password.get();
+        let new_password_val = new_password.get();
+
         set_loading.set(true);
         set_error.set(None);
         set_success.set(None);
 
         spawn_local(async move {
             let req = ChangePasswordRequest {
-                current_password: current_password.get(),
-                new_password: new_password.get(),
+                current_password: current_password_val,
+                new_password: new_password_val,
             };
 
             match api.change_password(&req).await {
@@ -203,8 +210,8 @@ pub fn PasswordChangePage() -> impl IntoView {
                     // Guard: if the component unmounted during the 1.5-second
                     // timer (e.g. user navigated away), skip the navigation.
                     gloo_timers::future::TimeoutFuture::new(1_500).await;
-                    if is_mounted.get() {
-                        nav("/dashboard", Default::default());
+                    if mounted.get_value().load(Ordering::SeqCst) {
+                        navigate.get_value()("/dashboard", Default::default());
                     }
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),

@@ -64,12 +64,13 @@ pub fn MfaVerificationPage() -> impl IntoView {
     let (attempts_remaining, set_attempts_remaining) = signal(3);
     let (is_locked, set_is_locked) = signal(false);
 
-    let navigate = leptos_router::hooks::use_navigate();
+    let navigate = StoredValue::new_local(leptos_router::hooks::use_navigate());
 
     // Obtain the top-level user_session writer so we can update the reactive
     // signal after successful MFA verification.  Without this, route guards
     // that read the signal would still see `None` and redirect to login.
     let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
+    let _ = set_user_session;
 
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
@@ -191,9 +192,10 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let nav = navigate.clone();
+                                    let code_val = code.clone();
+                                    let temp_token_val = temp_token.clone();
                                     spawn_local(async move {
-                                        match verify_mfa_code(&temp_token, &code).await {
+                                        match verify_mfa_code(&temp_token_val, &code_val).await {
                                             Ok(response) => {
                                                 // Store access token and upgrade session
                                                 #[cfg(target_arch = "wasm32")]
@@ -220,6 +222,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                             if let Some(setter) = set_user_session {
                                                                 setter.set(Some(session.clone()));
                                                             }
+                                                            let _ = set_user_session;
 
                                                             // Clear temp token
                                                             AuthService::clear_temp_token();
@@ -228,9 +231,9 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                             // required, avoiding a double redirect via the
                                                             // dashboard route guard.
                                                             if session.require_password_change {
-                                                                nav("/password", Default::default());
+                                                                navigate.get_value()("/password", Default::default());
                                                             } else {
-                                                                nav("/dashboard", Default::default());
+                                                                navigate.get_value()("/dashboard", Default::default());
                                                             }
                                                         }
                                                         Err(e) => {
@@ -294,8 +297,11 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     <button
                                         type="button"
                                         class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
-                                        on:click=move |_| {
-                                            navigate("/mfa/backup-verify", Default::default());
+                                        on:click={
+                                            let navigate = navigate.clone();
+                                            move |_| {
+                                                navigate.get_value()("/mfa/backup-verify", Default::default());
+                                            }
                                         }
                                     >
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

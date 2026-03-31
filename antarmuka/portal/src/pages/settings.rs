@@ -7,6 +7,7 @@ use lib_ui::components::{BrandingEditor, ThemeEditor};
 
 /// Fetch the human-readable satuan kerja name from /api/v1/auth/me.
 /// Falls back to the raw satker_code from the session when the fetch fails.
+#[allow(dead_code)]
 async fn fetch_satuan_kerja(fallback: String) -> String {
     let token = match AuthService::get_token() {
         Some(t) => t,
