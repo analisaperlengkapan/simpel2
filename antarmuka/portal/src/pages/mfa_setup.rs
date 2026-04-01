@@ -37,7 +37,6 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (_risk_score, setrisk_score) = signal(0.0f64);
 
     let navigate = leptos_router::hooks::use_navigate();
-    let _navigate_clone = navigate.clone();
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.

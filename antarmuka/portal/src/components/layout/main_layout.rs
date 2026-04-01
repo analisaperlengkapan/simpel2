@@ -12,7 +12,6 @@ use leptos::prelude::*;
 /// Provides:
 /// - Responsive navbar with user session
 /// - Consistent footer with correct year and branding
-/// - Consistent footer with correct year and branding
 #[component]
 pub fn MainLayout(
     /// User session data
