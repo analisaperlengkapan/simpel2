@@ -8,7 +8,8 @@ use leptos::prelude::*;
 use leptos_router;
 use serde::{Deserialize, Serialize};
 use leptos::task::spawn_local;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// Backup code verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,10 +78,10 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = Arc::new(AtomicBool::new(true));
+    let mounted = Rc::new(Cell::new(true));
     let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
-        mounted_cleanup.store(false, Ordering::SeqCst);
+        mounted_cleanup.set(false);
     });
 
     // Get temp token from localStorage and store in signal
@@ -273,7 +274,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                                 // "Back to login"), skip the navigation.
                                                                 gloo_timers::future::TimeoutFuture::new(2000).await;
 
-                                                                if is_mounted.load(Ordering::SeqCst) {
+                                                                if is_mounted.get() {
                                                                     // Navigate directly to password-change
                                                                     // page when required, avoiding a double
                                                                     // redirect via the dashboard route guard.
@@ -293,7 +294,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
                                                     #[cfg(not(target_arch = "wasm32"))]
                                                     {
-                                                        let _ = (response, nav, is_mounted, set_user_session); // Suppress unused warning
+                                                        let _ = (response, nav, is_mounted, set_user_session);
                                                         set_error_message.set("Session management not available in non-WASM environment".to_string());
                                                         set_is_loading.set(false);
                                                     }

@@ -8,7 +8,8 @@ use crate::utils::app_state::{AppState, use_api_client, use_app_state};
 use crate::utils::authenc_api::ChangePasswordRequest;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// Password strength level
 #[derive(Clone, Copy, PartialEq)]
@@ -103,10 +104,10 @@ pub fn PasswordChangePage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = Arc::new(AtomicBool::new(true));
+    let mounted = Rc::new(Cell::new(true));
     let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
-        mounted_cleanup.store(false, Ordering::SeqCst);
+        mounted_cleanup.set(false);
     });
 
     let password_strength = Signal::derive(move || {
@@ -215,7 +216,7 @@ pub fn PasswordChangePage() -> impl IntoView {
                     // Guard: if the component unmounted during the 1.5-second
                     // timer (e.g. user navigated away), skip the navigation.
                     gloo_timers::future::TimeoutFuture::new(1_500).await;
-                    if is_mounted.load(Ordering::SeqCst) {
+                    if is_mounted.get() {
                         nav("/dashboard", Default::default());
                     }
                 }
