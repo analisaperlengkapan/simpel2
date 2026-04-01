@@ -27,6 +27,7 @@ use secreton_core::services::secrets::database::DatabaseSecretsEngine;
 use secreton_core::services::secrets::gcp::GcpEngine;
 use secreton_core::services::secrets::identity::IdentityEngine;
 use secreton_core::services::secrets::kafka::KafkaEngine;
+use secreton_core::services::secrets::kubernetes::KubernetesSecretsEngine;
 use secreton_core::services::secrets::kmip::KmipEngine;
 use secreton_core::services::secrets::ldap::LdapEngine;
 use secreton_core::services::secrets::pki::PkiEngine;
@@ -120,6 +121,9 @@ pub struct ServiceContainer {
     /// Kafka secrets engine
     pub kafka_engine: Arc<KafkaEngine>,
 
+    /// Kubernetes secrets engine
+    pub kubernetes_engine: Arc<KubernetesSecretsEngine>,
+
     /// Auto-rotation engine
     pub rotation_engine: Arc<AutoRotationEngine>,
 
@@ -207,6 +211,7 @@ impl ServiceContainer {
             ldap_engine,
             rabbitmq_engine,
             kafka_engine,
+            kubernetes_engine,
             rotation_engine,
             policy_service,
             wrapping_service,
@@ -248,6 +253,7 @@ impl ServiceContainer {
             ldap_engine,
             rabbitmq_engine,
             kafka_engine,
+            kubernetes_engine,
             rotation_engine,
             lease_manager,
             policy_service,
@@ -407,6 +413,7 @@ impl ServiceContainer {
         Arc<LdapEngine>,
         Arc<RabbitMqEngine>,
         Arc<KafkaEngine>,
+        Arc<KubernetesSecretsEngine>,
         Arc<AutoRotationEngine>,
         Arc<policy::PolicyService>,
         Arc<WrappingService>,
@@ -456,6 +463,9 @@ impl ServiceContainer {
         let kafka_engine = Arc::new(KafkaEngine::with_storage(pool.clone()));
         tracing::info!("✅ Kafka secrets engine initialized");
 
+        let kubernetes_engine = Arc::new(KubernetesSecretsEngine::new());
+        tracing::info!("✅ Kubernetes secrets engine initialized");
+
         let rotation_engine = Arc::new(AutoRotationEngine::new());
         tracing::info!("✅ Auto-rotation engine initialized");
 
@@ -481,6 +491,7 @@ impl ServiceContainer {
             ldap_engine,
             rabbitmq_engine,
             kafka_engine,
+            kubernetes_engine,
             rotation_engine,
             policy_service,
             wrapping_service,
@@ -843,6 +854,7 @@ impl ServiceContainer {
         let ldap_engine = Arc::new(LdapEngine::with_storage(pool.clone()));
         let rabbitmq_engine = Arc::new(RabbitMqEngine::with_storage(pool.clone()));
         let kafka_engine = Arc::new(KafkaEngine::with_storage(pool.clone()));
+        let kubernetes_engine = Arc::new(KubernetesSecretsEngine::new());
         let rotation_engine = Arc::new(AutoRotationEngine::new());
 
         let lease_manager = Arc::new(LeaseManager::new(pool.clone()));
@@ -891,6 +903,7 @@ impl ServiceContainer {
             ldap_engine,
             rabbitmq_engine,
             kafka_engine,
+            kubernetes_engine,
             rotation_engine,
             lease_manager,
             policy_service,

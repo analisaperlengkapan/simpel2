@@ -957,7 +957,7 @@ pub async fn get_system_metrics(
         engine: EngineMetrics {
             total_secrets: stats.total_secrets,
             total_keys: stats.total_keys,
-            total_policies: 25, // Placeholder - policy count not yet in stats
+            total_policies: stats.total_policies,
             active_sessions: stats.active_sessions,
             operations_per_second: stats.requests_per_minute / 60.0,
         },

@@ -8,8 +8,8 @@ use leptos::prelude::*;
 use leptos_router;
 use serde::{Deserialize, Serialize};
 use leptos::task::spawn_local;
-use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Backup code verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,10 +78,10 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = Rc::new(Cell::new(true));
+    let mounted = Arc::new(AtomicBool::new(true));
     let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
-        mounted_cleanup.set(false);
+        mounted_cleanup.store(false, Ordering::SeqCst);
     });
 
     // Get temp token from localStorage and store in signal
@@ -274,7 +274,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                                 // "Back to login"), skip the navigation.
                                                                 gloo_timers::future::TimeoutFuture::new(2000).await;
 
-                                                                if is_mounted.get() {
+                                                                if is_mounted.load(Ordering::SeqCst) {
                                                                     // Navigate directly to password-change
                                                                     // page when required, avoiding a double
                                                                     // redirect via the dashboard route guard.

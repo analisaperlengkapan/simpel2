@@ -8,8 +8,8 @@ use leptos::task::spawn_local;
 use lib_ui::components::captcha::Captcha;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,10 +41,10 @@ pub fn MfaSetupPage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = Rc::new(Cell::new(true));
+    let mounted = Arc::new(AtomicBool::new(true));
     let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
-        mounted_cleanup.set(false);
+        mounted_cleanup.store(false, Ordering::SeqCst);
     });
 
     // Generate MFA setup data on component mount
@@ -292,7 +292,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             // the timer (e.g. user navigated away),
                                                             // skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
-                                                            if is_mounted.get() {
+                                                            if is_mounted.load(Ordering::SeqCst) {
                                                                 nav("/login", Default::default());
                                                             }
                                                         }
