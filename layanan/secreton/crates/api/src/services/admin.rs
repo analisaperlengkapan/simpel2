@@ -251,7 +251,7 @@ impl AdminService {
             active_sessions,
             total_secrets: storage_stats.total_entries,
             total_keys: storage_stats.total_entries, // Count of encrypted entries
-            total_policies: 25, // Placeholder
+            total_policies: 25,                      // Placeholder
             storage_usage_bytes: storage_stats.total_size_bytes,
             cache_hit_rate: crate::middleware::get_cache_hit_rate(),
             requests_per_minute,

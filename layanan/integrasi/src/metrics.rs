@@ -70,10 +70,16 @@ mod tests {
 
     #[test]
     fn test_export_metrics() {
+        // Record a value to ensure metrics are present in the registry
+        integration_syncs_total()
+            .with_label_values(&["test", "test", "success"])
+            .inc();
+
         // Test that metrics can be exported
         let result = export_metrics();
         assert!(result.is_ok());
         let metrics_text = result.unwrap();
         assert!(!metrics_text.is_empty());
+        assert!(metrics_text.contains("integration_syncs_total"));
     }
 }

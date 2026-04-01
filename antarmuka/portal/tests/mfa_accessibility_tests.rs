@@ -36,10 +36,10 @@ mod a11y_test_utils {
         // Check tabindex
         if element.tag_name() == "BUTTON" || element.tag_name() == "INPUT" {
             let tabindex = element.get_attribute("tabindex");
-            if let Some(index) = tabindex {
-                if index == "-1" {
-                    issues.push("Interactive element has tabindex=-1".to_string());
-                }
+            if let Some(index) = tabindex
+                && index == "-1"
+            {
+                issues.push("Interactive element has tabindex=-1".to_string());
             }
         }
 
@@ -70,37 +70,24 @@ mod a11y_test_utils {
 
         // Check required ARIA attributes based on element type
         match element.tag_name().as_str() {
-            "INPUT" => {
-                if element.get_attribute("type").as_deref() == Some("text") {
-                    if !element.has_attribute("aria-label")
-                        && !element.has_attribute("aria-labelledby")
-                    {
-                        issues.push("Input missing ARIA label".to_string());
-                    }
+            "INPUT" if element.get_attribute("type").as_deref() == Some("text") => {
+                if !element.has_attribute("aria-label") && !element.has_attribute("aria-labelledby") {
+                    issues.push("Input missing ARIA label".to_string());
+                }
 
-                    if element.has_attribute("required") && !element.has_attribute("aria-required")
-                    {
-                        issues.push("Required input missing aria-required".to_string());
-                    }
+                if element.has_attribute("required") && !element.has_attribute("aria-required") {
+                    issues.push("Required input missing aria-required".to_string());
+                }
 
-                    if element.class_list().contains("error")
-                        && !element.has_attribute("aria-invalid")
-                    {
-                        issues.push("Invalid input missing aria-invalid".to_string());
-                    }
+                if element.class_list().contains("error") && !element.has_attribute("aria-invalid") {
+                    issues.push("Invalid input missing aria-invalid".to_string());
                 }
             }
-            "BUTTON" => {
-                if element.text_content().unwrap_or_default().is_empty()
-                    && !element.has_attribute("aria-label")
-                {
-                    issues.push("Button with no text missing aria-label".to_string());
-                }
+            "BUTTON" if element.text_content().unwrap_or_default().is_empty() && !element.has_attribute("aria-label") => {
+                issues.push("Button with no text missing aria-label".to_string());
             }
-            "IMG" => {
-                if !element.has_attribute("alt") {
-                    issues.push("Image missing alt attribute".to_string());
-                }
+            "IMG" if !element.has_attribute("alt") => {
+                issues.push("Image missing alt attribute".to_string());
             }
             _ => {}
         }
@@ -109,6 +96,7 @@ mod a11y_test_utils {
     }
 
     /// Test screen reader compatibility
+    #[allow(dead_code)]
     pub fn test_screen_reader_content(element: &Element) -> Vec<String> {
         let mut issues = Vec::new();
 

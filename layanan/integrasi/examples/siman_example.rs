@@ -1,7 +1,7 @@
-use crate::siman::{
+use layanan_integrasi::siman::{
     SimanAssetCategory, fetch_all_aset_paginated, get_aset_by_category, get_row_count,
 };
-use crate::{Config, MonsaktiClient};
+use layanan_integrasi::{Config, MonsaktiClient};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,12 +18,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 1: Get row count for a specific asset category
     println!("1. Getting row count for Tanah (Land Assets)...");
-    let count = get_row_count(&mut client, SimanAssetCategory::Tanah).await?;
+    let count = get_row_count(&mut client, SimanAssetCategory::Tanah, None).await?;
     println!("   Total Tanah records: {}\n", count);
 
     // Example 2: Fetch specific range of assets
     println!("2. Fetching first 10 Tanah records...");
-    let tanah_data = get_aset_by_category(&mut client, SimanAssetCategory::Tanah, 1, 10).await?;
+    let tanah_data = get_aset_by_category(&mut client, SimanAssetCategory::Tanah, 1, 10, None).await?;
     println!("   Retrieved {} records", tanah_data.len());
 
     if let Some(first) = tanah_data.first() {
@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 4: Iterate through all asset categories
     println!("4. Getting row counts for all asset categories:");
     for category in SimanAssetCategory::all() {
-        match get_row_count(&mut client, category).await {
+        match get_row_count(&mut client, category, None).await {
             Ok(count) => println!("   {:30} : {:>8} records", category.description(), count),
             Err(e) => println!("   {:30} : Error - {}", category.description(), e),
         }
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for category in categories {
-        let data = get_aset_by_category(&mut client, category, 1, 100).await?;
+        let data = get_aset_by_category(&mut client, category, 1, 100, None).await?;
         println!(
             "   {:30} : {} records fetched",
             category.description(),
@@ -86,7 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 8: Working with specific asset types using convenience functions
     println!("8. Using convenience functions for specific asset types...");
 
-    use crate::siman::{
+    use layanan_integrasi::siman::{
         get_aset_alat_persenjataan, get_aset_angkutan_bermotor, get_aset_khusus_tik,
     };
 

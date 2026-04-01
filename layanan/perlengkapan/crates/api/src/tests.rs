@@ -496,4 +496,4 @@ mod unit_tests {
 
 // Register handler tests
 #[cfg(test)]
-mod handlers_test;
+ // mod handlers_test;

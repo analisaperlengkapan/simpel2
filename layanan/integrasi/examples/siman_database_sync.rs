@@ -15,14 +15,17 @@ use uuid::Uuid;
 
 /// Hasil sinkronisasi per kategori
 #[derive(Debug)]
-struct SyncResult {
-    category: SimanAssetCategory,
-    table_name: String,
-    total_records: i32,
-    success_records: i32,
-    failed_records: i32,
-    sync_id: Uuid,
-    duration_secs: f64,
+pub struct SyncResult {
+    #[allow(dead_code)]
+    pub category: SimanAssetCategory,
+    pub table_name: String,
+    #[allow(dead_code)]
+    pub total_records: i32,
+    pub success_records: i32,
+    pub failed_records: i32,
+    #[allow(dead_code)]
+    pub sync_id: Uuid,
+    pub duration_secs: f64,
 }
 
 /// Main sync coordinator

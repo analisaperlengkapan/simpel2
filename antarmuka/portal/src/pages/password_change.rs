@@ -227,7 +227,7 @@ pub fn PasswordChangePage() -> impl IntoView {
     };
 
     let on_logout = {
-        let state = state;
+
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());
@@ -300,7 +300,7 @@ pub fn PasswordChangePage() -> impl IntoView {
                         {move || password_strength.get().map(|strength| view! {
                             <div class="mt-2">
                                 <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div class={format!("h-full {} transition-all duration-300", format!("{} {}", strength.color(), strength.width()))}></div>
+                                    <div class={format!("h-full {} {} transition-all duration-300", strength.color(), strength.width())}></div>
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">"Kekuatan: " <strong>{strength.label()}</strong></p>
                             </div>

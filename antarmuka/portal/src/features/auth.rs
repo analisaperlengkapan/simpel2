@@ -127,6 +127,7 @@ impl AuthService {
     /// Get authenc API base URL from window.location.origin (same-origin pattern).
     /// This ensures the URL always matches the user's access URL, avoiding
     /// cross-origin or mixed-content issues from hardcoded config values.
+#[allow(dead_code)]
     fn get_api_url() -> String {
         #[cfg(target_arch = "wasm32")]
         {
@@ -599,7 +600,7 @@ impl AuthService {
         #[cfg(target_arch = "wasm32")]
         {
             use lib_ui::hooks::save_to_storage;
-            save_to_storage("user_session", session);
+            let _ = save_to_storage("user_session", session);
         }
         #[cfg(not(target_arch = "wasm32"))]
         {

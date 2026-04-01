@@ -163,7 +163,7 @@ pub fn PasskeysPage() -> impl IntoView {
     }
 
     let on_logout = {
-        let state = state;
+
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(crate::utils::app_state::AppState::default());
