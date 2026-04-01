@@ -10,7 +10,7 @@ use leptos::prelude::*;
 /// Main layout for authenticated pages
 ///
 /// Provides:
-/// - Skip-to-content accessibility link
+/// - Responsive navbar with user session
 /// - Responsive navbar with user session
 /// - Consistent footer with correct year and branding
 #[component]
