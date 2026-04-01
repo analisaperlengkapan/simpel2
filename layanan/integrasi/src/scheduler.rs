@@ -343,6 +343,7 @@ async fn fetch_siman_data(config: Config, db_client: Option<Arc<Client>>) -> Res
 }
 
 /// Save data to database or file based on configuration
+#[allow(dead_code)]
 async fn save_data(table_name: &str, data: &[serde_json::Value], config: &Config) -> Result<()> {
     let storage_type = std::env::var("STORAGE_TYPE").unwrap_or_else(|_| "json".to_string());
 

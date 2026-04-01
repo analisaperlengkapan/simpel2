@@ -8,8 +8,8 @@ use crate::features::auth::{AuthService, LoginCredentials, LoginResult, UserSess
 use crate::utils::app_state::use_api_client;
 use crate::utils::webauthn;
 use leptos::prelude::*;
-use lib_ui::components::captcha::Captcha;
 use leptos::task::spawn_local;
+use lib_ui::components::captcha::Captcha;
 use web_sys;
 
 /// Login page
@@ -78,7 +78,9 @@ pub fn LoginPage(
                                                     session.refresh_token = Some(refresh.clone());
                                                 }
                                                 AuthService::save_session(&session);
-                                                crate::utils::app_state::app_state_login(session.clone());
+                                                crate::utils::app_state::app_state_login(
+                                                    session.clone(),
+                                                );
                                                 on_login_success.set(Some(session.clone()));
                                                 set_passkey_loading.set(false);
                                                 // Navigate to password-change page when

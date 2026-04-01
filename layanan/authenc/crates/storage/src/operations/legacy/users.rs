@@ -135,7 +135,7 @@ pub async fn create_user(db: &Database, request: &CreateUserRequest) -> Result<U
                 &false,                         // require_password_change
                 &organization_id,
                 &request.attributes,
-                &true, // email_verified
+                &true,                            // email_verified
                 &request.enabled.unwrap_or(true), // enabled
                 &realm_id,
                 &false, // federated (default to false for regular user creation)

@@ -1277,7 +1277,12 @@ mod tests {
 
         // Verify username is freed for re-use
         let realm_id = RealmId::from_uuid(realm_uuid);
-        assert!(!user_store.username_exists("testuser", realm_id).await.unwrap());
+        assert!(
+            !user_store
+                .username_exists("testuser", realm_id)
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]

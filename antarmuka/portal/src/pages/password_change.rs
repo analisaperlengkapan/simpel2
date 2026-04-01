@@ -8,6 +8,7 @@ use crate::utils::app_state::{AppState, use_api_client, use_app_state};
 use crate::utils::authenc_api::ChangePasswordRequest;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 /// Password strength level
 #[derive(Clone, Copy, PartialEq)]
@@ -83,6 +84,12 @@ pub fn PasswordChangePage() -> impl IntoView {
     let state = use_app_state();
     let api = use_api_client();
 
+    // Obtain the top-level user_session writer so we can update the reactive
+    // signal after a successful password change.  Without this, route guards
+    // that read the signal would still see `require_password_change = true`
+    // and redirect the user back here in a loop.
+    let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
+
     let (current_password, set_current_password) = signal(String::new());
     let (new_password, set_new_password) = signal(String::new());
     let (confirm_password, set_confirm_password) = signal(String::new());
@@ -92,21 +99,14 @@ pub fn PasswordChangePage() -> impl IntoView {
     let (show_current, set_show_current) = signal(false);
     let (show_new, set_show_new) = signal(false);
 
-    // Obtain the top-level user_session writer so we can update the reactive
-    // signal after a successful password change.  Without this, route guards
-    // that read the signal would still see `require_password_change = true`
-    // and redirect the user back here in a loop.
-    let set_user_session = use_context::<WriteSignal<Option<crate::features::auth::UserSession>>>();
-
-    let navigate = StoredValue::new_local(leptos_router::hooks::use_navigate());
+    let navigate = leptos_router::hooks::use_navigate();
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    let mounted = StoredValue::new_local(Arc::new(AtomicBool::new(true)));
+    let mounted = Arc::new(AtomicBool::new(true));
+    let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
-        mounted.get_value().store(false, Ordering::SeqCst);
+        mounted_cleanup.store(false, Ordering::SeqCst);
     });
 
     let password_strength = Signal::derive(move || {
@@ -134,29 +134,23 @@ pub fn PasswordChangePage() -> impl IntoView {
     let handle_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
         let api = api.clone();
-        let set_loading = set_loading;
-        let set_error = set_error;
-        let set_success = set_success;
-        let current_password_val = current_password.get();
-        let new_password_val = new_password.get();
-        // Extract Arc and navigate fn while component is still alive
-        // so they survive beyond component disposal.
-        let mounted_flag = mounted.get_value();
-        let nav_fn = navigate.get_value();
-
+        let nav = navigate.clone();
+        let is_mounted = mounted.clone();
         set_loading.set(true);
         set_error.set(None);
         set_success.set(None);
 
         spawn_local(async move {
             let req = ChangePasswordRequest {
-                current_password: current_password_val,
-                new_password: new_password_val,
+                current_password: current_password.get(),
+                new_password: new_password.get(),
             };
 
             match api.change_password(&req).await {
                 Ok(()) => {
-                    set_success.set(Some("Kata sandi berhasil diubah. Mengalihkan ke dashboard...".to_string()));
+                    set_success.set(Some(
+                        "Kata sandi berhasil diubah. Mengalihkan ke dashboard...".to_string(),
+                    ));
                     set_current_password.set(String::new());
                     set_new_password.set(String::new());
                     set_confirm_password.set(String::new());
@@ -174,11 +168,17 @@ pub fn PasswordChangePage() -> impl IntoView {
                         // stale JWT still carries the old claim and backend
                         // endpoints like GET /me will return 403.
                         if let Some(ref refresh_token) = session.refresh_token {
-                            match crate::features::auth::AuthService::refresh_token(refresh_token).await {
+                            match crate::features::auth::AuthService::refresh_token(refresh_token)
+                                .await
+                            {
                                 Ok(token_response) => {
-                                    crate::features::auth::AuthService::update_session_token(&token_response);
+                                    crate::features::auth::AuthService::update_session_token(
+                                        &token_response,
+                                    );
                                     // Reload the session which now has the fresh JWT
-                                    if let Some(refreshed) = crate::features::auth::AuthService::load_session() {
+                                    if let Some(refreshed) =
+                                        crate::features::auth::AuthService::load_session()
+                                    {
                                         session = refreshed;
                                         // Ensure the flag is cleared even if the
                                         // new JWT hasn't propagated the DB change
@@ -190,7 +190,10 @@ pub fn PasswordChangePage() -> impl IntoView {
                                     // Token refresh failed — continue with the
                                     // local-only flag clear.  The next automatic
                                     // refresh cycle will pick up the new JWT.
-                                    leptos::logging::warn!("Token refresh after password change failed: {}", e);
+                                    leptos::logging::warn!(
+                                        "Token refresh after password change failed: {}",
+                                        e
+                                    );
                                 }
                             }
                         }
@@ -212,8 +215,8 @@ pub fn PasswordChangePage() -> impl IntoView {
                     // Guard: if the component unmounted during the 1.5-second
                     // timer (e.g. user navigated away), skip the navigation.
                     gloo_timers::future::TimeoutFuture::new(1_500).await;
-                    if mounted_flag.load(Ordering::SeqCst) {
-                        nav_fn("/dashboard", Default::default());
+                    if is_mounted.load(Ordering::SeqCst) {
+                        nav("/dashboard", Default::default());
                     }
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),

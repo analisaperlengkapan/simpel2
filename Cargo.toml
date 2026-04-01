@@ -272,7 +272,7 @@ serde_qs = "0.15.0"
 ldap3 = "0.12.1"
 quick-xml = { version = "0.38.3", features = ["serialize"] }
 rustls = { version = "0.23" }
-rustls-webpki = "0.103.7"
+rustls-webpki = "0.103.10"
 rustls-pemfile = "2.2"
 rustls-native-certs = "0.8"
 webpki-roots = "1.0.2"

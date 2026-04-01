@@ -22,7 +22,6 @@ struct ProfileData {
     jabatan: Option<String>,
     #[serde(default)]
     phone: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     satker_code: Option<String>,
     #[serde(default)]

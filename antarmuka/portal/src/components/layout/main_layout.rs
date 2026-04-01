@@ -24,9 +24,6 @@ pub fn MainLayout(
 ) -> impl IntoView {
     view! {
         <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-            // Skip to content link for accessibility (WCAG 2.1 AA)
-            <a href="#main-content" class="skip-to-content">"Langsung ke konten"</a>
-
             <Navbar user_session=user_session on_logout=on_logout />
 
             <main id="main-content" class="flex-1" role="main">

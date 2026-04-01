@@ -79,7 +79,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.schedule = cron_expr.clone();
             config.verify_after_backup = false; // Disable verification for speed
@@ -221,7 +221,7 @@ proptest! {
                 prop_assert!(t2 > now, "Second upcoming time should be in future");
                 prop_assert!(t3 > now, "Third upcoming time should be in future");
             }
-            Ok(())
+
         });
     }
 
@@ -244,7 +244,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
 
             let manager = Arc::new(BackupManager::new(config).await.unwrap());
@@ -292,7 +292,7 @@ proptest! {
                 double_stop.is_err(),
                 "Double-stop should fail"
             );
-            Ok(())
+
         });
     }
 
@@ -314,7 +314,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
 
             let manager = Arc::new(BackupManager::new(config).await.unwrap());
@@ -345,7 +345,7 @@ proptest! {
                     error_msg
                 );
             }
-            Ok(())
+
         });
     }
 }
@@ -506,7 +506,7 @@ proptest! {
                 checksum1.chars().all(|c| c.is_ascii_hexdigit()),
                 "Checksum must only contain valid hex characters"
             );
-            Ok(())
+
         });
     }
 
@@ -526,7 +526,7 @@ proptest! {
             let temp_dir = TempDir::new().unwrap();
             let storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
 
             let storage = LocalStorage::new(storage_config).await.unwrap();
@@ -600,7 +600,7 @@ proptest! {
                 retrieved.metadata.checksum,
                 "Recalculated checksum must match stored checksum"
             );
-            Ok(())
+
         });
     }
 
@@ -651,7 +651,7 @@ proptest! {
                 0,
                 "Empty PostgreSQL dump should be stored as empty vector"
             );
-            Ok(())
+
         });
     }
 
@@ -734,7 +734,7 @@ proptest! {
                 !backup.metadata.is_failed(),
                 "is_failed() should return false for verified backup"
             );
-            Ok(())
+
         });
     }
 }
@@ -754,7 +754,6 @@ mod scheduler_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
@@ -777,7 +776,6 @@ mod scheduler_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
@@ -816,7 +814,6 @@ mod scheduler_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
@@ -863,7 +860,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
 
         // Generate a 32-byte encryption key
@@ -931,7 +927,6 @@ mod encryption_tests {
         let mut config1 = BackupConfig::default();
         config1.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let key1 = vec![1u8; 32];
         config1.encryption_key = Some(key1);
@@ -941,7 +936,6 @@ mod encryption_tests {
         let mut config2 = BackupConfig::default();
         config2.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let key2 = vec![2u8; 32];
         config2.encryption_key = Some(key2);
@@ -971,7 +965,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);
@@ -1021,7 +1014,6 @@ mod encryption_tests {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
             });
             let invalid_key = vec![0u8; invalid_size];
             config.encryption_key = Some(invalid_key);
@@ -1048,7 +1040,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let valid_key = vec![42u8; 32];
         config.encryption_key = Some(valid_key);
@@ -1060,7 +1051,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         config.encryption_key = None;
 
@@ -1095,7 +1085,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);
@@ -1153,7 +1142,6 @@ mod encryption_tests {
         let mut config = BackupConfig::default();
         config.storage_config = StorageConfig::Local(LocalStorageConfig {
             path: temp_dir.path().to_string_lossy().to_string(),
-            Ok(())
         });
         let encryption_key = vec![42u8; 32];
         config.encryption_key = Some(encryption_key);
@@ -1270,7 +1258,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.retention_days = retention_days;
             config.verify_after_backup = false; // Disable for speed
@@ -1371,7 +1359,7 @@ proptest! {
                     retention_days
                 );
             }
-            Ok(())
+
         });
     }
 
@@ -1389,7 +1377,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.retention_days = 0; // Delete all backups
             config.verify_after_backup = false;
@@ -1426,7 +1414,7 @@ proptest! {
                 0,
                 "No backups should remain after cleanup with 0-day retention"
             );
-            Ok(())
+
         });
     }
 
@@ -1444,7 +1432,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.retention_days = 3650; // 10 years
             config.verify_after_backup = false;
@@ -1473,7 +1461,7 @@ proptest! {
                 backup_count,
                 "All backups should remain with large retention"
             );
-            Ok(())
+
         });
     }
 
@@ -1492,7 +1480,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.retention_days = retention_days;
             config.verify_after_backup = false;
@@ -1551,7 +1539,7 @@ proptest! {
                 remaining3,
                 "Remaining backup count should be unchanged after third cleanup"
             );
-            Ok(())
+
         });
     }
 
@@ -1569,7 +1557,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.retention_days = retention_days;
             config.verify_after_backup = false;
@@ -1640,7 +1628,7 @@ proptest! {
                 !remaining_ids.contains(&backup_older),
                 "Backup older than boundary should be deleted"
             );
-            Ok(())
+
         });
     }
 }
@@ -1708,7 +1696,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.verify_after_backup = false; // Disable for speed
             config.compression_enabled = false; // Disable for simplicity
@@ -1825,7 +1813,7 @@ proptest! {
                     );
                 }
             }
-            Ok(())
+
         });
     }
 
@@ -1843,7 +1831,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
 
             let manager = BackupManager::new(config).await.unwrap();
@@ -1875,7 +1863,7 @@ proptest! {
                     error_msg
                 );
             }
-            Ok(())
+
         });
     }
 
@@ -1893,7 +1881,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.verify_after_backup = false;
             config.compression_enabled = false;
@@ -1952,7 +1940,7 @@ proptest! {
                     error_msg
                 );
             }
-            Ok(())
+
         });
     }
 
@@ -1970,7 +1958,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.verify_after_backup = false;
             config.compression_enabled = false;
@@ -2031,7 +2019,7 @@ proptest! {
                 most_recent_backup_id,
                 "Should restore the most recent backup when target is after all backups"
             );
-            Ok(())
+
         });
     }
 
@@ -2049,7 +2037,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.verify_after_backup = false;
             config.compression_enabled = false;
@@ -2108,7 +2096,7 @@ proptest! {
                 backup_ids[middle_idx],
                 "Should restore backup with exact matching timestamp"
             );
-            Ok(())
+
         });
     }
 
@@ -2127,7 +2115,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.verify_after_backup = false;
             config.compression_enabled = false;
@@ -2195,7 +2183,7 @@ proptest! {
                     "Second and third restore should select same backup"
                 );
             }
-            Ok(())
+
         });
     }
 }
@@ -2240,7 +2228,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.verify_after_backup = true; // Enable automatic verification
             config.compression_enabled = true;
@@ -2347,7 +2335,7 @@ proptest! {
                 BackupStatus::Verified,
                 "Status should remain Verified after second verification"
             );
-            Ok(())
+
         });
     }
 
@@ -2369,7 +2357,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.compression_enabled = true;
 
@@ -2445,7 +2433,7 @@ proptest! {
                 failed_backup.metadata.verified_at.is_none(),
                 "verified_at should not be set for failed verification"
             );
-            Ok(())
+
         });
     }
 
@@ -2465,7 +2453,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.compression_enabled = true;
 
@@ -2512,7 +2500,7 @@ proptest! {
                     e
                 );
             }
-            Ok(())
+
         });
     }
 
@@ -2532,7 +2520,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.compression_enabled = true;
 
@@ -2602,7 +2590,7 @@ proptest! {
                 "Error should include expected checksum information: {}",
                 error
             );
-            Ok(())
+
         });
     }
 
@@ -2624,7 +2612,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.compression_enabled = true;
 
@@ -2695,7 +2683,7 @@ proptest! {
                 backup.metadata.checksum,
                 "Checksum should remain unchanged after multiple verifications"
             );
-            Ok(())
+
         });
     }
 
@@ -2714,7 +2702,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
 
             let manager = BackupManager::new(config).await.unwrap();
@@ -2735,7 +2723,7 @@ proptest! {
                     e
                 );
             }
-            Ok(())
+
         });
     }
 
@@ -2755,7 +2743,7 @@ proptest! {
             let mut config = BackupConfig::default();
             config.storage_config = StorageConfig::Local(LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                Ok(())
+
             });
             config.compression_enabled = false; // Disable compression
 
@@ -2796,7 +2784,7 @@ proptest! {
                 1.0,
                 "Compression ratio should be 1.0 when compression is disabled"
             );
-            Ok(())
+
         });
     }
 }

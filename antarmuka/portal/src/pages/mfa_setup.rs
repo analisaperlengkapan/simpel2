@@ -4,10 +4,11 @@
 
 use crate::components::layout::AuthLayout;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use lib_ui::components::captcha::Captcha;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use leptos::task::spawn_local;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,19 +32,19 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (is_generating, set_is_generating) = signal(true);
     let (_remaining_codes, _set_remaining_codes) = signal(None::<i32>);
     let (_verification_success, _set_verification_success) = signal(false);
-    let (captcha_token, set_captcha_token) = signal(None::<String>);
+    let (captcha_token, setcaptcha_token) = signal(None::<String>);
     let (show_captcha, set_show_captcha) = signal(false);
-    let (_risk_score, set_risk_score) = signal(0.0f64);
+    let (_risk_score, setrisk_score) = signal(0.0f64);
 
-    let navigate = StoredValue::new_local(leptos_router::hooks::use_navigate());
+    let navigate = leptos_router::hooks::use_navigate();
+    let _navigate_clone = navigate.clone();
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    let mounted = StoredValue::new_local(Arc::new(AtomicBool::new(true)));
+    let mounted = Arc::new(AtomicBool::new(true));
+    let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
-        mounted.get_value().store(false, Ordering::SeqCst);
+        mounted_cleanup.store(false, Ordering::SeqCst);
     });
 
     // Generate MFA setup data on component mount
@@ -52,7 +53,7 @@ pub fn MfaSetupPage() -> impl IntoView {
             // Check risk score to determine if CAPTCHA is needed
             match check_mfa_setup_risk().await {
                 Ok(score) => {
-                    set_risk_score.set(score);
+                    setrisk_score.set(score);
                     // Show CAPTCHA if risk score > 0.5 (medium risk or higher)
                     if score > 0.5 {
                         set_show_captcha.set(true);
@@ -86,7 +87,7 @@ pub fn MfaSetupPage() -> impl IntoView {
 
     // Handle CAPTCHA completion for high-risk scenarios
     let handle_captcha_success = move |token: String| {
-        set_captcha_token.set(Some(token.clone()));
+        setcaptcha_token.set(Some(token.clone()));
         set_error_message.set(String::new());
         set_is_generating.set(true);
 
@@ -106,10 +107,9 @@ pub fn MfaSetupPage() -> impl IntoView {
         });
     };
 
-    // Handle CAPTCHA completion for high-risk scenarios
     let handle_captcha_failure = move |error: String| {
         set_error_message.set(format!("CAPTCHA verification failed: {}", error));
-        set_captcha_token.set(None);
+        setcaptcha_token.set(None);
     };
 
     view! {
@@ -263,48 +263,46 @@ pub fn MfaSetupPage() -> impl IntoView {
                                         type="button"
                                         disabled=otp_code.get().len() != 6 || is_loading.get() || mfa_data.get().is_none()
                                         class="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-lg font-medium text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-                                        on:click=move |_| {
-                                            let code = otp_code.get();
-                                            if code.len() != 6 {
-                                                set_error_message.set("Please enter a 6-digit code".to_string());
-                                                return;
-                                            }
+                                        on:click={
+                                            let navigate = navigate.clone();
+                                            let mounted = mounted.clone();
+                                            move |_| {
+                                                let code = otp_code.get();
+                                                if code.len() != 6 {
+                                                    set_error_message.set("Please enter a 6-digit code".to_string());
+                                                    return;
+                                                }
 
-                                            set_is_loading.set(true);
-                                            set_error_message.set(String::new());
+                                                set_is_loading.set(true);
+                                                set_error_message.set(String::new());
 
-                                            let set_setup_complete = set_setup_complete;
-                                            let set_error_message = set_error_message;
-                                            let set_is_loading = set_is_loading;
-                                            let code_val = code.clone();
-                                            // Extract Arc and navigate fn while component is still alive
-                                            // so they survive beyond component disposal.
-                                            let mounted_flag = mounted.get_value();
-                                            let nav_fn = navigate.get_value();
+                                                let nav = navigate.clone();
+                                                let is_mounted = mounted.clone();
 
-                                            spawn_local(async move {
-                                                match verify_mfa_setup(&code_val).await {
-                                                    Ok(_) => {
-                                                        set_setup_complete.set(true);
-                                                        // Update session to mark MFA as enabled
-                                                        crate::features::auth::AuthService::update_session_mfa_enabled();
-                                                        // Clear temp token as setup is complete
-                                                        crate::features::auth::AuthService::clear_temp_token();
-                                                        // Redirect to login after 2 seconds.
-                                                        // Guard: if the component unmounted during
-                                                        // the timer (e.g. user navigated away),
-                                                        // skip the navigation.
-                                                        gloo_timers::future::TimeoutFuture::new(2000).await;
-                                                        if mounted_flag.load(Ordering::SeqCst) {
-                                                            nav_fn("/login", Default::default());
+                                                spawn_local(async move {
+                                                    match verify_mfa_setup(&code).await {
+                                                        Ok(_) => {
+                                                            set_setup_complete.set(true);
+                                                            // Update session to mark MFA as enabled
+                                                            crate::features::auth::AuthService::update_session_mfa_enabled();
+                                                            // Clear temp token as setup is complete
+                                                            crate::features::auth::AuthService::clear_temp_token();
+                                                            // Redirect to login after 2 seconds.
+                                                            // Guard: if the component unmounted during
+                                                            // the timer (e.g. user navigated away),
+                                                            // skip the navigation.
+                                                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                                                            if is_mounted.load(Ordering::SeqCst) {
+                                                                nav("/login", Default::default());
+                                                            }
+                                                        }
+                                                        Err(e) => {
+                                                            set_error_message.set(format!("Verification failed: {}", e));
+                                                            set_is_loading.set(false);
                                                         }
                                                     }
-                                                    Err(e) => {
-                                                        set_error_message.set(format!("Verification failed: {}", e));
-                                                        set_is_loading.set(false);
-                                                    }
-                                                }
-                                            });
+                                                });
+                                            }
                                         }
                                     >
                                         {move || if is_loading.get() {
