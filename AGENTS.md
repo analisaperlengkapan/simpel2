@@ -35,7 +35,8 @@ flowchart TB
     end
 
     subgraph Backend["⚙️ Backend Services (Axum)"]
-        LP["layanan-perlengkapan<br/>(api, integrasi, dokumen,<br/>notifikasi, bantuan)"]
+        LP["layanan-perlengkapan<br/>(api, dokumen,<br/>notifikasi, bantuan)"]
+        LI["layanan-integrasi<br/>(MySIMKARI, SIMAN)"]
     end
 
     subgraph CoreServices["🔐 Core Infrastructure Services (gRPC)"]
@@ -55,6 +56,7 @@ flowchart TB
     %% Backend to Infrastructure: gRPC only
     LP -->|"gRPC<br/>(mTLS)"| AUTH
     LP -->|"gRPC<br/>(mTLS)"| SEC
+    LI -->|"gRPC<br/>(mTLS)"| AUTH
 
     %% Infrastructure internal
     AUTH <-->|"gRPC<br/>(mTLS)"| SEC
@@ -62,6 +64,7 @@ flowchart TB
     %% Data access
     LP --> PG
     LP --> RD
+    LI --> PG
     AUTH --> PG
     AUTH --> RD
     SEC --> PG
@@ -106,13 +109,13 @@ flowchart LR
         end
 
         subgraph Layanan["layanan/ — Backend & Core Services"]
-            subgraph L_Perlengkapan["perlengkapan/crates/ (5 crates)"]
+            subgraph L_Perlengkapan["perlengkapan/crates/ (4 crates)"]
                 LPI["api"]
-                LPInt["integrasi"]
                 LPD["dokumen"]
                 LPNot["notifikasi"]
                 LPB["bantuan"]
             end
+            LPInt["integrasi/<br/>(standalone)"]
             subgraph L_Authenc["authenc/crates/ (10 crates)"]
                 LA["types, core, crypto, storage,<br/>api, iam-api, grpc, mfa,<br/>federation, webauthn"]
             end
@@ -152,7 +155,8 @@ simpel2/
 │   └── perlengkapan/        # Perlengkapan microfrontend — BMN management
 ├── layanan/                 # BACKEND SERVICES & CORE INFRASTRUCTURE
 │   ├── perlengkapan/        # Perlengkapan domain backend
-│   │   └── crates/          # → api, integrasi, dokumen, notifikasi, bantuan
+│   │   └── crates/          # → api, dokumen, notifikasi, bantuan
+│   ├── integrasi/           # Integrasi layanan eksternal (MySIMKARI, SIMAN)
 │   ├── authenc/             # Identity Provider (OAuth2, OIDC, MFA, RBAC, SAML)
 │   │   └── crates/          # → types, core, crypto, storage, api, iam-api,
 │   │                        #   grpc, mfa, federation, webauthn
