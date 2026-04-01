@@ -65,8 +65,8 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (attempts_remaining, set_attempts_remaining) = signal(5);
     let (is_locked, set_is_locked) = signal(false);
-    let (remaining_codes, _set_remaining_codes) = signal(None::<i32>);
-    let (verification_success, _set_verification_success) = signal(false);
+    let (remaining_codes, set_remaining_codes) = signal(None::<i32>);
+    let (verification_success, set_verification_success) = signal(false);
 
     let navigate = leptos_router::hooks::use_navigate();
 
@@ -263,8 +263,8 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                                 AuthService::clear_temp_token();
 
                                                                 // Show success with remaining codes count
-                                                                _set_remaining_codes.set(Some(response.data.remaining_codes));
-                                                                _set_verification_success.set(true);
+                                                                set_remaining_codes.set(Some(response.data.remaining_codes));
+                                                                set_verification_success.set(true);
                                                                 set_is_loading.set(false);
 
                                                                 // Redirect after showing success.
