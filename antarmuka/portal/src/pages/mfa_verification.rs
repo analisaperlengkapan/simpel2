@@ -67,7 +67,6 @@ pub fn MfaVerificationPage() -> impl IntoView {
     let (is_locked, set_is_locked) = signal(false);
 
     let navigate = leptos_router::hooks::use_navigate();
-    let navigate_clone = navigate.clone();
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
@@ -184,7 +183,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                 disabled=otp_code.get().len() != 6 || is_loading.get()
                                 class="w-full inline-flex items-center justify-center px-6 py-3 text-lg font-medium text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                                 on:click={
-                                    let navigate_clone = navigate_clone.clone();
+                                    let navigate = navigate.clone();
                                     let is_mounted = mounted.clone();
                                     let set_user_session = set_user_session.clone();
                                     let otp_code = otp_code;
@@ -208,7 +207,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                         set_is_loading.set(true);
                                         set_error_message.set(String::new());
 
-                                        let nav = navigate_clone.clone();
+                                        let nav = navigate.clone();
                                         let is_mounted = is_mounted.clone();
                                         let set_user_session = set_user_session.clone();
                                         spawn_local(async move {
