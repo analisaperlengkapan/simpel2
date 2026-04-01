@@ -8,6 +8,8 @@ use crate::utils::app_state::{AppState, use_api_client, use_app_state};
 use crate::utils::authenc_api::ChangePasswordRequest;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// Password strength level
 #[derive(Clone, Copy, PartialEq)]
@@ -102,7 +104,7 @@ pub fn PasswordChangePage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted = Rc::new(Cell::new(true));
     let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
         mounted_cleanup.set(false);
@@ -147,7 +149,9 @@ pub fn PasswordChangePage() -> impl IntoView {
 
             match api.change_password(&req).await {
                 Ok(()) => {
-                    set_success.set(Some("Kata sandi berhasil diubah. Mengalihkan ke dashboard...".to_string()));
+                    set_success.set(Some(
+                        "Kata sandi berhasil diubah. Mengalihkan ke dashboard...".to_string(),
+                    ));
                     set_current_password.set(String::new());
                     set_new_password.set(String::new());
                     set_confirm_password.set(String::new());
@@ -165,11 +169,17 @@ pub fn PasswordChangePage() -> impl IntoView {
                         // stale JWT still carries the old claim and backend
                         // endpoints like GET /me will return 403.
                         if let Some(ref refresh_token) = session.refresh_token {
-                            match crate::features::auth::AuthService::refresh_token(refresh_token).await {
+                            match crate::features::auth::AuthService::refresh_token(refresh_token)
+                                .await
+                            {
                                 Ok(token_response) => {
-                                    crate::features::auth::AuthService::update_session_token(&token_response);
+                                    crate::features::auth::AuthService::update_session_token(
+                                        &token_response,
+                                    );
                                     // Reload the session which now has the fresh JWT
-                                    if let Some(refreshed) = crate::features::auth::AuthService::load_session() {
+                                    if let Some(refreshed) =
+                                        crate::features::auth::AuthService::load_session()
+                                    {
                                         session = refreshed;
                                         // Ensure the flag is cleared even if the
                                         // new JWT hasn't propagated the DB change
@@ -181,7 +191,10 @@ pub fn PasswordChangePage() -> impl IntoView {
                                     // Token refresh failed — continue with the
                                     // local-only flag clear.  The next automatic
                                     // refresh cycle will pick up the new JWT.
-                                    leptos::logging::warn!("Token refresh after password change failed: {}", e);
+                                    leptos::logging::warn!(
+                                        "Token refresh after password change failed: {}",
+                                        e
+                                    );
                                 }
                             }
                         }

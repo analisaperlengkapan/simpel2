@@ -188,9 +188,7 @@ async fn resolve_satuan_kerja(
 
     let (resolved, authoritative) = if let Some(ref client) = integrasi_client {
         match client.get_satker_by_code(satker_code).await {
-            Ok(Some(satker)) if !satker.nama_satker.is_empty() => {
-                (satker.nama_satker, true)
-            }
+            Ok(Some(satker)) if !satker.nama_satker.is_empty() => (satker.nama_satker, true),
             Ok(_) => {
                 tracing::debug!(
                     kode_satker = %satker_code,
@@ -310,13 +308,15 @@ pub async fn login_handler(
                         status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         error: "internal_error".to_string(),
                         message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
-                    }.into_response();
+                    }
+                    .into_response();
                 }
             };
             let require_password_change = user.require_password_change;
 
             // Enrich JWT with pegawai data
-            let custom_claims = crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
+            let custom_claims =
+                crate::handlers::auth_helpers::build_user_custom_claims(Some(&user));
 
             let access_token = match state.jwt_service.generate_access_token_with_claims(
                 &uid,
@@ -331,7 +331,8 @@ pub async fn login_handler(
                         status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         error: "token_error".to_string(),
                         message: e.to_string(),
-                    }.into_response();
+                    }
+                    .into_response();
                 }
             };
 
@@ -342,7 +343,8 @@ pub async fn login_handler(
                         status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         error: "token_error".to_string(),
                         message: e.to_string(),
-                    }.into_response();
+                    }
+                    .into_response();
                 }
             };
 
@@ -493,7 +495,12 @@ pub async fn login_handler(
                                                 // deleted_at IS NULL).  The user is already
                                                 // disabled, so even if this delete fails the
                                                 // account cannot be used to log in.
-                                                let _ = state.user_service.delete_user(authenc_types::UserId::from_uuid(user.id)).await;
+                                                let _ = state
+                                                    .user_service
+                                                    .delete_user(authenc_types::UserId::from_uuid(
+                                                        user.id,
+                                                    ))
+                                                    .await;
                                             }
                                         }
                                     }
@@ -543,7 +550,8 @@ pub async fn login_handler(
                 status_code: axum::http::StatusCode::UNAUTHORIZED,
                 error: "authentication_failed".to_string(),
                 message,
-            }.into_response()
+            }
+            .into_response()
         }
 
         Err(e) => {
@@ -558,7 +566,8 @@ pub async fn login_handler(
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "internal_error".to_string(),
                 message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
-            }.into_response()
+            }
+            .into_response()
         }
     }
 }
@@ -607,7 +616,8 @@ pub async fn refresh_token_handler(
                 status_code: axum::http::StatusCode::UNAUTHORIZED,
                 error: "invalid_token".to_string(),
                 message: "Refresh token is invalid or expired".to_string(),
-            }.into_response();
+            }
+            .into_response();
         }
     };
 
@@ -626,7 +636,8 @@ pub async fn refresh_token_handler(
                     status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                     error: "internal_error".to_string(),
                     message: "Terjadi kesalahan sistem. Silakan coba lagi nanti.".to_string(),
-                }.into_response();
+                }
+                .into_response();
             }
         }
     } else {
@@ -634,7 +645,8 @@ pub async fn refresh_token_handler(
             status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "invalid_token".to_string(),
             message: "Invalid user ID in token".to_string(),
-        }.into_response();
+        }
+        .into_response();
     };
 
     // Generate new access token with custom claims (keep same session_id)
@@ -651,7 +663,8 @@ pub async fn refresh_token_handler(
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "token_error".to_string(),
                 message: e.to_string(),
-            }.into_response();
+            }
+            .into_response();
         }
     };
 
@@ -663,7 +676,8 @@ pub async fn refresh_token_handler(
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "token_error".to_string(),
                 message: e.to_string(),
-            }.into_response();
+            }
+            .into_response();
         }
     };
 
@@ -698,16 +712,21 @@ pub async fn get_current_user_handler(
         Ok(u) => u,
         Err(e) => {
             // Distinguish password-change-required (403) from auth errors (401)
-            let (status, error_code) = if e.error_code == auth_helpers::AuthErrorCode::PasswordChangeRequired {
-                (axum::http::StatusCode::FORBIDDEN, "password_change_required")
-            } else {
-                (axum::http::StatusCode::UNAUTHORIZED, "unauthorized")
-            };
+            let (status, error_code) =
+                if e.error_code == auth_helpers::AuthErrorCode::PasswordChangeRequired {
+                    (
+                        axum::http::StatusCode::FORBIDDEN,
+                        "password_change_required",
+                    )
+                } else {
+                    (axum::http::StatusCode::UNAUTHORIZED, "unauthorized")
+                };
             return ErrorResponse {
                 status_code: status,
                 error: error_code.to_string(),
                 message: e.message,
-            }.into_response();
+            }
+            .into_response();
         }
     };
 
@@ -724,7 +743,8 @@ pub async fn get_current_user_handler(
                 (None, Some(l)) => Some(l.clone()),
                 _ => user.nama.clone(),
             };
-            let satuan_kerja = resolve_satuan_kerja(&state.integrasi_client, &user.satker_code).await;
+            let satuan_kerja =
+                resolve_satuan_kerja(&state.integrasi_client, &user.satker_code).await;
 
             (
                 axum::http::StatusCode::OK,
@@ -742,7 +762,11 @@ pub async fn get_current_user_handler(
                     avatar: None,
                     satker_code: Some(user.satker_code).filter(|s| !s.is_empty()),
                     satuan_kerja,
-                    role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
+                    role: user
+                        .roles
+                        .first()
+                        .map(|r| r.name.clone())
+                        .unwrap_or_else(|| "user".to_string()),
                     permissions: Vec::new(),
                     email_verified: user.email_verified,
                     mfa_enabled: user.mfa_enabled,
@@ -756,7 +780,8 @@ pub async fn get_current_user_handler(
             status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             error: "internal_error".to_string(),
             message: e.to_string(),
-        }.into_response(),
+        }
+        .into_response(),
     }
 }
 
@@ -812,13 +837,17 @@ pub async fn update_profile_handler(
 ) -> Result<Json<UserProfileResponse>, ErrorResponse> {
     // Enforce password-change requirement and extract user ID in a single
     // JWT verification pass (avoids verifying the token twice).
-    let user_uuid = auth_helpers::extract_user_with_password_check(&state, &headers)
-        .map_err(|e| {
-            let (status, error_code) = if e.error_code == auth_helpers::AuthErrorCode::PasswordChangeRequired {
-                (axum::http::StatusCode::FORBIDDEN, "password_change_required")
-            } else {
-                (axum::http::StatusCode::UNAUTHORIZED, "unauthorized")
-            };
+    let user_uuid =
+        auth_helpers::extract_user_with_password_check(&state, &headers).map_err(|e| {
+            let (status, error_code) =
+                if e.error_code == auth_helpers::AuthErrorCode::PasswordChangeRequired {
+                    (
+                        axum::http::StatusCode::FORBIDDEN,
+                        "password_change_required",
+                    )
+                } else {
+                    (axum::http::StatusCode::UNAUTHORIZED, "unauthorized")
+                };
             ErrorResponse {
                 status_code: status,
                 error: error_code.to_string(),
@@ -875,7 +904,11 @@ pub async fn update_profile_handler(
         avatar: None,
         satker_code: Some(user.satker_code).filter(|s| !s.is_empty()),
         satuan_kerja,
-        role: user.roles.first().map(|r| r.name.clone()).unwrap_or_else(|| "user".to_string()),
+        role: user
+            .roles
+            .first()
+            .map(|r| r.name.clone())
+            .unwrap_or_else(|| "user".to_string()),
         permissions: Vec::new(),
         email_verified: user.email_verified,
         mfa_enabled: user.mfa_enabled,
@@ -915,7 +948,9 @@ pub async fn change_password_handler(
             return Err(ErrorResponse {
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 error: "no_password".to_string(),
-                message: "Akun ini tidak memiliki password. Silakan gunakan metode autentikasi lain.".to_string(),
+                message:
+                    "Akun ini tidak memiliki password. Silakan gunakan metode autentikasi lain."
+                        .to_string(),
             });
         }
     };

@@ -15,35 +15,31 @@ default = []
 grpc = ["dep:tonic", "dep:prost", "dep:tonic-prost"]
 
 [dependencies]
-reqwest = { version = "0.12", features = [
+reqwest = { workspace = true, features = [
   "json",
   "native-tls",
   "cookies",
 ], default-features = false }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "signal"] }
-tokio-postgres = { version = "=0.7.16", features = [
-  "with-chrono-0_4",
-  "with-serde_json-1",
-  "with-uuid-1",
-] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-thiserror = "2.0.17"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-dotenvy = "0.15"
-chrono = { version = "0.4", features = ["serde"] }
-csv = "1.3"
-uuid = { version = "1.11", features = ["v4", "serde"] }
-clap = { version = "4.5", features = ["derive"] }
-sha2 = "0.10"
+tokio = { workspace = true }
+tokio-postgres = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dotenvy = { workspace = true }
+chrono = { workspace = true }
+csv = { workspace = true }
+uuid = { workspace = true }
+clap = { workspace = true }
+sha2 = { workspace = true }
 tokio-cron-scheduler = { workspace = true }
 futures = { workspace = true }
-bytes = "1.10"
+bytes = { workspace = true }
 rand = { workspace = true }
-lib-common = { path = "../../lib/common", features = ["telemetry", "db"] }
-lib-perlengkapan = { path = "../../lib/perlengkapan", features = ["backend"] }
+lib-common = { workspace = true, features = ["telemetry", "db"] }
+lib-perlengkapan = { workspace = true, features = ["backend"] }
 prometheus = { workspace = true }
 
 # gRPC dependencies (optional, for server mode)
@@ -56,7 +52,7 @@ axum = { workspace = true }
 tower-http = { workspace = true, features = ["cors"] }
 
 [dev-dependencies]
-wiremock = "0.6"
+wiremock = { workspace = true }
 
 [build-dependencies]
 tonic-build = { workspace = true }

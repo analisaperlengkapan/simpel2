@@ -12,7 +12,6 @@ async fn create_test_manager() -> (BackupManager, TempDir) {
     let mut config = BackupConfig::default();
     config.storage_config = StorageConfig::Local(LocalStorageConfig {
         path: temp_dir.path().to_string_lossy().to_string(),
-        Ok(())
     });
     config.verify_after_backup = true;
     config.compression_enabled = true;
@@ -193,7 +192,6 @@ async fn test_encryption_key_validation() {
     let mut config = BackupConfig::default();
     config.storage_config = StorageConfig::Local(LocalStorageConfig {
         path: temp_dir.path().to_string_lossy().to_string(),
-        Ok(())
     });
     config.encryption_key = Some(vec![0u8; 16]); // Wrong length
 
@@ -208,7 +206,6 @@ async fn test_backup_with_custom_encryption_key() {
     let mut config = BackupConfig::default();
     config.storage_config = StorageConfig::Local(LocalStorageConfig {
         path: temp_dir.path().to_string_lossy().to_string(),
-        Ok(())
     });
     config.encryption_key = Some(vec![0u8; 32]); // Valid key
 
@@ -228,7 +225,6 @@ async fn test_backup_without_compression() {
     let mut config = BackupConfig::default();
     config.storage_config = StorageConfig::Local(LocalStorageConfig {
         path: temp_dir.path().to_string_lossy().to_string(),
-        Ok(())
     });
     config.compression_enabled = false;
 

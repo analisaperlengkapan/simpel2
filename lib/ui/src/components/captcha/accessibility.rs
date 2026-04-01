@@ -132,7 +132,7 @@ pub fn AudioChallenge(
                              </Button>
                          }.into_any()
                      } else {
-                         let _: () = view! {};
+
                          ().into_any()
                      }}
                  </div>

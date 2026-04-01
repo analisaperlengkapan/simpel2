@@ -220,7 +220,9 @@ pub fn extract_user_with_password_check(
 }
 
 /// Builds custom JWT claims for a user (NIP, name, jabatan, etc.)
-pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::collections::HashMap<String, serde_json::Value> {
+pub fn build_user_custom_claims(
+    user: Option<&authenc_types::User>,
+) -> std::collections::HashMap<String, serde_json::Value> {
     let mut custom_claims = std::collections::HashMap::new();
     if let Some(u) = user {
         if let Some(ref nip) = u.nip {
@@ -263,7 +265,10 @@ pub fn build_user_custom_claims(user: Option<&authenc_types::User>) -> std::coll
         // extra API round-trip.  We always emit the claim (even when false)
         // so the frontend never has to rely on serde(default) to infer the
         // value from a missing key.
-        custom_claims.insert("require_password_change".into(), serde_json::json!(u.require_password_change));
+        custom_claims.insert(
+            "require_password_change".into(),
+            serde_json::json!(u.require_password_change),
+        );
         // Roles
         let roles: Vec<String> = u.roles.iter().map(|r| r.name.clone()).collect();
         custom_claims.insert("realm_access".into(), serde_json::json!({"roles": roles}));

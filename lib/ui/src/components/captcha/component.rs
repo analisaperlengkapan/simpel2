@@ -74,7 +74,7 @@ pub fn Captcha(
         // Use state for challenge_id
         let challenge_id_val = state.get().challenge_id.unwrap_or_default();
         let session_id_val = session_id_verify.clone();
-        let set_refresh = set_refresh_trigger.clone();
+        let set_refresh = set_refresh_trigger;
 
         // Clone callbacks for async block
         let on_success_clone = on_success;
@@ -525,12 +525,12 @@ fn CaptchaContainer(
                                     />
                                 }.into_any()
                             } else {
-                                let _: () = view! {};
+
                                 ().into_any()
                             }}
 
                             // Behavioral analysis runs silently (no debug UI shown)
-                            {let _: () = view! {}; ().into_any()}
+                            { ().into_any()}
                         </div>
                     }.into_any()
                 }
@@ -1041,7 +1041,7 @@ pub fn ChallengeInput(
             // Validation feedback is shown by ValidationStatusIndicator in CaptchaContainer
 
             { /* accessibility options removed per updated requirements */
-                let _: () = view! {};
+
                 ().into_any()
             }
         </div>

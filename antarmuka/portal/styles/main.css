@@ -14,23 +14,6 @@
   border-radius: 0.25rem;
 }
 
-.skip-to-content {
-  position: absolute;
-  top: -100%;
-  left: 1rem;
-  z-index: 9999;
-  padding: 0.75rem 1.5rem;
-  background: #1e3a5f;
-  color: white;
-  font-weight: 600;
-  border-radius: 0 0 0.5rem 0.5rem;
-  transition: top 0.2s ease;
-}
-
-.skip-to-content:focus {
-  top: 0;
-}
-
 /* Sidebar transition */
 .sidebar-transition {
   transition: width 0.2s ease, transform 0.2s ease;

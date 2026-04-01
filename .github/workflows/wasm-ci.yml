@@ -44,13 +44,13 @@ jobs:
 
       - name: Check formatting (frontend)
         run: |
-          cargo fmt -p antarmuka-portal --check
-          cargo fmt -p antarmuka-perlengkapan --check
+          cargo fmt -p portal-microfrontend --check
+          cargo fmt -p perlengkapan-microfrontend --check
 
       - name: Run clippy (frontend)
         run: |
-          cargo clippy -p antarmuka-portal --target wasm32-unknown-unknown -- -D warnings
-          cargo clippy -p antarmuka-perlengkapan --target wasm32-unknown-unknown -- -D warnings
+          cargo clippy -p portal-microfrontend --target wasm32-unknown-unknown -- -D warnings
+          cargo clippy -p perlengkapan-microfrontend --target wasm32-unknown-unknown -- -D warnings
 
   build-wasm:
     name: Build WASM - ${{ matrix.module }}

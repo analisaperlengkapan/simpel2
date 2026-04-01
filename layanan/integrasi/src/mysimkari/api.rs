@@ -16,6 +16,7 @@ pub enum CircuitState {
 
 /// Circuit breaker for MySIMKARI API
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MySIMKARICircuitBreaker {
     state: Arc<Mutex<CircuitState>>,
     failure_count: Arc<Mutex<u32>>,
@@ -137,6 +138,7 @@ pub struct MySIMKARIPegawai {
 }
 
 /// Retry with exponential backoff
+#[allow(dead_code)]
 async fn retry_with_backoff<F, Fut, T>(
     mut f: F,
     max_retries: u32,

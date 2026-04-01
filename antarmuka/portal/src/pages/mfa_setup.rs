@@ -4,10 +4,12 @@
 
 use crate::components::layout::AuthLayout;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use lib_ui::components::captcha::Captcha;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use leptos::task::spawn_local;
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,11 +38,10 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (_risk_score, setrisk_score) = signal(0.0f64);
 
     let navigate = leptos_router::hooks::use_navigate();
-    let navigate_clone = navigate.clone();
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted = Rc::new(Cell::new(true));
     let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
         mounted_cleanup.set(false);
@@ -263,7 +264,8 @@ pub fn MfaSetupPage() -> impl IntoView {
                                         disabled=otp_code.get().len() != 6 || is_loading.get() || mfa_data.get().is_none()
                                         class="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-lg font-medium text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                                         on:click={
-                                            let navigate_clone = navigate_clone.clone();
+                                            let navigate = navigate.clone();
+                                            let mounted = mounted.clone();
                                             move |_| {
                                                 let code = otp_code.get();
                                                 if code.len() != 6 {
@@ -274,10 +276,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                 set_is_loading.set(true);
                                                 set_error_message.set(String::new());
 
-                                                let set_setup_complete = set_setup_complete;
-                                                let set_error_message = set_error_message;
-                                                let set_is_loading = set_is_loading;
-                                                let navigate = navigate_clone.clone();
+                                                let nav = navigate.clone();
                                                 let is_mounted = mounted.clone();
 
                                                 spawn_local(async move {
@@ -294,7 +293,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             // skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
                                                             if is_mounted.get() {
-                                                                navigate("/login", Default::default());
+                                                                nav("/login", Default::default());
                                                             }
                                                         }
                                                         Err(e) => {

@@ -17,7 +17,10 @@ use tracing::{debug, info, warn};
 use crate::Database;
 
 /// Load roles for a single user from the user_roles + roles tables.
-async fn load_user_roles(db: &Database, user_id: &uuid::Uuid) -> Vec<authenc_types::domain::user::Role> {
+async fn load_user_roles(
+    db: &Database,
+    user_id: &uuid::Uuid,
+) -> Vec<authenc_types::domain::user::Role> {
     let roles_query = r#"
         SELECT r.id, r.name, r.description
         FROM user_roles ur
@@ -25,10 +28,7 @@ async fn load_user_roles(db: &Database, user_id: &uuid::Uuid) -> Vec<authenc_typ
         WHERE ur.user_id = $1
     "#;
     match db.query(roles_query, &[user_id]).await {
-        Ok(role_rows) => role_rows
-            .iter()
-            .map(|r| row_to_role(r))
-            .collect(),
+        Ok(role_rows) => role_rows.iter().map(|r| row_to_role(r)).collect(),
         Err(e) => {
             warn!(user_id = %user_id, error = %e, "Failed to load roles for user");
             Vec::new()
@@ -59,8 +59,10 @@ async fn load_users_roles_batch(
         placeholders.join(", ")
     );
 
-    let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-        user_ids.iter().map(|id| id as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+    let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = user_ids
+        .iter()
+        .map(|id| id as &(dyn tokio_postgres::types::ToSql + Sync))
+        .collect();
 
     let mut roles_map: HashMap<uuid::Uuid, Vec<authenc_types::domain::user::Role>> = HashMap::new();
 
@@ -168,7 +170,7 @@ impl UserStore for PostgresUserStore {
                 let mut user = row_to_user(r)?;
                 user.roles = load_user_roles(&self.db, &user.id).await;
                 Ok(user)
-            },
+            }
             None => Err(AuthencError::UserNotFound(username.to_string())),
         }
     }
@@ -189,7 +191,7 @@ impl UserStore for PostgresUserStore {
                 let mut user = row_to_user(r)?;
                 user.roles = load_user_roles(&self.db, &user.id).await;
                 Ok(user)
-            },
+            }
             None => Err(AuthencError::UserNotFound(email.to_string())),
         }
     }
@@ -456,7 +458,10 @@ impl UserStore for PostgresUserStore {
             .query(query, &[&realm_id.0, &(limit as i64), &(offset as i64)])
             .await?;
 
-        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
+        let mut users: Vec<User> = rows
+            .into_iter()
+            .map(row_to_user)
+            .collect::<Result<Vec<_>>>()?;
 
         let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
         let roles_map = load_users_roles_batch(&self.db, &user_ids).await;
@@ -565,7 +570,10 @@ impl UserStore for PostgresUserStore {
             )
             .await?;
 
-        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
+        let mut users: Vec<User> = rows
+            .into_iter()
+            .map(row_to_user)
+            .collect::<Result<Vec<_>>>()?;
 
         let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
         let roles_map = load_users_roles_batch(&self.db, &user_ids).await;
@@ -667,7 +675,10 @@ impl UserStore for PostgresUserStore {
             }
         };
 
-        let mut users: Vec<User> = rows.into_iter().map(row_to_user).collect::<Result<Vec<_>>>()?;
+        let mut users: Vec<User> = rows
+            .into_iter()
+            .map(row_to_user)
+            .collect::<Result<Vec<_>>>()?;
 
         let user_ids: Vec<uuid::Uuid> = users.iter().map(|u| u.id).collect();
         let roles_map = load_users_roles_batch(&self.db, &user_ids).await;

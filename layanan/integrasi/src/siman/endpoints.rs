@@ -11,7 +11,7 @@ use tracing::{error, info, warn};
 
 /// Circuit breaker states
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CircuitState {
+pub enum CircuitState {
     Closed,
     Open,
     HalfOpen,
@@ -20,6 +20,7 @@ enum CircuitState {
 /// Circuit breaker for SIMAN API calls
 /// Implements the circuit breaker pattern to prevent cascading failures
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct CircuitBreaker {
     state: Arc<Mutex<CircuitState>>,
     failure_count: Arc<Mutex<u32>>,
@@ -147,6 +148,7 @@ impl CircuitBreaker {
 /// * `initial_delay` - Initial delay before first retry
 /// * `max_delay` - Maximum delay between retries
 /// * `operation` - Async operation to retry
+#[allow(dead_code)]
 async fn retry_with_exponential_backoff<F, Fut, T>(
     max_retries: u32,
     initial_delay: Duration,

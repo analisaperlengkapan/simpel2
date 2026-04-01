@@ -80,7 +80,8 @@ pub async fn enable_totp_handler(
     // 6. Audit log the MFA enable event
 
     // Placeholder implementation
-    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+    Err(ErrorResponse {
+        status_code: axum::http::StatusCode::BAD_REQUEST,
         error: "not_implemented".to_string(),
         message: "TOTP enable endpoint requires MFA services migration (Task 12)".to_string(),
     })
@@ -105,7 +106,8 @@ pub async fn disable_totp_handler(
     // 4. Audit log the MFA disable event
 
     // Placeholder implementation
-    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+    Err(ErrorResponse {
+        status_code: axum::http::StatusCode::BAD_REQUEST,
         error: "not_implemented".to_string(),
         message: "TOTP disable endpoint requires MFA services migration (Task 12)".to_string(),
     })
@@ -134,7 +136,8 @@ pub async fn verify_totp_handler(
     // 7. Return verification result
 
     // Placeholder implementation
-    Err(ErrorResponse { status_code: axum::http::StatusCode::BAD_REQUEST,
+    Err(ErrorResponse {
+        status_code: axum::http::StatusCode::BAD_REQUEST,
         error: "not_implemented".to_string(),
         message: "TOTP verify endpoint requires MFA services migration (Task 12)".to_string(),
     })

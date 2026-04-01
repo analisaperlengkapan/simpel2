@@ -101,7 +101,7 @@ pub fn ValidationStatusIndicator(
             {move || {
                 match status.get() {
                     ValidationStatus::Idle => {
-                        let _: () = view! {};
+
                         ().into_any()
                     },
 
@@ -167,7 +167,7 @@ pub fn ValidationStatusIndicator(
                                             </Button>
                                         }.into_any()
                                     } else {
-                                        let _: () = view! {};
+
                                         ().into_any()
                                     }}
                                 </div>
@@ -263,7 +263,7 @@ pub fn InputValidationFeedback(
                                 <div class="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
                             }.into_any()
                         } else {
-                            let _: () = view! {};
+
                             ().into_any()
                         }}
                     </div>
@@ -320,7 +320,7 @@ pub fn ChallengeProgressIndicator(
                                     )></div>
                                 }.into_any()
                             } else {
-                                let _: () = view! {};
+
                                 ().into_any()
                             }}
                         </div>
@@ -383,7 +383,7 @@ pub fn RetryMechanism(
                         </div>
                     }.into_any()
                 } else {
-                    let _: () = view! {};
+
                     ().into_any()
                 }}
 
@@ -399,7 +399,7 @@ pub fn RetryMechanism(
                             </Button>
                         }.into_any()
                     } else {
-                        let _: () = view! {};
+
                         ().into_any()
                     }}
 

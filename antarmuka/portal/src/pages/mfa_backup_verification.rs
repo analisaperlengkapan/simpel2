@@ -8,6 +8,8 @@ use leptos::prelude::*;
 use leptos_router;
 use serde::{Deserialize, Serialize};
 use leptos::task::spawn_local;
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// Backup code verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,7 +78,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = std::rc::Rc::new(std::cell::Cell::new(true));
+    let mounted = Rc::new(Cell::new(true));
     let mounted_cleanup = mounted.clone();
     on_cleanup(move || {
         mounted_cleanup.set(false);
@@ -171,7 +173,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                         // Only allow digits, limit to 8 characters
                                         let clean: String = value.chars().filter(|c| c.is_numeric()).take(8).collect();
                                         set_backup_code.set(clean);
-         set_error_message.set(String::new());
+                                        set_error_message.set(String::new());
                                     }
                                 />
                                 <Show when=move || !error_message.get().is_empty()>
@@ -203,112 +205,118 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                 type="button"
                                 disabled=move || backup_code.get().len() != 8 || is_loading.get()
                                 class="w-full inline-flex items-center justify-center px-6 py-3 text-lg font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
-                                on:click=move |_| {
-                                    let code = backup_code.get();
-                                    if code.len() != 8 {
-                                        set_error_message.set("Please enter an 8-digit backup code".to_string());
-                                        return;
-                                    }
-
-                                    // Check if temp_token is available
-                                    let temp_token = match temp_token_value.get() {
-                                        Some(token) => token,
-                                        None => {
-                                            set_error_message.set("No authentication token found. Please log in again.".to_string());
+                                on:click={
+                                    let navigate = navigate.clone();
+                                    let mounted = mounted.clone();
+                                    let set_user_session = set_user_session.clone();
+                                    move |_| {
+                                        let code = backup_code.get();
+                                        if code.len() != 8 {
+                                            set_error_message.set("Please enter an 8-digit backup code".to_string());
                                             return;
                                         }
-                                    };
 
-                                    set_is_loading.set(true);
-                                    set_error_message.set(String::new());
+                                        // Check if temp_token is available
+                                        let temp_token = match temp_token_value.get() {
+                                            Some(token) => token,
+                                            None => {
+                                                set_error_message.set("No authentication token found. Please log in again.".to_string());
+                                                return;
+                                            }
+                                        };
 
-                                    let nav = navigate.clone();
-                                    let is_mounted = mounted.clone();
-                                    spawn_local(async move {
-                                        match verify_backup_code(&temp_token, &code).await {
-                                            Ok(response) => {
-                                                // Store access token and upgrade session
-                                                #[cfg(target_arch = "wasm32")]
-                                                {
-                                                    use crate::features::auth::AuthService;
+                                        set_is_loading.set(true);
+                                        set_error_message.set(String::new());
 
-                                                    // Save the access token
-                                                    AuthService::save_token(&response.data.access_token);
+                                        let nav = navigate.clone();
+                                        let is_mounted = mounted.clone();
+                                        let set_user_session = set_user_session.clone();
+                                        spawn_local(async move {
+                                            match verify_backup_code(&temp_token, &code).await {
+                                                Ok(response) => {
+                                                    // Store access token and upgrade session
+                                                    #[cfg(target_arch = "wasm32")]
+                                                    {
+                                                        use crate::features::auth::AuthService;
 
-                                                    // Decode JWT and create session
-                                                    match AuthService::decode_jwt_claims(&response.data.access_token) {
-                                                        Ok(mut session) => {
-                                                            // Mark MFA as enabled in session
-                                                            session.mfa_enabled = true;
-                                                            session.mfa_setup_required = false;
-                                                            session.access_token = Some(response.data.access_token);
+                                                        // Save the access token
+                                                        AuthService::save_token(&response.data.access_token);
 
-                                                            // Save session
-                                                            AuthService::save_session(&session);
-                                                            crate::utils::app_state::app_state_login(session.clone());
+                                                        // Decode JWT and create session
+                                                        match AuthService::decode_jwt_claims(&response.data.access_token) {
+                                                            Ok(mut session) => {
+                                                                // Mark MFA as enabled in session
+                                                                session.mfa_enabled = true;
+                                                                session.mfa_setup_required = false;
+                                                                session.access_token = Some(response.data.access_token);
 
-                                                            // Update the reactive user_session signal so route
-                                                            // guards see the authenticated session immediately.
-                                                            if let Some(setter) = set_user_session {
-                                                                setter.set(Some(session.clone()));
-                                                            }
+                                                                // Save session
+                                                                AuthService::save_session(&session);
+                                                                crate::utils::app_state::app_state_login(session.clone());
 
-                                                            // Clear temp token
-                                                            AuthService::clear_temp_token();
+                                                                // Update the reactive user_session signal so route
+                                                                // guards see the authenticated session immediately.
+                                                                if let Some(setter) = set_user_session {
+                                                                    setter.set(Some(session.clone()));
+                                                                }
 
-                                                            // Show success with remaining codes count
-                                                            set_remaining_codes.set(Some(response.data.remaining_codes));
-                                                            set_verification_success.set(true);
-                                                            set_is_loading.set(false);
+                                                                // Clear temp token
+                                                                AuthService::clear_temp_token();
 
-                                                            // Redirect after showing success.
-                                                            // Guard: if the component unmounted during
-                                                            // the 2-second timer (e.g. user clicked
-                                                            // "Back to login"), skip the navigation.
-                                                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                                                                // Show success with remaining codes count
+                                                                set_remaining_codes.set(Some(response.data.remaining_codes));
+                                                                set_verification_success.set(true);
+                                                                set_is_loading.set(false);
 
-                                                            if is_mounted.get() {
-                                                                // Navigate directly to password-change
-                                                                // page when required, avoiding a double
-                                                                // redirect via the dashboard route guard.
-                                                                if session.require_password_change {
-                                                                    nav("/password", Default::default());
-                                                                } else {
-                                                                    nav("/dashboard", Default::default());
+                                                                // Redirect after showing success.
+                                                                // Guard: if the component unmounted during
+                                                                // the 2-second timer (e.g. user clicked
+                                                                // "Back to login"), skip the navigation.
+                                                                gloo_timers::future::TimeoutFuture::new(2000).await;
+
+                                                                if is_mounted.get() {
+                                                                    // Navigate directly to password-change
+                                                                    // page when required, avoiding a double
+                                                                    // redirect via the dashboard route guard.
+                                                                    if session.require_password_change {
+                                                                        nav("/password", Default::default());
+                                                                    } else {
+                                                                        nav("/dashboard", Default::default());
+                                                                    }
                                                                 }
                                                             }
-                                                        }
-                                                        Err(e) => {
-                                                            set_error_message.set(format!("Failed to decode token: {}", e));
-                                                            set_is_loading.set(false);
+                                                            Err(e) => {
+                                                                set_error_message.set(format!("Failed to decode token: {}", e));
+                                                                set_is_loading.set(false);
+                                                            }
                                                         }
                                                     }
-                                                }
 
-                                                #[cfg(not(target_arch = "wasm32"))]
-                                                {
-                                                    let _ = response; // Suppress unused warning
-                                                    set_error_message.set("Session management not available in non-WASM environment".to_string());
+                                                    #[cfg(not(target_arch = "wasm32"))]
+                                                    {
+                                                        let _ = (response, nav, is_mounted, set_user_session);
+                                                        set_error_message.set("Session management not available in non-WASM environment".to_string());
+                                                        set_is_loading.set(false);
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    set_error_message.set(format!("Verification failed: {}", e));
                                                     set_is_loading.set(false);
+
+                                                    // Decrease attempts
+                                                    let remaining = attempts_remaining.get() - 1;
+                                                    set_attempts_remaining.set(remaining);
+
+                                                    if remaining == 0 {
+                                                        set_is_locked.set(true);
+                                                    }
+
+                                                    // Clear the code for retry
+                                                    set_backup_code.set(String::new());
                                                 }
                                             }
-                                            Err(e) => {
-                                                set_error_message.set(format!("Verification failed: {}", e));
-                                                set_is_loading.set(false);
-
-                                                // Decrease attempts
-                                                let remaining = attempts_remaining.get() - 1;
-                                                set_attempts_remaining.set(remaining);
-
-                                                if remaining == 0 {
-                                                    set_is_locked.set(true);
-                                                }
-
-                                                // Clear the code for retry
-                                                set_backup_code.set(String::new());
-                                            }
-                                        }
-                                    });
+                                        });
+                                    }
                                 }
                             >
                                 {move || if is_loading.get() {
@@ -339,8 +347,11 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                     <button
                                         type="button"
                                         class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
-                                        on:click=move |_| {
-                                            navigate("/mfa/verify", Default::default());
+                                        on:click={
+                                            let navigate = navigate.clone();
+                                            move |_| {
+                                                navigate("/mfa/verify", Default::default());
+                                            }
                                         }
                                     >
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,7 +391,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                             </h3>
                             <p class="text-gray-600 dark:text-gray-400 mb-4">
                                 "Your backup code has been verified successfully."
-          </p>
+                            </p>
                             <Show when=move || remaining_codes.get().is_some()>
                                 <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                                     <p class="text-sm text-blue-800 dark:text-blue-300">

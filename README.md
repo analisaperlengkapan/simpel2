@@ -65,7 +65,8 @@ simpel2/
 │   ├── portal/              #   Portal Gateway & SSO
 │   └── perlengkapan/        #   Modul operasional BMN
 ├── layanan/                 # Backend & Core Services
-│   ├── perlengkapan/crates/ #   5 crates: api, integrasi, dokumen, notifikasi, bantuan
+│   ├── perlengkapan/crates/ #   4 crates: api, dokumen, notifikasi, bantuan
+│   ├── integrasi/           #   Integrasi layanan eksternal (MySIMKARI, SIMAN)
 │   ├── authenc/crates/      #   10 crates: types, core, crypto, storage, api, iam-api,
 │   │                        #              grpc, mfa, federation, webauthn
 │   └── secreton/crates/     #   14 crates: core, api, storage, crypto, types, agent,

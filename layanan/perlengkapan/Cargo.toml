@@ -8,7 +8,6 @@ resolver = "2"
 
 members = [
     "crates/api",
-    "crates/integrasi",
     "crates/dokumen",
     "crates/notifikasi",
     "crates/bantuan",
@@ -24,3 +23,5 @@ license = "MIT"
 [workspace.dependencies]
 # All dependencies are inherited from the root workspace at /var/www/simpelv2/Cargo.toml
 # Sub-crates should use `{ workspace = true }` for common dependencies
+# Do NOT duplicate dependency versions here — the root Cargo.toml is the
+# single source of truth per AGENTS.md.
