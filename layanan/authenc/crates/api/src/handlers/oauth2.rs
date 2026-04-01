@@ -174,29 +174,45 @@ pub async fn authorize_handler(
 /// OAuth2 token endpoint for exchanging authorization codes for tokens.
 /// Supports authorization_code, refresh_token, and client_credentials grants.
 pub async fn token_handler(
-    State(_state): State<Arc<ApiState>>,
-    Json(_request): Json<TokenRequest>,
+    State(state): State<Arc<ApiState>>,
+    Json(request): Json<TokenRequest>,
 ) -> Result<Json<TokenResponse>, ErrorResponse> {
-    // TODO: Implement token exchange logic
-    // 1. Validate grant_type
-    // 2. For authorization_code:
-    //    - Validate code, client_id, redirect_uri
-    //    - Verify PKCE code_verifier if present
-    //    - Generate access token and refresh token
-    //    - Generate ID token if openid scope requested
-    // 3. For refresh_token:
-    //    - Validate refresh token
-    //    - Generate new access token and refresh token
-    // 4. For client_credentials:
-    //    - Validate client credentials
-    //    - Generate access token (no refresh token)
-    // 5. Return token response
+    use authenc_types::OAuth2Service;
+    use authenc_types::domain_types::{RealmId, TokenRequest as DomainTokenRequest};
+    use uuid::Uuid;
 
-    Err(ErrorResponse {
-        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
-        error: "not_implemented".to_string(),
-        message: "OAuth2 token endpoint not yet implemented".to_string(),
-    })
+    // Default to master realm (all-zeros UUID)
+    let realm_id = RealmId::from_uuid(
+        Uuid::parse_str("00000000-0000-0000-0000-000000000000").expect("Invalid master realm UUID"),
+    );
+
+    let domain_request = DomainTokenRequest {
+        grant_type: request.grant_type,
+        code: request.code,
+        redirect_uri: request.redirect_uri,
+        code_verifier: request.code_verifier,
+        client_id: request.client_id,
+        client_secret: request.client_secret,
+        refresh_token: request.refresh_token,
+        scope: request.scope,
+        realm_id,
+    };
+
+    match state.oauth2_service.token(domain_request).await {
+        Ok(resp) => Ok(Json(TokenResponse {
+            access_token: resp.access_token,
+            token_type: resp.token_type,
+            expires_in: resp.expires_in as u64,
+            refresh_token: resp.refresh_token,
+            id_token: None, // TODO: Generate ID token if openid scope requested
+            scope: Some(resp.scope),
+        })),
+        Err(e) => Err(ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "invalid_request".to_string(),
+            message: e.to_string(),
+        }),
+    }
 }
 
 /// GET /api/v1/oauth2/.well-known/openid-configuration - Discovery endpoint
@@ -246,25 +262,51 @@ pub async fn discovery_handler(
     Ok(Json(discovery))
 }
 
+use axum::http::HeaderMap;
+use crate::handlers::auth_helpers;
+
 /// GET /api/v1/oauth2/userinfo - UserInfo endpoint
 ///
 /// OIDC UserInfo endpoint returning claims about the authenticated user.
 /// Requires valid access token with openid scope.
 pub async fn userinfo_handler(
-    State(_state): State<Arc<ApiState>>,
-    // TODO: Add JWT claims extractor from middleware
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
 ) -> Result<Json<UserInfoResponse>, ErrorResponse> {
-    // TODO: Implement UserInfo logic
-    // 1. Extract user ID from access token
-    // 2. Validate token has openid scope
-    // 3. Fetch user from database
-    // 4. Return claims based on requested scopes
+    let user_uuid = auth_helpers::extract_user_from_token(&state, &headers)
+        .await
+        .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "unauthorized".to_string(),
+            message: e.message,
+        })?;
 
-    Err(ErrorResponse {
-        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
-        error: "not_implemented".to_string(),
-        message: "OIDC UserInfo endpoint not yet implemented".to_string(),
-    })
+    let user_id = authenc_types::UserId::from_uuid(user_uuid);
+    match state.user_service.get_user(user_id).await {
+        Ok(user) => {
+            let name = match (&user.first_name, &user.last_name) {
+                (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+                (Some(f), None) => Some(f.clone()),
+                (None, Some(l)) => Some(l.clone()),
+                _ => user.nama.clone(),
+            };
+
+            Ok(Json(UserInfoResponse {
+                sub: user.id.to_string(),
+                preferred_username: Some(user.username),
+                email: Some(user.email),
+                email_verified: Some(user.email_verified),
+                name,
+                given_name: user.first_name,
+                family_name: user.last_name,
+            }))
+        }
+        Err(e) => Err(ErrorResponse {
+            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            error: "internal_error".to_string(),
+            message: e.to_string(),
+        }),
+    }
 }
 
 #[cfg(test)]
@@ -320,5 +362,78 @@ mod tests {
         let json = serde_json::to_string(&discovery).unwrap();
         assert!(json.contains("issuer"));
         assert!(json.contains("authorization_endpoint"));
+    }
+
+    use authenc_types::domain::user::User;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_user_info_mapping() {
+        let user_id = Uuid::new_v4();
+        let user = User {
+            id: user_id,
+            username: "testuser".to_string(),
+            email: "test@example.com".to_string(),
+            email_verified: true,
+            first_name: Some("Test".to_string()),
+            last_name: Some("User".to_string()),
+            nip: Some("12345".to_string()),
+            nama: Some("Test User Full".to_string()),
+            jabatan: Some("Developer".to_string()),
+            satker_code: "001".to_string(),
+            phone_number: None,
+            phone_verified: false,
+            password_hash: None,
+            totp_secret: None,
+            totp_backup_codes: None,
+            mfa_enabled: false,
+            mfa_setup_at: None,
+            mfa_last_used: None,
+            webauthn_enabled: false,
+            account_locked: false,
+            account_locked_until: None,
+            failed_login_attempts: 0,
+            last_login_at: None,
+            last_failed_login_at: None,
+            password_changed_at: None,
+            password_expires_at: None,
+            require_password_change: false,
+            realm_id: None,
+            organization_id: None,
+            roles: Vec::new(),
+            permissions: Vec::new(),
+            session_data: None,
+            security_context: Default::default(),
+            attributes: None,
+            enabled: true,
+            federated: false,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            deleted_at: None,
+            login_count: 0,
+        };
+
+        let name = match (&user.first_name, &user.last_name) {
+            (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+            (Some(f), None) => Some(f.clone()),
+            (None, Some(l)) => Some(l.clone()),
+            _ => user.nama.clone(),
+        };
+
+        let resp = UserInfoResponse {
+            sub: user.id.to_string(),
+            preferred_username: Some(user.username),
+            email: Some(user.email),
+            email_verified: Some(user.email_verified),
+            name,
+            given_name: user.first_name,
+            family_name: user.last_name,
+        };
+
+        assert_eq!(resp.sub, user_id.to_string());
+        assert_eq!(resp.preferred_username, Some("testuser".to_string()));
+        assert_eq!(resp.name, Some("Test User".to_string()));
+        assert_eq!(resp.given_name, Some("Test".to_string()));
+        assert_eq!(resp.family_name, Some("User".to_string()));
     }
 }

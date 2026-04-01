@@ -9,8 +9,8 @@ use leptos::task::spawn_local;
 use leptos_router;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// MFA verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,10 +70,10 @@ pub fn MfaVerificationPage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = Rc::new(Cell::new(true));
-    let mounted_cleanup = mounted.clone();
+    let mounted = Arc::new(AtomicBool::new(true));
+    let mounted_cleanup = Arc::clone(&mounted);
     on_cleanup(move || {
-        mounted_cleanup.set(false);
+        mounted_cleanup.store(false, Ordering::SeqCst);
     });
 
     // Obtain the top-level user_session writer so we can update the reactive
@@ -245,7 +245,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                                 // Navigate directly to password-change page when
                                                                 // required, avoiding a double redirect via the
                                                                 // dashboard route guard.
-                                                                if is_mounted.get() {
+                                                                if is_mounted.load(Ordering::SeqCst) {
                                                                     if session.require_password_change {
                                                                         nav("/password", Default::default());
                                                                     } else {

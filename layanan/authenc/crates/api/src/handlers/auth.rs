@@ -186,7 +186,7 @@ async fn resolve_satuan_kerja(
         }
     }
 
-    let (resolved, authoritative) = if let Some(ref client) = integrasi_client {
+    let (resolved, authoritative) = if let Some(client) = integrasi_client {
         match client.get_satker_by_code(satker_code).await {
             Ok(Some(satker)) if !satker.nama_satker.is_empty() => (satker.nama_satker, true),
             Ok(_) => {

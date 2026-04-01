@@ -8,8 +8,8 @@ use leptos::prelude::*;
 use leptos_router;
 use serde::{Deserialize, Serialize};
 use leptos::task::spawn_local;
-use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Backup code verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,10 +78,10 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = Rc::new(Cell::new(true));
-    let mounted_cleanup = mounted.clone();
+    let mounted = Arc::new(AtomicBool::new(true));
+    let mounted_cleanup = Arc::clone(&mounted);
     on_cleanup(move || {
-        mounted_cleanup.set(false);
+        mounted_cleanup.store(false, Ordering::SeqCst);
     });
 
     // Get temp token from localStorage and store in signal
