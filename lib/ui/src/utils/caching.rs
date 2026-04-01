@@ -107,8 +107,7 @@ impl LocalStorageCache {
         use gloo_storage::{LocalStorage, Storage};
 
         if let Some(window) = web_sys::window() {
-            if let Ok(storage) = window.local_storage() {
-                if let Some(storage) = storage {
+            if let Ok(Some(storage)) = window.local_storage() {
                     let mut keys_to_remove = Vec::new();
 
                     // Iterate through all keys
@@ -132,7 +131,6 @@ impl LocalStorageCache {
                         LocalStorage::delete(&key);
                     }
                 }
-            }
         }
     }
 

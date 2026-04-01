@@ -52,6 +52,9 @@ serde_json = "1.0"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.17"
 anyhow = "1.0.100"
+regex = "1.11"
+lib-perlengkapan = { path = "../../lib/perlengkapan" }
+lib-common = { path = "../../lib/common" }
 # All dependencies are inherited from the root workspace at /var/www/simpelv2/Cargo.toml
 # Sub-crates should use `{ workspace = true }` for common dependencies
 # Do NOT duplicate dependency versions here — the root Cargo.toml is the
