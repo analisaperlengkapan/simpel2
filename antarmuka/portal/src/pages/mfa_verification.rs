@@ -262,7 +262,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
 
                                                     #[cfg(not(target_arch = "wasm32"))]
                                                     {
-                                                    let _ = (response, nav, is_mounted, set_user_session); // Suppress unused warning
+                                                        let _ = (response, nav, is_mounted, set_user_session); // Suppress unused warning
                                                         set_error_message.set("Session management not available in non-WASM environment".to_string());
                                                         set_is_loading.set(false);
                                                     }
