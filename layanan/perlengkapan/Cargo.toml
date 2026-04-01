@@ -8,7 +8,6 @@ resolver = "2"
 
 members = [
     "crates/api",
-    "crates/integrasi",
     "crates/dokumen",
     "crates/notifikasi",
     "crates/bantuan",
