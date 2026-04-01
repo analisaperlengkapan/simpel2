@@ -229,7 +229,10 @@ mod tests {
         );
 
         let mut custom = HashMap::new();
-        custom.insert("preferred_username".to_string(), serde_json::json!("testuser"));
+        custom.insert(
+            "preferred_username".to_string(),
+            serde_json::json!("testuser"),
+        );
         custom.insert("email".to_string(), serde_json::json!("test@example.com"));
 
         let token = jwt_service

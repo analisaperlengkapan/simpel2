@@ -262,8 +262,8 @@ pub async fn discovery_handler(
     Ok(Json(discovery))
 }
 
-use axum::http::HeaderMap;
 use crate::handlers::auth_helpers;
+use axum::http::HeaderMap;
 
 /// GET /api/v1/oauth2/userinfo - UserInfo endpoint
 ///

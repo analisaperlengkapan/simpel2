@@ -5,9 +5,9 @@
 use crate::components::layout::AuthLayout;
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_router;
 use serde::{Deserialize, Serialize};
-use leptos::task::spawn_local;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -274,7 +274,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                                 // "Back to login"), skip the navigation.
                                                                 gloo_timers::future::TimeoutFuture::new(2000).await;
 
-                                                                if is_mounted.get() {
+                                                                if is_mounted.load(Ordering::SeqCst) {
                                                                     // Navigate directly to password-change
                                                                     // page when required, avoiding a double
                                                                     // redirect via the dashboard route guard.

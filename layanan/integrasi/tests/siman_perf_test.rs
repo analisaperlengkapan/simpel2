@@ -1,5 +1,5 @@
-use layanan_perlengkapan_integrasi::siman::{SimanAssetCategory, fetch_all_assets_with_pagination};
-use layanan_perlengkapan_integrasi::{Config, MonsaktiClient, StorageStrategy};
+use layanan_integrasi::siman::{SimanAssetCategory, fetch_all_assets_with_pagination};
+use layanan_integrasi::{Config, MonsaktiClient, StorageStrategy};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use wiremock::matchers::{method, path, path_regex};
