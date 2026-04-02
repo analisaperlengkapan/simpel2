@@ -1,7 +1,7 @@
 //! Auto-unseal configuration and management commands
 //!
 //! This module provides CLI commands for configuring and managing auto-unseal providers.
-//! Operators can configure auto-unseal with AWS KMS, GCP KMS, Azure Key Vault, or Transit,
+//! Operators can configure auto-unseal with AWS KMS, GCP KMS, Azure Key Secreton, or Transit,
 //! check the current status, and test the configuration.
 
 use anyhow::Result;
@@ -75,10 +75,10 @@ pub enum AutoUnsealCommand {
         #[arg(long)]
         gcp_credentials_file: Option<String>,
 
-        // Azure Key Vault options
-        /// Azure Key Vault name
+        // Azure Key Secreton options
+        /// Azure Key Secreton name
         #[arg(long)]
-        azure_vault_name: Option<String>,
+        azure_secreton_name: Option<String>,
 
         /// Azure key name
         #[arg(long)]
@@ -124,7 +124,7 @@ pub async fn execute_auto_unseal_command(cmd: AutoUnsealCommand, config: &CliCon
             gcp_key_ring,
             gcp_crypto_key,
             gcp_credentials_file,
-            azure_vault_name,
+            azure_secreton_name,
             azure_key_name,
             azure_tenant_id,
             azure_client_id,
@@ -146,7 +146,7 @@ pub async fn execute_auto_unseal_command(cmd: AutoUnsealCommand, config: &CliCon
                 gcp_key_ring,
                 gcp_crypto_key,
                 gcp_credentials_file,
-                azure_vault_name,
+                azure_secreton_name,
                 azure_key_name,
                 azure_tenant_id,
                 azure_client_id,
@@ -177,7 +177,7 @@ async fn configure_auto_unseal(
     gcp_key_ring: Option<String>,
     gcp_crypto_key: Option<String>,
     gcp_credentials_file: Option<String>,
-    azure_vault_name: Option<String>,
+    azure_secreton_name: Option<String>,
     azure_key_name: Option<String>,
     azure_tenant_id: Option<String>,
     azure_client_id: Option<String>,
@@ -226,7 +226,7 @@ async fn configure_auto_unseal(
         )?,
         "azure-kv" => configure_azure_kv_provider(
             non_interactive,
-            azure_vault_name,
+            azure_secreton_name,
             azure_key_name,
             azure_tenant_id,
             azure_client_id,
@@ -490,19 +490,19 @@ fn configure_gcp_kms_provider(
 
 fn configure_azure_kv_provider(
     non_interactive: bool,
-    vault_name: Option<String>,
+    secreton_name: Option<String>,
     key_name: Option<String>,
     tenant_id: Option<String>,
     client_id: Option<String>,
     client_secret: Option<String>,
 ) -> Result<serde_json::Value> {
-    let vault_name = if let Some(v) = vault_name {
+    let secreton_name = if let Some(v) = secreton_name {
         v
     } else if non_interactive {
-        anyhow::bail!("Azure Key Vault name required (--azure-vault-name)");
+        anyhow::bail!("Azure Key Secreton name required (--azure-secreton-name)");
     } else {
         Input::<String>::new()
-            .with_prompt("Azure Key Vault name")
+            .with_prompt("Azure Key Secreton name")
             .interact_text()?
     };
 
@@ -518,7 +518,7 @@ fn configure_azure_kv_provider(
 
     let mut config = json!({
         "provider": "azure-kv",
-        "vault_name": vault_name,
+        "secreton_name": secreton_name,
         "key_name": key_name
     });
 

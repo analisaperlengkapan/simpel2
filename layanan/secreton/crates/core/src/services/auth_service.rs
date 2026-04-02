@@ -584,7 +584,7 @@ impl AuthService {
             return Ok(true);
         }
 
-        // Check for pattern match (e.g., "vault:*" matches "vault:read")
+        // Check for pattern match (e.g., "secreton:*" matches "secreton:read")
         for perm in &all_permissions {
             if perm.ends_with("*") {
                 let prefix = &perm[..perm.len() - 1];
@@ -720,11 +720,11 @@ impl AuthService {
         if self.get_role("user").await.is_err() {
             self.create_role(
                 "user",
-                Some("Regular user with basic vault access"),
+                Some("Regular user with basic secreton access"),
                 vec![
-                    "vault:read".to_string(),
-                    "vault:write".to_string(),
-                    "vault:list".to_string(),
+                    "secreton:read".to_string(),
+                    "secreton:write".to_string(),
+                    "secreton:list".to_string(),
                 ],
             )
             .await?;
@@ -734,8 +734,8 @@ impl AuthService {
         if self.get_role("viewer").await.is_err() {
             self.create_role(
                 "viewer",
-                Some("Read-only access to vault"),
-                vec!["vault:read".to_string(), "vault:list".to_string()],
+                Some("Read-only access to secreton"),
+                vec!["secreton:read".to_string(), "secreton:list".to_string()],
             )
             .await?;
         }

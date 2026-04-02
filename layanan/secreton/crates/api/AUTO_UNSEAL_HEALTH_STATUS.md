@@ -34,7 +34,7 @@ SECRETON_AUTO_UNSEAL_GCP_LOCATION=us-central1
 ```bash
 SECRETON_AUTO_UNSEAL_PROVIDER=azure-kv
 SECRETON_AUTO_UNSEAL_AZURE_KEY_NAME=secreton-unseal
-SECRETON_AUTO_UNSEAL_AZURE_VAULT_URL=https://myvault.vault.azure.net
+SECRETON_AUTO_UNSEAL_AZURE_SECRETON_URL=https://myvault.vault.azure.net
 ```
 
 #### Transit (Another Secreton Instance)

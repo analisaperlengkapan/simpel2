@@ -80,6 +80,7 @@ pub mod health;
 pub mod identity;
 pub mod inject;
 pub mod kafka;
+pub mod kubernetes;
 pub mod key_hierarchy;
 pub mod kmip;
 pub mod ldap;
@@ -145,6 +146,7 @@ pub fn create_protected_router(_config: &ApiConfig, services: Arc<ServiceContain
         .nest("/ldap", ldap::create_routes())
         .nest("/rabbitmq", rabbitmq::create_routes())
         .nest("/kafka", kafka::create_routes())
+        .nest("/kubernetes", kubernetes::create_routes())
         .nest("/zk", zero_knowledge::create_routes())
         .nest("/inject", inject::create_routes())
         .nest("/webhooks", webhook::create_routes());

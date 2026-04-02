@@ -8,8 +8,8 @@ use leptos::task::spawn_local;
 use lib_ui::components::captcha::Captcha;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]

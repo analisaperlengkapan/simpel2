@@ -238,7 +238,7 @@ impl WorkflowEngine {
         tx.commit().await?;
 
         // 10. Generate document if transitioning to APPROVED state and dokumen client is available
-        let mut document_id: Option<Uuid> = None;
+        let mut _document_id: Option<Uuid> = None;
         let mut document_url: Option<String> = None;
 
         if request.to_state == "APPROVED" && self.dokumen_client.is_some() {
@@ -247,7 +247,7 @@ impl WorkflowEngine {
                 .await
             {
                 Ok((doc_id, doc_url)) => {
-                    document_id = Some(doc_id);
+                    _document_id = Some(doc_id);
                     document_url = Some(doc_url.clone());
 
                     // Update activity record with document metadata

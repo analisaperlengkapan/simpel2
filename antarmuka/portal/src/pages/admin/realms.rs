@@ -35,6 +35,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
     }
 
     let on_logout = {
+        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());

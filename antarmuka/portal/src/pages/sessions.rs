@@ -65,7 +65,7 @@ pub fn SessionsPage() -> impl IntoView {
     }
 
     let on_logout = {
-
+        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());
@@ -123,12 +123,9 @@ pub fn SessionsPage() -> impl IntoView {
                                     let last_active = session_info.last_active.clone();
                                     let created = session_info.created_at.clone();
 
-                                    let device_icon = if device.to_lowercase().contains("mobile")
-                                        || device.to_lowercase().contains("android")
-                                        || device.to_lowercase().contains("iphone")
-                                        || device.to_lowercase().contains("tablet")
-                                        || device.to_lowercase().contains("ipad")
-                                    {
+                                    let device_icon = if device.to_lowercase().contains("mobile") || device.to_lowercase().contains("android") || device.to_lowercase().contains("iphone") {
+                                        "📱"
+                                    } else if device.to_lowercase().contains("tablet") || device.to_lowercase().contains("ipad") {
                                         "📱"
                                     } else {
                                         "💻"

@@ -65,7 +65,6 @@ pub struct SystemStats {
     pub active_sessions: u64,
     pub total_secrets: u64,
     pub total_keys: u64,
-    pub total_policies: u64,
     pub storage_usage_bytes: u64,
     pub cache_hit_rate: f64,
     pub requests_per_minute: f64,
@@ -251,7 +250,6 @@ impl AdminService {
             active_sessions,
             total_secrets: storage_stats.total_entries,
             total_keys: storage_stats.total_entries, // Count of encrypted entries
-            total_policies: 25,                      // Placeholder
             storage_usage_bytes: storage_stats.total_size_bytes,
             cache_hit_rate: crate::middleware::get_cache_hit_rate(),
             requests_per_minute,

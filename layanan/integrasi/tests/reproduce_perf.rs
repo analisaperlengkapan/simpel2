@@ -74,13 +74,18 @@ async fn test_siman_assets_pagination_performance() {
         base_url: "http://localhost".to_string(),
         mysimkari_base_url: "http://localhost".to_string(),
         siman_base_url: mock_server.uri(),
+        db_config: None,
+        scheduler_enabled: false,
+        monsakti_schedule: "".to_string(),
+        mysimkari_schedule: "".to_string(),
+        siman_schedule: "".to_string(),
+        scheduler_timezone: "".to_string(),
         siman_token_url: format!("{}/connect/token", mock_server.uri()),
         siman_client_id: Some("mock_client".to_string()),
         siman_client_secret: Some("mock_secret".to_string()),
         siman_ba_key: Some("TEST_BA".to_string()),
         tokens: HashMap::new(),
         output_dir: "./output_test".to_string(), // Use a test output dir
-        db_config: None,
         siman_concurrency_limit: 20,
         ..Default::default()
     };

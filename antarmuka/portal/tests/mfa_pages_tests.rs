@@ -30,7 +30,6 @@ mod mock_api {
         })
     }
 
-#[allow(dead_code)]
     pub fn mock_mfa_verification_success() -> serde_json::Value {
         json!({
             "success": true,
@@ -38,7 +37,6 @@ mod mock_api {
         })
     }
 
-#[allow(dead_code)]
     pub fn mock_mfa_verification_failure() -> serde_json::Value {
         json!({
             "success": false,
@@ -94,7 +92,7 @@ mod mfa_setup_page_tests {
         let container = page_test_utils::create_test_router();
 
         // Mock the MFA setup page component
-        let _ = mount_to(
+        mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -178,7 +176,7 @@ mod mfa_setup_page_tests {
 
         let (qr_data, set_qr_data) = signal(None::<serde_json::Value>);
 
-        let _ = mount_to(
+        mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -234,7 +232,7 @@ mod mfa_setup_page_tests {
         let (otp_code, set_otp_code) = signal(String::new());
         let (verification_result, set_verification_result) = signal(None::<bool>);
 
-        let _ = mount_to(
+        mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -357,7 +355,7 @@ mod mfa_verification_page_tests {
         let (otp_code, set_otp_code) = signal(String::new());
         let (attempts_remaining, _set_attempts_remaining) = signal(3);
 
-        let _ = mount_to(
+        mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -452,7 +450,7 @@ mod mfa_verification_page_tests {
         let (verification_status, set_verification_status) = signal(None::<String>);
         let (is_verifying, set_is_verifying) = signal(false);
 
-        let _ = mount_to(
+        mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {

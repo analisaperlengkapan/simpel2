@@ -8,8 +8,8 @@ use anyhow::Result;
 use secreton_storage::{SecretEntry, SecurityLevel, StorageBackend};
 use std::sync::Arc;
 
-const VAULT_STATE_PATH: &str = "sys/seal/state";
-const VAULT_STATE_OWNER: &str = "system";
+const SECRETON_STATE_PATH: &str = "sys/seal/state";
+const SECRETON_STATE_OWNER: &str = "system";
 
 /// Storage adapter for SealService to use StorageBackend
 /// This adapter implements the EngineStateStorage trait required by SealService
@@ -35,11 +35,11 @@ impl EngineStateStorage for SealStorageAdapter {
         tracing::info!("Storing engine state (size: {} bytes)", json_data.len());
 
         let entry = SecretEntry::new(
-            VAULT_STATE_PATH.to_string(),
+            SECRETON_STATE_PATH.to_string(),
             json_data,
             serde_json::json!({}), // No additional encryption metadata at this level
             SecurityLevel::TopSecret,
-            VAULT_STATE_OWNER.to_string(),
+            SECRETON_STATE_OWNER.to_string(),
         );
 
         self.storage
@@ -55,7 +55,7 @@ impl EngineStateStorage for SealStorageAdapter {
 
         let entry = self
             .storage
-            .get_by_path(VAULT_STATE_PATH)
+            .get_by_path(SECRETON_STATE_PATH)
             .await
             .map_err(|e| format!("Failed to load engine state: {}", e))?;
 
@@ -117,11 +117,11 @@ mod tests {
             .expect("Failed to store engine state");
 
         // Verify storage content directly
-        let stored_entry = storage.get_by_path(VAULT_STATE_PATH).await.unwrap();
+        let stored_entry = storage.get_by_path(SECRETON_STATE_PATH).await.unwrap();
         assert!(stored_entry.is_some());
         let entry = stored_entry.unwrap();
         assert_eq!(entry.security_level, SecurityLevel::TopSecret);
-        assert_eq!(entry.owner_id, VAULT_STATE_OWNER);
+        assert_eq!(entry.owner_id, SECRETON_STATE_OWNER);
 
         // Test Load
         let loaded_state = adapter

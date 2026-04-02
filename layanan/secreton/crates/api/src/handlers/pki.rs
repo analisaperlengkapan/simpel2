@@ -22,7 +22,7 @@ use secreton_core::services::secrets::pki::{CertificateTemplate, OcspResponse, R
 /// Create PKI routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/ocsp/{serial}", get(get_ocsp_status))
+        .route("/ocsp/:serial", get(get_ocsp_status))
         .route("/renewal/config", get(get_renewal_config))
         .route("/renewal/config", post(set_renewal_config))
         .route("/renewal/check", get(check_renewal))

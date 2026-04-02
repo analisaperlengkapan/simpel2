@@ -8,7 +8,7 @@
 //! - Role types, capabilities, policy rules stored in PostgreSQL
 //! - Policies can be cached in Raft for HA (optional)
 //! - Caching layer reduces database round-trips
-//! - Follows HashiCorp Vault best practices
+//! - Follows HashiCorp Secreton best practices
 
 use crate::models::dynamic_role::{
     AuthMethodType, Capability, DynamicRoleStore, EffectiveCapabilities, EngineRoleType,

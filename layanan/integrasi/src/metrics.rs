@@ -70,9 +70,9 @@ mod tests {
 
     #[test]
     fn test_export_metrics() {
-        // Record a value to ensure metrics are present in the registry
+        // Record a metric to ensure registry is not empty
         integration_syncs_total()
-            .with_label_values(&["test", "test", "success"])
+            .with_label_values(&["test", "sync", "success"])
             .inc();
 
         // Test that metrics can be exported

@@ -1,12 +1,12 @@
 //! Dynamic Role and Capability System for Secreton
 //!
 //! This module provides a fully dynamic, database-driven role and permission system
-//! following HashiCorp Vault best practices.
+//! following HashiCorp Secreton best practices.
 //!
 //! # Design Principles
 //!
 //! 1. **Policy-Based Authorization**: Access determined by policies, not role names
-//! 2. **Path-Based Access Control**: Vault-style path patterns with glob matching
+//! 2. **Path-Based Access Control**: Secreton-style path patterns with glob matching
 //! 3. **Capability-Based Permissions**: Fine-grained, composable permissions
 //! 4. **Namespace Isolation**: Multi-tenant support
 //! 5. **Bootstrap-Only Defaults**: Only essential system roles pre-defined
@@ -19,7 +19,7 @@
 //! // Check if user has a capability
 //! let has_access = role_store.user_has_capability(user_id, "encrypt", "default").await?;
 //!
-//! // Check path-based access (Vault-style)
+//! // Check path-based access (Secreton-style)
 //! let can_access = role_store.check_path_access(&policies, "secret/data/app/*", "read").await?;
 //! ```
 
@@ -250,7 +250,7 @@ impl EngineRoleType {
 }
 
 // ============================================================================
-// POLICY RULE (Vault-style)
+// POLICY RULE (Secreton-style)
 // ============================================================================
 
 /// Policy rule for path-based access control

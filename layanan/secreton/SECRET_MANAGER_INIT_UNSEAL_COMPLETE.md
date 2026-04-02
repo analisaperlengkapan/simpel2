@@ -267,11 +267,11 @@ curl http://localhost:8200/v1/secret/my-app/db \
 
 ## Documentation Created
 
-1. `VAULT_INITIALIZATION_GUIDE.md` - Complete initialization guide
-2. `VAULT_WORKFLOW_COMPLETE.md` - Complete workflow documentation
+1. `SECRETON_INITIALIZATION_GUIDE.md` - Complete initialization guide
+2. `SECRETON_WORKFLOW_COMPLETE.md` - Complete workflow documentation
 3. `KNOWN_ISSUES.md` - Known issues and limitations
 4. `DOCKER_BUILD_SUCCESS.md` - Docker build documentation
-5. `VAULT_INIT_UNSEAL_COMPLETE.md` - This file
+5. `SECRETON_INIT_UNSEAL_COMPLETE.md` - This file
 
 ## Next Steps
 

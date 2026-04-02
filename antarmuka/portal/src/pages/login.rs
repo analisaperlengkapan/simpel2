@@ -41,7 +41,10 @@ pub fn LoginPage(
         let api = api.clone();
         let nav = navigate.clone();
         Effect::new(move || {
-            let _count = passkey_trigger.get();
+            let count = passkey_trigger.get();
+            if count == 0 {
+                return;
+            }
             let api = api.clone();
             let nav = nav.clone();
             set_passkey_loading.set(true);
@@ -157,6 +160,7 @@ pub fn LoginPage(
         if captcha_token.get().is_none() {
             set_error_message
                 .set("Silakan selesaikan verifikasi keamanan terlebih dahulu.".to_string());
+            return;
         }
 
         set_is_loading.set(true);
@@ -201,6 +205,7 @@ pub fn LoginPage(
                         if let Some(window) = web_sys::window() {
                             let _ = window.location().set_href("/");
                         }
+                        return;
                     } else {
                         nav("/dashboard", Default::default());
                     }

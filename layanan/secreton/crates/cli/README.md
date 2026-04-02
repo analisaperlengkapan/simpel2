@@ -12,7 +12,7 @@ cargo install --path crates/cli
 
 ### Seal/Unseal Operations
 
-#### Initialize Secret Vault
+#### Initialize Secret Secreton
 
 Initialize the engine and generate Shamir secret shares:
 
@@ -43,7 +43,7 @@ Output shows:
 - Total shares and threshold
 - Unseal progress (if unsealing)
 
-#### Seal Secret Vault
+#### Seal Secret Secreton
 
 Seal the engine (blocks all operations):
 
@@ -51,7 +51,7 @@ Seal the engine (blocks all operations):
 secreton seal seal
 ```
 
-#### Unseal Secret Vault
+#### Unseal Secret Secreton
 
 Unseal the engine with key shares:
 
@@ -482,8 +482,8 @@ secreton operator diagnose
 
 This command checks:
 - Connectivity to the engine server
-- Secret Vault initialization status
-- Secret Vault seal status
+- Secret Secreton initialization status
+- Secret Secreton seal status
 - Authentication status and token validity
 
 ### Audit Log Commands
@@ -628,7 +628,7 @@ Example policy files are available in `layanan/secreton/examples/policies/`:
 
 ## Examples
 
-### Complete Secret Vault Setup Workflow
+### Complete Secret Secreton Setup Workflow
 
 ```bash
 # 1. Initialize engine
@@ -860,7 +860,7 @@ secreton policy test my-policy --path secret/data/myapp --action read
 - Providing the same key multiple times won't work
 - Check the threshold with `secreton seal status`
 
-### Secret Vault Already Sealed/Unsealed
+### Secret Secreton Already Sealed/Unsealed
 
 - Check current status with `secreton seal status`
 - Use `secreton seal unseal --reset` to reset unseal progress

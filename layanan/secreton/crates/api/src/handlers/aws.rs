@@ -23,10 +23,10 @@ pub fn create_routes() -> Router<AppState> {
         .route("/config/root", get(get_aws_config))
         .route("/roles", post(create_aws_role))
         .route("/roles", get(list_aws_roles))
-        .route("/roles/{role_name}", get(get_aws_role))
-        .route("/roles/{role_name}", delete(delete_aws_role))
-        .route("/creds/{role_name}", get(generate_aws_credentials))
-        .route("/sts/{role_name}", post(generate_sts_credentials))
+        .route("/roles/:role_name", get(get_aws_role))
+        .route("/roles/:role_name", delete(delete_aws_role))
+        .route("/creds/:role_name", get(generate_aws_credentials))
+        .route("/sts/:role_name", post(generate_sts_credentials))
 }
 
 /// Configure AWS root credentials

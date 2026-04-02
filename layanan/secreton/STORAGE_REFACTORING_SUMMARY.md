@@ -120,7 +120,7 @@ path = "/var/lib/secreton/data"
 - ✅ Feature flag documentation
 - ✅ Programmatic usage examples
 
-#### Secret Vault Comparison (`VAULT_COMPARISON.md`)
+#### Secret Vault Comparison (`SECRETON_COMPARISON.md`)
 
 - ✅ Comprehensive 200+ line comparison document
 - ✅ Storage backend philosophy explanation

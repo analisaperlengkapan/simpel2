@@ -524,9 +524,9 @@ pub fn create_routes() -> axum::Router<std::sync::Arc<crate::services::ServiceCo
 
     axum::Router::new()
         .route("/env", post(inject_env))
-        .route("/cleanup/{session_id}", delete(cleanup_session))
+        .route("/cleanup/:session_id", delete(cleanup_session))
         .route("/sessions", get(list_sessions))
-        .route("/sessions/{session_id}", get(get_session_details))
+        .route("/sessions/:session_id", get(get_session_details))
 }
 
 #[cfg(test)]

@@ -12,7 +12,7 @@ pub struct SystemMetrics {
     pub cpu_usage: CpuMetrics,
     pub disk_usage: DiskMetrics,
     pub network: NetworkMetrics,
-    pub vault: VaultMetrics,
+    pub secreton: SecretonMetrics,
 }
 
 /// Memory usage statistics
@@ -65,9 +65,9 @@ pub struct NetworkMetrics {
     pub packets_received: u64,
 }
 
-/// Vault/Secreton specific metrics
+/// Secreton specific metrics
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct VaultMetrics {
+pub struct SecretonMetrics {
     /// Total number of stored secrets
     pub total_secrets: u64,
     /// Total number of cryptographic keys

@@ -25,16 +25,16 @@ pub fn create_routes() -> Router<AppState> {
         // Role management
         .route("/roles", post(create_role))
         .route("/roles", get(list_roles))
-        .route("/roles/{name}", get(get_role))
+        .route("/roles/:name", get(get_role))
         // CA management
         .route("/ca", post(create_ca))
         .route("/ca", get(list_cas))
-        .route("/ca/{name}/public_key", get(get_ca_public_key))
+        .route("/ca/:name/public_key", get(get_ca_public_key))
         // Key generation
-        .route("/creds/{role}", post(generate_keypair))
+        .route("/creds/:role", post(generate_keypair))
         // Certificate signing
-        .route("/sign/{ca}/{role}", post(sign_certificate))
-        .route("/sign-host/{ca}/{role}", post(sign_host_certificate))
+        .route("/sign/:ca/:role", post(sign_certificate))
+        .route("/sign-host/:ca/:role", post(sign_host_certificate))
         // OTP operations
         .route("/otp/generate", post(generate_otp))
         .route("/otp/verify", post(verify_otp))

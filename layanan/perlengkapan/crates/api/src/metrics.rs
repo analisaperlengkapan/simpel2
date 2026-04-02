@@ -276,10 +276,16 @@ mod tests {
 
     #[test]
     fn test_export_metrics() {
+        // Record a metric to ensure registry is not empty
+        http_requests_total()
+            .with_label_values(&["GET", "/health", "200"])
+            .inc();
+
         // Test that metrics can be exported
         let result = export_metrics();
         assert!(result.is_ok());
         let metrics_text = result.unwrap();
         assert!(!metrics_text.is_empty());
+        assert!(metrics_text.contains("http_requests_total"));
     }
 }

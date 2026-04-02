@@ -27,7 +27,7 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/raft/join", post(add_peer))
         .route("/raft/peers", get(list_peers))
-        .route("/raft/peers/{node_id}", delete(remove_peer))
+        .route("/raft/peers/:node_id", delete(remove_peer))
         .route("/raft/status", get(get_cluster_status))
         .route("/raft/election-stats", get(get_election_stats))
         .route("/raft/snapshot", post(create_snapshot))

@@ -852,13 +852,13 @@ pub fn create_routes() -> axum::Router<std::sync::Arc<crate::services::ServiceCo
 
     axum::Router::new()
         .route("/subscribe", post(subscribe_webhook))
-        .route("/subscribe/{subscription_id}", delete(unsubscribe_webhook))
+        .route("/subscribe/:subscription_id", delete(unsubscribe_webhook))
         .route("/subscriptions", get(list_subscriptions))
-        .route("/subscriptions/{subscription_id}", get(get_subscription))
-        .route("/subscriptions/{subscription_id}", put(update_subscription))
+        .route("/subscriptions/:subscription_id", get(get_subscription))
+        .route("/subscriptions/:subscription_id", put(update_subscription))
         .route("/deliveries", get(list_deliveries))
-        .route("/deliveries/{delivery_id}", get(get_delivery))
-        .route("/deliveries/{delivery_id}/retry", post(retry_delivery))
+        .route("/deliveries/:delivery_id", get(get_delivery))
+        .route("/deliveries/:delivery_id/retry", post(retry_delivery))
 }
 
 #[cfg(test)]

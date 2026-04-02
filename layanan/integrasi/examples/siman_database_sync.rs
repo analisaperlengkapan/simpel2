@@ -16,14 +16,11 @@ use uuid::Uuid;
 /// Hasil sinkronisasi per kategori
 #[derive(Debug)]
 pub struct SyncResult {
-    #[allow(dead_code)]
     pub category: SimanAssetCategory,
     pub table_name: String,
-    #[allow(dead_code)]
     pub total_records: i32,
     pub success_records: i32,
     pub failed_records: i32,
-    #[allow(dead_code)]
     pub sync_id: Uuid,
     pub duration_secs: f64,
 }

@@ -396,14 +396,16 @@ pub async fn add_essential_indexes(pool: &Pool) -> Result<(), AppError> {
 mod tests {
     use super::*;
 
+    fn create_test_optimizer() -> DatabaseOptimizer {
+        let mut cfg = deadpool_postgres::Config::new();
+        cfg.dbname = Some("test".to_string());
+        let pool = cfg.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
+        DatabaseOptimizer::new(pool, Arc::new(CacheManager::new()))
+    }
+
     #[test]
     fn test_extract_table_name() {
-        let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
-            Arc::new(CacheManager::new()),
-        );
+        let optimizer = create_test_optimizer();
 
         let query = "select * from perlengkapan.kebutuhan_bmn where status = 'approved'";
         let table = optimizer.extract_table_name(query);
@@ -412,12 +414,7 @@ mod tests {
 
     #[test]
     fn test_extract_where_column() {
-        let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
-            Arc::new(CacheManager::new()),
-        );
+        let optimizer = create_test_optimizer();
 
         let query = "select * from kebutuhan_bmn where status = 'approved'";
         let column = optimizer.extract_where_column(query);
@@ -426,12 +423,7 @@ mod tests {
 
     #[test]
     fn test_optimize_query() {
-        let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
-            Arc::new(CacheManager::new()),
-        );
+        let optimizer = create_test_optimizer();
 
         let query = "SELECT * FROM kebutuhan_bmn";
         let optimized = optimizer.optimize_query(query);

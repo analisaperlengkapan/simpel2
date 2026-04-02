@@ -24,10 +24,10 @@ use super::AppState;
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/store", post(store_secret))
-        .route("/retrieve/{path}", get(retrieve_secret))
+        .route("/retrieve/:path", get(retrieve_secret))
         .route("/derive-params", post(derive_params))
         .route("/list", get(list_secrets))
-        .route("/delete/{path}", post(delete_secret))
+        .route("/delete/:path", post(delete_secret))
 }
 
 /// Store secret request

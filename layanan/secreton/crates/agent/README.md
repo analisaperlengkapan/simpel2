@@ -66,7 +66,7 @@ sink:
   types: ["file", "env"]
   file_path: "/var/run/secrets/engine-token"
   file_permissions: "0600"
-  env_var: "VAULT_TOKEN"
+  env_var: "SECRETON_TOKEN"
 
 health_port: 9900
 ```

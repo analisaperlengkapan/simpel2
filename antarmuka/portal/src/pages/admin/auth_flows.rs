@@ -56,6 +56,7 @@ pub fn AuthFlowsPage() -> impl IntoView {
     let (active_tab, set_active_tab) = signal(AuthFlowTab::Flows);
 
     let on_logout = {
+        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());

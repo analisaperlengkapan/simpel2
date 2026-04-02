@@ -19,7 +19,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokens: HashMap::new(),
         output_dir: "./bench_output".to_string(),
         db_config: None,
-        siman_concurrency_limit: 20, ..Default::default()
+        siman_concurrency_limit: 20,
+        scheduler_enabled: false,
+        monsakti_schedule: "".to_string(),
+        mysimkari_schedule: "".to_string(),
+        siman_schedule: "".to_string(),
+        scheduler_timezone: "".to_string(),
     };
 
     // Initialize client

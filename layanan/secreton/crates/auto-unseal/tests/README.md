@@ -254,7 +254,7 @@ All test structures are complete and will work once the Azure SDK issue is resol
 
 ```bash
 # Set up Azure credentials
-export AZURE_VAULT_NAME="secreton-test"
+export AZURE_SECRETON_NAME="secreton-test"
 export AZURE_KEY_NAME="auto-unseal-key"
 
 # Optional: Use service principal authentication

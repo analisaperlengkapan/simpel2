@@ -247,6 +247,42 @@ impl KubernetesSecretsEngine {
         Ok(())
     }
 
+    /// Get Kubernetes role details
+    pub async fn get_role(&self, name: &str) -> Option<KubernetesRole> {
+        let roles = self.roles.read().await;
+        roles.get(name).cloned()
+    }
+
+    /// List all Kubernetes role names
+    pub async fn list_roles(&self) -> Vec<String> {
+        let roles = self.roles.read().await;
+        roles.keys().cloned().collect()
+    }
+
+    /// Delete a Kubernetes role
+    pub async fn delete_role(&self, name: &str) -> bool {
+        let mut roles = self.roles.write().await;
+        roles.remove(name).is_some()
+    }
+
+    /// Get Kubernetes connection details
+    pub async fn get_connection(&self, name: &str) -> Option<KubernetesConnection> {
+        let connections = self.connections.read().await;
+        connections.get(name).cloned()
+    }
+
+    /// List all Kubernetes connection names
+    pub async fn list_connections(&self) -> Vec<String> {
+        let connections = self.connections.read().await;
+        connections.keys().cloned().collect()
+    }
+
+    /// Delete a Kubernetes connection
+    pub async fn delete_connection(&self, name: &str) -> bool {
+        let mut connections = self.connections.write().await;
+        connections.remove(name).is_some()
+    }
+
     /// Generate service account token for a role
     pub async fn generate_token(
         &self,

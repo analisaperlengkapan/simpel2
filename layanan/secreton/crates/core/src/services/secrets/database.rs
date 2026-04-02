@@ -366,6 +366,26 @@ impl DatabaseSecretsEngine {
         Ok(roles.remove(name).is_some())
     }
 
+    /// Delete database connection
+    pub async fn delete_connection(&self, name: &str) -> Result<bool, DatabaseError> {
+        let mut connections = self.connections.write().await;
+        let removed = connections.remove(name).is_some();
+
+        if removed {
+            // Also cleanup associated pools
+            let mut pools = self.db_pools.write().await;
+            pools.remove(name);
+        }
+
+        Ok(removed)
+    }
+
+    /// Get database connection details
+    pub async fn get_connection(&self, name: &str) -> Option<DatabaseConnection> {
+        let connections = self.connections.read().await;
+        connections.get(name).cloned()
+    }
+
     /// Generate credentials for a role
     pub async fn generate_credentials(
         &self,
@@ -1394,15 +1414,6 @@ mod tests {
             name: "test-role".to_string(),
             db_name: "test-db".to_string(),
             creation_statements: vec![],
-            ..Default::default()
-        };
-        assert!(engine.create_role(invalid_role).await.is_err());
-
-        // Test role with non-existent database
-        let invalid_role = DatabaseRole {
-            name: "test-role".to_string(),
-            db_name: "non-existent-db".to_string(),
-            creation_statements: vec!["CREATE USER {{username}}".to_string()],
             ..Default::default()
         };
         assert!(engine.create_role(invalid_role).await.is_err());

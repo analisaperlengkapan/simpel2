@@ -20,7 +20,7 @@ use secreton_core::services::key_hierarchy::KeyMetadata;
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/key-hierarchy/status", get(get_key_hierarchy_status))
-        .route("/keys/lineage/{key_id}", get(get_key_lineage))
+        .route("/keys/lineage/:key_id", get(get_key_lineage))
 }
 
 /// Response for key hierarchy status

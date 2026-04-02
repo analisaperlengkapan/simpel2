@@ -21,13 +21,13 @@ pub fn create_routes() -> Router<AppState> {
         .route("/config", get(get_kmip_config))
         .route("/keys", post(create_key))
         .route("/keys", get(list_keys))
-        .route("/keys/{key_id}", get(get_key))
-        .route("/keys/{key_id}/activate", post(activate_key))
-        .route("/keys/{key_id}/revoke", post(revoke_key))
-        .route("/keys/{key_id}/destroy", delete(destroy_key))
+        .route("/keys/:key_id", get(get_key))
+        .route("/keys/:key_id/activate", post(activate_key))
+        .route("/keys/:key_id/revoke", post(revoke_key))
+        .route("/keys/:key_id/destroy", delete(destroy_key))
         .route("/register", post(register_key))
         .route("/roles", post(create_role))
-        .route("/roles/{role_name}", get(get_role))
+        .route("/roles/:role_name", get(get_role))
 }
 
 /// Configure KMIP server connection

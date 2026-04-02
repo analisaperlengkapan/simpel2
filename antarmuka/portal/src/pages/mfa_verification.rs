@@ -9,8 +9,8 @@ use leptos::task::spawn_local;
 use leptos_router;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 /// MFA verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,7 +185,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                 on:click={
                                     let navigate = navigate.clone();
                                     let is_mounted = mounted.clone();
-                                    let set_user_session = set_user_session;
+                                    let set_user_session = set_user_session.clone();
                                     let otp_code = otp_code;
                                     let temp_token_value = temp_token_value;
                                     move |_| {
@@ -209,7 +209,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
 
                                         let nav = navigate.clone();
                                         let is_mounted = is_mounted.clone();
-                                        let set_user_session = set_user_session;
+                                        let set_user_session = set_user_session.clone();
                                         spawn_local(async move {
                                             match verify_mfa_code(&temp_token, &code).await {
                                                 Ok(response) => {

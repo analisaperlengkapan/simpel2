@@ -37,6 +37,7 @@ pub fn LinkedAccountsPage() -> impl IntoView {
     let (active_tab, set_active_tab) = signal(LinkedTab::LinkedAccounts);
 
     let on_logout = {
+        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());

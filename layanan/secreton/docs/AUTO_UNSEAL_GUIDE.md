@@ -630,7 +630,7 @@ spec:
         env:
         - name: SECRETON_AUTO_UNSEAL_PROVIDER
           value: "azure-kv"
-        - name: SECRETON_AUTO_UNSEAL_AZURE_VAULT_NAME
+        - name: SECRETON_AUTO_UNSEAL_AZURE_SECRETON_NAME
           value: "secreton-kv"
         - name: SECRETON_AUTO_UNSEAL_AZURE_KEY_NAME
           value: "auto-unseal-key"
@@ -742,7 +742,7 @@ client_secret = "${AZURE_CLIENT_SECRET}"
 | `SECRETON_AUTO_UNSEAL_GCP_CRYPTO_KEY` | Crypto key | `auto-unseal-key` |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Credentials file | `/path/to/key.json` |
 | **Azure Key Vault** | | |
-| `SECRETON_AUTO_UNSEAL_AZURE_VAULT_NAME` | Vault name | `secreton-kv` |
+| `SECRETON_AUTO_UNSEAL_AZURE_SECRETON_NAME` | Vault name | `secreton-kv` |
 | `SECRETON_AUTO_UNSEAL_AZURE_KEY_NAME` | Key name | `auto-unseal-key` |
 | `AZURE_TENANT_ID` | Tenant ID | `12345678-...` |
 | `AZURE_CLIENT_ID` | Client ID | `87654321-...` |

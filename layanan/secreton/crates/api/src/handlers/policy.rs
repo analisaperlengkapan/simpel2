@@ -39,7 +39,7 @@ pub fn create_routes() -> Router<AppState> {
                 .put(update_policy)
                 .delete(delete_policy),
         )
-        .route("/policies/{name}/test", post(test_policy))
+        .route("/policies/:name/test", post(test_policy))
 }
 
 // ============================================================================

@@ -171,7 +171,8 @@ mod oauth_flow_tests {
 
         // In non-WASM environment, this will return an error
         // In WASM environment with mock mode, this should succeed
-        if let Ok(token_response) = result {
+        if result.is_ok() {
+            let token_response = result.unwrap();
             assert!(!token_response.access_token.is_empty());
             assert_eq!(token_response.token_type, "Bearer");
             assert!(token_response.expires_in > 0);

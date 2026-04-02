@@ -763,8 +763,8 @@ async fn check_auto_unseal_status(_state: &AppState) -> Option<crate::response::
         }
         "azure-kv" => {
             let key_id = std::env::var("SECRETON_AUTO_UNSEAL_AZURE_KEY_NAME").ok();
-            let vault_url = std::env::var("SECRETON_AUTO_UNSEAL_AZURE_VAULT_URL").ok();
-            (key_id, None, vault_url)
+            let secreton_url = std::env::var("SECRETON_AUTO_UNSEAL_AZURE_SECRETON_URL").ok();
+            (key_id, None, secreton_url)
         }
         "transit" => {
             let key_name = std::env::var("SECRETON_AUTO_UNSEAL_TRANSIT_KEY_NAME").ok();

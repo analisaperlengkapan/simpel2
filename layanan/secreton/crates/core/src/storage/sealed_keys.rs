@@ -1,7 +1,7 @@
 //! Sealed Master Key Storage Operations
 //!
 //! This module provides storage operations for sealed master keys used in auto-unseal.
-//! Sealed master keys are encrypted by external KMS providers (AWS KMS, GCP KMS, Azure Key Vault, Transit)
+//! Sealed master keys are encrypted by external KMS providers (AWS KMS, GCP KMS, Azure Key Secreton, Transit)
 //! and stored in PostgreSQL for retrieval during auto-unseal operations.
 
 use async_trait::async_trait;
@@ -19,7 +19,7 @@ pub enum ProviderType {
     AwsKms,
     /// GCP KMS
     GcpKms,
-    /// Azure Key Vault
+    /// Azure Key Secreton
     AzureKv,
     /// Transit engine (another Secreton instance)
     Transit,

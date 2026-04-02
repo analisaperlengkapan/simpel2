@@ -5,11 +5,11 @@
 use crate::components::layout::AuthLayout;
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 use leptos_router;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use leptos::task::spawn_local;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 /// Backup code verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,8 +66,8 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (attempts_remaining, set_attempts_remaining) = signal(5);
     let (is_locked, set_is_locked) = signal(false);
-    let (remaining_codes, _set_remaining_codes) = signal(None::<i32>);
-    let (verification_success, _set_verification_success) = signal(false);
+    let (remaining_codes, set_remaining_codes) = signal(None::<i32>);
+    let (verification_success, set_verification_success) = signal(false);
 
     let navigate = leptos_router::hooks::use_navigate();
 
@@ -208,7 +208,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                 on:click={
                                     let navigate = navigate.clone();
                                     let mounted = mounted.clone();
-                                    let set_user_session = set_user_session;
+                                    let set_user_session = set_user_session.clone();
                                     move |_| {
                                         let code = backup_code.get();
                                         if code.len() != 8 {
@@ -230,7 +230,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
                                         let nav = navigate.clone();
                                         let is_mounted = mounted.clone();
-                                        let set_user_session = set_user_session;
+                                        let set_user_session = set_user_session.clone();
                                         spawn_local(async move {
                                             match verify_backup_code(&temp_token, &code).await {
                                                 Ok(response) => {
@@ -264,8 +264,8 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                                                 AuthService::clear_temp_token();
 
                                                                 // Show success with remaining codes count
-                                                                _set_remaining_codes.set(Some(response.data.remaining_codes));
-                                                                _set_verification_success.set(true);
+                                                                set_remaining_codes.set(Some(response.data.remaining_codes));
+                                                                set_verification_success.set(true);
                                                                 set_is_loading.set(false);
 
                                                                 // Redirect after showing success.

@@ -24,18 +24,18 @@ pub fn create_routes() -> Router<AppState> {
         // User management
         .route("/users", get(list_users))
         .route("/users", post(create_user))
-        .route("/users/{user_id}", get(get_user))
-        .route("/users/{user_id}", put(update_user))
-        .route("/users/{user_id}", delete(delete_user))
-        .route("/users/{user_id}/roles", get(get_user_roles))
-        .route("/users/{user_id}/roles", post(assign_user_roles))
-        .route("/users/{user_id}/permissions", get(get_user_permissions))
+        .route("/users/:user_id", get(get_user))
+        .route("/users/:user_id", put(update_user))
+        .route("/users/:user_id", delete(delete_user))
+        .route("/users/:user_id/roles", get(get_user_roles))
+        .route("/users/:user_id/roles", post(assign_user_roles))
+        .route("/users/:user_id/permissions", get(get_user_permissions))
         // Role management
         .route("/roles", get(list_roles))
         .route("/roles", post(create_role))
-        .route("/roles/{role_name}", get(get_role))
-        .route("/roles/{role_name}", put(update_role))
-        .route("/roles/{role_name}", delete(delete_role))
+        .route("/roles/:role_name", get(get_role))
+        .route("/roles/:role_name", put(update_role))
+        .route("/roles/:role_name", delete(delete_role))
         // System configuration
         .route("/config", get(get_config))
         .route("/config", put(update_config))
@@ -957,7 +957,7 @@ pub async fn get_system_metrics(
         engine: EngineMetrics {
             total_secrets: stats.total_secrets,
             total_keys: stats.total_keys,
-            total_policies: stats.total_policies,
+            total_policies: 25, // Placeholder - policy count not yet in stats
             active_sessions: stats.active_sessions,
             operations_per_second: stats.requests_per_minute / 60.0,
         },

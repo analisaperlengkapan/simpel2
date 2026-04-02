@@ -219,7 +219,7 @@ async fn handle_client_message(text: &str, socket: &mut WebSocket) -> anyhow::Re
 /// This function should be called whenever dashboard metrics change.
 ///
 /// # Example
-/// ```rust
+/// ```rust,no_run
 /// use crate::dashboard::websocket::{broadcast_dashboard_update, DashboardUpdate};
 ///
 /// // After workflow transition

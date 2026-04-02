@@ -35,10 +35,10 @@ pub fn create_routes() -> Router<AppState> {
         .route("/mfa/setup", post(setup_mfa))
         .route("/mfa/verify", post(verify_mfa))
         .route("/mfa/disable", post(disable_mfa))
-        .route("/oauth/{provider}", get(oauth_login))
-        .route("/oauth/{provider}/callback", get(oauth_callback))
+        .route("/oauth/:provider", get(oauth_login))
+        .route("/oauth/:provider/callback", get(oauth_callback))
         .route("/sessions", get(list_sessions))
-        .route("/sessions/{session_id}", delete(revoke_session))
+        .route("/sessions/:session_id", delete(revoke_session))
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]

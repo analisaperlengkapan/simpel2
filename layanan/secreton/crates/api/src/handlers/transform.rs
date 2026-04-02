@@ -25,15 +25,15 @@ pub fn create_routes() -> Router<AppState> {
         // Transformation management
         .route("/transformation", post(create_transformation))
         .route("/transformation", get(list_transformations))
-        .route("/transformation/{name}", get(get_transformation))
-        .route("/transformation/{name}", delete(delete_transformation))
+        .route("/transformation/:name", get(get_transformation))
+        .route("/transformation/:name", delete(delete_transformation))
         // Role management
         .route("/role", post(create_role))
         .route("/role", get(list_roles))
-        .route("/role/{name}", get(get_role))
+        .route("/role/:name", get(get_role))
         // Encode/Decode operations
-        .route("/encode/{role}/{transformation}", post(encode_value))
-        .route("/decode/{role}/{transformation}", post(decode_value))
+        .route("/encode/:role/:transformation", post(encode_value))
+        .route("/decode/:role/:transformation", post(decode_value))
         // Batch operations
         .route(
             "/batch/encode/{role}/{transformation}",

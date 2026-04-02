@@ -24,10 +24,10 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/keys", post(create_totp_key))
         .route("/keys", get(list_totp_keys))
-        .route("/keys/{key_name}", get(get_totp_key))
-        .route("/keys/{key_name}", delete(delete_totp_key))
-        .route("/code/{key_name}", post(generate_totp_code))
-        .route("/validate/{key_name}", post(validate_totp_code))
+        .route("/keys/:key_name", get(get_totp_key))
+        .route("/keys/:key_name", delete(delete_totp_key))
+        .route("/code/:key_name", post(generate_totp_code))
+        .route("/validate/:key_name", post(validate_totp_code))
 }
 
 /// Create TOTP key

@@ -40,12 +40,15 @@ pub async fn load_config() {
         use gloo_net::http::Request;
 
         // Coba load dari config.json
-        if let Ok(response) = Request::get("/portal/config.json").send().await
-            && response.ok()
-            && let Ok(config) = response.json::<AppConfig>().await
-            && let Ok(mut c) = APP_CONFIG.write()
-        {
-            *c = config;
+        if let Ok(response) = Request::get("/portal/config.json").send().await {
+            if response.ok() {
+                if let Ok(config) = response.json::<AppConfig>().await {
+                    if let Ok(mut c) = APP_CONFIG.write() {
+                        *c = config;
+                        return;
+                    }
+                }
+            }
         }
     }
 }

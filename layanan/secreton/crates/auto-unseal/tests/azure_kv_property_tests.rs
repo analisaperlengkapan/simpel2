@@ -28,7 +28,7 @@ use secreton_auto_unseal::{
 /// **Note**: These tests require Azure credentials and a valid Key Vault key.
 /// They are integration tests and should be run with:
 /// ```bash
-/// AZURE_VAULT_NAME=secreton-test \
+/// AZURE_SECRETON_NAME=secreton-test \
 /// AZURE_KEY_NAME=auto-unseal-key \
 /// cargo test --features azure-kv -- --ignored
 /// ```
@@ -43,7 +43,7 @@ mod azure_kv_round_trip_tests {
 
     /// Helper to create Azure Key Vault provider from environment variables
     async fn create_test_provider() -> Option<AzureKeyVaultProvider> {
-        let vault_name = std::env::var("AZURE_VAULT_NAME").ok()?;
+        let vault_name = std::env::var("AZURE_SECRETON_NAME").ok()?;
         let key_name = std::env::var("AZURE_KEY_NAME").ok()?;
 
         let config = AzureKeyVaultConfig {
@@ -68,7 +68,7 @@ mod azure_kv_round_trip_tests {
                 let provider = match create_test_provider().await {
                     Some(p) => p,
                     None => {
-                        eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                        eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                         return;
                     }
                 };
@@ -101,7 +101,7 @@ mod azure_kv_round_trip_tests {
                 let provider = match create_test_provider().await {
                     Some(p) => p,
                     None => {
-                        eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                        eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                         return;
                     }
                 };
@@ -132,7 +132,7 @@ mod azure_kv_round_trip_tests {
                 let provider = match create_test_provider().await {
                     Some(p) => p,
                     None => {
-                        eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                        eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                         return;
                     }
                 };
@@ -168,7 +168,7 @@ mod azure_kv_round_trip_tests {
                 let provider = match create_test_provider().await {
                     Some(p) => p,
                     None => {
-                        eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                        eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                         return;
                     }
                 };
@@ -200,7 +200,7 @@ mod azure_kv_round_trip_tests {
                 let provider = match create_test_provider().await {
                     Some(p) => p,
                     None => {
-                        eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                        eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                         return;
                     }
                 };
@@ -241,7 +241,7 @@ mod azure_kv_integration_tests {
         let provider = match create_test_provider().await {
             Some(p) => p,
             None => {
-                eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                 return;
             }
         };
@@ -284,7 +284,7 @@ mod azure_kv_integration_tests {
         let provider = match create_test_provider().await {
             Some(p) => p,
             None => {
-                eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                 return;
             }
         };
@@ -303,7 +303,7 @@ mod azure_kv_integration_tests {
         let provider = match create_test_provider().await {
             Some(p) => p,
             None => {
-                eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                 return;
             }
         };
@@ -328,7 +328,7 @@ mod azure_kv_integration_tests {
         let provider = match create_test_provider().await {
             Some(p) => p,
             None => {
-                eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                 return;
             }
         };
@@ -346,7 +346,7 @@ mod azure_kv_integration_tests {
         let provider = match create_test_provider().await {
             Some(p) => p,
             None => {
-                eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                 return;
             }
         };
@@ -374,7 +374,7 @@ mod azure_kv_integration_tests {
         let provider = match create_test_provider().await {
             Some(p) => p,
             None => {
-                eprintln!("Skipping test: AZURE_VAULT_NAME or AZURE_KEY_NAME not set");
+                eprintln!("Skipping test: AZURE_SECRETON_NAME or AZURE_KEY_NAME not set");
                 return;
             }
         };
@@ -399,7 +399,7 @@ mod azure_kv_integration_tests {
 
     /// Helper to create Azure Key Vault provider from environment variables
     async fn create_test_provider() -> Option<AzureKeyVaultProvider> {
-        let vault_name = std::env::var("AZURE_VAULT_NAME").ok()?;
+        let vault_name = std::env::var("AZURE_SECRETON_NAME").ok()?;
         let key_name = std::env::var("AZURE_KEY_NAME").ok()?;
 
         let config = AzureKeyVaultConfig {
@@ -424,7 +424,7 @@ mod azure_kv_error_tests {
     #[ignore] // Requires Azure credentials
     async fn test_azure_kv_invalid_key_name() {
         let vault_name =
-            std::env::var("AZURE_VAULT_NAME").unwrap_or_else(|_| "test-vault".to_string());
+            std::env::var("AZURE_SECRETON_NAME").unwrap_or_else(|_| "test-vault".to_string());
 
         let config = AzureKeyVaultConfig {
             vault_name,

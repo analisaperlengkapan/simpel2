@@ -13,8 +13,8 @@
 //! let assets = siman.get_existing_assets("001.01.06", "Laptop").await?;
 //! ```
 
-use layanan_integrasi::MonsaktiClient;
-use layanan_integrasi::{SimanAssetCategory, get_aset_by_category, get_row_count};
+use layanan_perlengkapan_integrasi::MonsaktiClient;
+use layanan_perlengkapan_integrasi::{SimanAssetCategory, get_aset_by_category, get_row_count};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -420,69 +420,66 @@ mod tests {
 
     #[tokio::test]
     async fn test_infer_category_tik() {
-        let client_res: Result<layanan_integrasi::MonsaktiClient, _> = layanan_integrasi::MonsaktiClient::new(
-            layanan_integrasi::Config::default(),
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(
+            layanan_perlengkapan_integrasi::Config::default(),
         )
-        .await;
-        if let Ok(client) = client_res {
-            let integration = SimanIntegration::new(client);
+        .await
+        .unwrap();
+        let integration = SimanIntegration::new(client);
 
-            assert_eq!(
-                integration.infer_category("Laptop Dell Latitude"),
-                SimanAssetCategory::KhususTIK
-            );
-            assert_eq!(
-                integration.infer_category("Komputer Desktop HP"),
-                SimanAssetCategory::KhususTIK
-            );
-            assert_eq!(
-                integration.infer_category("Printer Canon LBP"),
-                SimanAssetCategory::KhususTIK
-            );
-        }
+        assert_eq!(
+            integration.infer_category("Laptop Dell Latitude"),
+            SimanAssetCategory::KhususTIK
+        );
+        assert_eq!(
+            integration.infer_category("Komputer Desktop HP"),
+            SimanAssetCategory::KhususTIK
+        );
+        assert_eq!(
+            integration.infer_category("Printer Canon LBP"),
+            SimanAssetCategory::KhususTIK
+        );
     }
 
     #[tokio::test]
     async fn test_infer_category_vehicle() {
-        let client_res: Result<layanan_integrasi::MonsaktiClient, _> = layanan_integrasi::MonsaktiClient::new(
-            layanan_integrasi::Config::default(),
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(
+            layanan_perlengkapan_integrasi::Config::default(),
         )
-        .await;
-        if let Ok(client) = client_res {
-            let integration = SimanIntegration::new(client);
+        .await
+        .unwrap();
+        let integration = SimanIntegration::new(client);
 
-            assert_eq!(
-                integration.infer_category("Mobil Toyota Avanza"),
-                SimanAssetCategory::AngkutanBermotor
-            );
-            assert_eq!(
-                integration.infer_category("Sepeda Motor Honda"),
-                SimanAssetCategory::AngkutanBermotor
-            );
-        }
+        assert_eq!(
+            integration.infer_category("Mobil Toyota Avanza"),
+            SimanAssetCategory::AngkutanBermotor
+        );
+        assert_eq!(
+            integration.infer_category("Sepeda Motor Honda"),
+            SimanAssetCategory::AngkutanBermotor
+        );
     }
 
     #[tokio::test]
     async fn test_infer_category_non_tik() {
-        let client_res: Result<layanan_integrasi::MonsaktiClient, _> = layanan_integrasi::MonsaktiClient::new(
-            layanan_integrasi::Config::default(),
+        let client = layanan_perlengkapan_integrasi::MonsaktiClient::new(
+            layanan_perlengkapan_integrasi::Config::default(),
         )
-        .await;
-        if let Ok(client) = client_res {
-            let integration = SimanIntegration::new(client);
+        .await
+        .unwrap();
+        let integration = SimanIntegration::new(client);
 
-            assert_eq!(
-                integration.infer_category("Meja Kerja"),
-                SimanAssetCategory::NonTIK
-            );
-            assert_eq!(
-                integration.infer_category("Kursi Kantor"),
-                SimanAssetCategory::NonTIK
-            );
-            assert_eq!(
-                integration.infer_category("AC Split Daikin"),
-                SimanAssetCategory::NonTIK
-            );
-        }
+        assert_eq!(
+            integration.infer_category("Meja Kerja"),
+            SimanAssetCategory::NonTIK
+        );
+        assert_eq!(
+            integration.infer_category("Kursi Kantor"),
+            SimanAssetCategory::NonTIK
+        );
+        assert_eq!(
+            integration.infer_category("AC Split Daikin"),
+            SimanAssetCategory::NonTIK
+        );
     }
 }
