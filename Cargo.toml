@@ -289,7 +289,7 @@ bincode = "2.0.1"
 hkdf = "0.12"
 fluent-bundle = "0.16"
 unic-langid = "0.9"
-axum-test = "18.1"
+axum-test = "20.0"
 rdkafka = { version = "0.38", features = ["tokio"] }
 totp-rs = { version = "5.7", default-features = false }
 totp-lite = "2.0"
