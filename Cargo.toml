@@ -303,7 +303,7 @@ hex = "0.4"
 
 # Cryptography
 aes-gcm = { version = "0.10", features = ["aes"] }
-hmac = "0.12"
+hmac = "0.13"
 
 # QR Code generation (Updated)
 qrcode = { version = "0.14.1", features = ["svg"] }

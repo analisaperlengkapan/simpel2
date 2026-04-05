@@ -40,7 +40,7 @@ hex = { workspace = true }
 toml = { workspace = true }
 reqwest = { workspace = true, features = ["json"], optional = true }
 dashmap = { workspace = true }
-hmac = "0.12"
+hmac = "0.13"
 sha1 = "0.10"
 subtle = "2.6"
 bcrypt = "0.17.1"
