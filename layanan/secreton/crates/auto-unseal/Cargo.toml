@@ -34,7 +34,7 @@ aws-config = { version = "1.5", optional = true }
 aws-sdk-kms = { version = "1.45", optional = true }
 google-cloudkms1 = { version = "5.0", optional = true }
 azure_security_keyvault = { version = "0.20", optional = true }
-azure_identity = { version = "0.20", optional = true }
+azure_identity = { version = "0.33", optional = true }
 azure_core = { version = "0.20", optional = true }
 
 # gRPC for Transit provider
