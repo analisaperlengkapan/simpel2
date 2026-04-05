@@ -435,7 +435,7 @@ gloo = { version = "0.11", features = [
     "file",
     "utils",
 ] }
-gloo-timers = { version = "0.3", features = ["futures"] }
+gloo-timers = { version = "0.4", features = ["futures"] }
 
 # WASM utilities
 console_error_panic_hook = "0.1"
