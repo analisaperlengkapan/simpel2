@@ -87,6 +87,13 @@ jobs:
           fetch-depth: 0
           clean: true
 
+      - name: Cleanup stale Gitleaks artifacts
+        shell: bash
+        run: |
+          # Fix for "Destination file path /tmp/gitleaks.tmp already exists" on self-hosted runners
+          rm -f /tmp/gitleaks.tmp 2>/dev/null || true
+          rm -rf /tmp/gitleaks-* 2>/dev/null || true
+
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2.3.9
         env:
