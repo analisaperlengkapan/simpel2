@@ -279,25 +279,45 @@ pub async fn token_handler(
         Ok(resp) => {
             let mut id_token = None;
 
-            // Generate ID token if 'openid' scope was granted
+            // Generate ID token if 'openid' scope was granted.
+            // Per OIDC Core §3.1.3.3, the ID token MUST be present when
+            // openid scope is granted — errors must not be silently dropped.
             if resp.scope.split_whitespace().any(|s| s == "openid") {
-                // We need the user context to generate ID token
-                // OAuth2 token service only returns access token
-                // Here we resolve the user if possible
-                if let Ok(claims) = state.jwt_service.verify_token(&resp.access_token) {
-                    if let Ok(user_uuid) = uuid::Uuid::parse_str(&claims.sub) {
-                        let user_id = authenc_types::UserId::from_uuid(user_uuid);
-                        if let Ok(user) = state.user_service.get_user(user_id).await {
-                            id_token = Some(super::oidc_jwt::generate_id_token(
-                                &user,
-                                &client_id,
-                                resp.nonce.clone(),
-                                state.jwt_service.issuer(),
-                                state.jwt_service.signing_key(),
-                            ));
-                        }
-                    }
-                }
+                let claims = state
+                    .jwt_service
+                    .verify_token(&resp.access_token)
+                    .map_err(|e| ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "server_error".to_string(),
+                        message: format!("Failed to verify access token for ID token generation: {}", e),
+                    })?;
+
+                let user_uuid =
+                    uuid::Uuid::parse_str(&claims.sub).map_err(|e| ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "server_error".to_string(),
+                        message: format!("Invalid user ID in access token: {}", e),
+                    })?;
+
+                let user_id = authenc_types::UserId::from_uuid(user_uuid);
+                let user =
+                    state
+                        .user_service
+                        .get_user(user_id)
+                        .await
+                        .map_err(|e| ErrorResponse {
+                            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                            error: "server_error".to_string(),
+                            message: format!("Failed to fetch user for ID token generation: {}", e),
+                        })?;
+
+                id_token = Some(super::oidc_jwt::generate_id_token(
+                    &user,
+                    &client_id,
+                    resp.nonce.clone(),
+                    state.jwt_service.issuer(),
+                    state.jwt_service.signing_key(),
+                ));
             }
 
             Ok(Json(TokenResponse {
