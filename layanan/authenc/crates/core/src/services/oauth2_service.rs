@@ -136,13 +136,14 @@ impl OAuth2ServiceImpl {
 
         self.refresh_token_store.store_token(refresh_token).await?;
 
-        // 7. Return token response
+        // 7. Return token response (including nonce from auth code for OIDC)
         Ok(TokenResponse {
             access_token,
             token_type: "Bearer".to_string(),
             expires_in: 900, // 15 minutes
             refresh_token: Some(refresh_token_value),
             scope: auth_code.scope,
+            nonce: auth_code.nonce,
         })
     }
 
@@ -177,6 +178,7 @@ impl OAuth2ServiceImpl {
             expires_in: 900, // 15 minutes
             refresh_token: None,
             scope: scope.to_string(),
+            nonce: None,
         })
     }
 
@@ -245,6 +247,7 @@ impl OAuth2ServiceImpl {
             expires_in: 900, // 15 minutes
             refresh_token: Some(new_refresh_token_value),
             scope: refresh_token.scope,
+            nonce: None,
         })
     }
 
@@ -331,7 +334,7 @@ impl OAuth2ServiceTrait for OAuth2ServiceImpl {
         // 6. Generate authorization code
         let code = Self::generate_authorization_code();
 
-        // 7. Store authorization code
+        // 7. Store authorization code (including nonce for OIDC)
         let auth_code = AuthorizationCode {
             code: code.clone(),
             client_id: request.client_id.clone(),
@@ -344,6 +347,7 @@ impl OAuth2ServiceTrait for OAuth2ServiceImpl {
             expires_at: Utc::now() + Duration::minutes(10),
             created_at: Utc::now(),
             used: false,
+            nonce: request.nonce,
         };
 
         self.code_store.store_code(auth_code).await?;

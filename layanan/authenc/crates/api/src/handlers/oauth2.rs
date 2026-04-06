@@ -228,6 +228,7 @@ pub async fn authorize_handler(
         code_challenge_method,
         user_id: UserId::from_uuid(user_uuid),
         realm_id: RealmId::from_uuid(Realm::MASTER_ID),
+        nonce: request.nonce,
     };
 
     match state.oauth2_service.authorize(domain_request).await {
@@ -290,7 +291,7 @@ pub async fn token_handler(
                             id_token = Some(super::oidc_jwt::generate_id_token(
                                 &user,
                                 &client_id,
-                                None, // TODO: nonce should be stored with auth code and retrieved here
+                                resp.nonce.clone(),
                                 state.jwt_service.issuer(),
                                 state.jwt_service.signing_key(),
                             ));
