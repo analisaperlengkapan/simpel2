@@ -223,7 +223,7 @@ impl AuthService {
                                             if let Some(refresh) = &login_resp.refresh_token {
                                                 session.refresh_token = Some(refresh.clone());
                                             }
-                                            Self::save_session(&session);
+                                            let _ = Self::save_session(&session);
                                             if login_resp.require_password_change {
                                                 LoginResult::PasswordChangeRequired(Box::new(
                                                     session,
@@ -599,7 +599,7 @@ impl AuthService {
         #[cfg(target_arch = "wasm32")]
         {
             use lib_ui::hooks::save_to_storage;
-            save_to_storage("user_session", session);
+            let _ = save_to_storage("user_session", session);
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -1041,7 +1041,7 @@ impl AuthService {
                 session.mfa_setup_required = mfa_setup_required;
                 // Note: mfa_verification_required is not stored in UserSession
                 // It's a transient state during login flow
-                Self::save_session(&session);
+                let _ = Self::save_session(&session);
             }
         }
         #[cfg(not(target_arch = "wasm32"))]
