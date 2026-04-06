@@ -1,10 +1,10 @@
 //! OIDC ID Token generation and validation
 
 use authenc_types::domain::user::User;
-use chrono::Utc;
-use serde::{Deserialize, Serialize};
 use base64ct::{Base64UrlUnpadded, Encoding};
+use chrono::Utc;
 use ed25519_dalek::{Signature, Signer, SigningKey};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OidcIdTokenClaims {
@@ -72,8 +72,13 @@ pub fn generate_id_token(
         family_name: user.last_name.clone(),
     };
 
-    let header_json = serde_json::to_string(&header).unwrap();
-    let claims_json = serde_json::to_string(&claims).unwrap();
+    // These types are simple structs with String/Option fields that should
+    // always serialize successfully. Using expect() instead of unwrap() for
+    // a clearer panic message in the unlikely event of a serialization bug.
+    let header_json =
+        serde_json::to_string(&header).expect("BUG: failed to serialize JWT header");
+    let claims_json =
+        serde_json::to_string(&claims).expect("BUG: failed to serialize ID token claims");
 
     let header_b64 = Base64UrlUnpadded::encode_string(header_json.as_bytes());
     let payload_b64 = Base64UrlUnpadded::encode_string(claims_json.as_bytes());

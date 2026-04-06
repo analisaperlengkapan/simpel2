@@ -72,7 +72,9 @@ mod tests {
     fn test_export_metrics() {
         // Ensure at least one metric is registered and has a value
         let metric = integration_sync_duration();
-        metric.with_label_values(&["test_service", "test_sync"]).observe(1.0);
+        metric
+            .with_label_values(&["test_service", "test_sync"])
+            .observe(1.0);
 
         // Test that metrics can be exported
         let result = export_metrics();

@@ -396,8 +396,9 @@ where
         let result = render_fn();
         let _ = performance.mark(&end_mark);
 
-        if let Ok(_) =
-            performance.measure_with_start_mark_and_end_mark(&measure_name, &start_mark, &end_mark)
+        if performance
+            .measure_with_start_mark_and_end_mark(&measure_name, &start_mark, &end_mark)
+            .is_ok()
         {
             // Get the measure and log it
             let entries = performance.get_entries_by_name(&measure_name);

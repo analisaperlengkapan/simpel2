@@ -158,7 +158,9 @@ pub async fn authorize_handler(
     Query(request): Query<AuthorizeRequest>,
 ) -> Result<Response, ErrorResponse> {
     use authenc_types::domain::Realm;
-    use authenc_types::domain_types::{AuthorizationRequest, AuthorizationResponse, RealmId, UserId};
+    use authenc_types::domain_types::{
+        AuthorizationRequest, AuthorizationResponse, RealmId, UserId,
+    };
 
     // 1. Basic validation of required parameters
     if request.client_id.is_empty() || request.redirect_uri.is_empty() {
@@ -190,8 +192,10 @@ pub async fn authorize_handler(
                 return_url.push_str(&format!("&code_challenge={}", urlencoding::encode(cc)));
             }
             if let Some(ccm) = &request.code_challenge_method {
-                return_url
-                    .push_str(&format!("&code_challenge_method={}", urlencoding::encode(ccm)));
+                return_url.push_str(&format!(
+                    "&code_challenge_method={}",
+                    urlencoding::encode(ccm)
+                ));
             }
             if let Some(nonce) = &request.nonce {
                 return_url.push_str(&format!("&nonce={}", urlencoding::encode(nonce)));
@@ -215,7 +219,9 @@ pub async fn authorize_handler(
             });
         }
     };
-    let code_challenge_method = request.code_challenge_method.unwrap_or_else(|| "S256".into());
+    let code_challenge_method = request
+        .code_challenge_method
+        .unwrap_or_else(|| "S256".into());
 
     // 6. Generate and persist authorization code via OAuth2 service
     let domain_request = AuthorizationRequest {
@@ -235,7 +241,11 @@ pub async fn authorize_handler(
         Ok(resp) => {
             let resp: AuthorizationResponse = resp;
             // 7. Redirect back to client
-            let mut target = format!("{}?code={}", request.redirect_uri, urlencoding::encode(&resp.code));
+            let mut target = format!(
+                "{}?code={}",
+                request.redirect_uri,
+                urlencoding::encode(&resp.code)
+            );
             if let Some(ref state_param) = resp.state {
                 target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
             }
@@ -289,15 +299,17 @@ pub async fn token_handler(
                     .map_err(|e| ErrorResponse {
                         status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         error: "server_error".to_string(),
-                        message: format!("Failed to verify access token for ID token generation: {}", e),
+                        message: format!(
+                            "Failed to verify access token for ID token generation: {}",
+                            e
+                        ),
                     })?;
 
-                let user_uuid =
-                    uuid::Uuid::parse_str(&claims.sub).map_err(|e| ErrorResponse {
-                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                        error: "server_error".to_string(),
-                        message: format!("Invalid user ID in access token: {}", e),
-                    })?;
+                let user_uuid = uuid::Uuid::parse_str(&claims.sub).map_err(|e| ErrorResponse {
+                    status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    error: "server_error".to_string(),
+                    message: format!("Invalid user ID in access token: {}", e),
+                })?;
 
                 let user_id = authenc_types::UserId::from_uuid(user_uuid);
                 let user =
@@ -431,11 +443,14 @@ pub async fn userinfo_handler(
         message: e.message,
     })?;
 
-    let claims = state.jwt_service.verify_token(&token).map_err(|e| ErrorResponse {
-        status_code: axum::http::StatusCode::UNAUTHORIZED,
-        error: "unauthorized".to_string(),
-        message: format!("Invalid or expired token: {}", e),
-    })?;
+    let claims = state
+        .jwt_service
+        .verify_token(&token)
+        .map_err(|e| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "unauthorized".to_string(),
+            message: format!("Invalid or expired token: {}", e),
+        })?;
 
     // Validate openid scope per OIDC Core §5.3
     let has_openid = claims
@@ -452,12 +467,11 @@ pub async fn userinfo_handler(
         });
     }
 
-    let user_uuid =
-        uuid::Uuid::parse_str(&claims.sub).map_err(|_| ErrorResponse {
-            status_code: axum::http::StatusCode::UNAUTHORIZED,
-            error: "unauthorized".to_string(),
-            message: "Invalid user ID in token".to_string(),
-        })?;
+    let user_uuid = uuid::Uuid::parse_str(&claims.sub).map_err(|_| ErrorResponse {
+        status_code: axum::http::StatusCode::UNAUTHORIZED,
+        error: "unauthorized".to_string(),
+        message: "Invalid user ID in token".to_string(),
+    })?;
 
     let user_id = authenc_types::UserId::from_uuid(user_uuid);
     match state.user_service.get_user(user_id).await {
