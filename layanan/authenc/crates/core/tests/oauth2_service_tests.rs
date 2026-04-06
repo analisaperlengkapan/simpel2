@@ -17,9 +17,8 @@
 use async_trait::async_trait;
 use authenc_core::services::oauth2_service::OAuth2ServiceImpl;
 use authenc_types::{
-    AuthorizationRequest, AuthorizationResponse, ClientId, RealmId, TokenClaims, TokenRequest,
-    TokenResponse, UserId, domain::*, domain_types::*, error::AuthencError, result::Result,
-    traits::*,
+    AuthorizationResponse, ClientId, RealmId, TokenClaims, UserId, domain::*, domain_types::*,
+    error::AuthencError, result::Result, traits::*,
 };
 use chrono::{Duration, Utc};
 use std::collections::HashMap;

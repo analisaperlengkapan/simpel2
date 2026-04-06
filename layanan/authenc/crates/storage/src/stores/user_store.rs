@@ -6,7 +6,7 @@
 use async_trait::async_trait;
 use authenc_types::{
     AuthencError, RealmId, Result, UserId,
-    domain::{CreateUserRequest, UpdateUserRequest, user::User},
+    domain::{CreateUserRequest, UpdateUserRequest, User},
     traits::UserStore,
 };
 use chrono::Utc;
@@ -713,7 +713,7 @@ impl UserStore for PostgresUserStore {
 
 /// Convert a database row to a User struct
 fn row_to_user(row: Row) -> Result<User> {
-    use authenc_types::SecurityContext;
+    use authenc_types::domain::user::SecurityContext;
 
     let satker_code: Option<String> = row.try_get("satker_code").ok();
 
@@ -780,7 +780,7 @@ mod tests {
 
     mod unit_tests {
         use super::*;
-        use authenc_types::{Permission, Role, SecurityContext};
+        use authenc_types::domain::{Permission, Role, user::SecurityContext};
 
         #[test]
         fn test_user_id_creation() {

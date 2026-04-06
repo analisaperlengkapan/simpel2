@@ -276,15 +276,12 @@ pub async fn login_handler(
     Json(request): Json<LoginRequest>,
 ) -> impl axum::response::IntoResponse {
     use authenc_types::{
-        AuthFailureReason, AuthResult, Credentials, RealmId, traits::AuthenticationService,
+        AuthFailureReason, AuthResult, Credentials, RealmId, domain::Realm,
+        traits::AuthenticationService,
     };
 
     // Default to master realm if none provided (master realm = all-zeros UUID)
-    let realm_id = RealmId::from_uuid(
-        request
-            .realm_id
-            .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()),
-    );
+    let realm_id = RealmId::from_uuid(request.realm_id.unwrap_or(Realm::MASTER_ID));
 
     let credentials = Credentials {
         username: request.username.clone(),
@@ -733,9 +730,9 @@ pub async fn get_current_user_handler(
     let user_id = UserId::from_uuid(user_uuid);
     match state.user_service.get_user(user_id).await {
         Ok(user) => {
-            let realm_id = user.realm_id.unwrap_or_else(|| {
-                Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
-            });
+            let realm_id = user
+                .realm_id
+                .unwrap_or(authenc_types::domain::Realm::MASTER_ID);
             // Build display name from first + last name
             let name = match (&user.first_name, &user.last_name) {
                 (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
@@ -881,7 +878,7 @@ pub async fn update_profile_handler(
 
     let realm_id = user
         .realm_id
-        .unwrap_or_else(|| Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap());
+        .unwrap_or(authenc_types::domain::Realm::MASTER_ID);
     let name = match (&user.first_name, &user.last_name) {
         (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
         (Some(f), None) => Some(f.clone()),

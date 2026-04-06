@@ -184,8 +184,6 @@ pub fn preload_route(_route: &str) {
 /// the Performance API resource timing entries.
 #[cfg(target_arch = "wasm32")]
 pub fn get_bundle_size() -> BundleSize {
-
-
     let window = web_sys::window().expect("no global window");
     let performance = window.performance().expect("no performance object");
 

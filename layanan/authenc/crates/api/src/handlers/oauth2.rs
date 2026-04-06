@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use authenc_types::OAuth2Service;
 use axum::{
     Json,
     extract::{Query, State},
@@ -149,24 +150,86 @@ pub struct UserInfoResponse {
 ///
 /// OAuth2 authorization endpoint for initiating authorization code flow.
 /// Validates client, redirect URI, and scopes, then redirects to login if needed.
-pub async fn authorize_handler(
-    State(_state): State<Arc<ApiState>>,
-    Query(_request): Query<AuthorizeRequest>,
-) -> Result<Response, ErrorResponse> {
-    // TODO: Implement authorization logic
-    // 1. Validate client_id and redirect_uri
-    // 2. Validate scopes
-    // 3. Check if user is authenticated (session cookie)
-    // 4. If not authenticated, redirect to login page with return URL
-    // 5. If authenticated, check consent
-    // 6. Generate authorization code
-    // 7. Redirect to redirect_uri with code and state
+use axum::response::{IntoResponse, Redirect};
 
-    Err(ErrorResponse {
-        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
-        error: "not_implemented".to_string(),
-        message: "OAuth2 authorize endpoint not yet implemented".to_string(),
-    })
+pub async fn authorize_handler(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Query(request): Query<AuthorizeRequest>,
+) -> Result<Response, ErrorResponse> {
+    use authenc_types::domain::Realm;
+    use authenc_types::domain_types::{AuthorizationRequest, AuthorizationResponse, RealmId, UserId};
+
+    // 1. Basic validation of required parameters
+    if request.client_id.is_empty() || request.redirect_uri.is_empty() {
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "invalid_request".to_string(),
+            message: "client_id and redirect_uri are required".to_string(),
+        });
+    }
+
+    // 2. Check if user is authenticated via session cookie
+    let user_uuid = match auth_helpers::extract_user_from_token(&state, &headers).await {
+        Ok(uid) => uid,
+        Err(_) => {
+            // 4. If not authenticated, redirect to login page
+            // Build return URL to this same endpoint after login
+            let mut return_url = format!(
+                "/api/v1/oauth2/authorize?client_id={}&redirect_uri={}&scope={}&response_type={}",
+                urlencoding::encode(&request.client_id),
+                urlencoding::encode(&request.redirect_uri),
+                urlencoding::encode(&request.scope),
+                urlencoding::encode(&request.response_type)
+            );
+
+            if let Some(state) = &request.state {
+                return_url.push_str(&format!("&state={}", urlencoding::encode(state)));
+            }
+            if let Some(cc) = &request.code_challenge {
+                return_url.push_str(&format!("&code_challenge={}", urlencoding::encode(cc)));
+            }
+            if let Some(ccm) = &request.code_challenge_method {
+                return_url
+                    .push_str(&format!("&code_challenge_method={}", urlencoding::encode(ccm)));
+            }
+
+            let login_redirect = format!("/login?return_to={}", urlencoding::encode(&return_url));
+            return Ok(Redirect::temporary(&login_redirect).into_response());
+        }
+    };
+
+    // 5. If authenticated, check consent (assume auto-consent for now)
+
+    // 6. Generate and persist authorization code via OAuth2 service
+    let domain_request = AuthorizationRequest {
+        response_type: request.response_type,
+        client_id: request.client_id,
+        redirect_uri: request.redirect_uri.clone(),
+        scope: request.scope,
+        state: request.state,
+        code_challenge: request.code_challenge.unwrap_or_default(),
+        code_challenge_method: request.code_challenge_method.unwrap_or_else(|| "S256".into()),
+        user_id: UserId::from_uuid(user_uuid),
+        realm_id: RealmId::from_uuid(Realm::MASTER_ID),
+    };
+
+    match state.oauth2_service.authorize(domain_request).await {
+        Ok(resp) => {
+            let resp: AuthorizationResponse = resp;
+            // 7. Redirect back to client
+            let mut target = format!("{}?code={}", request.redirect_uri, resp.code);
+            if let Some(ref state_param) = resp.state {
+                target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
+            }
+            Ok(Redirect::temporary(&target).into_response())
+        }
+        Err(e) => Err(ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "authorization_error".to_string(),
+            message: e.to_string(),
+        }),
+    }
 }
 
 /// POST /api/v1/oauth2/token - Token endpoint
@@ -177,15 +240,13 @@ pub async fn token_handler(
     State(state): State<Arc<ApiState>>,
     Json(request): Json<TokenRequest>,
 ) -> Result<Json<TokenResponse>, ErrorResponse> {
-    use authenc_types::OAuth2Service;
     use authenc_types::domain_types::{RealmId, TokenRequest as DomainTokenRequest};
     use uuid::Uuid;
 
-    // Default to master realm (all-zeros UUID)
-    let realm_id = RealmId::from_uuid(
-        Uuid::parse_str("00000000-0000-0000-0000-000000000000").expect("Invalid master realm UUID"),
-    );
+    // Default to master realm
+    let realm_id = RealmId::from_uuid(authenc_types::domain::Realm::MASTER_ID);
 
+    let client_id = request.client_id.clone();
     let domain_request = DomainTokenRequest {
         grant_type: request.grant_type,
         code: request.code,
@@ -197,16 +258,39 @@ pub async fn token_handler(
         scope: request.scope,
         realm_id,
     };
-
     match state.oauth2_service.token(domain_request).await {
-        Ok(resp) => Ok(Json(TokenResponse {
-            access_token: resp.access_token,
-            token_type: resp.token_type,
-            expires_in: resp.expires_in as u64,
-            refresh_token: resp.refresh_token,
-            id_token: None, // TODO: Generate ID token if openid scope requested
-            scope: Some(resp.scope),
-        })),
+        Ok(resp) => {
+            let mut id_token = None;
+
+            // Generate ID token if 'openid' scope was granted
+            if resp.scope.contains("openid") {
+                // We need the user context to generate ID token
+                // OAuth2 token service only returns access token
+                // Here we resolve the user if possible
+                if let Ok(claims) = state.jwt_service.verify_token(&resp.access_token) {
+                    if let Ok(user_uuid) = uuid::Uuid::parse_str(&claims.sub) {
+                        let user_id = authenc_types::UserId::from_uuid(user_uuid);
+                        if let Ok(user) = state.user_service.get_user(user_id).await {
+                            id_token = Some(super::oidc_jwt::generate_id_token(
+                                &user,
+                                &client_id,
+                                None, // nonce could be retrieved from auth code if stored
+                                state.jwt_service.issuer(),
+                            ));
+                        }
+                    }
+                }
+            }
+
+            Ok(Json(TokenResponse {
+                access_token: resp.access_token,
+                token_type: resp.token_type,
+                expires_in: resp.expires_in as u64,
+                refresh_token: resp.refresh_token,
+                id_token,
+                scope: Some(resp.scope),
+            }))
+        }
         Err(e) => Err(ErrorResponse {
             status_code: axum::http::StatusCode::BAD_REQUEST,
             error: "invalid_request".to_string(),
@@ -219,18 +303,17 @@ pub async fn token_handler(
 ///
 /// OIDC discovery endpoint returning server metadata.
 pub async fn discovery_handler(
-    State(_state): State<Arc<ApiState>>,
+    State(state): State<Arc<ApiState>>,
 ) -> Result<Json<OidcDiscoveryResponse>, ErrorResponse> {
-    // TODO: Implement discovery document
-    // Return static configuration with endpoint URLs
+    let issuer = state.jwt_service.issuer().to_string();
+    let base_url = issuer.trim_end_matches("/api/v1/auth"); // Simple heuristic for base URL
 
     let discovery = OidcDiscoveryResponse {
-        issuer: "https://authenc.kejaksaan.go.id".to_string(),
-        authorization_endpoint: "https://authenc.kejaksaan.go.id/api/v1/oauth2/authorize"
-            .to_string(),
-        token_endpoint: "https://authenc.kejaksaan.go.id/api/v1/oauth2/token".to_string(),
-        userinfo_endpoint: "https://authenc.kejaksaan.go.id/api/v1/oauth2/userinfo".to_string(),
-        jwks_uri: "https://authenc.kejaksaan.go.id/api/v1/oauth2/jwks".to_string(),
+        issuer: issuer.clone(),
+        authorization_endpoint: format!("{}/api/v1/oauth2/authorize", base_url),
+        token_endpoint: format!("{}/api/v1/oauth2/token", base_url),
+        userinfo_endpoint: format!("{}/api/v1/oauth2/userinfo", base_url),
+        jwks_uri: format!("{}/api/v1/oauth2/jwks", base_url),
         response_types_supported: vec!["code".to_string(), "id_token".to_string()],
         grant_types_supported: vec![
             "authorization_code".to_string(),

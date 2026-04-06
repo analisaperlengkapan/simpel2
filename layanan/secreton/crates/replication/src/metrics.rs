@@ -116,11 +116,11 @@ impl ReplicationMetrics {
         *self.lag_ms.write().await = lag_ms;
 
         REPLICATION_LAG_BYTES
-            .with_label_values(&[&self.node_id, &self.mode])
+            .with_label_values(&[self.node_id.as_str(), self.mode.as_str()])
             .set(lag_bytes as i64);
 
         REPLICATION_LAG_MS
-            .with_label_values(&[&self.node_id, &self.mode])
+            .with_label_values(&[self.node_id.as_str(), self.mode.as_str()])
             .set(lag_ms as f64);
     }
 
@@ -130,11 +130,11 @@ impl ReplicationMetrics {
         *self.secondary_sequence.write().await = secondary_seq;
 
         REPLICATION_PRIMARY_SEQUENCE
-            .with_label_values(&[])
+            .with_label_values::<&str>(&[])
             .set(primary_seq as i64);
 
         REPLICATION_SECONDARY_SEQUENCE
-            .with_label_values(&[&self.node_id])
+            .with_label_values(&[self.node_id.as_str()])
             .set(secondary_seq as i64);
 
         // Calculate and update lag in bytes
@@ -152,7 +152,7 @@ impl ReplicationMetrics {
         };
 
         REPLICATION_STATUS
-            .with_label_values(&[&self.node_id, &self.mode])
+            .with_label_values(&[self.node_id.as_str(), self.mode.as_str()])
             .set(status_value);
     }
 
@@ -161,21 +161,21 @@ impl ReplicationMetrics {
         let status = if success { "success" } else { "failure" };
 
         REPLICATION_OPERATIONS_TOTAL
-            .with_label_values(&[&self.node_id, operation_type, status])
+            .with_label_values(&[self.node_id.as_str(), operation_type, status])
             .inc();
     }
 
     /// Update replication throughput
     pub fn update_throughput(&self, ops_per_second: f64) {
         REPLICATION_THROUGHPUT
-            .with_label_values(&[&self.node_id])
+            .with_label_values(&[self.node_id.as_str()])
             .set(ops_per_second);
     }
 
     /// Record operation latency
     pub fn record_latency(&self, operation_type: &str, latency_seconds: f64) {
         REPLICATION_OPERATION_LATENCY
-            .with_label_values(&[&self.node_id, operation_type])
+            .with_label_values(&[self.node_id.as_str(), operation_type])
             .observe(latency_seconds);
     }
 

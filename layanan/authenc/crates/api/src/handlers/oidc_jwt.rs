@@ -1,75 +1,83 @@
-// Legacy RSA implementation - DEPRECATED
-// Replaced with Ed25519 in handlers/oidc_ed25519.rs for security
-// use crate::handlers::oidc_keys::RSA_KEYPAIR;
+//! OIDC ID Token generation and validation
+
+use authenc_types::domain::user::User;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-// use rsa::pkcs1::EncodeRsaPrivateKey; // REMOVED: Vulnerable to timing attacks
+use base64ct::{Base64UrlUnpadded, Encoding};
+use ed25519_dalek::{Signature, Signer};
+use authenc_crypto::keys::ED25519_KEYPAIR;
 
-/// Legacy OIDC ID token claims structure - DEPRECATED
-/// This struct is deprecated and should not be used.
-/// Use OidcIdTokenClaims from handlers/oidc_ed25519.rs instead.
-/// # Security Considerations
-/// - This legacy implementation uses RSA which is vulnerable to timing attacks
-/// - Replaced with Ed25519 for enhanced security
-/// - Do not use in production systems
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OidcIdTokenClaims {
-    /// Issuer identifier (token issuer)
     pub iss: String,
-    /// Subject identifier (user ID)
     pub sub: String,
-    /// Audience (client ID the token is for)
     pub aud: String,
-    /// Expiration timestamp
-    pub exp: usize,
-    /// Issued at timestamp
-    pub iat: usize,
-    /// User's email address
+    pub exp: i64,
+    pub iat: i64,
+    pub auth_time: i64,
+    pub nonce: Option<String>,
+    pub preferred_username: Option<String>,
     pub email: Option<String>,
-    /// User's display name
+    pub email_verified: Option<bool>,
     pub name: Option<String>,
-    /// User's role or authorization level
-    pub role: Option<String>,
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
 }
 
-/// Legacy JWT generation function - DEPRECATED
-/// This function is deprecated and will return an error if called.
-/// Use generate_ed25519_jwt from handlers/oidc_ed25519.rs instead.
-/// # Arguments
-/// * `sub` - Subject identifier (user ID)
-/// * `aud` - Audience (client ID)
-/// * `email` - User's email address
-/// * `name` - User's display name
-/// * `role` - User's role/authorization level
-/// # Returns
-/// Always returns an error indicating this function is deprecated
-/// # Security Considerations
-/// - Legacy RSA implementation removed due to security vulnerabilities
-/// - RSA signatures are susceptible to timing attacks
-/// - Use Ed25519 implementation for secure JWT signing
-#[deprecated(
-    since = "1.0.0",
-    note = "Use generate_ed25519_jwt instead - RSA JWT signing is insecure"
-)]
+#[derive(Debug, Serialize, Deserialize)]
+struct Ed25519JwtHeader {
+    pub alg: String,
+    pub typ: String,
+    pub kid: String,
+}
+
+/// Generate an OIDC ID token for a user
 pub fn generate_id_token(
-    sub: &str,
-    aud: &str,
-    email: Option<&str>,
-    name: Option<&str>,
-    role: Option<&str>,
-) -> Result<String, String> {
-    let now = Utc::now().timestamp() as usize;
-    let _claims = OidcIdTokenClaims {
-        iss: "https://10.1.7.121/api/auth/v1".to_string(),
-        sub: sub.to_string(),
-        aud: aud.to_string(),
+    user: &User,
+    client_id: &str,
+    nonce: Option<String>,
+    issuer: &str,
+) -> String {
+    let now = Utc::now().timestamp();
+
+    let header = Ed25519JwtHeader {
+        alg: "EdDSA".to_string(),
+        typ: "JWT".to_string(),
+        kid: "authence-ed25519-key".to_string(),
+    };
+
+    let name = match (&user.first_name, &user.last_name) {
+        (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+        (Some(f), None) => Some(f.clone()),
+        (None, Some(l)) => Some(l.clone()),
+        _ => user.nama.clone(),
+    };
+
+    let claims = OidcIdTokenClaims {
+        iss: issuer.to_string(),
+        sub: user.id.to_string(),
+        aud: client_id.to_string(),
         exp: now + 3600,
         iat: now,
-        email: email.map(|e| e.to_string()),
-        name: name.map(|n| n.to_string()),
-        role: role.map(|r| r.to_string()),
+        auth_time: now, // Simplification
+        nonce,
+        preferred_username: Some(user.username.clone()),
+        email: Some(user.email.clone()),
+        email_verified: Some(user.email_verified),
+        name,
+        given_name: user.first_name.clone(),
+        family_name: user.last_name.clone(),
     };
-    // DEPRECATED: Legacy RSA implementation removed for security
-    // Use handlers/oidc_ed25519.rs for secure Ed25519 JWT signing instead
-    Err("Legacy RSA JWT signing disabled - use Ed25519 implementation (see handlers/oidc_ed25519.rs)".to_string())
+
+    let header_json = serde_json::to_string(&header).unwrap();
+    let claims_json = serde_json::to_string(&claims).unwrap();
+
+    let header_b64 = Base64UrlUnpadded::encode_string(header_json.as_bytes());
+    let payload_b64 = Base64UrlUnpadded::encode_string(claims_json.as_bytes());
+
+    let signing_input = format!("{}.{}", header_b64, payload_b64);
+    let signature: Signature = ED25519_KEYPAIR.sign(signing_input.as_bytes());
+    let signature_b64 = Base64UrlUnpadded::encode_string(signature.to_bytes().as_ref());
+
+    format!("{}.{}", signing_input, signature_b64)
 }

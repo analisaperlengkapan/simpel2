@@ -57,24 +57,25 @@ pub use organization::*;
 
 // Explicitly re-export to avoid ambiguity
 pub use permission::{
-    CreatePermissionRequest, Permission as DomainPermission, PermissionResponse,
-    UpdatePermissionRequest,
+    CreatePermissionRequest, Permission, PermissionResponse, UpdatePermissionRequest,
 };
 
 pub use realm::*;
 
 // Explicitly re-export to avoid ambiguity
-pub use role::{CreateRoleRequest, Role as DomainRole, RoleResponse, UpdateRoleRequest};
+pub use role::{CreateRoleRequest, Role, RoleResponse, UpdateRoleRequest};
 
-pub use satker::{Satker, SatkerHierarchy};
+pub use satker::{CrossSatkerValidation, Satker, SatkerHierarchy};
 
 pub use session::*;
 pub use social_account::*;
 
 // Explicitly re-export to avoid ambiguity
 pub use user::{
-    CreateUserRequest as DomainCreateUserRequest, UpdateUserRequest as DomainUpdateUserRequest,
-    User,
+    CreateFederatedIdentityRequest, CreateUserRequest, FederatedIdentity,
+    JITUserProvisioningRequest, JITUserProvisioningResponse, SecurityContext, UpdateUserRequest,
+    User, UserClaims, UserCredential, UserIdentityProviderLink, UserProfile, UserResponse,
+    UserRole, UserSession,
 };
 
 // Re-export OAuth2/OIDC types

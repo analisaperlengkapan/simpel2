@@ -2,7 +2,6 @@
 //!
 //! Provides reusable authentication UI components
 
-
 use crate::hooks::use_auth::use_auth;
 use leptos::prelude::*;
 
