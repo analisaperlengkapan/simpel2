@@ -241,9 +241,12 @@ pub async fn authorize_handler(
         Ok(resp) => {
             let resp: AuthorizationResponse = resp;
             // 7. Redirect back to client
+            // Use '&' if redirect_uri already contains a query string, '?' otherwise
+            let separator = if request.redirect_uri.contains('?') { '&' } else { '?' };
             let mut target = format!(
-                "{}?code={}",
+                "{}{}code={}",
                 request.redirect_uri,
+                separator,
                 urlencoding::encode(&resp.code)
             );
             if let Some(ref state_param) = resp.state {
