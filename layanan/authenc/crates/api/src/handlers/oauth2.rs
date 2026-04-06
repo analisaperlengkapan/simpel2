@@ -193,6 +193,9 @@ pub async fn authorize_handler(
                 return_url
                     .push_str(&format!("&code_challenge_method={}", urlencoding::encode(ccm)));
             }
+            if let Some(nonce) = &request.nonce {
+                return_url.push_str(&format!("&nonce={}", urlencoding::encode(nonce)));
+            }
 
             let login_redirect = format!("/login?return_to={}", urlencoding::encode(&return_url));
             return Ok(Redirect::temporary(&login_redirect).into_response());
@@ -201,6 +204,19 @@ pub async fn authorize_handler(
 
     // 5. If authenticated, check consent (assume auto-consent for now)
 
+    // 5.5. Validate PKCE parameters (required per OAuth 2.1)
+    let code_challenge = match request.code_challenge {
+        Some(cc) if !cc.is_empty() => cc,
+        _ => {
+            return Err(ErrorResponse {
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                error: "invalid_request".to_string(),
+                message: "code_challenge is required (OAuth 2.1)".to_string(),
+            });
+        }
+    };
+    let code_challenge_method = request.code_challenge_method.unwrap_or_else(|| "S256".into());
+
     // 6. Generate and persist authorization code via OAuth2 service
     let domain_request = AuthorizationRequest {
         response_type: request.response_type,
@@ -208,8 +224,8 @@ pub async fn authorize_handler(
         redirect_uri: request.redirect_uri.clone(),
         scope: request.scope,
         state: request.state,
-        code_challenge: request.code_challenge.unwrap_or_default(),
-        code_challenge_method: request.code_challenge_method.unwrap_or_else(|| "S256".into()),
+        code_challenge,
+        code_challenge_method,
         user_id: UserId::from_uuid(user_uuid),
         realm_id: RealmId::from_uuid(Realm::MASTER_ID),
     };
@@ -218,7 +234,7 @@ pub async fn authorize_handler(
         Ok(resp) => {
             let resp: AuthorizationResponse = resp;
             // 7. Redirect back to client
-            let mut target = format!("{}?code={}", request.redirect_uri, resp.code);
+            let mut target = format!("{}?code={}", request.redirect_uri, urlencoding::encode(&resp.code));
             if let Some(ref state_param) = resp.state {
                 target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
             }
@@ -263,7 +279,7 @@ pub async fn token_handler(
             let mut id_token = None;
 
             // Generate ID token if 'openid' scope was granted
-            if resp.scope.contains("openid") {
+            if resp.scope.split_whitespace().any(|s| s == "openid") {
                 // We need the user context to generate ID token
                 // OAuth2 token service only returns access token
                 // Here we resolve the user if possible
@@ -274,8 +290,9 @@ pub async fn token_handler(
                             id_token = Some(super::oidc_jwt::generate_id_token(
                                 &user,
                                 &client_id,
-                                None, // nonce could be retrieved from auth code if stored
+                                None, // TODO: nonce should be stored with auth code and retrieved here
                                 state.jwt_service.issuer(),
+                                state.jwt_service.signing_key(),
                             ));
                         }
                     }
@@ -285,17 +302,47 @@ pub async fn token_handler(
             Ok(Json(TokenResponse {
                 access_token: resp.access_token,
                 token_type: resp.token_type,
-                expires_in: resp.expires_in as u64,
+                expires_in: resp.expires_in.max(0) as u64,
                 refresh_token: resp.refresh_token,
                 id_token,
                 scope: Some(resp.scope),
             }))
         }
-        Err(e) => Err(ErrorResponse {
-            status_code: axum::http::StatusCode::BAD_REQUEST,
-            error: "invalid_request".to_string(),
-            message: e.to_string(),
-        }),
+        Err(e) => {
+            // Map domain OAuth2 errors to RFC 6749 §5.2 compliant responses.
+            // AuthencError::OAuth2Error carries "{error_code}: {description}".
+            let error_string = e.to_string();
+            let (status_code, error_code, message) = match &e {
+                authenc_types::error::AuthencError::OAuth2Error(msg) => {
+                    // Parse "OAuth2 error: {code}: {description}" format
+                    let inner = msg.as_str();
+                    if let Some((code, desc)) = inner.split_once(": ") {
+                        let status = if code == "invalid_client" {
+                            axum::http::StatusCode::UNAUTHORIZED
+                        } else {
+                            axum::http::StatusCode::BAD_REQUEST
+                        };
+                        (status, code.to_string(), desc.to_string())
+                    } else {
+                        (
+                            axum::http::StatusCode::BAD_REQUEST,
+                            inner.to_string(),
+                            error_string,
+                        )
+                    }
+                }
+                _ => (
+                    axum::http::StatusCode::BAD_REQUEST,
+                    "invalid_request".to_string(),
+                    error_string,
+                ),
+            };
+            Err(ErrorResponse {
+                status_code,
+                error: error_code,
+                message,
+            })
+        }
     }
 }
 
@@ -351,17 +398,44 @@ use axum::http::HeaderMap;
 /// GET /api/v1/oauth2/userinfo - UserInfo endpoint
 ///
 /// OIDC UserInfo endpoint returning claims about the authenticated user.
-/// Requires valid access token with openid scope.
+/// Requires valid access token with openid scope (OIDC Core §5.3).
 pub async fn userinfo_handler(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
 ) -> Result<Json<UserInfoResponse>, ErrorResponse> {
-    let user_uuid = auth_helpers::extract_user_from_token(&state, &headers)
-        .await
-        .map_err(|e| ErrorResponse {
+    // Extract and verify bearer token
+    let token = auth_helpers::extract_bearer_token(&headers).map_err(|e| ErrorResponse {
+        status_code: axum::http::StatusCode::UNAUTHORIZED,
+        error: "unauthorized".to_string(),
+        message: e.message,
+    })?;
+
+    let claims = state.jwt_service.verify_token(&token).map_err(|e| ErrorResponse {
+        status_code: axum::http::StatusCode::UNAUTHORIZED,
+        error: "unauthorized".to_string(),
+        message: format!("Invalid or expired token: {}", e),
+    })?;
+
+    // Validate openid scope per OIDC Core §5.3
+    let has_openid = claims
+        .scope
+        .as_ref()
+        .map(|s| s.split_whitespace().any(|t| t == "openid"))
+        .unwrap_or(false);
+    if !has_openid {
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::FORBIDDEN,
+            error: "insufficient_scope".to_string(),
+            message: "Access token must have 'openid' scope to access UserInfo endpoint"
+                .to_string(),
+        });
+    }
+
+    let user_uuid =
+        uuid::Uuid::parse_str(&claims.sub).map_err(|_| ErrorResponse {
             status_code: axum::http::StatusCode::UNAUTHORIZED,
             error: "unauthorized".to_string(),
-            message: e.message,
+            message: "Invalid user ID in token".to_string(),
         })?;
 
     let user_id = authenc_types::UserId::from_uuid(user_uuid);

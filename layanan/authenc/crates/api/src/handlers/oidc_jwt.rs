@@ -4,8 +4,7 @@ use authenc_types::domain::user::User;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use base64ct::{Base64UrlUnpadded, Encoding};
-use ed25519_dalek::{Signature, Signer};
-use authenc_crypto::keys::ED25519_KEYPAIR;
+use ed25519_dalek::{Signature, Signer, SigningKey};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OidcIdTokenClaims {
@@ -32,11 +31,15 @@ struct Ed25519JwtHeader {
 }
 
 /// Generate an OIDC ID token for a user
+///
+/// The `signing_key` MUST be the same key used by `JwtService` so that
+/// relying parties can verify the ID token using the JWKS endpoint.
 pub fn generate_id_token(
     user: &User,
     client_id: &str,
     nonce: Option<String>,
     issuer: &str,
+    signing_key: &SigningKey,
 ) -> String {
     let now = Utc::now().timestamp();
 
@@ -76,7 +79,7 @@ pub fn generate_id_token(
     let payload_b64 = Base64UrlUnpadded::encode_string(claims_json.as_bytes());
 
     let signing_input = format!("{}.{}", header_b64, payload_b64);
-    let signature: Signature = ED25519_KEYPAIR.sign(signing_input.as_bytes());
+    let signature: Signature = signing_key.sign(signing_input.as_bytes());
     let signature_b64 = Base64UrlUnpadded::encode_string(signature.to_bytes().as_ref());
 
     format!("{}.{}", signing_input, signature_b64)

@@ -55,7 +55,7 @@ pub struct ValidateTokenResponse {
 /// - This endpoint does NOT require authentication (it validates the token itself)
 /// - Rate limiting should be applied to prevent abuse
 /// - Token signature, expiration, and issuer are verified
-/// - Revocation list is checked
+/// - TODO: Revocation list checking is not yet implemented
 pub async fn validate_token_handler(
     State(state): State<Arc<ApiState>>,
     Json(request): Json<ValidateTokenRequest>,
