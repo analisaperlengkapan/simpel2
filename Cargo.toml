@@ -14,7 +14,8 @@ members = [
     "antarmuka/portal",
     "antarmuka/perlengkapan",
 
-    # Perlengkapan Backend sub-crates
+    # Perlengkapan Backend
+    "layanan/perlengkapan",
     "layanan/perlengkapan/crates/api",
     "layanan/integrasi",
     "layanan/perlengkapan/crates/dokumen",

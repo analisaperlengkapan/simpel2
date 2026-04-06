@@ -1,31 +1,16 @@
-# Perlengkapan Workspace
+# Perlengkapan
 #
-# This is a nested workspace manifest for all perlengkapan-related crates.
-# Each service is organized under crates/ following the layanan/secreton pattern.
+# The actual sub-crates (crates/api, crates/dokumen, etc.) are listed as
+# members of the **root** workspace at /Cargo.toml and inherit all
+# dependencies from there.
 #
-# NOTE: Sub-crates are also listed as members of the root workspace.
-# The [workspace.package] here provides values for sub-crate inheritance
-# (edition.workspace = true, version.workspace = true).
+# Do NOT add [workspace] here — it would shadow the root workspace and
+# break `{ workspace = true }` dependency resolution for the sub-crates.
 
-[workspace]
-resolver = "2"
-
-members = [
-    "crates/api",
-    "crates/dokumen",
-    "crates/notifikasi",
-    "crates/bantuan",
-]
-
-# Inherit common settings from root workspace
-[workspace.package]
-version = "0.1.0"
-edition = "2024"
-authors = ["SIMPEL Team"]
-license = "Apache-2.0"
-
-[workspace.dependencies]
-# All dependencies are inherited from the root workspace at /Cargo.toml
-# Sub-crates should use `{ workspace = true }` for common dependencies
-# Do NOT duplicate dependency versions here — the root Cargo.toml is the
-# single source of truth per AGENTS.md.
+[package]
+name = "layanan-perlengkapan"
+version.workspace = true
+edition.workspace = true
+publish = false
+authors.workspace = true
+license.workspace = true

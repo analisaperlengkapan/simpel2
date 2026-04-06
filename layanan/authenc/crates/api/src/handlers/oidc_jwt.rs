@@ -34,13 +34,18 @@ struct Ed25519JwtHeader {
 ///
 /// The `signing_key` MUST be the same key used by `JwtService` so that
 /// relying parties can verify the ID token using the JWKS endpoint.
+///
+/// # Errors
+///
+/// Returns an error if JWT header or claims serialization fails (should
+/// not happen in practice since the types contain only primitive fields).
 pub fn generate_id_token(
     user: &User,
     client_id: &str,
     nonce: Option<String>,
     issuer: &str,
     signing_key: &SigningKey,
-) -> String {
+) -> Result<String, String> {
     let now = Utc::now().timestamp();
 
     let header = Ed25519JwtHeader {
@@ -72,13 +77,10 @@ pub fn generate_id_token(
         family_name: user.last_name.clone(),
     };
 
-    // These types are simple structs with String/Option fields that should
-    // always serialize successfully. Using expect() instead of unwrap() for
-    // a clearer panic message in the unlikely event of a serialization bug.
-    let header_json =
-        serde_json::to_string(&header).expect("BUG: failed to serialize JWT header");
-    let claims_json =
-        serde_json::to_string(&claims).expect("BUG: failed to serialize ID token claims");
+    let header_json = serde_json::to_string(&header)
+        .map_err(|e| format!("Failed to serialize JWT header: {}", e))?;
+    let claims_json = serde_json::to_string(&claims)
+        .map_err(|e| format!("Failed to serialize ID token claims: {}", e))?;
 
     let header_b64 = Base64UrlUnpadded::encode_string(header_json.as_bytes());
     let payload_b64 = Base64UrlUnpadded::encode_string(claims_json.as_bytes());
@@ -87,5 +89,5 @@ pub fn generate_id_token(
     let signature: Signature = signing_key.sign(signing_input.as_bytes());
     let signature_b64 = Base64UrlUnpadded::encode_string(signature.to_bytes().as_ref());
 
-    format!("{}.{}", signing_input, signature_b64)
+    Ok(format!("{}.{}", signing_input, signature_b64))
 }

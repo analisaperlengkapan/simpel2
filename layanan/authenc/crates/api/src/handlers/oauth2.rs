@@ -224,10 +224,15 @@ pub async fn authorize_handler(
         .unwrap_or_else(|| "S256".into());
 
     // 6. Generate and persist authorization code via OAuth2 service
+    // Save state and redirect_uri before they are moved into domain_request,
+    // because we need them for both the success and error redirect paths.
+    let redirect_uri = request.redirect_uri.clone();
+    let client_state = request.state.clone();
+
     let domain_request = AuthorizationRequest {
         response_type: request.response_type,
         client_id: request.client_id,
-        redirect_uri: request.redirect_uri.clone(),
+        redirect_uri: request.redirect_uri,
         scope: request.scope,
         state: request.state,
         code_challenge,
@@ -242,10 +247,10 @@ pub async fn authorize_handler(
             let resp: AuthorizationResponse = resp;
             // 7. Redirect back to client
             // Use '&' if redirect_uri already contains a query string, '?' otherwise
-            let separator = if request.redirect_uri.contains('?') { '&' } else { '?' };
+            let separator = if redirect_uri.contains('?') { '&' } else { '?' };
             let mut target = format!(
                 "{}{}code={}",
-                request.redirect_uri,
+                redirect_uri,
                 separator,
                 urlencoding::encode(&resp.code)
             );
@@ -254,11 +259,22 @@ pub async fn authorize_handler(
             }
             Ok(Redirect::temporary(&target).into_response())
         }
-        Err(e) => Err(ErrorResponse {
-            status_code: axum::http::StatusCode::BAD_REQUEST,
-            error: "authorization_error".to_string(),
-            message: e.to_string(),
-        }),
+        Err(e) => {
+            // Per RFC 6749 §4.1.2.1, errors (other than invalid redirect_uri)
+            // SHOULD be communicated by redirecting to the client's redirect_uri
+            // with error parameters in the query string.
+            let error_code = "server_error";
+            let error_description = urlencoding::encode(&e.to_string());
+            let separator = if redirect_uri.contains('?') { '&' } else { '?' };
+            let mut target = format!(
+                "{}{}error={}&error_description={}",
+                redirect_uri, separator, error_code, error_description
+            );
+            if let Some(ref state_param) = client_state {
+                target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
+            }
+            Ok(Redirect::temporary(&target).into_response())
+        }
     }
 }
 
@@ -326,13 +342,20 @@ pub async fn token_handler(
                             message: format!("Failed to fetch user for ID token generation: {}", e),
                         })?;
 
-                id_token = Some(super::oidc_jwt::generate_id_token(
-                    &user,
-                    &client_id,
-                    resp.nonce.clone(),
-                    state.jwt_service.issuer(),
-                    state.jwt_service.signing_key(),
-                ));
+                id_token = Some(
+                    super::oidc_jwt::generate_id_token(
+                        &user,
+                        &client_id,
+                        resp.nonce.clone(),
+                        state.jwt_service.issuer(),
+                        state.jwt_service.signing_key(),
+                    )
+                    .map_err(|e| ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "server_error".to_string(),
+                        message: format!("Failed to generate ID token: {}", e),
+                    })?,
+                );
             }
 
             Ok(Json(TokenResponse {
@@ -346,11 +369,11 @@ pub async fn token_handler(
         }
         Err(e) => {
             // Map domain OAuth2 errors to RFC 6749 §5.2 compliant responses.
-            // AuthencError::OAuth2Error carries "{error_code}: {description}".
+            // AuthencError::OAuth2Error(inner) carries "{error_code}: {description}"
+            // (see From<OAuth2Error> for AuthencError in error.rs).
             let error_string = e.to_string();
             let (status_code, error_code, message) = match &e {
                 authenc_types::error::AuthencError::OAuth2Error(msg) => {
-                    // Parse "OAuth2 error: {code}: {description}" format
                     let inner = msg.as_str();
                     if let Some((code, desc)) = inner.split_once(": ") {
                         let status = if code == "invalid_client" {
@@ -389,7 +412,13 @@ pub async fn discovery_handler(
     State(state): State<Arc<ApiState>>,
 ) -> Result<Json<OidcDiscoveryResponse>, ErrorResponse> {
     let issuer = state.jwt_service.issuer().to_string();
-    let base_url = issuer.trim_end_matches("/api/v1/auth"); // Simple heuristic for base URL
+    // Derive base URL by stripping the known auth path suffix.
+    // Uses strip_suffix (single match) instead of trim_end_matches (repeated)
+    // to avoid accidentally stripping more than intended.
+    let base_url = issuer
+        .strip_suffix("/api/v1/auth")
+        .unwrap_or(&issuer)
+        .trim_end_matches('/');
 
     let discovery = OidcDiscoveryResponse {
         issuer: issuer.clone(),

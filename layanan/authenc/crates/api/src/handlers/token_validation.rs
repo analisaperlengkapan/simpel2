@@ -85,17 +85,31 @@ pub async fn validate_token_handler(
                 error: None,
             }))
         }
-        Err(e) => Ok(Json(ValidateTokenResponse {
-            valid: false,
-            user_id: None,
-            username: None,
-            email: None,
-            realm_id: None,
-            scope: None,
-            exp: None,
-            iat: None,
-            error: Some(e.to_string()),
-        })),
+        Err(e) => {
+            // Return a generic error category instead of the raw JWT library
+            // message to avoid leaking internal details (e.g. "Invalid issuer:
+            // expected X, got Y") to unauthenticated callers.
+            let error_msg = match &e {
+                authenc_types::error::AuthencError::TokenExpired => {
+                    "Token has expired".to_string()
+                }
+                authenc_types::error::AuthencError::InvalidToken(_) => {
+                    "Token is invalid".to_string()
+                }
+                _ => "Token validation failed".to_string(),
+            };
+            Ok(Json(ValidateTokenResponse {
+                valid: false,
+                user_id: None,
+                username: None,
+                email: None,
+                realm_id: None,
+                scope: None,
+                exp: None,
+                iat: None,
+                error: Some(error_msg),
+            }))
+        }
     }
 }
 
