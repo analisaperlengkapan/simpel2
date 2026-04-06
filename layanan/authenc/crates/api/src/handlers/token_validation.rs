@@ -90,9 +90,7 @@ pub async fn validate_token_handler(
             // message to avoid leaking internal details (e.g. "Invalid issuer:
             // expected X, got Y") to unauthenticated callers.
             let error_msg = match &e {
-                authenc_types::error::AuthencError::TokenExpired => {
-                    "Token has expired".to_string()
-                }
+                authenc_types::error::AuthencError::TokenExpired => "Token has expired".to_string(),
                 authenc_types::error::AuthencError::InvalidToken(_) => {
                     "Token is invalid".to_string()
                 }

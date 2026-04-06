@@ -208,7 +208,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                 on:click={
                                     let navigate = navigate.clone();
                                     let mounted = mounted.clone();
-                                    let set_user_session = set_user_session.clone();
+                                    let set_user_session = set_user_session;
                                     move |_| {
                                         let code = backup_code.get();
                                         if code.len() != 8 {
@@ -230,7 +230,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
 
                                         let nav = navigate.clone();
                                         let is_mounted = mounted.clone();
-                                        let set_user_session = set_user_session.clone();
+                                        let set_user_session = set_user_session;
                                         spawn_local(async move {
                                             match verify_backup_code(&temp_token, &code).await {
                                                 Ok(response) => {

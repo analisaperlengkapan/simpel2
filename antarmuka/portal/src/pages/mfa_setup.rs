@@ -414,7 +414,7 @@ fn get_auth_token() -> Option<String> {
     use crate::features::auth::AuthService;
 
     // Try to get temp_token first (for MFA flow), then fall back to access_token
-    AuthService::get_temp_token().or_else(|| AuthService::get_token())
+    AuthService::get_temp_token().or_else(AuthService::get_token)
 }
 
 /// Check risk score for MFA setup

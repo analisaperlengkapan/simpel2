@@ -305,7 +305,8 @@ pub async fn authorize_handler(
             // Use a generic error description to avoid leaking internal
             // details (e.g. database errors, stack traces) to the client.
             let error_code = "server_error";
-            let error_description = urlencoding::encode("Authorization request could not be processed");
+            let error_description =
+                urlencoding::encode("Authorization request could not be processed");
             tracing::warn!("OAuth2 authorize error (redirecting to client): {}", e);
             let separator = if redirect_uri.contains('?') { '&' } else { '?' };
             let mut target = format!(
