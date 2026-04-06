@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use authenc_types::OAuth2Service;
+use authenc_types::{ClientStore, OAuth2Service};
 use axum::{
     Json,
     extract::{Query, State},
@@ -171,6 +171,42 @@ pub async fn authorize_handler(
         });
     }
 
+    // 1.5. Pre-validate client_id and redirect_uri BEFORE any redirect.
+    // Per RFC 6749 §4.1.2.1, if the redirect_uri is invalid/unregistered or
+    // the client_id is unrecognized, the authorization server MUST NOT
+    // redirect the user-agent to the invalid URI.  We therefore look up the
+    // client and check the redirect_uri here; failures are returned as plain
+    // HTTP errors (not redirects).
+    let realm_id_for_lookup =
+        authenc_types::domain_types::RealmId::from_uuid(authenc_types::domain::Realm::MASTER_ID);
+    let client = state
+        .oauth2_service
+        .client_store()
+        .get_client_by_client_id(&request.client_id, realm_id_for_lookup)
+        .await
+        .map_err(|_| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "invalid_request".to_string(),
+            message: "Unknown client_id".to_string(),
+        })?;
+
+    if !client.enabled {
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "invalid_request".to_string(),
+            message: "Client is disabled".to_string(),
+        });
+    }
+
+    state
+        .oauth2_service
+        .validate_redirect_uri(&client, &request.redirect_uri)
+        .map_err(|_| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "invalid_request".to_string(),
+            message: "Invalid redirect_uri for this client".to_string(),
+        })?;
+
     // 2. Check if user is authenticated via session cookie
     let user_uuid = match auth_helpers::extract_user_from_token(&state, &headers).await {
         Ok(uid) => uid,
@@ -260,11 +296,17 @@ pub async fn authorize_handler(
             Ok(Redirect::temporary(&target).into_response())
         }
         Err(e) => {
-            // Per RFC 6749 §4.1.2.1, errors (other than invalid redirect_uri)
-            // SHOULD be communicated by redirecting to the client's redirect_uri
-            // with error parameters in the query string.
+            // Per RFC 6749 §4.1.2.1, errors (other than invalid redirect_uri
+            // / unknown client_id) SHOULD be communicated by redirecting to the
+            // client's redirect_uri.  The redirect_uri was already validated
+            // against the registered client above (step 1.5), so it is safe to
+            // redirect here.
+            //
+            // Use a generic error description to avoid leaking internal
+            // details (e.g. database errors, stack traces) to the client.
             let error_code = "server_error";
-            let error_description = urlencoding::encode(&e.to_string());
+            let error_description = urlencoding::encode("Authorization request could not be processed");
+            tracing::warn!("OAuth2 authorize error (redirecting to client): {}", e);
             let separator = if redirect_uri.contains('?') { '&' } else { '?' };
             let mut target = format!(
                 "{}{}error={}&error_description={}",

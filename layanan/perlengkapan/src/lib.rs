@@ -1,2 +1,2 @@
 // This file is intentionally left empty.
-// The perlengkapan directory uses a virtual [workspace] manifest.
+// The perlengkapan sub-crates are members of the root workspace.

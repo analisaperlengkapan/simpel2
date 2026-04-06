@@ -53,6 +53,16 @@ impl OAuth2ServiceImpl {
         }
     }
 
+    /// Get a reference to the client store.
+    ///
+    /// Used by the authorize handler to pre-validate client_id and
+    /// redirect_uri **before** calling [`OAuth2Service::authorize`], so that
+    /// error responses are never redirected to an unvalidated URI (RFC 6749
+    /// §4.1.2.1).
+    pub fn client_store(&self) -> &dyn ClientStore {
+        self.client_store.as_ref()
+    }
+
     /// Generate a random authorization code
     fn generate_authorization_code() -> String {
         let mut rng = rand::thread_rng();
