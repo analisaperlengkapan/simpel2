@@ -197,6 +197,12 @@ pub async fn authorize_handler(
     // redirect the user-agent to the invalid URI.  We therefore look up the
     // client and check the redirect_uri here; failures are returned as plain
     // HTTP errors (not redirects).
+    //
+    // NOTE: This causes a double client lookup — `oauth2_service.authorize()`
+    // performs the same lookup as defense-in-depth.  This is intentional for
+    // security (RFC compliance), but could be optimized by passing the
+    // pre-validated client into the service layer.  See the corresponding
+    // TODO in `oauth2_service.rs`.
     let realm_id_for_lookup =
         authenc_types::domain_types::RealmId::from_uuid(authenc_types::domain::Realm::MASTER_ID);
     let client = state
@@ -227,7 +233,7 @@ pub async fn authorize_handler(
             message: "Invalid redirect_uri for this client".to_string(),
         })?;
 
-    // 2. Check if user is authenticated via session cookie
+    // 2. Check if user is authenticated via Bearer token
     let user_uuid = match auth_helpers::extract_user_from_token(&state, &headers).await {
         Ok(uid) => uid,
         Err(_) => {
