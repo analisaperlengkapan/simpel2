@@ -14,12 +14,19 @@ pub struct OidcIdTokenClaims {
     pub exp: i64,
     pub iat: i64,
     pub auth_time: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub nonce: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email_verified: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub given_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub family_name: Option<String>,
 }
 
