@@ -223,7 +223,7 @@ impl AuthService {
                                             if let Some(refresh) = &login_resp.refresh_token {
                                                 session.refresh_token = Some(refresh.clone());
                                             }
-                                            let _ = Self::save_session(&session);
+                                            Self::save_session(&session);
                                             if login_resp.require_password_change {
                                                 LoginResult::PasswordChangeRequired(Box::new(
                                                     session,
@@ -824,7 +824,7 @@ impl AuthService {
 
             // Get temp token for authentication
             let token = Self::get_temp_token()
-                .or_else(|| Self::get_token())
+                .or_else(Self::get_token)
                 .ok_or_else(|| "No authentication token available".to_string())?;
 
             let request = Request::post(&setup_url)
@@ -875,7 +875,7 @@ impl AuthService {
 
             // Get temp token for authentication
             let token = Self::get_temp_token()
-                .or_else(|| Self::get_token())
+                .or_else(Self::get_token)
                 .ok_or_else(|| "No authentication token available".to_string())?;
 
             let body = serde_json::json!({
@@ -1041,7 +1041,7 @@ impl AuthService {
                 session.mfa_setup_required = mfa_setup_required;
                 // Note: mfa_verification_required is not stored in UserSession
                 // It's a transient state during login flow
-                let _ = Self::save_session(&session);
+                Self::save_session(&session);
             }
         }
         #[cfg(not(target_arch = "wasm32"))]

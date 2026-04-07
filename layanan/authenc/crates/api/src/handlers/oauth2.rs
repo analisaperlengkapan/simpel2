@@ -251,7 +251,11 @@ pub async fn authorize_handler(
     let code_challenge = match request.code_challenge {
         Some(cc) if !cc.is_empty() => cc,
         _ => {
-            let separator = if request.redirect_uri.contains('?') { '&' } else { '?' };
+            let separator = if request.redirect_uri.contains('?') {
+                '&'
+            } else {
+                '?'
+            };
             let mut target = format!(
                 "{}{}error=invalid_request&error_description={}",
                 request.redirect_uri,
@@ -268,7 +272,11 @@ pub async fn authorize_handler(
         Some(ccm) if ccm == "S256" || ccm == "plain" => ccm,
         Some(ccm) => {
             // Unrecognized method — redirect error to client
-            let separator = if request.redirect_uri.contains('?') { '&' } else { '?' };
+            let separator = if request.redirect_uri.contains('?') {
+                '&'
+            } else {
+                '?'
+            };
             let mut target = format!(
                 "{}{}error=invalid_request&error_description={}",
                 request.redirect_uri,
