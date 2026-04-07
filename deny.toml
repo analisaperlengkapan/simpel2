@@ -36,6 +36,7 @@ allow = [
     "Unlicense",
     "Zlib",
     "0BSD",
+    "CC0-1.0",
 ]
 # Confidence threshold for license detection
 confidence-threshold = 0.8
