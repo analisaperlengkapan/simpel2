@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use authenc_types::{ClientStore, OAuth2Service};
 use axum::{
-    Json,
+    Form, Json,
     extract::{Query, State},
     response::Response,
 };
@@ -45,9 +45,11 @@ pub struct AuthorizeResponse {
 
 /// OAuth2 token request
 ///
-/// `client_id` and `client_secret` are optional in the body because they may
-/// be supplied via HTTP Basic authentication (`client_secret_basic`) per
-/// RFC 6749 §2.3.1.
+/// `client_id` and `client_secret` are optional in the form body because
+/// they may be supplied via HTTP Basic authentication
+/// (`client_secret_basic`) per RFC 6749 §2.3.1.
+///
+/// Deserialized from `application/x-www-form-urlencoded` per RFC 6749 §4.1.3.
 #[derive(Debug, Deserialize)]
 pub struct TokenRequest {
     /// Grant type (authorization_code, refresh_token, client_credentials)
@@ -413,7 +415,9 @@ fn extract_basic_auth(headers: &HeaderMap) -> Option<(String, String)> {
     let decoded = String::from_utf8(STANDARD.decode(encoded).ok()?).ok()?;
     let (id, secret) = decoded.split_once(':')?;
     Some((
-        urlencoding::decode(id).unwrap_or_else(|_| id.into()).into_owned(),
+        urlencoding::decode(id)
+            .unwrap_or_else(|_| id.into())
+            .into_owned(),
         urlencoding::decode(secret)
             .unwrap_or_else(|_| secret.into())
             .into_owned(),
@@ -425,13 +429,16 @@ fn extract_basic_auth(headers: &HeaderMap) -> Option<(String, String)> {
 /// OAuth2 token endpoint for exchanging authorization codes for tokens.
 /// Supports authorization_code, refresh_token, and client_credentials grants.
 ///
-/// Client credentials may be supplied via `client_secret_post` (in the JSON
-/// body) or `client_secret_basic` (`Authorization: Basic` header) per
-/// RFC 6749 §2.3.
+/// Client credentials may be supplied via `client_secret_post` (in the
+/// form-encoded body) or `client_secret_basic` (`Authorization: Basic`
+/// header) per RFC 6749 §2.3.
+///
+/// Per RFC 6749 §4.1.3, the request body uses
+/// `application/x-www-form-urlencoded` encoding.
 pub async fn token_handler(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
-    Json(request): Json<TokenRequest>,
+    Form(request): Form<TokenRequest>,
 ) -> Result<Json<TokenResponse>, ErrorResponse> {
     use authenc_types::domain_types::{RealmId, TokenRequest as DomainTokenRequest};
     use uuid::Uuid;
@@ -803,10 +810,7 @@ mod tests {
     #[test]
     fn test_extract_basic_auth_bearer_ignored() {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            "Bearer some-token".parse().unwrap(),
-        );
+        headers.insert("Authorization", "Bearer some-token".parse().unwrap());
         assert_eq!(extract_basic_auth(&headers), None);
     }
 
