@@ -55,8 +55,9 @@ multiple-versions = "warn"
 wildcards = "deny"
 # Specific crates to deny
 deny = [
-    # Deny old crypto crates with known vulnerabilities
-    { name = "openssl" },
+    # Deny direct use of openssl — allow only when pulled in via openssl-sys
+    # (transitive dependency of lettre, tokio-postgres-rustls, etc.)
+    { name = "openssl", wrappers = ["openssl-sys"] },
 ]
 
 # Allow specific duplicate versions that are hard to unify

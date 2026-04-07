@@ -407,7 +407,9 @@ impl PemakaianBmnRepository {
         }
 
         if let Some(ref search) = query.search {
-            let search_pattern = format!("%{}%", search);
+            // Escape LIKE-special characters to prevent pattern injection
+            let escaped = search.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+            let search_pattern = format!("%{}%", escaped);
             where_clauses.push(format!(
                 "(bmn_nama_barang ILIKE ${} OR pegawai_nama ILIKE ${} OR nomor_izin ILIKE ${})",
                 param_count, param_count, param_count
@@ -415,8 +417,6 @@ impl PemakaianBmnRepository {
             param_count += 1;
             params.push(Box::new(search_pattern));
         }
-        let _ = param_count;
-
         let where_clause = if where_clauses.is_empty() {
             String::new()
         } else {
@@ -438,14 +438,20 @@ impl PemakaianBmnRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
         let total: i64 = total_row.get("total");
 
-        // Get data
+        // Get data — parameterize LIMIT/OFFSET for defense-in-depth
+        let limit_param_idx = param_count;
+        let offset_param_idx = param_count + 1;
         let data_query = format!(
-            "SELECT * FROM perlengkapan.izin_pemakaian_bmn {} ORDER BY created_at DESC LIMIT {} OFFSET {}",
-            where_clause, per_page, offset
+            "SELECT * FROM perlengkapan.izin_pemakaian_bmn {} ORDER BY created_at DESC LIMIT ${} OFFSET ${}",
+            where_clause, limit_param_idx, offset_param_idx
         );
 
+        let mut data_params = params.iter().map(|p| p.as_ref()).collect::<Vec<&(dyn tokio_postgres::types::ToSql + Sync)>>();
+        data_params.push(&per_page);
+        data_params.push(&offset);
+
         let rows = client
-            .query(&data_query, &param_refs)
+            .query(&data_query, &data_params)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
