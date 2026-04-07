@@ -245,19 +245,48 @@ pub async fn authorize_handler(
     // 5. If authenticated, check consent (assume auto-consent for now)
 
     // 5.5. Validate PKCE parameters (required per OAuth 2.1)
+    // Since the redirect_uri has already been validated (step 1.5), errors
+    // from this point onward SHOULD be communicated by redirecting to the
+    // client's redirect_uri per RFC 6749 §4.1.2.1.
     let code_challenge = match request.code_challenge {
         Some(cc) if !cc.is_empty() => cc,
         _ => {
-            return Err(ErrorResponse {
-                status_code: axum::http::StatusCode::BAD_REQUEST,
-                error: "invalid_request".to_string(),
-                message: "code_challenge is required (OAuth 2.1)".to_string(),
-            });
+            let separator = if request.redirect_uri.contains('?') { '&' } else { '?' };
+            let mut target = format!(
+                "{}{}error=invalid_request&error_description={}",
+                request.redirect_uri,
+                separator,
+                urlencoding::encode("code_challenge is required (OAuth 2.1)")
+            );
+            if let Some(ref state_param) = request.state {
+                target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
+            }
+            return Ok(Redirect::temporary(&target).into_response());
         }
     };
-    let code_challenge_method = request
-        .code_challenge_method
-        .unwrap_or_else(|| "S256".into());
+    let code_challenge_method = match request.code_challenge_method {
+        Some(ccm) if ccm == "S256" || ccm == "plain" => ccm,
+        Some(ccm) => {
+            // Unrecognized method — redirect error to client
+            let separator = if request.redirect_uri.contains('?') { '&' } else { '?' };
+            let mut target = format!(
+                "{}{}error=invalid_request&error_description={}",
+                request.redirect_uri,
+                separator,
+                urlencoding::encode(&format!(
+                    "Unsupported code_challenge_method '{}', must be S256 or plain",
+                    ccm
+                ))
+            );
+            if let Some(ref state_param) = request.state {
+                target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
+            }
+            return Ok(Redirect::temporary(&target).into_response());
+        }
+        // Per RFC 7636 §4.3, the default when code_challenge_method is absent
+        // is "plain".
+        None => "plain".to_string(),
+    };
 
     // 6. Generate and persist authorization code via OAuth2 service
     // Save state and redirect_uri before they are moved into domain_request,
