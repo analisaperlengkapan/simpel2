@@ -365,6 +365,7 @@ pub async fn token_handler(
     let realm_id = RealmId::from_uuid(authenc_types::domain::Realm::MASTER_ID);
 
     let client_id = request.client_id.clone();
+    let grant_type = request.grant_type.clone();
     let domain_request = DomainTokenRequest {
         grant_type: request.grant_type,
         code: request.code,
@@ -383,7 +384,14 @@ pub async fn token_handler(
             // Generate ID token if 'openid' scope was granted.
             // Per OIDC Core §3.1.3.3, the ID token MUST be present when
             // openid scope is granted — errors must not be silently dropped.
-            if resp.scope.split_whitespace().any(|s| s == "openid") {
+            //
+            // However, client_credentials grants have no end-user context
+            // (the `sub` is a synthetic service-account UUID that does not
+            // exist in the user store), so attempting to generate an ID
+            // token would always fail.  OIDC Core does not define ID token
+            // semantics for client_credentials, so we skip generation here.
+            let is_client_credentials = grant_type == "client_credentials";
+            if !is_client_credentials && resp.scope.split_whitespace().any(|s| s == "openid") {
                 let claims = state
                     .jwt_service
                     .verify_token(&resp.access_token)

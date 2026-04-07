@@ -51,7 +51,7 @@ pub fn generate_id_token(
     let header = Ed25519JwtHeader {
         alg: "EdDSA".to_string(),
         typ: "JWT".to_string(),
-        kid: "authence-ed25519-key".to_string(),
+        kid: "authenc-ed25519-key".to_string(),
     };
 
     let name = match (&user.first_name, &user.last_name) {

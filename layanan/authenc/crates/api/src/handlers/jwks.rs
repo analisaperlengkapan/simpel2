@@ -59,7 +59,7 @@ async fn jwks_handler(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
             x: Some(public_key_b64),
             n: None,
             e: None,
-            kid: "authence-ed25519-key".to_string(),
+            kid: "authenc-ed25519-key".to_string(),
             use_: "sig".to_string(),
             alg: "EdDSA".to_string(),
         }],

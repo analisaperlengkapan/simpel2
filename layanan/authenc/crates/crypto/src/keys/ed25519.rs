@@ -165,7 +165,7 @@ impl Ed25519Jwk {
 /// An `Ed25519Jwk` containing the public key from the global keypair
 pub fn get_ed25519_jwk() -> Ed25519Jwk {
     let verifying_key = ED25519_KEYPAIR.verifying_key();
-    Ed25519Jwk::from_verifying_key(&verifying_key, "authence-ed25519-key")
+    Ed25519Jwk::from_verifying_key(&verifying_key, "authenc-ed25519-key")
 }
 
 /// Get the Ed25519 public key in PEM format
