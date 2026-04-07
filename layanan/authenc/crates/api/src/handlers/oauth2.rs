@@ -502,7 +502,10 @@ pub async fn token_handler(
                     .jwt_service
                     .verify_token(&resp.access_token)
                     .map_err(|e| {
-                        tracing::error!("ID token generation: failed to verify access token: {}", e);
+                        tracing::error!(
+                            "ID token generation: failed to verify access token: {}",
+                            e
+                        );
                         ErrorResponse {
                             status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                             error: "server_error".to_string(),
@@ -511,7 +514,10 @@ pub async fn token_handler(
                     })?;
 
                 let user_uuid = uuid::Uuid::parse_str(&claims.sub).map_err(|e| {
-                    tracing::error!("ID token generation: invalid user ID in access token: {}", e);
+                    tracing::error!(
+                        "ID token generation: invalid user ID in access token: {}",
+                        e
+                    );
                     ErrorResponse {
                         status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         error: "server_error".to_string(),
@@ -520,19 +526,14 @@ pub async fn token_handler(
                 })?;
 
                 let user_id = authenc_types::UserId::from_uuid(user_uuid);
-                let user =
-                    state
-                        .user_service
-                        .get_user(user_id)
-                        .await
-                        .map_err(|e| {
-                            tracing::error!("ID token generation: failed to fetch user: {}", e);
-                            ErrorResponse {
-                                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                                error: "server_error".to_string(),
-                                message: "Failed to generate ID token".to_string(),
-                            }
-                        })?;
+                let user = state.user_service.get_user(user_id).await.map_err(|e| {
+                    tracing::error!("ID token generation: failed to fetch user: {}", e);
+                    ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "server_error".to_string(),
+                        message: "Failed to generate ID token".to_string(),
+                    }
+                })?;
 
                 id_token = Some(
                     super::oidc_jwt::generate_id_token(
@@ -590,8 +591,7 @@ pub async fn token_handler(
                     (
                         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         "server_error".to_string(),
-                        "An internal error occurred while processing the token request"
-                            .to_string(),
+                        "An internal error occurred while processing the token request".to_string(),
                     )
                 }
             };
@@ -612,11 +612,14 @@ pub async fn discovery_handler(
 ) -> Result<Json<OidcDiscoveryResponse>, ErrorResponse> {
     let issuer = state.jwt_service.issuer().to_string();
     // Derive base URL by stripping the known auth path suffix.
-    // First normalize a possible trailing slash, then strip the suffix.
+    // First normalize possible trailing slashes, then strip the suffix.
+    // This handles both "https://host/api/v1/auth" and
+    // "https://host/api/v1/auth/" gracefully.
     let normalized = issuer.trim_end_matches('/');
     let base_url = normalized
         .strip_suffix("/api/v1/auth")
-        .unwrap_or(normalized);
+        .unwrap_or(normalized)
+        .trim_end_matches('/');
 
     let discovery = OidcDiscoveryResponse {
         issuer: issuer.clone(),
