@@ -606,7 +606,7 @@ pub async fn discovery_handler(
         token_endpoint: format!("{}/api/v1/oauth2/token", base_url),
         userinfo_endpoint: format!("{}/api/v1/oauth2/userinfo", base_url),
         jwks_uri: format!("{}/api/v1/oauth2/jwks", base_url),
-        response_types_supported: vec!["code".to_string(), "id_token".to_string()],
+        response_types_supported: vec!["code".to_string()],
         grant_types_supported: vec![
             "authorization_code".to_string(),
             "refresh_token".to_string(),
