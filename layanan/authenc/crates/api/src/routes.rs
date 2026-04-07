@@ -65,10 +65,7 @@ pub fn create_router(state: Arc<ApiState>) -> Router {
         .route("/api/v1/oauth2/userinfo", get(handlers::userinfo_handler))
         // JWKS endpoint (must match discovery document's jwks_uri)
         .nest("/api/v1/oauth2", handlers::jwks::create_jwks_routes())
-        .route(
-            "/.well-known/jwks.json",
-            get(handlers::jwks::jwks_handler),
-        )
+        .route("/.well-known/jwks.json", get(handlers::jwks::jwks_handler))
         // Optional: Token introspection (RFC 7662)
         .route(
             "/api/v1/auth/introspect",

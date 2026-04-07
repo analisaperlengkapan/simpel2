@@ -206,10 +206,7 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
         // document's jwks_uri ({base}/api/v1/oauth2/jwks) resolves correctly.
         .nest("/api/v1/oauth2", handlers::jwks::create_jwks_routes())
         // Also serve at the standard well-known path at the root level.
-        .route(
-            "/.well-known/jwks.json",
-            get(handlers::jwks::jwks_handler),
-        )
+        .route("/.well-known/jwks.json", get(handlers::jwks::jwks_handler))
         // ===== CAPTCHA Endpoints (public — no auth required) =====
         .route(
             "/api/captcha/challenge",
