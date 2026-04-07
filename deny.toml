@@ -56,14 +56,13 @@ wildcards = "deny"
 # Specific crates to deny
 deny = [
     # Deny old crypto crates with known vulnerabilities
-    { name = "openssl", wrappers = ["openssl-sys"] },
+    { name = "openssl" },
 ]
 
 # Allow specific duplicate versions that are hard to unify
 skip = [
     # Allow multiple versions of these crates temporarily
     { name = "bitflags", version = "=1.3.2" },
-    { name = "syn", version = "=1.0.109" },
 ]
 
 # Skip tree for specific crates

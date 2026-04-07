@@ -412,9 +412,10 @@ impl PemakaianBmnRepository {
                 "(bmn_nama_barang ILIKE ${} OR pegawai_nama ILIKE ${} OR nomor_izin ILIKE ${})",
                 param_count, param_count, param_count
             ));
-            let _ = param_count;
+            param_count += 1;
             params.push(Box::new(search_pattern));
         }
+        let _ = param_count;
 
         let where_clause = if where_clauses.is_empty() {
             String::new()
@@ -680,9 +681,10 @@ impl PemakaianBmnRepository {
 
         if let Some(ref jenis_bmn) = query.jenis_bmn {
             where_clauses.push(format!("jenis_bmn = ${}", param_idx));
-            let _ = param_idx;
+            param_idx += 1;
             params.push(Box::new(jenis_bmn.clone()));
         }
+        let _ = param_idx;
 
         let where_clause = where_clauses.join(" AND ");
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
