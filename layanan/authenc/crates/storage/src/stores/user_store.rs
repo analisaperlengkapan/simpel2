@@ -780,7 +780,7 @@ mod tests {
 
     mod unit_tests {
         use super::*;
-        use authenc_types::domain::{Permission, Role, user::SecurityContext};
+        use authenc_types::domain::user::SecurityContext;
 
         #[test]
         fn test_user_id_creation() {

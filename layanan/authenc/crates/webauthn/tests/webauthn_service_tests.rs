@@ -10,8 +10,7 @@
 use async_trait::async_trait;
 use authenc_types::{AuthencError, Result, UserId};
 use authenc_webauthn::{
-    AuthenticationResult, AuthenticationSession, CredentialStore, RegistrationSession,
-    StoredCredential, WebAuthnConfig, WebAuthnService,
+    CredentialStore, StoredCredential, WebAuthnConfig, WebAuthnService,
 };
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
@@ -119,10 +118,10 @@ impl CredentialStore for MockCredentialStore {
         }
     }
 
-    async fn update_counter(&self, id: Uuid, counter: u32) -> Result<()> {
+    async fn update_counter(&self, id: Uuid, _counter: u32) -> Result<()> {
         let mut creds = self.credentials.lock().unwrap();
 
-        if let Some(credential) = creds.get_mut(&id) {
+        if let Some(_credential) = creds.get_mut(&id) {
             // Note: webauthn-rs Passkey doesn't expose update_counter publicly
             // In real implementation, we'd store the counter separately or
             // recreate the Passkey with updated counter

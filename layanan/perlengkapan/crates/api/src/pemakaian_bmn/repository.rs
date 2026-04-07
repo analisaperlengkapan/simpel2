@@ -427,7 +427,10 @@ impl PemakaianBmnRepository {
         };
 
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref()).collect();
+            params
+                .iter()
+                .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+                .collect();
 
         // Count total
         let count_query = format!(
@@ -449,10 +452,10 @@ impl PemakaianBmnRepository {
             where_clause, limit_param_idx, offset_param_idx
         );
 
-        let mut data_params = params
+        let mut data_params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
             .iter()
-            .map(|p| p.as_ref())
-            .collect::<Vec<&(dyn tokio_postgres::types::ToSql + Sync)>>();
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
         data_params.push(&per_page);
         data_params.push(&offset);
 
@@ -700,7 +703,10 @@ impl PemakaianBmnRepository {
 
         let where_clause = where_clauses.join(" AND ");
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref()).collect();
+            params
+                .iter()
+                .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+                .collect();
 
         // Total active permits
         let total_query = format!(
