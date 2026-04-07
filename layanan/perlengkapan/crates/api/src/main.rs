@@ -4,7 +4,7 @@
 //! Integrates with Authenc (IAM) and Secreton (Secret Manager) via gRPC.
 
 use axum::http::HeaderValue;
-use axum::{Router, extract::FromRef, routing::get};
+use axum::{Router, routing::get};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
@@ -12,9 +12,9 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
 use layanan_perlengkapan_api::{
-    cache_strategy, connection_config, dashboard, database, database_optimization, errors,
-    grpc_clients, handlers, health, kebutuhan_bmn, logging, mapping_kodefikasi, metrics,
-    middleware, models, pakaian_dinas, pemakaian_bmn, penghapusan_bmn, rate_limiting, repository,
+    cache_strategy, dashboard, database, database_optimization,
+    grpc_clients, health, kebutuhan_bmn, logging,
+    middleware, pakaian_dinas, pemakaian_bmn, penghapusan_bmn, rate_limiting,
     roadmap_sarpras, routes, services, workflow,
 };
 
@@ -25,7 +25,6 @@ use grpc_clients::{AuthencClient, SecretonClient};
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
 use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
 use pemakaian_bmn::PemakaianBmnService;
-use penghapusan_bmn::PenghapusanBmnService;
 use rate_limiting::{RateLimitConfig, RateLimiter};
 use roadmap_sarpras::{RoadmapRepository, RoadmapService};
 use services::PerlengkapanService;

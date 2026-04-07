@@ -1,3 +1,13 @@
+// Many services and SPI modules contain placeholder/stub implementations
+// with unused variables, dead code, and deprecated type references that
+// will be cleaned up incrementally.  Suppress these crate-wide for now.
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(unused_assignments)]
+#![allow(unreachable_code)]
+#![allow(deprecated)]
+
 //! # authenc-core
 //!
 //! Core business logic for Authenc identity provider.

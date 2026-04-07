@@ -6,6 +6,7 @@
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use uuid::Uuid;
 
     /// Test that document is generated after Kebutuhan BMN approval

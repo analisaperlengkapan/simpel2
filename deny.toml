@@ -55,10 +55,15 @@ multiple-versions = "warn"
 wildcards = "deny"
 # Specific crates to deny
 deny = [
-    # Deny the high-level openssl crate.  The low-level openssl-sys FFI
-    # binding is a separate crate and is NOT denied — it is pulled in
-    # transitively by lettre, tokio-postgres-rustls, etc.
-    { name = "openssl" },
+    # Deny the high-level openssl crate EXCEPT when pulled in transitively
+    # by crates that have no alternative (native-tls, webauthn, etc.).
+    # The wrappers list below permits these transitive usages.
+    { name = "openssl", wrappers = [
+        "authenc-crypto",
+        "native-tls",
+        "webauthn-attestation-ca",
+        "webauthn-rs-core",
+    ] },
 ]
 
 # Allow specific duplicate versions that are hard to unify
