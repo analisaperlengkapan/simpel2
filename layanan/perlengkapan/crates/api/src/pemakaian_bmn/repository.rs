@@ -408,7 +408,10 @@ impl PemakaianBmnRepository {
 
         if let Some(ref search) = query.search {
             // Escape LIKE-special characters to prevent pattern injection
-            let escaped = search.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+            let escaped = search
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_");
             let search_pattern = format!("%{}%", escaped);
             where_clauses.push(format!(
                 "(bmn_nama_barang ILIKE ${} OR pegawai_nama ILIKE ${} OR nomor_izin ILIKE ${})",
@@ -446,7 +449,10 @@ impl PemakaianBmnRepository {
             where_clause, limit_param_idx, offset_param_idx
         );
 
-        let mut data_params = params.iter().map(|p| p.as_ref()).collect::<Vec<&(dyn tokio_postgres::types::ToSql + Sync)>>();
+        let mut data_params = params
+            .iter()
+            .map(|p| p.as_ref())
+            .collect::<Vec<&(dyn tokio_postgres::types::ToSql + Sync)>>();
         data_params.push(&per_page);
         data_params.push(&offset);
 
