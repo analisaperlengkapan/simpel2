@@ -9,9 +9,7 @@
 
 use async_trait::async_trait;
 use authenc_types::{AuthencError, Result, UserId};
-use authenc_webauthn::{
-    CredentialStore, StoredCredential, WebAuthnConfig, WebAuthnService,
-};
+use authenc_webauthn::{CredentialStore, StoredCredential, WebAuthnConfig, WebAuthnService};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

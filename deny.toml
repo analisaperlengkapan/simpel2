@@ -58,9 +58,7 @@ deny = [
     # Deny the high-level openssl crate.  The low-level openssl-sys FFI
     # binding is a separate crate and is NOT denied — it is pulled in
     # transitively by lettre, tokio-postgres-rustls, etc.
-    # The wrappers field allows openssl when it is only used as a wrapper
-    # around openssl-sys (transitive dependency from authenc-crypto xmldsig).
-    { name = "openssl", wrappers = ["openssl-sys"] },
+    { name = "openssl" },
 ]
 
 # Allow specific duplicate versions that are hard to unify
