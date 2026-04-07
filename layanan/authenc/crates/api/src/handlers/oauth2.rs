@@ -15,7 +15,7 @@ use crate::{handlers::ErrorResponse, state::ApiState};
 /// OAuth2 authorization request parameters
 #[derive(Debug, Deserialize)]
 pub struct AuthorizeRequest {
-    /// Response type (code, token, id_token)
+    /// Response type (only "code" is supported)
     pub response_type: String,
     /// Client ID
     pub client_id: String,
@@ -501,19 +501,22 @@ pub async fn token_handler(
                 let claims = state
                     .jwt_service
                     .verify_token(&resp.access_token)
-                    .map_err(|e| ErrorResponse {
-                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                        error: "server_error".to_string(),
-                        message: format!(
-                            "Failed to verify access token for ID token generation: {}",
-                            e
-                        ),
+                    .map_err(|e| {
+                        tracing::error!("ID token generation: failed to verify access token: {}", e);
+                        ErrorResponse {
+                            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                            error: "server_error".to_string(),
+                            message: "Failed to generate ID token".to_string(),
+                        }
                     })?;
 
-                let user_uuid = uuid::Uuid::parse_str(&claims.sub).map_err(|e| ErrorResponse {
-                    status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    error: "server_error".to_string(),
-                    message: format!("Invalid user ID in access token: {}", e),
+                let user_uuid = uuid::Uuid::parse_str(&claims.sub).map_err(|e| {
+                    tracing::error!("ID token generation: invalid user ID in access token: {}", e);
+                    ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "server_error".to_string(),
+                        message: "Failed to generate ID token".to_string(),
+                    }
                 })?;
 
                 let user_id = authenc_types::UserId::from_uuid(user_uuid);
@@ -522,10 +525,13 @@ pub async fn token_handler(
                         .user_service
                         .get_user(user_id)
                         .await
-                        .map_err(|e| ErrorResponse {
-                            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                            error: "server_error".to_string(),
-                            message: format!("Failed to fetch user for ID token generation: {}", e),
+                        .map_err(|e| {
+                            tracing::error!("ID token generation: failed to fetch user: {}", e);
+                            ErrorResponse {
+                                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                                error: "server_error".to_string(),
+                                message: "Failed to generate ID token".to_string(),
+                            }
                         })?;
 
                 id_token = Some(
@@ -536,10 +542,13 @@ pub async fn token_handler(
                         state.jwt_service.issuer(),
                         state.jwt_service.signing_key(),
                     )
-                    .map_err(|e| ErrorResponse {
-                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                        error: "server_error".to_string(),
-                        message: format!("Failed to generate ID token: {}", e),
+                    .map_err(|e| {
+                        tracing::error!("ID token generation: signing failed: {}", e);
+                        ErrorResponse {
+                            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                            error: "server_error".to_string(),
+                            message: "Failed to generate ID token".to_string(),
+                        }
                     })?,
                 );
             }
@@ -576,11 +585,15 @@ pub async fn token_handler(
                         )
                     }
                 }
-                _ => (
-                    axum::http::StatusCode::BAD_REQUEST,
-                    "invalid_request".to_string(),
-                    error_string,
-                ),
+                _ => {
+                    tracing::warn!("OAuth2 token error (non-OAuth2): {}", error_string);
+                    (
+                        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        "server_error".to_string(),
+                        "An internal error occurred while processing the token request"
+                            .to_string(),
+                    )
+                }
             };
             Err(ErrorResponse {
                 status_code,
@@ -599,12 +612,11 @@ pub async fn discovery_handler(
 ) -> Result<Json<OidcDiscoveryResponse>, ErrorResponse> {
     let issuer = state.jwt_service.issuer().to_string();
     // Derive base URL by stripping the known auth path suffix.
-    // Uses strip_suffix (single match) instead of trim_end_matches (repeated)
-    // to avoid accidentally stripping more than intended.
-    let base_url = issuer
+    // First normalize a possible trailing slash, then strip the suffix.
+    let normalized = issuer.trim_end_matches('/');
+    let base_url = normalized
         .strip_suffix("/api/v1/auth")
-        .unwrap_or(&issuer)
-        .trim_end_matches('/');
+        .unwrap_or(normalized);
 
     let discovery = OidcDiscoveryResponse {
         issuer: issuer.clone(),
@@ -711,11 +723,14 @@ pub async fn userinfo_handler(
                 family_name: user.last_name,
             }))
         }
-        Err(e) => Err(ErrorResponse {
-            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            error: "internal_error".to_string(),
-            message: e.to_string(),
-        }),
+        Err(e) => {
+            tracing::error!("UserInfo: failed to fetch user {}: {}", user_uuid, e);
+            Err(ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                error: "internal_error".to_string(),
+                message: "Failed to retrieve user information".to_string(),
+            })
+        }
     }
 }
 

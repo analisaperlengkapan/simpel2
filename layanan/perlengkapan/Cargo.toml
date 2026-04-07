@@ -14,3 +14,7 @@ edition.workspace = true
 publish = false
 authors.workspace = true
 license.workspace = true
+# The build.rs at this level has incorrect paths (it was a leftover from
+# when this was a virtual workspace manifest and was never executed).
+# Proto compilation is handled by crates/api/build.rs instead.
+build = false
