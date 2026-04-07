@@ -207,6 +207,16 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
         .nest("/api/v1/oauth2", handlers::jwks::create_jwks_routes())
         // Also serve at the standard well-known path at the root level.
         .route("/.well-known/jwks.json", get(handlers::jwks::jwks_handler))
+        // ===== OIDC Discovery at root well-known path =====
+        // Per OIDC Discovery §4.1, relying parties auto-discover by
+        // appending /.well-known/openid-configuration to the issuer.
+        // Serve the discovery document here as well so that clients using
+        // the issuer URL (which may not include /api/v1/oauth2) can still
+        // find it.
+        .route(
+            "/.well-known/openid-configuration",
+            get(handlers::discovery_handler),
+        )
         // ===== CAPTCHA Endpoints (public — no auth required) =====
         .route(
             "/api/captcha/challenge",

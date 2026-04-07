@@ -74,7 +74,14 @@ pub fn generate_id_token(
         aud: client_id.to_string(),
         exp: now + 3600,
         iat: now,
-        auth_time: now, // Simplification
+        // OIDC Core §12.2: For refresh_token grants, auth_time MUST reflect
+        // the time of the original authentication, not the current time.
+        // Since the original auth_time is not stored with the refresh token,
+        // we use `now` as a simplification.  This is non-compliant for
+        // refresh_token grants.
+        // TODO: Store auth_time in the authorization code / refresh token
+        // and pass it through to this function.
+        auth_time: now,
         nonce,
         preferred_username: Some(user.username.clone()),
         email: Some(user.email.clone()),

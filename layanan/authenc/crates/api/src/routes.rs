@@ -66,6 +66,11 @@ pub fn create_router(state: Arc<ApiState>) -> Router {
         // JWKS endpoint (must match discovery document's jwks_uri)
         .nest("/api/v1/oauth2", handlers::jwks::create_jwks_routes())
         .route("/.well-known/jwks.json", get(handlers::jwks::jwks_handler))
+        // OIDC Discovery at root well-known path (OIDC Discovery §4.1)
+        .route(
+            "/.well-known/openid-configuration",
+            get(handlers::discovery_handler),
+        )
         // Optional: Token introspection (RFC 7662)
         .route(
             "/api/v1/auth/introspect",

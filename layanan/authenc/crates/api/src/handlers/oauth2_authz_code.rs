@@ -228,9 +228,19 @@ pub async fn authorize(
         .into_response())
 }
 
-/// OAuth2 Token Endpoint
+/// OAuth2 Token Endpoint (LEGACY — DO NOT USE FOR NEW FLOWS)
+///
 /// Exchanges authorization code for access token and refresh token.
 /// Validates authorization code, PKCE verifier, and client credentials.
+///
+/// # ⚠️ Key Mismatch Warning
+///
+/// This handler signs tokens using the global `ED25519_KEYPAIR` (via
+/// `generate_ed25519_jwt`), which is a **different key** from the one used by
+/// `JwtService`.  The JWKS endpoint (`/api/v1/oauth2/jwks`) serves the
+/// `JwtService` public key, so tokens issued by this handler **cannot be
+/// verified** via the JWKS endpoint.  Use the new `token_handler` in
+/// `oauth2.rs` (which delegates to `OAuth2ServiceImpl`) for all new flows.
 #[allow(deprecated)] // Uses legacy generate_ed25519_jwt; TODO: migrate to JwtService
 pub async fn token(
     State(state): State<AuthzState>,

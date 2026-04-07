@@ -285,7 +285,12 @@ impl OAuth2ServiceImpl {
                 .ok_or_else(|| OAuth2Error::invalid_client("Client secret required"))?;
 
             // TODO: Use proper password hasher for client secret verification
-            // For now, simple comparison (should use Argon2 in production)
+            // For now, simple comparison (should use Argon2 in production).
+            //
+            // SECURITY: This plaintext comparison is vulnerable to timing
+            // attacks.  Replace with constant-time comparison (e.g.
+            // `subtle::ConstantTimeEq`) or, preferably, store hashed secrets
+            // and verify with Argon2id.
             if provided_secret != client.client_secret {
                 return Err(OAuth2Error::invalid_client("Invalid client secret").into());
             }

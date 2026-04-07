@@ -679,10 +679,15 @@ pub async fn userinfo_handler(
     let claims = state
         .jwt_service
         .verify_token(&token)
-        .map_err(|e| ErrorResponse {
-            status_code: axum::http::StatusCode::UNAUTHORIZED,
-            error: "unauthorized".to_string(),
-            message: format!("Invalid or expired token: {}", e),
+        .map_err(|e| {
+            // Log the detailed error for debugging but return a generic
+            // message to avoid leaking internal JWT details to callers.
+            tracing::debug!("UserInfo: token verification failed: {}", e);
+            ErrorResponse {
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                error: "invalid_token".to_string(),
+                message: "The access token is invalid or expired".to_string(),
+            }
         })?;
 
     // Validate openid scope per OIDC Core §5.3
