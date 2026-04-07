@@ -220,6 +220,7 @@ pub async fn authorize(
 /// OAuth2 Token Endpoint
 /// Exchanges authorization code for access token and refresh token.
 /// Validates authorization code, PKCE verifier, and client credentials.
+#[allow(deprecated)] // Uses legacy generate_ed25519_jwt; TODO: migrate to JwtService
 pub async fn token(
     State(state): State<AuthzState>,
     Json(params): Json<OAuth2TokenRequest>,
@@ -261,6 +262,8 @@ pub async fn token(
     }
 
     // Generate tokens using Ed25519
+    // TODO: Migrate to JwtService / oidc_jwt::generate_id_token — the legacy
+    // function uses the global ED25519_KEYPAIR which may differ from JwtService.
     use super::jwt_ed25519::generate_ed25519_jwt;
 
     let access_token = generate_ed25519_jwt(

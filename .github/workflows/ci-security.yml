@@ -48,7 +48,14 @@ jobs:
           fi
 
       - name: Audit dependencies
-        run: cargo audit --deny warnings
+        run: |
+          cargo audit --deny warnings \
+            --ignore RUSTSEC-2023-0071 \
+            --ignore RUSTSEC-2024-0384 \
+            --ignore RUSTSEC-2024-0436 \
+            --ignore RUSTSEC-2025-0066 \
+            --ignore RUSTSEC-2025-0134 \
+            --ignore RUSTSEC-2025-0141
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

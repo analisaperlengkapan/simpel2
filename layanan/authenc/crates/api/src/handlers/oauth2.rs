@@ -150,7 +150,20 @@ pub struct UserInfoResponse {
 ///
 /// OAuth2 authorization endpoint for initiating authorization code flow.
 /// Validates client, redirect URI, and scopes, then redirects to login if needed.
-use axum::response::{IntoResponse, Redirect};
+use axum::response::IntoResponse;
+
+/// Build an HTTP 302 (Found) redirect response.
+///
+/// RFC 6749 §4.1.2 mandates 302 for the authorization endpoint.  Axum's
+/// `Redirect::temporary()` returns 307, which preserves the HTTP method and
+/// may confuse strict OAuth2 client libraries.
+fn redirect_found(uri: &str) -> Response {
+    (
+        axum::http::StatusCode::FOUND,
+        [(axum::http::header::LOCATION, uri)],
+    )
+        .into_response()
+}
 
 pub async fn authorize_handler(
     State(state): State<Arc<ApiState>>,
@@ -238,7 +251,7 @@ pub async fn authorize_handler(
             }
 
             let login_redirect = format!("/login?return_to={}", urlencoding::encode(&return_url));
-            return Ok(Redirect::temporary(&login_redirect).into_response());
+            return Ok(redirect_found(&login_redirect));
         }
     };
 
@@ -265,7 +278,7 @@ pub async fn authorize_handler(
             if let Some(ref state_param) = request.state {
                 target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
             }
-            return Ok(Redirect::temporary(&target).into_response());
+            return Ok(redirect_found(&target));
         }
     };
     let code_challenge_method = match request.code_challenge_method {
@@ -289,7 +302,7 @@ pub async fn authorize_handler(
             if let Some(ref state_param) = request.state {
                 target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
             }
-            return Ok(Redirect::temporary(&target).into_response());
+            return Ok(redirect_found(&target));
         }
         // Per RFC 7636 §4.3, the default when code_challenge_method is absent
         // is "plain".
@@ -330,7 +343,7 @@ pub async fn authorize_handler(
             if let Some(ref state_param) = resp.state {
                 target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
             }
-            Ok(Redirect::temporary(&target).into_response())
+            Ok(redirect_found(&target))
         }
         Err(e) => {
             // Per RFC 6749 §4.1.2.1, errors (other than invalid redirect_uri
@@ -353,7 +366,7 @@ pub async fn authorize_handler(
             if let Some(ref state_param) = client_state {
                 target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
             }
-            Ok(Redirect::temporary(&target).into_response())
+            Ok(redirect_found(&target))
         }
     }
 }

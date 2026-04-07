@@ -68,6 +68,13 @@ pub struct OidcIdTokenClaims {
 /// - One hour token expiration for security
 /// - All claims are signed and tamper-proof
 /// - Crypto operations are monitored for security
+///
+/// # Deprecated
+/// This function uses the global `ED25519_KEYPAIR` which may differ from the
+/// key used by `JwtService`. Use `oidc_jwt::generate_id_token` (which accepts
+/// `&SigningKey` from `JwtService`) for OIDC ID tokens, or `JwtService` methods
+/// for access tokens, so that all tokens are verifiable via the JWKS endpoint.
+#[deprecated(note = "Use oidc_jwt::generate_id_token or JwtService methods instead")]
 pub fn generate_ed25519_jwt(
     sub: &str,
     aud: &str,
@@ -129,6 +136,10 @@ pub fn generate_ed25519_jwt(
 /// - Cryptographically verifies the signature
 /// - Parses and validates token claims
 /// - Prevents signature bypass attacks
+///
+/// # Deprecated
+/// Uses the global `ED25519_KEYPAIR`. Use `JwtService::verify_token` instead.
+#[deprecated(note = "Use JwtService::verify_token instead")]
 pub fn verify_ed25519_jwt(token: &str) -> Result<OidcIdTokenClaims, Box<dyn std::error::Error>> {
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
@@ -172,6 +183,11 @@ pub fn verify_ed25519_jwt(token: &str) -> Result<OidcIdTokenClaims, Box<dyn std:
 /// - Private keys never leave the server
 /// - Supports key rotation through key ID (kid)
 /// - Enables secure token validation by clients
+///
+/// # Deprecated
+/// This function uses the global `ED25519_KEYPAIR`. The canonical JWKS
+/// endpoint (`jwks_handler`) now serves the public key from `JwtService`.
+#[deprecated(note = "Use the jwks_handler endpoint which serves JwtService's key")]
 pub fn get_ed25519_jwks() -> serde_json::Value {
     let jwk = get_ed25519_jwk();
     serde_json::json!({
@@ -184,6 +200,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(deprecated)]
     fn test_ed25519_jwt_generation_and_verification() {
         let token = generate_ed25519_jwt(
             "user123",
@@ -204,6 +221,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_ed25519_jwks_generation() {
         let jwks = get_ed25519_jwks();
         assert!(jwks["keys"].is_array());
@@ -216,6 +234,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_invalid_jwt_verification() {
         let result = verify_ed25519_jwt("invalid.jwt.token");
         assert!(result.is_err());

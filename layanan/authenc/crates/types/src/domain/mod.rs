@@ -65,7 +65,9 @@ pub use realm::*;
 // Explicitly re-export to avoid ambiguity
 pub use role::{CreateRoleRequest, Role, RoleResponse, UpdateRoleRequest};
 
-pub use satker::{CrossSatkerValidation, Satker, SatkerHierarchy};
+pub use satker::{
+    CrossSatkerValidation, Satker, SatkerHierarchy, SatkerNode, SatkerPermissionScope,
+};
 
 pub use session::*;
 pub use social_account::*;

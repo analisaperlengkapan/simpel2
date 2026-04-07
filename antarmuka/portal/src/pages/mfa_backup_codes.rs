@@ -111,14 +111,11 @@ pub fn MfaBackupCodesPage(
                         && let Ok(link) = document.create_element("a")
                     {
                         let _ = link.set_attribute("href", &url);
-                        let _ = link
-                            .set_attribute("download", "simpelv2-mfa-backup-codes.txt");
+                        let _ = link.set_attribute("download", "simpelv2-mfa-backup-codes.txt");
 
                         if let Some(body) = document.body() {
                             let _ = body.append_child(&link);
-                            if let Some(html_link) =
-                                link.dyn_ref::<web_sys::HtmlElement>()
-                            {
+                            if let Some(html_link) = link.dyn_ref::<web_sys::HtmlElement>() {
                                 html_link.click();
                             }
                             let _ = body.remove_child(&link);
