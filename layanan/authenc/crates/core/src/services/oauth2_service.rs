@@ -285,13 +285,30 @@ impl OAuth2ServiceImpl {
                 .ok_or_else(|| OAuth2Error::invalid_client("Client secret required"))?;
 
             // TODO: Use proper password hasher for client secret verification
-            // For now, simple comparison (should use Argon2 in production).
+            // For now, constant-time comparison (should use Argon2 in production).
             //
-            // SECURITY: This plaintext comparison is vulnerable to timing
-            // attacks.  Replace with constant-time comparison (e.g.
-            // `subtle::ConstantTimeEq`) or, preferably, store hashed secrets
-            // and verify with Argon2id.
-            if provided_secret != client.client_secret {
+            // SECURITY: Using constant-time comparison to prevent timing
+            // attacks.  Preferably, store hashed secrets and verify with
+            // Argon2id in a future iteration.
+            use subtle::ConstantTimeEq;
+            let provided_bytes = provided_secret.as_bytes();
+            let stored_bytes = client.client_secret.as_bytes();
+            // ConstantTimeEq requires equal-length slices.  If lengths
+            // differ the secrets cannot match, but we must still avoid
+            // leaking the length difference via timing.  We compare
+            // against a fixed-length SHA-256 digest of each value so that
+            // the comparison is always over 32 bytes regardless of input.
+            let provided_hash = {
+                let mut h = Sha256::new();
+                Digest::update(&mut h, provided_bytes);
+                h.finalize()
+            };
+            let stored_hash = {
+                let mut h = Sha256::new();
+                Digest::update(&mut h, stored_bytes);
+                h.finalize()
+            };
+            if provided_hash.ct_eq(&stored_hash).unwrap_u8() != 1 {
                 return Err(OAuth2Error::invalid_client("Invalid client secret").into());
             }
         }

@@ -380,7 +380,7 @@ impl PemakaianBmnRepository {
 
         let mut where_clauses = vec![];
         let mut param_count = 1;
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync>> = vec![];
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
 
         if let Some(ref status) = query.status {
             where_clauses.push(format!("status = ${}", param_count));
@@ -683,7 +683,7 @@ impl PemakaianBmnRepository {
         // Build WHERE clause for filters
         let mut where_clauses = vec!["status = 'ACTIVE'".to_string()];
         let mut param_idx = 1;
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync>> = vec![];
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
 
         if let Some(ref satker_id) = query.satker_id {
             where_clauses.push(format!("pegawai_satker_id = ${}", param_idx));

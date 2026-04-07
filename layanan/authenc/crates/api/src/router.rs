@@ -217,6 +217,13 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
             "/.well-known/openid-configuration",
             get(handlers::discovery_handler),
         )
+        // Also serve discovery at the issuer-relative path.  The issuer is
+        // typically "https://host/api/v1/auth", so OIDC clients will
+        // request "https://host/api/v1/auth/.well-known/openid-configuration".
+        .route(
+            "/api/v1/auth/.well-known/openid-configuration",
+            get(handlers::discovery_handler),
+        )
         // ===== CAPTCHA Endpoints (public — no auth required) =====
         .route(
             "/api/captcha/challenge",
