@@ -49,7 +49,7 @@ pub fn create_jwks_routes() -> Router<Arc<ApiState>> {
 ///
 /// Returns the Ed25519 public key used to sign access tokens and ID tokens,
 /// enabling relying parties to verify token signatures.
-async fn jwks_handler(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+pub async fn jwks_handler(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
     let public_key_b64 = state.jwt_service.get_public_key_base64();
 
     Json(JwksResponse {
