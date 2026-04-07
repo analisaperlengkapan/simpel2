@@ -1119,6 +1119,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
 
     // Repository tests would use testcontainers for PostgreSQL

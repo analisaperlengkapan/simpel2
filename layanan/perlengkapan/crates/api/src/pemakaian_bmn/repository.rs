@@ -409,7 +409,7 @@ impl PemakaianBmnRepository {
                 "(bmn_nama_barang ILIKE ${} OR pegawai_nama ILIKE ${} OR nomor_izin ILIKE ${})",
                 param_count, param_count, param_count
             ));
-            param_count += 1;
+            let _ = param_count;
         }
 
         let where_clause = if where_clauses.is_empty() {
@@ -671,7 +671,7 @@ impl PemakaianBmnRepository {
 
         if query.jenis_bmn.is_some() {
             where_clauses.push(format!("jenis_bmn = ${}", param_idx));
-            param_idx += 1;
+            let _ = param_idx;
         }
 
         let where_clause = where_clauses.join(" AND ");

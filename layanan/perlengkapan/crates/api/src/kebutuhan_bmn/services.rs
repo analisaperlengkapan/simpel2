@@ -29,6 +29,7 @@ use super::siman_integration::{SimanAsset, SimanIntegration};
 #[derive(Clone)]
 pub struct KebutuhanBmnService {
     repository: Arc<PgKebutuhanBmnRepository>,
+    #[allow(dead_code)]
     authenc_client: AuthencClient,
     siman: Option<Arc<SimanIntegration>>,
     workflow_engine: Arc<WorkflowEngine>,

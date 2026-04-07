@@ -5,7 +5,7 @@ use crate::{
     cache_strategy::CacheManager,
     dashboard,
     dashboard::services::DashboardService,
-    grpc_clients::{AuthencClient, SecretonClient},
+    grpc_clients::AuthencClient,
     kebutuhan_bmn::KebutuhanBmnService,
     pakaian_dinas::PakaianDinasService,
     pemakaian_bmn::PemakaianBmnService,
