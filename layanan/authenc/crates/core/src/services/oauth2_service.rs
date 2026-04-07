@@ -307,6 +307,14 @@ impl OAuth2ServiceTrait for OAuth2ServiceImpl {
         }
 
         // 2. Get and validate client
+        // NOTE: The authorize_handler already pre-validates client_id and
+        // redirect_uri before calling this method (RFC 6749 §4.1.2.1 requires
+        // that errors for unrecognized client / invalid redirect_uri are NOT
+        // redirected).  The validation here is intentionally kept as a
+        // defense-in-depth measure so the service layer remains correct
+        // regardless of how it is called.
+        // TODO: Accept an optional pre-validated client to avoid the extra
+        // database round-trip when called from the authorize_handler.
         let client = self
             .client_store
             .get_client_by_client_id(&request.client_id, request.realm_id)

@@ -44,6 +44,10 @@ pub struct AuthorizeResponse {
 }
 
 /// OAuth2 token request
+///
+/// `client_id` and `client_secret` are optional in the body because they may
+/// be supplied via HTTP Basic authentication (`client_secret_basic`) per
+/// RFC 6749 §2.3.1.
 #[derive(Debug, Deserialize)]
 pub struct TokenRequest {
     /// Grant type (authorization_code, refresh_token, client_credentials)
@@ -54,9 +58,10 @@ pub struct TokenRequest {
     /// Redirect URI (must match authorization request)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect_uri: Option<String>,
-    /// Client ID
-    pub client_id: String,
-    /// Client secret (for confidential clients)
+    /// Client ID (optional in body; may come from Authorization header)
+    #[serde(default)]
+    pub client_id: Option<String>,
+    /// Client secret (for confidential clients; may come from Authorization header)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<String>,
     /// PKCE code verifier
@@ -396,29 +401,71 @@ pub async fn authorize_handler(
     }
 }
 
+/// Extract client credentials from the `Authorization: Basic` header.
+///
+/// Per RFC 6749 §2.3.1, the header value is `Basic base64(client_id:client_secret)`.
+/// Returns `(client_id, client_secret)` on success.
+fn extract_basic_auth(headers: &HeaderMap) -> Option<(String, String)> {
+    use base64::{Engine, engine::general_purpose::STANDARD};
+
+    let auth_header = headers.get("Authorization")?.to_str().ok()?;
+    let encoded = auth_header.strip_prefix("Basic ")?;
+    let decoded = String::from_utf8(STANDARD.decode(encoded).ok()?).ok()?;
+    let (id, secret) = decoded.split_once(':')?;
+    Some((
+        urlencoding::decode(id).unwrap_or_else(|_| id.into()).into_owned(),
+        urlencoding::decode(secret)
+            .unwrap_or_else(|_| secret.into())
+            .into_owned(),
+    ))
+}
+
 /// POST /api/v1/oauth2/token - Token endpoint
 ///
 /// OAuth2 token endpoint for exchanging authorization codes for tokens.
 /// Supports authorization_code, refresh_token, and client_credentials grants.
+///
+/// Client credentials may be supplied via `client_secret_post` (in the JSON
+/// body) or `client_secret_basic` (`Authorization: Basic` header) per
+/// RFC 6749 §2.3.
 pub async fn token_handler(
     State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
     Json(request): Json<TokenRequest>,
 ) -> Result<Json<TokenResponse>, ErrorResponse> {
     use authenc_types::domain_types::{RealmId, TokenRequest as DomainTokenRequest};
     use uuid::Uuid;
 
+    // Resolve client_id and client_secret.
+    // Priority: body parameters > Authorization: Basic header.
+    // Per RFC 6749 §2.3, a client MUST NOT use more than one method, but we
+    // tolerate it by preferring the body values when both are present.
+    let basic_auth = extract_basic_auth(&headers);
+    let client_id = request
+        .client_id
+        .clone()
+        .or_else(|| basic_auth.as_ref().map(|(id, _)| id.clone()))
+        .ok_or_else(|| ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "invalid_request".to_string(),
+            message: "client_id is required (via request body or Authorization header)".to_string(),
+        })?;
+    let client_secret = request
+        .client_secret
+        .clone()
+        .or_else(|| basic_auth.map(|(_, secret)| secret));
+
     // Default to master realm
     let realm_id = RealmId::from_uuid(authenc_types::domain::Realm::MASTER_ID);
 
-    let client_id = request.client_id.clone();
     let grant_type = request.grant_type.clone();
     let domain_request = DomainTokenRequest {
         grant_type: request.grant_type,
         code: request.code,
         redirect_uri: request.redirect_uri,
         code_verifier: request.code_verifier,
-        client_id: request.client_id,
-        client_secret: request.client_secret,
+        client_id: client_id.clone(),
+        client_secret,
         refresh_token: request.refresh_token,
         scope: request.scope,
         realm_id,
@@ -712,6 +759,78 @@ mod tests {
         let json = serde_json::to_string(&discovery).unwrap();
         assert!(json.contains("issuer"));
         assert!(json.contains("authorization_endpoint"));
+    }
+
+    #[test]
+    fn test_extract_basic_auth_valid() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let mut headers = HeaderMap::new();
+        let encoded = STANDARD.encode("my-client:my-secret");
+        headers.insert(
+            "Authorization",
+            format!("Basic {}", encoded).parse().unwrap(),
+        );
+        let result = extract_basic_auth(&headers);
+        assert_eq!(
+            result,
+            Some(("my-client".to_string(), "my-secret".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_extract_basic_auth_url_encoded() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let mut headers = HeaderMap::new();
+        // client_id contains special chars that are percent-encoded per RFC 6749 §2.3.1
+        let encoded = STANDARD.encode("client%3Aid:secret%3Aval");
+        headers.insert(
+            "Authorization",
+            format!("Basic {}", encoded).parse().unwrap(),
+        );
+        let result = extract_basic_auth(&headers);
+        assert_eq!(
+            result,
+            Some(("client:id".to_string(), "secret:val".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_extract_basic_auth_missing() {
+        let headers = HeaderMap::new();
+        assert_eq!(extract_basic_auth(&headers), None);
+    }
+
+    #[test]
+    fn test_extract_basic_auth_bearer_ignored() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Authorization",
+            "Bearer some-token".parse().unwrap(),
+        );
+        assert_eq!(extract_basic_auth(&headers), None);
+    }
+
+    #[test]
+    fn test_token_request_without_client_id() {
+        // client_id omitted — should deserialize with client_id = None
+        let json = r#"{
+            "grant_type": "authorization_code",
+            "code": "abc123"
+        }"#;
+        let request: TokenRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(request.grant_type, "authorization_code");
+        assert!(request.client_id.is_none());
+    }
+
+    #[test]
+    fn test_token_request_with_client_id() {
+        let json = r#"{
+            "grant_type": "authorization_code",
+            "client_id": "portal-client",
+            "code": "abc123"
+        }"#;
+        let request: TokenRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(request.client_id, Some("portal-client".to_string()));
     }
 
     use authenc_types::domain::user::User;
