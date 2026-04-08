@@ -6,6 +6,7 @@
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use uuid::Uuid;
 
     #[tokio::test]

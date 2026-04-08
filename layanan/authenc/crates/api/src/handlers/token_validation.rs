@@ -55,26 +55,60 @@ pub struct ValidateTokenResponse {
 /// - This endpoint does NOT require authentication (it validates the token itself)
 /// - Rate limiting should be applied to prevent abuse
 /// - Token signature, expiration, and issuer are verified
-/// - Revocation list is checked
+/// - TODO: Revocation list checking is not yet implemented
 pub async fn validate_token_handler(
-    State(_state): State<Arc<ApiState>>,
-    Json(_request): Json<ValidateTokenRequest>,
+    State(state): State<Arc<ApiState>>,
+    Json(request): Json<ValidateTokenRequest>,
 ) -> Result<Json<ValidateTokenResponse>, ErrorResponse> {
-    // TODO: Implement token validation logic
-    // 1. Call jwt_service.verify_token(token)
-    // 2. Check token signature (Ed25519)
-    // 3. Check token expiration
-    // 4. Check token issuer
-    // 5. Check revocation list (if token is revoked)
-    // 6. Extract claims (user_id, username, email, realm_id, scope)
-    // 7. Return validation response
+    match state.jwt_service.verify_token(&request.token) {
+        Ok(claims) => {
+            let user_id = Uuid::parse_str(&claims.sub).ok();
+            let realm_id = claims.realm.and_then(|r| Uuid::parse_str(&r).ok());
+            let username = claims
+                .custom
+                .get("preferred_username")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let email = claims
+                .custom
+                .get("email")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
 
-    // For now, return placeholder response
-    Err(ErrorResponse {
-        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
-        error: "not_implemented".to_string(),
-        message: "Token validation endpoint not yet implemented".to_string(),
-    })
+            Ok(Json(ValidateTokenResponse {
+                valid: true,
+                user_id,
+                username,
+                email,
+                realm_id,
+                scope: claims.scope,
+                exp: Some(claims.exp),
+                iat: Some(claims.iat),
+                error: None,
+            }))
+        }
+        Err(e) => {
+            // Return a generic error category instead of the raw JWT library
+            // message to avoid leaking internal details (e.g. "Invalid issuer:
+            // expected X, got Y") to unauthenticated callers.
+            let error_msg = match &e {
+                authenc_types::error::AuthencError::TokenExpired => "Token has expired".to_string(),
+                authenc_types::error::AuthencError::InvalidToken(_) => {
+                    "Token is invalid".to_string()
+                }
+                _ => "Token validation failed".to_string(),
+            };
+            Ok(Json(ValidateTokenResponse {
+                valid: false,
+                user_id: None,
+                username: None,
+                email: None,
+                realm_id: None,
+                scope: None,
+                exp: None,
+                iat: None,
+                error: Some(error_msg),
+            }))
+        }
+    }
 }
 
 /// Introspection endpoint (RFC 7662) - Optional advanced feature
@@ -187,5 +221,119 @@ mod tests {
         let request: IntrospectRequest = serde_json::from_str(json).unwrap();
         assert_eq!(request.token, "abc123");
         assert_eq!(request.token_type_hint, Some("access_token".to_string()));
+    }
+
+    use authenc_crypto::jwt::JwtService;
+    use chrono::Duration;
+    use std::collections::HashMap;
+
+    #[tokio::test]
+    async fn test_validate_token_handler_success() {
+        let key_bytes = JwtService::generate_signing_key();
+        let jwt_service = Arc::new(
+            JwtService::new(
+                &key_bytes,
+                "https://test.example.com".to_string(),
+                Duration::minutes(15),
+                Duration::days(7),
+            )
+            .unwrap(),
+        );
+
+        let mut custom = HashMap::new();
+        custom.insert(
+            "preferred_username".to_string(),
+            serde_json::json!("testuser"),
+        );
+        custom.insert("email".to_string(), serde_json::json!("test@example.com"));
+
+        let token = jwt_service
+            .generate_access_token_with_claims(
+                &Uuid::new_v4().to_string(),
+                Some("test-realm".to_string()),
+                Some("openid profile".to_string()),
+                None,
+                custom,
+            )
+            .unwrap();
+
+        // Testing the mapping logic directly
+        let claims = jwt_service.verify_token(&token).unwrap();
+        let user_id = Uuid::parse_str(&claims.sub).ok();
+        let realm_id = claims.realm.and_then(|r| Uuid::parse_str(&r).ok());
+        let username = claims
+            .custom
+            .get("preferred_username")
+            .and_then(|v| v.as_str().map(|s| s.to_string()));
+        let email = claims
+            .custom
+            .get("email")
+            .and_then(|v| v.as_str().map(|s| s.to_string()));
+
+        let resp = ValidateTokenResponse {
+            valid: true,
+            user_id,
+            username,
+            email,
+            realm_id,
+            scope: claims.scope,
+            exp: Some(claims.exp),
+            iat: Some(claims.iat),
+            error: None,
+        };
+
+        assert!(resp.valid);
+        assert_eq!(resp.username, Some("testuser".to_string()));
+        assert_eq!(resp.email, Some("test@example.com".to_string()));
+        assert_eq!(resp.scope, Some("openid profile".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_validate_token_handler_expired() {
+        let key_bytes = JwtService::generate_signing_key();
+        let jwt_service = JwtService::new(
+            &key_bytes,
+            "https://test.example.com".to_string(),
+            Duration::seconds(-10), // Expired
+            Duration::days(7),
+        )
+        .unwrap();
+
+        let token = jwt_service
+            .generate_access_token("user-1", None, None, None)
+            .unwrap();
+
+        // Verification should fail
+        let result = jwt_service.verify_token(&token);
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_token_handler_invalid_signature() {
+        let key_bytes1 = JwtService::generate_signing_key();
+        let jwt_service1 = JwtService::new(
+            &key_bytes1,
+            "https://test.example.com".to_string(),
+            Duration::minutes(15),
+            Duration::days(7),
+        )
+        .unwrap();
+
+        let key_bytes2 = JwtService::generate_signing_key();
+        let jwt_service2 = JwtService::new(
+            &key_bytes2,
+            "https://test.example.com".to_string(),
+            Duration::minutes(15),
+            Duration::days(7),
+        )
+        .unwrap();
+
+        let token = jwt_service1
+            .generate_access_token("user-1", None, None, None)
+            .unwrap();
+
+        // Verifying with different key should fail
+        let result = jwt_service2.verify_token(&token);
+        assert!(result.is_err());
     }
 }

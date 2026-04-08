@@ -3,6 +3,7 @@ name = "authenc-crypto"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
+license.workspace = true
 
 [dependencies]
 # Workspace dependencies
@@ -44,6 +45,20 @@ reqwest = { workspace = true }  # For xmldsig OCSP/CRL fetching
 
 # Shared library dependencies
 lib-common = { path = "../../../../lib/common", features = ["crypto"] }
+
+[features]
+default = []
+quantum = []
+secreton = []
+
+# Declare expected cfg values to silence unexpected-cfg warnings in xmldsig.rs
+# The OcspClient methods are gated on these features; they are not currently
+# wired to real feature flags but the cfg attributes must be declared.
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(feature, values("quantum", "secreton", "test", "dev", "default"))',
+]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

@@ -10,10 +10,12 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 // Mock notification client for testing
+#[allow(dead_code)]
 struct MockNotifikasiClient {
     sent_notifications: Arc<Mutex<Vec<(Uuid, String, String)>>>, // (user_id, notification_type, priority)
 }
 
+#[allow(dead_code)]
 impl MockNotifikasiClient {
     fn new() -> Self {
         Self {

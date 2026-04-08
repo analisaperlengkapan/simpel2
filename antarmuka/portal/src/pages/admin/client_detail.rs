@@ -155,7 +155,6 @@ pub fn ClientDetailPage() -> impl IntoView {
     let client_id_display = move || client.get().map(|c| c.id.clone()).unwrap_or_default();
 
     let on_logout = {
-        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());

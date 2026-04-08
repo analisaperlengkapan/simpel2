@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors = ["SIMPEL Team"]
 description = "SIMPEL - Layanan Bantuan (Help Service)"
-license = "MIT"
+license.workspace = true
 
 [dependencies]
 # Core Axum Framework

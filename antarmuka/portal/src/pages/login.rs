@@ -205,7 +205,6 @@ pub fn LoginPage(
                         if let Some(window) = web_sys::window() {
                             let _ = window.location().set_href("/");
                         }
-                        return;
                     } else {
                         nav("/dashboard", Default::default());
                     }

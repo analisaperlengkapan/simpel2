@@ -1,6 +1,6 @@
 //! MFA administration service for managing account lockouts and MFA settings
 
-use crate::rate_limiter::{MfaRateLimitConfig, MfaRateLimiterState};
+use crate::rate_limiter::MfaRateLimiterState;
 use authenc_core::error::AuthencError;
 use authenc_core::stores::UserStoreTrait;
 use chrono::{DateTime, Utc};

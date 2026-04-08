@@ -223,6 +223,9 @@ impl Default for Realm {
 }
 
 impl Realm {
+    /// Master realm ID
+    pub const MASTER_ID: Uuid = uuid::uuid!("00000000-0000-0000-0000-000000000000");
+
     /// Create a new realm with default values
     pub fn new(name: String) -> Self {
         Self {

@@ -46,7 +46,22 @@ pub fn create_jwks_routes() -> Router<Arc<ApiState>> {
 // ===== Handlers =====
 
 /// Serve the JSON Web Key Set
-async fn jwks_handler(State(_state): State<Arc<ApiState>>) -> impl IntoResponse {
-    // TODO: Return actual public keys from jwt_service
-    Json(JwksResponse { keys: vec![] })
+///
+/// Returns the Ed25519 public key used to sign access tokens and ID tokens,
+/// enabling relying parties to verify token signatures.
+pub async fn jwks_handler(State(state): State<Arc<ApiState>>) -> impl IntoResponse {
+    let public_key_b64 = state.jwt_service.get_public_key_base64();
+
+    Json(JwksResponse {
+        keys: vec![Jwk {
+            kty: "OKP".to_string(),
+            crv: Some("Ed25519".to_string()),
+            x: Some(public_key_b64),
+            n: None,
+            e: None,
+            kid: "authenc-ed25519-key".to_string(),
+            use_: "sig".to_string(),
+            alg: "EdDSA".to_string(),
+        }],
+    })
 }

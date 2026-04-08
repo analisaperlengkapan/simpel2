@@ -1,5 +1,5 @@
-use layanan_perlengkapan_integrasi::client::MonsaktiClient;
-use layanan_perlengkapan_integrasi::config::Config;
+use layanan_integrasi::client::MonsaktiClient;
+use layanan_integrasi::config::Config;
 use std::collections::HashMap;
 use std::sync::{
     Arc,
