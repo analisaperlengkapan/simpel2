@@ -14,6 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+/// Standard Master Realm ID (all zeros UUID)
+pub const MASTER_REALM_ID: &str = "00000000-0000-0000-0000-000000000000";
+
 // ─── Request / Response Types ────────────────────────────────────────────────
 
 /// Login request body
@@ -236,6 +241,13 @@ pub struct CreateRealmRequest {
     pub name: String,
     pub display_name: Option<String>,
     pub enabled: bool,
+}
+
+/// Update realm request
+#[derive(Clone, Debug, Serialize)]
+pub struct UpdateRealmRequest {
+    pub display_name: Option<String>,
+    pub enabled: Option<bool>,
 }
 
 /// OAuth2 Client info
@@ -886,6 +898,17 @@ impl AuthencApiClient {
         Self::parse_response(resp).await
     }
 
+    /// Update realm
+    #[cfg(target_arch = "wasm32")]
+    pub async fn iam_update_realm(
+        &self,
+        id: &str,
+        req: &UpdateRealmRequest,
+    ) -> Result<RealmInfo, String> {
+        let resp = self.put(&format!("/api/v1/iam/realms/{}", id), req).await?;
+        Self::parse_response(resp).await
+    }
+
     /// Delete realm
     #[cfg(target_arch = "wasm32")]
     pub async fn iam_delete_realm(&self, id: &str) -> Result<(), String> {
@@ -1346,6 +1369,19 @@ impl AuthencApiClient {
             user_count: None,
             created_at: "2026-01-01".to_string(),
         })
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn iam_update_realm(
+        &self,
+        _id: &str,
+        _r: &UpdateRealmRequest,
+    ) -> Result<RealmInfo, String> {
+        self.iam_create_realm(&CreateRealmRequest {
+            name: "mock".to_string(),
+            display_name: None,
+            enabled: true,
+        })
+        .await
     }
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn iam_delete_realm(&self, _id: &str) -> Result<(), String> {
