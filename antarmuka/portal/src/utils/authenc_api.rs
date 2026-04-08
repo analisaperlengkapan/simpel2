@@ -396,6 +396,7 @@ impl std::fmt::Display for ApiError {
 /// Communicates directly with authenc-api and authenc-iam-api without layanan-portal proxy.
 #[derive(Clone, Debug)]
 pub struct AuthencApiClient {
+    #[allow(dead_code)]
     base_url: String,
 }
 
@@ -431,6 +432,7 @@ impl AuthencApiClient {
     }
 
     /// Get the stored JWT token from localStorage
+    #[allow(dead_code)]
     fn get_token() -> Option<String> {
         #[cfg(target_arch = "wasm32")]
         {
