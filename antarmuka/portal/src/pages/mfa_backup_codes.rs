@@ -99,33 +99,29 @@ pub fn MfaBackupCodesPage(
             {
                 use wasm_bindgen::JsCast;
 
-                if let Some(window) = web_sys::window() {
-                    if let Some(document) = window.document() {
-                        // Create blob and download
-                        let array = js_sys::Array::new();
-                        array.push(&wasm_bindgen::JsValue::from_str(&_content));
+                if let Some(window) = web_sys::window()
+                    && let Some(document) = window.document()
+                {
+                    // Create blob and download
+                    let array = js_sys::Array::new();
+                    array.push(&wasm_bindgen::JsValue::from_str(&_content));
 
-                        if let Ok(blob) = web_sys::Blob::new_with_str_sequence(&array) {
-                            if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
-                                if let Ok(link) = document.create_element("a") {
-                                    let _ = link.set_attribute("href", &url);
-                                    let _ = link
-                                        .set_attribute("download", "simpelv2-mfa-backup-codes.txt");
+                    if let Ok(blob) = web_sys::Blob::new_with_str_sequence(&array)
+                        && let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob)
+                        && let Ok(link) = document.create_element("a")
+                    {
+                        let _ = link.set_attribute("href", &url);
+                        let _ = link.set_attribute("download", "simpelv2-mfa-backup-codes.txt");
 
-                                    if let Some(body) = document.body() {
-                                        let _ = body.append_child(&link);
-                                        if let Some(html_link) =
-                                            link.dyn_ref::<web_sys::HtmlElement>()
-                                        {
-                                            html_link.click();
-                                        }
-                                        let _ = body.remove_child(&link);
-                                    }
-
-                                    let _ = web_sys::Url::revoke_object_url(&url);
-                                }
+                        if let Some(body) = document.body() {
+                            let _ = body.append_child(&link);
+                            if let Some(html_link) = link.dyn_ref::<web_sys::HtmlElement>() {
+                                html_link.click();
                             }
+                            let _ = body.remove_child(&link);
                         }
+
+                        let _ = web_sys::Url::revoke_object_url(&url);
                     }
                 }
             }
@@ -135,10 +131,10 @@ pub fn MfaBackupCodesPage(
     let print_codes = move || {
         #[cfg(target_arch = "wasm32")]
         {
-            if backup_codes.get().is_some() {
-                if let Some(window) = web_sys::window() {
-                    let _ = window.print();
-                }
+            if backup_codes.get().is_some()
+                && let Some(window) = web_sys::window()
+            {
+                let _ = window.print();
             }
         }
     };

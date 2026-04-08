@@ -20,7 +20,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::{delete, get, post, put},
+    routing::{delete, get},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

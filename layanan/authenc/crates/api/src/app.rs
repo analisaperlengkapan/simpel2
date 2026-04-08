@@ -20,6 +20,7 @@ use crate::{middleware, router, state::ApiState};
 
 /// Axum web application wrapper
 pub struct AxumApp {
+    #[allow(dead_code)]
     state: Arc<ApiState>,
     router: Router,
 }

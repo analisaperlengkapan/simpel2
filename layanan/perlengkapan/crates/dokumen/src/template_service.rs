@@ -357,10 +357,11 @@ fn format_date_helper(
     _: &mut handlebars::RenderContext,
     out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
-    let date_str = h
-        .param(0)
-        .and_then(|v| v.value().as_str())
-        .ok_or_else(|| handlebars::RenderError::new("Date parameter required"))?;
+    let date_str = h.param(0).and_then(|v| v.value().as_str()).ok_or_else(|| {
+        handlebars::RenderError::from(handlebars::RenderErrorReason::Other(
+            "Date parameter required".to_string(),
+        ))
+    })?;
 
     out.write(date_str)?;
     Ok(())
@@ -373,10 +374,11 @@ fn format_currency_helper(
     _: &mut handlebars::RenderContext,
     out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
-    let amount = h
-        .param(0)
-        .and_then(|v| v.value().as_f64())
-        .ok_or_else(|| handlebars::RenderError::new("Amount parameter required"))?;
+    let amount = h.param(0).and_then(|v| v.value().as_f64()).ok_or_else(|| {
+        handlebars::RenderError::from(handlebars::RenderErrorReason::Other(
+            "Amount parameter required".to_string(),
+        ))
+    })?;
 
     let formatted = format!("Rp {:.2}", amount);
     out.write(&formatted)?;
@@ -390,10 +392,11 @@ fn format_number_helper(
     _: &mut handlebars::RenderContext,
     out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
-    let number = h
-        .param(0)
-        .and_then(|v| v.value().as_i64())
-        .ok_or_else(|| handlebars::RenderError::new("Number parameter required"))?;
+    let number = h.param(0).and_then(|v| v.value().as_i64()).ok_or_else(|| {
+        handlebars::RenderError::from(handlebars::RenderErrorReason::Other(
+            "Number parameter required".to_string(),
+        ))
+    })?;
 
     let formatted = format!("{}", number);
     out.write(&formatted)?;

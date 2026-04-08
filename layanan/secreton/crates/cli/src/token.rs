@@ -87,6 +87,7 @@ struct TokenLookupResponse {
 
 /// Token renew response
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct TokenRenewResponse {
     token: String,
     ttl: u64,

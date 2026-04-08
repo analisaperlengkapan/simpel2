@@ -3,7 +3,6 @@ use crate::template_models::DocumentTemplate;
 use chrono::Utc;
 use rust_xlsxwriter::*;
 use serde_json::Value;
-use uuid::Uuid;
 
 pub struct ExcelGenerator;
 
@@ -455,6 +454,7 @@ impl Default for ExcelGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_excel_generation() {

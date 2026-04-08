@@ -54,13 +54,31 @@ pub mod legacy_user;
 pub use consent::*;
 pub use group::*;
 pub use organization::*;
-pub use permission::*;
+
+// Explicitly re-export to avoid ambiguity
+pub use permission::{
+    CreatePermissionRequest, Permission, PermissionResponse, UpdatePermissionRequest,
+};
+
 pub use realm::*;
-pub use role::*;
-pub use satker::*;
+
+// Explicitly re-export to avoid ambiguity
+pub use role::{CreateRoleRequest, Role, RoleResponse, UpdateRoleRequest};
+
+pub use satker::{
+    CrossSatkerValidation, Satker, SatkerHierarchy, SatkerNode, SatkerPermissionScope,
+};
+
 pub use session::*;
 pub use social_account::*;
-pub use user::*;
+
+// Explicitly re-export to avoid ambiguity
+pub use user::{
+    CreateFederatedIdentityRequest, CreateUserRequest, FederatedIdentity,
+    JITUserProvisioningRequest, JITUserProvisioningResponse, SecurityContext, UpdateUserRequest,
+    User, UserClaims, UserCredential, UserIdentityProviderLink, UserProfile, UserResponse,
+    UserRole, UserSession,
+};
 
 // Re-export OAuth2/OIDC types
 pub use client_policy::*;
@@ -72,7 +90,9 @@ pub use oidc_client::*;
 pub use protocol_mapper::*;
 pub use scope::*;
 pub use service_account::*;
-pub use token::*;
+
+// Explicitly re-export to avoid ambiguity
+pub use token::{Token, TokenResponse as DomainTokenResponse};
 
 // Re-export UMA 2.0 types
 pub use permission_ticket::*;
@@ -85,7 +105,7 @@ pub use compliance::*;
 pub use events::*;
 
 // Re-export advanced authentication types
-pub use dynamic_role::*;
+pub use dynamic_role::{RoleType, SatkerType};
 pub use mfa::*;
 pub use saml::*;
 pub use webauthn::*;

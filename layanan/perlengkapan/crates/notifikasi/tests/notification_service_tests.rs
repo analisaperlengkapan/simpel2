@@ -84,7 +84,7 @@ async fn test_queue_processor_creation() {
     let sms_service = Arc::new(SmsService::new((*config).clone(), pool.clone()));
     let push_service = Arc::new(PushService::new((*config).clone(), pool.clone()));
 
-    let queue_processor =
+    let _queue_processor =
         QueueProcessor::new(config, pool, email_service, sms_service, push_service);
 
     // Verify queue processor was created successfully
@@ -97,10 +97,10 @@ async fn test_email_template_rendering() {
     let config = create_test_config();
     let pool = create_test_pool().await;
 
-    let email_service = EmailService::new(config, pool);
+    let _email_service = EmailService::new(config, pool);
 
     let template = "Hello {{user_name}}, your {{entity_name}} has been {{status}}.";
-    let data = serde_json::json!({
+    let _data = serde_json::json!({
         "user_name": "John Doe",
         "entity_name": "Kebutuhan BMN",
         "status": "approved"
@@ -118,10 +118,10 @@ async fn test_sms_template_rendering() {
     let config = create_test_config();
     let pool = create_test_pool().await;
 
-    let sms_service = SmsService::new(config, pool);
+    let _sms_service = SmsService::new(config, pool);
 
     let template = "SIMPEL: {{entity_name}} {{status}}. Login untuk detail.";
-    let data = serde_json::json!({
+    let _data = serde_json::json!({
         "entity_name": "Pengajuan BMN",
         "status": "disetujui"
     });

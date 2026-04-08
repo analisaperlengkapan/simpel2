@@ -8,8 +8,8 @@ use crate::utils::app_state::{AppState, use_api_client, use_app_state};
 use crate::utils::authenc_api::ChangePasswordRequest;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Password strength level
 #[derive(Clone, Copy, PartialEq)]
@@ -104,10 +104,10 @@ pub fn PasswordChangePage() -> impl IntoView {
 
     // Track whether this component is still mounted so the timer callback
     // inside spawn_local can skip navigation after the user left the page.
-    let mounted = Rc::new(Cell::new(true));
-    let mounted_cleanup = mounted.clone();
+    let mounted = Arc::new(AtomicBool::new(true));
+    let mounted_cleanup = Arc::clone(&mounted);
     on_cleanup(move || {
-        mounted_cleanup.set(false);
+        mounted_cleanup.store(false, Ordering::SeqCst);
     });
 
     let password_strength = Signal::derive(move || {
@@ -216,7 +216,7 @@ pub fn PasswordChangePage() -> impl IntoView {
                     // Guard: if the component unmounted during the 1.5-second
                     // timer (e.g. user navigated away), skip the navigation.
                     gloo_timers::future::TimeoutFuture::new(1_500).await;
-                    if is_mounted.get() {
+                    if is_mounted.load(Ordering::SeqCst) {
                         nav("/dashboard", Default::default());
                     }
                 }
@@ -227,7 +227,6 @@ pub fn PasswordChangePage() -> impl IntoView {
     };
 
     let on_logout = {
-        let state = state;
         Box::new(move || {
             crate::features::auth::AuthService::logout();
             state.set(AppState::default());
@@ -300,7 +299,7 @@ pub fn PasswordChangePage() -> impl IntoView {
                         {move || password_strength.get().map(|strength| view! {
                             <div class="mt-2">
                                 <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div class={format!("h-full {} transition-all duration-300", format!("{} {}", strength.color(), strength.width()))}></div>
+                                    <div class={format!("h-full {} {} transition-all duration-300", strength.color(), strength.width())}></div>
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">"Kekuatan: " <strong>{strength.label()}</strong></p>
                             </div>

@@ -45,6 +45,7 @@ struct StoredChallenge {
     /// Expiry timestamp (unix seconds)
     expires_at: u64,
     /// Session ID
+    #[allow(dead_code)]
     session_id: Option<String>,
     /// Whether already verified
     verified: bool,

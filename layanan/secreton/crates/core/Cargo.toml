@@ -74,7 +74,6 @@ aws-credential-types.workspace = true
 # PKI dependencies
 rcgen.workspace = true
 pem.workspace = true
-der-parser.workspace = true
 
 # Utilities
 config.workspace = true

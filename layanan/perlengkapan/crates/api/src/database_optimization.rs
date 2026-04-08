@@ -398,10 +398,10 @@ mod tests {
 
     #[test]
     fn test_extract_table_name() {
+        let mut cfg = deadpool_postgres::Config::new();
+        cfg.dbname = Some("test".to_string());
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
+            cfg.create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 
@@ -412,10 +412,10 @@ mod tests {
 
     #[test]
     fn test_extract_where_column() {
+        let mut cfg = deadpool_postgres::Config::new();
+        cfg.dbname = Some("test".to_string());
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
+            cfg.create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 
@@ -426,10 +426,10 @@ mod tests {
 
     #[test]
     fn test_optimize_query() {
+        let mut cfg = deadpool_postgres::Config::new();
+        cfg.dbname = Some("test".to_string());
         let optimizer = DatabaseOptimizer::new(
-            deadpool_postgres::Config::new()
-                .create_pool(None, tokio_postgres::NoTls)
-                .unwrap(),
+            cfg.create_pool(None, tokio_postgres::NoTls).unwrap(),
             Arc::new(CacheManager::new()),
         );
 

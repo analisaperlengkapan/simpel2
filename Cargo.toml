@@ -14,7 +14,8 @@ members = [
     "antarmuka/portal",
     "antarmuka/perlengkapan",
 
-    # Perlengkapan Backend sub-crates
+    # Perlengkapan Backend
+    "layanan/perlengkapan",
     "layanan/perlengkapan/crates/api",
     "layanan/integrasi",
     "layanan/perlengkapan/crates/dokumen",
@@ -199,7 +200,7 @@ validator = { version = "0.19", features = ["derive"] } # Legacy validator (kept
 # Monitoring & Observability (Updated to latest)
 opentelemetry = "0.31"
 opentelemetry-otlp = { version = "0.31", features = ["tonic", "tls"] }
-prometheus = "0.14"
+prometheus = "0.14.0"
 sentry = { version = "0.46.0", features = ["tracing"] }
 metrics = "0.24"
 metrics-exporter-prometheus = "0.18.0"
@@ -433,7 +434,7 @@ tonic = { version = "0.14.2", features = ["tls-webpki-roots", "transport", "chan
 # CLI tools
 clap = { version = "4.5.53", features = ["derive"] }
 k8s-openapi = { version = "0.26", features = ["latest"] }
-kube = { version = "2.0", features = [
+kube = { version = "3.1", features = [
     "runtime",
     "derive",
     "rustls-tls",
@@ -463,7 +464,7 @@ tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 prost = "0.14"
 prost-types = "0.14"
-openidconnect = "3.5"
+openidconnect = "4.0"
 data-encoding = "2.6"
 fpe = "0.6.1"
 ssh-key = { version = "0.6", features = ["ed25519", "rsa", "ecdsa", "std"] }
@@ -475,8 +476,10 @@ aws-sdk-sts = "1.45"
 aws-sdk-kms = "1.45"
 aws-types = "1.3"
 aws-credential-types = "1.2"
-google-cloudkms1 = "5.0"
-azure_security_keyvault = "0.20"
+google-cloudkms1 = "7.0"
+azure_security_keyvault = "0.21"
+azure_identity = "0.33"
+azure_core = "0.33"
 num-bigint = "0.4"
 num-traits = "0.2"
 clap_complete = "4.4"
@@ -624,3 +627,8 @@ codegen-units = 1
 #    - matchit 0.8.4 (used by axum for routing)
 #    - paste 1.0.15 (used by Leptos, unmaintained but safe)
 #    - No critical security vulnerabilities
+
+[patch.crates-io]
+# Patch to address vulnerabilities until upstream releases fix
+# Use latest compatible patches if exact version not available via 'cargo update'
+# rustls-webpki = { git = "https://github.com/rustls/webpki.git", tag = "v/0.102.10" } # v0.102.10 fixes RUSTSEC-2026-0049

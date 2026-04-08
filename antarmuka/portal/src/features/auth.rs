@@ -127,6 +127,7 @@ impl AuthService {
     /// Get authenc API base URL from window.location.origin (same-origin pattern).
     /// This ensures the URL always matches the user's access URL, avoiding
     /// cross-origin or mixed-content issues from hardcoded config values.
+    #[allow(dead_code)]
     fn get_api_url() -> String {
         #[cfg(target_arch = "wasm32")]
         {
@@ -599,7 +600,7 @@ impl AuthService {
         #[cfg(target_arch = "wasm32")]
         {
             use lib_ui::hooks::save_to_storage;
-            save_to_storage("user_session", session);
+            let _ = save_to_storage("user_session", session);
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -824,7 +825,7 @@ impl AuthService {
 
             // Get temp token for authentication
             let token = Self::get_temp_token()
-                .or_else(|| Self::get_token())
+                .or_else(Self::get_token)
                 .ok_or_else(|| "No authentication token available".to_string())?;
 
             let request = Request::post(&setup_url)
@@ -875,7 +876,7 @@ impl AuthService {
 
             // Get temp token for authentication
             let token = Self::get_temp_token()
-                .or_else(|| Self::get_token())
+                .or_else(Self::get_token)
                 .ok_or_else(|| "No authentication token available".to_string())?;
 
             let body = serde_json::json!({

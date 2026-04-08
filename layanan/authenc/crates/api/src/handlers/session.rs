@@ -5,8 +5,7 @@ use std::sync::Arc;
 use axum::{
     Json,
     extract::State,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
+    http::HeaderMap,
 };
 use serde::Serialize;
 use uuid::Uuid;

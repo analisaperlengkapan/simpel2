@@ -53,6 +53,16 @@ impl OAuth2ServiceImpl {
         }
     }
 
+    /// Get a reference to the client store.
+    ///
+    /// Used by the authorize handler to pre-validate client_id and
+    /// redirect_uri **before** calling [`OAuth2Service::authorize`], so that
+    /// error responses are never redirected to an unvalidated URI (RFC 6749
+    /// §4.1.2.1).
+    pub fn client_store(&self) -> &dyn ClientStore {
+        self.client_store.as_ref()
+    }
+
     /// Generate a random authorization code
     fn generate_authorization_code() -> String {
         let mut rng = rand::thread_rng();
@@ -136,13 +146,14 @@ impl OAuth2ServiceImpl {
 
         self.refresh_token_store.store_token(refresh_token).await?;
 
-        // 7. Return token response
+        // 7. Return token response (including nonce from auth code for OIDC)
         Ok(TokenResponse {
             access_token,
             token_type: "Bearer".to_string(),
             expires_in: 900, // 15 minutes
             refresh_token: Some(refresh_token_value),
             scope: auth_code.scope,
+            nonce: auth_code.nonce,
         })
     }
 
@@ -177,6 +188,7 @@ impl OAuth2ServiceImpl {
             expires_in: 900, // 15 minutes
             refresh_token: None,
             scope: scope.to_string(),
+            nonce: None,
         })
     }
 
@@ -245,6 +257,7 @@ impl OAuth2ServiceImpl {
             expires_in: 900, // 15 minutes
             refresh_token: Some(new_refresh_token_value),
             scope: refresh_token.scope,
+            nonce: None,
         })
     }
 
@@ -272,8 +285,30 @@ impl OAuth2ServiceImpl {
                 .ok_or_else(|| OAuth2Error::invalid_client("Client secret required"))?;
 
             // TODO: Use proper password hasher for client secret verification
-            // For now, simple comparison (should use Argon2 in production)
-            if provided_secret != client.client_secret {
+            // For now, constant-time comparison (should use Argon2 in production).
+            //
+            // SECURITY: Using constant-time comparison to prevent timing
+            // attacks.  Preferably, store hashed secrets and verify with
+            // Argon2id in a future iteration.
+            use subtle::ConstantTimeEq;
+            let provided_bytes = provided_secret.as_bytes();
+            let stored_bytes = client.client_secret.as_bytes();
+            // ConstantTimeEq requires equal-length slices.  If lengths
+            // differ the secrets cannot match, but we must still avoid
+            // leaking the length difference via timing.  We compare
+            // against a fixed-length SHA-256 digest of each value so that
+            // the comparison is always over 32 bytes regardless of input.
+            let provided_hash = {
+                let mut h = Sha256::new();
+                Digest::update(&mut h, provided_bytes);
+                h.finalize()
+            };
+            let stored_hash = {
+                let mut h = Sha256::new();
+                Digest::update(&mut h, stored_bytes);
+                h.finalize()
+            };
+            if provided_hash.ct_eq(&stored_hash).unwrap_u8() != 1 {
                 return Err(OAuth2Error::invalid_client("Invalid client secret").into());
             }
         }
@@ -294,6 +329,14 @@ impl OAuth2ServiceTrait for OAuth2ServiceImpl {
         }
 
         // 2. Get and validate client
+        // NOTE: The authorize_handler already pre-validates client_id and
+        // redirect_uri before calling this method (RFC 6749 §4.1.2.1 requires
+        // that errors for unrecognized client / invalid redirect_uri are NOT
+        // redirected).  The validation here is intentionally kept as a
+        // defense-in-depth measure so the service layer remains correct
+        // regardless of how it is called.
+        // TODO: Accept an optional pre-validated client to avoid the extra
+        // database round-trip when called from the authorize_handler.
         let client = self
             .client_store
             .get_client_by_client_id(&request.client_id, request.realm_id)
@@ -331,7 +374,7 @@ impl OAuth2ServiceTrait for OAuth2ServiceImpl {
         // 6. Generate authorization code
         let code = Self::generate_authorization_code();
 
-        // 7. Store authorization code
+        // 7. Store authorization code (including nonce for OIDC)
         let auth_code = AuthorizationCode {
             code: code.clone(),
             client_id: request.client_id.clone(),
@@ -344,6 +387,7 @@ impl OAuth2ServiceTrait for OAuth2ServiceImpl {
             expires_at: Utc::now() + Duration::minutes(10),
             created_at: Utc::now(),
             used: false,
+            nonce: request.nonce,
         };
 
         self.code_store.store_code(auth_code).await?;

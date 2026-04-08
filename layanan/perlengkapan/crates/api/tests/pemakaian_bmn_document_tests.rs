@@ -3,6 +3,7 @@
 //! Tests for permit document generation during activation
 //! Requirements: REQ-P006, REQ-D002, REQ-D004, REQ-D005
 
+#[allow(unused_imports)]
 use uuid::Uuid;
 
 #[tokio::test]
