@@ -490,7 +490,6 @@ scrypt = "0.11"
 cbc = "0.1"
 rcgen = "0.13"
 pem = "3.0"
-der-parser = "9.0"
 aide = { version = "0.15.1", features = ["axum", "macros"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 warp = "0.4.2"
