@@ -149,15 +149,6 @@ webauthn-rs-proto = "0.5"
 # Note: No external vault dependencies (using internal Secreton system)
 # vaultrs removed - we use our own Secreton implementation
 
-# Proc Macro Dependencies (secure alternatives)
-syn = { version = "2.0.111", features = [
-    "full",
-    "parsing",
-    "printing",
-    "proc-macro",
-] }
-quote = "1.0"
-proc-macro2 = "1.0.103"
 # Note: Removed paste/pastey - using inline macros instead (paste is unmaintained)
 
 # Frontend Shared Dependencies
@@ -189,7 +180,6 @@ config = { version = "0.15.19", default-features = false, features = [
     "convert-case",
     "async",
 ] } # Drop json5 feature to avoid unmaintained dependency
-tera = "1.20.1"
 
 # HTTP Client - Unified version
 reqwest = { version = "0.12", features = [
@@ -206,10 +196,6 @@ garde = { version = "0.22", features = [
     "serde",
 ] } # Modern validator replacement (no idna dependency)
 validator = { version = "0.19", features = ["derive"] } # Legacy validator (kept for datun compatibility)
-nutype = { version = "0.6.2", features = [
-    "serde",
-    "validate",
-] } # Additional validation without idna
 
 # Monitoring & Observability (Updated to latest)
 opentelemetry = "0.31"
@@ -258,8 +244,6 @@ authenc-webauthn = { path = "layanan/authenc/crates/webauthn" }
 lazy_static = "1.4"
 futures-util = { version = "0.3", features = ["std"] }
 pin-project = "1.0"
-env_logger = "0.11"
-rand_chacha = "0.9"
 getrandom = { version = "0.3.3", features = ["wasm_js"] }
 base64ct = "1.8"
 p256 = { version = "0.13", features = ["ecdsa", "jwk"] }
@@ -273,10 +257,8 @@ serde_qs = "0.15.0"
 ldap3 = "0.12.1"
 quick-xml = { version = "0.38.3", features = ["serialize"] }
 rustls = { version = "0.23" }
-rustls-webpki = "0.103.10"
 rustls-pemfile = "2.2"
 rustls-native-certs = "0.8"
-webpki-roots = "1.0.2"
 flate2 = { version = "1.1.5", features = ["zlib"] }
 tss-esapi = "7.4"
 pqcrypto-mldsa = "0.1.2"
@@ -323,14 +305,10 @@ handlebars = "6.3.2"
 
 # PDF generation
 printpdf = "0.7.0"
-headless_chrome = "1.0.15"
 
 # Additional utilities
-rust-embed = "8.8.0"
 captcha = "1.0"
-ndarray = "0.17"
 ring = "0.17"
-notify = "8.2"
 serde_yaml = "0.9.34-deprecated"
 toml = "0.9.7"
 csv = "1.3"                       # CSV parsing
@@ -356,8 +334,6 @@ leptos = { version = "0.8.14" }
 leptos_meta = { version = "0.8.5" }
 leptos_router = { version = "0.8.10" }
 leptos_dom = { version = "0.8.7" }
-leptos_macro = { version = "0.8.12" }
-server_fn = { version = "0.8.8" }
 
 # WASM specific - Latest Stable Versions (Updated)
 wasm-bindgen = "0.2.106"
@@ -427,7 +403,6 @@ web-sys = { version = "0.3.83", features = [
     "UserVerificationRequirement",
     "PublicKeyCredentialHints",
 ] }
-gloo-console = "0.3"
 gloo-storage = "0.3"
 gloo = { version = "0.11", features = [
     "futures",
@@ -447,25 +422,17 @@ log = "0.4.28"
 futures = "0.3.31"
 async-trait = "0.1.89"
 url = "2.5.4"
-smallvec = { version = "1.13", features = ["serde"] }
 once_cell = "1.19"
 
 # Additional dependencies
 axum-server = { version = "0.7.2", features = ["tls-rustls"] }
 hyper = { version = "1.8.1", features = ["full"] }
-hyper-util = { version = "0.1.18", features = ["full"] }
 bytes = "1.11.0"
 
-# AI and ML Dependencies
-qdrant-client = "1.11"
-tiktoken-rs = "0.7.0"
 tonic = { version = "0.14.2", features = ["tls-webpki-roots", "transport", "channel"] }
 
 # CLI tools
 clap = { version = "4.5.53", features = ["derive"] }
-colored = "3.0"
-shellexpand = "3.1"
-which = "8.0"
 k8s-openapi = { version = "0.26", features = ["latest"] }
 kube = { version = "3.1", features = [
     "runtime",
@@ -490,8 +457,7 @@ scrypt = "0.11"
 cbc = "0.1"
 rcgen = "0.13"
 pem = "3.0"
-aide = { version = "0.15.1", features = ["axum", "macros"] }
-secrecy = { version = "0.10.3", features = ["serde"] }
+der-parser = "9.0"
 warp = "0.4.2"
 tonic-build = "0.14"
 tonic-prost = "0.14"
