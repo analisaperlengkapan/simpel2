@@ -5,13 +5,28 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::error::{ApiError, ApiResult};
 use crate::state::IamApiState;
-pub use authenc_types::domain::realm::{CreateRealmRequest, RealmResponse, UpdateRealmRequest};
+pub use authenc_types::domain::realm::RealmResponse;
 use authenc_types::{AuthencError, RealmId};
+
+/// Create realm request — scoped to fields the service actually supports.
+#[derive(Debug, Deserialize)]
+pub struct CreateRealmRequest {
+    pub name: String,
+    pub display_name: Option<String>,
+}
+
+/// Update realm request — scoped to fields the service actually supports.
+#[derive(Debug, Deserialize)]
+pub struct UpdateRealmRequest {
+    pub display_name: Option<String>,
+    pub enabled: Option<bool>,
+}
 
 /// GET /api/v1/iam/realms - List realms
 pub async fn list_realms(
