@@ -12,6 +12,7 @@ use uuid::Uuid;
 use crate::error::{ApiError, ApiResult};
 use crate::state::IamApiState;
 pub use authenc_types::domain::realm::RealmResponse;
+use authenc_types::domain::realm::Realm;
 use authenc_types::{AuthencError, RealmId};
 
 /// Create realm request — scoped to fields the service actually supports.
@@ -80,6 +81,15 @@ pub async fn update_realm(
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateRealmRequest>,
 ) -> ApiResult<Json<RealmResponse>> {
+    // Prevent disabling the master realm
+    if id == Realm::MASTER_ID {
+        if let Some(false) = req.enabled {
+            return Err(ApiError(AuthencError::AuthorizationFailed(
+                "Cannot disable the master realm".to_string(),
+            )));
+        }
+    }
+
     let realm = state
         .realm_service
         .update_realm(RealmId::from_uuid(id), req.display_name, req.enabled)
@@ -95,6 +105,13 @@ pub async fn delete_realm(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
+    // Prevent deletion of the master realm
+    if id == Realm::MASTER_ID {
+        return Err(ApiError(AuthencError::AuthorizationFailed(
+            "Cannot delete the master realm".to_string(),
+        )));
+    }
+
     state
         .realm_service
         .delete_realm(RealmId::from_uuid(id))

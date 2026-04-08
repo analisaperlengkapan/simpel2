@@ -251,6 +251,16 @@ impl RealmManagementServiceImpl {
             "Updating realm"
         );
 
+        // Prevent disabling the master realm
+        if *realm_id.as_uuid() == Realm::MASTER_ID {
+            if let Some(false) = enabled {
+                warn!("Attempt to disable the master realm was rejected");
+                return Err(AuthencError::AuthorizationFailed(
+                    "Cannot disable the master realm".to_string(),
+                ));
+            }
+        }
+
         // Step 1: Validate new display name if provided
         if let Some(ref display_name) = display_name {
             self.validate_display_name(display_name)?;
@@ -290,6 +300,14 @@ impl RealmManagementServiceImpl {
     /// - REQ-REALM-002: Realm CRUD operations
     pub async fn delete_realm(&self, realm_id: RealmId) -> Result<()> {
         debug!(realm_id = %realm_id, "Deleting realm");
+
+        // Prevent deletion of the master realm
+        if *realm_id.as_uuid() == Realm::MASTER_ID {
+            warn!("Attempt to delete the master realm was rejected");
+            return Err(AuthencError::AuthorizationFailed(
+                "Cannot delete the master realm".to_string(),
+            ));
+        }
 
         // TODO: Add checks for existing users/clients before deletion
         // TODO: Consider implementing soft delete instead

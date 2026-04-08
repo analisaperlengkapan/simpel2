@@ -5,7 +5,7 @@
 
 use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{AppState, use_api_client, use_app_state};
-use crate::utils::authenc_api::{CreateRealmRequest, RealmInfo};
+use crate::utils::authenc_api::{CreateRealmRequest, RealmInfo, MASTER_REALM_ID};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
@@ -223,7 +223,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                     </svg>
                                                 </button>
-                                                {if realm.name != "master" {
+                                                {if realm.id != MASTER_REALM_ID {
                                                     let r_del = realm.clone();
                                                     Some(view! {
                                                         <button
@@ -375,11 +375,15 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                             type="checkbox"
                                             prop:checked=edit_enabled
                                             on:change=move |ev| set_edit_enabled.set(event_target_checked(&ev))
+                                            disabled=move || realm_to_edit.get().map(|r| r.id == MASTER_REALM_ID).unwrap_or(false)
                                             class="sr-only peer"
                                         />
-                                        <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                                        <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
                                         <span class="ms-3 text-sm font-medium text-gray-700">"Realm Aktif"</span>
                                     </label>
+                                    <Show when=move || realm_to_edit.get().map(|r| r.id == MASTER_REALM_ID).unwrap_or(false)>
+                                        <span class="text-xs text-amber-600">"Master realm tidak dapat dinonaktifkan"</span>
+                                    </Show>
                                 </div>
                                 <div class="flex justify-end gap-3 pt-2">
                                     <button
