@@ -51,8 +51,10 @@ license-files = [
 [bans]
 # Deny multiple versions of the same crate
 multiple-versions = "warn"
-# Deny wildcard dependencies
-wildcards = "deny"
+# Path dependencies (without explicit versions) are used extensively for
+# internal crates in this monorepo.  cargo-deny treats these as "wildcard"
+# dependencies, so we must allow them.
+wildcards = "allow"
 # Specific crates to deny
 deny = [
     # Deny the high-level openssl crate EXCEPT when pulled in transitively

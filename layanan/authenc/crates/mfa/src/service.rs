@@ -82,6 +82,7 @@ pub struct MfaStatistics {
 /// MFA Service that wraps existing OtpCredentialProvider and integrates with secreton
 pub struct MfaService {
     /// Existing OTP credential provider for TOTP operations
+    #[allow(dead_code)]
     otp_provider: OtpCredentialProvider,
     /// Secreton client for encrypted secret storage
     secreton_client: Arc<dyn MfaClient>,
@@ -336,7 +337,7 @@ impl MfaService {
     /// Get remaining recovery codes count for a user
     pub async fn get_recovery_codes_count(&self, user_id: Uuid) -> Result<usize> {
         // Use secreton MfaManager to get recovery codes status
-        let status = self
+        let _status = self
             .secreton_client
             .get_mfa_status(&user_id.to_string())
             .await
@@ -417,8 +418,8 @@ impl MfaService {
         for row in rows {
             let user_id: Uuid = row.get(0);
             let enabled: bool = row.get(1);
-            let setup_at: Option<DateTime<Utc>> = row.get(2);
-            let last_used: Option<DateTime<Utc>> = row.get(3);
+            let _setup_at: Option<DateTime<Utc>> = row.get(2);
+            let _last_used: Option<DateTime<Utc>> = row.get(3);
 
             // For batch operations, we'll use a default backup codes count
             // In a real implementation, this could be optimized further
@@ -456,8 +457,8 @@ impl MfaService {
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         let enabled: bool = row.get(0);
-        let setup_at: Option<DateTime<Utc>> = row.get(1);
-        let last_used: Option<DateTime<Utc>> = row.get(2);
+        let _setup_at: Option<DateTime<Utc>> = row.get(1);
+        let _last_used: Option<DateTime<Utc>> = row.get(2);
 
         // Get backup codes count from secreton if enabled
         let backup_codes_remaining = if enabled {
@@ -524,7 +525,7 @@ impl MfaService {
             .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
-        let query = if let Some(satker) = satker_code {
+        let query = if let Some(_satker) = satker_code {
             "SELECT total_users, mfa_enabled_users, mfa_setup_complete, mfa_active_30d, mfa_active_7d, mfa_active_1d FROM mfa_statistics WHERE satker_code = $1"
         } else {
             "SELECT SUM(total_users), SUM(mfa_enabled_users), SUM(mfa_setup_complete), SUM(mfa_active_30d), SUM(mfa_active_7d), SUM(mfa_active_1d) FROM mfa_statistics"

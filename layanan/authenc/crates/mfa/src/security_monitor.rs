@@ -161,6 +161,7 @@ struct UserBehaviorPattern {
     usual_login_hours: HashMap<u8, u32>,   // Hour -> count
     usual_locations: HashMap<String, u32>, // Location -> count
     last_successful_mfa: Option<Instant>,
+    #[allow(dead_code)]
     average_mfa_time: Duration,
 }
 
@@ -332,7 +333,7 @@ impl MfaSecurityMonitor {
     pub async fn record_successful_mfa(
         &self,
         user_id: Uuid,
-        ip: &str,
+        _ip: &str,
         location: Option<String>,
     ) -> Result<(), AuthencError> {
         let mut user_patterns = self.user_patterns.write().await;
@@ -393,7 +394,7 @@ impl MfaSecurityMonitor {
     }
 
     /// Record an MFA setup for monitoring
-    pub async fn record_mfa_setup(&self, ip: &str, user_id: Uuid) -> Result<(), AuthencError> {
+    pub async fn record_mfa_setup(&self, ip: &str, _user_id: Uuid) -> Result<(), AuthencError> {
         let mut ip_tracking = self.ip_tracking.write().await;
         let now = Instant::now();
 
@@ -654,7 +655,7 @@ impl MfaSecurityMonitor {
     /// Start background cleanup task
     fn start_cleanup_task(&self) {
         let ip_tracking = self.ip_tracking.clone();
-        let user_patterns = self.user_patterns.clone();
+        let _user_patterns = self.user_patterns.clone();
         let recent_alerts = self.recent_alerts.clone();
 
         tokio::spawn(async move {
