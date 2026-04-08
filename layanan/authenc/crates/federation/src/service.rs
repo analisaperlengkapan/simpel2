@@ -415,6 +415,7 @@ impl Default for FederationService {
 }
 
 /// External user information from identity provider
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ExternalUserInfo {
     /// External user ID from provider
@@ -430,6 +431,7 @@ struct ExternalUserInfo {
 }
 
 /// External tokens from identity provider
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ExternalTokens {
     /// Access token
