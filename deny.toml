@@ -70,6 +70,10 @@ deny = [
 skip = [
     # Allow multiple versions of these crates temporarily
     { name = "bitflags", version = "=1.3.2" },
+    # webauthn-rs-core v0.5.4 depends on x509-parser 0.16, while
+    # authenc-crypto uses x509-parser 0.18.  Cannot unify until
+    # webauthn-rs releases a version built against x509-parser 0.18+.
+    { name = "x509-parser", version = "=0.16.0" },
 ]
 
 # Skip tree for specific crates

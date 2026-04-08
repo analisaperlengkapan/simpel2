@@ -233,11 +233,39 @@ pub async fn authorize_handler(
             message: "Invalid redirect_uri for this client".to_string(),
         })?;
 
-    // 2. Check if user is authenticated via Bearer token
+    // 2. Validate response_type BEFORE authentication.
+    // Only "code" is supported (Authorization Code flow).  Per RFC 6749
+    // §4.1.2.1, errors after redirect_uri validation SHOULD be redirected
+    // to the client with the appropriate error code.
+    //
+    // Checking this before authentication avoids forcing the user through
+    // the login flow only to receive an error redirect afterwards.
+    if request.response_type != "code" {
+        let separator = if request.redirect_uri.contains('?') {
+            '&'
+        } else {
+            '?'
+        };
+        let mut target = format!(
+            "{}{}error=unsupported_response_type&error_description={}",
+            request.redirect_uri,
+            separator,
+            urlencoding::encode(&format!(
+                "Unsupported response_type '{}', only 'code' is supported",
+                request.response_type
+            ))
+        );
+        if let Some(ref state_param) = request.state {
+            target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
+        }
+        return Ok(redirect_found(&target));
+    }
+
+    // 3. Check if user is authenticated via Bearer token
     let user_uuid = match auth_helpers::extract_user_from_token(&state, &headers).await {
         Ok(uid) => uid,
         Err(_) => {
-            // 4. If not authenticated, redirect to login page
+            // If not authenticated, redirect to login page
             // Build return URL to this same endpoint after login
             let mut return_url = format!(
                 "/api/v1/oauth2/authorize?client_id={}&redirect_uri={}&scope={}&response_type={}",
@@ -268,34 +296,9 @@ pub async fn authorize_handler(
         }
     };
 
-    // 5. If authenticated, check consent (assume auto-consent for now)
+    // 4. If authenticated, check consent (assume auto-consent for now)
 
-    // 5.25. Validate response_type BEFORE PKCE.
-    // Only "code" is supported (Authorization Code flow).  Per RFC 6749
-    // §4.1.2.1, errors after redirect_uri validation SHOULD be redirected
-    // to the client with the appropriate error code.
-    if request.response_type != "code" {
-        let separator = if request.redirect_uri.contains('?') {
-            '&'
-        } else {
-            '?'
-        };
-        let mut target = format!(
-            "{}{}error=unsupported_response_type&error_description={}",
-            request.redirect_uri,
-            separator,
-            urlencoding::encode(&format!(
-                "Unsupported response_type '{}', only 'code' is supported",
-                request.response_type
-            ))
-        );
-        if let Some(ref state_param) = request.state {
-            target.push_str(&format!("&state={}", urlencoding::encode(state_param)));
-        }
-        return Ok(redirect_found(&target));
-    }
-
-    // 5.5. Validate PKCE parameters (required per OAuth 2.1)
+    // 4.5. Validate PKCE parameters (required per OAuth 2.1)
     // Since the redirect_uri has already been validated (step 1.5), errors
     // from this point onward SHOULD be communicated by redirecting to the
     // client's redirect_uri per RFC 6749 §4.1.2.1.
@@ -615,11 +618,26 @@ pub async fn discovery_handler(
     // First normalize possible trailing slashes, then strip the suffix.
     // This handles both "https://host/api/v1/auth" and
     // "https://host/api/v1/auth/" gracefully.
+    //
+    // If the issuer does not contain a scheme (e.g. "simpelv2-authenc"),
+    // the derived endpoint URLs will be relative paths which are unlikely
+    // to work.  Log a warning so operators can fix their JWT_ISSUER.
     let normalized = issuer.trim_end_matches('/');
     let base_url = normalized
         .strip_suffix("/api/v1/auth")
         .unwrap_or(normalized)
         .trim_end_matches('/');
+
+    if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
+        tracing::warn!(
+            "OIDC discovery: JWT_ISSUER '{}' does not look like a URL; \
+             derived base_url '{}' may produce invalid endpoint URLs. \
+             Set JWT_ISSUER to a full URL (e.g. 'https://authenc.example.com' \
+             or 'https://host/api/v1/auth').",
+            issuer,
+            base_url,
+        );
+    }
 
     let discovery = OidcDiscoveryResponse {
         issuer: issuer.clone(),
