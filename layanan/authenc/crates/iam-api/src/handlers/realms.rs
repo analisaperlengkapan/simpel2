@@ -36,7 +36,7 @@ pub async fn create_realm(
 ) -> ApiResult<(StatusCode, Json<RealmResponse>)> {
     let realm = state
         .realm_service
-        .create_realm(req.name, req.display_name.unwrap_or_default())
+        .create_realm(req.name.clone(), req.display_name.unwrap_or_else(|| req.name))
         .await
         .map_err(AuthencError::from)
         .map_err(ApiError)?;
