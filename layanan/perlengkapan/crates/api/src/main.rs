@@ -12,10 +12,9 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
 use layanan_perlengkapan_api::{
-    cache_strategy, dashboard, database, database_optimization,
-    grpc_clients, health, kebutuhan_bmn, logging,
-    middleware, pakaian_dinas, pemakaian_bmn, penghapusan_bmn, rate_limiting,
-    roadmap_sarpras, routes, services, workflow,
+    cache_strategy, dashboard, database, database_optimization, grpc_clients, health,
+    kebutuhan_bmn, logging, middleware, pakaian_dinas, pemakaian_bmn, penghapusan_bmn,
+    rate_limiting, roadmap_sarpras, routes, services, workflow,
 };
 
 use cache_strategy::CacheManager;

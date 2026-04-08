@@ -7,6 +7,7 @@
 #![allow(unused_assignments)]
 #![allow(unreachable_code)]
 #![allow(deprecated)]
+#![allow(ambiguous_glob_reexports)]
 
 //! # authenc-core
 //!
