@@ -36,7 +36,7 @@ mod model_tests {
         );
         assert_eq!(
             KebutuhanBmnStatus::from_code(2004),
-            Some(KebutuhanBmnStatus::AnalisisKelayakan)
+            Some(KebutuhanBmnStatus::SubmitPusat)
         );
         assert_eq!(
             KebutuhanBmnStatus::from_code(2005),
@@ -82,10 +82,6 @@ mod model_tests {
         assert_eq!(
             KebutuhanBmnStatus::AnalisisKelayakan.label(),
             "Analisis Kelayakan"
-        );
-        assert_eq!(
-            KebutuhanBmnStatus::AnalisisKelayakan.label(),
-            "Penyusunan Prioritas"
         );
     }
 
@@ -148,9 +144,8 @@ mod workflow_tests {
     fn test_submit_satker_transitions() {
         let status = KebutuhanBmnStatus::SubmitWilayah;
 
-        assert!(status.can_transition_to(KebutuhanBmnStatus::AnalisisKelayakan));
+        assert!(status.can_transition_to(KebutuhanBmnStatus::SubmitPusat));
         assert!(status.can_transition_to(KebutuhanBmnStatus::RevisiSatker));
-        assert!(status.can_transition_to(KebutuhanBmnStatus::Rejected));
 
         assert!(!status.can_transition_to(KebutuhanBmnStatus::Draft));
         assert!(!status.can_transition_to(KebutuhanBmnStatus::Approved));
@@ -160,19 +155,9 @@ mod workflow_tests {
     fn test_analisis_kelayakan_transitions() {
         let status = KebutuhanBmnStatus::AnalisisKelayakan;
 
-        assert!(status.can_transition_to(KebutuhanBmnStatus::AnalisisKelayakan));
-        assert!(status.can_transition_to(KebutuhanBmnStatus::RevisiSatker));
-        assert!(status.can_transition_to(KebutuhanBmnStatus::Rejected));
-
-        assert!(!status.can_transition_to(KebutuhanBmnStatus::Approved));
-    }
-
-    #[test]
-    fn test_penyusunan_prioritas_transitions() {
-        let status = KebutuhanBmnStatus::AnalisisKelayakan;
-
         assert!(status.can_transition_to(KebutuhanBmnStatus::Approved));
         assert!(status.can_transition_to(KebutuhanBmnStatus::Rejected));
+        assert!(status.can_transition_to(KebutuhanBmnStatus::RevisiWilayah));
 
         assert!(!status.can_transition_to(KebutuhanBmnStatus::Draft));
     }

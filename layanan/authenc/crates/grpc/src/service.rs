@@ -4,7 +4,7 @@ use crate::proto::authenc::v1::authenc_service_server::AuthencService;
 use crate::proto::authenc::v1::*;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use authenc_core::services::{
     AuditService, AuthenticationServiceImpl, OAuth2ServiceImpl, RealmManagementServiceImpl,
@@ -37,6 +37,7 @@ pub struct AuthencGrpcService {
     /// OAuth2 service for token operations
     oauth2_service: Arc<OAuth2ServiceImpl>,
     /// Realm management service
+    #[allow(dead_code)]
     realm_service: Arc<RealmManagementServiceImpl>,
     /// Role management service for RBAC/ABAC
     role_service: Arc<RoleManagementServiceImpl>,

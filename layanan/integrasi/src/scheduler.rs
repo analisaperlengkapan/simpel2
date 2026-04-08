@@ -387,7 +387,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_scheduler_creation() {
-        let config = Config::from_env().unwrap();
+        let config = Config::default();
         let scheduler = IntegrationScheduler::new(config).await;
         assert!(scheduler.is_ok());
     }

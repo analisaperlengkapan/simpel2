@@ -1180,6 +1180,7 @@ impl PakaianDinasRepository {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
 
     // Note: These tests require a database connection

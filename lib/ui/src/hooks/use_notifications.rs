@@ -121,7 +121,7 @@ pub struct NotificationContext {
 // Global WebSocket reference for sending messages
 #[cfg(target_arch = "wasm32")]
 thread_local! {
-    static WS_CONNECTION: std::cell::RefCell<Option<web_sys::WebSocket>> = std::cell::RefCell::new(None);
+    static WS_CONNECTION: std::cell::RefCell<Option<web_sys::WebSocket>> = const { std::cell::RefCell::new(None) };
 }
 
 /// Send message via WebSocket

@@ -7,7 +7,7 @@ use authenc_types::{AuthencError, Result};
 use axum::{
     Json,
     extract::{Query, State},
-    response::{IntoResponse, Redirect, Response},
+    response::{IntoResponse, Response},
 };
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
@@ -38,6 +38,7 @@ pub struct CodeStore {
 
 /// Stored authorization code entry
 #[derive(Clone)]
+#[allow(dead_code)]
 struct CodeEntry {
     client_id: String,
     user_id: String,
@@ -207,19 +208,41 @@ pub async fn authorize(
     // Build redirect URI with authorization code
     let mut redirect_url = params.redirect_uri.clone();
     let separator = if redirect_url.contains('?') { "&" } else { "?" };
-    redirect_url.push_str(&format!("{}code={}", separator, auth_code));
+    redirect_url.push_str(&format!(
+        "{}code={}",
+        separator,
+        urlencoding::encode(&auth_code)
+    ));
 
     // Include state parameter if provided (CSRF protection)
     if let Some(state_param) = params.state {
-        redirect_url.push_str(&format!("&state={}", state_param));
+        redirect_url.push_str(&format!("&state={}", urlencoding::encode(&state_param)));
     }
 
-    Ok(Redirect::to(&redirect_url).into_response())
+    // Use HTTP 302 (Found) per RFC 6749 §4.1.2.
+    // Axum's Redirect::to() returns 303 and Redirect::temporary() returns 307;
+    // neither is correct for OAuth2 authorize redirects.
+    Ok((
+        axum::http::StatusCode::FOUND,
+        [(axum::http::header::LOCATION, redirect_url.as_str())],
+    )
+        .into_response())
 }
 
-/// OAuth2 Token Endpoint
+/// OAuth2 Token Endpoint (LEGACY — DO NOT USE FOR NEW FLOWS)
+///
 /// Exchanges authorization code for access token and refresh token.
 /// Validates authorization code, PKCE verifier, and client credentials.
+///
+/// # ⚠️ Key Mismatch Warning
+///
+/// This handler signs tokens using the global `ED25519_KEYPAIR` (via
+/// `generate_ed25519_jwt`), which is a **different key** from the one used by
+/// `JwtService`.  The JWKS endpoint (`/api/v1/oauth2/jwks`) serves the
+/// `JwtService` public key, so tokens issued by this handler **cannot be
+/// verified** via the JWKS endpoint.  Use the new `token_handler` in
+/// `oauth2.rs` (which delegates to `OAuth2ServiceImpl`) for all new flows.
+#[allow(deprecated)] // Uses legacy generate_ed25519_jwt; TODO: migrate to JwtService
 pub async fn token(
     State(state): State<AuthzState>,
     Json(params): Json<OAuth2TokenRequest>,
@@ -261,6 +284,8 @@ pub async fn token(
     }
 
     // Generate tokens using Ed25519
+    // TODO: Migrate to JwtService / oidc_jwt::generate_id_token — the legacy
+    // function uses the global ED25519_KEYPAIR which may differ from JwtService.
     use super::jwt_ed25519::generate_ed25519_jwt;
 
     let access_token = generate_ed25519_jwt(

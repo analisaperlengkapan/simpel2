@@ -3,6 +3,7 @@ name = "layanan-perlengkapan-api"
 version.workspace = true
 edition.workspace = true
 authors = ["SIMPEL Team"]
+license.workspace = true
 description = "Main Perlengkapan API service - BMN management for Kejaksaan RI"
 
 [[bin]]

@@ -1568,6 +1568,7 @@ pub enum OcspStatus {
 }
 
 /// OCSP Client for real-time certificate revocation checking
+#[allow(dead_code)]
 pub struct OcspClient {
     /// HTTP client for OCSP requests
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
@@ -1583,6 +1584,7 @@ pub struct OcspClient {
     _timeout: Duration,
 }
 
+#[allow(dead_code)]
 impl OcspClient {
     /// Create a new OCSP client with default settings
     ///

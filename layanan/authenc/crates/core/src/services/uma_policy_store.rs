@@ -39,8 +39,8 @@ impl UmaPolicyStore {
                         AuthencError::internal(format!("Failed to serialize policy config: {}", e))
                     })?,
                     &policy.enabled,
-                    &Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap(), // TODO: Get realm_id
-                    &Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap(), // TODO: Get resource_server_id
+                    &authenc_types::domain::Realm::MASTER_ID, // TODO: Get realm_id
+                    &authenc_types::domain::Realm::MASTER_ID, // TODO: Get resource_server_id
                 ],
             )
             .await

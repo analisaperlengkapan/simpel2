@@ -146,6 +146,7 @@ mod store_creation_tests {
     #[test]
     fn test_store_types_exist() {
         // Verify that all store types are exported and can be referenced
+        #[allow(unused_imports)]
         use authenc_storage::{
             PostgresClientStore, PostgresCredentialStore, PostgresRealmStore, PostgresSessionStore,
             PostgresUserStore,
@@ -157,6 +158,7 @@ mod store_creation_tests {
 
     #[test]
     fn test_migration_types_exist() {
+        #[allow(unused_imports)]
         use authenc_storage::{Migration, MigrationResult, MigrationRunner, MigrationStatus};
 
         // Verify migration types are exported

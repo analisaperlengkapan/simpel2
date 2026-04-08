@@ -1,3 +1,9 @@
+// Many services and queue processors contain placeholder/stub fields
+// with unused variables and dead code that will be cleaned up
+// incrementally.  Suppress these crate-wide for now.
+#![allow(dead_code)]
+#![allow(async_fn_in_trait)]
+
 pub mod audit;
 pub mod config;
 pub mod email;

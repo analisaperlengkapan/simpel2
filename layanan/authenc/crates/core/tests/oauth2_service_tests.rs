@@ -17,9 +17,8 @@
 use async_trait::async_trait;
 use authenc_core::services::oauth2_service::OAuth2ServiceImpl;
 use authenc_types::{
-    AuthorizationRequest, AuthorizationResponse, ClientId, RealmId, TokenClaims, TokenRequest,
-    TokenResponse, UserId, domain::*, domain_types::*, error::AuthencError, result::Result,
-    traits::*,
+    AuthorizationResponse, ClientId, RealmId, TokenClaims, UserId, domain::*, domain_types::*,
+    error::AuthencError, result::Result, traits::*,
 };
 use chrono::{Duration, Utc};
 use std::collections::HashMap;
@@ -289,6 +288,7 @@ async fn test_authorization_code_flow_with_pkce_s256() {
         user_id: UserId::new(),
         response_type: "code".to_string(),
         realm_id: shared_realm_id,
+        nonce: None,
     };
 
     let auth_response = service.authorize(auth_request).await.unwrap();
@@ -350,6 +350,7 @@ async fn test_authorization_code_flow_invalid_pkce() {
         user_id: UserId::new(),
         response_type: "code".to_string(),
         realm_id: RealmId::new(),
+        nonce: None,
     };
 
     let auth_response = service.authorize(auth_request).await.unwrap();
@@ -390,6 +391,7 @@ async fn test_authorization_code_flow_missing_pkce() {
         user_id: UserId::new(),
         realm_id: RealmId::new(),
         response_type: "code".to_string(),
+        nonce: None,
     };
 
     let result = service.authorize(auth_request).await;
@@ -415,6 +417,7 @@ async fn test_authorization_invalid_redirect_uri() {
         user_id: UserId::new(),
         response_type: "code".to_string(),
         realm_id: RealmId::new(),
+        nonce: None,
     };
 
     let result = service.authorize(auth_request).await;
@@ -440,6 +443,7 @@ async fn test_authorization_invalid_scope() {
         user_id: UserId::new(),
         response_type: "code".to_string(),
         realm_id: RealmId::new(),
+        nonce: None,
     };
 
     let result = service.authorize(auth_request).await;
@@ -463,6 +467,7 @@ async fn test_authorization_client_not_found() {
         user_id: UserId::new(),
         response_type: "code".to_string(),
         realm_id: RealmId::new(),
+        nonce: None,
     };
 
     let result = service.authorize(auth_request).await;

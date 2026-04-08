@@ -8,6 +8,8 @@
 //! - User management
 //! - mTLS enforcement
 
+#![allow(ambiguous_glob_reexports)]
+
 // Re-export types from authenc-types
 pub use authenc_types::*;
 
