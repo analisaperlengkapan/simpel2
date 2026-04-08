@@ -1,6 +1,6 @@
-use layanan_perlengkapan_integrasi::client::MonsaktiClient;
-use layanan_perlengkapan_integrasi::config::Config;
-use layanan_perlengkapan_integrasi::siman::{SimanAssetCategory, fetch_all_aset_paginated};
+use layanan_integrasi::client::MonsaktiClient;
+use layanan_integrasi::config::Config;
+use layanan_integrasi::siman::{SimanAssetCategory, fetch_all_aset_paginated};
 use std::collections::HashMap;
 use std::time::Instant;
 use wiremock::matchers::{method, path, path_regex};

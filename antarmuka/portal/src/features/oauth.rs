@@ -187,11 +187,10 @@ impl OAuthClient {
         if let Some(storage) = web_sys::window()
             .and_then(|w| w.session_storage().ok())
             .flatten()
+            && let Ok(Some(stored_state)) = storage.get_item("oauth_state")
         {
-            if let Ok(Some(stored_state)) = storage.get_item("oauth_state") {
-                let _ = storage.remove_item("oauth_state"); // Remove after verification
-                return stored_state == state;
-            }
+            let _ = storage.remove_item("oauth_state"); // Remove after verification
+            return stored_state == state;
         }
         false
     }

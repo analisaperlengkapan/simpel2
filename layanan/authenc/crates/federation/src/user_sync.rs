@@ -9,7 +9,6 @@
 use crate::manager::{FederationManager, FederationProviderType};
 use authenc_core::User;
 use authenc_core::error::{AuthencError, Result};
-use authenc_core::spi::ldap_federation::LdapFederationProvider;
 use authenc_storage::Database;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

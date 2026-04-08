@@ -66,6 +66,7 @@ impl MockNotifikasiClient {
         self.sent_notifications.lock().await.clone()
     }
 
+    #[allow(dead_code)]
     async fn clear_notifications(&self) {
         self.sent_notifications.lock().await.clear();
     }
@@ -84,6 +85,7 @@ struct MockPermit {
     pegawai_nama: String,
     tanggal_selesai: NaiveDate,
     created_by: Uuid,
+    #[allow(dead_code)]
     status: String,
 }
 

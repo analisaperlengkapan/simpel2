@@ -1,75 +1,107 @@
-// Legacy RSA implementation - DEPRECATED
-// Replaced with Ed25519 in handlers/oidc_ed25519.rs for security
-// use crate::handlers::oidc_keys::RSA_KEYPAIR;
-use chrono::Utc;
-use serde::{Deserialize, Serialize};
-// use rsa::pkcs1::EncodeRsaPrivateKey; // REMOVED: Vulnerable to timing attacks
+//! OIDC ID Token generation and validation
 
-/// Legacy OIDC ID token claims structure - DEPRECATED
-/// This struct is deprecated and should not be used.
-/// Use OidcIdTokenClaims from handlers/oidc_ed25519.rs instead.
-/// # Security Considerations
-/// - This legacy implementation uses RSA which is vulnerable to timing attacks
-/// - Replaced with Ed25519 for enhanced security
-/// - Do not use in production systems
+use authenc_types::domain::user::User;
+use base64ct::{Base64UrlUnpadded, Encoding};
+use chrono::Utc;
+use ed25519_dalek::{Signature, Signer, SigningKey};
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OidcIdTokenClaims {
-    /// Issuer identifier (token issuer)
     pub iss: String,
-    /// Subject identifier (user ID)
     pub sub: String,
-    /// Audience (client ID the token is for)
     pub aud: String,
-    /// Expiration timestamp
-    pub exp: usize,
-    /// Issued at timestamp
-    pub iat: usize,
-    /// User's email address
+    pub exp: i64,
+    pub iat: i64,
+    pub auth_time: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preferred_username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
-    /// User's display name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email_verified: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// User's role or authorization level
-    pub role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub given_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family_name: Option<String>,
 }
 
-/// Legacy JWT generation function - DEPRECATED
-/// This function is deprecated and will return an error if called.
-/// Use generate_ed25519_jwt from handlers/oidc_ed25519.rs instead.
-/// # Arguments
-/// * `sub` - Subject identifier (user ID)
-/// * `aud` - Audience (client ID)
-/// * `email` - User's email address
-/// * `name` - User's display name
-/// * `role` - User's role/authorization level
-/// # Returns
-/// Always returns an error indicating this function is deprecated
-/// # Security Considerations
-/// - Legacy RSA implementation removed due to security vulnerabilities
-/// - RSA signatures are susceptible to timing attacks
-/// - Use Ed25519 implementation for secure JWT signing
-#[deprecated(
-    since = "1.0.0",
-    note = "Use generate_ed25519_jwt instead - RSA JWT signing is insecure"
-)]
+#[derive(Debug, Serialize, Deserialize)]
+struct Ed25519JwtHeader {
+    pub alg: String,
+    pub typ: String,
+    pub kid: String,
+}
+
+/// Generate an OIDC ID token for a user
+///
+/// The `signing_key` MUST be the same key used by `JwtService` so that
+/// relying parties can verify the ID token using the JWKS endpoint.
+///
+/// # Errors
+///
+/// Returns an error if JWT header or claims serialization fails (should
+/// not happen in practice since the types contain only primitive fields).
 pub fn generate_id_token(
-    sub: &str,
-    aud: &str,
-    email: Option<&str>,
-    name: Option<&str>,
-    role: Option<&str>,
+    user: &User,
+    client_id: &str,
+    nonce: Option<String>,
+    issuer: &str,
+    signing_key: &SigningKey,
 ) -> Result<String, String> {
-    let now = Utc::now().timestamp() as usize;
-    let _claims = OidcIdTokenClaims {
-        iss: "https://10.1.7.121/api/auth/v1".to_string(),
-        sub: sub.to_string(),
-        aud: aud.to_string(),
+    let now = Utc::now().timestamp();
+
+    let header = Ed25519JwtHeader {
+        alg: "EdDSA".to_string(),
+        typ: "JWT".to_string(),
+        kid: "authenc-ed25519-key".to_string(),
+    };
+
+    let name = match (&user.first_name, &user.last_name) {
+        (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+        (Some(f), None) => Some(f.clone()),
+        (None, Some(l)) => Some(l.clone()),
+        _ => user.nama.clone(),
+    };
+
+    let claims = OidcIdTokenClaims {
+        iss: issuer.to_string(),
+        sub: user.id.to_string(),
+        aud: client_id.to_string(),
         exp: now + 3600,
         iat: now,
-        email: email.map(|e| e.to_string()),
-        name: name.map(|n| n.to_string()),
-        role: role.map(|r| r.to_string()),
+        // OIDC Core §12.2: For refresh_token grants, auth_time MUST reflect
+        // the time of the original authentication, not the current time.
+        // Since the original auth_time is not stored with the refresh token,
+        // we use `now` as a simplification.  This is non-compliant for
+        // refresh_token grants.
+        // TODO: Store auth_time in the authorization code / refresh token
+        // and pass it through to this function.
+        auth_time: now,
+        nonce,
+        preferred_username: Some(user.username.clone()),
+        email: Some(user.email.clone()),
+        email_verified: Some(user.email_verified),
+        name,
+        given_name: user.first_name.clone(),
+        family_name: user.last_name.clone(),
     };
-    // DEPRECATED: Legacy RSA implementation removed for security
-    // Use handlers/oidc_ed25519.rs for secure Ed25519 JWT signing instead
-    Err("Legacy RSA JWT signing disabled - use Ed25519 implementation (see handlers/oidc_ed25519.rs)".to_string())
+
+    let header_json = serde_json::to_string(&header)
+        .map_err(|e| format!("Failed to serialize JWT header: {}", e))?;
+    let claims_json = serde_json::to_string(&claims)
+        .map_err(|e| format!("Failed to serialize ID token claims: {}", e))?;
+
+    let header_b64 = Base64UrlUnpadded::encode_string(header_json.as_bytes());
+    let payload_b64 = Base64UrlUnpadded::encode_string(claims_json.as_bytes());
+
+    let signing_input = format!("{}.{}", header_b64, payload_b64);
+    let signature: Signature = signing_key.sign(signing_input.as_bytes());
+    let signature_b64 = Base64UrlUnpadded::encode_string(signature.to_bytes().as_ref());
+
+    Ok(format!("{}.{}", signing_input, signature_b64))
 }

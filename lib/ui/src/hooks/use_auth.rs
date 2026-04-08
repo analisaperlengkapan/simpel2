@@ -156,7 +156,7 @@ impl AuthContext {
                     let headers = Headers::new().unwrap();
                     let _ = headers.set("Content-Type", "application/json");
 
-                    let mut opts = RequestInit::new();
+                    let opts = RequestInit::new();
                     opts.set_method("POST");
                     opts.set_mode(RequestMode::Cors);
                     opts.set_credentials(RequestCredentials::Include);

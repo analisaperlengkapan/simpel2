@@ -375,69 +375,91 @@ impl PemakaianBmnRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         let page = query.page.unwrap_or(1).max(1);
-        let per_page = query.per_page.unwrap_or(20).min(100);
+        let per_page = query.per_page.unwrap_or(20).max(1).min(100);
         let offset = (page - 1) * per_page;
 
         let mut where_clauses = vec![];
         let mut param_count = 1;
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
 
-        // Build WHERE clause dynamically
-        let _sql_params: Vec<String> = vec![];
-
-        if query.status.is_some() {
+        if let Some(ref status) = query.status {
             where_clauses.push(format!("status = ${}", param_count));
             param_count += 1;
+            params.push(Box::new(status.clone()));
         }
 
-        if query.jenis_bmn.is_some() {
+        if let Some(ref jenis_bmn) = query.jenis_bmn {
             where_clauses.push(format!("jenis_bmn = ${}", param_count));
             param_count += 1;
+            params.push(Box::new(jenis_bmn.clone()));
         }
 
-        if query.pegawai_nip.is_some() {
+        if let Some(ref pegawai_nip) = query.pegawai_nip {
             where_clauses.push(format!("pegawai_nip = ${}", param_count));
             param_count += 1;
+            params.push(Box::new(pegawai_nip.clone()));
         }
 
-        if query.satker_id.is_some() {
+        if let Some(ref satker_id) = query.satker_id {
             where_clauses.push(format!("pegawai_satker_id = ${}", param_count));
             param_count += 1;
+            params.push(Box::new(satker_id.clone()));
         }
 
-        if query.search.is_some() {
+        if let Some(ref search) = query.search {
+            // Escape LIKE-special characters to prevent pattern injection
+            let escaped = search
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_");
+            let search_pattern = format!("%{}%", escaped);
             where_clauses.push(format!(
                 "(bmn_nama_barang ILIKE ${} OR pegawai_nama ILIKE ${} OR nomor_izin ILIKE ${})",
                 param_count, param_count, param_count
             ));
             param_count += 1;
+            params.push(Box::new(search_pattern));
         }
-
         let where_clause = if where_clauses.is_empty() {
             String::new()
         } else {
             format!("WHERE {}", where_clauses.join(" AND "))
         };
 
-        // Count total - simplified for now
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        // Count total
         let count_query = format!(
             "SELECT COUNT(*) as total FROM perlengkapan.izin_pemakaian_bmn {}",
             where_clause
         );
 
         let total_row = client
-            .query_one(&count_query, &[])
+            .query_one(&count_query, &param_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
         let total: i64 = total_row.get("total");
 
-        // Get data
+        // Get data — parameterize LIMIT/OFFSET for defense-in-depth
+        let limit_param_idx = param_count;
+        let offset_param_idx = param_count + 1;
         let data_query = format!(
-            "SELECT * FROM perlengkapan.izin_pemakaian_bmn {} ORDER BY created_at DESC LIMIT {} OFFSET {}",
-            where_clause, per_page, offset
+            "SELECT * FROM perlengkapan.izin_pemakaian_bmn {} ORDER BY created_at DESC LIMIT ${} OFFSET ${}",
+            where_clause, limit_param_idx, offset_param_idx
         );
 
+        let mut data_params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+        data_params.push(&per_page);
+        data_params.push(&offset);
+
         let rows = client
-            .query(&data_query, &[])
+            .query(&data_query, &data_params)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -663,18 +685,26 @@ impl PemakaianBmnRepository {
         // Build WHERE clause for filters
         let mut where_clauses = vec!["status = 'ACTIVE'".to_string()];
         let mut param_idx = 1;
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
 
-        if query.satker_id.is_some() {
+        if let Some(ref satker_id) = query.satker_id {
             where_clauses.push(format!("pegawai_satker_id = ${}", param_idx));
             param_idx += 1;
+            params.push(Box::new(satker_id.clone()));
         }
 
-        if query.jenis_bmn.is_some() {
+        if let Some(ref jenis_bmn) = query.jenis_bmn {
             where_clauses.push(format!("jenis_bmn = ${}", param_idx));
             param_idx += 1;
+            params.push(Box::new(jenis_bmn.clone()));
         }
+        let _ = param_idx;
 
         let where_clause = where_clauses.join(" AND ");
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
         // Total active permits
         let total_query = format!(
@@ -683,7 +713,7 @@ impl PemakaianBmnRepository {
         );
 
         let total_row = client
-            .query_one(&total_query, &[])
+            .query_one(&total_query, &param_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
         let total_active_permits: i64 = total_row.get("total");
@@ -701,7 +731,7 @@ impl PemakaianBmnRepository {
         );
 
         let jenis_rows = client
-            .query(&jenis_query, &[])
+            .query(&jenis_query, &param_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -736,7 +766,7 @@ impl PemakaianBmnRepository {
         );
 
         let satker_rows = client
-            .query(&satker_query, &[])
+            .query(&satker_query, &param_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -763,7 +793,7 @@ impl PemakaianBmnRepository {
         );
 
         let expiring_rows = client
-            .query(&expiring_query, &[])
+            .query(&expiring_query, &param_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -792,7 +822,7 @@ impl PemakaianBmnRepository {
         );
 
         let recent_rows = client
-            .query(&recent_query, &[])
+            .query(&recent_query, &param_refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 

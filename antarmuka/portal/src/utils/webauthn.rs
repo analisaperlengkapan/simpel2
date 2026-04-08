@@ -485,13 +485,13 @@ pub async fn get_credential(options_json: &serde_json::Value) -> Result<serde_js
     });
 
     // userHandle is optional
-    if let Ok(uh) = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("userHandle")) {
-        if !uh.is_null() && !uh.is_undefined() {
-            if let Ok(uh_buf) = uh.dyn_into::<js_sys::ArrayBuffer>() {
-                result["response"]["userHandle"] =
-                    serde_json::Value::String(array_buffer_to_b64url(&uh_buf));
-            }
-        }
+    if let Ok(uh) = js_sys::Reflect::get(&assertion_resp, &JsValue::from_str("userHandle"))
+        && !uh.is_null()
+        && !uh.is_undefined()
+        && let Ok(uh_buf) = uh.dyn_into::<js_sys::ArrayBuffer>()
+    {
+        result["response"]["userHandle"] =
+            serde_json::Value::String(array_buffer_to_b64url(&uh_buf));
     }
 
     Ok(result)

@@ -276,6 +276,10 @@ mod tests {
 
     #[test]
     fn test_export_metrics() {
+        // Ensure metrics are registered and have a value
+        let metric = http_requests_total();
+        metric.with_label_values(&["GET", "/test", "200"]).inc();
+
         // Test that metrics can be exported
         let result = export_metrics();
         assert!(result.is_ok());

@@ -15,7 +15,8 @@ use uuid::Uuid;
 
 /// Hasil sinkronisasi per kategori
 #[derive(Debug)]
-struct SyncResult {
+#[allow(dead_code)]
+pub struct SyncResult {
     category: SimanAssetCategory,
     table_name: String,
     total_records: i32,

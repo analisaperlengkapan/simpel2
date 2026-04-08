@@ -20,6 +20,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         output_dir: "./bench_output".to_string(),
         db_config: None,
         siman_concurrency_limit: 20,
+        scheduler_enabled: false,
+        monsakti_schedule: "0 0 2 * * *".to_string(),
+        mysimkari_schedule: "0 0 2 * * *".to_string(),
+        siman_schedule: "0 0 3 * * 0".to_string(),
+        scheduler_timezone: "Asia/Jakarta".to_string(),
     };
 
     // Initialize client

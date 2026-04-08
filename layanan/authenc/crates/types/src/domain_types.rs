@@ -388,6 +388,8 @@ pub struct AuthorizationCode {
     pub created_at: DateTime<Utc>,
     /// Whether the code has been used
     pub used: bool,
+    /// OIDC nonce from the authorization request (OIDC Core §3.1.2.1)
+    pub nonce: Option<String>,
 }
 
 /// OAuth2 refresh token
@@ -499,6 +501,9 @@ pub struct AuthorizationRequest {
     pub user_id: UserId,
     /// Realm ID
     pub realm_id: RealmId,
+    /// OIDC nonce — MUST be stored with the authorization code and included
+    /// in the ID token per OIDC Core §3.1.2.1
+    pub nonce: Option<String>,
 }
 
 /// OAuth2 authorization response
@@ -546,4 +551,8 @@ pub struct TokenResponse {
     pub refresh_token: Option<String>,
     /// Scope granted
     pub scope: String,
+    /// OIDC nonce recovered from the authorization code (OIDC Core §3.1.2.1).
+    /// Present only for authorization_code grants that carried a nonce.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
 }

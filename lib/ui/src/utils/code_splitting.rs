@@ -84,7 +84,6 @@ use leptos::prelude::*;
 ///     }
 /// }
 /// ```
-
 /// Default loading skeleton for lazy-loaded routes
 ///
 /// Provides a consistent loading experience across the application
@@ -185,8 +184,6 @@ pub fn preload_route(_route: &str) {
 /// the Performance API resource timing entries.
 #[cfg(target_arch = "wasm32")]
 pub fn get_bundle_size() -> BundleSize {
-    use wasm_bindgen::JsCast;
-
     let window = web_sys::window().expect("no global window");
     let performance = window.performance().expect("no performance object");
 
@@ -399,8 +396,9 @@ where
         let result = render_fn();
         let _ = performance.mark(&end_mark);
 
-        if let Ok(_) =
-            performance.measure_with_start_mark_and_end_mark(&measure_name, &start_mark, &end_mark)
+        if performance
+            .measure_with_start_mark_and_end_mark(&measure_name, &start_mark, &end_mark)
+            .is_ok()
         {
             // Get the measure and log it
             let entries = performance.get_entries_by_name(&measure_name);

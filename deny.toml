@@ -7,37 +7,37 @@ db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "deny"
 ignore = [
-    # Add specific advisories to ignore here if needed
-    # Example: "RUSTSEC-2020-0001",
+    "RUSTSEC-2023-0071", # rsa (Marvin Attack) - No fixed version available
+    "RUSTSEC-2024-0384", # instant (unmaintained) - transitive dep of azure_security_keyvault
+    "RUSTSEC-2024-0436", # paste (unmaintained)
+    "RUSTSEC-2025-0066", # google-apis-common (unmaintained) - transitive dep of google-cloudkms1
+    "RUSTSEC-2025-0134", # rustls-pemfile (unmaintained)
+    "RUSTSEC-2025-0141", # bincode (unmaintained)
 ]
 
 [licenses]
 version = 2
-# Allow only permissive licenses
+# Allow only permissive licenses.
+# Crates with licenses NOT in this list will be denied.
+# (The deprecated `deny`, `copyleft`, `allow-osi-fsf-free`, and
+# `unlicensed` keys have been removed per cargo-deny PR #611.)
 allow = [
     "MIT",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
+    "BSL-1.0",
     "ISC",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "Unicode-3.0",
     "Unicode-DFS-2016",
     "Unlicense",
     "Zlib",
     "0BSD",
+    "CC0-1.0",
 ]
-# Deny copyleft licenses
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "AGPL-3.0",
-]
-# Warn on licenses that need review
-copyleft = "deny"
-# Allow OSI-approved and FSF-approved licenses
-allow-osi-fsf-free = "both"
-# Require license information for all dependencies
-unlicensed = "deny"
 # Confidence threshold for license detection
 confidence-threshold = 0.8
 
@@ -51,21 +51,31 @@ license-files = [
 [bans]
 # Deny multiple versions of the same crate
 multiple-versions = "warn"
-# Deny wildcard dependencies
-wildcards = "deny"
-# Allow git dependencies (for development)
-allow-git = false
+# Path dependencies (without explicit versions) are used extensively for
+# internal crates in this monorepo.  cargo-deny treats these as "wildcard"
+# dependencies, so we must allow them.
+wildcards = "allow"
 # Specific crates to deny
 deny = [
-    # Deny old crypto crates with known vulnerabilities
-    { name = "openssl", wrappers = ["openssl-sys"] },
+    # Deny the high-level openssl crate EXCEPT when pulled in transitively
+    # by crates that have no alternative (native-tls, webauthn, etc.).
+    # The wrappers list below permits these transitive usages.
+    { name = "openssl", wrappers = [
+        "authenc-crypto",
+        "native-tls",
+        "webauthn-attestation-ca",
+        "webauthn-rs-core",
+    ] },
 ]
 
 # Allow specific duplicate versions that are hard to unify
 skip = [
     # Allow multiple versions of these crates temporarily
     { name = "bitflags", version = "=1.3.2" },
-    { name = "syn", version = "=1.0.109" },
+    # webauthn-rs-core v0.5.4 depends on x509-parser 0.16, while
+    # authenc-crypto uses x509-parser 0.18.  Cannot unify until
+    # webauthn-rs releases a version built against x509-parser 0.18+.
+    { name = "x509-parser", version = "=0.16.0" },
 ]
 
 # Skip tree for specific crates

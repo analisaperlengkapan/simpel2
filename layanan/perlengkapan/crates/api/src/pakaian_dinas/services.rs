@@ -570,7 +570,7 @@ mod tests {
         ];
 
         // This is a simplified test - in production, you'd use mocking
-        for (current, action, role, expected) in test_cases {
+        for (current, _action, _role, expected) in test_cases {
             let current_status = AktivitasStatus::from_i32(current).unwrap();
             let expected_status = AktivitasStatus::from_i32(expected).unwrap();
 

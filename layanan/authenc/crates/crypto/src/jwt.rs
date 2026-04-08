@@ -194,6 +194,15 @@ impl JwtService {
         &self.issuer
     }
 
+    /// Get a reference to the Ed25519 signing key.
+    ///
+    /// Used by OIDC ID token generation so that ID tokens are signed with the
+    /// same key as access tokens (and therefore verifiable via the JWKS
+    /// endpoint that exposes this service's public key).
+    pub fn signing_key(&self) -> &SigningKey {
+        &self.signing_key
+    }
+
     /// Generate an access token
     ///
     /// # Arguments
