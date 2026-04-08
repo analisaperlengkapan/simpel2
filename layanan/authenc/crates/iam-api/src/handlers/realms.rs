@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 use crate::error::{ApiError, ApiResult};
 use crate::state::IamApiState;
-pub use authenc_types::domain::realm::RealmResponse;
 use authenc_types::domain::realm::Realm;
+pub use authenc_types::domain::realm::RealmResponse;
 use authenc_types::{AuthencError, RealmId};
 
 /// Create realm request — scoped to fields the service actually supports.
@@ -52,7 +52,10 @@ pub async fn create_realm(
 ) -> ApiResult<(StatusCode, Json<RealmResponse>)> {
     let realm = state
         .realm_service
-        .create_realm(req.name.clone(), req.display_name.unwrap_or_else(|| req.name))
+        .create_realm(
+            req.name.clone(),
+            req.display_name.unwrap_or_else(|| req.name),
+        )
         .await
         .map_err(AuthencError::from)
         .map_err(ApiError)?;

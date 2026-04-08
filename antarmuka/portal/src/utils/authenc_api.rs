@@ -230,9 +230,14 @@ pub struct RealmInfo {
     pub id: String,
     pub name: String,
     pub display_name: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
     pub enabled: bool,
+    #[serde(default)]
     pub user_count: Option<u64>,
     pub created_at: String,
+    #[serde(default)]
+    pub updated_at: Option<String>,
 }
 
 /// Create realm request
@@ -1365,9 +1370,11 @@ impl AuthencApiClient {
             id: "mock".to_string(),
             name: "mock".to_string(),
             display_name: None,
+            description: None,
             enabled: true,
             user_count: None,
             created_at: "2026-01-01".to_string(),
+            updated_at: None,
         })
     }
     #[cfg(not(target_arch = "wasm32"))]

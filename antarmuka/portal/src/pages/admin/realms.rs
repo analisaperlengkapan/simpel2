@@ -5,7 +5,7 @@
 
 use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{AppState, use_api_client, use_app_state};
-use crate::utils::authenc_api::{CreateRealmRequest, RealmInfo, MASTER_REALM_ID};
+use crate::utils::authenc_api::{CreateRealmRequest, MASTER_REALM_ID, RealmInfo};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
