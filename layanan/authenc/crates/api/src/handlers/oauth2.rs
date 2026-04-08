@@ -420,7 +420,12 @@ fn extract_basic_auth(headers: &HeaderMap) -> Option<(String, String)> {
     use base64::{Engine, engine::general_purpose::STANDARD};
 
     let auth_header = headers.get("Authorization")?.to_str().ok()?;
-    let encoded = auth_header.strip_prefix("Basic ")?;
+    // Per RFC 7235 §2.1, the authentication scheme token is case-insensitive.
+    let encoded = if auth_header.len() > 6 && auth_header[..6].eq_ignore_ascii_case("basic ") {
+        &auth_header[6..]
+    } else {
+        return None;
+    };
     let decoded = String::from_utf8(STANDARD.decode(encoded).ok()?).ok()?;
     let (id, secret) = decoded.split_once(':')?;
     Some((
@@ -856,6 +861,34 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", "Bearer some-token".parse().unwrap());
         assert_eq!(extract_basic_auth(&headers), None);
+    }
+
+    #[test]
+    fn test_extract_basic_auth_case_insensitive() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let encoded = STANDARD.encode("my-client:my-secret");
+
+        // "BASIC " (uppercase)
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Authorization",
+            format!("BASIC {}", encoded).parse().unwrap(),
+        );
+        assert_eq!(
+            extract_basic_auth(&headers),
+            Some(("my-client".to_string(), "my-secret".to_string()))
+        );
+
+        // "basic " (lowercase)
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Authorization",
+            format!("basic {}", encoded).parse().unwrap(),
+        );
+        assert_eq!(
+            extract_basic_auth(&headers),
+            Some(("my-client".to_string(), "my-secret".to_string()))
+        );
     }
 
     #[test]

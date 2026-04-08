@@ -375,7 +375,7 @@ impl PemakaianBmnRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         let page = query.page.unwrap_or(1).max(1);
-        let per_page = query.per_page.unwrap_or(20).min(100);
+        let per_page = query.per_page.unwrap_or(20).max(1).min(100);
         let offset = (page - 1) * per_page;
 
         let mut where_clauses = vec![];
