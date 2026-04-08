@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use authenc_types::{ClientStore, OAuth2Service};
+use authenc_types::OAuth2Service;
 use axum::{
     Form, Json,
     extract::{Query, State},
@@ -455,7 +455,6 @@ pub async fn token_handler(
     Form(request): Form<TokenRequest>,
 ) -> Result<Json<TokenResponse>, ErrorResponse> {
     use authenc_types::domain_types::{RealmId, TokenRequest as DomainTokenRequest};
-    use uuid::Uuid;
 
     // Resolve client_id and client_secret.
     // Priority: body parameters > Authorization: Basic header.

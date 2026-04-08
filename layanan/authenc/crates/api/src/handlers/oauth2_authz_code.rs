@@ -38,6 +38,7 @@ pub struct CodeStore {
 
 /// Stored authorization code entry
 #[derive(Clone)]
+#[allow(dead_code)]
 struct CodeEntry {
     client_id: String,
     user_id: String,
