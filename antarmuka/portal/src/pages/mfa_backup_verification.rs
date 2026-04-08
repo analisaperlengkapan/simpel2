@@ -5,9 +5,9 @@
 use crate::components::layout::AuthLayout;
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_router;
 use serde::{Deserialize, Serialize};
-use leptos::task::spawn_local;
 use std::cell::Cell;
 use std::rc::Rc;
 
