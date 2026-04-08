@@ -360,7 +360,11 @@ fn format_date_helper(
     let date_str = h
         .param(0)
         .and_then(|v| v.value().as_str())
-        .ok_or_else(|| handlebars::RenderError::new("Date parameter required"))?;
+        .ok_or_else(|| {
+            handlebars::RenderError::from(handlebars::RenderErrorReason::Other(
+                "Date parameter required".to_string(),
+            ))
+        })?;
 
     out.write(date_str)?;
     Ok(())
@@ -376,7 +380,11 @@ fn format_currency_helper(
     let amount = h
         .param(0)
         .and_then(|v| v.value().as_f64())
-        .ok_or_else(|| handlebars::RenderError::new("Amount parameter required"))?;
+        .ok_or_else(|| {
+            handlebars::RenderError::from(handlebars::RenderErrorReason::Other(
+                "Amount parameter required".to_string(),
+            ))
+        })?;
 
     let formatted = format!("Rp {:.2}", amount);
     out.write(&formatted)?;
@@ -393,7 +401,11 @@ fn format_number_helper(
     let number = h
         .param(0)
         .and_then(|v| v.value().as_i64())
-        .ok_or_else(|| handlebars::RenderError::new("Number parameter required"))?;
+        .ok_or_else(|| {
+            handlebars::RenderError::from(handlebars::RenderErrorReason::Other(
+                "Number parameter required".to_string(),
+            ))
+        })?;
 
     let formatted = format!("{}", number);
     out.write(&formatted)?;
