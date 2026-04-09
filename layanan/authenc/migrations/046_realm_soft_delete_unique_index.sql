@@ -1,19 +1,11 @@
 -- ============================================================================
--- MIGRATION 046: Fix realm name uniqueness for soft delete
+-- THIS FILE IS INTENTIONALLY EMPTY
 -- ============================================================================
--- The original schema uses a plain UNIQUE constraint on realms.name which
--- prevents re-creating a realm with the same name after soft-deletion
--- (the soft-deleted row still occupies the unique slot).
+-- This migration was renumbered to 048_realm_soft_delete_unique_index.sql
+-- because version 046 conflicts with the pre-existing
+-- 046_user_extended_fields.sql. Both files resolve to version 46 in the
+-- migration runner, causing this one to be silently skipped on databases
+-- that already applied 046_user_extended_fields.
 --
--- This migration replaces the absolute UNIQUE constraint with a partial
--- unique index that only enforces uniqueness among live (non-deleted) rows,
--- matching the pattern already used for the users table (see test_schema.sql).
+-- See: 048_realm_soft_delete_unique_index.sql
 -- ============================================================================
-
--- Step 1: Drop the existing absolute unique constraint on realms.name
-ALTER TABLE realms DROP CONSTRAINT IF EXISTS realms_name_key;
-
--- Step 2: Create a partial unique index that only covers live rows
-CREATE UNIQUE INDEX IF NOT EXISTS idx_realms_name_unique
-    ON realms (name)
-    WHERE deleted_at IS NULL;
