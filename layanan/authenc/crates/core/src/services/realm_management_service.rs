@@ -296,6 +296,14 @@ impl RealmManagementServiceImpl {
     /// - `AuthorizationFailed` if attempting to delete the master realm
     /// - `RealmNotFound` if the realm does not exist or is already deleted
     ///
+    /// # Important
+    ///
+    /// This is a soft delete on the realm row only. Related entities (users,
+    /// clients, sessions) are **not** cascaded because the DB foreign keys use
+    /// `ON DELETE CASCADE` which only triggers on hard `DELETE`. Until cascade
+    /// logic is added, users in a soft-deleted realm may still authenticate if
+    /// the authentication flow does not check the realm's `deleted_at` status.
+    ///
     /// # Requirements
     ///
     /// - REQ-REALM-002: Realm CRUD operations
@@ -309,6 +317,10 @@ impl RealmManagementServiceImpl {
                 "Cannot delete the master realm".to_string(),
             ));
         }
+
+        // TODO: Disable related entities (users, clients, sessions) in this realm
+        // to prevent authentication against a soft-deleted realm. The DB's
+        // ON DELETE CASCADE only fires on hard DELETE, not on UPDATE of deleted_at.
 
         self.realm_store.delete_realm(realm_id).await?;
 
@@ -479,12 +491,7 @@ mod tests {
         }
 
         async fn realm_name_exists(&self, name: &str) -> Result<bool> {
-            Ok(self
-                .realms
-                .lock()
-                .unwrap()
-                .values()
-                .any(|r| r.name == name))
+            Ok(self.realms.lock().unwrap().values().any(|r| r.name == name))
         }
     }
 
@@ -510,11 +517,7 @@ mod tests {
         let svc = make_service(store);
 
         let result = svc
-            .update_realm(
-                RealmId::from_uuid(Realm::MASTER_ID),
-                None,
-                Some(false),
-            )
+            .update_realm(RealmId::from_uuid(Realm::MASTER_ID), None, Some(false))
             .await;
 
         assert!(result.is_err());
@@ -533,11 +536,7 @@ mod tests {
         let svc = make_service(store);
 
         let result = svc
-            .update_realm(
-                RealmId::from_uuid(Realm::MASTER_ID),
-                None,
-                Some(true),
-            )
+            .update_realm(RealmId::from_uuid(Realm::MASTER_ID), None, Some(true))
             .await;
 
         assert!(result.is_ok());
@@ -568,9 +567,7 @@ mod tests {
         store.seed(master_realm());
         let svc = make_service(store);
 
-        let result = svc
-            .delete_realm(RealmId::from_uuid(Realm::MASTER_ID))
-            .await;
+        let result = svc.delete_realm(RealmId::from_uuid(Realm::MASTER_ID)).await;
 
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -642,9 +639,7 @@ mod tests {
             .await
             .unwrap();
 
-        let result = svc
-            .delete_realm(RealmId::from_uuid(realm.id))
-            .await;
+        let result = svc.delete_realm(RealmId::from_uuid(realm.id)).await;
 
         assert!(result.is_ok());
     }
@@ -660,11 +655,7 @@ mod tests {
             .unwrap();
 
         let result = svc
-            .update_realm(
-                RealmId::from_uuid(realm.id),
-                None,
-                Some(false),
-            )
+            .update_realm(RealmId::from_uuid(realm.id), None, Some(false))
             .await;
 
         assert!(result.is_ok());
@@ -732,11 +723,7 @@ mod tests {
             .unwrap();
 
         let result = svc
-            .update_realm(
-                RealmId::from_uuid(realm.id),
-                Some("".to_string()),
-                None,
-            )
+            .update_realm(RealmId::from_uuid(realm.id), Some("".to_string()), None)
             .await;
 
         assert!(result.is_err());

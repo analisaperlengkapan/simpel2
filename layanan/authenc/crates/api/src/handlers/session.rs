@@ -2,11 +2,7 @@
 
 use std::sync::Arc;
 
-use axum::{
-    Json,
-    extract::State,
-    http::HeaderMap,
-};
+use axum::{Json, extract::State, http::HeaderMap};
 use serde::Serialize;
 use uuid::Uuid;
 

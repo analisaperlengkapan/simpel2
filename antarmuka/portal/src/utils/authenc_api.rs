@@ -235,7 +235,6 @@ pub struct RealmInfo {
     pub display_name: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
-    #[serde(default)]
     pub enabled: bool,
     pub created_at: String,
     #[serde(default)]

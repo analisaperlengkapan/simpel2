@@ -313,6 +313,11 @@ impl RealmStore for PostgresRealmStore {
 
         // Soft delete: set deleted_at timestamp instead of removing the row.
         // This preserves the record for auditing and allows potential recovery.
+        //
+        // NOTE: The DB foreign keys use ON DELETE CASCADE which only fires on
+        // hard DELETE. This soft delete does NOT cascade to users, clients, or
+        // sessions in the realm. The service layer should handle disabling
+        // related entities separately.
         let query = r#"
             UPDATE realms
             SET deleted_at = $2, updated_at = $2
