@@ -245,7 +245,6 @@ pub struct RealmInfo {
 pub struct CreateRealmRequest {
     pub name: String,
     pub display_name: Option<String>,
-    pub enabled: bool,
 }
 
 /// Update realm request
@@ -1386,7 +1385,6 @@ impl AuthencApiClient {
         self.iam_create_realm(&CreateRealmRequest {
             name: "mock".to_string(),
             display_name: None,
-            enabled: true,
         })
         .await
     }

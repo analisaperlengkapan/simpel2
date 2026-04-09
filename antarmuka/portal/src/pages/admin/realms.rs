@@ -69,7 +69,6 @@ pub fn RealmsManagementPage() -> impl IntoView {
                     } else {
                         Some(new_display_name.get())
                     },
-                    enabled: true,
                 };
 
                 match api.iam_create_realm(&req).await {

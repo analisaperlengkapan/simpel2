@@ -345,9 +345,11 @@ pub async fn authorize_handler(
             }
             return Ok(redirect_found(&target));
         }
-        // Per RFC 7636 §4.3, the default when code_challenge_method is absent
-        // is "plain".
-        None => "plain".to_string(),
+        // Per OAuth 2.1 (draft-ietf-oauth-v2-1 §7.6.2), S256 is the
+        // only REQUIRED method and "plain" SHOULD NOT be used.  Default
+        // to S256 so that clients omitting the parameter get the
+        // strongest protection automatically.
+        None => "S256".to_string(),
     };
 
     // 6. Generate and persist authorization code via OAuth2 service
@@ -614,10 +616,22 @@ pub async fn token_handler(
 /// GET /api/v1/oauth2/.well-known/openid-configuration - Discovery endpoint
 ///
 /// OIDC discovery endpoint returning server metadata.
+///
+/// This handler is registered at multiple paths:
+///   - `/.well-known/openid-configuration`
+///   - `/api/v1/oauth2/.well-known/openid-configuration`
+///   - `/api/v1/auth/.well-known/openid-configuration`
+///
+/// Per OIDC Discovery §4.3, the `issuer` value MUST exactly match the
+/// URL that the relying party used to retrieve the discovery document
+/// (minus the `/.well-known/openid-configuration` suffix).  We therefore
+/// derive the issuer from the request path rather than always returning
+/// the configured `JWT_ISSUER`, which only matches one of the three paths.
 pub async fn discovery_handler(
     State(state): State<Arc<ApiState>>,
+    uri: axum::extract::OriginalUri,
 ) -> Result<Json<OidcDiscoveryResponse>, ErrorResponse> {
-    let issuer = state.jwt_service.issuer().to_string();
+    let configured_issuer = state.jwt_service.issuer().to_string();
     // Derive base URL by stripping the known auth path suffix.
     // First normalize possible trailing slashes, then strip the suffix.
     // This handles both "https://host/api/v1/auth" and
@@ -626,7 +640,7 @@ pub async fn discovery_handler(
     // If the issuer does not contain a scheme (e.g. "simpelv2-authenc"),
     // the derived endpoint URLs will be relative paths which are unlikely
     // to work.  Log a warning so operators can fix their JWT_ISSUER.
-    let normalized = issuer.trim_end_matches('/');
+    let normalized = configured_issuer.trim_end_matches('/');
     let base_url = normalized
         .strip_suffix("/api/v1/auth")
         .unwrap_or(normalized)
@@ -638,10 +652,28 @@ pub async fn discovery_handler(
              derived base_url '{}' may produce invalid endpoint URLs. \
              Set JWT_ISSUER to a full URL (e.g. 'https://authenc.example.com' \
              or 'https://host/api/v1/auth').",
-            issuer,
+            configured_issuer,
             base_url,
         );
     }
+
+    // Derive the issuer from the request path so that the discovery
+    // document's `issuer` matches the URL the client used to fetch it
+    // (OIDC Discovery §4.3).
+    //
+    // Request path                                          → issuer
+    // /.well-known/openid-configuration                     → {base_url}
+    // /api/v1/oauth2/.well-known/openid-configuration       → {base_url}/api/v1/oauth2
+    // /api/v1/auth/.well-known/openid-configuration         → {base_url}/api/v1/auth
+    let request_path = uri.path();
+    let issuer = if request_path.starts_with("/api/v1/auth/") {
+        format!("{}/api/v1/auth", base_url)
+    } else if request_path.starts_with("/api/v1/oauth2/") {
+        format!("{}/api/v1/oauth2", base_url)
+    } else {
+        // Root-level /.well-known/openid-configuration
+        base_url.to_string()
+    };
 
     let discovery = OidcDiscoveryResponse {
         issuer: issuer.clone(),
