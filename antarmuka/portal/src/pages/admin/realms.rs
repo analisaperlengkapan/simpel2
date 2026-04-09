@@ -60,6 +60,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
             let api = api.clone();
             set_creating.set(true);
             set_error.set(None);
+            set_success.set(None);
 
             spawn_local(async move {
                 let req = CreateRealmRequest {
@@ -94,6 +95,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
                 let id = realm.id.clone();
                 set_deleting.set(true);
                 set_error.set(None);
+                set_success.set(None);
 
                 spawn_local(async move {
                     match api.iam_delete_realm(&id).await {
@@ -119,6 +121,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
                 let id = realm.id.clone();
                 set_updating.set(true);
                 set_error.set(None);
+                set_success.set(None);
 
                 spawn_local(async move {
                     let req = crate::utils::authenc_api::UpdateRealmRequest {

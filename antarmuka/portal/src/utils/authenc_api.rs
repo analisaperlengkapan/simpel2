@@ -225,6 +225,9 @@ pub struct UpdateUserRequest {
 }
 
 /// Realm info
+///
+/// Fields use `#[serde(default)]` where the backend `RealmResponse` may
+/// omit them, preventing deserialization failures.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RealmInfo {
     pub id: String,
@@ -234,8 +237,6 @@ pub struct RealmInfo {
     pub description: Option<String>,
     #[serde(default)]
     pub enabled: bool,
-    #[serde(default)]
-    pub user_count: Option<u64>,
     pub created_at: String,
     #[serde(default)]
     pub updated_at: Option<String>,
@@ -1372,7 +1373,6 @@ impl AuthencApiClient {
             display_name: None,
             description: None,
             enabled: true,
-            user_count: None,
             created_at: "2026-01-01".to_string(),
             updated_at: None,
         })

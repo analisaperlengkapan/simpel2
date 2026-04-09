@@ -345,10 +345,8 @@ pub async fn authorize_handler(
             }
             return Ok(redirect_found(&target));
         }
-        // Per RFC 7636 §4.3, the default when code_challenge_method is
-        // absent is "plain".  While OAuth 2.1 recommends S256, changing
-        // the default would silently break existing clients that send a
-        // plain code_challenge without specifying the method.
+        // Per RFC 7636 §4.3, the default when code_challenge_method is absent
+        // is "plain".
         None => "plain".to_string(),
     };
 
@@ -616,17 +614,6 @@ pub async fn token_handler(
 /// GET /api/v1/oauth2/.well-known/openid-configuration - Discovery endpoint
 ///
 /// OIDC discovery endpoint returning server metadata.
-///
-/// This handler is registered at multiple paths:
-///   - `/.well-known/openid-configuration`
-///   - `/api/v1/oauth2/.well-known/openid-configuration`
-///   - `/api/v1/auth/.well-known/openid-configuration`
-///
-/// Per OIDC Core §3.1.3.7, the `iss` claim in ID tokens MUST exactly
-/// match the `issuer` value in the discovery document.  Since all tokens
-/// are signed with `JwtService::issuer()` (the configured `JWT_ISSUER`),
-/// the discovery document MUST return that same value regardless of which
-/// path was used to fetch it.
 pub async fn discovery_handler(
     State(state): State<Arc<ApiState>>,
 ) -> Result<Json<OidcDiscoveryResponse>, ErrorResponse> {

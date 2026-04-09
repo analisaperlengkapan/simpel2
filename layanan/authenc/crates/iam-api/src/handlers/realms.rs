@@ -11,9 +11,8 @@ use uuid::Uuid;
 
 use crate::error::{ApiError, ApiResult};
 use crate::state::IamApiState;
-use authenc_types::domain::realm::Realm;
 pub use authenc_types::domain::realm::RealmResponse;
-use authenc_types::{AuthencError, RealmId};
+use authenc_types::RealmId;
 
 /// Create realm request — scoped to fields the service actually supports.
 #[derive(Debug, Deserialize)]
@@ -33,11 +32,7 @@ pub struct UpdateRealmRequest {
 pub async fn list_realms(
     State(state): State<Arc<IamApiState>>,
 ) -> ApiResult<Json<Vec<RealmResponse>>> {
-    let realms = state
-        .realm_service
-        .list_realms()
-        .await
-        .map_err(ApiError)?;
+    let realms = state.realm_service.list_realms().await.map_err(ApiError)?;
 
     let response = realms.into_iter().map(RealmResponse::from).collect();
 
@@ -81,14 +76,8 @@ pub async fn update_realm(
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateRealmRequest>,
 ) -> ApiResult<Json<RealmResponse>> {
-    // Prevent disabling the master realm
-    if id == Realm::MASTER_ID {
-        if let Some(false) = req.enabled {
-            return Err(ApiError(AuthencError::AuthorizationFailed(
-                "Cannot disable the master realm".to_string(),
-            )));
-        }
-    }
+    // NOTE: Master realm disable protection is enforced by the service layer
+    // (RealmManagementServiceImpl::update_realm). No duplicate check needed here.
 
     let realm = state
         .realm_service
@@ -104,12 +93,8 @@ pub async fn delete_realm(
     State(state): State<Arc<IamApiState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
-    // Prevent deletion of the master realm
-    if id == Realm::MASTER_ID {
-        return Err(ApiError(AuthencError::AuthorizationFailed(
-            "Cannot delete the master realm".to_string(),
-        )));
-    }
+    // NOTE: Master realm delete protection is enforced by the service layer
+    // (RealmManagementServiceImpl::delete_realm). No duplicate check needed here.
 
     state
         .realm_service

@@ -392,3 +392,375 @@ impl RealmManagementServiceImpl {
         Ok(realm.enabled)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use authenc_types::domain::realm::Realm;
+    use authenc_types::domain_types::RealmId;
+    use authenc_types::error::AuthencError;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    /// In-memory mock implementation of RealmStore for unit testing.
+    struct MockRealmStore {
+        realms: Mutex<HashMap<uuid::Uuid, Realm>>,
+    }
+
+    impl MockRealmStore {
+        fn new() -> Self {
+            Self {
+                realms: Mutex::new(HashMap::new()),
+            }
+        }
+
+        /// Seed the store with a realm (used to pre-populate for update/delete tests).
+        fn seed(&self, realm: Realm) {
+            self.realms.lock().unwrap().insert(realm.id, realm);
+        }
+    }
+
+    #[async_trait]
+    impl RealmStore for MockRealmStore {
+        async fn get_realm(&self, id: RealmId) -> Result<Realm> {
+            self.realms
+                .lock()
+                .unwrap()
+                .get(id.as_uuid())
+                .cloned()
+                .ok_or_else(|| AuthencError::NotFound("Realm not found".to_string()))
+        }
+
+        async fn get_realm_by_name(&self, name: &str) -> Result<Realm> {
+            self.realms
+                .lock()
+                .unwrap()
+                .values()
+                .find(|r| r.name == name)
+                .cloned()
+                .ok_or_else(|| AuthencError::NotFound("Realm not found".to_string()))
+        }
+
+        async fn create_realm(&self, name: String, display_name: String) -> Result<Realm> {
+            let mut realm = Realm::new(name);
+            realm.display_name = Some(display_name);
+            self.realms.lock().unwrap().insert(realm.id, realm.clone());
+            Ok(realm)
+        }
+
+        async fn update_realm(
+            &self,
+            id: RealmId,
+            display_name: Option<String>,
+            enabled: Option<bool>,
+        ) -> Result<Realm> {
+            let mut realms = self.realms.lock().unwrap();
+            let realm = realms
+                .get_mut(id.as_uuid())
+                .ok_or_else(|| AuthencError::NotFound("Realm not found".to_string()))?;
+            if let Some(dn) = display_name {
+                realm.display_name = Some(dn);
+            }
+            if let Some(e) = enabled {
+                realm.enabled = e;
+            }
+            Ok(realm.clone())
+        }
+
+        async fn delete_realm(&self, id: RealmId) -> Result<()> {
+            self.realms
+                .lock()
+                .unwrap()
+                .remove(id.as_uuid())
+                .ok_or_else(|| AuthencError::NotFound("Realm not found".to_string()))?;
+            Ok(())
+        }
+
+        async fn list_realms(&self) -> Result<Vec<Realm>> {
+            Ok(self.realms.lock().unwrap().values().cloned().collect())
+        }
+
+        async fn realm_name_exists(&self, name: &str) -> Result<bool> {
+            Ok(self
+                .realms
+                .lock()
+                .unwrap()
+                .values()
+                .any(|r| r.name == name))
+        }
+    }
+
+    fn make_service(store: Arc<MockRealmStore>) -> RealmManagementServiceImpl {
+        RealmManagementServiceImpl::new(store)
+    }
+
+    fn master_realm() -> Realm {
+        let mut realm = Realm::default();
+        realm.id = Realm::MASTER_ID;
+        realm.name = "master".to_string();
+        realm.display_name = Some("Master".to_string());
+        realm.enabled = true;
+        realm
+    }
+
+    // ── Master realm protection tests ────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_disable_master_realm_is_rejected() {
+        let store = Arc::new(MockRealmStore::new());
+        store.seed(master_realm());
+        let svc = make_service(store);
+
+        let result = svc
+            .update_realm(
+                RealmId::from_uuid(Realm::MASTER_ID),
+                None,
+                Some(false),
+            )
+            .await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, AuthencError::AuthorizationFailed(_)),
+            "Expected AuthorizationFailed, got: {:?}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn test_enable_master_realm_is_allowed() {
+        let store = Arc::new(MockRealmStore::new());
+        store.seed(master_realm());
+        let svc = make_service(store);
+
+        let result = svc
+            .update_realm(
+                RealmId::from_uuid(Realm::MASTER_ID),
+                None,
+                Some(true),
+            )
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_master_realm_display_name_is_allowed() {
+        let store = Arc::new(MockRealmStore::new());
+        store.seed(master_realm());
+        let svc = make_service(store);
+
+        let result = svc
+            .update_realm(
+                RealmId::from_uuid(Realm::MASTER_ID),
+                Some("New Master Name".to_string()),
+                None,
+            )
+            .await;
+
+        assert!(result.is_ok());
+        let realm = result.unwrap();
+        assert_eq!(realm.display_name, Some("New Master Name".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_delete_master_realm_is_rejected() {
+        let store = Arc::new(MockRealmStore::new());
+        store.seed(master_realm());
+        let svc = make_service(store);
+
+        let result = svc
+            .delete_realm(RealmId::from_uuid(Realm::MASTER_ID))
+            .await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, AuthencError::AuthorizationFailed(_)),
+            "Expected AuthorizationFailed, got: {:?}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn test_disable_master_realm_via_convenience_method_is_rejected() {
+        let store = Arc::new(MockRealmStore::new());
+        store.seed(master_realm());
+        let svc = make_service(store);
+
+        let result = svc
+            .disable_realm(RealmId::from_uuid(Realm::MASTER_ID))
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AuthencError::AuthorizationFailed(_)
+        ));
+    }
+
+    // ── Normal realm CRUD tests ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_create_realm_success() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store);
+
+        let result = svc
+            .create_realm("test-realm".to_string(), "Test Realm".to_string())
+            .await;
+
+        assert!(result.is_ok());
+        let realm = result.unwrap();
+        assert_eq!(realm.name, "test-realm");
+        assert_eq!(realm.display_name, Some("Test Realm".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_create_realm_duplicate_name_rejected() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store);
+
+        svc.create_realm("test-realm".to_string(), "Test Realm".to_string())
+            .await
+            .unwrap();
+
+        let result = svc
+            .create_realm("test-realm".to_string(), "Another Realm".to_string())
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AuthencError::Conflict(_)));
+    }
+
+    #[tokio::test]
+    async fn test_delete_normal_realm_succeeds() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store.clone());
+
+        let realm = svc
+            .create_realm("deletable".to_string(), "Deletable Realm".to_string())
+            .await
+            .unwrap();
+
+        let result = svc
+            .delete_realm(RealmId::from_uuid(realm.id))
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_disable_normal_realm_succeeds() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store.clone());
+
+        let realm = svc
+            .create_realm("disableable".to_string(), "Disableable Realm".to_string())
+            .await
+            .unwrap();
+
+        let result = svc
+            .update_realm(
+                RealmId::from_uuid(realm.id),
+                None,
+                Some(false),
+            )
+            .await;
+
+        assert!(result.is_ok());
+        assert!(!result.unwrap().enabled);
+    }
+
+    // ── Validation tests ─────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_create_realm_name_too_short() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store);
+
+        let result = svc
+            .create_realm("ab".to_string(), "Display".to_string())
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AuthencError::ValidationError(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_create_realm_name_must_start_with_letter() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store);
+
+        let result = svc
+            .create_realm("123realm".to_string(), "Display".to_string())
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AuthencError::ValidationError(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_create_realm_empty_display_name_rejected() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store);
+
+        let result = svc
+            .create_realm("valid-name".to_string(), "".to_string())
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AuthencError::ValidationError(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_update_realm_empty_display_name_rejected() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store.clone());
+
+        let realm = svc
+            .create_realm("updatable".to_string(), "Original".to_string())
+            .await
+            .unwrap();
+
+        let result = svc
+            .update_realm(
+                RealmId::from_uuid(realm.id),
+                Some("".to_string()),
+                None,
+            )
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AuthencError::ValidationError(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_list_realms() {
+        let store = Arc::new(MockRealmStore::new());
+        let svc = make_service(store);
+
+        svc.create_realm("realm-one".to_string(), "Realm One".to_string())
+            .await
+            .unwrap();
+        svc.create_realm("realm-two".to_string(), "Realm Two".to_string())
+            .await
+            .unwrap();
+
+        let realms = svc.list_realms().await.unwrap();
+        assert_eq!(realms.len(), 2);
+    }
+}
