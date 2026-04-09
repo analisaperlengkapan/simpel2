@@ -122,7 +122,11 @@ pub fn RealmsManagementPage() -> impl IntoView {
 
                 spawn_local(async move {
                     let req = crate::utils::authenc_api::UpdateRealmRequest {
-                        display_name: Some(edit_display_name.get()),
+                        display_name: if edit_display_name.get().is_empty() {
+                            None
+                        } else {
+                            Some(edit_display_name.get())
+                        },
                         enabled: Some(edit_enabled.get()),
                     };
 
