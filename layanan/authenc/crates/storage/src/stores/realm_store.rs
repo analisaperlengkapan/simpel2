@@ -108,13 +108,9 @@ impl RealmStore for PostgresRealmStore {
     async fn create_realm(&self, name: String, display_name: String) -> Result<Realm> {
         info!("Creating realm: {}", name);
 
-        // Check if realm name already exists
-        if self.realm_name_exists(&name).await? {
-            return Err(AuthencError::Conflict(format!(
-                "Realm name '{}' already exists",
-                name
-            )));
-        }
+        // NOTE: Uniqueness is checked by the service layer (realm_name_exists)
+        // and enforced by the database partial unique index on (name) WHERE
+        // deleted_at IS NULL.  No duplicate check here to avoid redundancy.
 
         let realm_id = RealmId::new();
         let now = Utc::now();

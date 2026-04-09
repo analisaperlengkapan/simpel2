@@ -326,7 +326,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
                             <p class="text-gray-600 mb-6">
                                 "Apakah Anda yakin ingin menghapus realm "
                                 <span class="font-bold text-gray-900">{move || realm_to_delete.get().map(|r| r.name).unwrap_or_default()}</span>
-                                "? Semua data pengguna, klien, dan sesi dalam realm ini akan dihapus secara permanen."
+                                "? Realm akan dinonaktifkan dan tidak dapat diakses lagi. Data terkait akan diarsipkan dan dapat dipulihkan oleh administrator sistem jika diperlukan."
                             </p>
                             <div class="flex justify-end gap-3">
                                 <button

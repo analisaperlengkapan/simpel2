@@ -4,12 +4,16 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Realms table (required for users)
 CREATE TABLE IF NOT EXISTS realms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
     display_name VARCHAR(255),
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
+
+-- Partial unique index: only enforce uniqueness among live (non-deleted) rows
+CREATE UNIQUE INDEX IF NOT EXISTS idx_realms_name_unique ON realms (name) WHERE deleted_at IS NULL;
 
 -- Drop and recreate users table with all required columns
 DROP TABLE IF EXISTS users CASCADE;
@@ -144,4 +148,4 @@ CREATE TABLE IF NOT EXISTS authentication_sessions (
 -- Insert a default realm for testing
 INSERT INTO realms (id, name, display_name, enabled)
 VALUES ('550e8400-e29b-41d4-a716-446655440000', 'test-realm', 'Test Realm', true)
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
