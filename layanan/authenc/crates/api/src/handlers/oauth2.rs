@@ -345,7 +345,7 @@ pub async fn authorize_handler(
             }
             return Ok(redirect_found(&target));
         }
-        // Per RFC 7636 §4.2, the default when code_challenge_method is
+        // Per RFC 7636 §4.3, the default when code_challenge_method is
         // absent is "plain".  While OAuth 2.1 recommends S256, changing
         // the default would silently break existing clients that send a
         // plain code_challenge without specifying the method.

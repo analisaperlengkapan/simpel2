@@ -37,7 +37,6 @@ pub async fn list_realms(
         .realm_service
         .list_realms()
         .await
-        .map_err(AuthencError::from)
         .map_err(ApiError)?;
 
     let response = realms.into_iter().map(RealmResponse::from).collect();
@@ -57,7 +56,6 @@ pub async fn create_realm(
             req.display_name.unwrap_or_else(|| req.name),
         )
         .await
-        .map_err(AuthencError::from)
         .map_err(ApiError)?;
 
     Ok((StatusCode::CREATED, Json(RealmResponse::from(realm))))
@@ -72,7 +70,6 @@ pub async fn get_realm(
         .realm_service
         .get_realm(RealmId::from_uuid(id))
         .await
-        .map_err(AuthencError::from)
         .map_err(ApiError)?;
 
     Ok(Json(RealmResponse::from(realm)))
@@ -97,7 +94,6 @@ pub async fn update_realm(
         .realm_service
         .update_realm(RealmId::from_uuid(id), req.display_name, req.enabled)
         .await
-        .map_err(AuthencError::from)
         .map_err(ApiError)?;
 
     Ok(Json(RealmResponse::from(realm)))
@@ -119,7 +115,6 @@ pub async fn delete_realm(
         .realm_service
         .delete_realm(RealmId::from_uuid(id))
         .await
-        .map_err(AuthencError::from)
         .map_err(ApiError)?;
 
     Ok(StatusCode::NO_CONTENT)
