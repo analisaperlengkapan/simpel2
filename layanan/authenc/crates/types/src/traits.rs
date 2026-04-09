@@ -175,6 +175,15 @@ pub trait RealmStore: Send + Sync {
 
     /// Check if a realm name exists
     async fn realm_name_exists(&self, name: &str) -> Result<bool>;
+
+    /// Disable all users in a realm (bulk soft-delete cascade)
+    ///
+    /// When a realm is soft-deleted, its users must also be disabled to prevent
+    /// authentication against a deleted realm. This sets `enabled = false` and
+    /// `deleted_at = NOW()` on all live users in the realm.
+    ///
+    /// Returns the number of users affected.
+    async fn disable_users_in_realm(&self, realm_id: RealmId) -> Result<u64>;
 }
 
 /// Trait for OAuth2 client storage operations

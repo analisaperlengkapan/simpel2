@@ -29,6 +29,28 @@ pub fn RealmsManagementPage() -> impl IntoView {
     let (creating, set_creating) = signal(false);
     let (deleting, set_deleting) = signal(false);
 
+    // Client-side validation for realm name
+    let new_name_error = move || {
+        let name = new_name.get();
+        if name.is_empty() {
+            return None;
+        }
+        if name.len() < 3 {
+            return Some("Minimal 3 karakter".to_string());
+        }
+        if name.len() > 64 {
+            return Some("Maksimal 64 karakter".to_string());
+        }
+        if !name.starts_with(|c: char| c.is_ascii_lowercase()) {
+            return Some("Harus diawali huruf kecil".to_string());
+        }
+        if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-') {
+            return Some("Hanya huruf kecil, angka, garis bawah, dan tanda hubung".to_string());
+        }
+        None
+    };
+    let is_name_valid = move || !new_name.get().is_empty() && new_name_error().is_none();
+
     // Form fields for editing realm
     let (edit_display_name, set_edit_display_name) = signal(String::new());
     let (edit_enabled, set_edit_enabled) = signal(true);
@@ -278,9 +300,16 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                         on:input=move |ev| set_new_name.set(event_target_value(&ev))
                                         required=true
                                         placeholder="contoh: kejaksaan-agung"
-                                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                        class=move || if new_name_error().is_some() {
+                                            "w-full px-3 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                        } else {
+                                            "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                        }
                                     />
-                                    <p class="text-xs text-gray-400 mt-1">"Hanya huruf kecil, angka, garis bawah, dan tanda hubung."</p>
+                                    {move || match new_name_error() {
+                                        Some(msg) => view! { <p class="text-xs text-red-500 mt-1">{msg}</p> }.into_any(),
+                                        None => view! { <p class="text-xs text-gray-400 mt-1">"Hanya huruf kecil, angka, garis bawah, dan tanda hubung."</p> }.into_any(),
+                                    }}
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan"</label>
@@ -302,7 +331,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled=move || creating.get()
+                                        disabled=move || creating.get() || !is_name_valid()
                                         class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                     >
                                         {move || if creating.get() { "Membuat..." } else { "Buat Realm" }}

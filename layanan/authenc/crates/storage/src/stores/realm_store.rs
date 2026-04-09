@@ -314,10 +314,10 @@ impl RealmStore for PostgresRealmStore {
         // Soft delete: set deleted_at timestamp instead of removing the row.
         // This preserves the record for auditing and allows potential recovery.
         //
-        // NOTE: The DB foreign keys use ON DELETE CASCADE which only fires on
-        // hard DELETE. This soft delete does NOT cascade to users, clients, or
-        // sessions in the realm. The service layer should handle disabling
-        // related entities separately.
+        // NOTE: The service layer calls disable_users_in_realm() BEFORE this
+        // method to cascade the soft-delete to users. DB foreign keys use
+        // ON DELETE CASCADE which only fires on hard DELETE, so the service
+        // layer is responsible for disabling related entities.
         let query = r#"
             UPDATE realms
             SET deleted_at = $2, updated_at = $2
@@ -385,6 +385,26 @@ impl RealmStore for PostgresRealmStore {
 
         let exists: bool = row.get(0);
         Ok(exists)
+    }
+
+    async fn disable_users_in_realm(&self, realm_id: RealmId) -> Result<u64> {
+        info!("Disabling all users in realm: {}", realm_id);
+
+        let now = Utc::now();
+        let query = r#"
+            UPDATE users
+            SET enabled = false, deleted_at = $2, updated_at = $2
+            WHERE realm_id = $1 AND deleted_at IS NULL
+        "#;
+
+        let rows_affected = self.db.execute(query, &[&realm_id.0, &now]).await?;
+
+        info!(
+            realm_id = %realm_id,
+            users_disabled = rows_affected,
+            "Disabled users in soft-deleted realm"
+        );
+        Ok(rows_affected)
     }
 }
 

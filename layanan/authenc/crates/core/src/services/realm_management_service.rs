@@ -168,10 +168,25 @@ impl RealmManagementServiceImpl {
         }
 
         // Step 4: Create realm in database
+        // The DB partial unique index on (name) WHERE deleted_at IS NULL is the
+        // ultimate guard against duplicates. If a concurrent request slips past
+        // the realm_name_exists check above, the INSERT will fail with a DB
+        // error. We translate that into a user-friendly Conflict error.
         let realm = self
             .realm_store
             .create_realm(name.clone(), display_name)
-            .await?;
+            .await
+            .map_err(|e| {
+                if let AuthencError::DatabaseError(ref msg) = e {
+                    if msg.contains("duplicate key") || msg.contains("unique") {
+                        return AuthencError::Conflict(format!(
+                            "Realm name '{}' already exists",
+                            name
+                        ));
+                    }
+                }
+                e
+            })?;
 
         info!(
             realm_id = %realm.id,
@@ -296,13 +311,15 @@ impl RealmManagementServiceImpl {
     /// - `AuthorizationFailed` if attempting to delete the master realm
     /// - `RealmNotFound` if the realm does not exist or is already deleted
     ///
-    /// # Important
+    /// # Cascade behaviour
     ///
-    /// This is a soft delete on the realm row only. Related entities (users,
-    /// clients, sessions) are **not** cascaded because the DB foreign keys use
-    /// `ON DELETE CASCADE` which only triggers on hard `DELETE`. Until cascade
-    /// logic is added, users in a soft-deleted realm may still authenticate if
-    /// the authentication flow does not check the realm's `deleted_at` status.
+    /// Before soft-deleting the realm, all live users in the realm are disabled
+    /// (`enabled = false`, `deleted_at = NOW()`). This prevents users from
+    /// authenticating against a soft-deleted realm.
+    ///
+    /// **Note:** OAuth2 clients and active sessions in the realm are not yet
+    /// cascaded. Sessions will expire naturally, but clients may need manual
+    /// cleanup until full cascade logic is implemented.
     ///
     /// # Requirements
     ///
@@ -318,10 +335,17 @@ impl RealmManagementServiceImpl {
             ));
         }
 
-        // TODO: Disable related entities (users, clients, sessions) in this realm
-        // to prevent authentication against a soft-deleted realm. The DB's
-        // ON DELETE CASCADE only fires on hard DELETE, not on UPDATE of deleted_at.
+        // Step 1: Disable all users in the realm so they cannot authenticate
+        // against a soft-deleted realm. This must happen BEFORE the realm is
+        // marked as deleted to maintain consistency.
+        let users_disabled = self.realm_store.disable_users_in_realm(realm_id).await?;
+        info!(
+            realm_id = %realm_id,
+            users_disabled = users_disabled,
+            "Disabled users in realm before soft-delete"
+        );
 
+        // Step 2: Soft-delete the realm itself
         self.realm_store.delete_realm(realm_id).await?;
 
         info!(realm_id = %realm_id, "Realm soft-deleted successfully");
@@ -492,6 +516,11 @@ mod tests {
 
         async fn realm_name_exists(&self, name: &str) -> Result<bool> {
             Ok(self.realms.lock().unwrap().values().any(|r| r.name == name))
+        }
+
+        async fn disable_users_in_realm(&self, _realm_id: RealmId) -> Result<u64> {
+            // Mock: no actual users to disable; return 0.
+            Ok(0)
         }
     }
 
