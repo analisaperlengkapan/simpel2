@@ -313,9 +313,10 @@ impl RealmManagementServiceImpl {
     ///
     /// # Cascade behaviour
     ///
-    /// Before soft-deleting the realm, all live users in the realm are disabled
-    /// (`enabled = false`, `deleted_at = NOW()`). This prevents users from
-    /// authenticating against a soft-deleted realm.
+    /// The realm and all its live users are soft-deleted atomically in a single
+    /// database transaction via [`RealmStore::delete_realm_cascade`]. This
+    /// prevents the inconsistent state where users are disabled but the realm
+    /// remains active (or vice-versa) if one of the operations fails.
     ///
     /// **Note:** OAuth2 clients and active sessions in the realm are not yet
     /// cascaded. Sessions will expire naturally, but clients may need manual
@@ -335,20 +336,15 @@ impl RealmManagementServiceImpl {
             ));
         }
 
-        // Step 1: Disable all users in the realm so they cannot authenticate
-        // against a soft-deleted realm. This must happen BEFORE the realm is
-        // marked as deleted to maintain consistency.
-        let users_disabled = self.realm_store.disable_users_in_realm(realm_id).await?;
+        // Atomically disable all users in the realm and soft-delete the realm
+        // in a single transaction. This prevents the inconsistent state where
+        // users are disabled but the realm remains active (or vice-versa).
+        let users_disabled = self.realm_store.delete_realm_cascade(realm_id).await?;
         info!(
             realm_id = %realm_id,
             users_disabled = users_disabled,
-            "Disabled users in realm before soft-delete"
+            "Realm soft-deleted successfully with user cascade"
         );
-
-        // Step 2: Soft-delete the realm itself
-        self.realm_store.delete_realm(realm_id).await?;
-
-        info!(realm_id = %realm_id, "Realm soft-deleted successfully");
 
         Ok(())
     }

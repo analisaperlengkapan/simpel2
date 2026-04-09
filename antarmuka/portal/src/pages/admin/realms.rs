@@ -44,7 +44,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
         if !name.starts_with(|c: char| c.is_ascii_lowercase()) {
             return Some("Harus diawali huruf kecil".to_string());
         }
-        if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-') {
+        if !name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-')
+        {
             return Some("Hanya huruf kecil, angka, garis bawah, dan tanda hubung".to_string());
         }
         None

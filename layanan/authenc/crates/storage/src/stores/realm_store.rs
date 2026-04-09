@@ -406,6 +406,57 @@ impl RealmStore for PostgresRealmStore {
         );
         Ok(rows_affected)
     }
+
+    async fn delete_realm_cascade(&self, realm_id: RealmId) -> Result<u64> {
+        info!("Atomically soft-deleting realm and disabling users: {}", realm_id);
+
+        let now = Utc::now();
+        let realm_uuid = realm_id.0;
+
+        let users_disabled = self
+            .db
+            .transaction(|tx| async move {
+                // Step 1: Disable all users in the realm
+                let disable_users_query = r#"
+                    UPDATE users
+                    SET enabled = false, deleted_at = $2, updated_at = $2
+                    WHERE realm_id = $1 AND deleted_at IS NULL
+                "#;
+                let users_disabled = tx
+                    .execute(disable_users_query, &[&realm_uuid, &now])
+                    .await?;
+
+                // Step 2: Soft-delete the realm itself
+                let delete_realm_query = r#"
+                    UPDATE realms
+                    SET deleted_at = $2, updated_at = $2
+                    WHERE id = $1 AND deleted_at IS NULL
+                "#;
+                let rows_affected = tx
+                    .execute(delete_realm_query, &[&realm_uuid, &now])
+                    .await?;
+
+                if rows_affected == 0 {
+                    return Err(AuthencError::RealmNotFound(format!(
+                        "Realm {} not found",
+                        realm_id
+                    )));
+                }
+
+                // Explicitly commit the transaction
+                tx.commit().await?;
+
+                Ok(users_disabled)
+            })
+            .await?;
+
+        info!(
+            realm_id = %realm_id,
+            users_disabled = users_disabled,
+            "Realm soft-deleted atomically with user cascade"
+        );
+        Ok(users_disabled)
+    }
 }
 
 /// Convert a database row to a Realm struct
