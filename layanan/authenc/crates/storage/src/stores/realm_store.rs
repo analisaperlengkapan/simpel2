@@ -66,7 +66,7 @@ impl RealmStore for PostgresRealmStore {
                    oauth2_device_polling_interval, attributes,
                    created_at, updated_at, deleted_at
             FROM realms
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_one(query, &[&id.0]).await?;
@@ -97,7 +97,7 @@ impl RealmStore for PostgresRealmStore {
                    oauth2_device_polling_interval, attributes,
                    created_at, updated_at, deleted_at
             FROM realms
-            WHERE name = $1
+            WHERE name = $1 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_one(query, &[&name]).await?;
@@ -267,7 +267,7 @@ impl RealmStore for PostgresRealmStore {
             r#"
             UPDATE realms
             SET {}
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
             RETURNING id, name, display_name, description, enabled,
                       ssl_required, registration_allowed, registration_email_as_username,
                       remember_me, verify_email, login_with_email_allowed,
@@ -311,18 +311,19 @@ impl RealmStore for PostgresRealmStore {
     }
 
     async fn delete_realm(&self, id: RealmId) -> Result<()> {
-        info!("Deleting realm: {}", id);
+        info!("Soft-deleting realm: {}", id);
 
-        // Note: This is a hard delete. In production, you might want to:
-        // 1. Check if realm has users/clients before deleting
-        // 2. Implement soft delete (set enabled = false)
-        // 3. Cascade delete related entities
+        let now = Utc::now();
+
+        // Soft delete: set deleted_at timestamp instead of removing the row.
+        // This preserves the record for auditing and allows potential recovery.
         let query = r#"
-            DELETE FROM realms
-            WHERE id = $1
+            UPDATE realms
+            SET deleted_at = $2, updated_at = $2
+            WHERE id = $1 AND deleted_at IS NULL
         "#;
 
-        let rows_affected = self.db.execute(query, &[&id.0]).await?;
+        let rows_affected = self.db.execute(query, &[&id.0, &now]).await?;
 
         if rows_affected == 0 {
             return Err(AuthencError::RealmNotFound(format!(
@@ -331,7 +332,7 @@ impl RealmStore for PostgresRealmStore {
             )));
         }
 
-        info!("Realm deleted successfully: {}", id);
+        info!("Realm soft-deleted successfully: {}", id);
         Ok(())
     }
 
@@ -358,6 +359,7 @@ impl RealmStore for PostgresRealmStore {
                    oauth2_device_polling_interval, attributes,
                    created_at, updated_at, deleted_at
             FROM realms
+            WHERE deleted_at IS NULL
             ORDER BY created_at DESC
         "#;
 
@@ -374,7 +376,7 @@ impl RealmStore for PostgresRealmStore {
         let query = r#"
             SELECT EXISTS(
                 SELECT 1 FROM realms
-                WHERE name = $1
+                WHERE name = $1 AND deleted_at IS NULL
             )
         "#;
 

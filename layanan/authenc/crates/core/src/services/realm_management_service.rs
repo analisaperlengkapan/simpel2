@@ -281,19 +281,20 @@ impl RealmManagementServiceImpl {
         Ok(realm)
     }
 
-    /// Delete a realm
+    /// Delete a realm (soft delete)
     ///
-    /// This method performs a hard delete of the realm.
-    ///
-    /// **Warning**: This will delete the realm and all associated data (users, clients, sessions).
-    /// In production, you should:
-    /// 1. Check if realm has users/clients before deleting
-    /// 2. Implement soft delete (set enabled=false) instead
-    /// 3. Cascade delete related entities
+    /// This method performs a soft delete by setting `deleted_at` on the realm record.
+    /// The realm will no longer appear in queries but the data is preserved for
+    /// auditing and potential recovery.
     ///
     /// # Arguments
     ///
     /// * `realm_id` - Realm ID
+    ///
+    /// # Errors
+    ///
+    /// - `AuthorizationFailed` if attempting to delete the master realm
+    /// - `RealmNotFound` if the realm does not exist or is already deleted
     ///
     /// # Requirements
     ///
@@ -309,12 +310,9 @@ impl RealmManagementServiceImpl {
             ));
         }
 
-        // TODO: Add checks for existing users/clients before deletion
-        // TODO: Consider implementing soft delete instead
-
         self.realm_store.delete_realm(realm_id).await?;
 
-        info!(realm_id = %realm_id, "Realm deleted successfully");
+        info!(realm_id = %realm_id, "Realm soft-deleted successfully");
 
         Ok(())
     }
