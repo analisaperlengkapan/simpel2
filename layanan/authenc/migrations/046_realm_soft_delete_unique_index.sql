@@ -1,0 +1,4 @@
+-- This file is intentionally a no-op and should be deleted from the repository.
+-- The actual migration was moved to 048_realm_soft_delete_unique_index.sql.
+-- This empty file was left behind during renumbering and will occupy version 46
+-- in the schema_migrations table as a harmless no-op.

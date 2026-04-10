@@ -244,7 +244,10 @@ impl Database {
 
         let result = f(db_tx).await?;
 
-        // Transaction is automatically committed when dropped if not explicitly rolled back
+        // IMPORTANT: tokio-postgres transactions are ROLLED BACK on drop, not
+        // committed. The closure MUST call `tx.commit().await?` explicitly to
+        // persist changes. If the closure returns an error or panics without
+        // committing, all changes are automatically rolled back.
         Ok(result)
     }
 

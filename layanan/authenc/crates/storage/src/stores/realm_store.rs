@@ -314,10 +314,11 @@ impl RealmStore for PostgresRealmStore {
         // Soft delete: set deleted_at timestamp instead of removing the row.
         // This preserves the record for auditing and allows potential recovery.
         //
-        // NOTE: The service layer calls disable_users_in_realm() BEFORE this
-        // method to cascade the soft-delete to users. DB foreign keys use
-        // ON DELETE CASCADE which only fires on hard DELETE, so the service
-        // layer is responsible for disabling related entities.
+        // NOTE: In production, the service layer calls delete_realm_cascade()
+        // which atomically disables users AND soft-deletes the realm in a
+        // single transaction. This standalone method is used by the default
+        // trait implementation as a fallback for stores without transaction
+        // support (e.g. mocks).
         let query = r#"
             UPDATE realms
             SET deleted_at = $2, updated_at = $2
@@ -408,7 +409,10 @@ impl RealmStore for PostgresRealmStore {
     }
 
     async fn delete_realm_cascade(&self, realm_id: RealmId) -> Result<u64> {
-        info!("Atomically soft-deleting realm and disabling users: {}", realm_id);
+        info!(
+            "Atomically soft-deleting realm and disabling users: {}",
+            realm_id
+        );
 
         let now = Utc::now();
         let realm_uuid = realm_id.0;
@@ -432,9 +436,8 @@ impl RealmStore for PostgresRealmStore {
                     SET deleted_at = $2, updated_at = $2
                     WHERE id = $1 AND deleted_at IS NULL
                 "#;
-                let rows_affected = tx
-                    .execute(delete_realm_query, &[&realm_uuid, &now])
-                    .await?;
+                let rows_affected =
+                    tx.execute(delete_realm_query, &[&realm_uuid, &now]).await?;
 
                 if rows_affected == 0 {
                     return Err(AuthencError::RealmNotFound(format!(
