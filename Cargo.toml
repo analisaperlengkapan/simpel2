@@ -269,7 +269,7 @@ curve25519-dalek = "4.1"
 subtle = "2.6"
 zeroize = { version = "1.8", features = ["zeroize_derive"] }
 bincode = "2.0.1"
-hkdf = "0.12"
+hkdf = "0.13"
 fluent-bundle = "0.16"
 unic-langid = "0.9"
 axum-test = "20.0"
