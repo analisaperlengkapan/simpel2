@@ -56,4 +56,4 @@ all-providers = ["aws-kms", "gcp-kms", "azure-kv", "transit"]
 [dev-dependencies]
 tokio-test = "0.4"
 proptest.workspace = true
-toml = "0.8"
+toml = "0.9"
