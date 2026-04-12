@@ -433,7 +433,7 @@ tonic = { version = "0.14.2", features = ["tls-webpki-roots", "transport", "chan
 
 # CLI tools
 clap = { version = "4.5.53", features = ["derive"] }
-k8s-openapi = { version = "0.26", features = ["latest"] }
+k8s-openapi = { version = "0.27", features = ["latest"] }
 kube = { version = "3.1", features = [
     "runtime",
     "derive",
