@@ -1,12 +1,9 @@
 -- ============================================================================
--- MIGRATION 046 (duplicate): User extended fields
+-- MIGRATION 046: No-op (realm soft-delete migration moved to 048)
 -- ============================================================================
--- WARNING: This file is a duplicate of 046_user_extended_fields.sql. Both
--- files parse to version 46 in the migration runner. The runner records
--- whichever file it processes first and skips the other.
+-- This file was originally created for the realm soft-delete unique index
+-- migration but was renumbered to 048_realm_soft_delete_unique_index.sql.
 --
--- This file is intentionally left as a no-op comment to avoid conflicts.
--- The realm soft-delete migration lives in 048_realm_soft_delete_unique_index.sql.
+-- This file is intentionally left as a no-op to avoid breaking the migration
+-- runner on databases that may have already recorded version 046.
 -- ============================================================================
--- NO-OP: All SQL has been removed to prevent double-execution on fresh databases.
--- The actual user-extended-fields DDL is in 046_user_extended_fields.sql.

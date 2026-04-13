@@ -434,9 +434,7 @@ impl RealmStore for PostgresRealmStore {
         let users_disabled = tx
             .execute(disable_users_query, &[&realm_uuid, &now])
             .await
-            .map_err(|e| {
-                AuthencError::DatabaseError(format!("Failed to disable users: {}", e))
-            })?;
+            .map_err(|e| AuthencError::DatabaseError(format!("Failed to disable users: {}", e)))?;
 
         // Step 2: Soft-delete the realm itself
         let delete_realm_query = r#"
