@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Realms table (required for users)
--- NOTE: Keep in sync with 001_initial_schema.sql + 048_realm_soft_delete_unique_index.sql
+-- NOTE: Keep in sync with 001_initial_schema.sql + 046_realm_soft_delete_unique_index.sql
 CREATE TABLE IF NOT EXISTS realms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
