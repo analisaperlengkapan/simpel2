@@ -417,40 +417,52 @@ impl RealmStore for PostgresRealmStore {
         let now = Utc::now();
         let realm_uuid = realm_id.0;
 
-        let users_disabled = self
-            .db
-            .transaction(|tx| async move {
-                // Step 1: Disable all users in the realm
-                let disable_users_query = r#"
-                    UPDATE users
-                    SET enabled = false, deleted_at = $2, updated_at = $2
-                    WHERE realm_id = $1 AND deleted_at IS NULL
-                "#;
-                let users_disabled = tx
-                    .execute(disable_users_query, &[&realm_uuid, &now])
-                    .await?;
+        // Use manual transaction management to avoid closure lifetime issues
+        // with Database::transaction (the async move block cannot prove that
+        // the DatabaseTransaction lifetime outlives the future).
+        let mut client = self.db.get_connection().await?;
+        let tx = client.transaction().await.map_err(|e| {
+            AuthencError::DatabaseError(format!("Failed to begin transaction: {}", e))
+        })?;
 
-                // Step 2: Soft-delete the realm itself
-                let delete_realm_query = r#"
-                    UPDATE realms
-                    SET deleted_at = $2, updated_at = $2
-                    WHERE id = $1 AND deleted_at IS NULL
-                "#;
-                let rows_affected = tx.execute(delete_realm_query, &[&realm_uuid, &now]).await?;
+        // Step 1: Disable all users in the realm
+        let disable_users_query = r#"
+            UPDATE users
+            SET enabled = false, deleted_at = $2, updated_at = $2
+            WHERE realm_id = $1 AND deleted_at IS NULL
+        "#;
+        let users_disabled = tx
+            .execute(disable_users_query, &[&realm_uuid, &now])
+            .await
+            .map_err(|e| {
+                AuthencError::DatabaseError(format!("Failed to disable users: {}", e))
+            })?;
 
-                if rows_affected == 0 {
-                    return Err(AuthencError::RealmNotFound(format!(
-                        "Realm {} not found",
-                        realm_id
-                    )));
-                }
+        // Step 2: Soft-delete the realm itself
+        let delete_realm_query = r#"
+            UPDATE realms
+            SET deleted_at = $2, updated_at = $2
+            WHERE id = $1 AND deleted_at IS NULL
+        "#;
+        let rows_affected = tx
+            .execute(delete_realm_query, &[&realm_uuid, &now])
+            .await
+            .map_err(|e| {
+                AuthencError::DatabaseError(format!("Failed to soft-delete realm: {}", e))
+            })?;
 
-                // Explicitly commit the transaction
-                tx.commit().await?;
+        if rows_affected == 0 {
+            // Transaction is rolled back on drop (no commit called)
+            return Err(AuthencError::RealmNotFound(format!(
+                "Realm {} not found",
+                realm_id
+            )));
+        }
 
-                Ok(users_disabled)
-            })
-            .await?;
+        // Explicitly commit the transaction
+        tx.commit().await.map_err(|e| {
+            AuthencError::DatabaseError(format!("Failed to commit transaction: {}", e))
+        })?;
 
         info!(
             realm_id = %realm_id,

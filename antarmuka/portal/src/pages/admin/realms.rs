@@ -129,7 +129,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
                             set_realm_to_delete.set(None);
                             load_realms.with_value(|f| f());
                         }
-                        Err(e) => set_error.set(Some(format!("Gagal menghapus realm: {}", e))),
+                        Err(e) => {
+                            set_realm_to_delete.set(None);
+                            set_error.set(Some(format!("Gagal menghapus realm: {}", e)));
+                        }
                     }
                     set_deleting.set(false);
                 });
@@ -164,7 +167,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
                             set_realm_to_edit.set(None);
                             load_realms.with_value(|f| f());
                         }
-                        Err(e) => set_error.set(Some(format!("Gagal memperbarui realm: {}", e))),
+                        Err(e) => {
+                            set_realm_to_edit.set(None);
+                            set_error.set(Some(format!("Gagal memperbarui realm: {}", e)));
+                        }
                     }
                     set_updating.set(false);
                 });
