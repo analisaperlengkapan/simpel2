@@ -224,6 +224,7 @@ impl Database {
     /// # async fn example(db: &Database) -> authenc_types::Result<()> {
     /// db.transaction(|tx| async move {
     ///     tx.execute("INSERT INTO users (id, username) VALUES ($1, $2)", &[&uuid::Uuid::new_v4(), &"john"]).await?;
+    ///     tx.commit().await?; // IMPORTANT: must commit explicitly or changes are rolled back on drop
     ///     Ok(())
     /// }).await?;
     /// # Ok(())
