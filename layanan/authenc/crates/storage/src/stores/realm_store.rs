@@ -436,9 +436,8 @@ impl RealmStore for PostgresRealmStore {
                     SET deleted_at = $2, updated_at = $2
                     WHERE id = $1 AND deleted_at IS NULL
                 "#;
-                let rows_affected = tx
-                    .execute(delete_realm_query, &[&realm_uuid, &now])
-                    .await?;
+                let rows_affected =
+                    tx.execute(delete_realm_query, &[&realm_uuid, &now]).await?;
 
                 if rows_affected == 0 {
                     return Err(AuthencError::RealmNotFound(format!(

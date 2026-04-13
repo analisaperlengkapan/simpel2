@@ -1,3 +1,0 @@
--- This file was created in error during development.
--- The actual migration lives in 048_realm_soft_delete_unique_index.sql.
--- This file is intentionally empty (no-op).
