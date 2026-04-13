@@ -299,11 +299,19 @@ impl RealmStore for PostgresRealmStore {
         let now = Utc::now();
         params.push(&now);
 
-        let row = self.db.query_one(&query, &params).await?;
+        let row = self.db.query_opt(&query, &params).await?;
 
-        let realm = row_to_realm(row)?;
-        info!("Realm updated successfully: {}", realm.id);
-        Ok(realm)
+        match row {
+            Some(row) => {
+                let realm = row_to_realm(row)?;
+                info!("Realm updated successfully: {}", realm.id);
+                Ok(realm)
+            }
+            None => Err(AuthencError::RealmNotFound(format!(
+                "Realm {} not found",
+                id
+            ))),
+        }
     }
 
     async fn delete_realm(&self, id: RealmId) -> Result<()> {

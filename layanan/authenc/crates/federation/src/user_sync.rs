@@ -423,7 +423,7 @@ impl UserSyncService {
         let client = self.db.get_connection().await?;
 
         let rows = client
-            .query("SELECT id FROM realms WHERE enabled = true", &[])
+            .query("SELECT id FROM realms WHERE enabled = true AND deleted_at IS NULL", &[])
             .await
             .map_err(|e| AuthencError::database(format!("Failed to get realms: {}", e)))?;
 
