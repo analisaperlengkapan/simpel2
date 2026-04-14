@@ -137,7 +137,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
                             load_realms.with_value(|f| f());
                         }
                         Err(e) => {
-                            set_realm_to_delete.set(None);
+                            // Keep the modal open so the user can retry or cancel.
+                            // Show error in the top-level banner (visible behind
+                            // the modal backdrop — the user can close the modal
+                            // via "Batal" to see it clearly).
                             set_error.set(Some(format!("Gagal menghapus realm: {}", e)));
                         }
                     }
