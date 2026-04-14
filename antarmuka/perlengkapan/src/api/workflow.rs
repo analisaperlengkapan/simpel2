@@ -44,14 +44,21 @@ pub struct ApiResponse<T> {
     pub message: String,
 }
 
+/// Get auth token or return a clear error message.
+#[cfg(target_arch = "wasm32")]
+fn require_auth_token() -> Result<String, String> {
+    use crate::api::client::get_auth_token;
+    get_auth_token().ok_or_else(|| "No authentication token found. Silakan login ulang.".to_string())
+}
+
 /// Fetch all workflow definitions
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_workflow_definitions() -> Result<ApiResponse<Vec<WorkflowDefinition>>, String> {
-    use crate::api::client::{API_BASE, get_auth_token};
+    use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
     let url = format!("{}/workflow/definitions", API_BASE);
-    let token = get_auth_token().unwrap_or_default();
+    let token = require_auth_token()?;
 
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -82,11 +89,11 @@ pub async fn fetch_workflow_definitions() -> Result<ApiResponse<Vec<WorkflowDefi
 pub async fn fetch_workflow_definition_detail(
     name: &str,
 ) -> Result<ApiResponse<WorkflowDefinitionDetail>, String> {
-    use crate::api::client::{API_BASE, get_auth_token};
+    use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
     let url = format!("{}/workflow/definitions/{}", API_BASE, name);
-    let token = get_auth_token().unwrap_or_default();
+    let token = require_auth_token()?;
 
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -162,11 +169,11 @@ pub struct UpsertStepRequest {
 pub async fn create_workflow_definition(
     request: CreateWorkflowRequest,
 ) -> Result<ApiResponse<WorkflowDefinition>, String> {
-    use crate::api::client::{API_BASE, get_auth_token};
+    use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
     let url = format!("{}/workflow/definitions", API_BASE);
-    let token = get_auth_token().unwrap_or_default();
+    let token = require_auth_token()?;
 
     let resp = Request::post(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -198,11 +205,11 @@ pub async fn update_workflow_definition(
     name: &str,
     request: UpdateWorkflowRequest,
 ) -> Result<ApiResponse<WorkflowDefinition>, String> {
-    use crate::api::client::{API_BASE, get_auth_token};
+    use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
     let url = format!("{}/workflow/definitions/{}", API_BASE, name);
-    let token = get_auth_token().unwrap_or_default();
+    let token = require_auth_token()?;
 
     let resp = Request::put(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -232,11 +239,11 @@ pub async fn update_workflow_definition(
 /// Delete a workflow definition
 #[cfg(target_arch = "wasm32")]
 pub async fn delete_workflow_definition(name: &str) -> Result<ApiResponse<()>, String> {
-    use crate::api::client::{API_BASE, get_auth_token};
+    use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
     let url = format!("{}/workflow/definitions/{}", API_BASE, name);
-    let token = get_auth_token().unwrap_or_default();
+    let token = require_auth_token()?;
 
     let resp = Request::delete(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -264,11 +271,11 @@ pub async fn upsert_workflow_step(
     workflow_name: &str,
     request: UpsertStepRequest,
 ) -> Result<ApiResponse<WorkflowStep>, String> {
-    use crate::api::client::{API_BASE, get_auth_token};
+    use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
     let url = format!("{}/workflow/definitions/{}/steps", API_BASE, workflow_name);
-    let token = get_auth_token().unwrap_or_default();
+    let token = require_auth_token()?;
 
     let resp = Request::post(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -301,14 +308,14 @@ pub async fn delete_workflow_step(
     workflow_name: &str,
     state_name: &str,
 ) -> Result<ApiResponse<()>, String> {
-    use crate::api::client::{API_BASE, get_auth_token};
+    use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
     let url = format!(
         "{}/workflow/definitions/{}/steps/{}",
         API_BASE, workflow_name, state_name
     );
-    let token = get_auth_token().unwrap_or_default();
+    let token = require_auth_token()?;
 
     let resp = Request::delete(&url)
         .header("Authorization", &format!("Bearer {}", token))

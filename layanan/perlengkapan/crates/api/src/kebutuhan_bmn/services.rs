@@ -1061,8 +1061,13 @@ impl KebutuhanBmnService {
                 }
             }
             Err(e) => {
+                // NOTE: A failed gRPC probe (network timeout, service restart, DNS)
+                // must NOT block Validator Pusat business decisions. We only set
+                // error_message when the sync *itself* reports a failure (handled
+                // in the Ok branch above). Probe failures are logged but treated
+                // as "unknown" rather than "risky".
                 warn!(
-                    "Failed to fetch sync status for {} from Integrasi: {}",
+                    "Failed to fetch sync status for {} from Integrasi (probe failure, not blocking decisions): {}",
                     source_name, e
                 );
                 IntegrasiSyncStatus {
@@ -1071,7 +1076,7 @@ impl KebutuhanBmnService {
                     last_sync_at: None,
                     next_sync_at: None,
                     records_synced: 0,
-                    error_message: Some(e.to_string()),
+                    error_message: None,
                 }
             }
         }
