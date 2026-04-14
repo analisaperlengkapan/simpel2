@@ -158,6 +158,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
                 let api = api.clone();
                 let id = realm.id.clone();
                 set_updating.set(true);
+                set_edit_error.set(None);
                 set_error.set(None);
                 set_success.set(None);
 
