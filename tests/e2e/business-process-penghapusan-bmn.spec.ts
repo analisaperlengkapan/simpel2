@@ -40,6 +40,22 @@ test.describe('Business Process: SK Penghapusan BMN - Full E2E Flow', () => {
   let penghapusanId: string;
   let backendAvailable = false;
 
+  async function resolvePenghapusanId(request: APIRequestContext): Promise<string | undefined> {
+    if (penghapusanId && !penghapusanId.startsWith('00000000-0000-0000-0000-0000000003')) {
+      return penghapusanId;
+    }
+
+    const listed = await listPenghapusanBmn(request, validatorPusat, { page: 1, per_page: 1 });
+    if (listed.status >= 200 && listed.status < 500) {
+      const item = listed.body?.data?.items?.[0] ?? listed.body?.data?.[0];
+      if (item?.id) {
+        penghapusanId = item.id;
+      }
+    }
+
+    return penghapusanId;
+  }
+
   test.describe.configure({ mode: 'serial' });
 
   test.beforeAll(async ({ request }) => {
@@ -169,7 +185,8 @@ test.describe('Business Process: SK Penghapusan BMN - Full E2E Flow', () => {
   });
 
   test('1.2 - Operator submits pengajuan to Validator Wilayah', async ({ request, page }) => {
-    if (!penghapusanId || penghapusanId.startsWith('00000000-0000-0000-0000-0000000003')) {
+    const resolvedPenghapusanId = await resolvePenghapusanId(request);
+    if (!resolvedPenghapusanId) {
       test.skip();
       return;
     }
@@ -177,7 +194,7 @@ test.describe('Business Process: SK Penghapusan BMN - Full E2E Flow', () => {
     const result = await transitionPenghapusanBmn(
       request,
       operatorSatker,
-      penghapusanId,
+      resolvedPenghapusanId,
       'submit_wilayah',
       { catatan: 'Pengajuan penghapusan BMN untuk ditinjau validator wilayah' }
     );
@@ -200,19 +217,20 @@ test.describe('Business Process: SK Penghapusan BMN - Full E2E Flow', () => {
   // ========================================================================
 
   test('2.1 - Validator Wilayah reviews and forwards to Pusat', async ({ request, page }) => {
-    if (!penghapusanId || penghapusanId.startsWith('00000000-0000-0000-0000-0000000003')) {
+    const resolvedPenghapusanId = await resolvePenghapusanId(request);
+    if (!resolvedPenghapusanId) {
       test.skip();
       return;
     }
 
     // First: Validator Wilayah views the submission
-    const detail = await getPenghapusanBmn(request, validatorWilayah, penghapusanId);
+    const detail = await getPenghapusanBmn(request, validatorWilayah, resolvedPenghapusanId);
 
     // Forward to Pusat
     const result = await transitionPenghapusanBmn(
       request,
       validatorWilayah,
-      penghapusanId,
+      resolvedPenghapusanId,
       'submit_pusat',
       {
         catatan: 'Pengajuan penghapusan telah diperiksa, lampiran lengkap, diteruskan ke pusat.',
@@ -249,7 +267,8 @@ test.describe('Business Process: SK Penghapusan BMN - Full E2E Flow', () => {
   // ========================================================================
 
   test('3.1 - Validator Pusat verifies submission', async ({ request, page }) => {
-    if (!penghapusanId || penghapusanId.startsWith('00000000-0000-0000-0000-0000000003')) {
+    const resolvedPenghapusanId = await resolvePenghapusanId(request);
+    if (!resolvedPenghapusanId) {
       test.skip();
       return;
     }
@@ -257,7 +276,7 @@ test.describe('Business Process: SK Penghapusan BMN - Full E2E Flow', () => {
     const result = await transitionPenghapusanBmn(
       request,
       validatorPusat,
-      penghapusanId,
+      resolvedPenghapusanId,
       'verifikasi_pusat',
       {
         catatan: 'Pengajuan telah diverifikasi sesuai ketentuan. Lanjutkan ke pembuatan konsep SK.',

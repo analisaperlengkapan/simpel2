@@ -5,12 +5,34 @@
 
 use crate::components::layout::AuthLayout;
 use crate::features::auth::{AuthService, LoginCredentials, LoginResult, UserSession};
-use crate::utils::app_state::use_api_client;
+use crate::utils::app_state::{AppState, use_api_client, use_app_state};
 use crate::utils::webauthn;
+use gloo_timers::callback::Timeout;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::captcha::Captcha;
 use web_sys;
+
+#[cfg(target_arch = "wasm32")]
+fn resolve_perlengkapan_redirect_target() -> Option<String> {
+    let search = web_sys::window()
+        .and_then(|w| w.location().search().ok())
+        .unwrap_or_default();
+
+    let params = web_sys::UrlSearchParams::new_with_str(&search).ok()?;
+
+    if let Some(redirect_uri) = params.get("redirect_uri")
+        && redirect_uri.starts_with("/perlengkapan")
+    {
+        return Some(redirect_uri);
+    }
+
+    if matches!(params.get("redirect").as_deref(), Some("perlengkapan")) {
+        return Some("/perlengkapan/dashboard".to_string());
+    }
+
+    None
+}
 
 /// Login page
 #[component]
@@ -33,6 +55,7 @@ pub fn LoginPage(
 
     let navigate = leptos_router::hooks::use_navigate();
     let api = use_api_client();
+    let app_state = use_app_state();
 
     // ── Passkey authentication trigger ────────────────────────────────────
     let (passkey_trigger, set_passkey_trigger) = signal(0u32);
@@ -40,13 +63,16 @@ pub fn LoginPage(
     {
         let api = api.clone();
         let nav = navigate.clone();
+        let app_state = app_state;
         Effect::new(move || {
             let count = passkey_trigger.get();
             if count == 0 {
                 return;
             }
+            let redirect_target = resolve_perlengkapan_redirect_target();
             let api = api.clone();
             let nav = nav.clone();
+            let app_state = app_state;
             set_passkey_loading.set(true);
             set_error_message.set(String::new());
 
@@ -78,9 +104,8 @@ pub fn LoginPage(
                                                     session.refresh_token = Some(refresh.clone());
                                                 }
                                                 AuthService::save_session(&session);
-                                                crate::utils::app_state::app_state_login(
-                                                    session.clone(),
-                                                );
+                                                app_state
+                                                    .set(AppState::from_session(session.clone()));
                                                 on_login_success.set(Some(session.clone()));
                                                 set_passkey_loading.set(false);
                                                 // Navigate to password-change page when
@@ -88,6 +113,10 @@ pub fn LoginPage(
                                                 // via the dashboard route guard.
                                                 if session.require_password_change {
                                                     nav("/password", Default::default());
+                                                } else if let Some(target) = &redirect_target {
+                                                    if let Some(window) = web_sys::window() {
+                                                        let _ = window.location().set_href(target);
+                                                    }
                                                 } else {
                                                     nav("/dashboard", Default::default());
                                                 }
@@ -166,6 +195,19 @@ pub fn LoginPage(
         set_is_loading.set(true);
         set_error_message.set(String::new());
 
+        // Failsafe: avoid indefinite loading state when network/promise hangs.
+        Timeout::new(20_000, {
+            move || {
+                if is_loading.get_untracked() {
+                    set_is_loading.set(false);
+                    set_error_message.set(
+                        "Permintaan login melebihi batas waktu. Silakan coba lagi.".to_string(),
+                    );
+                }
+            }
+        })
+        .forget();
+
         let credentials = LoginCredentials {
             username: username.get(),
             password: password.get(),
@@ -173,13 +215,10 @@ pub fn LoginPage(
         };
 
         // Resolve redirect target here (synchronous, in reactive context) before entering async
-        let redirect_to_perlengkapan = {
-            let query_map = leptos_router::hooks::use_query_map();
-            query_map.with(|params| params.get("redirect").map(|s| s.to_string()))
-                == Some("perlengkapan".to_string())
-        };
+        let redirect_target = resolve_perlengkapan_redirect_target();
 
         let nav = navigate.clone();
+        let app_state = app_state;
 
         spawn_local(async move {
             match AuthService::login(credentials).await {
@@ -189,7 +228,7 @@ pub fn LoginPage(
 
                     // Full authentication complete
                     AuthService::save_session(&session);
-                    crate::utils::app_state::app_state_login((*session).clone());
+                    app_state.set(AppState::from_session((*session).clone()));
                     let needs_password_change = session.require_password_change;
                     on_login_success.set(Some(*session));
 
@@ -200,10 +239,10 @@ pub fn LoginPage(
                     // takes priority over any redirect target.
                     if needs_password_change {
                         nav("/password", Default::default());
-                    } else if redirect_to_perlengkapan {
-                        // Hard redirect to Perlengkapan root
+                    } else if let Some(target) = &redirect_target {
+                        // Hard redirect to requested Perlengkapan path
                         if let Some(window) = web_sys::window() {
-                            let _ = window.location().set_href("/");
+                            let _ = window.location().set_href(target);
                         }
                     } else {
                         nav("/dashboard", Default::default());
@@ -239,7 +278,7 @@ pub fn LoginPage(
                     // Login succeeded but user must change password first
                     set_failed_attempts.set(0);
                     AuthService::save_session(&session);
-                    crate::utils::app_state::app_state_login((*session).clone());
+                    app_state.set(AppState::from_session((*session).clone()));
                     on_login_success.set(Some(*session));
                     set_is_loading.set(false);
 

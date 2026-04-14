@@ -1,5 +1,6 @@
 //! Placeholder page — elegant "coming soon" page for unimplemented modules.
 
+use crate::routes;
 use leptos::prelude::*;
 
 #[component]
@@ -33,7 +34,7 @@ pub fn PlaceholderPage(
                 // Back link
                 <div style="margin-top: 28px;">
                     <a
-                        href="/perlengkapan/dashboard"
+                        href=routes::path::DASHBOARD
                         style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #d4a843; text-decoration: none; font-weight: 600;"
                     >
                         <i class="fas fa-arrow-left" style="font-size: 0.75rem;"></i>

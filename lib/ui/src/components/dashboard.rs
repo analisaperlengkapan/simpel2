@@ -634,3 +634,125 @@ pub fn GapAnalysisTable(
         </div>
     }
 }
+
+// ============================================================================
+// INTEGRATION STATUS CARD COMPONENT
+// ============================================================================
+
+/// Generic integration status card for service health display.
+#[component]
+pub fn IntegrationStatusCard(
+    /// Integration name (e.g., SIMAN, MySIMKARI)
+    #[prop(into)]
+    name: String,
+    /// Short integration description
+    #[prop(into)]
+    description: String,
+    /// Current status string (healthy, degraded, error)
+    #[prop(into)]
+    status: String,
+    /// Last synchronization timestamp text
+    #[prop(into)]
+    last_sync: String,
+    /// Optional icon class for icon container accent color
+    #[prop(default = "bg-slate-100 dark:bg-slate-900".to_string(), into)]
+    icon_container_class: String,
+    /// Optional icon class for icon color
+    #[prop(default = "text-slate-600 dark:text-slate-400".to_string(), into)]
+    icon_color_class: String,
+    /// Optional icon SVG path
+    #[prop(optional, into)]
+    icon_path: Option<String>,
+    /// Optional custom status class override
+    #[prop(optional, into)]
+    status_class: Option<String>,
+    /// Additional CSS classes
+    #[prop(optional, into)]
+    class: Option<String>,
+) -> impl IntoView {
+    let class = class.unwrap_or_default();
+
+    let resolved_status_class = status_class.unwrap_or_else(|| match status.as_str() {
+        "healthy" => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300".to_string(),
+        "degraded" => {
+            "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300".to_string()
+        }
+        _ => "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300".to_string(),
+    });
+
+    view! {
+        <div class=format!(
+            "rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 {}",
+            class
+        )>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class=format!(
+                        "flex h-12 w-12 items-center justify-center rounded-lg {}",
+                        icon_container_class
+                    )>
+                        <svg class=format!("h-6 w-6 {}", icon_color_class) fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d=icon_path.unwrap_or_else(|| {
+                                    "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z".to_string()
+                                })
+                            />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900 dark:text-gray-100">{name}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">{description}</p>
+                    </div>
+                </div>
+                <span class=format!(
+                    "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {}",
+                    resolved_status_class
+                )>
+                    {status}
+                </span>
+            </div>
+            <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                <span class="font-medium">"Sinkronisasi terakhir: "</span>
+                {last_sync}
+            </div>
+        </div>
+    }
+}
+
+// ============================================================================
+// DASHBOARD LOADING SKELETON COMPONENT
+// ============================================================================
+
+/// Reusable loading skeleton for dashboard pages.
+#[component]
+pub fn DashboardLoadingSkeleton(
+    /// Number of metric cards in first row
+    #[prop(default = 4)]
+    metric_cards: usize,
+    /// Number of chart cards in second row
+    #[prop(default = 2)]
+    chart_cards: usize,
+    /// Additional CSS classes
+    #[prop(optional, into)]
+    class: Option<String>,
+) -> impl IntoView {
+    let class = class.unwrap_or_default();
+
+    view! {
+        <div class=format!("space-y-8 animate-pulse {}", class)>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {(0..metric_cards).map(|_| view! {
+                    <div class="h-32 rounded-lg bg-gray-200 dark:bg-gray-700"></div>
+                }).collect_view()}
+            </div>
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {(0..chart_cards).map(|_| view! {
+                    <div class="h-64 rounded-lg bg-gray-200 dark:bg-gray-700"></div>
+                }).collect_view()}
+            </div>
+        </div>
+    }
+}

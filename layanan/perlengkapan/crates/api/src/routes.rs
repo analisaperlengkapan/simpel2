@@ -77,7 +77,19 @@ pub fn create_routes(state: AppState) -> Router {
             post(crate::penghapusan_bmn::validator_wilayah_action),
         )
         .route(
+            "/penghapusan-bmn/{id}/forward-pusat",
+            post(crate::penghapusan_bmn::forward_to_pusat),
+        )
+        .route(
+            "/penghapusan-bmn/{id}/return-operator",
+            post(crate::penghapusan_bmn::return_to_operator),
+        )
+        .route(
             "/penghapusan-bmn/{id}/generate-sk",
+            post(crate::penghapusan_bmn::generate_konsep_sk),
+        )
+        .route(
+            "/penghapusan-bmn/{id}/generate-konsep-sk",
             post(crate::penghapusan_bmn::generate_konsep_sk),
         )
         .route(
@@ -253,6 +265,10 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/satker/{id}/keputusan-pusat",
             post(kebutuhan_bmn::validator_pusat_keputusan),
         )
+        .route(
+            "/kebutuhan-bmn/satker/{id}/validator-pusat",
+            post(kebutuhan_bmn::validator_pusat_keputusan),
+        )
         // Barang Operations
         .route(
             "/kebutuhan-bmn/satker/{id}/barang",
@@ -410,6 +426,43 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pemakaian-bmn/monitoring/utilization-report",
             get(pemakaian_bmn::get_bmn_utilization_report),
+        )
+        // ============ Workflow Definition Routes ============
+        .route(
+            "/workflow/definitions",
+            get(crate::workflow::definition_handlers::get_workflow_definitions)
+                .post(crate::workflow::definition_handlers::create_workflow_definition),
+        )
+        .route(
+            "/workflow/definitions/{name}",
+            get(crate::workflow::definition_handlers::get_workflow_definition_by_name)
+                .put(crate::workflow::definition_handlers::update_workflow_definition)
+                .delete(crate::workflow::definition_handlers::delete_workflow_definition),
+        )
+        .route(
+            "/workflow/definitions/{name}/steps",
+            post(crate::workflow::definition_handlers::upsert_workflow_step),
+        )
+        .route(
+            "/workflow/definitions/{name}/steps/{state}",
+            delete(crate::workflow::definition_handlers::delete_workflow_step),
+        )
+        // ============ Workflow Monitoring Routes ============
+        .route(
+            "/workflow/monitoring/metrics",
+            get(crate::workflow::handlers::get_workflow_metrics),
+        )
+        .route(
+            "/workflow/monitoring/active",
+            get(crate::workflow::handlers::get_active_workflows),
+        )
+        .route(
+            "/workflow/monitoring/sla-breaches",
+            get(crate::workflow::handlers::get_sla_breaches),
+        )
+        .route(
+            "/workflow/monitoring/bottlenecks",
+            get(crate::workflow::handlers::get_bottlenecks),
         )
         .with_state(state)
 }

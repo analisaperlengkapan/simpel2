@@ -4,7 +4,7 @@
 //! REQ-PORTAL-019
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_app_state};
+use crate::utils::app_state::use_main_layout_session_and_logout;
 use leptos::prelude::*;
 
 /// Active tab enum
@@ -68,17 +68,8 @@ impl RealmSettingsTab {
 /// Realm settings page
 #[component]
 pub fn RealmSettingsPage() -> impl IntoView {
-    let state = use_app_state();
     let (active_tab, set_active_tab) = signal(RealmSettingsTab::General);
-
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -121,15 +112,15 @@ pub fn RealmSettingsPage() -> impl IntoView {
                                         <input type="text" value="master" class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-500" disabled=true />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Display Name"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan"</label>
                                         <input type="text" placeholder="Nama tampilan realm" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500" />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"HTML Display Name"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan HTML"</label>
                                         <input type="text" placeholder="<strong>Realm</strong>" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500" />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Frontend URL"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">"URL Frontend"</label>
                                         <input type="url" placeholder="https://auth.example.com" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500" />
                                     </div>
                                 </div>
@@ -148,7 +139,7 @@ pub fn RealmSettingsPage() -> impl IntoView {
                         <Show when=move || active_tab.get() == RealmSettingsTab::Login>
                             <div class="space-y-4">
                                 <h3 class="font-medium text-gray-900">"Konfigurasi Login"</h3>
-                                {["Registrasi pengguna", "Lupa password", "Remember me", "Verifikasi email", "Login dengan email", "Memerlukan SSL"].iter().map(|label| {
+                                {["Registrasi pengguna", "Lupa kata sandi", "Ingat saya", "Verifikasi email", "Login dengan email", "Memerlukan SSL"].iter().map(|label| {
                                     view! {
                                         <div class="flex items-center justify-between py-2 border-b">
                                             <span class="text-sm text-gray-700">{*label}</span>
@@ -176,11 +167,11 @@ pub fn RealmSettingsPage() -> impl IntoView {
                                         <input type="number" placeholder="587" class="w-full px-3 py-2 border rounded-lg text-sm" />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"From Email"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Email Pengirim"</label>
                                         <input type="email" placeholder="noreply@example.com" class="w-full px-3 py-2 border rounded-lg text-sm" />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"From Display Name"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan Pengirim"</label>
                                         <input type="text" placeholder="Authenc" class="w-full px-3 py-2 border rounded-lg text-sm" />
                                     </div>
                                 </div>
@@ -234,7 +225,7 @@ pub fn RealmSettingsPage() -> impl IntoView {
                             <div class="space-y-4">
                                 <h3 class="font-medium text-gray-900">"Pengaturan Sesi"</h3>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {[("SSO Session Idle", "30 menit"), ("SSO Session Max", "10 jam"), ("Client Session Idle", "30 menit"), ("Client Session Max", "10 jam"), ("Offline Session Idle", "30 hari"), ("Login Timeout", "5 menit")].iter().map(|(label, default)| {
+                                    {[("Sesi SSO Tidak Aktif", "30 menit"), ("Maksimum Sesi SSO", "10 jam"), ("Sesi Klien Tidak Aktif", "30 menit"), ("Maksimum Sesi Klien", "10 jam"), ("Sesi Offline Tidak Aktif", "30 hari"), ("Batas Waktu Login", "5 menit")].iter().map(|(label, default)| {
                                         view! {
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">{*label}</label>
@@ -251,7 +242,7 @@ pub fn RealmSettingsPage() -> impl IntoView {
                             <div class="space-y-4">
                                 <h3 class="font-medium text-gray-900">"Pengaturan Token"</h3>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {[("Default Signature Algorithm", "RS256"), ("Access Token Lifespan", "5 menit"), ("Refresh Token Lifespan", "30 menit"), ("ID Token Lifespan", "5 menit")].iter().map(|(label, default)| {
+                                    {[("Algoritma Tanda Tangan Bawaan", "RS256"), ("Masa Berlaku Access Token", "5 menit"), ("Masa Berlaku Refresh Token", "30 menit"), ("Masa Berlaku ID Token", "5 menit")].iter().map(|(label, default)| {
                                         view! {
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">{*label}</label>
@@ -267,7 +258,7 @@ pub fn RealmSettingsPage() -> impl IntoView {
                         <Show when=move || active_tab.get() == RealmSettingsTab::Security>
                             <div class="space-y-4">
                                 <h3 class="font-medium text-gray-900">"Kebijakan Keamanan"</h3>
-                                {["Brute force detection", "Permanent lockout", "PKCE enforcement", "Content security policy"].iter().map(|label| {
+                                {["Deteksi brute force", "Penguncian permanen", "Penerapan PKCE", "Kebijakan keamanan konten"].iter().map(|label| {
                                     view! {
                                         <div class="flex items-center justify-between py-2 border-b">
                                             <span class="text-sm text-gray-700">{*label}</span>
@@ -300,7 +291,7 @@ pub fn RealmSettingsPage() -> impl IntoView {
                                     <label class="block text-sm font-medium text-gray-700 mb-1">"Bahasa Default"</label>
                                     <select class="w-full max-w-sm px-3 py-2 border rounded-lg text-sm">
                                         <option value="id" selected=true>"Bahasa Indonesia"</option>
-                                        <option value="en">"English"</option>
+                                        <option value="en">"Bahasa Inggris"</option>
                                     </select>
                                 </div>
                                 <div class="flex items-center justify-between py-2">

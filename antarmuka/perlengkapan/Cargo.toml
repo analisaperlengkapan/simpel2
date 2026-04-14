@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 name = "perlengkapan_microfrontend"
 
 [dependencies]
-leptos = { workspace = true, features = ["csr", "hydrate"] }
+leptos = { workspace = true, features = ["csr"] }
 leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
 lib-ui = { workspace = true }

@@ -6,6 +6,7 @@ use crate::api::{
     CreateAssetTypeRequest, CreateKebutuhanBmnRequest, PilihanSatker, UpdateKebutuhanBmnRequest,
     create_kebutuhan_bmn, fetch_kebutuhan_bmn_detail, update_kebutuhan_bmn,
 };
+use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
@@ -149,7 +150,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                         if let Some(window) = web_sys::window() {
                             let _ = window
                                 .location()
-                                .set_href("/perlengkapan/dashboard/kebutuhan-bmn");
+                                .set_href(routes::path::KEBUTUHAN_DAFTAR_LEGACY);
                         }
                     })
                     .forget();
@@ -171,7 +172,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
             // Header
             <div class="mb-6">
                 <a
-                    href="/perlengkapan/dashboard/kebutuhan-bmn"
+                    href=routes::path::KEBUTUHAN_DAFTAR
                     class="text-blue-600 hover:text-blue-800 inline-flex items-center mb-4"
                 >
                     <i class="fas fa-arrow-left mr-2"></i>
@@ -334,7 +335,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                     // Action buttons
                     <div class="flex justify-end gap-3 pt-6 border-t">
                         <a
-                            href="/perlengkapan/dashboard/kebutuhan-bmn"
+                            href=routes::path::KEBUTUHAN_DAFTAR
                             class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                             "Batal"

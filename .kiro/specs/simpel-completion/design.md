@@ -1,276 +1,614 @@
-# Design Document: SIMPEL Completion - Total Refactor
+# Design Document: SIMPEL Completion
 
 ## 1. Overview
 
 ### 1.1 Purpose
 
-This design document outlines the technical approach for completing and refactoring SIMPEL (Sistem Informasi Manajemen Perlengkapan) from 70-75% completion to production-ready state. The refactoring focuses on:
+This design document provides a comprehensive technical specification for completing SIMPEL (Sistem Informasi Manajemen Perlengkapan) based on **actual codebase analysis**. This document reflects what is **actually implemented** versus what is missing, providing a realistic roadmap to production.
 
-1. Database optimization and standardization
-2. Code consolidation using shared libraries
-3. Mandatory integrations (SIMAN, MySIMKARI)
-4. Optional integration (MonSAKTI)
-5. Dashboard separation (portal vs perlengkapan)
-6. Workflow engine implementation
-7. Document and notification services
-8. Business logic (gap analysis, prioritization, batch operations)
-9. UX improvements (search, export, real-time updates)
+**Document Status:** Updated based on codebase inspection (migrations, routes, handlers, services)
 
-### 1.2 Architecture Context
+**Key Focus Areas:**
+1. Document actual database schema (from migration files)
+2. Document actual API endpoints (from routes.rs)
+3. Identify implementation gaps with evidence
+4. Provide minimal, actionable completion guidance
+5. Reference actual file paths and code
 
-**Current State:**
-- Infrastructure: Authenc (50K LOC), Secreton (40K LOC), K8s deployed
-- Backend: `layanan/portal`, `layanan/perlengkapan/crates/api` (Axum REST)
-- Frontend: `antarmuka/portal`, `antarmuka/perlengkapan` (Leptos WASM)
-- Libraries: `lib-common` (5K LOC), `lib-ui` (15K LOC), `lib-perlengkapan` (1K LOC)
-- Integration schema: Defined but not implemented
+### 1.2 Current Implementation Status (Evidence-Based)
 
-**Target State:**
-- Optimized database with consistent naming
-- Consolidated code in shared libraries
-- Working SIMAN/MySIMKARI integration
-- Separated dashboards
-- Complete workflow engine
-- Document/notification services
-- Advanced features (gap analysis, prioritization, batch ops, search, export)
+**Codebase Location:** `layanan/perlengkapan/crates/api/`
+
+#### ✅ Fully Implemented Modules
+
+| Module | Evidence | Status |
+|--------|----------|--------|
+| **Kebutuhan BMN** | `src/kebutuhan_bmn/` (handlers, services, repository, models) | 70% - Core CRUD + workflow |
+| **Pakaian Dinas** | `src/pakaian_dinas/` (handlers, services, repository, export) | 60% - Data structure + basic workflow |
+| **Pemakaian BMN** | `src/pemakaian_bmn/` (handlers, services, scheduler) | 80% - Core workflow + scheduler |
+| **Penghapusan BMN** | `src/penghapusan_bmn/` (handlers, services, repository) | 40% - Handlers exist, workflow incomplete |
+| **Dashboard** | `src/dashboard/` (handlers, websocket, services) | 50% - Basic metrics + WebSocket |
+| **Mapping Kodefikasi** | `src/mapping_kodefikasi/` (handlers, services) | Read-only detection |
+| **Roadmap Sarpras** | `src/roadmap_sarpras/` (handlers, services) | 30% - Basic structure |
+| **Workflow Engine** | `src/workflow/` (engine, config, SLA, delegation) | **70% - EXISTS!** |
+
+#### 🔴 Critical Discovery: Workflow Engine EXISTS
+
+**Location:** `layanan/perlengkapan/crates/api/src/workflow/`
+
+**Files Found:**
+- `engine.rs` - WorkflowEngine with transition logic
+- `config.rs` - Workflow configuration
+- `sla.rs` - SLA tracking
+- `delegation.rs` - Delegation support
+- `dokumen_client.rs` - Document service client
+- `notifikasi_client.rs` - Notification service client
+- `monitoring.rs` - Workflow monitoring
+- `parallel.rs` - Parallel approval support
+
+**Status:** Workflow engine is **70% complete**, NOT 0% as requirements stated!
 
 ### 1.3 Technology Stack
 
-| Component | Technology | Version |
-|-----------|-----------|---------|
-| Language | Rust | Edition 2024, MSRV 1.90+ |
-| Backend HTTP | Axum | 0.8.x |
-| Backend gRPC | Tonic + Prost | 0.14.x |
-| Frontend | Leptos | 0.8.x (WASM CSR) |
-| Database | PostgreSQL | tokio-postgres + deadpool |
-| Caching | Redis | |
-| Identity | Authenc | gRPC |
-| Secrets | Secreton | gRPC |
+| Component | Technology | Version | Location |
+|-----------|-----------|---------|----------|
+| Language | Rust | Edition 2024, MSRV 1.90+ | Workspace |
+| Backend HTTP | Axum | 0.8.7 | `layanan/perlengkapan/crates/api` |
+| Backend gRPC | Tonic + Prost | 0.14.x | Authenc/Secreton clients |
+| Frontend | Leptos | 0.8.14 | `antarmuka/perlengkapan` |
+| Database | PostgreSQL | 15+ | `perlengkapan` schema |
+| Caching | Redis | - | Connection pooling |
+| Identity | Authenc | gRPC | `layanan/authenc` |
+| Secrets | Secreton | gRPC | `layanan/secreton` |
 
-## 2. Database Design
+## 2. Database Design (Actual Schema)
 
-### 2.1 Naming Conventions
+### 2.1 Schema Overview
 
-**Standard:**
-- All tables: `snake_case` with service prefix (e.g., `perlengkapan_kebutuhan_bmn`)
-- Technical fields: English (`id`, `created_at`, `updated_at`)
-- Domain fields: Indonesian (`nama`, `kode`, `jumlah`)
-- Primary keys: UUID (except audit/log tables use BIGSERIAL)
+**Database:** `perlengkapan`
+**Migration Files:** `layanan/perlengkapan/crates/api/migrations/`
 
-**Example:**
+**Schemas:**
+- `perlengkapan` - Main application schema
+- `integrasi` - External system integration data (SIMAN, MySIMKARI)
+
+### 2.2 Kebutuhan BMN Tables (ACTUAL)
+
+**Source:** `20260202_create_kebutuhan_bmn_tables.sql`
+
+**Main Tables:**
+1. `perlengkapan.ms_aktivitas_bmn` - Workflow status codes (2000-2009)
+2. `perlengkapan.pengajuan_kebutuhan_bmn` - Main request entity
+3. `perlengkapan.pengajuan_kebutuhan_bmn_asset` - Asset types per request
+4. `perlengkapan.pengajuan_kebutuhan_bmn_satker` - Per-satker tracking
+5. `perlengkapan.pengajuan_kebutuhan_bmn_satker_barang` - Individual goods per satker
+6. `perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas` - Workflow history
+
+**Key Fields:**
 ```sql
-CREATE TABLE perlengkapan.kebutuhan_bmn (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    satker_id UUID NOT NULL REFERENCES authenc.satkers(id),
-    kode_barang VARCHAR(50) NOT NULL,
-    nama_barang VARCHAR(255) NOT NULL,
-    jumlah_kebutuhan INTEGER NOT NULL,
-    tahun_anggaran INTEGER NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- pengajuan_kebutuhan_bmn
+id UUID PRIMARY KEY
+nama VARCHAR(255) NOT NULL
+tahun INTEGER NOT NULL
+tgl_mulai DATE NOT NULL
+tgl_selesai DATE NOT NULL
+pilihan_satker VARCHAR(20) -- 'semua' | 'sebagian'
+id_jenis_asset JSONB DEFAULT '[]'::jsonb
+status_kode INTEGER NOT NULL DEFAULT 2000 -- FK to ms_aktivitas_bmn
+is_appv_daskrimti BOOLEAN DEFAULT FALSE
+created_by UUID
+version INTEGER DEFAULT 1 -- Optimistic locking
 
--- Indexes
-CREATE INDEX idx_kebutuhan_bmn_satker ON perlengkapan.kebutuhan_bmn(satker_id);
-CREATE INDEX idx_kebutuhan_bmn_tahun ON perlengkapan.kebutuhan_bmn(tahun_anggaran);
-CREATE INDEX idx_kebutuhan_bmn_status ON perlengkapan.kebutuhan_bmn(status);
+-- pengajuan_kebutuhan_bmn_satker
+id UUID PRIMARY KEY
+pengajuan_id UUID NOT NULL -- FK
+ms_satker_id VARCHAR(20) NOT NULL
+status_kode INTEGER NOT NULL DEFAULT 2001
+prioritas INTEGER DEFAULT 0
 
--- Comments
-COMMENT ON TABLE perlengkapan.kebutuhan_bmn IS 'Kebutuhan BMN per satker per tahun';
-COMMENT ON COLUMN perlengkapan.kebutuhan_bmn.kode_barang IS 'Kode barang sesuai standar Kemenkeu';
+-- pengajuan_kebutuhan_bmn_satker_barang
+id UUID PRIMARY KEY
+pengajuan_satker_id UUID NOT NULL -- FK
+nama VARCHAR(255) NOT NULL
+kode_barang VARCHAR(50)
+jumlah INTEGER NOT NULL CHECK (jumlah > 0)
+jml_setuju INTEGER DEFAULT 0 CHECK (jml_setuju >= 0)
+prioritas INTEGER DEFAULT 0
+skor NUMERIC(10,2) DEFAULT 0
+file_pendukung JSONB DEFAULT '[]'::jsonb
+existing_count INTEGER DEFAULT 0 -- From SIMAN
 ```
 
-### 2.2 Integration Schema
+**Indexes:**
+- `idx_pkb_tahun` ON tahun
+- `idx_pkb_status` ON status_kode
+- `idx_pkb_satker_pengajuan` ON pengajuan_id
+- `idx_pkb_barang_prioritas` ON prioritas
+- `idx_pkb_barang_skor` ON skor DESC
 
-**SIMAN Integration Tables:**
+**View:**
+- `vw_kebutuhan_bmn_summary` - Dashboard statistics
+
+### 2.3 Pakaian Dinas Tables (ACTUAL)
+
+**Source:** `20260202_create_pakaian_dinas_tables.sql`
+
+**Master Tables:**
+1. `ms_jenis_pakaian_dinas` - Uniform types (PDH, PDL, Toga)
+2. `ms_spesifikasi_pakaian_dinas` - Specifications with size groups
+3. `ms_subspesifikasi_pakaian_dinas` - Sub-specifications
+4. `ms_ukuran` - Size master (BAJU, CELANA, SEPATU)
+
+**Transaction Tables:**
+1. `pengajuan_pakaian_dinas` - Main request header
+2. `pengajuan_pakaian_dinas_satker_terpilih` - Selected satkers
+3. `pengajuan_pakaian_dinas_pakaian` - Clothing items in request
+4. `pengajuan_pakaian_dinas_satker` - Per-satker submission
+5. `pengajuan_pakaian_dinas_satker_pegawai` - Employee data snapshot
+6. `pengajuan_pakaian_dinas_satker_pegawai_ukuran` - Employee sizes
+7. `pengajuan_pakaian_dinas_satker_aktivitas` - Workflow history
+8. `pegawai_pakaian_dinas` - Persistent employee sizes
+
+**Key Fields:**
 ```sql
-CREATE SCHEMA IF NOT EXISTS integrasi;
+-- pengajuan_pakaian_dinas
+id UUID PRIMARY KEY
+nama VARCHAR(255) NOT NULL
+tahun INTEGER NOT NULL
+pilihan_satker VARCHAR(20) CHECK (pilihan_satker IN ('all', 'sebagian'))
+dengan_unit_kerja BOOLEAN DEFAULT FALSE
+jenis_pakaian_dinas_id UUID
+aktivitas_id INTEGER NOT NULL DEFAULT 1000
 
-CREATE TABLE integrasi.siman_aset_tanah (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nup VARCHAR(50) NOT NULL,
-    kode_barang VARCHAR(50) NOT NULL,
-    nama_barang VARCHAR(255) NOT NULL,
-    luas DECIMAL(15,2),
-    satuan VARCHAR(20),
-    kondisi VARCHAR(50),
-    raw_data JSONB NOT NULL,
-    synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- pengajuan_pakaian_dinas_satker_pegawai
+nip VARCHAR(30) NOT NULL
+nama VARCHAR(500) NOT NULL
+jenis_kelamin VARCHAR(1) CHECK (jenis_kelamin IN ('L', 'P'))
+with_hijab BOOLEAN DEFAULT FALSE -- For female employees
+eselon VARCHAR(20)
+jenis VARCHAR(100) -- TU/Jaksa
 
-CREATE INDEX idx_siman_tanah_nup ON integrasi.siman_aset_tanah(nup);
-CREATE INDEX idx_siman_tanah_kode ON integrasi.siman_aset_tanah(kode_barang);
-CREATE INDEX idx_siman_tanah_raw ON integrasi.siman_aset_tanah USING GIN(raw_data);
-
--- Similar tables for: siman_aset_gedung_bangunan, siman_aset_alat_besar, siman_aset_angkutan_bermotor
+-- ms_ukuran (Pre-populated)
+ukuran VARCHAR(20) NOT NULL
+"group" VARCHAR(50) CHECK ("group" IN ('BAJU', 'CELANA', 'SEPATU'))
+urutan INTEGER DEFAULT 0
+PRIMARY KEY (ukuran, "group")
 ```
 
-**MySIMKARI Integration Tables:**
+**Indexes:**
+- `idx_pengajuan_pakaian_dinas_tahun` ON tahun
+- `idx_ppd_satker_pengajuan` ON pengajuan_id
+- `idx_ppd_satker_pegawai_nip` ON nip
+
+### 2.4 Pemakaian BMN Tables (ACTUAL)
+
+**Source:** `20260211_add_document_fields_to_pemakaian_bmn.sql` (references base table)
+
+**Main Table:** `perlengkapan.izin_pemakaian_bmn`
+
+**Key Fields:**
 ```sql
-CREATE TABLE integrasi.mysimkari_pegawai (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nip VARCHAR(20) NOT NULL UNIQUE,
-    nama VARCHAR(255) NOT NULL,
-    satker_id UUID REFERENCES authenc.satkers(id),
-    jabatan VARCHAR(255),
-    golongan VARCHAR(10),
-    status_pegawai VARCHAR(50),
-    raw_data JSONB NOT NULL,
-    synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_mysimkari_pegawai_nip ON integrasi.mysimkari_pegawai(nip);
-CREATE INDEX idx_mysimkari_pegawai_satker ON integrasi.mysimkari_pegawai(satker_id);
+id UUID PRIMARY KEY
+satker_id UUID NOT NULL
+pegawai_nip VARCHAR(30) NOT NULL
+pegawai_nama VARCHAR(255) NOT NULL
+bmn_nup VARCHAR(50) NOT NULL -- From SIMAN
+bmn_nama VARCHAR(255) NOT NULL
+tanggal_mulai DATE NOT NULL
+tanggal_selesai DATE NOT NULL
+status VARCHAR(50) NOT NULL -- DRAFT, ACTIVE, EXPIRED, REVOKED
+document_id UUID -- Generated permit document
+document_url TEXT -- Download URL
+created_by UUID NOT NULL
+created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
-**API Call Logging:**
+**Indexes:**
+- `idx_izin_satker` ON satker_id
+- `idx_izin_pegawai` ON pegawai_nip
+- `idx_izin_bmn` ON bmn_nup
+- `idx_izin_status` ON status
+- `idx_izin_document_id` ON document_id
+
+### 2.5 Penghapusan BMN Tables (ACTUAL)
+
+**Source:** `20260211_create_penghapusan_bmn_tables.sql`
+
+**Main Tables:**
+1. `perlengkapan.penghapusan_bmn` - Deletion requests
+2. `perlengkapan.penghapusan_bmn_aktivitas` - Workflow history
+
+**Key Fields:**
 ```sql
-CREATE TABLE integrasi.api_call_log (
-    id BIGSERIAL PRIMARY KEY,
-    service_name VARCHAR(50) NOT NULL,
-    endpoint VARCHAR(255) NOT NULL,
-    method VARCHAR(10) NOT NULL,
-    status_code INTEGER,
-    duration_ms INTEGER,
-    error_message TEXT,
-    called_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- penghapusan_bmn
+id UUID PRIMARY KEY
+satker_id UUID NOT NULL
+asset_id UUID NOT NULL
+kode_barang VARCHAR(50) NOT NULL
+nama_barang VARCHAR(255) NOT NULL
+nup VARCHAR(50) NOT NULL
+tanggal_penghapusan DATE NOT NULL
+alasan TEXT NOT NULL
+metode_penghapusan VARCHAR(100) NOT NULL -- DIJUAL, DIHIBAHKAN, DIMUSNAHKAN
+nilai_residu DECIMAL(15,2)
+status VARCHAR(50) NOT NULL DEFAULT 'DRAFT' -- DRAFT, SUBMITTED, REVIEWED, APPROVED, REJECTED, CANCELLED
+document_id UUID -- SK Penghapusan document
+document_url TEXT
+created_by UUID NOT NULL
 
-CREATE INDEX idx_api_log_service ON integrasi.api_call_log(service_name, called_at);
+-- penghapusan_bmn_aktivitas
+id UUID PRIMARY KEY
+penghapusan_id UUID NOT NULL -- FK
+aktivitas_id INTEGER NOT NULL -- FK to ms_aktivitas_bmn
+user_id UUID NOT NULL
+catatan TEXT
+document_id UUID -- Document generated during activity
+document_url TEXT
+created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
-### 2.3 Workflow Tables
+**Indexes:**
+- `idx_penghapusan_bmn_satker` ON satker_id
+- `idx_penghapusan_bmn_asset` ON asset_id
+- `idx_penghapusan_bmn_status` ON status
+- `idx_penghapusan_bmn_tahun` ON EXTRACT(YEAR FROM tanggal_penghapusan)
 
-**Existing workflow states in `ms_aktivitas_bmn`:**
-- 2000: DRAFT
-- 2001: INPUT_BARANG
-- 2002: SUBMITTED
-- 2003: REVIEWED
-- 2004: APPROVED
-- 2005: REJECTED
-- 2006: REVISION_REQUIRED
-- 2007: CANCELLED
-- 2008: COMPLETED
-- 2009: ARCHIVED
+### 2.6 Integration Schema (ACTUAL)
 
-**Workflow tracking:**
+**Source:** `20260209_create_integration_schema.sql`
+
+**Schema:** `integrasi`
+
+**SIMAN Asset Tables:**
+1. `integrasi.siman_aset_tanah` - Land assets
+2. `integrasi.siman_aset_gedung_bangunan` - Buildings
+3. `integrasi.siman_aset_alat_besar` - Heavy equipment
+4. `integrasi.siman_aset_angkutan_bermotor` - Motor vehicles
+
+**Common SIMAN Fields:**
 ```sql
-CREATE TABLE perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pengajuan_id UUID NOT NULL REFERENCES perlengkapan.kebutuhan_bmn(id),
-    aktivitas_id INTEGER NOT NULL REFERENCES perlengkapan.ms_aktivitas_bmn(id),
-    user_id UUID NOT NULL REFERENCES authenc.users(id),
-    catatan TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_aktivitas_pengajuan ON perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas(pengajuan_id);
+id UUID PRIMARY KEY
+nup VARCHAR(50) NOT NULL UNIQUE -- Nomor Urut Pendaftaran
+kode_barang VARCHAR(50) NOT NULL
+nama_barang VARCHAR(255) NOT NULL
+kondisi VARCHAR(50) -- BAIK, RUSAK RINGAN, RUSAK BERAT
+tahun_perolehan INTEGER
+nilai_perolehan NUMERIC(15,2)
+satker_code VARCHAR(50)
+satker_nama VARCHAR(255)
+raw_data JSONB NOT NULL -- Complete API response
+synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
-### 2.4 New Entity Tables
-
-**Roadmap Sarpras:**
+**MySIMKARI Table:**
 ```sql
-CREATE TABLE perlengkapan.roadmap_sarpras (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    satker_id UUID NOT NULL REFERENCES authenc.satkers(id),
-    periode_mulai INTEGER NOT NULL,
-    periode_akhir INTEGER NOT NULL,
-    kode_barang VARCHAR(50) NOT NULL,
-    tahun_rencana INTEGER NOT NULL,
-    jumlah_kebutuhan INTEGER NOT NULL,
-    jumlah_terpenuhi INTEGER DEFAULT 0,
-    estimasi_anggaran DECIMAL(15,2),
-    realisasi_anggaran DECIMAL(15,2),
-    status_pemenuhan VARCHAR(50),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT chk_tahun_in_periode CHECK (tahun_rencana >= periode_mulai AND tahun_rencana <= periode_akhir)
-);
-
-CREATE INDEX idx_roadmap_satker ON perlengkapan.roadmap_sarpras(satker_id);
-CREATE INDEX idx_roadmap_tahun ON perlengkapan.roadmap_sarpras(tahun_rencana);
+-- integrasi.mysimkari_pegawai
+id UUID PRIMARY KEY
+nip VARCHAR(20) NOT NULL UNIQUE
+nama VARCHAR(255) NOT NULL
+satker_id UUID
+satker_code VARCHAR(50)
+satker_nama VARCHAR(255)
+jabatan VARCHAR(255)
+golongan VARCHAR(10)
+pangkat VARCHAR(100)
+eselon VARCHAR(10)
+status_pegawai VARCHAR(50)
+jenis_pegawai VARCHAR(50) -- TU/Jaksa
+email VARCHAR(255)
+no_hp VARCHAR(20)
+tempat_lahir VARCHAR(100)
+tanggal_lahir DATE
+jenis_kelamin VARCHAR(10)
+tmt_cpns DATE
+tmt_pns DATE
+raw_data JSONB NOT NULL
+synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
-**Mapping Kodefikasi:**
+**Sync Tracking Tables:**
 ```sql
-CREATE TABLE perlengkapan.mapping_kodefikasi (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    satker_id UUID NOT NULL REFERENCES authenc.satkers(id),
-    kode_barang_lama VARCHAR(50) NOT NULL,
-    nama_barang_lama VARCHAR(255) NOT NULL,
-    kode_barang_baru_id UUID REFERENCES perlengkapan.ms_barang(id),
-    status_mapping VARCHAR(50) NOT NULL,
-    catatan_mapping TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- integrasi.api_call_log
+id BIGSERIAL PRIMARY KEY
+service_name VARCHAR(50) NOT NULL -- SIMAN, MySIMKARI, MonSAKTI
+endpoint VARCHAR(255) NOT NULL
+method VARCHAR(10) NOT NULL
+request_params JSONB
+status_code INTEGER
+duration_ms INTEGER
+error_message TEXT
+retry_count INTEGER DEFAULT 0
+called_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
-CREATE INDEX idx_mapping_satker ON perlengkapan.mapping_kodefikasi(satker_id);
-CREATE INDEX idx_mapping_kode_lama ON perlengkapan.mapping_kodefikasi(kode_barang_lama);
+-- integrasi.sync_status
+id UUID PRIMARY KEY
+service_name VARCHAR(50) NOT NULL
+sync_type VARCHAR(20) CHECK (sync_type IN ('FULL', 'INCREMENTAL', 'ON_DEMAND'))
+entity_type VARCHAR(50) NOT NULL -- aset_tanah, pegawai, etc.
+satker_code VARCHAR(50)
+status VARCHAR(20) CHECK (status IN ('RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED'))
+total_records INTEGER DEFAULT 0
+processed_records INTEGER DEFAULT 0
+success_records INTEGER DEFAULT 0
+failed_records INTEGER DEFAULT 0
+started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+completed_at TIMESTAMPTZ
+duration_seconds INTEGER
+error_message TEXT
 ```
 
-**Riwayat Pemenuhan:**
-```sql
-CREATE TABLE perlengkapan.riwayat_pemenuhan (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kebutuhan_bmn_id UUID REFERENCES perlengkapan.kebutuhan_bmn(id),
-    roadmap_id UUID REFERENCES perlengkapan.roadmap_sarpras(id),
-    satker_id UUID NOT NULL REFERENCES authenc.satkers(id),
-    tahun_anggaran INTEGER NOT NULL,
-    kode_barang VARCHAR(50) NOT NULL,
-    jumlah_terpenuhi INTEGER NOT NULL,
-    sumber_data VARCHAR(50) NOT NULL, -- SIMAN, HIBAH, PNBP
-    tanggal_pemenuhan DATE NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+**Indexes:**
+- GIN indexes on all `raw_data` JSONB columns
+- Trigram indexes on `nama` fields for full-text search
+- Composite indexes on (service_name, called_at) for monitoring
 
-CREATE INDEX idx_riwayat_kebutuhan ON perlengkapan.riwayat_pemenuhan(kebutuhan_bmn_id);
-CREATE INDEX idx_riwayat_roadmap ON perlengkapan.riwayat_pemenuhan(roadmap_id);
-CREATE INDEX idx_riwayat_tahun ON perlengkapan.riwayat_pemenuhan(tahun_anggaran);
-```
+**Views:**
+- `v_latest_sync_status` - Latest sync per service/entity
+- `v_api_call_statistics` - Hourly API call stats (24h)
+- `v_integration_health` - Overall health status
 
-### 2.5 Database Views for Dashboards
+**Helper Functions:**
+- `get_asset_count_by_satker(satker_code, kode_barang, kondisi)` - Asset counts
+- `get_employee_count_by_satker(satker_code, status_pegawai)` - Employee counts
+- `cleanup_old_api_logs()` - Delete logs older than 90 days
+- `cleanup_old_sync_status()` - Delete sync records older than 180 days
 
-**Gap Analysis View:**
-```sql
-CREATE OR REPLACE VIEW perlengkapan.v_gap_analysis AS
-SELECT
-    k.satker_id,
-    k.kode_barang,
-    k.nama_barang,
-    k.jumlah_kebutuhan AS standard_quantity,
-    COALESCE(SUM(CASE WHEN sa.kondisi = 'BAIK' THEN 1 ELSE 0 END), 0) AS existing_good_quantity,
-    k.jumlah_kebutuhan - COALESCE(SUM(CASE WHEN sa.kondisi = 'BAIK' THEN 1 ELSE 0 END), 0) AS gap
-FROM perlengkapan.kebutuhan_bmn k
-LEFT JOIN integrasi.siman_aset_tanah sa ON k.kode_barang = sa.kode_barang AND k.satker_id = sa.satker_id
-GROUP BY k.satker_id, k.kode_barang, k.nama_barang, k.jumlah_kebutuhan;
-```
+### 2.7 Workflow Status Codes (ACTUAL)
 
-## 3. Shared Libraries Architecture
+**Source:** `ms_aktivitas_bmn` table
 
-### 3.1 lib-common Structure
+**Kebutuhan BMN Workflow:**
+- 2000: DRAFT - Initial state
+- 2001: INPUT_BARANG - Operator entering goods
+- 2002: SUBMIT_SATKER - Submitted to validator
+- 2003: REVISI_SATKER - Returned for revision
+- 2004: ANALISIS_KELAYAKAN - Feasibility analysis
+- 2005: PENYUSUNAN_PRIORITAS - Priority setting
+- 2006: APPROVED - Approved
+- 2007: REJECTED - Rejected
+- 2008: COMPLETED - Process complete
+- 2009: CANCELLED - Cancelled
 
-**Location:** `lib/common/`
+**Pakaian Dinas Workflow:**
+- 1000: DRAFT (default aktivitas_id)
+- Additional states defined in workflow engine
 
-**Modules:**
-```rust
-// lib/common/src/lib.rs
-pub mod audit;          // Audit logging with AuditEvent types
-pub mod cache;          // Redis caching with TTL and sensitivity levels
-pub mod crypto;         // Cryptographic operations (hashing, encryption)
-pub mod database;       // Database connection pooling and prepared statements
-pub mod error;          // Common error types (Result, Error)
-pub mod config;         // Configuration management
-pub mod grpc_client;    // gRPC client utilities (retry, circuit breaker)
-pub mod validation;     // Input validation (required fields, length, format)
-pub mod workflow;       // Shared workflow logic
-pub mod notification;   // Notification types and utilities
-pub mod storage;        // S3/MinIO operations
-```
+**Penghapusan BMN Workflow:**
+- Status stored as VARCHAR in `status` column
+- DRAFT, SUBMITTED, REVIEWED, APPROVED, REJECTED, CANCELLED
+
+### 2.8 Missing Tables (Identified Gaps)
+
+**Not Found in Migrations:**
+1. Master data tables for kode barang (kodefikasi mapping CRUD)
+2. Roadmap sarpras detailed tables (basic structure exists in `20260209_create_new_entity_tables.sql`)
+3. Document template tables
+4. Notification queue tables (schema may exist in separate notifikasi crate)
+
+**Action Required:**
+- Check if master data tables exist in separate migration files
+- Verify roadmap_sarpras table structure
+- Confirm dokumen and notifikasi schemas
+
+## 3. API Design (Actual Endpoints)
+
+### 3.1 API Routes Overview
+
+**Source:** `layanan/perlengkapan/crates/api/src/routes.rs`
+
+**Base URL:** `/api/v1` (assumed, not explicitly in routes.rs)
+
+### 3.2 Kebutuhan BMN Endpoints (IMPLEMENTED)
+
+**Dashboard:**
+- `GET /kebutuhan-bmn/dashboard` - Dashboard statistics
+
+**Pengajuan CRUD:**
+- `GET /kebutuhan-bmn/pengajuan` - List all pengajuan
+- `POST /kebutuhan-bmn/pengajuan` - Create pengajuan
+- `GET /kebutuhan-bmn/pengajuan/{id}` - Get pengajuan by ID
+- `PUT /kebutuhan-bmn/pengajuan/{id}` - Update pengajuan
+- `DELETE /kebutuhan-bmn/pengajuan/{id}` - Delete pengajuan
+
+**Workflow:**
+- `POST /kebutuhan-bmn/pengajuan/{id}/transition` - Transition status
+- `GET /kebutuhan-bmn/pengajuan/{id}/export` - Export pengajuan
+
+**Satker Operations:**
+- `GET /kebutuhan-bmn/pengajuan/{id}/satker` - Get satkers for pengajuan
+- `POST /kebutuhan-bmn/pengajuan/{id}/satker` - Add satker to pengajuan
+- `GET /kebutuhan-bmn/satker/{id}` - Get satker detail
+- `POST /kebutuhan-bmn/satker/{id}/transition` - Transition satker status
+- `GET /kebutuhan-bmn/satker/{id}/aktivitas` - Get satker activity history
+- `GET /kebutuhan-bmn/satker/{id}/analisis` - Get feasibility analysis
+
+**Validator Actions:**
+- `POST /kebutuhan-bmn/satker/{id}/submit-wilayah` - Submit to wilayah validator
+- `POST /kebutuhan-bmn/satker/{id}/validator-wilayah` - Wilayah validator action
+- `POST /kebutuhan-bmn/satker/{id}/keputusan-pusat` - Pusat validator decision
+
+**Barang Operations:**
+- `POST /kebutuhan-bmn/satker/{id}/barang` - Create barang
+- `PUT /kebutuhan-bmn/barang/{id}/approval` - Update barang approval
+- `DELETE /kebutuhan-bmn/barang/{id}` - Delete barang
+
+**Priority & Analysis:**
+- `POST /kebutuhan-bmn/prioritas` - Set barang priority
+
+**SIMAN Integration:**
+- `GET /kebutuhan-bmn/siman/search` - Search SIMAN assets
+- `GET /kebutuhan-bmn/siman/summary/{satker_id}` - Get SIMAN satker summary
+
+**Advanced Features:**
+- `GET /kebutuhan-bmn/search` - Advanced search
+- `GET /kebutuhan-bmn/search/suggestions` - Search suggestions
+
+**Batch Operations:**
+- `POST /kebutuhan-bmn/batch/approve` - Batch approve
+- `POST /kebutuhan-bmn/batch/reject` - Batch reject
+- `POST /kebutuhan-bmn/batch/update-status` - Batch update status
+
+### 3.3 Pakaian Dinas Endpoints (IMPLEMENTED)
+
+**Master Data:**
+- `GET /pakaian-dinas/jenis` - List jenis pakaian
+- `POST /pakaian-dinas/jenis` - Create jenis pakaian
+- `GET /pakaian-dinas/jenis/{id}` - Get jenis by ID
+- `PUT /pakaian-dinas/jenis/{id}` - Update jenis
+- `DELETE /pakaian-dinas/jenis/{id}` - Delete jenis
+
+- `GET /pakaian-dinas/spesifikasi` - List spesifikasi
+- `POST /pakaian-dinas/spesifikasi` - Create spesifikasi
+- `GET /pakaian-dinas/spesifikasi/{id}` - Get spesifikasi by ID
+- `PUT /pakaian-dinas/spesifikasi/{id}` - Update spesifikasi
+- `DELETE /pakaian-dinas/spesifikasi/{id}` - Delete spesifikasi
+
+- `GET /pakaian-dinas/subspesifikasi` - List subspesifikasi
+- `POST /pakaian-dinas/subspesifikasi` - Create subspesifikasi
+- `GET /pakaian-dinas/subspesifikasi/{id}` - Get subspesifikasi by ID
+- `DELETE /pakaian-dinas/subspesifikasi/{id}` - Delete subspesifikasi
+
+- `GET /pakaian-dinas/ukuran` - List ukuran
+
+**Pengajuan:**
+- `GET /pakaian-dinas/pengajuan` - List pengajuan
+- `POST /pakaian-dinas/pengajuan` - Create pengajuan
+- `GET /pakaian-dinas/pengajuan/{id}` - Get pengajuan by ID
+- `DELETE /pakaian-dinas/pengajuan/{id}` - Delete pengajuan
+
+**Satker:**
+- `GET /pakaian-dinas/pengajuan/{pengajuan_id}/satker` - List satker for pengajuan
+- `GET /pakaian-dinas/satker/{id}` - Get satker by ID
+
+**Workflow:**
+- `POST /pakaian-dinas/validator-action` - Validator action
+- `POST /pakaian-dinas/pengajuan/{id}/submit` - Submit pengajuan
+- `POST /pakaian-dinas/pengajuan/{id}/approve` - Approve pengajuan
+- `POST /pakaian-dinas/pengajuan/{id}/reject` - Reject pengajuan
+
+**Personal Sizes:**
+- `GET /pakaian-dinas/ukuran-pakaian-pegawai` - Get personal sizes
+- `POST /pakaian-dinas/ukuran-pakaian-pegawai` - Update personal sizes
+
+**MySIMKARI Integration:**
+- `GET /pakaian-dinas/pegawai-satker/{satker_id}` - Get pegawai by satker
+- `GET /pakaian-dinas/pegawai-satker/{satker_id}/with-sizes` - Get pegawai with sizes
+
+**Reports:**
+- `GET /pakaian-dinas/laporan/rekap-ukuran` - Size summary report
+- `GET /pakaian-dinas/laporan/daftar-pegawai` - Employee list report
+- `GET /pakaian-dinas/laporan/cetak` - Print report
+- `GET /pakaian-dinas/pengajuan/{id}/rekapitulasi` - Download rekapitulasi
+
+### 3.4 Pemakaian BMN Endpoints (IMPLEMENTED)
+
+**Permit CRUD:**
+- `GET /pemakaian-bmn` - List permits
+- `POST /pemakaian-bmn` - Create permit
+- `GET /pemakaian-bmn/{id}` - Get permit by ID
+- `PUT /pemakaian-bmn/{id}` - Update permit
+
+**Workflow:**
+- `POST /pemakaian-bmn/{id}/transition` - Transition permit status
+- `POST /pemakaian-bmn/{id}/activate` - Activate permit
+- `GET /pemakaian-bmn/{id}/document` - Get permit document
+
+**Document Generation:**
+- `POST /pemakaian-bmn/{id}/generate-konsep-surat` - Generate draft permit
+- `POST /pemakaian-bmn/{id}/upload-signed-pdf` - Upload signed PDF
+
+**Permit Management:**
+- `POST /pemakaian-bmn/{id}/revoke` - Revoke permit
+- `POST /pemakaian-bmn/{id}/renew` - Renew permit
+
+**BMN Tracking:**
+- `GET /pemakaian-bmn/bmn/{bmn_nup}/availability` - Check BMN availability
+- `GET /pemakaian-bmn/bmn/{bmn_nup}/history` - Get BMN usage history
+
+**Pegawai Tracking:**
+- `GET /pemakaian-bmn/pegawai/{pegawai_nip}/history` - Get pegawai usage history
+
+**Expiry Management:**
+- `GET /pemakaian-bmn/expiring` - Get expiring permits
+- `POST /pemakaian-bmn/auto-expire` - Auto-expire permits
+
+**Monitoring:**
+- `GET /pemakaian-bmn/monitoring/active-usage` - Active usage dashboard
+- `GET /pemakaian-bmn/monitoring/utilization-report` - BMN utilization report
+
+### 3.5 Penghapusan BMN Endpoints (IMPLEMENTED)
+
+**CRUD:**
+- `GET /penghapusan-bmn` - List penghapusan
+- `POST /penghapusan-bmn` - Create penghapusan
+- `GET /penghapusan-bmn/{id}` - Get penghapusan by ID
+- `PUT /penghapusan-bmn/{id}` - Update penghapusan
+- `DELETE /penghapusan-bmn/{id}` - Delete penghapusan
+- `GET /penghapusan-bmn/{id}/detail` - Get detailed view
+
+**Workflow:**
+- `POST /penghapusan-bmn/{id}/transition` - Transition status
+- `POST /penghapusan-bmn/{id}/submit-wilayah` - Submit to wilayah
+- `POST /penghapusan-bmn/{id}/validator-wilayah` - Wilayah validator action
+
+**Document Generation:**
+- `POST /penghapusan-bmn/{id}/generate-sk` - Generate SK draft
+- `POST /penghapusan-bmn/{id}/upload-signed-sk` - Upload signed SK
+- `GET /penghapusan-bmn/{id}/document` - Get SK document
+
+### 3.6 Dashboard Endpoints (IMPLEMENTED)
+
+**General:**
+- `GET /health` - Health check
+- `GET /dashboard/stats` - General dashboard stats
+
+**Perlengkapan Dashboard:**
+- `GET /dashboard/perlengkapan` - Perlengkapan metrics
+- `GET /dashboard/ws` - WebSocket for real-time updates
+- `GET /dashboard/perlengkapan/export/excel` - Export to Excel
+- `GET /dashboard/perlengkapan/export/pdf` - Export to PDF
+
+### 3.7 Mapping Kodefikasi Endpoints (READ-ONLY)
+
+**Detection & Analysis:**
+- `GET /mapping/detect` - Detect non-standard codes
+- `GET /mapping/standard` - List standard codes
+- `GET /mapping/suggestions` - Get mapping suggestions
+- `GET /mapping/progress` - Get mapping progress
+- `GET /mapping/progress/satker` - Get progress by satker
+- `GET /mapping/export` - Export mapping data
+
+### 3.8 Roadmap Sarpras Endpoints (BASIC)
+
+**Forecast:**
+- `GET /forecast` - Get forecast
+- `GET /forecast/summary` - Get forecast summary
+- `GET /forecast/compare` - Compare forecasts
+- `GET /forecast/export` - Export forecast
+
+### 3.9 Export Endpoints (IMPLEMENTED)
+
+**General Export:**
+- `GET /export/excel` - Export to Excel
+- `GET /export/jobs/{id}/status` - Get export job status
+- `GET /export/jobs/{id}/download` - Download export job
+
+### 3.10 Missing Endpoints (Identified Gaps)
+
+**Not Found in routes.rs:**
+1. Master data CRUD endpoints (kode barang, standar spesifikasi, standar jumlah)
+2. Notifikasi endpoints (may be in separate notifikasi crate)
+3. Dokumen template management endpoints (may be in separate dokumen crate)
+4. Workflow configuration endpoints (workflow engine config)
+5. Integration sync trigger endpoints (manual sync, sync status)
+
+**Action Required:**
+- Check if notifikasi and dokumen crates have separate route definitions
+- Verify if master data endpoints exist in a separate module
+- Confirm workflow configuration API
 
 **Example - Audit Module:**
 ```rust

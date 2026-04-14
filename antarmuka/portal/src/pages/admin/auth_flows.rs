@@ -4,7 +4,7 @@
 //! REQ-PORTAL-020
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_app_state};
+use crate::utils::app_state::use_main_layout_session_and_logout;
 use leptos::prelude::*;
 
 /// Active tab
@@ -23,8 +23,8 @@ impl AuthFlowTab {
             Self::Flows => "Alur Autentikasi",
             Self::RequiredActions => "Aksi Wajib",
             Self::Policies => "Kebijakan",
-            Self::Events => "Event",
-            Self::EventListeners => "Listener",
+            Self::Events => "Peristiwa",
+            Self::EventListeners => "Pemantau",
         }
     }
 
@@ -52,17 +52,8 @@ impl AuthFlowTab {
 /// Auth Flows & Events page
 #[component]
 pub fn AuthFlowsPage() -> impl IntoView {
-    let state = use_app_state();
     let (active_tab, set_active_tab) = signal(AuthFlowTab::Flows);
-
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -71,7 +62,7 @@ pub fn AuthFlowsPage() -> impl IntoView {
                     <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
                     " / Autentikasi"
                 </nav>
-                <h1 class="text-2xl font-bold text-gray-900 mb-6">"Autentikasi & Event"</h1>
+                <h1 class="text-2xl font-bold text-gray-900 mb-6">"Autentikasi & Peristiwa"</h1>
 
                 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div class="border-b">
@@ -103,17 +94,17 @@ pub fn AuthFlowsPage() -> impl IntoView {
                                     <h3 class="font-medium text-gray-900">"Alur Autentikasi"</h3>
                                     <button class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">"＋ Buat Alur"</button>
                                 </div>
-                                {["Browser Flow", "Direct Grant Flow", "Registration Flow", "Reset Credentials Flow", "Client Authentication Flow"].iter().map(|name| {
+                                {["Alur Peramban", "Alur Direct Grant", "Alur Registrasi", "Alur Reset Kredensial", "Alur Autentikasi Klien"].iter().map(|name| {
                                     view! {
                                         <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg border">
                                             <div class="flex items-center gap-3">
                                                 <span class="text-lg">"🔀"</span>
                                                 <div>
                                                     <p class="text-sm font-medium text-gray-900">{*name}</p>
-                                                    <p class="text-xs text-gray-500">"Built-in flow"</p>
+                                                    <p class="text-xs text-gray-500">"Alur bawaan sistem"</p>
                                                 </div>
                                             </div>
-                                            <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">"Built-in"</span>
+                                            <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">"Bawaan"</span>
                                         </div>
                                     }
                                 }).collect::<Vec<_>>()}
@@ -124,7 +115,7 @@ pub fn AuthFlowsPage() -> impl IntoView {
                         <Show when=move || active_tab.get() == AuthFlowTab::RequiredActions>
                             <div class="space-y-3">
                                 <h3 class="font-medium text-gray-900">"Aksi Wajib"</h3>
-                                {[("Verify Email", true), ("Update Password", true), ("Configure OTP", false), ("Update Profile", false), ("Terms and Conditions", false)].iter().map(|(name, enabled)| {
+                                {[("Verifikasi Email", true), ("Perbarui Kata Sandi", true), ("Konfigurasi OTP", false), ("Perbarui Profil", false), ("Syarat dan Ketentuan", false)].iter().map(|(name, enabled)| {
                                     view! {
                                         <div class="flex items-center justify-between px-4 py-3 border rounded-lg">
                                             <span class="text-sm text-gray-700">{*name}</span>
@@ -143,14 +134,14 @@ pub fn AuthFlowsPage() -> impl IntoView {
                                 <h3 class="font-medium text-gray-900">"Kebijakan Autentikasi"</h3>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"OTP Policy Type"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Jenis Kebijakan OTP"</label>
                                         <select class="w-full px-3 py-2 border rounded-lg text-sm">
                                             <option>"totp"</option>
                                             <option>"hotp"</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"OTP Hash Algorithm"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Algoritma Hash OTP"</label>
                                         <select class="w-full px-3 py-2 border rounded-lg text-sm">
                                             <option>"SHA1"</option>
                                             <option>"SHA256"</option>
@@ -164,8 +155,8 @@ pub fn AuthFlowsPage() -> impl IntoView {
                         // === Events ===
                         <Show when=move || active_tab.get() == AuthFlowTab::Events>
                             <div class="space-y-4">
-                                <h3 class="font-medium text-gray-900">"Konfigurasi Event"</h3>
-                                {["Login Events", "Admin Events", "Save Events"].iter().map(|label| {
+                                <h3 class="font-medium text-gray-900">"Konfigurasi Peristiwa"</h3>
+                                {["Peristiwa Login", "Peristiwa Admin", "Simpan Peristiwa"].iter().map(|label| {
                                     view! {
                                         <div class="flex items-center justify-between py-2 border-b">
                                             <span class="text-sm text-gray-700">{*label}</span>
@@ -177,7 +168,7 @@ pub fn AuthFlowsPage() -> impl IntoView {
                                     }
                                 }).collect::<Vec<_>>()}
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Event Expiration (hari)"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Masa Berlaku Peristiwa (hari)"</label>
                                     <input type="number" value="90" class="w-full max-w-xs px-3 py-2 border rounded-lg text-sm" />
                                 </div>
                             </div>
@@ -186,7 +177,7 @@ pub fn AuthFlowsPage() -> impl IntoView {
                         // === Event Listeners ===
                         <Show when=move || active_tab.get() == AuthFlowTab::EventListeners>
                             <div class="space-y-3">
-                                <h3 class="font-medium text-gray-900">"Event Listeners"</h3>
+                                <h3 class="font-medium text-gray-900">"Pemantau Peristiwa"</h3>
                                 {["email", "jboss-logging"].iter().map(|name| {
                                     view! {
                                         <div class="flex items-center justify-between px-4 py-3 border rounded-lg">

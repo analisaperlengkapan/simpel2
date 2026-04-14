@@ -3,6 +3,9 @@
 //! ProtectedRoute and AdminRoute wrappers for authenticated/admin-only pages.
 //! These guards use the global AppState to check authentication status.
 
+use crate::features::auth::UserSession;
+use crate::pages::LoginPage;
+use crate::routes;
 use crate::utils::app_state::use_app_state;
 use leptos::prelude::*;
 
@@ -88,5 +91,75 @@ pub fn ForbiddenPage() -> impl IntoView {
                 </a>
             </div>
         </div>
+    }
+}
+
+/// Session-aware auth guard for pages that use signal-based session state.
+#[component]
+pub fn SessionAuthGuard(
+    /// Current user session signal
+    user_session: ReadSignal<Option<UserSession>>,
+    /// Login success writer for fallback login page
+    on_login_success: WriteSignal<Option<UserSession>>,
+    /// Child content rendered when authenticated
+    children: ChildrenFn,
+    /// Skip password-change redirect for password page itself
+    #[prop(optional)]
+    allow_password_change: bool,
+) -> impl IntoView {
+    let children = StoredValue::new_local(children);
+
+    move || match user_session.get() {
+        Some(session) => {
+            if !allow_password_change && session.require_password_change {
+                let nav = leptos_router::hooks::use_navigate();
+                nav(
+                    &format!("/{}", routes::segment::PASSWORD),
+                    Default::default(),
+                );
+                view! { <div /> }.into_any()
+            } else {
+                children.with_value(|c| c().into_any())
+            }
+        }
+        None => view! {
+            <LoginPage on_login_success=on_login_success />
+        }
+        .into_any(),
+    }
+}
+
+/// Session-aware admin guard that enforces admin role and password-change policy.
+#[component]
+pub fn SessionAdminGuard(
+    /// Current user session signal
+    user_session: ReadSignal<Option<UserSession>>,
+    /// Login success writer for fallback login page
+    on_login_success: WriteSignal<Option<UserSession>>,
+    /// Child content rendered when authenticated admin
+    children: ChildrenFn,
+) -> impl IntoView {
+    let children = StoredValue::new_local(children);
+
+    move || match user_session.get() {
+        Some(session) => {
+            if session.require_password_change {
+                let nav = leptos_router::hooks::use_navigate();
+                nav(
+                    &format!("/{}", routes::segment::PASSWORD),
+                    Default::default(),
+                );
+                return view! { <div /> }.into_any();
+            }
+            if session.role.is_admin() {
+                children.with_value(|c| c().into_any())
+            } else {
+                view! { <ForbiddenPage /> }.into_any()
+            }
+        }
+        None => view! {
+            <LoginPage on_login_success=on_login_success />
+        }
+        .into_any(),
     }
 }

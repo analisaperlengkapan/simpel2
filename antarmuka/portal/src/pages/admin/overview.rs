@@ -4,15 +4,15 @@
 //! REQ-PORTAL-016
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{ErrorBanner, LoadingPanel};
+use crate::utils::async_load::load_value_once;
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::AdminStats;
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 
 /// Admin overview dashboard
 #[component]
 pub fn AdminOverviewPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (stats, set_stats) = signal(Option::<AdminStats>::None);
@@ -23,37 +23,33 @@ pub fn AdminOverviewPage() -> impl IntoView {
         let api = api.clone();
         Effect::new(move || {
             let api = api.clone();
-            spawn_local(async move {
-                match api.iam_admin_stats().await {
-                    Ok(s) => set_stats.set(Some(s)),
-                    Err(e) => set_error.set(Some(format!("Gagal memuat statistik: {}", e))),
-                }
-                set_loading.set(false);
-            });
+            load_value_once(
+                move || {
+                    let api = api.clone();
+                    async move { api.iam_admin_stats().await.map(Some) }
+                },
+                set_stats,
+                set_error,
+                set_loading,
+                "Gagal memuat statistik",
+            );
         });
     }
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <div class="flex items-center justify-between mb-8">
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-900">"Admin Panel"</h1>
-                        <p class="text-gray-600">"Administrasi Identity & Access Management"</p>
+                        <h1 class="text-2xl font-bold text-gray-900">"Dasbor Administrasi"</h1>
+                        <p class="text-gray-600">"Administrasi Identitas dan Manajemen Akses"</p>
                     </div>
                 </div>
 
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">{msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 // Quick navigation cards
@@ -73,19 +69,19 @@ pub fn AdminOverviewPage() -> impl IntoView {
                     <AdminNavCard
                         icon="🔑"
                         title="Klien OAuth2"
-                        desc="Kelola aplikasi klien dan credential"
+                        desc="Kelola aplikasi klien dan kredensial"
                         href="/portal/admin/clients"
                     />
                     <AdminNavCard
                         icon="🛡️"
                         title="Peran & Hak Akses"
-                        desc="Kelola role dan permission"
+                        desc="Kelola peran dan izin"
                         href="/portal/admin/roles"
                     />
                     <AdminNavCard
                         icon="🌐"
                         title="Federasi"
-                        desc="Kelola Identity Provider eksternal"
+                        desc="Kelola penyedia identitas eksternal"
                         href="/portal/admin/federation"
                     />
                     <AdminNavCard
@@ -100,12 +96,7 @@ pub fn AdminOverviewPage() -> impl IntoView {
                 <Show
                     when=move || !loading.get()
                     fallback=|| view! {
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div class="bg-white rounded-xl border p-4 animate-pulse"><div class="h-12 bg-gray-200 rounded"></div></div>
-                            <div class="bg-white rounded-xl border p-4 animate-pulse"><div class="h-12 bg-gray-200 rounded"></div></div>
-                            <div class="bg-white rounded-xl border p-4 animate-pulse"><div class="h-12 bg-gray-200 rounded"></div></div>
-                            <div class="bg-white rounded-xl border p-4 animate-pulse"><div class="h-12 bg-gray-200 rounded"></div></div>
-                        </div>
+                        <LoadingPanel message="Memuat statistik sistem..." />
                     }
                 >
                     {move || stats.get().map(|s| view! {

@@ -4,15 +4,14 @@
 //! REQ-PORTAL-011
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel, SuccessBanner};
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::{CreateRealmRequest, MASTER_REALM_ID, RealmInfo};
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 
 /// Realms management page
 #[component]
 pub fn RealmsManagementPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (realms, set_realms) = signal(Vec::<RealmInfo>::new());
@@ -191,14 +190,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
         }
     });
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -221,19 +213,16 @@ pub fn RealmsManagementPage() -> impl IntoView {
                 </div>
 
                 {move || success.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">"✅ " {msg}</div>
+                    <SuccessBanner message=msg />
                 })}
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">"❌ " {msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 <Show
                     when=move || !loading.get()
                     fallback=|| view! {
-                        <div class="p-8 text-center text-gray-500">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-3"></div>
-                            "Memuat realm..."
-                        </div>
+                        <LoadingPanel message="Memuat data realm..." />
                     }
                 >
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -302,10 +291,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
                     </div>
 
                     <Show when=move || realms.get().is_empty()>
-                        <div class="text-center py-12 bg-white rounded-xl border">
-                            <p class="text-4xl mb-3">"🏢"</p>
-                            <p class="text-gray-500">"Belum ada realm."</p>
-                        </div>
+                        <EmptyPanel
+                            title="Belum ada realm"
+                            message="Data realm belum tersedia untuk tenant aktif."
+                        />
                     </Show>
                 </Show>
 

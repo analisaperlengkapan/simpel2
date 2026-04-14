@@ -310,7 +310,7 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                                         <div class="flex gap-2 pt-3 border-t border-gray-200">
                                                             <a
                                                                 href=format!(
-                                                                    "/dashboard/pakaian-dinas/pengajuan/{}/satker",
+                                                                    "/perlengkapan/pakaian-dinas/pengajuan/{}/satker",
                                                                     item_id_for_link,
                                                                 )
                                                                 class="flex-1 px-3 py-1 text-center text-blue-600 border border-blue-600 rounded hover:bg-blue-50 text-sm"

@@ -80,7 +80,8 @@ export const MOCK_USERS: Record<string, MockUser> = {
 /**
  * API base path for perlengkapan service
  */
-export const API_BASE = '/api/pembinaan/perlengkapan';
+export const API_ROOT = (process.env.API_BASE_URL || 'http://localhost:8093').replace(/\/$/, '');
+export const API_BASE = `${API_ROOT}/api/pembinaan/perlengkapan`;
 
 /**
  * Workflow status codes

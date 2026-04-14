@@ -202,7 +202,7 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                                                             <td class="p-3">
                                                                 <div class="flex gap-2">
                                                                     <a
-                                                                        href=format!("/dashboard/pakaian-dinas/jenis/{}/spesifikasi", item_id)
+                                                                        href=format!("/perlengkapan/pakaian-dinas/jenis/{}/spesifikasi", item_id)
                                                                         class="text-green-600 hover:text-green-800"
                                                                         title="Lihat Spesifikasi"
                                                                     >

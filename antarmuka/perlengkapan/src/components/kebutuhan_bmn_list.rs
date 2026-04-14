@@ -8,6 +8,9 @@ use crate::api::{
 use crate::components::batch_operations_toolbar::{
     BatchOperationResult, BatchOperationsToolbar, BatchResultSummary,
 };
+use crate::components::list_feedback::{EmptyState, LoadingState};
+use crate::components::page_header::PageHeader;
+use crate::routes;
 use leptos::prelude::*;
 use uuid::Uuid;
 
@@ -98,20 +101,12 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                 on_close=Callback::new(move |_| set_batch_result.set(None))
             />
 
-            // Header
-            <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800">"Analisis Kebutuhan BMN"</h2>
-                    <p class="text-sm text-gray-500 mt-1">"Kelola pengajuan kebutuhan barang milik negara"</p>
-                </div>
-                <a
-                    href="/perlengkapan/dashboard/kebutuhan-bmn/baru"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
-                >
-                    <i class="fas fa-plus mr-2"></i>
-                    "Buat Pengajuan"
-                </a>
-            </div>
+            <PageHeader
+                title="Analisis Kebutuhan BMN"
+                subtitle="Kelola pengajuan kebutuhan barang milik negara"
+                action_href=routes::path::KEBUTUHAN_BUAT
+                action_label="Buat Pengajuan"
+            />
 
             // Filters
             <div class="flex flex-wrap gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
@@ -176,12 +171,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
             </div>
 
             // Data table
-            <Suspense fallback=move || view! {
-                <div class="text-center py-12">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                    <p class="text-gray-500">"Memuat data..."</p>
-                </div>
-            }>
+            <Suspense fallback=move || view! { <LoadingState /> }>
                 {move || {
                     data_resource.get().flatten().map(|response| {
                         // Pre-clone data for multiple uses
@@ -193,11 +183,10 @@ pub fn KebutuhanBmnList() -> impl IntoView {
 
                         if response.data.is_empty() {
                             view! {
-                                <div class="text-center py-12 text-gray-500">
-                                    <i class="fas fa-folder-open text-4xl mb-3 text-gray-300"></i>
-                                    <p class="font-medium">"Belum ada pengajuan kebutuhan BMN"</p>
-                                    <p class="text-sm mt-1">"Klik tombol \"Buat Pengajuan\" untuk memulai"</p>
-                                </div>
+                                <EmptyState
+                                    title="Belum ada pengajuan kebutuhan BMN"
+                                    description="Klik tombol \"Buat Pengajuan\" untuk memulai"
+                                />
                             }.into_any()
                         } else {
                             view! {
@@ -267,7 +256,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                                             </td>
                                                             <td class="p-3">
                                                                 <a
-                                                                    href=format!("/dashboard/kebutuhan-bmn/{}", id_for_link)
+                                                                    href=routes::url::kebutuhan_detail(&id_for_link)
                                                                     class="font-medium text-blue-600 hover:text-blue-800"
                                                                 >
                                                                     {item.nama.clone()}
@@ -294,14 +283,14 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                                             <td class="p-3">
                                                                 <div class="flex justify-center gap-2">
                                                                     <a
-                                                                        href=format!("/dashboard/kebutuhan-bmn/{}", id_for_edit)
+                                                                        href=routes::url::kebutuhan_detail(&id_for_edit)
                                                                         class="text-blue-600 hover:text-blue-800 p-1"
                                                                         title="Detail"
                                                                     >
                                                                         <i class="fas fa-eye"></i>
                                                                     </a>
                                                                     <a
-                                                                        href=format!("/dashboard/kebutuhan-bmn/{}/edit", item.id)
+                                                                        href=routes::url::kebutuhan_edit(&item.id)
                                                                         class="text-gray-600 hover:text-gray-800 p-1"
                                                                         title="Edit"
                                                                     >

@@ -5,7 +5,7 @@
  * Routes requests through the backend REST API at the configured baseURL.
  */
 import { APIRequestContext, expect } from '@playwright/test';
-import { API_BASE, MockUser } from './mock-data';
+import { API_BASE, API_ROOT, MockUser } from './mock-data';
 
 // ============================================================================
 // Generic API Helpers
@@ -59,12 +59,19 @@ async function safeJson(res: { text: () => Promise<string>; json: () => Promise<
 // ============================================================================
 
 export async function checkHealth(request: APIRequestContext): Promise<boolean> {
-  try {
-    const res = await request.get('/health');
-    return res.status() === 200;
-  } catch {
-    return false;
+  const probes = ['/health', '/ready', '/api/health', '/api/v1/health'];
+  for (const probe of probes) {
+    try {
+      const res = await request.get(`${API_ROOT}${probe}`);
+      if (res.status() < 500) {
+        return true;
+      }
+    } catch {
+      // Try next probe path.
+    }
   }
+
+  return false;
 }
 
 // ============================================================================
@@ -674,12 +681,17 @@ export async function exportKebutuhanBmnReport(
  * Alias: checkHealth that returns { status, body } instead of boolean
  */
 export async function checkHealthDetailed(request: APIRequestContext) {
-  try {
-    const res = await request.get('/health');
-    return { status: res.status(), body: await safeJson(res) };
-  } catch {
-    return { status: 0, body: { error: 'Connection failed' } };
+  const probes = ['/health', '/ready', '/api/health', '/api/v1/health'];
+  for (const probe of probes) {
+    try {
+      const res = await request.get(`${API_ROOT}${probe}`);
+      return { status: res.status(), body: await safeJson(res) };
+    } catch {
+      // Try next probe path.
+    }
   }
+
+  return { status: 0, body: { error: 'Connection failed' } };
 }
 
 /**

@@ -4,7 +4,8 @@
 //! REQ-PORTAL-010
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel, SuccessBanner};
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::{CreateUserRequest, IamUser, UpdateUserRequest};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -12,7 +13,6 @@ use leptos::task::spawn_local;
 /// Users management page
 #[component]
 pub fn UsersManagementPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (users, set_users) = signal(Vec::<IamUser>::new());
@@ -161,14 +161,7 @@ pub fn UsersManagementPage() -> impl IntoView {
         });
     }
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -190,10 +183,10 @@ pub fn UsersManagementPage() -> impl IntoView {
                 </div>
 
                 {move || success.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">"✅ " {msg}</div>
+                    <SuccessBanner message=msg />
                 })}
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">"❌ " {msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 // Search bar
@@ -217,10 +210,7 @@ pub fn UsersManagementPage() -> impl IntoView {
                     <Show
                         when=move || !loading.get()
                         fallback=|| view! {
-                            <div class="p-8 text-center text-gray-500">
-                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-3"></div>
-                                "Memuat..."
-                            </div>
+                            <LoadingPanel message="Memuat data pengguna..." />
                         }
                     >
                         <table class="w-full">
@@ -283,6 +273,15 @@ pub fn UsersManagementPage() -> impl IntoView {
                                 />
                             </tbody>
                         </table>
+
+                        <Show when=move || users.get().is_empty()>
+                            <div class="m-4">
+                                <EmptyPanel
+                                    title="Belum ada pengguna"
+                                    message="Belum ditemukan data pengguna untuk filter saat ini."
+                                />
+                            </div>
+                        </Show>
 
                         // Pagination
                         <Show when=move || { total_pages.get() > 1 }>

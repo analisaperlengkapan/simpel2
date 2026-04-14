@@ -8,6 +8,7 @@ use crate::api::{
     WorkflowTransitionRequest, delete_kebutuhan_bmn, fetch_kebutuhan_bmn_detail,
     fetch_pengajuan_satkers, transition_kebutuhan_bmn_status,
 };
+use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
@@ -93,7 +94,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                     if let Some(window) = web_sys::window() {
                         let _ = window
                             .location()
-                            .set_href("/perlengkapan/dashboard/kebutuhan-bmn");
+                            .set_href(routes::path::KEBUTUHAN_DAFTAR_LEGACY);
                     }
                 }
                 Err(e) => {
@@ -110,7 +111,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
             // Header with back button
             <div class="mb-6">
                 <a
-                    href="/perlengkapan/dashboard/kebutuhan-bmn"
+                    href=routes::path::KEBUTUHAN_DAFTAR
                     class="text-blue-600 hover:text-blue-800 inline-flex items-center mb-4"
                 >
                     <i class="fas fa-arrow-left mr-2"></i>
@@ -161,7 +162,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                         // Action buttons
                                         <div class="flex gap-2">
                                             <a
-                                                href=format!("/dashboard/kebutuhan-bmn/{}/edit", pengajuan.id)
+                                                href=routes::url::kebutuhan_edit(&pengajuan.id)
                                                 class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center"
                                             >
                                                 <i class="fas fa-edit mr-2"></i>
@@ -296,7 +297,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                                                                     <td class="p-3 text-center">{satker.prioritas}</td>
                                                                     <td class="p-3 text-center">
                                                                         <a
-                                                                            href=format!("/dashboard/kebutuhan-bmn/satker/{}", satker_id)
+                                                                            href=routes::url::kebutuhan_satker_detail(&satker_id)
                                                                             class="text-blue-600 hover:text-blue-800"
                                                                         >
                                                                             <i class="fas fa-eye mr-1"></i>

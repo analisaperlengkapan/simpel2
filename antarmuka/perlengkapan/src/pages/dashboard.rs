@@ -1,13 +1,29 @@
-//! Dashboard Home — premium glassmorphism stat cards + quick navigation grid.
-//! Stat cards integrate with `GET /dashboard/stats` backend endpoint.
+//! Dashboard Home for Perlengkapan.
+//!
+//! This page focuses on clear information hierarchy, responsive layout,
+//! and maintainable utility-class styling.
 
 use crate::api::dashboard::fetch_dashboard_stats;
 use crate::components::role_switcher::get_active_role;
+use crate::routes;
 use leptos::prelude::*;
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Stat Card
-// ═══════════════════════════════════════════════════════════════════════════
+#[component]
+fn SectionHeader(title: &'static str, tone: &'static str) -> impl IntoView {
+    let tone_class = match tone {
+        "gold" => "from-gold-400 to-amber-300",
+        "teal" => "from-teal-400 to-cyan-300",
+        "red" => "from-red-400 to-rose-300",
+        _ => "from-slate-400 to-slate-300",
+    };
+
+    view! {
+        <div class="mb-4 flex items-center gap-3">
+            <div class=format!("h-8 w-1 rounded-full bg-gradient-to-b {}", tone_class)></div>
+            <h2 class="text-lg font-bold tracking-wide text-slate-100 sm:text-xl">{title}</h2>
+        </div>
+    }
+}
 
 #[component]
 fn StatCard(
@@ -15,45 +31,51 @@ fn StatCard(
     label: &'static str,
     #[prop(into)] value: String,
     subtitle: &'static str,
-    glow_color: &'static str,
+    tone: &'static str,
 ) -> impl IntoView {
+    let (icon_bg, icon_text, glow) = match tone {
+        "blue" => ("bg-blue-500/15", "text-blue-300", "shadow-blue-500/30"),
+        "green" => (
+            "bg-emerald-500/15",
+            "text-emerald-300",
+            "shadow-emerald-500/30",
+        ),
+        "amber" => ("bg-amber-500/15", "text-amber-300", "shadow-amber-500/30"),
+        "violet" => ("bg-violet-500/15", "text-violet-300", "shadow-violet-500/30"),
+        _ => ("bg-slate-500/15", "text-slate-300", "shadow-slate-500/30"),
+    };
+
     view! {
-        <div style=format!(
-            "position: relative; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 24px; overflow: hidden; cursor: default;"
-        )>
-            <div style=format!(
-                "position: absolute; top: -10px; right: -10px; width: 80px; height: 80px; background: {}; border-radius: 50%; filter: blur(30px); opacity: 0.25;",
-                glow_color
-            )></div>
-            <div style="position: relative; z-index: 1;">
-                <div style="margin-bottom: 16px;">
-                    <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
-                        <i class=icon style=format!("font-size: 1.1rem; color: {};", glow_color)></i>
+        <article class="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-slate-900/80">
+            <div class="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-white/5 blur-2xl"></div>
+            <div class="relative z-10">
+                <div class="mb-4 flex items-center justify-between">
+                    <div class=format!(
+                        "flex h-11 w-11 items-center justify-center rounded-xl {} {} shadow-lg",
+                        icon_bg, glow
+                    )>
+                        <i class=format!("{} text-base {}", icon, icon_text)></i>
                     </div>
                 </div>
-                <div style="font-size: 0.78rem; color: #94a3b8; font-weight: 500; margin-bottom: 6px;">{label}</div>
-                <div style="font-size: 1.8rem; font-weight: 800; color: #ffffff; line-height: 1; margin-bottom: 8px;">{value}</div>
-                <div style="font-size: 0.7rem; color: #64748b;">{subtitle}</div>
+                <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{label}</p>
+                <p class="mt-2 text-3xl font-extrabold leading-none text-white">{value}</p>
+                <p class="mt-2 text-xs text-slate-500">{subtitle}</p>
             </div>
-        </div>
+        </article>
     }
 }
 
 #[component]
 fn StatCardSkeleton() -> impl IntoView {
     view! {
-        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 24px;">
-            <div style="width: 44px; height: 44px; background: rgba(255,255,255,0.06); border-radius: 14px; margin-bottom: 16px;"></div>
-            <div style="width: 80px; height: 12px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-bottom: 10px;"></div>
-            <div style="width: 50px; height: 28px; background: rgba(255,255,255,0.06); border-radius: 6px; margin-bottom: 10px;"></div>
-            <div style="width: 100px; height: 10px; background: rgba(255,255,255,0.06); border-radius: 4px;"></div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/50 p-5 animate-pulse">
+            <div class="mb-4 h-11 w-11 rounded-xl bg-slate-700/70"></div>
+            <div class="mb-2 h-3 w-24 rounded bg-slate-700/70"></div>
+            <div class="mb-2 h-8 w-16 rounded bg-slate-700/70"></div>
+            <div class="h-3 w-32 rounded bg-slate-700/70"></div>
         </div>
     }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Quick Nav Card
-// ═══════════════════════════════════════════════════════════════════════════
 
 #[component]
 fn QuickNav(
@@ -61,25 +83,36 @@ fn QuickNav(
     icon: &'static str,
     label: &'static str,
     description: &'static str,
-    accent: &'static str,
+    tone: &'static str,
 ) -> impl IntoView {
+    let (icon_bg, icon_text, ring) = match tone {
+        "emerald" => ("bg-emerald-500/15", "text-emerald-300", "group-hover:ring-emerald-400/30"),
+        "blue" => ("bg-blue-500/15", "text-blue-300", "group-hover:ring-blue-400/30"),
+        "indigo" => ("bg-indigo-500/15", "text-indigo-300", "group-hover:ring-indigo-400/30"),
+        "purple" => ("bg-purple-500/15", "text-purple-300", "group-hover:ring-purple-400/30"),
+        "red" => ("bg-red-500/15", "text-red-300", "group-hover:ring-red-400/30"),
+        "amber" => ("bg-amber-500/15", "text-amber-300", "group-hover:ring-amber-400/30"),
+        "teal" => ("bg-teal-500/15", "text-teal-300", "group-hover:ring-teal-400/30"),
+        "pink" => ("bg-pink-500/15", "text-pink-300", "group-hover:ring-pink-400/30"),
+        "orange" => ("bg-orange-500/15", "text-orange-300", "group-hover:ring-orange-400/30"),
+        "cyan" => ("bg-cyan-500/15", "text-cyan-300", "group-hover:ring-cyan-400/30"),
+        _ => ("bg-slate-500/15", "text-slate-300", "group-hover:ring-slate-400/30"),
+    };
+
     view! {
-        <a
-            href=href
-            style="display: block; text-decoration: none; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px;"
-            class="hover:bg-white/[0.06]"
-        >
-            <div style="display: flex; align-items: center; gap: 14px;">
-                <div style=format!(
-                    "width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: {}15; flex-shrink: 0;",
-                    accent
+        <a href=href class="group block rounded-xl border border-white/10 bg-slate-900/50 p-4 transition-all duration-300 hover:border-white/20 hover:bg-slate-900/80">
+            <div class="flex items-start gap-3">
+                <div class=format!(
+                    "mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg {} {} ring-1 ring-transparent transition-all",
+                    icon_bg, ring
                 )>
-                    <i class=icon style=format!("font-size: 1rem; color: {};", accent)></i>
+                    <i class=format!("{} text-sm {}", icon, icon_text)></i>
                 </div>
-                <div style="min-width: 0;">
-                    <div style="font-size: 0.85rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">{label}</div>
-                    <div style="font-size: 0.7rem; color: #64748b; line-height: 1.3;">{description}</div>
+                <div class="min-w-0 flex-1">
+                    <h3 class="text-sm font-semibold text-slate-100 transition-colors group-hover:text-gold-300">{label}</h3>
+                    <p class="mt-1 text-xs leading-relaxed text-slate-500">{description}</p>
                 </div>
+                <i class="fas fa-chevron-right pt-1 text-[10px] text-slate-600 transition-colors group-hover:text-slate-300"></i>
             </div>
         </a>
     }
@@ -97,10 +130,6 @@ fn format_number(n: i64) -> String {
     result.chars().rev().collect()
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Dashboard Home
-// ═══════════════════════════════════════════════════════════════════════════
-
 #[component]
 pub fn DashboardHome() -> impl IntoView {
     let active_role = get_active_role();
@@ -111,47 +140,51 @@ pub fn DashboardHome() -> impl IntoView {
         _ => "Operator Satker",
     };
 
-    let stats_resource = LocalResource::new(move || fetch_dashboard_stats());
+    let stats_resource = LocalResource::new(fetch_dashboard_stats);
     let is_admin = active_role == "admin";
 
     view! {
-        <div style="max-width: 1200px; margin: 0 auto;">
+        <div class="mx-auto max-w-7xl space-y-8 px-1 sm:px-2">
+            <section class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-navy-900 via-navy-800 to-slate-950 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.45)] sm:p-8 lg:p-10">
+                <div class="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gold-400/10 blur-3xl"></div>
+                <div class="pointer-events-none absolute -bottom-16 left-1/4 h-44 w-44 rounded-full bg-blue-400/10 blur-3xl"></div>
 
-            // ── Welcome Banner ───────────────────────────────────────
-            <div style="position: relative; overflow: hidden; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0a1020 100%); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 36px 32px; margin-bottom: 28px;">
-                <div style="position: absolute; top: -40px; right: -40px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(212,168,67,0.15) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
-                <div style="position: absolute; bottom: -30px; left: 30%; width: 150px; height: 150px; background: radial-gradient(circle, rgba(96,165,250,0.1) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
-
-                <div style="position: relative; z-index: 1;">
-                    <div style="display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; font-size: 0.7rem; font-weight: 600; color: #d4a843; margin-bottom: 16px;">
-                        <span style="width: 7px; height: 7px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>
+                <div class="relative z-10">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-gold-300">
+                        <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
                         "Portal Perlengkapan Kejaksaan"
                     </div>
-                    <h1 style="font-size: 2rem; font-weight: 800; color: #ffffff; margin: 0 0 8px 0; line-height: 1.2;">
+
+                    <h1 class="mt-4 text-2xl font-black leading-tight text-white sm:text-4xl">
                         "Ringkasan "
-                        <span style="background: linear-gradient(90deg, #d4a843, #facc15); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">"Sistem Manajemen"</span>
+                        <span class="bg-gradient-to-r from-gold-300 to-amber-400 bg-clip-text text-transparent">
+                            "Sistem Manajemen"
+                        </span>
                     </h1>
-                    <p style="font-size: 0.88rem; color: #94a3b8; max-width: 600px; line-height: 1.5; margin: 0;">
-                        "Akses dan kelola seluruh modul operasional aset dan infrastruktur Kejaksaan secara terintegrasi."
+
+                    <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
+                        "Akses cepat untuk memantau aset, kebutuhan, dan operasional perlengkapan secara terintegrasi."
                     </p>
 
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px;">
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; font-size: 0.78rem; color: #94a3b8;">
-                            <i class="fas fa-shield-alt" style="color: #22c55e; font-size: 0.75rem;"></i>
-                            "Role: " <strong style="color: #ffffff;">{role_label}</strong>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <div class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-navy-950/50 px-3 py-2 text-xs text-slate-300 sm:text-sm">
+                            <i class="fas fa-shield-alt text-emerald-300"></i>
+                            <span>"Role: " <strong class="text-white">{role_label}</strong></span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; font-size: 0.78rem; color: #94a3b8;">
-                            <i class="fas fa-calendar" style="color: #60a5fa; font-size: 0.75rem;"></i>
+                        <div class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-navy-950/50 px-3 py-2 text-xs text-slate-300 sm:text-sm">
+                            <i class="fas fa-calendar text-blue-300"></i>
                             "Tahun Anggaran 2025"
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            // ── Stats Cards ──────────────────────────────────────────
             <Suspense fallback=move || view! {
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
-                    <StatCardSkeleton /> <StatCardSkeleton /> <StatCardSkeleton /> <StatCardSkeleton />
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCardSkeleton />
+                    <StatCardSkeleton />
+                    <StatCardSkeleton />
+                    <StatCardSkeleton />
                 </div>
             }>
                 {move || {
@@ -163,65 +196,51 @@ pub fn DashboardHome() -> impl IntoView {
                             format_number(s.aset_rusak),
                             format_number(s.total_satker),
                         ),
-                        None => ("—".into(), "—".into(), "—".into(), "—".into()),
+                        None => ("-".into(), "-".into(), "-".into(), "-".into()),
                     };
+
                     view! {
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
-                            <StatCard icon="fas fa-box"                  label="Total Aset BMN"   value=total   subtitle="Terintegrasi SIMAN"   glow_color="#60a5fa" />
-                            <StatCard icon="fas fa-check-circle"         label="Kondisi Baik"     value=baik    subtitle="Siap Pakai"            glow_color="#34d399" />
-                            <StatCard icon="fas fa-exclamation-triangle" label="Perlu Perbaikan"  value=rusak   subtitle="Tindakan Diperlukan"   glow_color="#d4a843" />
-                            <StatCard icon="fas fa-building"             label="Satuan Kerja"     value=satker  subtitle="Unit Kerja Aktif"      glow_color="#818cf8" />
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <StatCard icon="fas fa-box"                  label="Total Aset BMN"  value=total  subtitle="Terintegrasi SIMAN"   tone="blue" />
+                            <StatCard icon="fas fa-check-circle"         label="Kondisi Baik"    value=baik   subtitle="Siap pakai"           tone="green" />
+                            <StatCard icon="fas fa-exclamation-triangle" label="Perlu Perbaikan" value=rusak  subtitle="Tindakan diperlukan"  tone="amber" />
+                            <StatCard icon="fas fa-building"             label="Satuan Kerja"    value=satker subtitle="Unit kerja aktif"     tone="violet" />
                         </div>
                     }
                 }}
             </Suspense>
 
-            // ── Modul Utama ──────────────────────────────────────────
-            <div style="margin-bottom: 28px;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
-                    <div style="width: 4px; height: 28px; background: linear-gradient(180deg, #d4a843, #facc15); border-radius: 2px;"></div>
-                    <h2 style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin: 0;">"Modul Utama"</h2>
+            <section>
+                <SectionHeader title="Modul Utama" tone="gold" />
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <QuickNav href=routes::path::BANK_ASET_DAFTAR      icon="fas fa-boxes"          label="Bank Aset"       description="Katalog dan registrasi BMN"          tone="emerald" />
+                    <QuickNav href=routes::path::KEBUTUHAN_DAFTAR      icon="fas fa-clipboard-list" label="Kebutuhan BMN"   description="Analisis kebutuhan dan perencanaan"  tone="blue" />
+                    <QuickNav href=routes::path::PAKAIAN_PENGAJUAN     icon="fas fa-tshirt"         label="Pakaian Dinas"   description="Pengajuan dan distribusi atribut"    tone="purple" />
+                    <QuickNav href=routes::path::PENGELOLAAN_PEMAKAIAN icon="fas fa-file-signature" label="Pemakaian BMN"   description="Izin pemakaian dan monitoring"       tone="indigo" />
+                    <QuickNav href=routes::path::PENGELOLAAN_PENGHAPUSAN icon="fas fa-trash-alt"    label="Penghapusan BMN" description="Disposal dan penghapusan BMN"        tone="red" />
                 </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
-                    <QuickNav href="/perlengkapan/dashboard/bank-aset/daftar"         icon="fas fa-boxes"          label="Bank Aset"        description="Katalog dan registrasi BMN"              accent="#34d399" />
-                    <QuickNav href="/perlengkapan/dashboard/kebutuhan-bmn/daftar"     icon="fas fa-clipboard-list" label="Kebutuhan BMN"    description="Analisis kebutuhan dan perencanaan"      accent="#fb923c" />
-                    <QuickNav href="/perlengkapan/dashboard/pakaian-dinas/pengajuan"  icon="fas fa-tshirt"         label="Pakaian Dinas"    description="Pengajuan dan distribusi atribut"         accent="#c084fc" />
-                    <QuickNav href="/perlengkapan/dashboard/pengelolaan/pemakaian"    icon="fas fa-file-signature" label="Pemakaian BMN"    description="Izin pemakaian dan monitoring"            accent="#60a5fa" />
-                    <QuickNav href="/perlengkapan/dashboard/pengelolaan/penghapusan"  icon="fas fa-trash-alt"      label="Penghapusan BMN"  description="Disposal dan penghapusan BMN"             accent="#f87171" />
-                </div>
-            </div>
+            </section>
 
-            // ── Analitik ─────────────────────────────────────────────
-            <div style="margin-bottom: 28px;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
-                    <div style="width: 4px; height: 28px; background: linear-gradient(180deg, #2dd4bf, #14b8a6); border-radius: 2px;"></div>
-                    <h2 style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin: 0;">"Analitik"</h2>
+            <section>
+                <SectionHeader title="Analitik" tone="teal" />
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <QuickNav href=routes::path::ANALITIK_ROADMAP    icon="fas fa-road"    label="Roadmap Sarpras" description="Prediksi kebutuhan sarana prasarana" tone="teal" />
+                    <QuickNav href=routes::path::ANALITIK_KODEFIKASI icon="fas fa-barcode" label="Kodefikasi BMN"  description="Mapping kode barang standar"         tone="purple" />
                 </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
-                    <QuickNav href="/perlengkapan/dashboard/analitik/roadmap"     icon="fas fa-road"     label="Roadmap Sarpras"  description="Prediksi kebutuhan sarana prasarana"     accent="#2dd4bf" />
-                    <QuickNav href="/perlengkapan/dashboard/analitik/kodefikasi"  icon="fas fa-barcode"  label="Kodefikasi BMN"   description="Mapping kode barang standar"             accent="#a78bfa" />
-                </div>
-            </div>
+            </section>
 
-            // ── Panel Admin (admin only) ──────────────────────────────
-            {is_admin.then(|| view! {
-                <div style="margin-bottom: 28px;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
-                        <div style="width: 4px; height: 28px; background: linear-gradient(180deg, #ef4444, #f87171); border-radius: 2px;"></div>
-                        <h2 style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin: 0; display: flex; align-items: center; gap: 8px;">
-                            "Panel Administrator"
-                            <i class="fas fa-shield-alt" style="font-size: 0.75rem; color: #ef4444;"></i>
-                        </h2>
+            <Show when=move || is_admin>
+                <section>
+                    <SectionHeader title="Panel Administrator" tone="red" />
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <QuickNav href=routes::path::ADMIN_USERS      icon="fas fa-users-cog"      label="Manajemen Pengguna" description="Data pengguna dan sesi aktif"         tone="red" />
+                        <QuickNav href=routes::path::ADMIN_ROLES      icon="fas fa-user-tag"       label="Otorisasi (RBAC)"   description="Konfigurasi hak akses peran"       tone="orange" />
+                        <QuickNav href=routes::path::ADMIN_AUDIT      icon="fas fa-history"        label="Audit Log"          description="Jejak audit seluruh aktivitas"       tone="indigo" />
+                        <QuickNav href=routes::path::ADMIN_MASTER     icon="fas fa-database"       label="Master Data"        description="Pengelolaan data referensi"          tone="cyan" />
+                        <QuickNav href=routes::path::ADMIN_WORKFLOW   icon="fas fa-project-diagram" label="Workflow Config"    description="Konfigurasi workflow persetujuan"    tone="blue" />
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
-                        <QuickNav href="/perlengkapan/dashboard/admin/users"  icon="fas fa-users-cog"  label="Manajemen Pengguna"  description="Data pengguna dan sesi aktif"         accent="#f87171" />
-                        <QuickNav href="/perlengkapan/dashboard/admin/roles"  icon="fas fa-user-tag"   label="Otorisasi (RBAC)"    description="Konfigurasi hak akses peran"          accent="#fb923c" />
-                        <QuickNav href="/perlengkapan/dashboard/admin/audit"  icon="fas fa-history"    label="Audit Log"           description="Jejak audit seluruh aktivitas"        accent="#94a3b8" />
-                        <QuickNav href="/perlengkapan/dashboard/admin/master" icon="fas fa-database"   label="Master Data"         description="Pengelolaan data referensi"           accent="#2dd4bf" />
-                    </div>
-                </div>
-            })}
-
+                </section>
+            </Show>
         </div>
     }
 }

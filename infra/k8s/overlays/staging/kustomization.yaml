@@ -51,7 +51,7 @@ patches:
         path: /spec/replicas
         value: 1
 
-  # PostgreSQL: single replica for staging, schedule to simple02 node
+  # PostgreSQL: single replica for staging
   - target:
       kind: StatefulSet
       name: postgres
@@ -59,12 +59,8 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
-      - op: add
-        path: /spec/template/spec/nodeSelector
-        value:
-          kubernetes.io/hostname: simple02
 
-  # Secreton: single replica for staging, schedule to simple02 node
+  # Secreton: single replica for staging
   - target:
       kind: StatefulSet
       name: secreton
@@ -72,10 +68,14 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
-      - op: add
-        path: /spec/template/spec/nodeSelector
+      # Keep immutable selector aligned with existing staging StatefulSet.
+      - op: replace
+        path: /spec/selector/matchLabels
         value:
-          kubernetes.io/hostname: simple02
+          app: secreton
+      - op: add
+        path: /spec/template/metadata/labels/app
+        value: secreton
 
   # Schedule all deployments to simple02 for staging
   # Use Always since images are pushed to local registry at localhost:32000
@@ -106,6 +106,25 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: "256Mi"
+
+  # Authenc login path is CPU-heavy (password verification + token flows).
+  # Override generic staging limits to avoid cgroup throttling on /api/v1/auth/login.
+  - target:
+      kind: Deployment
+      name: authenc
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "250m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
 
   # Allow disruption when portal replica is reduced to 1 for staging
   - target:

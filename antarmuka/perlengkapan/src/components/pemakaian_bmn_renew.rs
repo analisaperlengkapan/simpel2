@@ -56,7 +56,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
                     // Redirect after success
                     gloo_timers::future::TimeoutFuture::new(1500).await;
                     leptos_router::hooks::use_navigate()(
-                        &format!("/dashboard/pemakaian-bmn/{}", permit_id),
+                        &format!("/perlengkapan/pemakaian-bmn/{}", permit_id),
                         Default::default(),
                     );
                 }
@@ -153,7 +153,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
 
                                     <div class="pt-6 flex justify-end gap-3 border-t">
                                         <a
-                                            href={format!("/dashboard/pemakaian-bmn/{}", izin.id)}
+                                            href={format!("/perlengkapan/pemakaian-bmn/{}", izin.id)}
                                             class="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                                         >
                                             "Batal"

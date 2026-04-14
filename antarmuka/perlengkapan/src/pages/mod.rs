@@ -1,3 +1,10 @@
 pub mod dashboard;
+pub mod dashboard_perlengkapan;
+pub mod login;
+pub mod kebutuhan_bmn;
+pub mod pemakaian_bmn;
+pub mod penghapusan_bmn;
 pub mod not_found;
 pub mod placeholder;
+pub mod workflow;
+pub mod search_page;

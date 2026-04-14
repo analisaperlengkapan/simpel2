@@ -8,6 +8,7 @@
 //! to fetch existing BMN inventory for feasibility analysis.
 
 use chrono::Datelike;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -15,6 +16,8 @@ use validator::Validate;
 
 use crate::errors::{AppError, AppResult};
 use crate::grpc_clients::AuthencClient;
+use crate::grpc_clients::IntegrasiClient;
+use crate::grpc_clients::integrasi::v1::{DataSource, SyncState};
 use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 
 use super::models::*;
@@ -31,6 +34,7 @@ pub struct KebutuhanBmnService {
     repository: Arc<PgKebutuhanBmnRepository>,
     #[allow(dead_code)]
     authenc_client: AuthencClient,
+    integrasi_client: Option<IntegrasiClient>,
     siman: Option<Arc<SimanIntegration>>,
     workflow_engine: Arc<WorkflowEngine>,
 }
@@ -45,6 +49,7 @@ impl KebutuhanBmnService {
         Self {
             repository: Arc::new(repository),
             authenc_client,
+            integrasi_client: None,
             siman: None,
             workflow_engine: Arc::new(workflow_engine),
         }
@@ -60,9 +65,16 @@ impl KebutuhanBmnService {
         Self {
             repository: Arc::new(repository),
             authenc_client,
+            integrasi_client: None,
             siman: Some(Arc::new(siman)),
             workflow_engine: Arc::new(workflow_engine),
         }
+    }
+
+    /// Set layanan-integrasi gRPC client after construction
+    pub fn with_integrasi_client(mut self, integrasi_client: IntegrasiClient) -> Self {
+        self.integrasi_client = Some(integrasi_client);
+        self
     }
 
     /// Set SIMAN integration after construction
@@ -495,12 +507,61 @@ impl KebutuhanBmnService {
             ));
         }
 
+        let sync_risky = self.is_integrasi_sync_risky().await;
+        let override_requested = request.override_darurat.unwrap_or(false);
+        let override_reason = request
+            .override_reason
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+
+        if sync_risky {
+            if !override_requested {
+                return Err(AppError::BadRequest(
+                    "Keputusan Validator Pusat dikunci karena sinkronisasi data integrasi bermasalah. Gunakan override darurat terotorisasi.".to_string(),
+                ));
+            }
+
+            if !Self::is_admin_user(&user_info) {
+                return Err(AppError::Authorization(
+                    "Override darurat hanya boleh dilakukan oleh admin".to_string(),
+                ));
+            }
+
+            if override_reason.as_ref().map(|s| s.len()).unwrap_or(0) < 20 {
+                return Err(AppError::BadRequest(
+                    "Alasan override darurat wajib diisi minimal 20 karakter".to_string(),
+                ));
+            }
+        }
+
+        let keputusan_alasan = if sync_risky && override_requested {
+            let base_reason = request
+                .alasan
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+            let override_note = format!(
+                "[OVERRIDE DARURAT] {}",
+                override_reason.unwrap_or_default()
+            );
+
+            match base_reason {
+                Some(reason) => Some(format!("{}\n\n{}", reason, override_note)),
+                None => Some(override_note),
+            }
+        } else {
+            request.alasan.clone()
+        };
+
         // Update validator pusat info
         self.repository
             .update_satker_validator_pusat(
                 satker_id,
                 user_id,
-                request.alasan.clone(),
+                keputusan_alasan.clone(),
                 request.is_approved,
             )
             .await?;
@@ -521,11 +582,49 @@ impl KebutuhanBmnService {
 
         let transition_request = WorkflowTransitionRequest {
             target_status: target_status.to_code(),
-            komentar: request.alasan,
+            komentar: keputusan_alasan,
         };
 
         self.transition_satker_status(satker_id, transition_request, user_id, user_info)
             .await
+    }
+
+    fn is_admin_user(user_info: &Option<UserInfo>) -> bool {
+        user_info
+            .as_ref()
+            .and_then(|u| u.role.as_deref())
+            .map(|role| {
+                let normalized = role.to_ascii_lowercase();
+                normalized == "admin"
+                    || normalized == "super_admin"
+                    || normalized == "administrator"
+                    || normalized.starts_with("admin_")
+            })
+            .unwrap_or(false)
+    }
+
+    async fn is_integrasi_sync_risky(&self) -> bool {
+        let Some(sync) = self.get_integrasi_sync_metadata().await else {
+            return false;
+        };
+
+        let mysimkari_risky = sync.mysimkari.state.contains("FAILED")
+            || sync
+                .mysimkari
+                .error_message
+                .as_deref()
+                .map(|e| !e.trim().is_empty())
+                .unwrap_or(false);
+
+        let siman_risky = sync.siman.state.contains("FAILED")
+            || sync
+                .siman
+                .error_message
+                .as_deref()
+                .map(|e| !e.trim().is_empty())
+                .unwrap_or(false);
+
+        mysimkari_risky || siman_risky
     }
 
     // ========================================================================
@@ -754,6 +853,8 @@ impl KebutuhanBmnService {
             .await
             .ok();
 
+        let integrasi_sync = self.get_integrasi_sync_metadata().await;
+
         Ok(AnalisisKelayakanResponse {
             satker,
             barang_list: barang_with_inventory,
@@ -764,20 +865,216 @@ impl KebutuhanBmnService {
                 kelayakan_persen,
             },
             data_pegawai,
+            integrasi_sync,
         })
     }
 
     /// Fetch MySIMKARI pegawai data for satker analysis
-    async fn get_mysimkari_pegawai_data(&self, _satker_id: &str) -> AppResult<DataPegawaiRekap> {
-        // TODO: Integrate with actual MySIMKARI gRPC client via layanan-integrasi
-        // For now, return placeholder data structure
-        // In production: call integrasi_client.get_mysimkari_pegawai(satker_id)
+    async fn get_mysimkari_pegawai_data(&self, satker_id: &str) -> AppResult<DataPegawaiRekap> {
+        let integrasi_client = match &self.integrasi_client {
+            Some(client) => client,
+            None => {
+                warn!(
+                    "Integrasi client not configured, returning empty MySIMKARI rekap for satker {}",
+                    satker_id
+                );
+                return Ok(DataPegawaiRekap {
+                    total_pegawai: 0,
+                    rekap_eselon: vec![],
+                    rekap_non_eselon: vec![],
+                });
+            }
+        };
+
+        let mut current_page = 1;
+        let per_page = 200;
+        let mut all_items = Vec::new();
+        let mut total_pegawai = 0_i64;
+
+        loop {
+            let response = integrasi_client
+                .get_mysimkari_pegawai(satker_id, current_page, per_page)
+                .await
+                .map_err(|e| {
+                    AppError::Internal(format!(
+                        "Failed to fetch MySIMKARI pegawai data for satker {}: {}",
+                        satker_id, e
+                    ))
+                })?;
+
+            if total_pegawai == 0 {
+                total_pegawai = response
+                    .pagination
+                    .as_ref()
+                    .map(|p| p.total_items)
+                    .unwrap_or(response.items.len() as i64);
+            }
+
+            let total_pages = response
+                .pagination
+                .as_ref()
+                .map(|p| p.total_pages)
+                .unwrap_or(current_page);
+
+            if response.items.is_empty() {
+                break;
+            }
+
+            all_items.extend(response.items);
+
+            if current_page >= total_pages {
+                break;
+            }
+            current_page += 1;
+        }
+
+        let mut eselon_counts: HashMap<String, i64> = HashMap::new();
+        let mut non_eselon_counts: HashMap<(String, String, bool), i64> = HashMap::new();
+
+        for pegawai in all_items {
+            if let Some(tingkat_eselon) = Self::extract_eselon_level(&pegawai.jabatan, &pegawai.extra_fields)
+            {
+                *eselon_counts.entry(tingkat_eselon).or_insert(0) += 1;
+                continue;
+            }
+
+            let golongan = if pegawai.golongan.trim().is_empty() {
+                "Tidak Diketahui".to_string()
+            } else {
+                pegawai.golongan.clone()
+            };
+
+            let pangkat = if pegawai.pangkat.trim().is_empty() {
+                "Tidak Diketahui".to_string()
+            } else {
+                pegawai.pangkat.clone()
+            };
+
+            let is_jaksa = pegawai.jabatan.to_lowercase().contains("jaksa");
+            *non_eselon_counts
+                .entry((golongan, pangkat, is_jaksa))
+                .or_insert(0) += 1;
+        }
+
+        let mut rekap_eselon: Vec<RekapEselonItem> = eselon_counts
+            .into_iter()
+            .map(|(tingkat_eselon, jumlah)| RekapEselonItem {
+                tingkat_eselon,
+                jumlah,
+            })
+            .collect();
+        rekap_eselon.sort_by(|a, b| a.tingkat_eselon.cmp(&b.tingkat_eselon));
+
+        let mut rekap_non_eselon: Vec<RekapNonEselonItem> = non_eselon_counts
+            .into_iter()
+            .map(|((golongan, pangkat, is_jaksa), jumlah)| RekapNonEselonItem {
+                golongan,
+                pangkat,
+                is_jaksa,
+                jumlah,
+            })
+            .collect();
+        rekap_non_eselon.sort_by(|a, b| {
+            a.golongan
+                .cmp(&b.golongan)
+                .then(a.pangkat.cmp(&b.pangkat))
+                .then(a.is_jaksa.cmp(&b.is_jaksa))
+        });
 
         Ok(DataPegawaiRekap {
-            total_pegawai: 0,
-            rekap_eselon: vec![],
-            rekap_non_eselon: vec![],
+            total_pegawai,
+            rekap_eselon,
+            rekap_non_eselon,
         })
+    }
+
+    fn extract_eselon_level(jabatan: &str, extra_fields: &HashMap<String, String>) -> Option<String> {
+        let from_extra = extra_fields
+            .get("tingkat_eselon")
+            .or_else(|| extra_fields.get("eselon"))
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+
+        if from_extra.is_some() {
+            return from_extra;
+        }
+
+        let jabatan_lc = jabatan.to_lowercase();
+        let patterns = [
+            ("eselon i", "Eselon I"),
+            ("eselon ii", "Eselon II"),
+            ("eselon iii", "Eselon III"),
+            ("eselon iv", "Eselon IV"),
+            ("eselon v", "Eselon V"),
+        ];
+
+        for (needle, label) in patterns {
+            if jabatan_lc.contains(needle) {
+                return Some(label.to_string());
+            }
+        }
+
+        None
+    }
+
+    async fn get_integrasi_sync_metadata(&self) -> Option<IntegrasiSyncMetadata> {
+        let integrasi_client = self.integrasi_client.as_ref()?;
+
+        let mysimkari = Self::fetch_sync_status(integrasi_client, DataSource::Mysimkari, "mysimkari")
+            .await;
+        let siman = Self::fetch_sync_status(integrasi_client, DataSource::Siman, "siman").await;
+
+        Some(IntegrasiSyncMetadata { mysimkari, siman })
+    }
+
+    async fn fetch_sync_status(
+        integrasi_client: &IntegrasiClient,
+        source: DataSource,
+        source_name: &str,
+    ) -> IntegrasiSyncStatus {
+        match integrasi_client.get_sync_status(source).await {
+            Ok(status) => {
+                let state = SyncState::try_from(status.state)
+                    .map(|s| s.as_str_name().to_string())
+                    .unwrap_or_else(|_| "SYNC_STATE_UNSPECIFIED".to_string());
+
+                IntegrasiSyncStatus {
+                    source: source_name.to_string(),
+                    state,
+                    last_sync_at: if status.last_sync_at.trim().is_empty() {
+                        None
+                    } else {
+                        Some(status.last_sync_at)
+                    },
+                    next_sync_at: if status.next_sync_at.trim().is_empty() {
+                        None
+                    } else {
+                        Some(status.next_sync_at)
+                    },
+                    records_synced: status.records_synced,
+                    error_message: if status.error_message.trim().is_empty() {
+                        None
+                    } else {
+                        Some(status.error_message)
+                    },
+                }
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to fetch sync status for {} from Integrasi: {}",
+                    source_name, e
+                );
+                IntegrasiSyncStatus {
+                    source: source_name.to_string(),
+                    state: "SYNC_STATE_UNSPECIFIED".to_string(),
+                    last_sync_at: None,
+                    next_sync_at: None,
+                    records_synced: 0,
+                    error_message: Some(e.to_string()),
+                }
+            }
+        }
     }
 
     /// Generate recommendation based on gap analysis

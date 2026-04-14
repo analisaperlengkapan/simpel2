@@ -5,7 +5,9 @@
 //! REQ-PORTAL-016
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
+use crate::utils::async_load::load_value_once;
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::{IamUser, UpdateUserRequest};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -59,7 +61,6 @@ impl UserTab {
 /// User detail page — takes user ID from path
 #[component]
 pub fn UserDetailPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     // Extract user ID from URL path
@@ -85,22 +86,28 @@ pub fn UserDetailPage() -> impl IntoView {
         move || {
             let api = api.clone();
             let uid = user_id();
-            set_loading.set(true);
-            spawn_local(async move {
-                match api.iam_get_user(&uid).await {
-                    Ok(u) => {
-                        set_edit_email.set(u.email.clone());
-                        set_edit_first_name.set(u.first_name.clone().unwrap_or_default());
-                        set_edit_last_name.set(u.last_name.clone().unwrap_or_default());
-                        set_edit_enabled.set(u.enabled);
-                        set_user.set(Some(u));
-                    }
-                    Err(e) => set_error.set(Some(format!("Gagal memuat pengguna: {}", e))),
-                }
-                set_loading.set(false);
-            });
+            load_value_once(
+                move || {
+                    let api = api.clone();
+                    async move { api.iam_get_user(&uid).await.map(Some) }
+                },
+                set_user,
+                set_error,
+                set_loading,
+                "Gagal memuat data pengguna",
+            );
         }
     };
+
+    // Keep form fields in sync with loaded user data.
+    Effect::new(move || {
+        if let Some(u) = user.get() {
+            set_edit_email.set(u.email);
+            set_edit_first_name.set(u.first_name.unwrap_or_default());
+            set_edit_last_name.set(u.last_name.unwrap_or_default());
+            set_edit_enabled.set(u.enabled);
+        }
+    });
 
     // Initial load
     {
@@ -203,14 +210,7 @@ pub fn UserDetailPage() -> impl IntoView {
             .to_string()
     };
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -224,19 +224,16 @@ pub fn UserDetailPage() -> impl IntoView {
                 </nav>
 
                 {move || success.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">"✅ " {msg}</div>
+                    <SuccessBanner message=msg />
                 })}
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">"❌ " {msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 <Show
                     when=move || !loading.get()
                     fallback=|| view! {
-                        <div class="bg-white rounded-xl border p-12 text-center">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                            "Memuat detail pengguna..."
-                        </div>
+                        <LoadingPanel message="Memuat detail pengguna..." />
                     }
                 >
                     <Show when=move || user.get().is_some()>
@@ -404,22 +401,36 @@ pub fn UserDetailPage() -> impl IntoView {
                                         </div>
 
                                         <div class="border rounded-lg p-5">
-                                            <h4 class="font-medium text-gray-900 mb-3">"Reset Password"</h4>
-                                            <p class="text-sm text-gray-500 mb-4">"Kirim link reset password ke email pengguna atau set password baru secara langsung."</p>
+                                            <h4 class="font-medium text-gray-900 mb-3">"Reset Kata Sandi"</h4>
+                                            <p class="text-sm text-gray-500 mb-4">"Kirim tautan reset kata sandi ke email pengguna atau tetapkan kata sandi baru secara langsung."</p>
                                             <button
                                                 on:click=move |_| set_reset_trigger.set(reset_trigger.get() + 1)
                                                 class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm"
                                             >
-                                                "🔄 Reset Password"
+                                                "🔄 Reset Kata Sandi"
                                             </button>
                                         </div>
 
                                         <div class="border rounded-lg p-5">
                                             <h4 class="font-medium text-gray-900 mb-3">"Multi-Factor Authentication"</h4>
-                                            <p class="text-sm text-gray-500 mb-2">
-                                                "Status MFA: "
-                                                {move || if user_mfa() { "✅ Aktif" } else { "❌ Tidak Aktif" }}
-                                            </p>
+                                            <div class="text-sm text-gray-500 mb-2 flex items-center gap-2">
+                                                <span>"Status MFA:"</span>
+                                                {move || if user_mfa() {
+                                                    view! {
+                                                        <span class="inline-flex px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
+                                                            "Aktif"
+                                                        </span>
+                                                    }
+                                                        .into_any()
+                                                } else {
+                                                    view! {
+                                                        <span class="inline-flex px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
+                                                            "Tidak Aktif"
+                                                        </span>
+                                                    }
+                                                        .into_any()
+                                                }}
+                                            </div>
                                         </div>
                                     </div>
                                 </Show>

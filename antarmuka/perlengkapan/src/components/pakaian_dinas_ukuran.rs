@@ -6,6 +6,7 @@ use crate::api::{
     PegawaiPakaianDinas, Ukuran, UpsertPegawaiUkuranRequest, fetch_master_ukuran,
     fetch_pegawai_ukuran, upsert_pegawai_ukuran,
 };
+use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
@@ -321,7 +322,7 @@ pub fn UkuranPegawaiSatker(
                     </p>
                 </div>
                 <a
-                    href="/perlengkapan/dashboard/pakaian-dinas/laporan/rekap"
+                    href=routes::path::PAKAIAN_LAPORAN_REKAP_LEGACY
                     class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors inline-flex items-center"
                 >
                     <i class="fas fa-chart-bar mr-2"></i>

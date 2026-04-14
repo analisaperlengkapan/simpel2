@@ -80,6 +80,9 @@ async-trait = { workspace = true }
 # Metrics
 prometheus = { workspace = true }
 
+# Scheduler
+tokio-cron-scheduler = { workspace = true }
+
 # Excel generation
 rust_xlsxwriter = { workspace = true }
 

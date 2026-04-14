@@ -20,7 +20,7 @@ use layanan_perlengkapan_api::{
 use cache_strategy::CacheManager;
 use dashboard::services::DashboardService;
 use database::Database;
-use grpc_clients::{AuthencClient, SecretonClient};
+use grpc_clients::{AuthencClient, IntegrasiClient, SecretonClient};
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
 use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
 use pemakaian_bmn::PemakaianBmnService;
@@ -51,6 +51,10 @@ async fn main() -> anyhow::Result<()> {
     // Authenc Integration
     let authenc_url =
         std::env::var("AUTHENC_URL").unwrap_or_else(|_| "http://localhost:50052".to_string());
+
+    // Integrasi Integration
+    let integrasi_url =
+        std::env::var("INTEGRASI_URL").unwrap_or_else(|_| "http://localhost:50053".to_string());
 
     if database_url.is_none() {
         info!("Connecting to Secreton at {}", secreton_url);
@@ -117,6 +121,39 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Initialize Integrasi Client (optional, service continues if unavailable)
+    let integrasi_client = {
+        info!("Connecting to Integrasi at {}", integrasi_url);
+        let mut retries = 3;
+        let mut client = None;
+        let mut delay = tokio::time::Duration::from_secs(1);
+
+        while retries > 0 {
+            match IntegrasiClient::connect(integrasi_url.clone()).await {
+                Ok(c) => {
+                    client = Some(c);
+                    break;
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to connect to Integrasi: {}. Retrying in {:?}...",
+                        e, delay
+                    );
+                    tokio::time::sleep(delay).await;
+                    delay *= 2;
+                    retries -= 1;
+                }
+            }
+        }
+
+        if client.is_none() {
+            error!(
+                "Could not connect to Integrasi after retries, MySIMKARI rekap will be disabled"
+            );
+        }
+        client
+    };
+
     // Initialize database connection
     info!("Connecting to database...");
     let db = Database::new(&database_url).await?;
@@ -140,11 +177,14 @@ async fn main() -> anyhow::Result<()> {
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
     let kebutuhan_bmn_workflow_engine =
         crate::workflow::engine::WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
-    let kebutuhan_bmn_service = KebutuhanBmnService::new(
+    let mut kebutuhan_bmn_service = KebutuhanBmnService::new(
         kebutuhan_bmn_repo,
         authenc_client.clone(),
         kebutuhan_bmn_workflow_engine,
     );
+    if let Some(client) = integrasi_client {
+        kebutuhan_bmn_service = kebutuhan_bmn_service.with_integrasi_client(client);
+    }
 
     // Create Dashboard service
     let dashboard_service = DashboardService::new(db.pool().clone());
@@ -165,6 +205,16 @@ async fn main() -> anyhow::Result<()> {
         pemakaian_bmn::PemakaianBmnScheduler::new(pemakaian_bmn_service.clone());
     pemakaian_bmn_scheduler.start();
     info!("Pemakaian BMN scheduler started");
+
+    // Start SLA escalation scheduler for workflow monitoring
+    let sla_scheduler = workflow::SlaEscalationScheduler::new(db.pool().clone());
+    // TODO: Add notifikasi client when available
+    // let sla_scheduler = sla_scheduler.with_notifikasi_client(notifikasi_client);
+    if let Err(e) = sla_scheduler.start() {
+        error!("Failed to start SLA escalation scheduler: {}", e);
+    } else {
+        info!("SLA escalation scheduler started");
+    }
 
     // Create Penghapusan BMN service
     let penghapusan_bmn_workflow_engine =

@@ -9,6 +9,7 @@ use crate::api::{
     generate_pemakaian_konsep_surat, revoke_pemakaian_bmn, transition_pemakaian_bmn_status,
     upload_pemakaian_signed_pdf,
 };
+use crate::routes;
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
@@ -189,7 +190,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                         </p>
                                     </div>
                                     <a
-                                        href="/perlengkapan/dashboard/pemakaian-bmn"
+                                        href=routes::path::PEMAKAIAN_DAFTAR_LEGACY
                                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                                     >
                                         <i class="fas fa-arrow-left mr-2"></i>
@@ -515,7 +516,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     // Renew button (if active and expiring soon)
                                                     <Show when=move || izin_status_is_active && is_expiring_soon>
                                                         <a
-                                                            href={format!("/dashboard/pemakaian-bmn/{}/renew", izin_id_for_renew.get_value())}
+                                                            href={format!("/perlengkapan/pemakaian-bmn/{}/renew", izin_id_for_renew.get_value())}
                                                             class="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-center"
                                                         >
                                                             <i class="fas fa-redo mr-2"></i>

@@ -12,9 +12,44 @@ use crate::api::{
     kebutuhan_validator_wilayah_action, submit_kebutuhan_satker_to_wilayah,
     transition_satker_status, update_kebutuhan_bmn_barang,
 };
+use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
+
+fn sync_state_badge_class(state: &str) -> &'static str {
+    if state.contains("SUCCESS") {
+        "bg-green-100 text-green-800"
+    } else if state.contains("FAILED") {
+        "bg-red-100 text-red-800"
+    } else if state.contains("RUNNING") {
+        "bg-blue-100 text-blue-800"
+    } else {
+        "bg-slate-100 text-slate-700"
+    }
+}
+
+fn sync_state_label(state: &str) -> &'static str {
+    if state.contains("SUCCESS") {
+        "Sinkron Berhasil"
+    } else if state.contains("FAILED") {
+        "Sinkron Gagal"
+    } else if state.contains("RUNNING") {
+        "Sinkron Berjalan"
+    } else if state.contains("IDLE") {
+        "Idle"
+    } else {
+        "Tidak Diketahui"
+    }
+}
+
+fn sync_state_is_risky(state: &str, error_message: Option<&str>) -> bool {
+    state.contains("FAILED") || error_message.is_some_and(|e| !e.trim().is_empty())
+}
+
+fn is_override_reason_valid(reason: &str) -> bool {
+    reason.trim().len() >= 20
+}
 
 #[component]
 pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
@@ -163,6 +198,32 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
     let (return_catatan, set_return_catatan) = signal(String::new());
     let (reject_alasan, set_reject_alasan) = signal(String::new());
     let (action_loading, set_action_loading) = signal(false);
+    let (override_enabled, set_override_enabled) = signal(false);
+    let (override_reason, set_override_reason) = signal(String::new());
+
+    let is_validator_decision_blocked = move || {
+        analisis
+            .get()
+            .and_then(|a| a.integrasi_sync)
+            .map(|sync| {
+                sync_state_is_risky(&sync.mysimkari.state, sync.mysimkari.error_message.as_deref())
+                    || sync_state_is_risky(&sync.siman.state, sync.siman.error_message.as_deref())
+            })
+            .unwrap_or(false)
+    };
+
+    let is_override_allowed = move || {
+        AuthService::load_session()
+            .map(|session| session.is_admin())
+            .unwrap_or(false)
+    };
+
+    let can_validator_decide = move || {
+        !is_validator_decision_blocked()
+            || (is_override_allowed()
+                && override_enabled.get()
+                && is_override_reason_valid(&override_reason.get()))
+    };
 
     // Submit satker to wilayah
     let handle_submit_to_wilayah = move |_| {
@@ -229,15 +290,33 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
 
     // Validator pusat: approve
     let handle_approve = move |_| {
+        if !can_validator_decide() {
+            set_error.set(Some(
+                "Keputusan Validator Pusat dikunci sementara. Aktifkan override darurat (khusus admin) dan isi alasan minimal 20 karakter."
+                    .to_string(),
+            ));
+            return;
+        }
+
+        let use_override = is_validator_decision_blocked() && is_override_allowed() && override_enabled.get();
+        let override_reason_text = override_reason.get().trim().to_string();
         let sid = satker_id.get();
         set_action_loading.set(true);
         spawn_local(async move {
             let request = ValidatorPusatKeputusanRequest {
                 is_approved: true,
                 alasan: None,
+                override_darurat: Some(use_override),
+                override_reason: if use_override {
+                    Some(override_reason_text)
+                } else {
+                    None
+                },
             };
             match kebutuhan_validator_pusat_keputusan(&sid, request).await {
                 Ok(_) => {
+                    set_override_enabled.set(false);
+                    set_override_reason.set(String::new());
                     load_data(sid.clone());
                     load_aktivitas(sid);
                 }
@@ -249,17 +328,37 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
 
     // Validator pusat: reject
     let handle_reject = move |_: leptos::ev::SubmitEvent| {
+        if !can_validator_decide() {
+            set_error.set(Some(
+                "Keputusan Validator Pusat dikunci sementara. Aktifkan override darurat (khusus admin) dan isi alasan minimal 20 karakter."
+                    .to_string(),
+            ));
+            return;
+        }
+
+        let use_override = is_validator_decision_blocked() && is_override_allowed() && override_enabled.get();
+        let override_reason_text = override_reason.get().trim().to_string();
+        let reject_reason = reject_alasan.get();
+
         let sid = satker_id.get();
         set_action_loading.set(true);
         spawn_local(async move {
             let request = ValidatorPusatKeputusanRequest {
                 is_approved: false,
-                alasan: Some(reject_alasan.get()),
+                alasan: Some(reject_reason),
+                override_darurat: Some(use_override),
+                override_reason: if use_override {
+                    Some(override_reason_text)
+                } else {
+                    None
+                },
             };
             match kebutuhan_validator_pusat_keputusan(&sid, request).await {
                 Ok(_) => {
                     set_show_reject_modal.set(false);
                     set_reject_alasan.set(String::new());
+                    set_override_enabled.set(false);
+                    set_override_reason.set(String::new());
                     load_data(sid.clone());
                     load_aktivitas(sid);
                 }
@@ -394,11 +493,79 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         <Show when=move || sk == 2005>
                                             <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
                                                 <p class="font-medium text-purple-800 mb-3">"Keputusan Validator Pusat"</p>
+                                                <Show when=move || is_validator_decision_blocked()>
+                                                    <div class="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                                                        <div class="font-medium">"Aksi dikunci: kualitas data integrasi belum aman"</div>
+                                                        <div class="mt-1">
+                                                            {move || {
+                                                                analisis
+                                                                    .get()
+                                                                    .and_then(|a| a.integrasi_sync)
+                                                                    .map(|sync| {
+                                                                        let mut failed_sources: Vec<String> = vec![];
+                                                                        if sync_state_is_risky(
+                                                                            &sync.mysimkari.state,
+                                                                            sync.mysimkari.error_message.as_deref(),
+                                                                        ) {
+                                                                            failed_sources.push("MySIMKARI".to_string());
+                                                                        }
+                                                                        if sync_state_is_risky(
+                                                                            &sync.siman.state,
+                                                                            sync.siman.error_message.as_deref(),
+                                                                        ) {
+                                                                            failed_sources.push("SIMAN".to_string());
+                                                                        }
+
+                                                                        if failed_sources.is_empty() {
+                                                                            "Periksa status sinkronisasi sebelum melanjutkan.".to_string()
+                                                                        } else {
+                                                                            format!(
+                                                                                "Sumber bermasalah: {}. Lakukan sinkronisasi ulang atau verifikasi manual terlebih dahulu.",
+                                                                                failed_sources.join(", ")
+                                                                            )
+                                                                        }
+                                                                    })
+                                                                    .unwrap_or_else(|| {
+                                                                        "Status sinkronisasi belum tersedia.".to_string()
+                                                                    })
+                                                            }}
+                                                        </div>
+
+                                                        <Show when=move || is_override_allowed()>
+                                                            <div class="mt-3 p-3 rounded-lg bg-white border border-red-200">
+                                                                <label class="flex items-start gap-2 text-sm font-medium text-gray-800">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        class="mt-0.5"
+                                                                        checked=move || override_enabled.get()
+                                                                        on:change=move |ev| {
+                                                                            set_override_enabled.set(event_target_checked(&ev));
+                                                                        }
+                                                                    />
+                                                                    <span>"Aktifkan override darurat (khusus admin)"</span>
+                                                                </label>
+                                                                <textarea
+                                                                    rows="3"
+                                                                    class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                                    placeholder="Wajib diisi minimal 20 karakter. Contoh: keputusan mendesak karena tenggat operasional dan verifikasi manual telah dilakukan."
+                                                                    on:input=move |ev| set_override_reason.set(event_target_value(&ev))
+                                                                    prop:value=move || override_reason.get()
+                                                                ></textarea>
+                                                                <div class="mt-1 text-xs text-gray-600">
+                                                                    {move || format!("Panjang alasan: {} karakter", override_reason.get().trim().len())}
+                                                                </div>
+                                                                <Show when=move || override_enabled.get() && !is_override_reason_valid(&override_reason.get())>
+                                                                    <div class="mt-1 text-xs text-red-600">"Alasan override minimal 20 karakter."</div>
+                                                                </Show>
+                                                            </div>
+                                                        </Show>
+                                                    </div>
+                                                </Show>
                                                 <div class="flex gap-3">
                                                     <button
                                                         class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
                                                         on:click=handle_approve
-                                                        prop:disabled=move || action_loading.get()
+                                                        prop:disabled=move || action_loading.get() || !can_validator_decide()
                                                     >
                                                         <i class="fas fa-check"></i>
                                                         "Setujui"
@@ -406,7 +573,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                     <button
                                                         class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
                                                         on:click=move |_| set_show_reject_modal.set(true)
-                                                        prop:disabled=move || action_loading.get()
+                                                        prop:disabled=move || action_loading.get() || !can_validator_decide()
                                                     >
                                                         <i class="fas fa-times"></i>
                                                         "Tolak"
@@ -551,6 +718,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                     <div>
                                         {move || {
                                             analisis.get().map(|a| {
+                                                let sync_data = a.integrasi_sync.clone();
                                                 view! {
                                                     <div class="space-y-4">
                                                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -571,6 +739,95 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                 <div class="text-2xl font-bold">{format!("{:.1}%", a.summary.kelayakan_persen)}</div>
                                                             </div>
                                                         </div>
+
+                                                        // Integrasi sync status
+                                                        {
+                                                            sync_data.map(|sync| {
+                                                                let mysimkari = sync.mysimkari;
+                                                                let siman = sync.siman;
+
+                                                                let mysimkari_badge_class = sync_state_badge_class(&mysimkari.state);
+                                                                let siman_badge_class = sync_state_badge_class(&siman.state);
+                                                                let mysimkari_label = sync_state_label(&mysimkari.state);
+                                                                let siman_label = sync_state_label(&siman.state);
+                                                                let mysimkari_last_sync = mysimkari
+                                                                    .last_sync_at
+                                                                    .clone()
+                                                                    .unwrap_or_else(|| "Belum tersedia".to_string());
+                                                                let mysimkari_error = mysimkari.error_message.clone();
+                                                                let mysimkari_has_error = mysimkari_error.is_some();
+                                                                let mysimkari_error_text =
+                                                                    mysimkari_error.unwrap_or_default();
+
+                                                                let siman_last_sync = siman
+                                                                    .last_sync_at
+                                                                    .clone()
+                                                                    .unwrap_or_else(|| "Belum tersedia".to_string());
+                                                                let siman_error = siman.error_message.clone();
+                                                                let siman_has_error = siman_error.is_some();
+                                                                let siman_error_text = siman_error.unwrap_or_default();
+
+                                                                view! {
+                                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                        <div class="bg-teal-50 border border-teal-100 rounded-lg p-4">
+                                                                            <div class="flex items-start justify-between gap-3">
+                                                                                <div>
+                                                                                    <div class="text-sm font-semibold text-teal-800">"MySIMKARI Sync"</div>
+                                                                                    <div class="text-xs text-teal-700 mt-1">
+                                                                                        {format!("Records tersinkron: {}", mysimkari.records_synced)}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <span class=format!("px-2 py-1 rounded-full text-xs font-medium {}", mysimkari_badge_class)>
+                                                                                    {mysimkari_label}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div class="mt-3 text-xs text-gray-600 space-y-1">
+                                                                                <div>
+                                                                                    <span class="font-medium">"Last Sync:"</span>
+                                                                                    " "
+                                                                                    {mysimkari_last_sync}
+                                                                                </div>
+                                                                                <Show when=move || mysimkari_has_error>
+                                                                                    <div class="text-red-600">
+                                                                                        <span class="font-medium">"Error:"</span>
+                                                                                        " "
+                                                                                        {mysimkari_error_text.clone()}
+                                                                                    </div>
+                                                                                </Show>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+                                                                            <div class="flex items-start justify-between gap-3">
+                                                                                <div>
+                                                                                    <div class="text-sm font-semibold text-indigo-800">"SIMAN Sync"</div>
+                                                                                    <div class="text-xs text-indigo-700 mt-1">
+                                                                                        {format!("Records tersinkron: {}", siman.records_synced)}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <span class=format!("px-2 py-1 rounded-full text-xs font-medium {}", siman_badge_class)>
+                                                                                    {siman_label}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div class="mt-3 text-xs text-gray-600 space-y-1">
+                                                                                <div>
+                                                                                    <span class="font-medium">"Last Sync:"</span>
+                                                                                    " "
+                                                                                    {siman_last_sync}
+                                                                                </div>
+                                                                                <Show when=move || siman_has_error>
+                                                                                    <div class="text-red-600">
+                                                                                        <span class="font-medium">"Error:"</span>
+                                                                                        " "
+                                                                                        {siman_error_text.clone()}
+                                                                                    </div>
+                                                                                </Show>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                            })
+                                                        }
 
                                                         // Gap analysis table with existing assets from SIMAN
                                                         <div class="mt-6">

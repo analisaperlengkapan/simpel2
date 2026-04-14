@@ -252,7 +252,24 @@ pub struct AnalisisKelayakanResponse {
     pub satker: PengajuanKebutuhanBmnSatker,
     pub barang_list: Vec<BarangWithExistingInventory>,
     pub data_pegawai: Option<DataPegawaiRekap>,
+    pub integrasi_sync: Option<IntegrasiSyncMetadata>,
     pub summary: AnalisisSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IntegrasiSyncMetadata {
+    pub mysimkari: IntegrasiSyncStatus,
+    pub siman: IntegrasiSyncStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IntegrasiSyncStatus {
+    pub source: String,
+    pub state: String,
+    pub last_sync_at: Option<String>,
+    pub next_sync_at: Option<String>,
+    pub records_synced: i64,
+    pub error_message: Option<String>,
 }
 
 /// Rekap data pegawai from MySIMKARI
@@ -471,6 +488,8 @@ pub struct KebutuhanValidatorWilayahActionRequest {
 pub struct ValidatorPusatKeputusanRequest {
     pub is_approved: bool,
     pub alasan: Option<String>,
+    pub override_darurat: Option<bool>,
+    pub override_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

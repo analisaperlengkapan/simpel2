@@ -1,4 +1,5 @@
 use crate::api::{AnalisisKebutuhan, fetch_analisis};
+use crate::routes;
 use leptos::prelude::*;
 
 #[component]
@@ -24,7 +25,7 @@ pub fn AnalisisList() -> impl IntoView {
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold text-gray-800">"Analisis Kebutuhan"</h2>
                 <a
-                    href="/perlengkapan/dashboard/analisis/baru"
+                    href=routes::path::ANALISIS_BUAT_LEGACY
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
                 >
                     <i class="fas fa-plus mr-2"></i>

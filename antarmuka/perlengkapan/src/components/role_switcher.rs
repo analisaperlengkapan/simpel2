@@ -2,6 +2,7 @@
 //!
 //! Renders a list of role buttons (no separate dropdown).
 
+use crate::features::auth::AuthService;
 use leptos::prelude::*;
 
 /// Get active role key from localStorage.
@@ -16,6 +17,11 @@ pub fn get_active_role() -> String {
 fn set_active_role_storage(role: &str) {
     if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
         let _ = storage.set_item("active_role", role);
+    }
+
+    if let Some(mut session) = AuthService::load_session() {
+        session.role = role.to_string();
+        AuthService::save_session(&session);
     }
 }
 

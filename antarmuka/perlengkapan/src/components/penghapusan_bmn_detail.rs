@@ -12,6 +12,7 @@ use crate::api::{
     penghapusan_validator_wilayah_action, submit_penghapusan_to_wilayah,
     upload_penghapusan_signed_sk,
 };
+use crate::routes;
 
 /// Status badge color helper
 fn status_badge_class(status_kode: i32) -> &'static str {
@@ -441,7 +442,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
 
                                         // Back button
                                         <a
-                                            href="/perlengkapan/dashboard/pengelolaan/penghapusan/daftar"
+                                            href=routes::path::PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY
                                             class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                                         >
                                             "Kembali ke Daftar"
