@@ -1,16 +1,64 @@
 -- ============================================================================
--- MIGRATION 048: Fix realm name uniqueness for soft delete
+-- MIGRATION 048: Add missing realm columns + fix name uniqueness for soft delete
 -- ============================================================================
--- The original schema uses a plain UNIQUE constraint on realms.name which
--- prevents re-creating a realm with the same name after soft-deletion
--- (the soft-deleted row still occupies the unique slot).
+-- 1. The Realm domain struct and all PostgresRealmStore queries expect ~37
+--    configuration columns (ssl_required, registration_allowed, token
+--    lifespans, etc.) that were never created by 001_initial_schema.sql.
+--    This migration adds them with sensible defaults so that existing rows
+--    (including the master realm) are back-filled automatically.
 --
--- This migration replaces the absolute UNIQUE constraint with a partial
--- unique index that only enforces uniqueness among live (non-deleted) rows,
--- matching the pattern already used for the users table (see test_schema.sql).
+-- 2. The original schema uses a plain UNIQUE constraint on realms.name which
+--    prevents re-creating a realm with the same name after soft-deletion
+--    (the soft-deleted row still occupies the unique slot).
+--    This migration replaces the absolute UNIQUE constraint with a partial
+--    unique index that only enforces uniqueness among live (non-deleted) rows,
+--    matching the pattern already used for the users table (see test_schema.sql).
 -- ============================================================================
 
--- Step 1: Drop the existing absolute unique constraint on realms.name.
+-- ── Step 0: Add missing realm configuration columns ──────────────────────────
+-- These columns are expected by Realm::try_from(Row) in authenc_types and by
+-- every SELECT in PostgresRealmStore.  Using ADD COLUMN IF NOT EXISTS so the
+-- migration is idempotent.
+
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS ssl_required VARCHAR(50) NOT NULL DEFAULT 'external';
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS registration_allowed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS registration_email_as_username BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS remember_me BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS verify_email BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS login_with_email_allowed BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS duplicate_emails_allowed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS reset_password_allowed BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS edit_username_allowed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS brute_force_protected BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS max_failure_wait_seconds INTEGER NOT NULL DEFAULT 900;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS minimum_quick_login_wait_seconds INTEGER NOT NULL DEFAULT 60;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS wait_increment_seconds INTEGER NOT NULL DEFAULT 60;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS quick_login_check_milli_seconds BIGINT NOT NULL DEFAULT 1000;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS max_delta_time_seconds INTEGER NOT NULL DEFAULT 43200;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS failure_factor INTEGER NOT NULL DEFAULT 30;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS default_signature_algorithm VARCHAR(50) NOT NULL DEFAULT 'RS256';
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS revoke_refresh_token BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS refresh_token_max_reuse INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS access_token_lifespan INTEGER NOT NULL DEFAULT 300;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS access_token_lifespan_for_implicit_flow INTEGER NOT NULL DEFAULT 900;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS sso_session_idle_timeout INTEGER NOT NULL DEFAULT 1800;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS sso_session_max_lifespan INTEGER NOT NULL DEFAULT 36000;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS sso_session_idle_timeout_remember_me INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS sso_session_max_lifespan_remember_me INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS offline_session_idle_timeout INTEGER NOT NULL DEFAULT 2592000;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS offline_session_max_lifespan INTEGER NOT NULL DEFAULT 5184000;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS client_session_idle_timeout INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS client_session_max_lifespan INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS access_code_lifespan INTEGER NOT NULL DEFAULT 60;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS access_code_lifespan_user_action INTEGER NOT NULL DEFAULT 300;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS access_code_lifespan_login INTEGER NOT NULL DEFAULT 1800;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS action_token_generated_by_admin_lifespan INTEGER NOT NULL DEFAULT 43200;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS action_token_generated_by_user_lifespan INTEGER NOT NULL DEFAULT 300;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS oauth2_device_code_lifespan INTEGER NOT NULL DEFAULT 600;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS oauth2_device_polling_interval INTEGER NOT NULL DEFAULT 5;
+ALTER TABLE realms ADD COLUMN IF NOT EXISTS attributes TEXT;
+
+-- ── Step 1: Drop the existing absolute unique constraint on realms.name. ─────
 -- PostgreSQL names inline UNIQUE constraints as "<table>_<column>_key" by
 -- default, but this can vary. We use a DO block to find and drop the actual
 -- constraint name from the catalog, falling back to the conventional name.

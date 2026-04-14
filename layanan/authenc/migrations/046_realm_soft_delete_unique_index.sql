@@ -1,10 +1,8 @@
 -- ============================================================================
--- MIGRATION 046: Placeholder (realm soft-delete migration is in 048)
+-- MIGRATION 046: Reserved placeholder
 -- ============================================================================
--- The realm soft-delete unique index migration lives in
--- 048_realm_soft_delete_unique_index.sql.
---
--- This file is intentionally a no-op. It exists solely to occupy version 046
--- so that no future migration accidentally reuses this number.
+-- This version number was used during development and then renumbered to 048.
+-- The file is kept as a no-op to avoid confusion if it was already recorded
+-- in any database's schema_migrations table.
 -- ============================================================================
-SELECT 1;
+SELECT 1;  -- no-op
