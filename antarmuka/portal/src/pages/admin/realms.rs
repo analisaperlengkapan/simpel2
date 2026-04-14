@@ -27,6 +27,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
     let (new_name, set_new_name) = signal(String::new());
     let (new_display_name, set_new_display_name) = signal(String::new());
     let (creating, set_creating) = signal(false);
+    let (create_error, set_create_error) = signal(Option::<String>::None);
     let (deleting, set_deleting) = signal(false);
 
     // Client-side validation for realm name
@@ -58,6 +59,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
     let (edit_display_name, set_edit_display_name) = signal(String::new());
     let (edit_enabled, set_edit_enabled) = signal(true);
     let (updating, set_updating) = signal(false);
+    let (edit_error, set_edit_error) = signal(Option::<String>::None);
 
     let load_realms = StoredValue::new_local({
         let api = api.clone();
@@ -66,7 +68,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
             set_loading.set(true);
             spawn_local(async move {
                 match api.iam_list_realms().await {
-                    Ok(list) => set_realms.set(list),
+                    Ok(list) => {
+                        set_error.set(None);
+                        set_realms.set(list);
+                    }
                     Err(e) => set_error.set(Some(format!("Gagal memuat realm: {}", e))),
                 }
                 set_loading.set(false);
@@ -84,6 +89,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
             ev.prevent_default();
             let api = api.clone();
             set_creating.set(true);
+            set_create_error.set(None);
             set_error.set(None);
             set_success.set(None);
 
@@ -99,13 +105,14 @@ pub fn RealmsManagementPage() -> impl IntoView {
 
                 match api.iam_create_realm(&req).await {
                     Ok(_) => {
+                        set_create_error.set(None);
                         set_success.set(Some("Realm berhasil dibuat".to_string()));
                         set_show_create_modal.set(false);
                         set_new_name.set(String::new());
                         set_new_display_name.set(String::new());
                         load_realms.with_value(|f| f());
                     }
-                    Err(e) => set_error.set(Some(format!("Gagal membuat realm: {}", e))),
+                    Err(e) => set_create_error.set(Some(format!("Gagal membuat realm: {}", e))),
                 }
                 set_creating.set(false);
             });
@@ -163,13 +170,15 @@ pub fn RealmsManagementPage() -> impl IntoView {
 
                     match api.iam_update_realm(&id, &req).await {
                         Ok(_) => {
+                            set_edit_error.set(None);
                             set_success.set(Some("Realm berhasil diperbarui".to_string()));
                             set_realm_to_edit.set(None);
                             load_realms.with_value(|f| f());
                         }
                         Err(e) => {
-                            set_realm_to_edit.set(None);
-                            set_error.set(Some(format!("Gagal memperbarui realm: {}", e)));
+                            // Keep the modal open so the user can retry without
+                            // losing their input. Show error inline in the modal.
+                            set_edit_error.set(Some(format!("Gagal memperbarui realm: {}", e)));
                         }
                     }
                     set_updating.set(false);
@@ -197,7 +206,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
                 <div class="flex items-center justify-between mb-6">
                     <h1 class="text-2xl font-bold text-gray-900">"Manajemen Realm"</h1>
                     <button
-                        on:click=move |_| set_show_create_modal.set(true)
+                        on:click=move |_| {
+                            set_create_error.set(None);
+                            set_show_create_modal.set(true);
+                        }
                         class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2"
                     >
                         "＋ Buat Realm"
@@ -251,6 +263,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                                     on:click=move |_| {
                                                         set_edit_display_name.set(r_clone.display_name.clone().unwrap_or_default());
                                                         set_edit_enabled.set(r_clone.enabled);
+                                                        set_edit_error.set(None);
                                                         set_realm_to_edit.set(Some(r_clone.clone()));
                                                     }
                                                     class="opacity-0 group-hover:opacity-100 p-1.5 text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
@@ -297,6 +310,9 @@ pub fn RealmsManagementPage() -> impl IntoView {
                     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">"Buat Realm Baru"</h2>
+                            {move || create_error.get().map(|msg| view! {
+                                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">"❌ " {msg}</div>
+                            })}
                             <form
                                 on:submit=move |ev| handle_create.with_value(|f| f(ev))
                                 class="space-y-4"
@@ -333,7 +349,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                 <div class="flex justify-end gap-3 pt-2">
                                     <button
                                         type="button"
-                                        on:click=move |_| set_show_create_modal.set(false)
+                                        on:click=move |_| {
+                                            set_create_error.set(None);
+                                            set_show_create_modal.set(false);
+                                        }
                                         class="px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-50"
                                     >
                                         "Batal"
@@ -390,6 +409,9 @@ pub fn RealmsManagementPage() -> impl IntoView {
                     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">"Edit Realm"</h2>
+                            {move || edit_error.get().map(|msg| view! {
+                                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">"❌ " {msg}</div>
+                            })}
                             <form
                                 on:submit=move |ev| handle_update.with_value(|f| f(ev))
                                 class="space-y-4"
@@ -432,7 +454,10 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                 <div class="flex justify-end gap-3 pt-2">
                                     <button
                                         type="button"
-                                        on:click=move |_| set_realm_to_edit.set(None)
+                                        on:click=move |_| {
+                                            set_edit_error.set(None);
+                                            set_realm_to_edit.set(None);
+                                        }
                                         class="px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-50"
                                     >
                                         "Batal"

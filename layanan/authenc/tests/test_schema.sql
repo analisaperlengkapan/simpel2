@@ -44,7 +44,7 @@ CREATE TABLE users (
     attributes JSONB,
     email_verified BOOLEAN NOT NULL DEFAULT false,
     enabled BOOLEAN NOT NULL DEFAULT true,
-    realm_id UUID REFERENCES realms(id) ON DELETE CASCADE,
+    realm_id UUID REFERENCES realms(id) ON DELETE RESTRICT,
     federated BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

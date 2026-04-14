@@ -46,3 +46,32 @@ DROP INDEX IF EXISTS realms_name_key;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_realms_name_unique
     ON realms (name)
     WHERE deleted_at IS NULL;
+
+-- Step 3: Change users.realm_id FK from ON DELETE CASCADE to ON DELETE RESTRICT.
+-- With soft-delete semantics, a raw DELETE FROM realms should be blocked
+-- (not silently cascade-delete all users). The application always uses
+-- soft-delete via UPDATE, so the CASCADE is never triggered in normal
+-- operation — but RESTRICT prevents accidental data loss from manual SQL.
+DO $$
+DECLARE
+    _fk_name TEXT;
+BEGIN
+    SELECT c.conname INTO _fk_name
+    FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    JOIN pg_namespace n ON t.relnamespace = n.oid
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(c.conkey)
+    WHERE t.relname = 'users'
+      AND a.attname = 'realm_id'
+      AND c.contype = 'f'
+      AND n.nspname = 'public'
+    LIMIT 1;
+
+    IF _fk_name IS NOT NULL THEN
+        EXECUTE format('ALTER TABLE users DROP CONSTRAINT %I', _fk_name);
+        EXECUTE 'ALTER TABLE users ADD CONSTRAINT users_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES realms(id) ON DELETE RESTRICT';
+        RAISE NOTICE 'Changed users.realm_id FK from CASCADE to RESTRICT (was %)', _fk_name;
+    ELSE
+        RAISE NOTICE 'No FK found on users.realm_id (may not exist)';
+    END IF;
+END $$;
