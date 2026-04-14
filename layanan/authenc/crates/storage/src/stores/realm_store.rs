@@ -178,8 +178,8 @@ impl RealmStore for PostgresRealmStore {
                     &realm_id.0,
                     &name,
                     &display_name,
-                    &default_realm.description,
-                    &true, // enabled by default
+                    &None::<String>, // No description for user-created realms
+                    &true,           // enabled by default
                     &default_realm.ssl_required,
                     &default_realm.registration_allowed,
                     &default_realm.registration_email_as_username,
