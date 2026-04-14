@@ -85,6 +85,7 @@
 //!     // All operations here are atomic
 //!     tx.execute("INSERT INTO users ...", &[]).await?;
 //!     tx.execute("INSERT INTO sessions ...", &[]).await?;
+//!     tx.commit().await?; // IMPORTANT: must commit explicitly or changes are rolled back on drop
 //!     Ok(())
 //! }).await?;
 //! # Ok(())

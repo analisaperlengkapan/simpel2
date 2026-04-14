@@ -175,6 +175,32 @@ pub trait RealmStore: Send + Sync {
 
     /// Check if a realm name exists
     async fn realm_name_exists(&self, name: &str) -> Result<bool>;
+
+    /// Disable all users in a realm (bulk soft-delete cascade)
+    ///
+    /// When a realm is soft-deleted, its users must also be disabled to prevent
+    /// authentication against a deleted realm. This sets `enabled = false` and
+    /// `deleted_at = NOW()` on all live users in the realm.
+    ///
+    /// Returns the number of users affected.
+    async fn disable_users_in_realm(&self, realm_id: RealmId) -> Result<u64>;
+
+    /// Atomically soft-delete a realm and disable all its users in a single
+    /// database transaction.
+    ///
+    /// This prevents the inconsistent state where users are disabled but the
+    /// realm remains active (or vice-versa) due to a failure between the two
+    /// operations.
+    ///
+    /// Returns the number of users that were disabled.
+    ///
+    /// The default implementation falls back to non-atomic sequential calls
+    /// for stores that do not support transactions (e.g. mocks).
+    async fn delete_realm_cascade(&self, realm_id: RealmId) -> Result<u64> {
+        let users_disabled = self.disable_users_in_realm(realm_id).await?;
+        self.delete_realm(realm_id).await?;
+        Ok(users_disabled)
+    }
 }
 
 /// Trait for OAuth2 client storage operations

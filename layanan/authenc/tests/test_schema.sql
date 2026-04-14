@@ -2,14 +2,57 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Realms table (required for users)
+-- NOTE: Keep in sync with 001_initial_schema.sql + 048_realm_soft_delete_unique_index.sql
 CREATE TABLE IF NOT EXISTS realms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
     display_name VARCHAR(255),
+    description TEXT,
     enabled BOOLEAN NOT NULL DEFAULT true,
+    ssl_required VARCHAR(50) NOT NULL DEFAULT 'external',
+    registration_allowed BOOLEAN NOT NULL DEFAULT false,
+    registration_email_as_username BOOLEAN NOT NULL DEFAULT false,
+    remember_me BOOLEAN NOT NULL DEFAULT true,
+    verify_email BOOLEAN NOT NULL DEFAULT false,
+    login_with_email_allowed BOOLEAN NOT NULL DEFAULT true,
+    duplicate_emails_allowed BOOLEAN NOT NULL DEFAULT false,
+    reset_password_allowed BOOLEAN NOT NULL DEFAULT true,
+    edit_username_allowed BOOLEAN NOT NULL DEFAULT false,
+    brute_force_protected BOOLEAN NOT NULL DEFAULT true,
+    max_failure_wait_seconds INTEGER NOT NULL DEFAULT 900,
+    minimum_quick_login_wait_seconds INTEGER NOT NULL DEFAULT 60,
+    wait_increment_seconds INTEGER NOT NULL DEFAULT 60,
+    quick_login_check_milli_seconds BIGINT NOT NULL DEFAULT 1000,
+    max_delta_time_seconds INTEGER NOT NULL DEFAULT 43200,
+    failure_factor INTEGER NOT NULL DEFAULT 30,
+    default_signature_algorithm VARCHAR(50) NOT NULL DEFAULT 'RS256',
+    revoke_refresh_token BOOLEAN NOT NULL DEFAULT false,
+    refresh_token_max_reuse INTEGER NOT NULL DEFAULT 0,
+    access_token_lifespan INTEGER NOT NULL DEFAULT 300,
+    access_token_lifespan_for_implicit_flow INTEGER NOT NULL DEFAULT 900,
+    sso_session_idle_timeout INTEGER NOT NULL DEFAULT 1800,
+    sso_session_max_lifespan INTEGER NOT NULL DEFAULT 36000,
+    sso_session_idle_timeout_remember_me INTEGER NOT NULL DEFAULT 0,
+    sso_session_max_lifespan_remember_me INTEGER NOT NULL DEFAULT 0,
+    offline_session_idle_timeout INTEGER NOT NULL DEFAULT 2592000,
+    offline_session_max_lifespan INTEGER NOT NULL DEFAULT 5184000,
+    client_session_idle_timeout INTEGER NOT NULL DEFAULT 0,
+    client_session_max_lifespan INTEGER NOT NULL DEFAULT 0,
+    access_code_lifespan INTEGER NOT NULL DEFAULT 60,
+    access_code_lifespan_user_action INTEGER NOT NULL DEFAULT 300,
+    access_code_lifespan_login INTEGER NOT NULL DEFAULT 1800,
+    action_token_generated_by_admin_lifespan INTEGER NOT NULL DEFAULT 43200,
+    action_token_generated_by_user_lifespan INTEGER NOT NULL DEFAULT 300,
+    oauth2_device_code_lifespan INTEGER NOT NULL DEFAULT 600,
+    oauth2_device_polling_interval INTEGER NOT NULL DEFAULT 5,
+    attributes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
+
+-- Partial unique index: only enforce uniqueness among live (non-deleted) rows
+CREATE UNIQUE INDEX IF NOT EXISTS idx_realms_name_unique ON realms (name) WHERE deleted_at IS NULL;
 
 -- Drop and recreate users table with all required columns
 DROP TABLE IF EXISTS users CASCADE;
@@ -38,7 +81,7 @@ CREATE TABLE users (
     attributes JSONB,
     email_verified BOOLEAN NOT NULL DEFAULT false,
     enabled BOOLEAN NOT NULL DEFAULT true,
-    realm_id UUID REFERENCES realms(id) ON DELETE CASCADE,
+    realm_id UUID REFERENCES realms(id) ON DELETE RESTRICT,
     federated BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -144,4 +187,4 @@ CREATE TABLE IF NOT EXISTS authentication_sessions (
 -- Insert a default realm for testing
 INSERT INTO realms (id, name, display_name, enabled)
 VALUES ('550e8400-e29b-41d4-a716-446655440000', 'test-realm', 'Test Realm', true)
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;

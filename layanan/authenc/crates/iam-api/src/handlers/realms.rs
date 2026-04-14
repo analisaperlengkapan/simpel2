@@ -5,34 +5,23 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::error::ApiResult;
+use crate::error::{ApiError, ApiResult};
 use crate::state::IamApiState;
-use authenc_types::AuthencError;
+use authenc_types::RealmId;
+pub use authenc_types::domain::realm::RealmResponse;
 
-/// Realm response DTO
-#[derive(Debug, Serialize)]
-pub struct RealmResponse {
-    pub id: Uuid,
-    pub name: String,
-    pub display_name: Option<String>,
-    pub enabled: bool,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-}
-
-/// Create realm request
+/// Create realm request — scoped to fields the service actually supports.
 #[derive(Debug, Deserialize)]
 pub struct CreateRealmRequest {
     pub name: String,
     pub display_name: Option<String>,
-    pub enabled: Option<bool>,
 }
 
-/// Update realm request
+/// Update realm request — scoped to fields the service actually supports.
 #[derive(Debug, Deserialize)]
 pub struct UpdateRealmRequest {
     pub display_name: Option<String>,
@@ -41,53 +30,77 @@ pub struct UpdateRealmRequest {
 
 /// GET /api/v1/iam/realms - List realms
 pub async fn list_realms(
-    State(_state): State<Arc<IamApiState>>,
+    State(state): State<Arc<IamApiState>>,
 ) -> ApiResult<Json<Vec<RealmResponse>>> {
-    // TODO: Call realm_service.list_realms()
-    Ok(Json(vec![]))
+    let realms = state.realm_service.list_realms().await.map_err(ApiError)?;
+
+    let response = realms.into_iter().map(RealmResponse::from).collect();
+
+    Ok(Json(response))
 }
 
 /// POST /api/v1/iam/realms - Create realm
 pub async fn create_realm(
-    State(_state): State<Arc<IamApiState>>,
-    Json(_req): Json<CreateRealmRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Json(req): Json<CreateRealmRequest>,
 ) -> ApiResult<(StatusCode, Json<RealmResponse>)> {
-    // TODO: Call realm_service.create_realm()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "create_realm not yet implemented".to_string(),
-    )))
+    let name = req.name;
+    let display_name = req.display_name.unwrap_or_else(|| name.clone());
+
+    let realm = state
+        .realm_service
+        .create_realm(name, display_name)
+        .await
+        .map_err(ApiError)?;
+
+    Ok((StatusCode::CREATED, Json(RealmResponse::from(realm))))
 }
 
 /// GET /api/v1/iam/realms/{id} - Get realm details
 pub async fn get_realm(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<Json<RealmResponse>> {
-    // TODO: Call realm_service.get_realm()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "get_realm not yet implemented".to_string(),
-    )))
+    let realm = state
+        .realm_service
+        .get_realm(RealmId::from_uuid(id))
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(RealmResponse::from(realm)))
 }
 
 /// PUT /api/v1/iam/realms/{id} - Update realm
 pub async fn update_realm(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
-    Json(_req): Json<UpdateRealmRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
+    Json(req): Json<UpdateRealmRequest>,
 ) -> ApiResult<Json<RealmResponse>> {
-    // TODO: Call realm_service.update_realm()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "update_realm not yet implemented".to_string(),
-    )))
+    // NOTE: Master realm disable protection is enforced by the service layer
+    // (RealmManagementServiceImpl::update_realm). No duplicate check needed here.
+
+    let realm = state
+        .realm_service
+        .update_realm(RealmId::from_uuid(id), req.display_name, req.enabled)
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(RealmResponse::from(realm)))
 }
 
 /// DELETE /api/v1/iam/realms/{id} - Delete realm
 pub async fn delete_realm(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
+    State(state): State<Arc<IamApiState>>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<StatusCode> {
-    // TODO: Call realm_service.delete_realm()
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "delete_realm not yet implemented".to_string(),
-    )))
+    // NOTE: Master realm delete protection is enforced by the service layer
+    // (RealmManagementServiceImpl::delete_realm). No duplicate check needed here.
+
+    state
+        .realm_service
+        .delete_realm(RealmId::from_uuid(id))
+        .await
+        .map_err(ApiError)?;
+
+    Ok(StatusCode::NO_CONTENT)
 }

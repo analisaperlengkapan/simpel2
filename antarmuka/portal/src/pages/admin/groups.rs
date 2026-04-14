@@ -5,7 +5,7 @@
 
 use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{AppState, use_api_client, use_app_state};
-use crate::utils::authenc_api::{CreateGroupApiRequest, GroupInfo};
+use crate::utils::authenc_api::{CreateGroupApiRequest, GroupInfo, MASTER_REALM_ID};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
@@ -77,7 +77,7 @@ pub fn GroupsManagementPage() -> impl IntoView {
 
             spawn_local(async move {
                 let req = CreateGroupApiRequest {
-                    realm_id: "00000000-0000-0000-0000-000000000000".to_string(),
+                    realm_id: MASTER_REALM_ID.to_string(),
                     name: new_name.get(),
                     parent_id: None,
                     description: if new_description.get().is_empty() {

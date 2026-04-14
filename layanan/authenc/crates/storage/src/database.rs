@@ -224,6 +224,7 @@ impl Database {
     /// # async fn example(db: &Database) -> authenc_types::Result<()> {
     /// db.transaction(|tx| async move {
     ///     tx.execute("INSERT INTO users (id, username) VALUES ($1, $2)", &[&uuid::Uuid::new_v4(), &"john"]).await?;
+    ///     tx.commit().await?; // IMPORTANT: must commit explicitly or changes are rolled back on drop
     ///     Ok(())
     /// }).await?;
     /// # Ok(())
@@ -244,7 +245,10 @@ impl Database {
 
         let result = f(db_tx).await?;
 
-        // Transaction is automatically committed when dropped if not explicitly rolled back
+        // IMPORTANT: tokio-postgres transactions are ROLLED BACK on drop, not
+        // committed. The closure MUST call `tx.commit().await?` explicitly to
+        // persist changes. If the closure returns an error or panics without
+        // committing, all changes are automatically rolled back.
         Ok(result)
     }
 

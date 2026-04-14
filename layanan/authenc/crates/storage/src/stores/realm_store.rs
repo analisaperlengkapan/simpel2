@@ -66,7 +66,7 @@ impl RealmStore for PostgresRealmStore {
                    oauth2_device_polling_interval, attributes,
                    created_at, updated_at, deleted_at
             FROM realms
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_one(query, &[&id.0]).await?;
@@ -97,7 +97,7 @@ impl RealmStore for PostgresRealmStore {
                    oauth2_device_polling_interval, attributes,
                    created_at, updated_at, deleted_at
             FROM realms
-            WHERE name = $1
+            WHERE name = $1 AND deleted_at IS NULL
         "#;
 
         let row = self.db.query_one(query, &[&name]).await?;
@@ -108,13 +108,9 @@ impl RealmStore for PostgresRealmStore {
     async fn create_realm(&self, name: String, display_name: String) -> Result<Realm> {
         info!("Creating realm: {}", name);
 
-        // Check if realm name already exists
-        if self.realm_name_exists(&name).await? {
-            return Err(AuthencError::Conflict(format!(
-                "Realm name '{}' already exists",
-                name
-            )));
-        }
+        // NOTE: Uniqueness is checked by the service layer (realm_name_exists)
+        // and enforced by the database partial unique index on (name) WHERE
+        // deleted_at IS NULL.  No duplicate check here to avoid redundancy.
 
         let realm_id = RealmId::new();
         let now = Utc::now();
@@ -182,8 +178,8 @@ impl RealmStore for PostgresRealmStore {
                     &realm_id.0,
                     &name,
                     &display_name,
-                    &default_realm.description,
-                    &true, // enabled by default
+                    &None::<String>, // No description for user-created realms
+                    &true,           // enabled by default
                     &default_realm.ssl_required,
                     &default_realm.registration_allowed,
                     &default_realm.registration_email_as_username,
@@ -267,7 +263,7 @@ impl RealmStore for PostgresRealmStore {
             r#"
             UPDATE realms
             SET {}
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
             RETURNING id, name, display_name, description, enabled,
                       ssl_required, registration_allowed, registration_email_as_username,
                       remember_me, verify_email, login_with_email_allowed,
@@ -303,26 +299,41 @@ impl RealmStore for PostgresRealmStore {
         let now = Utc::now();
         params.push(&now);
 
-        let row = self.db.query_one(&query, &params).await?;
+        let row = self.db.query_opt(&query, &params).await?;
 
-        let realm = row_to_realm(row)?;
-        info!("Realm updated successfully: {}", realm.id);
-        Ok(realm)
+        match row {
+            Some(row) => {
+                let realm = row_to_realm(row)?;
+                info!("Realm updated successfully: {}", realm.id);
+                Ok(realm)
+            }
+            None => Err(AuthencError::RealmNotFound(format!(
+                "Realm {} not found",
+                id
+            ))),
+        }
     }
 
     async fn delete_realm(&self, id: RealmId) -> Result<()> {
-        info!("Deleting realm: {}", id);
+        info!("Soft-deleting realm: {}", id);
 
-        // Note: This is a hard delete. In production, you might want to:
-        // 1. Check if realm has users/clients before deleting
-        // 2. Implement soft delete (set enabled = false)
-        // 3. Cascade delete related entities
+        let now = Utc::now();
+
+        // Soft delete: set deleted_at timestamp instead of removing the row.
+        // This preserves the record for auditing and allows potential recovery.
+        //
+        // NOTE: In production, the service layer calls delete_realm_cascade()
+        // which atomically disables users AND soft-deletes the realm in a
+        // single transaction. This standalone method is used by the default
+        // trait implementation as a fallback for stores without transaction
+        // support (e.g. mocks).
         let query = r#"
-            DELETE FROM realms
-            WHERE id = $1
+            UPDATE realms
+            SET deleted_at = $2, updated_at = $2
+            WHERE id = $1 AND deleted_at IS NULL
         "#;
 
-        let rows_affected = self.db.execute(query, &[&id.0]).await?;
+        let rows_affected = self.db.execute(query, &[&id.0, &now]).await?;
 
         if rows_affected == 0 {
             return Err(AuthencError::RealmNotFound(format!(
@@ -331,7 +342,7 @@ impl RealmStore for PostgresRealmStore {
             )));
         }
 
-        info!("Realm deleted successfully: {}", id);
+        info!("Realm soft-deleted successfully: {}", id);
         Ok(())
     }
 
@@ -358,6 +369,7 @@ impl RealmStore for PostgresRealmStore {
                    oauth2_device_polling_interval, attributes,
                    created_at, updated_at, deleted_at
             FROM realms
+            WHERE deleted_at IS NULL
             ORDER BY created_at DESC
         "#;
 
@@ -374,7 +386,7 @@ impl RealmStore for PostgresRealmStore {
         let query = r#"
             SELECT EXISTS(
                 SELECT 1 FROM realms
-                WHERE name = $1
+                WHERE name = $1 AND deleted_at IS NULL
             )
         "#;
 
@@ -382,6 +394,88 @@ impl RealmStore for PostgresRealmStore {
 
         let exists: bool = row.get(0);
         Ok(exists)
+    }
+
+    async fn disable_users_in_realm(&self, realm_id: RealmId) -> Result<u64> {
+        info!("Disabling all users in realm: {}", realm_id);
+
+        let now = Utc::now();
+        let query = r#"
+            UPDATE users
+            SET enabled = false, deleted_at = $2, updated_at = $2
+            WHERE realm_id = $1 AND deleted_at IS NULL
+        "#;
+
+        let rows_affected = self.db.execute(query, &[&realm_id.0, &now]).await?;
+
+        info!(
+            realm_id = %realm_id,
+            users_disabled = rows_affected,
+            "Disabled users in soft-deleted realm"
+        );
+        Ok(rows_affected)
+    }
+
+    async fn delete_realm_cascade(&self, realm_id: RealmId) -> Result<u64> {
+        info!(
+            "Atomically soft-deleting realm and disabling users: {}",
+            realm_id
+        );
+
+        let now = Utc::now();
+        let realm_uuid = realm_id.0;
+
+        // Use manual transaction management to avoid closure lifetime issues
+        // with Database::transaction (the async move block cannot prove that
+        // the DatabaseTransaction lifetime outlives the future).
+        let mut client = self.db.get_connection().await?;
+        let tx = client.transaction().await.map_err(|e| {
+            AuthencError::DatabaseError(format!("Failed to begin transaction: {}", e))
+        })?;
+
+        // Step 1: Disable all users in the realm
+        let disable_users_query = r#"
+            UPDATE users
+            SET enabled = false, deleted_at = $2, updated_at = $2
+            WHERE realm_id = $1 AND deleted_at IS NULL
+        "#;
+        let users_disabled = tx
+            .execute(disable_users_query, &[&realm_uuid, &now])
+            .await
+            .map_err(|e| AuthencError::DatabaseError(format!("Failed to disable users: {}", e)))?;
+
+        // Step 2: Soft-delete the realm itself
+        let delete_realm_query = r#"
+            UPDATE realms
+            SET deleted_at = $2, updated_at = $2
+            WHERE id = $1 AND deleted_at IS NULL
+        "#;
+        let rows_affected = tx
+            .execute(delete_realm_query, &[&realm_uuid, &now])
+            .await
+            .map_err(|e| {
+                AuthencError::DatabaseError(format!("Failed to soft-delete realm: {}", e))
+            })?;
+
+        if rows_affected == 0 {
+            // Transaction is rolled back on drop (no commit called)
+            return Err(AuthencError::RealmNotFound(format!(
+                "Realm {} not found",
+                realm_id
+            )));
+        }
+
+        // Explicitly commit the transaction
+        tx.commit().await.map_err(|e| {
+            AuthencError::DatabaseError(format!("Failed to commit transaction: {}", e))
+        })?;
+
+        info!(
+            realm_id = %realm_id,
+            users_disabled = users_disabled,
+            "Realm soft-deleted atomically with user cascade"
+        );
+        Ok(users_disabled)
     }
 }
 
