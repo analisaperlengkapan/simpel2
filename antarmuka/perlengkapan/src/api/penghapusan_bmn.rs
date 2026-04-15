@@ -18,7 +18,7 @@ pub async fn fetch_penghapusan_bmn_list(
     page: i32,
     per_page: i32,
     filters: PenghapusanBmnFilters,
-) -> Result<PaginatedResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+) -> Result<PaginatedResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
     let mut url = format!(
         "{}?page={}&per_page={}",
         PENGHAPUSAN_BMN_BASE, page, per_page
@@ -63,7 +63,7 @@ pub async fn fetch_penghapusan_bmn_list(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_penghapusan_bmn_detail(
     id: &str,
-) -> Result<ApiResponse<PenghapusanBmnDetailResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<PenghapusanBmnDetailResponse>, crate::api::AppError> {
     auth_get_json(&format!("{}/{}/detail", PENGHAPUSAN_BMN_BASE, id)).await
 }
 
@@ -78,7 +78,7 @@ pub async fn fetch_penghapusan_bmn_detail(
 #[cfg(target_arch = "wasm32")]
 pub async fn create_penghapusan_bmn_workflow(
     request: CreatePenghapusanBmnWorkflowRequest,
-) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
     auth_post_json(PENGHAPUSAN_BMN_BASE, &request).await
 }
 
@@ -94,7 +94,7 @@ pub async fn create_penghapusan_bmn_workflow(
 pub async fn update_penghapusan_bmn_workflow(
     id: &str,
     request: UpdatePenghapusanBmnWorkflowRequest,
-) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
     auth_put_json(&format!("{}/{}", PENGHAPUSAN_BMN_BASE, id), &request).await
 }
 
@@ -108,7 +108,7 @@ pub async fn update_penghapusan_bmn_workflow(
 
 // --- Delete Penghapusan BMN ---
 #[cfg(target_arch = "wasm32")]
-pub async fn delete_penghapusan_bmn_workflow(id: &str) -> Result<ApiResponse<()>, gloo_net::Error> {
+pub async fn delete_penghapusan_bmn_workflow(id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
     auth_delete_json(&format!("{}/{}", PENGHAPUSAN_BMN_BASE, id)).await
 }
 
@@ -121,7 +121,7 @@ pub async fn delete_penghapusan_bmn_workflow(_id: &str) -> Result<ApiResponse<()
 #[cfg(target_arch = "wasm32")]
 pub async fn submit_penghapusan_to_wilayah(
     id: &str,
-) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/{}/submit-wilayah", PENGHAPUSAN_BMN_BASE, id),
         &serde_json::json!({}),
@@ -141,7 +141,7 @@ pub async fn submit_penghapusan_to_wilayah(
 pub async fn penghapusan_validator_wilayah_action(
     id: &str,
     request: PenghapusanValidatorWilayahActionRequest,
-) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/{}/validator-wilayah", PENGHAPUSAN_BMN_BASE, id),
         &request,
@@ -161,7 +161,7 @@ pub async fn penghapusan_validator_wilayah_action(
 #[cfg(target_arch = "wasm32")]
 pub async fn generate_penghapusan_konsep_sk(
     id: &str,
-) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/{}/generate-sk", PENGHAPUSAN_BMN_BASE, id),
         &serde_json::json!({}),
@@ -181,7 +181,7 @@ pub async fn generate_penghapusan_konsep_sk(
 pub async fn upload_penghapusan_signed_sk(
     id: &str,
     request: UploadSignedSKRequest,
-) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/{}/upload-signed-sk", PENGHAPUSAN_BMN_BASE, id),
         &request,
@@ -202,7 +202,7 @@ pub async fn upload_penghapusan_signed_sk(
 pub async fn transition_penghapusan_bmn_status(
     id: &str,
     request: PenghapusanWorkflowTransitionRequest,
-) -> Result<ApiResponse<PenghapusanBmnWorkflow>, gloo_net::Error> {
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
     auth_post_json(&format!("{}/{}/transition", PENGHAPUSAN_BMN_BASE, id), &request).await
 }
 

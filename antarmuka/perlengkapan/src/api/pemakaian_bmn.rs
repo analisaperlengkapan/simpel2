@@ -252,7 +252,7 @@ pub async fn fetch_pemakaian_bmn_list(
     pegawai_nip: Option<String>,
     satker_id: Option<String>,
     search: Option<String>,
-) -> Result<PaginatedResponse<IzinPemakaianBmn>, gloo_net::Error> {
+) -> Result<PaginatedResponse<IzinPemakaianBmn>, crate::api::AppError> {
     let mut url = format!("{}?page={}&per_page={}", PEMAKAIAN_BMN_BASE, page, per_page);
     if let Some(s) = status {
         url.push_str(&format!("&status={}", s));
@@ -298,7 +298,7 @@ pub async fn fetch_pemakaian_bmn_list(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_pemakaian_bmn_detail(
     id: &str,
-) -> Result<ApiResponse<IzinPemakaianDetailResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<IzinPemakaianDetailResponse>, crate::api::AppError> {
     auth_get_json(&format!("{}/{}", PEMAKAIAN_BMN_BASE, id)).await
 }
 
@@ -313,7 +313,7 @@ pub async fn fetch_pemakaian_bmn_detail(
 #[cfg(target_arch = "wasm32")]
 pub async fn create_pemakaian_bmn(
     request: CreateIzinPemakaianRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     auth_post_json(PEMAKAIAN_BMN_BASE, &request).await
 }
 
@@ -328,7 +328,7 @@ pub async fn create_pemakaian_bmn(
 #[cfg(target_arch = "wasm32")]
 pub async fn check_bmn_availability(
     bmn_nup: &str,
-) -> Result<ApiResponse<BmnAvailabilityResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
     auth_get_json(&format!("{}/bmn/{}/availability", PEMAKAIAN_BMN_BASE, bmn_nup)).await
 }
 
@@ -344,7 +344,7 @@ pub async fn check_bmn_availability(
 pub async fn transition_pemakaian_bmn_status(
     id: &str,
     request: PemakaianWorkflowTransitionRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     auth_post_json(&format!("{}/{}/transition", PEMAKAIAN_BMN_BASE, id), &request).await
 }
 
@@ -360,7 +360,7 @@ pub async fn transition_pemakaian_bmn_status(
 #[cfg(target_arch = "wasm32")]
 pub async fn activate_pemakaian_bmn(
     id: &str,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     auth_post_json(&format!("{}/{}/activate", PEMAKAIAN_BMN_BASE, id), &serde_json::json!({}))
         .await
 }
@@ -375,7 +375,7 @@ pub async fn activate_pemakaian_bmn(_id: &str) -> Result<ApiResponse<IzinPemakai
 pub async fn revoke_pemakaian_bmn(
     id: &str,
     request: RevokePermitRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     auth_post_json(&format!("{}/{}/revoke", PEMAKAIAN_BMN_BASE, id), &request).await
 }
 
@@ -392,7 +392,7 @@ pub async fn revoke_pemakaian_bmn(
 pub async fn renew_pemakaian_bmn(
     id: &str,
     request: RenewPermitRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     auth_post_json(&format!("{}/{}/renew", PEMAKAIAN_BMN_BASE, id), &request).await
 }
 
@@ -408,7 +408,7 @@ pub async fn renew_pemakaian_bmn(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_bmn_usage_history(
     bmn_nup: &str,
-) -> Result<ApiResponse<BmnUsageStats>, gloo_net::Error> {
+) -> Result<ApiResponse<BmnUsageStats>, crate::api::AppError> {
     auth_get_json(&format!("{}/bmn/{}/history", PEMAKAIAN_BMN_BASE, bmn_nup)).await
 }
 
@@ -421,7 +421,7 @@ pub async fn fetch_bmn_usage_history(_bmn_nup: &str) -> Result<ApiResponse<BmnUs
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_pegawai_usage_history(
     pegawai_nip: &str,
-) -> Result<ApiResponse<PegawaiUsageStats>, gloo_net::Error> {
+) -> Result<ApiResponse<PegawaiUsageStats>, crate::api::AppError> {
     auth_get_json(&format!("{}/pegawai/{}/history", PEMAKAIAN_BMN_BASE, pegawai_nip)).await
 }
 
@@ -436,7 +436,7 @@ pub async fn fetch_pegawai_usage_history(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_expiring_permits(
     days: i32,
-) -> Result<ApiResponse<Vec<IzinPemakaianBmn>>, gloo_net::Error> {
+) -> Result<ApiResponse<Vec<IzinPemakaianBmn>>, crate::api::AppError> {
     auth_get_json(&format!("{}/expiring?days={}", PEMAKAIAN_BMN_BASE, days)).await
 }
 
@@ -456,7 +456,7 @@ pub async fn fetch_expiring_permits(
 pub async fn generate_pemakaian_konsep_surat(
     id: &str,
     request: GenerateKonsepSuratRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/{}/generate-konsep-surat", PEMAKAIAN_BMN_BASE, id),
         &request,
@@ -477,7 +477,7 @@ pub async fn generate_pemakaian_konsep_surat(
 pub async fn upload_pemakaian_signed_pdf(
     id: &str,
     request: UploadSignedPdfRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/{}/upload-signed-pdf", PEMAKAIAN_BMN_BASE, id),
         &request,

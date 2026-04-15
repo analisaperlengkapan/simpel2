@@ -18,7 +18,7 @@ const KEBUTUHAN_BMN_BASE: &str = "/api/pembinaan/perlengkapan/kebutuhan-bmn";
 // --- Dashboard ---
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_kebutuhan_bmn_dashboard()
--> Result<ApiResponse<KebutuhanBmnDashboardStats>, gloo_net::Error> {
+-> Result<ApiResponse<KebutuhanBmnDashboardStats>, crate::api::AppError> {
     auth_get_json(&format!("{}/dashboard", KEBUTUHAN_BMN_BASE)).await
 }
 
@@ -48,7 +48,7 @@ pub async fn fetch_kebutuhan_bmn_list(
     query: KebutuhanBmnQuery,
     page: i32,
     per_page: i32,
-) -> Result<PaginatedResponse<KebutuhanBmnSummary>, gloo_net::Error> {
+) -> Result<PaginatedResponse<KebutuhanBmnSummary>, crate::api::AppError> {
     let mut url = format!(
         "{}/pengajuan?page={}&per_page={}",
         KEBUTUHAN_BMN_BASE, page, per_page
@@ -89,7 +89,7 @@ pub async fn fetch_kebutuhan_bmn_list(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_kebutuhan_bmn_detail(
     id: &str,
-) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
     auth_get_json(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id)).await
 }
 
@@ -103,7 +103,7 @@ pub async fn fetch_kebutuhan_bmn_detail(
 #[cfg(target_arch = "wasm32")]
 pub async fn create_kebutuhan_bmn(
     request: CreateKebutuhanBmnRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
     auth_post_json(&format!("{}/pengajuan", KEBUTUHAN_BMN_BASE), &request).await
 }
 
@@ -118,7 +118,7 @@ pub async fn create_kebutuhan_bmn(
 pub async fn update_kebutuhan_bmn(
     id: &str,
     request: UpdateKebutuhanBmnRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
     auth_put_json(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id), &request).await
 }
 
@@ -131,7 +131,7 @@ pub async fn update_kebutuhan_bmn(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn delete_kebutuhan_bmn(id: &str) -> Result<ApiResponse<()>, gloo_net::Error> {
+pub async fn delete_kebutuhan_bmn(id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
     auth_delete_json(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id)).await
 }
 
@@ -145,7 +145,7 @@ pub async fn delete_kebutuhan_bmn(_id: &str) -> Result<ApiResponse<()>, crate::a
 pub async fn transition_kebutuhan_bmn_status(
     id: &str,
     request: WorkflowTransitionRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/pengajuan/{}/transition", KEBUTUHAN_BMN_BASE, id),
         &request,
@@ -167,7 +167,7 @@ pub async fn fetch_pengajuan_satkers(
     pengajuan_id: &str,
     page: i32,
     per_page: i32,
-) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
+) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     let url = format!(
         "{}/pengajuan/{}/satker?page={}&per_page={}",
         KEBUTUHAN_BMN_BASE, pengajuan_id, page, per_page
@@ -196,7 +196,7 @@ pub async fn fetch_pengajuan_satkers(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_satker_with_barang(
     satker_id: &str,
-) -> Result<ApiResponse<SatkerWithBarangResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<SatkerWithBarangResponse>, crate::api::AppError> {
     auth_get_json(&format!("{}/satker/{}", KEBUTUHAN_BMN_BASE, satker_id)).await
 }
 
@@ -211,7 +211,7 @@ pub async fn fetch_satker_with_barang(
 pub async fn transition_satker_status(
     satker_id: &str,
     request: WorkflowTransitionRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/satker/{}/transition", KEBUTUHAN_BMN_BASE, satker_id),
         &request,
@@ -230,7 +230,7 @@ pub async fn transition_satker_status(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_satker_aktivitas(
     satker_id: &str,
-) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>, gloo_net::Error> {
+) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>, crate::api::AppError> {
     auth_get_json(&format!("{}/satker/{}/aktivitas", KEBUTUHAN_BMN_BASE, satker_id)).await
 }
 
@@ -248,7 +248,7 @@ pub async fn fetch_satker_aktivitas(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_satker_analisis(
     satker_id: &str,
-) -> Result<ApiResponse<AnalisisKelayakanResponse>, gloo_net::Error> {
+) -> Result<ApiResponse<AnalisisKelayakanResponse>, crate::api::AppError> {
     auth_get_json(&format!("{}/satker/{}/analisis", KEBUTUHAN_BMN_BASE, satker_id)).await
 }
 
@@ -264,7 +264,7 @@ pub async fn fetch_satker_analisis(
 pub async fn create_kebutuhan_bmn_barang(
     satker_id: &str,
     request: CreateKebutuhanBmnBarangRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/satker/{}/barang", KEBUTUHAN_BMN_BASE, satker_id),
         &request,
@@ -284,7 +284,7 @@ pub async fn create_kebutuhan_bmn_barang(
 pub async fn update_kebutuhan_bmn_barang(
     barang_id: &str,
     request: UpdateBarangApprovalRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
     auth_put_json(
         &format!("{}/barang/{}", KEBUTUHAN_BMN_BASE, barang_id),
         &request,
@@ -303,7 +303,7 @@ pub async fn update_kebutuhan_bmn_barang(
 #[cfg(target_arch = "wasm32")]
 pub async fn delete_kebutuhan_bmn_barang(
     barang_id: &str,
-) -> Result<ApiResponse<()>, gloo_net::Error> {
+) -> Result<ApiResponse<()>, crate::api::AppError> {
     auth_delete_json(&format!("{}/barang/{}", KEBUTUHAN_BMN_BASE, barang_id)).await
 }
 
@@ -316,7 +316,7 @@ pub async fn delete_kebutuhan_bmn_barang(_barang_id: &str) -> Result<ApiResponse
 #[cfg(target_arch = "wasm32")]
 pub async fn set_kebutuhan_bmn_prioritas(
     request: SetPrioritasRequest,
-) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, gloo_net::Error> {
+) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, crate::api::AppError> {
     auth_post_json(&format!("{}/prioritas", KEBUTUHAN_BMN_BASE), &request).await
 }
 
@@ -329,7 +329,7 @@ pub async fn set_kebutuhan_bmn_prioritas(
 
 // --- Export ---
 #[cfg(target_arch = "wasm32")]
-pub async fn export_kebutuhan_bmn(id: &str) -> Result<Vec<u8>, gloo_net::Error> {
+pub async fn export_kebutuhan_bmn(id: &str) -> Result<Vec<u8>, crate::api::AppError> {
     auth_get_binary(&format!("{}/pengajuan/{}/export", KEBUTUHAN_BMN_BASE, id)).await
 }
 
@@ -365,7 +365,7 @@ pub struct BatchOperationResponse {
 pub async fn batch_approve_kebutuhan(
     ids: Vec<uuid::Uuid>,
     komentar: Option<String>,
-) -> Result<BatchOperationResponse, gloo_net::Error> {
+) -> Result<BatchOperationResponse, crate::api::AppError> {
     use serde_json::json;
 
     let body = json!({
@@ -390,7 +390,7 @@ pub async fn batch_approve_kebutuhan(
 pub async fn batch_reject_kebutuhan(
     ids: Vec<uuid::Uuid>,
     komentar: String,
-) -> Result<BatchOperationResponse, gloo_net::Error> {
+) -> Result<BatchOperationResponse, crate::api::AppError> {
     use serde_json::json;
 
     let body = json!({
@@ -416,7 +416,7 @@ pub async fn batch_update_status(
     ids: Vec<uuid::Uuid>,
     target_status: i32,
     komentar: Option<String>,
-) -> Result<BatchOperationResponse, gloo_net::Error> {
+) -> Result<BatchOperationResponse, crate::api::AppError> {
     use serde_json::json;
 
     let body = json!({
@@ -444,7 +444,7 @@ pub async fn batch_update_status(
 pub async fn submit_kebutuhan_satker_to_wilayah(
     satker_id: &str,
     request: SubmitKebutuhanSatkerRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/satker/{}/submit-wilayah", KEBUTUHAN_BMN_BASE, satker_id),
         &request,
@@ -465,7 +465,7 @@ pub async fn submit_kebutuhan_satker_to_wilayah(
 pub async fn kebutuhan_validator_wilayah_action(
     satker_id: &str,
     request: KebutuhanValidatorWilayahActionRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/satker/{}/validator-wilayah", KEBUTUHAN_BMN_BASE, satker_id),
         &request,
@@ -486,7 +486,7 @@ pub async fn kebutuhan_validator_wilayah_action(
 pub async fn kebutuhan_validator_pusat_keputusan(
     satker_id: &str,
     request: ValidatorPusatKeputusanRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     auth_post_json(
         &format!("{}/satker/{}/keputusan-pusat", KEBUTUHAN_BMN_BASE, satker_id),
         &request,
@@ -512,7 +512,7 @@ pub async fn search_siman_assets(
     search: &str,
     kategori: Option<&str>,
     limit: Option<usize>,
-) -> Result<ApiResponse<Vec<SimanAsset>>, gloo_net::Error> {
+) -> Result<ApiResponse<Vec<SimanAsset>>, crate::api::AppError> {
     let mut url = format!("{}/siman/search?search={}", KEBUTUHAN_BMN_BASE, search);
     if let Some(kat) = kategori {
         url.push_str(&format!("&kategori={}", kat));
@@ -541,7 +541,7 @@ pub async fn search_siman_assets(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_siman_satker_summary(
     satker_id: &str,
-) -> Result<ApiResponse<SatkerAssetSummary>, gloo_net::Error> {
+) -> Result<ApiResponse<SatkerAssetSummary>, crate::api::AppError> {
     auth_get_json(&format!("{}/siman/summary/{}", KEBUTUHAN_BMN_BASE, satker_id)).await
 }
 
