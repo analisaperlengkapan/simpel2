@@ -335,7 +335,7 @@ pub async fn fetch_jenis_pakaian_dinas(
 pub async fn fetch_jenis_pakaian_dinas(
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<JenisPakaianDinas>, String> {
+) -> Result<PaginatedResponse<JenisPakaianDinas>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -378,8 +378,8 @@ pub async fn create_jenis_pakaian_dinas(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_jenis_pakaian_dinas(
     _request: CreateJenisPakaianDinasRequest,
-) -> Result<ApiResponse<JenisPakaianDinas>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<JenisPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -415,8 +415,8 @@ pub async fn update_jenis_pakaian_dinas(
 pub async fn update_jenis_pakaian_dinas(
     _id: String,
     _request: UpdateJenisPakaianDinasRequest,
-) -> Result<ApiResponse<JenisPakaianDinas>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<JenisPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -445,8 +445,8 @@ pub async fn delete_jenis_pakaian_dinas(id: String) -> Result<ApiResponse<()>, g
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_jenis_pakaian_dinas(_id: String) -> Result<ApiResponse<()>, String> {
-    Err("Server-side stub".to_string())
+pub async fn delete_jenis_pakaian_dinas(_id: String) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Spesifikasi ---
@@ -491,7 +491,7 @@ pub async fn fetch_spesifikasi_pakaian(
     _page: i32,
     _per_page: i32,
     _jenis_id: Option<String>,
-) -> Result<PaginatedResponse<SpesifikasiPakaianDinas>, String> {
+) -> Result<PaginatedResponse<SpesifikasiPakaianDinas>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -534,8 +534,8 @@ pub async fn create_spesifikasi_pakaian(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_spesifikasi_pakaian(
     _request: CreateSpesifikasiRequest,
-) -> Result<ApiResponse<SpesifikasiPakaianDinas>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<SpesifikasiPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -574,8 +574,8 @@ pub async fn update_spesifikasi_pakaian(
 pub async fn update_spesifikasi_pakaian(
     _id: String,
     _request: UpdateSpesifikasiRequest,
-) -> Result<ApiResponse<SpesifikasiPakaianDinas>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<SpesifikasiPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -607,8 +607,8 @@ pub async fn delete_spesifikasi_pakaian(id: String) -> Result<ApiResponse<()>, g
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_spesifikasi_pakaian(_id: String) -> Result<ApiResponse<()>, String> {
-    Err("Server-side stub".to_string())
+pub async fn delete_spesifikasi_pakaian(_id: String) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Sub-Spesifikasi ---
@@ -653,7 +653,7 @@ pub async fn fetch_subspesifikasi_pakaian(
     _page: i32,
     _per_page: i32,
     _spesifikasi_id: Option<String>,
-) -> Result<PaginatedResponse<SubSpesifikasiPakaianDinas>, String> {
+) -> Result<PaginatedResponse<SubSpesifikasiPakaianDinas>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -696,8 +696,8 @@ pub async fn create_subspesifikasi_pakaian(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_subspesifikasi_pakaian(
     _request: CreateSubSpesifikasiRequest,
-) -> Result<ApiResponse<SubSpesifikasiPakaianDinas>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<SubSpesifikasiPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Master Ukuran ---
@@ -735,7 +735,7 @@ pub async fn fetch_master_ukuran(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_master_ukuran(
     _group: Option<String>,
-) -> Result<ApiResponse<Vec<Ukuran>>, String> {
+) -> Result<ApiResponse<Vec<Ukuran>>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: vec![],
@@ -785,7 +785,7 @@ pub async fn fetch_pengajuan_pakaian_dinas(
     _page: i32,
     _per_page: i32,
     _tahun: Option<i32>,
-) -> Result<PaginatedResponse<PengajuanPakaianDinas>, String> {
+) -> Result<PaginatedResponse<PengajuanPakaianDinas>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -828,8 +828,8 @@ pub async fn create_pengajuan_pakaian_dinas(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pengajuan_pakaian_dinas(
     _request: CreatePengajuanPakaianDinasRequest,
-) -> Result<ApiResponse<PengajuanPakaianDinas>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -860,8 +860,8 @@ pub async fn delete_pengajuan_pakaian_dinas(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_pengajuan_pakaian_dinas(_id: String) -> Result<ApiResponse<()>, String> {
-    Err("Server-side stub".to_string())
+pub async fn delete_pengajuan_pakaian_dinas(_id: String) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Pengajuan Satker ---
@@ -903,7 +903,7 @@ pub async fn fetch_pengajuan_satker(
     _pengajuan_id: String,
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<PengajuanSatkerWithActivities>, String> {
+) -> Result<PaginatedResponse<PengajuanSatkerWithActivities>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -946,8 +946,8 @@ pub async fn process_validator_action(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn process_validator_action(
     _request: ValidatorActionRequest,
-) -> Result<ApiResponse<PengajuanSatker>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanSatker>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Pegawai Ukuran ---
@@ -985,7 +985,7 @@ pub async fn fetch_pegawai_ukuran(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_pegawai_ukuran(
     _pegawai_id: String,
-) -> Result<ApiResponse<Option<PegawaiPakaianDinas>>, String> {
+) -> Result<ApiResponse<Option<PegawaiPakaianDinas>>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: None,
@@ -1024,8 +1024,8 @@ pub async fn upsert_pegawai_ukuran(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn upsert_pegawai_ukuran(
     _request: UpsertPegawaiUkuranRequest,
-) -> Result<ApiResponse<PegawaiPakaianDinas>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PegawaiPakaianDinas>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Pegawai by Satker (from MySIMKARI) ---
@@ -1067,7 +1067,7 @@ pub async fn fetch_pegawai_by_satker(
     _satker_id: String,
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<MysimkariPegawai>, String> {
+) -> Result<PaginatedResponse<MysimkariPegawai>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1116,7 +1116,7 @@ pub async fn fetch_pegawai_with_sizes(
     _satker_id: String,
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<PegawaiWithSizes>, String> {
+) -> Result<PaginatedResponse<PegawaiWithSizes>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1182,7 +1182,7 @@ pub async fn fetch_laporan_rekap_ukuran(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_laporan_rekap_ukuran(
     _query: LaporanQuery,
-) -> Result<ApiResponse<Vec<LaporanRekapUkuran>>, String> {
+) -> Result<ApiResponse<Vec<LaporanRekapUkuran>>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: vec![],
@@ -1245,7 +1245,7 @@ pub async fn fetch_laporan_daftar_pegawai(
     _query: LaporanQuery,
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<LaporanDaftarPegawai>, String> {
+) -> Result<PaginatedResponse<LaporanDaftarPegawai>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],

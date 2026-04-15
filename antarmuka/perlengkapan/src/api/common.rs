@@ -597,7 +597,7 @@ pub async fn fetch_assets(
     _page: i32,
     _per_page: i32,
     _category: Option<String>,
-) -> Result<PaginatedResponse<Asset>, String> {
+) -> Result<PaginatedResponse<Asset>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -635,7 +635,7 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, gloo
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, String> {
+pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: DashboardStats {
@@ -676,8 +676,8 @@ pub async fn fetch_asset_by_id(id: String) -> Result<ApiResponse<Asset>, gloo_ne
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_asset_by_id(_id: String) -> Result<ApiResponse<Asset>, String> {
-    Err("Server-side stub".to_string())
+pub async fn fetch_asset_by_id(_id: String) -> Result<ApiResponse<Asset>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -715,7 +715,7 @@ pub async fn fetch_pengadaan(
 pub async fn fetch_pengadaan(
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<Pengadaan>, String> {
+) -> Result<PaginatedResponse<Pengadaan>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -758,8 +758,8 @@ pub async fn create_pengadaan(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pengadaan(
     _request: CreatePengadaanRequest,
-) -> Result<ApiResponse<Pengadaan>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<Pengadaan>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -792,8 +792,8 @@ pub async fn fetch_pengadaan_hps(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_pengadaan_hps(
     _pengadaan_id: String,
-) -> Result<ApiResponse<Vec<PengadaanHps>>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<Vec<PengadaanHps>>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -830,8 +830,8 @@ pub async fn create_pengadaan_hps(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pengadaan_hps(
     _request: CreatePengadaanHpsRequest,
-) -> Result<ApiResponse<PengadaanHps>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengadaanHps>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // Similarly for other sub-documents... I will add them if I have enough token space, but this demonstrates the pattern.
@@ -873,7 +873,7 @@ pub async fn fetch_analisis(
 pub async fn fetch_analisis(
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<AnalisisKebutuhan>, String> {
+) -> Result<PaginatedResponse<AnalisisKebutuhan>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -916,8 +916,8 @@ pub async fn create_analisis(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_analisis(
     _request: CreateAnalisisRequest,
-) -> Result<ApiResponse<AnalisisKebutuhan>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<AnalisisKebutuhan>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -955,7 +955,7 @@ pub async fn fetch_pemakaian(
 pub async fn fetch_pemakaian(
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<Pemakaian>, String> {
+) -> Result<PaginatedResponse<Pemakaian>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -998,8 +998,8 @@ pub async fn create_pemakaian(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pemakaian(
     _request: CreatePemakaianRequest,
-) -> Result<ApiResponse<Pemakaian>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<Pemakaian>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1034,7 +1034,7 @@ pub async fn fetch_hibah(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_hibah(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Hibah>, String> {
+pub async fn fetch_hibah(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Hibah>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1075,8 +1075,8 @@ pub async fn create_hibah(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_hibah(_request: CreateHibahRequest) -> Result<ApiResponse<Hibah>, String> {
-    Err("Server-side stub".to_string())
+pub async fn create_hibah(_request: CreateHibahRequest) -> Result<ApiResponse<Hibah>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1111,7 +1111,7 @@ pub async fn fetch_mutasi(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_mutasi(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Mutasi>, String> {
+pub async fn fetch_mutasi(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Mutasi>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1152,8 +1152,8 @@ pub async fn create_mutasi(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_mutasi(_request: CreateMutasiRequest) -> Result<ApiResponse<Mutasi>, String> {
-    Err("Server-side stub".to_string())
+pub async fn create_mutasi(_request: CreateMutasiRequest) -> Result<ApiResponse<Mutasi>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1191,7 +1191,7 @@ pub async fn fetch_penghapusan(
 pub async fn fetch_penghapusan(
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<Penghapusan>, String> {
+) -> Result<PaginatedResponse<Penghapusan>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1234,8 +1234,8 @@ pub async fn create_penghapusan(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_penghapusan(
     _request: CreatePenghapusanRequest,
-) -> Result<ApiResponse<Penghapusan>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<Penghapusan>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1273,7 +1273,7 @@ pub async fn fetch_pengalihan(
 pub async fn fetch_pengalihan(
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<Pengalihan>, String> {
+) -> Result<PaginatedResponse<Pengalihan>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1316,8 +1316,8 @@ pub async fn create_pengalihan(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pengalihan(
     _request: CreatePengalihanRequest,
-) -> Result<ApiResponse<Pengalihan>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<Pengalihan>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1355,7 +1355,7 @@ pub async fn fetch_pemeliharaan(
 pub async fn fetch_pemeliharaan(
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<Pemeliharaan>, String> {
+) -> Result<PaginatedResponse<Pemeliharaan>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1398,6 +1398,6 @@ pub async fn create_pemeliharaan(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pemeliharaan(
     _request: CreatePemeliharaanRequest,
-) -> Result<ApiResponse<Pemeliharaan>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<Pemeliharaan>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
