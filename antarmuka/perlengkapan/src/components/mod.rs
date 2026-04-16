@@ -1,5 +1,6 @@
 pub mod admin_users;
 pub mod analisis_form;
+pub mod app_chrome;
 pub mod analisis_list;
 pub mod aset_list;
 pub mod batch_operations_toolbar;

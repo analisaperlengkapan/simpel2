@@ -25,7 +25,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
 
-use components::profile_menu::ProfileMenu;
+use components::app_chrome::{AppFooter, AppHeader};
 use components::sidebar::Sidebar;
 use components::guards::{SessionAdminGuard, SessionAuthGuard};
 use features::auth::AuthService;
@@ -90,19 +90,11 @@ pub fn App() -> impl IntoView {
             .unwrap_or(false)
     };
 
-    let main_style = move || {
-        if is_login_page() {
-            "flex: 1; overflow-y: auto; padding: 0; margin-left: 0;"
-        } else {
-            "flex: 1; overflow-y: auto; padding: 1.5rem; margin-left: 0;"
-        }
-    };
-
     let main_class = move || {
         if is_login_page() {
-            ""
+            "flex-1 overflow-y-auto p-0"
         } else {
-            "lg:ml-[250px]"
+            "flex-1 overflow-y-auto p-6 lg:ml-[250px]"
         }
     };
 
@@ -122,54 +114,23 @@ pub fn App() -> impl IntoView {
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
 
         <Router base="/perlengkapan">
-            // ══ Full-page dark shell ═════════════════════════════════
-            <div style="min-height: 100vh; display: flex; flex-direction: column; background: linear-gradient(180deg, #0f172a 0%, #111c36 50%, #0a1020 100%); font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;">
+            <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
                 // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
-                <div class="hidden lg:ml-[250px]" style="display: none;"></div>
+                <div class="hidden lg:ml-[250px]"></div>
 
-                // ── Header ───────────────────────────────────────────
-                {move || if is_login_page() {
-                    view! { <></> }.into_any()
-                } else {
-                    view! {
-                        <header style="background: #0c1425; border-bottom: 1px solid rgba(255,255,255,0.06); position: sticky; top: 0; z-index: 50;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; height: 56px;">
-                                // Left: mobile toggle + brand
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <button
-                                        on:click=move |_| sidebar_open.update(|o| *o = !*o)
-                                        style="background: none; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 4px;"
-                                        class="lg:hidden"
-                                    >
-                                        <i class="fas fa-bars"></i>
-                                    </button>
-                                    <A href=routes::path::DASHBOARD attr:style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
-                                        <img
-                                            src="/perlengkapan/assets/kejaksaan-logo.png"
-                                            alt="Kejaksaan RI"
-                                            style="width: 30px; height: 30px; object-fit: contain;"
-                                        />
-                                        <span style="font-size: 1.1rem; font-weight: 800; color: #ffffff; letter-spacing: 0.02em;">
-                                            "SIMPEL"
-                                        </span>
-                                    </A>
-                                </div>
-                                // Right: profile avatar
-                                <ProfileMenu />
-                            </div>
-                        </header>
-                    }.into_any()
-                }}
+                {move || (!is_login_page()).then(|| {
+                    let toggle = Callback::new(move |_: ()| sidebar_open.update(|o| *o = !*o));
+                    view! { <AppHeader on_toggle_sidebar=toggle /> }
+                })}
 
-                // ── Body (sidebar + main) ────────────────────────────
-                <div style="display: flex; flex: 1; min-height: 0;">
+                <div class="flex min-h-0 flex-1">
                     {move || if is_login_page() {
                         view! { <></> }.into_any()
                     } else {
                         view! { <Sidebar sidebar_open=sidebar_open /> }.into_any()
                     }}
 
-                        <main style=main_style class=main_class>
+                        <main class=main_class>
                         <Routes fallback=move || view! { <NotFound /> }.into_any()>
                             // Dashboard home (default)
                             <Route path=path!("/login") view=move || {
@@ -271,23 +232,7 @@ pub fn App() -> impl IntoView {
                     </main>
                 </div>
 
-                // ── Footer ───────────────────────────────────────────
-                {move || if is_login_page() {
-                    view! { <></> }.into_any()
-                } else {
-                    view! {
-                        <footer style="background: rgba(10,16,32,0.9); border-top: 1px solid rgba(255,255,255,0.05); padding: 10px 1.25rem;" class="lg:ml-[250px]">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="font-size: 0.7rem; color: #475569;">
-                                    "SIMPEL v" {APP_VERSION} " · Kejaksaan Agung RI"
-                                </span>
-                                <span style="font-size: 0.65rem; color: #334155;">
-                                    "© 2025 Biro Perlengkapan"
-                                </span>
-                            </div>
-                        </footer>
-                    }.into_any()
-                }}
+                {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
             </div>
         </Router>
     }
