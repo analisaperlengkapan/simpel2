@@ -12,7 +12,7 @@ use crate::errors::{AppResult, bad_request};
 /// Service for Pakaian Dinas business logic
 #[derive(Clone)]
 pub struct PakaianDinasService {
-    repository: PakaianDinasRepository,
+    pub(crate) repository: PakaianDinasRepository,
 }
 
 impl PakaianDinasService {

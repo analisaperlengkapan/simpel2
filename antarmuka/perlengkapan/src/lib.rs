@@ -34,6 +34,7 @@ use pages::dashboard_perlengkapan::DashboardPerlengkapan;
 use pages::login::LoginPage;
 use pages::kebutuhan_bmn::PeriodManagement;
 use pages::not_found::NotFound;
+use pages::pakaian_dinas::SpesifikasiPage;
 use pages::placeholder::PlaceholderPage;
 use pages::search_page::SearchPage;
 use pages::workflow::config_management::WorkflowConfigManagement;
@@ -177,7 +178,7 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("/pakaian-dinas/jenis") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasJenisList /></SessionAuthGuard> } />
                             <Route path=path!("/pakaian-dinas/jenis/:id/spesifikasi") view=move || view! {
                                 <SessionAuthGuard user_session=user_session>
-                                    <PlaceholderPage title="Spesifikasi Pakaian Dinas" icon="fas fa-list" description="Halaman spesifikasi per jenis sedang dalam pengembangan." />
+                                    <SpesifikasiPage />
                                 </SessionAuthGuard>
                             } />
                             <Route path=path!("/pakaian-dinas/pengajuan") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasPengajuanList /></SessionAuthGuard> } />

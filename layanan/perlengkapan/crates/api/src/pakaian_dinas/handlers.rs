@@ -150,6 +150,28 @@ pub async fn delete_jenis_pakaian(
 
 // ============ Master: Spesifikasi ============
 
+/// Sub-resource: list spesifikasi for a given jenis_id.
+/// Used by the `/pakaian-dinas/jenis/:id/spesifikasi` frontend page.
+pub async fn get_spesifikasi_by_jenis(
+    State(service): State<PakaianDinasService>,
+    Path(jenis_id): Path<Uuid>,
+    Query(query): Query<PaginationQuery>,
+    _claims: Claims,
+) -> Result<Json<PaginatedResponse<SpesifikasiPakaianDinas>>, AppError> {
+    query.validate()?;
+    let (items, total) = service
+        .get_all_spesifikasi(query.page, query.per_page, Some(jenis_id))
+        .await?;
+
+    Ok(Json(PaginatedResponse::new(
+        items,
+        total,
+        query.page,
+        query.per_page,
+        "Spesifikasi jenis pakaian dinas berhasil diambil".to_string(),
+    )))
+}
+
 pub async fn get_all_spesifikasi(
     State(service): State<PakaianDinasService>,
     Query(query): Query<SpesifikasiFilterQuery>,
@@ -469,6 +491,41 @@ pub async fn update_personal_ukuran(
     Ok(Json(ApiResponse::success(
         item,
         "Data ukuran pakaian berhasil disimpan".to_string(),
+    )))
+}
+
+// ============ Profile Upsert (reporting fields + sizes) ============
+
+/// Upsert a single pegawai profile — sets sizes AND reporting fields
+/// (eselon, jenis_kelamin, jenis_pegawai, with_hijab, mapped_unit_kerja).
+pub async fn upsert_pegawai_profile(
+    State(service): State<PakaianDinasService>,
+    _claims: Claims,
+    Json(request): Json<UpsertPegawaiProfileRequest>,
+) -> Result<Json<ApiResponse<PegawaiPakaianDinas>>, AppError> {
+    let item = service.repository.upsert_pegawai_profile(&request).await?;
+
+    Ok(Json(ApiResponse::success(
+        item,
+        "Profil pegawai berhasil disimpan".to_string(),
+    )))
+}
+
+/// Bulk upsert pegawai profiles — used by the wizard to submit an
+/// entire satker roster in one request.
+pub async fn bulk_upsert_pegawai_profiles(
+    State(service): State<PakaianDinasService>,
+    _claims: Claims,
+    Json(requests): Json<Vec<UpsertPegawaiProfileRequest>>,
+) -> Result<Json<ApiResponse<usize>>, AppError> {
+    let count = service
+        .repository
+        .bulk_upsert_pegawai_profiles(&requests)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        count,
+        format!("{} profil pegawai berhasil disimpan", count),
     )))
 }
 

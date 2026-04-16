@@ -165,6 +165,20 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/ukuran-pakaian-pegawai",
             get(pakaian_dinas::get_personal_ukuran).post(pakaian_dinas::update_personal_ukuran),
         )
+        // Pegawai Profile (reporting fields + sizes)
+        .route(
+            "/pakaian-dinas/pegawai-profile",
+            post(pakaian_dinas::upsert_pegawai_profile),
+        )
+        .route(
+            "/pakaian-dinas/pegawai-profile/bulk",
+            post(pakaian_dinas::bulk_upsert_pegawai_profiles),
+        )
+        // Spesifikasi by Jenis (sub-resource)
+        .route(
+            "/pakaian-dinas/jenis/{jenis_id}/spesifikasi",
+            get(pakaian_dinas::get_spesifikasi_by_jenis),
+        )
         // MySIMKARI Integration
         .route(
             "/pakaian-dinas/pegawai-satker/{satker_id}",
