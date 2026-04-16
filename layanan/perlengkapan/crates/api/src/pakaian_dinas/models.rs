@@ -625,8 +625,11 @@ pub struct ValidatorActionRequest {
 
 // ============ Persistent Employee Size Models ============
 
-/// Persistent record of employee's uniform sizes
-/// Updated when a request is approved
+/// Persistent per-employee profile for pakaian dinas. Stores the uniform
+/// sizes *and* the reporting-relevant attributes (eselon, jenis kelamin,
+/// jenis pegawai, mapped unit kerja, kode satker) that the MySIMKARI API
+/// does not expose. Updated by the pakaian dinas wizard and by approved
+/// pengajuan, not by MySIMKARI sync.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PegawaiPakaianDinas {
     pub nip: String,
@@ -638,6 +641,11 @@ pub struct PegawaiPakaianDinas {
     pub pangkat: Option<String>,
     pub jabatan: Option<String>,
     pub status: Option<String>,
+    pub eselon: Option<String>,
+    pub jenis_kelamin: Option<String>,
+    pub jenis_pegawai: Option<String>,
+    pub mapped_unit_kerja: Option<String>,
+    pub kode_satker: Option<String>,
     pub last_pengajuan_satker_pegawai_id: Option<Uuid>,
     pub updated_at: DateTime<Utc>,
 }
@@ -654,6 +662,11 @@ impl PegawaiPakaianDinas {
             pangkat: row.try_get("pangkat").ok(),
             jabatan: row.try_get("jabatan").ok(),
             status: row.try_get("status").ok(),
+            eselon: row.try_get("eselon").ok(),
+            jenis_kelamin: row.try_get("jenis_kelamin").ok(),
+            jenis_pegawai: row.try_get("jenis_pegawai").ok(),
+            mapped_unit_kerja: row.try_get("mapped_unit_kerja").ok(),
+            kode_satker: row.try_get("kode_satker").ok(),
             last_pengajuan_satker_pegawai_id: row.try_get("last_pengajuan_satker_pegawai_id").ok(),
             updated_at: row.get("updated_at"),
         }
