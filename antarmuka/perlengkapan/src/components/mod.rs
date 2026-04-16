@@ -11,6 +11,7 @@ pub mod kebutuhan_bmn_form;
 pub mod kebutuhan_bmn_list;
 pub mod kebutuhan_bmn_satker;
 pub mod laporan_kebutuhan_bmn;
+pub mod layout;
 pub mod list_feedback;
 pub mod mapping_kodefikasi_dashboard;
 pub mod pakaian_dinas_jenis_list;
