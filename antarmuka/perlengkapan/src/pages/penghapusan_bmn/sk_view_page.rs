@@ -68,7 +68,7 @@ pub fn SkViewPage() -> impl IntoView {
             set_loading.set(true);
             match fetch_completed_requests().await {
                 Ok(list) => set_requests.set(list),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -396,21 +396,21 @@ pub fn SkViewPage() -> impl IntoView {
 // API Functions
 // ============================================================================
 
-async fn fetch_completed_requests() -> Result<Vec<PenghapusanRequest>, String> {
+async fn fetch_completed_requests() -> Result<Vec<PenghapusanRequest>, crate::api::AppError> {
     // Fetch requests with status DOCUMENT_GENERATED or COMPLETED
     let response = gloo_net::http::Request::get("/api/v1/penghapusan-bmn?status=DOCUMENT_GENERATED,COMPLETED")
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Vec<PenghapusanRequest>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     Ok(api_response.data.unwrap_or_default())
 }

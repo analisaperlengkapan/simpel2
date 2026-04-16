@@ -94,7 +94,7 @@ pub fn BmnSelectionPage() -> impl IntoView {
             set_loading.set(true);
             match fetch_bmn_list().await {
                 Ok(list) => set_bmn_list.set(list),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -115,7 +115,7 @@ pub fn BmnSelectionPage() -> impl IntoView {
                         set_usage_stats.set(Some(stats));
                     }
                 }
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_checking_availability.set(false);
         });
@@ -492,58 +492,58 @@ pub fn BmnSelectionPage() -> impl IntoView {
 // API Functions
 // ============================================================================
 
-async fn fetch_bmn_list() -> Result<Vec<BmnItem>, String> {
+async fn fetch_bmn_list() -> Result<Vec<BmnItem>, crate::api::AppError> {
     let response = gloo_net::http::Request::get("/api/v1/pemakaian-bmn/bmn/available")
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Vec<BmnItem>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     Ok(api_response.data.unwrap_or_default())
 }
 
-async fn check_bmn_availability(nup: &str) -> Result<BmnAvailabilityResponse, String> {
+async fn check_bmn_availability(nup: &str) -> Result<BmnAvailabilityResponse, crate::api::AppError> {
     let url = format!("/api/v1/pemakaian-bmn/bmn/{}/availability", nup);
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<BmnAvailabilityResponse> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| "No data in response".to_string())
+    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
-async fn fetch_bmn_usage_history(nup: &str) -> Result<BmnUsageStats, String> {
+async fn fetch_bmn_usage_history(nup: &str) -> Result<BmnUsageStats, crate::api::AppError> {
     let url = format!("/api/v1/pemakaian-bmn/bmn/{}/history", nup);
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<BmnUsageStats> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| "No data in response".to_string())
+    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }

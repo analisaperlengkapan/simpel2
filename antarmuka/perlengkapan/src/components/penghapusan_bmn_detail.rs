@@ -60,12 +60,12 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
         let id = params.get().get("id").unwrap_or_default();
         async move {
             if id.is_empty() {
-                return Err("ID tidak ditemukan".to_string());
+                return Err(crate::api::AppError::Unknown("ID tidak ditemukan".to_string()));
             }
             fetch_penghapusan_bmn_detail(&id)
                 .await
                 .map(|r| r.data)
-                .map_err(|e| format!("{:?}", e))
+                .map_err(|e| crate::api::AppError::Unknown(format!("{:?}", e)))
         }
     });
 

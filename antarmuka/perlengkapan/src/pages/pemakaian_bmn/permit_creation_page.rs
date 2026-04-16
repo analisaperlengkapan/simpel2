@@ -96,7 +96,7 @@ pub fn PermitCreationPage() -> impl IntoView {
             set_loading.set(true);
             match fetch_pegawai_list().await {
                 Ok(list) => set_pegawai_list.set(list),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -108,7 +108,7 @@ pub fn PermitCreationPage() -> impl IntoView {
             set_loading.set(true);
             match fetch_available_bmn().await {
                 Ok(list) => set_available_bmn.set(list),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -173,7 +173,7 @@ pub fn PermitCreationPage() -> impl IntoView {
 
                     set_success_message.set(Some("Izin pemakaian berhasil dibuat (REQ-P001)".to_string()));
                 }
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -359,63 +359,63 @@ pub fn PermitCreationPage() -> impl IntoView {
 // API Functions
 // ============================================================================
 
-async fn fetch_pegawai_list() -> Result<Vec<Pegawai>, String> {
+async fn fetch_pegawai_list() -> Result<Vec<Pegawai>, crate::api::AppError> {
     let response = gloo_net::http::Request::get("/api/v1/pemakaian-bmn/pegawai")
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Vec<Pegawai>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     Ok(api_response.data.unwrap_or_default())
 }
 
-async fn fetch_available_bmn() -> Result<Vec<BmnItem>, String> {
+async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
     let response = gloo_net::http::Request::get("/api/v1/pemakaian-bmn/bmn/available")
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Vec<BmnItem>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     Ok(api_response.data.unwrap_or_default())
 }
 
-async fn create_permit_api(request: CreatePermitRequest) -> Result<Permit, String> {
+async fn create_permit_api(request: CreatePermitRequest) -> Result<Permit, crate::api::AppError> {
     let response = gloo_net::http::Request::post("/api/v1/pemakaian-bmn")
         .json(&request)
-        .map_err(|e| format!("Serialization error: {}", e))?
+        .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Permit> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| "No data in response".to_string())
+    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
-async fn add_bmn_to_permit(permit_id: Uuid, bmn: BmnItem) -> Result<(), String> {
+async fn add_bmn_to_permit(permit_id: Uuid, bmn: BmnItem) -> Result<(), crate::api::AppError> {
     let request = AddBmnRequest {
         nup: bmn.nup,
         nama_barang: bmn.nama_barang,
@@ -424,13 +424,13 @@ async fn add_bmn_to_permit(permit_id: Uuid, bmn: BmnItem) -> Result<(), String> 
     let url = format!("/api/v1/pemakaian-bmn/{}/bmn", permit_id);
     let response = gloo_net::http::Request::post(&url)
         .json(&request)
-        .map_err(|e| format!("Serialization error: {}", e))?
+        .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     Ok(())

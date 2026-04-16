@@ -55,7 +55,7 @@ pub struct ApiResponse<T> {
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_workflow_metrics() -> Result<ApiResponse<WorkflowMetrics>, String> {
+pub async fn fetch_workflow_metrics() -> Result<ApiResponse<WorkflowMetrics>, crate::api::AppError> {
     use crate::api::client::{get_auth_token, API_BASE};
     use gloo_net::http::Request;
 
@@ -66,24 +66,24 @@ pub async fn fetch_workflow_metrics() -> Result<ApiResponse<WorkflowMetrics>, St
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !resp.ok() {
-        return Err(format!("API error: HTTP {}", resp.status()));
+        return Err(format!("API error: HTTP {}", resp.status()).into());
     }
 
     resp.json::<ApiResponse<WorkflowMetrics>>()
         .await
-        .map_err(|e| format!("Parse error: {}", e))
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_workflow_metrics() -> Result<ApiResponse<WorkflowMetrics>, String> {
-    Err("Server-side stub".to_string())
+pub async fn fetch_workflow_metrics() -> Result<ApiResponse<WorkflowMetrics>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_active_workflows() -> Result<ApiResponse<Vec<WorkflowSummary>>, String> {
+pub async fn fetch_active_workflows() -> Result<ApiResponse<Vec<WorkflowSummary>>, crate::api::AppError> {
     use crate::api::client::{get_auth_token, API_BASE};
     use gloo_net::http::Request;
 
@@ -94,20 +94,20 @@ pub async fn fetch_active_workflows() -> Result<ApiResponse<Vec<WorkflowSummary>
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !resp.ok() {
-        return Err(format!("API error: HTTP {}", resp.status()));
+        return Err(format!("API error: HTTP {}", resp.status()).into());
     }
 
     resp.json::<ApiResponse<Vec<WorkflowSummary>>>()
         .await
-        .map_err(|e| format!("Parse error: {}", e))
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_active_workflows() -> Result<ApiResponse<Vec<WorkflowSummary>>, String> {
-    Err("Server-side stub".to_string())
+pub async fn fetch_active_workflows() -> Result<ApiResponse<Vec<WorkflowSummary>>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -460,7 +460,7 @@ pub fn WorkflowMonitoring() -> impl IntoView {
                                     "Gagal Memuat Metrics"
                                 </h3>
                                 <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
-                                    {e}
+                                    {e.to_string()}
                                 </p>
                             </div>
                         }.into_any()
@@ -512,7 +512,7 @@ pub fn WorkflowMonitoring() -> impl IntoView {
                                     "Gagal Memuat Workflows"
                                 </h3>
                                 <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
-                                    {e}
+                                    {e.to_string()}
                                 </p>
                             </div>
                         }.into_any()

@@ -130,7 +130,7 @@ pub fn AnalysisPage() -> impl IntoView {
             set_loading.set(true);
             match fetch_submissions_for_analysis().await {
                 Ok(subs) => set_submissions.set(subs),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -151,7 +151,7 @@ pub fn AnalysisPage() -> impl IntoView {
                     set_approved_quantities.set(quantities);
                     set_selected_analysis.set(Some(data));
                 }
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -331,41 +331,41 @@ fn GapAnalysisTable(data: Vec<GapAnalysisItem>) -> impl IntoView {
 // API Functions
 // ============================================================================
 
-async fn fetch_submissions_for_analysis() -> Result<Vec<SatkerSubmission>, String> {
+async fn fetch_submissions_for_analysis() -> Result<Vec<SatkerSubmission>, crate::api::AppError> {
     let response = gloo_net::http::Request::get("/api/v1/kebutuhan-bmn/satker?status_kode=2003")
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Vec<SatkerSubmission>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     Ok(api_response.data.unwrap_or_default())
 }
 
-async fn fetch_analysis_data(satker_id: Uuid) -> Result<AnalysisData, String> {
+async fn fetch_analysis_data(satker_id: Uuid) -> Result<AnalysisData, crate::api::AppError> {
     let url = format!("/api/v1/kebutuhan-bmn/satker/{}/analisis", satker_id);
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<AnalysisData> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     api_response
         .data
-        .ok_or_else(|| "Analysis data not found".to_string())
+        .ok_or_else(|| crate::api::AppError::Unknown("Analysis data not found".to_string()))
 }

@@ -103,7 +103,7 @@ pub fn SubmissionFormPage() -> impl IntoView {
                         }
                     }
                 }
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -164,7 +164,7 @@ pub fn SubmissionFormPage() -> impl IntoView {
 
                     set_success_message.set(Some("Barang berhasil ditambahkan".to_string()));
                 }
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -206,7 +206,7 @@ pub fn SubmissionFormPage() -> impl IntoView {
                         }
                     }
                 }
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -459,58 +459,58 @@ pub fn SubmissionFormPage() -> impl IntoView {
 // API Functions
 // ============================================================================
 
-async fn fetch_active_pengajuan() -> Result<PengajuanSummary, String> {
+async fn fetch_active_pengajuan() -> Result<PengajuanSummary, crate::api::AppError> {
     let response = gloo_net::http::Request::get("/api/v1/kebutuhan-bmn/pengajuan?status_kode=2001")
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Vec<PengajuanSummary>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     api_response
         .data
         .and_then(|mut v| v.pop())
-        .ok_or_else(|| "No active pengajuan found".to_string())
+        .ok_or_else(|| crate::api::AppError::Unknown("No active pengajuan found".to_string()))
 }
 
-async fn fetch_satker_detail(pengajuan_id: Uuid) -> Result<SatkerDetail, String> {
+async fn fetch_satker_detail(pengajuan_id: Uuid) -> Result<SatkerDetail, crate::api::AppError> {
     let url = format!("/api/v1/kebutuhan-bmn/pengajuan/{}/satker", pengajuan_id);
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Vec<SatkerDetail>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     api_response
         .data
         .and_then(|mut v| v.pop())
-        .ok_or_else(|| "Satker detail not found".to_string())
+        .ok_or_else(|| crate::api::AppError::Unknown("Satker detail not found".to_string()))
 }
 
-async fn fetch_barang_items(satker_id: Uuid) -> Result<Vec<BarangItem>, String> {
+async fn fetch_barang_items(satker_id: Uuid) -> Result<Vec<BarangItem>, crate::api::AppError> {
     let url = format!("/api/v1/kebutuhan-bmn/satker/{}", satker_id);
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     // Parse response and extract barang items
@@ -518,7 +518,7 @@ async fn fetch_barang_items(satker_id: Uuid) -> Result<Vec<BarangItem>, String> 
     let api_response: ApiResponse<Vec<BarangItem>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     Ok(api_response.data.unwrap_or_default())
 }
@@ -526,51 +526,51 @@ async fn fetch_barang_items(satker_id: Uuid) -> Result<Vec<BarangItem>, String> 
 async fn create_barang_item(
     satker_id: Uuid,
     request: CreateBarangRequest,
-) -> Result<BarangItem, String> {
+) -> Result<BarangItem, crate::api::AppError> {
     let url = format!("/api/v1/kebutuhan-bmn/satker/{}/barang", satker_id);
     let response = gloo_net::http::Request::post(&url)
         .json(&request)
-        .map_err(|e| format!("Serialization error: {}", e))?
+        .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<BarangItem> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     api_response
         .data
-        .ok_or_else(|| "No data in response".to_string())
+        .ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
 async fn submit_satker_to_wilayah(
     satker_id: Uuid,
     request: SubmitKebutuhanSatkerRequest,
-) -> Result<SatkerDetail, String> {
+) -> Result<SatkerDetail, crate::api::AppError> {
     let url = format!("/api/v1/kebutuhan-bmn/satker/{}/submit-wilayah", satker_id);
     let response = gloo_net::http::Request::post(&url)
         .json(&request)
-        .map_err(|e| format!("Serialization error: {}", e))?
+        .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<SatkerDetail> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     api_response
         .data
-        .ok_or_else(|| "No data in response".to_string())
+        .ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }

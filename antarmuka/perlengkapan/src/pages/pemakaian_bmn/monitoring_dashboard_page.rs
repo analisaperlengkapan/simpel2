@@ -128,7 +128,7 @@ pub fn MonitoringDashboardPage() -> impl IntoView {
 
             match fetch_dashboard_data(filter_satker.get(), filter_jenis_bmn.get()).await {
                 Ok(data) => set_dashboard_data.set(Some(data)),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
 
             match fetch_utilization_report(filter_satker.get(), filter_jenis_bmn.get()).await {
@@ -148,7 +148,7 @@ pub fn MonitoringDashboardPage() -> impl IntoView {
 
             match fetch_dashboard_data(filter_satker.get(), filter_jenis_bmn.get()).await {
                 Ok(data) => set_dashboard_data.set(Some(data)),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
 
             match fetch_utilization_report(filter_satker.get(), filter_jenis_bmn.get()).await {
@@ -587,7 +587,7 @@ pub fn MonitoringDashboardPage() -> impl IntoView {
 async fn fetch_dashboard_data(
     satker_id: Option<Uuid>,
     jenis_bmn: Option<String>,
-) -> Result<ActiveUsageMonitoringDashboard, String> {
+) -> Result<ActiveUsageMonitoringDashboard, crate::api::AppError> {
     let mut url = "/api/v1/pemakaian-bmn/monitoring/active-usage".to_string();
     let mut params = Vec::new();
 
@@ -606,24 +606,24 @@ async fn fetch_dashboard_data(
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<ActiveUsageMonitoringDashboard> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| "No data in response".to_string())
+    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
 async fn fetch_utilization_report(
     satker_id: Option<Uuid>,
     jenis_bmn: Option<String>,
-) -> Result<BmnUtilizationReport, String> {
+) -> Result<BmnUtilizationReport, crate::api::AppError> {
     let mut url = "/api/v1/pemakaian-bmn/monitoring/utilization-report".to_string();
     let mut params = Vec::new();
 
@@ -642,16 +642,16 @@ async fn fetch_utilization_report(
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<BmnUtilizationReport> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| "No data in response".to_string())
+    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }

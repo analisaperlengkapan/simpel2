@@ -75,7 +75,7 @@ pub fn DocumentManagementPage() -> impl IntoView {
             set_loading.set(true);
             match fetch_permits().await {
                 Ok(list) => set_permits.set(list),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -102,7 +102,7 @@ pub fn DocumentManagementPage() -> impl IntoView {
                         }
                     }
                 }
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_loading.set(false);
         });
@@ -129,7 +129,7 @@ pub fn DocumentManagementPage() -> impl IntoView {
                         }
                     }
                 }
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
             set_uploading.set(false);
         });
@@ -405,44 +405,44 @@ pub fn DocumentManagementPage() -> impl IntoView {
 // API Functions
 // ============================================================================
 
-async fn fetch_permits() -> Result<Vec<Permit>, String> {
+async fn fetch_permits() -> Result<Vec<Permit>, crate::api::AppError> {
     let response = gloo_net::http::Request::get("/api/v1/pemakaian-bmn")
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<Vec<Permit>> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
     Ok(api_response.data.unwrap_or_default())
 }
 
-async fn generate_permit_document(permit_id: Uuid) -> Result<GenerateDocumentResponse, String> {
+async fn generate_permit_document(permit_id: Uuid) -> Result<GenerateDocumentResponse, crate::api::AppError> {
     let url = format!("/api/v1/pemakaian-bmn/{}/generate-konsep-surat", permit_id);
     let response = gloo_net::http::Request::post(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     let api_response: ApiResponse<GenerateDocumentResponse> = response
         .json()
         .await
-        .map_err(|e| format!("Parse error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| "No data in response".to_string())
+    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
-async fn upload_signed_document(permit_id: Uuid, file: web_sys::File) -> Result<(), String> {
+async fn upload_signed_document(permit_id: Uuid, file: web_sys::File) -> Result<(), crate::api::AppError> {
     let form_data = web_sys::FormData::new().map_err(|_| "Failed to create FormData")?;
     form_data.append_with_blob("file", &file).map_err(|_| "Failed to append file")?;
 
@@ -450,13 +450,13 @@ async fn upload_signed_document(permit_id: Uuid, file: web_sys::File) -> Result<
 
     let response = gloo_net::http::Request::post(&url)
         .body(form_data)
-        .map_err(|e| format!("Request error: {}", e))?
+        .map_err(|e| crate::api::AppError::Unknown(format!("Request error: {}", e)))?
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     Ok(())

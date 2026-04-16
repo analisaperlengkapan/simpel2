@@ -64,7 +64,7 @@ fn WorkflowEditModal(
 
             match result {
                 Ok(_) => on_save.run(()),
-                Err(e) => set_error.set(Some(e)),
+                Err(e) => set_error.set(Some(e.to_string())),
             }
         });
     };
@@ -110,7 +110,7 @@ fn WorkflowEditModal(
                                     "Error"
                                 </div>
                                 <div style="font-size: 0.8rem; color: #fca5a5;">
-                                    {e}
+                                    {e.to_string()}
                                 </div>
                             </div>
                         </div>
@@ -254,7 +254,7 @@ fn DeleteConfirmModal(
             match delete_workflow_definition(&name_val).await {
                 Ok(_) => on_confirm.run(()),
                 Err(e) => {
-                    set_error.set(Some(e));
+                    set_error.set(Some(e.to_string()));
                     set_deleting.set(false);
                 }
             }
@@ -293,7 +293,7 @@ fn DeleteConfirmModal(
                                 "Error"
                             </div>
                             <div style="font-size: 0.8rem; color: #fca5a5;">
-                                {e}
+                                {e.to_string()}
                             </div>
                         </div>
                     </div>
@@ -521,7 +521,7 @@ fn SlaConfigModal(
             match upsert_workflow_step(&workflow, request).await {
                 Ok(_) => on_save.run(()),
                 Err(e) => {
-                    set_error.set(Some(e));
+                    set_error.set(Some(e.to_string()));
                     set_saving.set(false);
                 }
             }
@@ -569,7 +569,7 @@ fn SlaConfigModal(
                                     "Error"
                                 </div>
                                 <div style="font-size: 0.8rem; color: #fca5a5;">
-                                    {e}
+                                    {e.to_string()}
                                 </div>
                             </div>
                         </div>
@@ -997,7 +997,7 @@ fn WorkflowDetailModal(
                                 Err(e) => view! {
                                     <div style="text-align: center; padding: 40px;">
                                         <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #f87171;"></i>
-                                        <p style="margin-top: 16px; color: #f87171; font-size: 0.85rem;">{e}</p>
+                                        <p style="margin-top: 16px; color: #f87171; font-size: 0.85rem;">{e.to_string()}</p>
                                     </div>
                                 }.into_any()
                             })
@@ -1165,7 +1165,7 @@ pub fn WorkflowConfigManagement() -> impl IntoView {
                                     "Gagal Memuat Data"
                                 </h3>
                                 <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
-                                    {e}
+                                    {e.to_string()}
                                 </p>
                             </div>
                         }.into_any()

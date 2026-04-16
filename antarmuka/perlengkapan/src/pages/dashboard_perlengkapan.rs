@@ -123,7 +123,7 @@ async fn fetch_perlengkapan_dashboard(
     tahun_anggaran: i32,
     wilayah_code: Option<String>,
     satker_id: Option<String>,
-) -> Result<PerlengkapanDashboardMetrics, String> {
+) -> Result<PerlengkapanDashboardMetrics, crate::api::AppError> {
     let mut url = format!("/api/v1/dashboard/perlengkapan?tahun_anggaran={}", tahun_anggaran);
 
     if let Some(satker) = satker_id {
@@ -135,35 +135,35 @@ async fn fetch_perlengkapan_dashboard(
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     response
         .json::<PerlengkapanDashboardMetrics>()
         .await
-        .map_err(|e| format!("JSON parse error: {}", e))
+        .map_err(|e| crate::api::AppError::Unknown(format!("JSON parse error: {}", e)))
 }
 
-async fn fetch_wilayah_options() -> Result<Vec<WilayahOption>, String> {
+async fn fetch_wilayah_options() -> Result<Vec<WilayahOption>, crate::api::AppError> {
     let response = gloo_net::http::Request::get("/api/v1/wilayah")
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     response
         .json::<Vec<WilayahOption>>()
         .await
-        .map_err(|e| format!("JSON parse error: {}", e))
+        .map_err(|e| crate::api::AppError::Unknown(format!("JSON parse error: {}", e)))
 }
 
-async fn fetch_satker_options(wilayah_code: Option<String>) -> Result<Vec<SatkerOption>, String> {
+async fn fetch_satker_options(wilayah_code: Option<String>) -> Result<Vec<SatkerOption>, crate::api::AppError> {
     let url = if let Some(code) = wilayah_code {
         format!("/api/v1/satker?wilayah_code={}", code)
     } else {
@@ -173,16 +173,16 @@ async fn fetch_satker_options(wilayah_code: Option<String>) -> Result<Vec<Satker
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
+        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
     }
 
     response
         .json::<Vec<SatkerOption>>()
         .await
-        .map_err(|e| format!("JSON parse error: {}", e))
+        .map_err(|e| crate::api::AppError::Unknown(format!("JSON parse error: {}", e)))
 }
 
 // ============================================================================
@@ -224,8 +224,8 @@ fn ErrorState(message: String) -> impl IntoView {
 
 #[component]
 fn DrillDownSelectors(
-    wilayah_options_resource: LocalResource<Result<Vec<WilayahOption>, String>>,
-    satker_options_resource: LocalResource<Result<Vec<SatkerOption>, String>>,
+    wilayah_options_resource: LocalResource<Result<Vec<WilayahOption>, crate::api::AppError>>,
+    satker_options_resource: LocalResource<Result<Vec<SatkerOption>, crate::api::AppError>>,
     current_level: DrillDownLevel,
 ) -> impl IntoView {
     let (selected_wilayah, set_selected_wilayah) = signal::<Option<String>>(None);
@@ -293,7 +293,7 @@ fn DrillDownSelectors(
                                         </Select>
                                     }.into_any(),
                                     Err(e) => view! {
-                                        <p class="text-sm text-red-600">"Error loading wilayah: " {e}</p>
+                                        <p class="text-sm text-red-600">"Error loading wilayah: " {e.to_string()}</p>
                                     }.into_any(),
                                 }
                             })
@@ -323,7 +323,7 @@ fn DrillDownSelectors(
                                                     </Select>
                                                 }.into_any(),
                                                 Err(e) => view! {
-                                                    <p class="text-sm text-red-600">"Error loading satker: " {e}</p>
+                                                    <p class="text-sm text-red-600">"Error loading satker: " {e.to_string()}</p>
                                                 }.into_any(),
                                             }
                                         })
@@ -469,7 +469,7 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
                                 <DashboardContent metrics=metrics />
                             }.into_any(),
                             Err(e) => view! {
-                                <ErrorState message=e />
+                                <ErrorState message=e.to_string() />
                             }.into_any(),
                         }
                     })
