@@ -3,8 +3,11 @@
 //! Displays list of official uniform types with CRUD operations.
 
 use crate::api::{
-    CreateJenisPakaianDinasRequest, JenisPakaianDinas, create_jenis_pakaian_dinas,
+    AppError, CreateJenisPakaianDinasRequest, JenisPakaianDinas, create_jenis_pakaian_dinas,
     delete_jenis_pakaian_dinas, fetch_jenis_pakaian_dinas,
+};
+use crate::components::layout::{
+    EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -19,22 +22,12 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
     let (error_message, set_error_message) = signal(Option::<String>::None);
     let refresh_trigger = RwSignal::new(0);
 
-    // Resource to fetch items when page changes
     let data_resource = LocalResource::new(move || {
         let p = page.get();
         let _trigger = refresh_trigger.get();
-        async move {
-            match fetch_jenis_pakaian_dinas(p, 20).await {
-                Ok(response) => Some(response),
-                Err(e) => {
-                    leptos::logging::error!("Failed to fetch jenis pakaian dinas: {:?}", e);
-                    None
-                }
-            }
-        }
+        async move { fetch_jenis_pakaian_dinas(p, 20).await }
     });
 
-    // Handle form submit
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
         set_is_loading.set(true);
@@ -46,11 +39,7 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
         spawn_local(async move {
             let request = CreateJenisPakaianDinasRequest {
                 nama,
-                keterangan: if keterangan.is_empty() {
-                    None
-                } else {
-                    Some(keterangan)
-                },
+                keterangan: if keterangan.is_empty() { None } else { Some(keterangan) },
             };
 
             match create_jenis_pakaian_dinas(request).await {
@@ -61,199 +50,209 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                     refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
-                    set_error_message.set(Some(format!("Gagal menyimpan: {:?}", e)));
+                    set_error_message.set(Some(e.user_message()));
                 }
             }
             set_is_loading.set(false);
         });
     };
 
-    // Handle delete
-    let on_delete = move |id: String| {
-        let confirmed = web_sys::window()
-            .and_then(|w| {
-                w.confirm_with_message("Yakin ingin menghapus jenis pakaian dinas ini?")
-                    .ok()
-            })
-            .unwrap_or(false);
-
-        if confirmed {
-            spawn_local(async move {
-                match delete_jenis_pakaian_dinas(id).await {
-                    Ok(_) => {
-                        refresh_trigger.update(|v| *v += 1);
-                    }
-                    Err(e) => {
-                        leptos::logging::error!("Failed to delete: {:?}", e);
-                    }
-                }
-            });
-        }
-    };
-
     view! {
-        <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800">"Jenis Pakaian Dinas"</h2>
-                    <p class="text-sm text-gray-500 mt-1">"Kelola master data jenis pakaian dinas"</p>
-                </div>
+        <PageLayout
+            title="Jenis Pakaian Dinas"
+            icon="fas fa-tshirt"
+            description="Kelola master data jenis pakaian dinas"
+        >
+            // Action bar
+            <div class="mb-4 flex justify-end">
                 <button
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+                    class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     on:click=move |_| set_show_form.update(|v| *v = !*v)
                 >
-                    <i class="fas fa-plus mr-2"></i>
+                    <i class="fas fa-plus text-xs"></i>
                     "Tambah Jenis"
                 </button>
             </div>
 
-            // Form modal
+            // Create form
             <Show when=move || show_form.get()>
-                <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h3 class="text-lg font-semibold mb-4">"Tambah Jenis Pakaian Dinas Baru"</h3>
-
+                <SectionCard title="Tambah Jenis Pakaian Dinas Baru">
                     <Show when=move || error_message.get().is_some()>
-                        <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
+                        <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
+                            <i class="fas fa-exclamation-circle"></i>
                             {move || error_message.get()}
                         </div>
                     </Show>
 
                     <form on:submit=on_submit>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Jenis"</label>
+                        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                            <FormField label="Nama Jenis">
                                 <input
                                     type="text"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     placeholder="Contoh: PDH, PDL, Toga"
                                     prop:value=move || form_nama.get()
                                     on:input=move |ev| set_form_nama.set(event_target_value(&ev))
                                     required=true
                                 />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Keterangan"</label>
+                            </FormField>
+                            <FormField label="Keterangan">
                                 <input
                                     type="text"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     placeholder="Keterangan (opsional)"
                                     prop:value=move || form_keterangan.get()
                                     on:input=move |ev| set_form_keterangan.set(event_target_value(&ev))
                                 />
-                            </div>
+                            </FormField>
                         </div>
-                        <div class="mt-4 flex gap-2">
+                        <div class="mt-5 flex gap-3 border-t border-white/[0.04] pt-4">
                             <button
                                 type="submit"
-                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                                 prop:disabled=move || is_loading.get()
                             >
                                 {move || if is_loading.get() { "Menyimpan..." } else { "Simpan" }}
                             </button>
                             <button
                                 type="button"
-                                class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                                class="rounded-lg border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm text-slate-300 transition hover:bg-white/[0.08]"
                                 on:click=move |_| set_show_form.set(false)
                             >
                                 "Batal"
                             </button>
                         </div>
                     </form>
-                </div>
+                </SectionCard>
             </Show>
 
-            <Suspense fallback=move || view! { <div class="text-center py-8">"Memuat data..."</div> }>
-                {move || {
-                    data_resource.get().flatten().map(|response| {
+            // Data table
+            <Suspense fallback=move || view! { <LoadingState /> }>
+                {move || match data_resource.get() {
+                    None => view! { <LoadingState /> }.into_any(),
+                    Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
+                    Some(Ok(response)) => {
                         if response.data.is_empty() {
                             view! {
-                                <div class="text-center py-12 text-gray-500">
-                                    <i class="fas fa-tshirt text-4xl mb-3 text-gray-300"></i>
-                                    <p>"Belum ada data jenis pakaian dinas."</p>
-                                    <p class="text-sm">"Klik tombol \"Tambah Jenis\" untuk menambahkan."</p>
-                                </div>
+                                <EmptyState
+                                    icon="fas fa-tshirt"
+                                    title="Belum Ada Data"
+                                    description="Klik \"Tambah Jenis\" untuk menambahkan jenis pakaian dinas."
+                                />
                             }.into_any()
                         } else {
-                            view! {
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-                                                <th class="p-3 font-semibold border-b">"No"</th>
-                                                <th class="p-3 font-semibold border-b">"Nama Jenis"</th>
-                                                <th class="p-3 font-semibold border-b">"Keterangan"</th>
-                                                <th class="p-3 font-semibold border-b">"Dibuat"</th>
-                                                <th class="p-3 font-semibold border-b">"Aksi"</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="text-gray-700 text-sm">
-                                            <For
-                                                each=move || response.data.clone().into_iter().enumerate()
-                                                key=|(_, item)| item.id.clone()
-                                                children=move |(idx, item): (usize, JenisPakaianDinas)| {
-                                                    let item_id = item.id.clone();
-                                                    let item_id_for_delete = item_id.clone();
-                                                    view! {
-                                                        <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
-                                                            <td class="p-3 font-medium">{((page.get() - 1) * 20 + idx as i32 + 1).to_string()}</td>
-                                                            <td class="p-3 font-semibold text-blue-600">{item.nama}</td>
-                                                            <td class="p-3">{item.keterangan.unwrap_or_else(|| "-".to_string())}</td>
-                                                            <td class="p-3 text-gray-500">{item.created_at}</td>
-                                                            <td class="p-3">
-                                                                <div class="flex gap-2">
-                                                                    <a
-                                                                        href=format!("/perlengkapan/pakaian-dinas/jenis/{}/spesifikasi", item_id)
-                                                                        class="text-green-600 hover:text-green-800"
-                                                                        title="Lihat Spesifikasi"
-                                                                    >
-                                                                        <i class="fas fa-list"></i>
-                                                                    </a>
-                                                                    <button
-                                                                        class="text-red-600 hover:text-red-800"
-                                                                        title="Hapus"
-                                                                        on:click=move |_| on_delete(item_id_for_delete.clone())
-                                                                    >
-                                                                        <i class="fas fa-trash"></i>
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                }
-                                            />
-                                        </tbody>
-                                    </table>
-
-                                    // Pagination
-                                    <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                                        <div class="text-sm text-gray-500">
-                                            "Menampilkan halaman " <span class="font-medium">{response.page}</span>
-                                            " dari " <span class="font-medium">{response.total_pages}</span>
-                                            " (" <span class="font-medium">{response.total}</span> " data)"
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <button
-                                                class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                prop:disabled=move || page.get() <= 1
-                                                on:click=move |_| set_page.update(|p| *p -= 1)
-                                            >
-                                                "Sebelumnya"
-                                            </button>
-                                            <button
-                                                class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                prop:disabled=move || page.get() >= response.total_pages
-                                                on:click=move |_| set_page.update(|p| *p += 1)
-                                            >
-                                                "Selanjutnya"
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            }.into_any()
+                            render_jenis_table(response.data, response.page, response.total, response.total_pages, page, set_page, refresh_trigger)
                         }
-                    })
+                    }
                 }}
             </Suspense>
-        </div>
+        </PageLayout>
     }
+}
+
+/// Renders the jenis pakaian dinas table with pagination.
+fn render_jenis_table(
+    data: Vec<JenisPakaianDinas>,
+    current_page: i32,
+    total: i64,
+    total_pages: i32,
+    page: ReadSignal<i32>,
+    set_page: WriteSignal<i32>,
+    refresh_trigger: RwSignal<i32>,
+) -> AnyView {
+    view! {
+        <SectionCard title="Daftar Jenis">
+            <div class="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-white/[0.04]">
+                        <thead class="bg-white/[0.02]">
+                            <tr>
+                                <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">"No"</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Jenis"</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Keterangan"</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Dibuat"</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Aksi"</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.into_iter().enumerate().map(|(idx, item)| {
+                                let item_id = item.id.clone();
+                                let item_id_for_delete = item_id.clone();
+                                let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
+                                let ket = item.keterangan.unwrap_or_else(|| "-".to_string());
+                                let date = item.created_at.chars().take(10).collect::<String>();
+                                let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
+                                view! {
+                                    <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                        <td class="px-4 py-3 text-sm text-slate-400">{num}</td>
+                                        <td class="px-4 py-3 text-sm font-semibold text-gold-400">{item.nama}</td>
+                                        <td class="px-4 py-3 text-sm text-slate-400">{ket}</td>
+                                        <td class="px-4 py-3 text-xs text-slate-500">{date}</td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-3">
+                                                <a
+                                                    href=format!("/perlengkapan/pakaian-dinas/jenis/{}/spesifikasi", item_id)
+                                                    class="text-success-400 transition hover:text-success-300"
+                                                    title="Lihat Spesifikasi"
+                                                >
+                                                    <i class="fas fa-list text-xs"></i>
+                                                </a>
+                                                <button
+                                                    class="text-danger-400 transition hover:text-danger-300"
+                                                    title="Hapus"
+                                                    on:click=move |_| {
+                                                        let id = item_id_for_delete.clone();
+                                                        let confirmed = web_sys::window()
+                                                            .and_then(|w| w.confirm_with_message("Yakin ingin menghapus?").ok())
+                                                            .unwrap_or(false);
+                                                        if confirmed {
+                                                            spawn_local(async move {
+                                                                match delete_jenis_pakaian_dinas(id).await {
+                                                                    Ok(_) => refresh_trigger.update(|v| *v += 1),
+                                                                    Err(e) => leptos::logging::error!("Failed to delete: {}", e.user_message()),
+                                                                }
+                                                            });
+                                                        }
+                                                    }
+                                                >
+                                                    <i class="fas fa-trash text-xs"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }).collect_view()}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            // Pagination
+            <div class="mt-4 flex items-center justify-between border-t border-white/[0.04] pt-4">
+                <p class="text-xs text-slate-400">
+                    "Halaman "
+                    <span class="font-medium text-slate-200">{current_page}</span>
+                    " dari "
+                    <span class="font-medium text-slate-200">{total_pages}</span>
+                    " (" <span class="font-medium text-slate-200">{total}</span> " data)"
+                </p>
+                <div class="flex gap-2">
+                    <button
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
+                        prop:disabled=move || page.get() <= 1
+                        on:click=move |_| set_page.update(|p| *p -= 1)
+                    >
+                        "Sebelumnya"
+                    </button>
+                    <button
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
+                        prop:disabled=move || page.get() >= total_pages
+                        on:click=move |_| set_page.update(|p| *p += 1)
+                    >
+                        "Selanjutnya"
+                    </button>
+                </div>
+            </div>
+        </SectionCard>
+    }.into_any()
 }
