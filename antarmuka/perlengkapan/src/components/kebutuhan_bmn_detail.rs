@@ -4,10 +4,11 @@
 //! goods breakdown, and workflow actions.
 
 use crate::api::{
-    KebutuhanBmnStatus, PengajuanDetailResponse, PengajuanKebutuhanBmnSatker,
+    AppError, KebutuhanBmnStatus, PengajuanDetailResponse, PengajuanKebutuhanBmnSatker,
     WorkflowTransitionRequest, delete_kebutuhan_bmn, fetch_kebutuhan_bmn_detail,
-    fetch_pengajuan_satkers, transition_kebutuhan_bmn_status,
+    transition_kebutuhan_bmn_status,
 };
+use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -19,13 +20,14 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
     let id = Memo::new(move |_| params.read().get("id").clone().unwrap_or_default());
 
     let (loading, set_loading) = signal(true);
-    let (error, set_error) = signal::<Option<String>>(None);
+    let (error, set_error) = signal::<Option<AppError>>(None);
     let (detail, set_detail) = signal::<Option<PengajuanDetailResponse>>(None);
     let (satkers, set_satkers) = signal::<Vec<PengajuanKebutuhanBmnSatker>>(vec![]);
     let (transitioning, set_transitioning) = signal(false);
     let (deleting, set_deleting) = signal(false);
     let (show_delete_modal, set_show_delete_modal) = signal(false);
     let (transition_comment, set_transition_comment) = signal(String::new());
+    let (action_error, set_action_error) = signal::<Option<String>>(None);
 
     // Load detail data
     let load_data = move |pengajuan_id: String| {
@@ -39,7 +41,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                     set_detail.set(Some(response.data));
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal memuat data: {:?}", e)));
+                    set_error.set(Some(e));
                 }
             }
             set_loading.set(false);
@@ -57,6 +59,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
     // Handle workflow transition
     let handle_transition = move |target_status: i32| {
         set_transitioning.set(true);
+        set_action_error.set(None);
         let current_id = id.get();
         let comment = transition_comment.get();
 
@@ -76,7 +79,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                     set_transition_comment.set(String::new());
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal melakukan transisi: {:?}", e)));
+                    set_action_error.set(Some(e.user_message()));
                 }
             }
             set_transitioning.set(false);
@@ -86,6 +89,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
     // Handle delete
     let handle_delete = move |_| {
         set_deleting.set(true);
+        set_action_error.set(None);
         let current_id = id.get();
 
         spawn_local(async move {
@@ -98,7 +102,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                     }
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal menghapus: {:?}", e)));
+                    set_action_error.set(Some(e.user_message()));
                     set_show_delete_modal.set(false);
                 }
             }
@@ -107,235 +111,66 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
     };
 
     view! {
-        <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            // Header with back button
-            <div class="mb-6">
-                <a
-                    href=routes::path::KEBUTUHAN_DAFTAR
-                    class="text-blue-600 hover:text-blue-800 inline-flex items-center mb-4"
-                >
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    "Kembali ke Daftar"
-                </a>
-            </div>
+        <PageLayout
+            title="Detail Pengajuan Kebutuhan BMN"
+            icon="fas fa-clipboard-list"
+            description="Detail dan status pengajuan analisis kebutuhan BMN"
+        >
+            // Back link
+            <a
+                href=routes::path::KEBUTUHAN_DAFTAR
+                class="mb-4 inline-flex items-center gap-2 text-sm text-gold-400 transition hover:text-gold-300"
+            >
+                <i class="fas fa-arrow-left text-xs"></i>
+                "Kembali ke Daftar"
+            </a>
 
-            // Loading state
-            <Show when=move || loading.get()>
-                <div class="text-center py-12">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                    <p class="text-gray-500">"Memuat data..."</p>
+            // Action error
+            <Show when=move || action_error.get().is_some()>
+                <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {move || action_error.get().unwrap_or_default()}
                 </div>
             </Show>
 
-            // Error message
-            <Show when=move || error.get().is_some()>
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center">
-                    <i class="fas fa-exclamation-circle mr-2"></i>
-                    <span>{move || error.get().unwrap_or_default()}</span>
-                </div>
-            </Show>
-
-            // Detail content
-            <Show when=move || !loading.get() && detail.get().is_some()>
-                {move || {
-                    detail.get().map(|d| {
-                        let pengajuan = d.pengajuan.clone();
-                        let status = KebutuhanBmnStatus::from_code(pengajuan.status_kode);
-                        let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
-                        let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
-                        let allowed_transitions = StoredValue::new(d.allowed_transitions.clone());
-
-                        view! {
-                            <div class="space-y-6">
-                                // Title & Status
-                                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                                    <div>
-                                        <h2 class="text-2xl font-bold text-gray-800">{pengajuan.nama.clone()}</h2>
-                                        <p class="text-gray-500 mt-1">
-                                            "Tahun Anggaran: " <span class="font-medium">{pengajuan.tahun}</span>
-                                        </p>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <span class=format!("px-3 py-1.5 rounded-full text-sm font-medium {}", badge_class)>
-                                            {status_label}
-                                        </span>
-                                        // Action buttons
-                                        <div class="flex gap-2">
-                                            <a
-                                                href=routes::url::kebutuhan_edit(&pengajuan.id)
-                                                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center"
-                                            >
-                                                <i class="fas fa-edit mr-2"></i>
-                                                "Edit"
-                                            </a>
-                                            <button
-                                                class="px-4 py-2 border border-red-300 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                                                on:click=move |_| set_show_delete_modal.set(true)
-                                            >
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                // Info cards
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div class="bg-blue-50 rounded-lg p-4">
-                                        <div class="text-blue-600 text-sm font-medium">"Periode"</div>
-                                        <div class="text-gray-800 mt-1 font-medium">
-                                            {pengajuan.tgl_mulai.clone()} " s.d. " {pengajuan.tgl_selesai.clone()}
-                                        </div>
-                                    </div>
-                                    <div class="bg-purple-50 rounded-lg p-4">
-                                        <div class="text-purple-600 text-sm font-medium">"Total Satker"</div>
-                                        <div class="text-2xl font-bold text-gray-800 mt-1">{d.satkers.len()}</div>
-                                    </div>
-                                    <div class="bg-green-50 rounded-lg p-4">
-                                        <div class="text-green-600 text-sm font-medium">"Persetujuan DASKRIMTI"</div>
-                                        <div class="text-gray-800 mt-1 font-medium">
-                                            {if pengajuan.is_appv_daskrimti { "Ya" } else { "Belum" }}
-                                        </div>
-                                    </div>
-                                    <div class="bg-amber-50 rounded-lg p-4">
-                                        <div class="text-amber-600 text-sm font-medium">"Versi"</div>
-                                        <div class="text-2xl font-bold text-gray-800 mt-1">{pengajuan.version}</div>
-                                    </div>
-                                </div>
-
-                                // Description
-                                {
-                                    let has_deskripsi = pengajuan.deskripsi.is_some();
-                                    view! {
-                                        <Show when=move || has_deskripsi>
-                                            <div class="bg-gray-50 rounded-lg p-4">
-                                                <div class="text-gray-600 text-sm font-medium mb-2">"Deskripsi"</div>
-                                                <p class="text-gray-800">{pengajuan.deskripsi.clone().unwrap_or_default()}</p>
-                                            </div>
-                                        </Show>
-                                    }
-                                }
-
-                                // Workflow transitions
-                                <Show when=move || !allowed_transitions.with_value(|t| t.is_empty())>
-                                    <div class="bg-gray-50 rounded-lg p-4">
-                                        <div class="text-gray-600 text-sm font-medium mb-3">"Aksi Workflow"</div>
-                                        <div class="flex flex-wrap gap-3">
-                                            <For
-                                                each=move || allowed_transitions.get_value()
-                                                key=|t| t.status_kode
-                                                children=move |transition| {
-                                                    let status_kode = transition.status_kode;
-                                                    let btn_class = match status_kode {
-                                                        2006 => "bg-green-600 hover:bg-green-700 text-white",
-                                                        2007 | 2009 => "bg-red-600 hover:bg-red-700 text-white",
-                                                        _ => "bg-blue-600 hover:bg-blue-700 text-white",
-                                                    };
-                                                    view! {
-                                                        <button
-                                                            class=format!("px-4 py-2 rounded-lg transition-colors disabled:opacity-50 {}", btn_class)
-                                                            disabled=move || transitioning.get()
-                                                            on:click=move |_| handle_transition(status_kode)
-                                                        >
-                                                            {transition.status_nama.clone()}
-                                                        </button>
-                                                    }
-                                                }
-                                            />
-                                        </div>
-                                        // Comment input for transitions
-                                        <div class="mt-3">
-                                            <input
-                                                type="text"
-                                                placeholder="Komentar (opsional)"
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                on:input=move |ev| set_transition_comment.set(event_target_value(&ev))
-                                                prop:value=move || transition_comment.get()
-                                            />
-                                        </div>
-                                    </div>
-                                </Show>
-
-                                // Satker list
-                                <div>
-                                    <h3 class="text-lg font-semibold text-gray-800 mb-4">"Daftar Satker"</h3>
-                                    <Show
-                                        when=move || !satkers.get().is_empty()
-                                        fallback=|| view! {
-                                            <div class="text-center py-8 text-gray-500">
-                                                <p>"Belum ada satker yang terdaftar"</p>
-                                            </div>
-                                        }
-                                    >
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-left border-collapse">
-                                                <thead>
-                                                    <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-                                                        <th class="p-3 font-semibold border-b">"Nama Satker"</th>
-                                                        <th class="p-3 font-semibold border-b text-center">"Status"</th>
-                                                        <th class="p-3 font-semibold border-b text-center">"Prioritas"</th>
-                                                        <th class="p-3 font-semibold border-b text-center">"Aksi"</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="text-gray-700 text-sm">
-                                                    <For
-                                                        each=move || satkers.get()
-                                                        key=|s| s.id.clone()
-                                                        children=move |satker| {
-                                                            let status = KebutuhanBmnStatus::from_code(satker.status_kode);
-                                                            let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
-                                                            let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
-                                                            let satker_id = satker.id.clone();
-
-                                                            view! {
-                                                                <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
-                                                                    <td class="p-3 font-medium">{satker.nm_satker.clone().unwrap_or_else(|| satker.ms_satker_id.clone())}</td>
-                                                                    <td class="p-3 text-center">
-                                                                        <span class=format!("px-2 py-1 rounded-full text-xs font-medium {}", badge_class)>
-                                                                            {status_label}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td class="p-3 text-center">{satker.prioritas}</td>
-                                                                    <td class="p-3 text-center">
-                                                                        <a
-                                                                            href=routes::url::kebutuhan_satker_detail(&satker_id)
-                                                                            class="text-blue-600 hover:text-blue-800"
-                                                                        >
-                                                                            <i class="fas fa-eye mr-1"></i>
-                                                                            "Detail"
-                                                                        </a>
-                                                                    </td>
-                                                                </tr>
-                                                            }
-                                                        }
-                                                    />
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </Show>
-                                </div>
-                            </div>
-                        }
-                    })
-                }}
-            </Show>
+            // Main content: loading / error / detail
+            {move || {
+                if loading.get() {
+                    view! { <LoadingState message="Memuat data pengajuan...".to_string() /> }.into_any()
+                } else if let Some(err) = error.get() {
+                    view! { <ErrorState error=err /> }.into_any()
+                } else if let Some(d) = detail.get() {
+                    render_detail(
+                        d,
+                        satkers,
+                        transitioning,
+                        handle_transition,
+                        transition_comment,
+                        set_transition_comment,
+                        set_show_delete_modal,
+                    ).into_any()
+                } else {
+                    view! { <LoadingState /> }.into_any()
+                }
+            }}
 
             // Delete confirmation modal
             <Show when=move || show_delete_modal.get()>
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">"Konfirmasi Hapus"</h3>
-                        <p class="text-gray-600 mb-6">
+                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div class="mx-4 w-full max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
+                        <h3 class="mb-4 text-lg font-bold text-slate-100">"Konfirmasi Hapus"</h3>
+                        <p class="mb-6 text-sm text-slate-400">
                             "Apakah Anda yakin ingin menghapus pengajuan ini? Tindakan ini tidak dapat dibatalkan."
                         </p>
                         <div class="flex justify-end gap-3">
                             <button
-                                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 transition hover:bg-white/[0.08]"
                                 on:click=move |_| set_show_delete_modal.set(false)
                             >
                                 "Batal"
                             </button>
                             <button
-                                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                                class="rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-danger-700 disabled:opacity-50"
                                 disabled=move || deleting.get()
                                 on:click=handle_delete
                             >
@@ -345,6 +180,204 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                     </div>
                 </div>
             </Show>
+        </PageLayout>
+    }
+}
+
+/// Renders the detail content once data is loaded.
+fn render_detail(
+    d: PengajuanDetailResponse,
+    satkers: ReadSignal<Vec<PengajuanKebutuhanBmnSatker>>,
+    transitioning: ReadSignal<bool>,
+    handle_transition: impl Fn(i32) + Copy + Send + Sync + 'static,
+    transition_comment: ReadSignal<String>,
+    set_transition_comment: WriteSignal<String>,
+    set_show_delete_modal: WriteSignal<bool>,
+) -> impl IntoView {
+    let pengajuan = d.pengajuan.clone();
+    let status = KebutuhanBmnStatus::from_code(pengajuan.status_kode);
+    let badge_class = status
+        .map(|s| s.badge_class())
+        .unwrap_or("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25");
+    let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
+    let allowed_transitions = StoredValue::new(d.allowed_transitions.clone());
+    let has_deskripsi = pengajuan.deskripsi.is_some();
+    let deskripsi_text = StoredValue::new(pengajuan.deskripsi.clone().unwrap_or_default());
+    let pengajuan_id = pengajuan.id.clone();
+    let satker_count = d.satkers.len();
+
+    view! {
+        <div class="space-y-5">
+            // Title & Status header
+            <div class="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-100">{pengajuan.nama.clone()}</h2>
+                    <p class="mt-1 text-sm text-slate-400">
+                        "Tahun Anggaran: " <span class="font-medium text-slate-200">{pengajuan.tahun}</span>
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class=format!("inline-flex items-center rounded-full px-3 py-1 text-xs font-medium {}", badge_class)>
+                        {status_label}
+                    </span>
+                    <div class="flex gap-2">
+                        <a
+                            href=routes::url::kebutuhan_edit(&pengajuan_id)
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08]"
+                        >
+                            <i class="fas fa-edit text-2xs"></i>
+                            "Edit"
+                        </a>
+                        <button
+                            class="rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs text-danger-300 transition hover:bg-danger-500/20"
+                            on:click=move |_| set_show_delete_modal.set(true)
+                        >
+                            <i class="fas fa-trash text-2xs"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            // Info stat cards
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                    <div class="text-xs font-medium text-info-400">"Periode"</div>
+                    <div class="mt-1 text-sm font-medium text-slate-200">
+                        {pengajuan.tgl_mulai.clone()} " s.d. " {pengajuan.tgl_selesai.clone()}
+                    </div>
+                </div>
+                <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                    <div class="text-xs font-medium text-purple-400">"Total Satker"</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-100">{satker_count}</div>
+                </div>
+                <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                    <div class="text-xs font-medium text-success-400">"Persetujuan DASKRIMTI"</div>
+                    <div class="mt-1 text-sm font-medium text-slate-200">
+                        {if pengajuan.is_appv_daskrimti { "Ya" } else { "Belum" }}
+                    </div>
+                </div>
+                <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                    <div class="text-xs font-medium text-gold-400">"Versi"</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-100">{pengajuan.version}</div>
+                </div>
+            </div>
+
+            // Description
+            <Show when=move || has_deskripsi>
+                <SectionCard title="Deskripsi">
+                    <p class="text-sm text-slate-300">{deskripsi_text.get_value()}</p>
+                </SectionCard>
+            </Show>
+
+            // Workflow transitions
+            <Show when=move || !allowed_transitions.with_value(|t| t.is_empty())>
+                <SectionCard title="Aksi Workflow">
+                    <div class="flex flex-wrap gap-3">
+                        <For
+                            each=move || allowed_transitions.get_value()
+                            key=|t| t.status_kode
+                            children=move |transition| {
+                                let status_kode = transition.status_kode;
+                                let btn_class = transition_btn_class(status_kode);
+                                view! {
+                                    <button
+                                        class=format!("rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 {}", btn_class)
+                                        disabled=move || transitioning.get()
+                                        on:click=move |_| handle_transition(status_kode)
+                                    >
+                                        {transition.status_nama.clone()}
+                                    </button>
+                                }
+                            }
+                        />
+                    </div>
+                    <div class="mt-3">
+                        <input
+                            type="text"
+                            placeholder="Komentar (opsional)"
+                            class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
+                            on:input=move |ev| set_transition_comment.set(event_target_value(&ev))
+                            prop:value=move || transition_comment.get()
+                        />
+                    </div>
+                </SectionCard>
+            </Show>
+
+            // Satker list table
+            <SectionCard title="Daftar Satker">
+                {move || {
+                    let s = satkers.get();
+                    if s.is_empty() {
+                        view! {
+                            <div class="py-8 text-center text-sm text-slate-500">
+                                <i class="fas fa-building mb-2 text-2xl text-slate-600"></i>
+                                <p>"Belum ada satker yang terdaftar"</p>
+                            </div>
+                        }.into_any()
+                    } else {
+                        render_satker_table(s).into_any()
+                    }
+                }}
+            </SectionCard>
+        </div>
+    }
+}
+
+/// Button class based on transition target status code.
+fn transition_btn_class(status_kode: i32) -> &'static str {
+    match status_kode {
+        2006 => "bg-success-600 text-white hover:bg-success-700",
+        2007 | 2009 => "bg-danger-600 text-white hover:bg-danger-700",
+        _ => "bg-info-600 text-white hover:bg-info-700",
+    }
+}
+
+/// Renders the satker table rows.
+fn render_satker_table(satkers: Vec<PengajuanKebutuhanBmnSatker>) -> impl IntoView {
+    view! {
+        <div class="overflow-hidden rounded-xl border border-white/[0.06]">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-white/[0.04]">
+                    <thead class="bg-white/[0.02]">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Satker"</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Status"</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Prioritas"</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Aksi"</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {satkers.into_iter().enumerate().map(|(idx, satker)| {
+                            let status = KebutuhanBmnStatus::from_code(satker.status_kode);
+                            let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25");
+                            let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
+                            let satker_id = satker.id.clone();
+                            let nm = satker.nm_satker.unwrap_or_else(|| satker.ms_satker_id.clone());
+                            let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
+                            view! {
+                                <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                    <td class="px-4 py-3 text-sm font-medium text-slate-200">{nm}</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class=format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {}", badge_class)>
+                                            {status_label}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center text-sm text-slate-300">{satker.prioritas}</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <a
+                                            href=routes::url::kebutuhan_satker_detail(&satker_id)
+                                            class="inline-flex items-center gap-1.5 text-xs text-info-400 transition hover:text-info-300"
+                                        >
+                                            <i class="fas fa-eye text-2xs"></i>
+                                            "Detail"
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }).collect_view()}
+                    </tbody>
+                </table>
+            </div>
         </div>
     }
 }

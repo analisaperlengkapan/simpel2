@@ -14,6 +14,7 @@ use crate::api::{
     UpdateKebutuhanBmnRequest, create_kebutuhan_bmn, fetch_kebutuhan_bmn_list,
     update_kebutuhan_bmn,
 };
+use crate::components::layout::{FormField, LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos::callback::Callback;
@@ -48,7 +49,7 @@ pub fn PeriodManagement() -> impl IntoView {
                     set_periods.set(response.data);
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal memuat data: {:?}", e)));
+                    set_error.set(Some(e.user_message()));
                 }
             }
             set_loading.set(false);
@@ -60,44 +61,29 @@ pub fn PeriodManagement() -> impl IntoView {
     });
 
     view! {
-        <div class="mx-auto max-w-7xl space-y-6">
-            // Header
-            <div class="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-navy-900 via-navy-800 to-slate-950 p-6 shadow-lg">
-                <div class="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-gold-400/10 blur-3xl"></div>
-                <div class="relative z-10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-gold-300 mb-3">
-                                <i class="fas fa-calendar-alt"></i>
-                                "Manajemen Periode"
-                            </div>
-                            <h1 class="text-2xl font-black text-white sm:text-3xl">
-                                "Periode Kebutuhan BMN"
-                            </h1>
-                            <p class="mt-2 text-sm text-slate-300">
-                                "Kelola periode pengumpulan kebutuhan BMN dari satker"
-                            </p>
-                        </div>
-                        <Show when=move || view_mode.get() == ViewMode::List>
-                            <button
-                                on:click=move |_| set_view_mode.set(ViewMode::Create)
-                                class="inline-flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition-all hover:bg-gold-400 hover:shadow-lg"
-                            >
-                                <i class="fas fa-plus"></i>
-                                "Buat Periode Baru"
-                            </button>
-                        </Show>
-                    </div>
+        <PageLayout
+            title="Periode Kebutuhan BMN"
+            icon="fas fa-calendar-alt"
+            description="Kelola periode pengumpulan kebutuhan BMN dari satker"
+        >
+            // Action bar
+            <Show when=move || view_mode.get() == ViewMode::List>
+                <div class="mb-4 flex justify-end">
+                    <button
+                        on:click=move |_| set_view_mode.set(ViewMode::Create)
+                        class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
+                    >
+                        <i class="fas fa-plus text-xs"></i>
+                        "Buat Periode Baru"
+                    </button>
                 </div>
-            </div>
+            </Show>
 
             // Error message
             <Show when=move || error.get().is_some()>
-                <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <span>{move || error.get().unwrap_or_default()}</span>
-                    </div>
+                <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
 
@@ -132,7 +118,7 @@ pub fn PeriodManagement() -> impl IntoView {
                     />
                 }.into_any(),
             }}
-        </div>
+        </PageLayout>
     }
 }
 
@@ -210,12 +196,12 @@ fn PeriodCard(
     on_edit: Callback<()>,
 ) -> impl IntoView {
     let status_badge = match period.status_kode {
-        2000 => ("bg-gray-500/15 text-gray-300", "Draft"),
-        2001..=2005 => ("bg-blue-500/15 text-blue-300", "Aktif"),
-        2006 => ("bg-green-500/15 text-green-300", "Selesai"),
-        2007 => ("bg-red-500/15 text-red-300", "Ditolak"),
-        2009 => ("bg-slate-500/15 text-slate-300", "Dibatalkan"),
-        _ => ("bg-slate-500/15 text-slate-300", "Unknown"),
+        2000 => ("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25", "Draft"),
+        2001..=2005 => ("bg-info-500/15 text-info-300 ring-1 ring-info-500/25", "Aktif"),
+        2006 => ("bg-success-500/15 text-success-300 ring-1 ring-success-500/25", "Selesai"),
+        2007 => ("bg-danger-500/15 text-danger-300 ring-1 ring-danger-500/25", "Ditolak"),
+        2009 => ("bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/25", "Dibatalkan"),
+        _ => ("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25", "Unknown"),
     };
 
     let is_active = period.status_kode >= 2001 && period.status_kode <= 2005;
@@ -318,7 +304,7 @@ fn PeriodForm(
                         set_satker_ids.set(ids);
                     }
                     Err(e) => {
-                        set_error.set(Some(format!("Gagal memuat data: {:?}", e)));
+                        set_error.set(Some(e.user_message()));
                     }
                 }
                 set_loading.set(false);
@@ -387,7 +373,7 @@ fn PeriodForm(
                     on_success_clone.run(());
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));
+                    set_error.set(Some(e.user_message()));
                 }
             }
         }
@@ -438,11 +424,9 @@ fn PeriodForm(
 
             // Error message
             <Show when=move || error.get().is_some()>
-                <div class="mb-6 rounded-lg border border-red-200/20 bg-red-500/10 px-4 py-3 text-red-300">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <span>{move || error.get().unwrap_or_default()}</span>
-                    </div>
+                <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
 

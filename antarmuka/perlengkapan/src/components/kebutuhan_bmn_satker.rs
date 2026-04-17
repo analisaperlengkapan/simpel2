@@ -4,14 +4,15 @@
 
 use crate::api::{
     AnalisisKelayakanResponse, CreateKebutuhanBmnBarangRequest, KebutuhanBmnStatus,
-    KebutuhanValidatorWilayahActionRequest, LampiranItem, PengajuanKebutuhanBmnAktivitas,
+    KebutuhanValidatorWilayahActionRequest, PengajuanKebutuhanBmnAktivitas,
     PengajuanKebutuhanBmnBarang, SatkerWithBarangResponse, SubmitKebutuhanSatkerRequest,
-    UpdateBarangApprovalRequest, ValidatorPusatKeputusanRequest, WorkflowTransitionRequest,
+    ValidatorPusatKeputusanRequest, WorkflowTransitionRequest,
     create_kebutuhan_bmn_barang, delete_kebutuhan_bmn_barang, fetch_satker_aktivitas,
     fetch_satker_analisis, fetch_satker_with_barang, kebutuhan_validator_pusat_keputusan,
     kebutuhan_validator_wilayah_action, submit_kebutuhan_satker_to_wilayah,
-    transition_satker_status, update_kebutuhan_bmn_barang,
+    transition_satker_status,
 };
+use crate::components::layout::{ErrorState, FormField, LoadingState, PageLayout, SectionCard};
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -19,13 +20,13 @@ use leptos_router::hooks::use_params_map;
 
 fn sync_state_badge_class(state: &str) -> &'static str {
     if state.contains("SUCCESS") {
-        "bg-green-100 text-green-800"
+        "bg-success-500/15 text-success-300 ring-1 ring-success-500/25"
     } else if state.contains("FAILED") {
-        "bg-red-100 text-red-800"
+        "bg-danger-500/15 text-danger-300 ring-1 ring-danger-500/25"
     } else if state.contains("RUNNING") {
-        "bg-blue-100 text-blue-800"
+        "bg-info-500/15 text-info-300 ring-1 ring-info-500/25"
     } else {
-        "bg-slate-100 text-slate-700"
+        "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25"
     }
 }
 
@@ -49,6 +50,26 @@ fn sync_state_is_risky(state: &str, error_message: Option<&str>) -> bool {
 
 fn is_override_reason_valid(reason: &str) -> bool {
     reason.trim().len() >= 20
+}
+
+/// Kondisi badge for SIMAN assets.
+fn kondisi_badge_class(kondisi: &str) -> &'static str {
+    match kondisi {
+        "Baik" => "bg-success-500/15 text-success-300",
+        "Rusak Ringan" => "bg-warning-500/15 text-warning-300",
+        _ => "bg-danger-500/15 text-danger-300",
+    }
+}
+
+/// Gap text color.
+fn gap_class(gap: i32, jumlah: i32) -> &'static str {
+    if gap <= 0 {
+        "text-success-400"
+    } else if gap < jumlah / 2 {
+        "text-warning-400"
+    } else {
+        "text-danger-400"
+    }
 }
 
 #[component]
@@ -86,7 +107,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                     set_satker_data.set(Some(response.data));
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal memuat data: {:?}", e)));
+                    set_error.set(Some(e.user_message()));
                 }
             }
             set_loading.set(false);
@@ -140,17 +161,15 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
         spawn_local(async move {
             match create_kebutuhan_bmn_barang(&sid, request).await {
                 Ok(_) => {
-                    // Reset form
                     set_new_nama.set(String::new());
                     set_new_kode_barang.set(None);
                     set_new_jumlah.set(1);
                     set_new_alasan.set(None);
                     set_show_add_barang.set(false);
-                    // Reload data
                     load_data(sid);
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal menambah barang: {:?}", e)));
+                    set_error.set(Some(e.user_message()));
                 }
             }
             set_submitting.set(false);
@@ -162,32 +181,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
         let sid = satker_id.get();
         spawn_local(async move {
             match delete_kebutuhan_bmn_barang(&barang_id).await {
-                Ok(_) => {
-                    load_data(sid);
-                }
-                Err(e) => {
-                    set_error.set(Some(format!("Gagal menghapus barang: {:?}", e)));
-                }
-            }
-        });
-    };
-
-    // Handle transition
-    let handle_transition = move |target_status: i32| {
-        let sid = satker_id.get();
-        spawn_local(async move {
-            let request = WorkflowTransitionRequest {
-                target_status,
-                komentar: None,
-            };
-            match transition_satker_status(&sid, request).await {
-                Ok(_) => {
-                    load_data(sid.clone());
-                    load_aktivitas(sid);
-                }
-                Err(e) => {
-                    set_error.set(Some(format!("Gagal transisi: {:?}", e)));
-                }
+                Ok(_) => load_data(sid),
+                Err(e) => set_error.set(Some(e.user_message())),
             }
         });
     };
@@ -240,7 +235,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                     load_data(sid.clone());
                     load_aktivitas(sid);
                 }
-                Err(e) => set_error.set(Some(format!("Gagal submit: {:?}", e))),
+                Err(e) => set_error.set(Some(e.user_message())),
             }
             set_action_loading.set(false);
         });
@@ -260,7 +255,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                     load_data(sid.clone());
                     load_aktivitas(sid);
                 }
-                Err(e) => set_error.set(Some(format!("Gagal meneruskan: {:?}", e))),
+                Err(e) => set_error.set(Some(e.user_message())),
             }
             set_action_loading.set(false);
         });
@@ -282,7 +277,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                     load_data(sid.clone());
                     load_aktivitas(sid);
                 }
-                Err(e) => set_error.set(Some(format!("Gagal mengembalikan: {:?}", e))),
+                Err(e) => set_error.set(Some(e.user_message())),
             }
             set_action_loading.set(false);
         });
@@ -320,7 +315,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                     load_data(sid.clone());
                     load_aktivitas(sid);
                 }
-                Err(e) => set_error.set(Some(format!("Gagal menyetujui: {:?}", e))),
+                Err(e) => set_error.set(Some(e.user_message())),
             }
             set_action_loading.set(false);
         });
@@ -362,774 +357,701 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                     load_data(sid.clone());
                     load_aktivitas(sid);
                 }
-                Err(e) => set_error.set(Some(format!("Gagal menolak: {:?}", e))),
+                Err(e) => set_error.set(Some(e.user_message())),
             }
             set_action_loading.set(false);
         });
     };
 
     view! {
-        <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <PageLayout
+            title="Detail Satker — Kebutuhan BMN"
+            icon="fas fa-building"
+            description="Detail pengajuan kebutuhan BMN per satker"
+        >
             // Back link
-            <div class="mb-6">
-                <button
-                    onclick="history.back()"
-                    class="text-blue-600 hover:text-blue-800 inline-flex items-center"
-                >
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    "Kembali"
-                </button>
-            </div>
+            <button
+                onclick="history.back()"
+                class="mb-4 inline-flex items-center gap-2 text-sm text-gold-400 transition hover:text-gold-300"
+            >
+                <i class="fas fa-arrow-left text-xs"></i>
+                "Kembali"
+            </button>
 
-            // Loading
-            <Show when=move || loading.get()>
-                <div class="text-center py-12">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                    <p class="text-gray-500">"Memuat data..."</p>
-                </div>
-            </Show>
-
-            // Error
+            // Error banner
             <Show when=move || error.get().is_some()>
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-                    <i class="fas fa-exclamation-circle mr-2"></i>
+                <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
+                    <i class="fas fa-exclamation-circle"></i>
                     {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
 
-            // Content
-            <Show when=move || !loading.get() && satker_data.get().is_some()>
-                {move || {
-                    if let Some(data) = satker_data.get() {
-                        let satker = data.satker.clone();
-                        let barang_list = data.barang_list.clone();
-                        let has_barang = !barang_list.is_empty();
-                        let barang_list_store = StoredValue::new(barang_list);
-                        let status = KebutuhanBmnStatus::from_code(satker.status_kode);
-                        let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
-                        let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
+            // Main content: loading / data
+            {move || {
+                if loading.get() {
+                    return view! { <LoadingState message="Memuat data satker...".to_string() /> }.into_any();
+                }
 
-                        view! {
-                            <div class="space-y-6">
-                                // Header
-                                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                                    <div>
-                                        <h2 class="text-2xl font-bold text-gray-800">
-                                            {satker.nm_satker.clone().unwrap_or_else(|| satker.ms_satker_id.clone())}
-                                        </h2>
-                                        <p class="text-gray-500 mt-1">
-                                            "Kode Satker: " <span class="font-mono">{satker.ms_satker_id.clone()}</span>
-                                        </p>
-                                    </div>
-                                    <span class=format!("px-3 py-1.5 rounded-full text-sm font-medium {}", badge_class)>
-                                        {status_label}
-                                    </span>
+                let Some(data) = satker_data.get() else {
+                    return view! {
+                        <div class="py-8 text-center text-sm text-slate-500">"Data tidak tersedia"</div>
+                    }.into_any();
+                };
+
+                let satker = data.satker.clone();
+                let barang_list = data.barang_list.clone();
+                let has_barang = !barang_list.is_empty();
+                let barang_list_store = StoredValue::new(barang_list);
+                let status = KebutuhanBmnStatus::from_code(satker.status_kode);
+                let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25");
+                let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
+                let sk = satker.status_kode;
+
+                view! {
+                    <div class="space-y-5">
+                        // Header
+                        <div class="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-100">
+                                    {satker.nm_satker.clone().unwrap_or_else(|| satker.ms_satker_id.clone())}
+                                </h2>
+                                <p class="mt-1 text-sm text-slate-400">
+                                    "Kode Satker: " <span class="font-mono text-slate-300">{satker.ms_satker_id.clone()}</span>
+                                </p>
+                            </div>
+                            <span class=format!("inline-flex items-center rounded-full px-3 py-1 text-xs font-medium {}", badge_class)>
+                                {status_label}
+                            </span>
+                        </div>
+
+                        // Stats cards
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                <div class="text-xs font-medium text-info-400">"Total Barang"</div>
+                                <div class="mt-1 text-2xl font-bold text-slate-100">{data.total_barang}</div>
+                            </div>
+                            <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                <div class="text-xs font-medium text-purple-400">"Total Jumlah Diminta"</div>
+                                <div class="mt-1 text-2xl font-bold text-slate-100">{data.total_jumlah}</div>
+                            </div>
+                            <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                <div class="text-xs font-medium text-success-400">"Prioritas"</div>
+                                <div class="mt-1 text-2xl font-bold text-slate-100">{satker.prioritas}</div>
+                            </div>
+                        </div>
+
+                        // ── Workflow Action Panels ──
+
+                        // Operator: Submit to Wilayah (Draft=2000 or RevisiSatker=2001)
+                        <Show when=move || sk == 2000 || sk == 2001>
+                            <div class="flex items-center justify-between rounded-xl border border-gold-500/30 bg-gold-500/[0.08] p-4">
+                                <div>
+                                    <p class="text-sm font-medium text-gold-300">"Siap diajukan?"</p>
+                                    <p class="text-xs text-gold-400/70">"Kirim pengajuan ke Validator Wilayah untuk verifikasi."</p>
                                 </div>
+                                <button
+                                    class="inline-flex items-center gap-2 rounded-lg bg-info-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-info-700 disabled:opacity-50"
+                                    on:click=handle_submit_to_wilayah
+                                    prop:disabled=move || action_loading.get()
+                                >
+                                    <i class="fas fa-paper-plane text-xs"></i>
+                                    "Submit ke Wilayah"
+                                </button>
+                            </div>
+                        </Show>
 
-                                // Stats cards
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div class="bg-blue-50 rounded-lg p-4">
-                                        <div class="text-blue-600 text-sm font-medium">"Total Barang"</div>
-                                        <div class="text-2xl font-bold text-gray-800 mt-1">{data.total_barang}</div>
-                                    </div>
-                                    <div class="bg-purple-50 rounded-lg p-4">
-                                        <div class="text-purple-600 text-sm font-medium">"Total Jumlah Diminta"</div>
-                                        <div class="text-2xl font-bold text-gray-800 mt-1">{data.total_jumlah}</div>
-                                    </div>
-                                    <div class="bg-green-50 rounded-lg p-4">
-                                        <div class="text-green-600 text-sm font-medium">"Prioritas"</div>
-                                        <div class="text-2xl font-bold text-gray-800 mt-1">{satker.prioritas}</div>
-                                    </div>
+                        // Validator Wilayah: Forward/Return (SubmitWilayah=2002)
+                        <Show when=move || sk == 2002>
+                            <SectionCard title="Tindakan Validator Wilayah">
+                                <div class="flex gap-3">
+                                    <button
+                                        class="inline-flex items-center gap-2 rounded-lg bg-success-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-success-700 disabled:opacity-50"
+                                        on:click=handle_forward_to_pusat
+                                        prop:disabled=move || action_loading.get()
+                                    >
+                                        <i class="fas fa-forward text-xs"></i>
+                                        "Teruskan ke Pusat"
+                                    </button>
+                                    <button
+                                        class="inline-flex items-center gap-2 rounded-lg bg-warning-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-warning-700 disabled:opacity-50"
+                                        on:click=move |_| set_show_return_modal.set(true)
+                                        prop:disabled=move || action_loading.get()
+                                    >
+                                        <i class="fas fa-undo text-xs"></i>
+                                        "Kembalikan ke Operator"
+                                    </button>
                                 </div>
+                            </SectionCard>
+                        </Show>
 
-                                // Workflow Action Buttons
-                                {
-                                    let sk = satker.status_kode;
-                                    view! {
-                                        // Operator: Submit to Wilayah (InputBarang=2000 or RevisiSatker=2001)
-                                        <Show when=move || sk == 2000 || sk == 2001>
-                                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center justify-between">
-                                                <div>
-                                                    <p class="font-medium text-yellow-800">"Siap diajukan?"</p>
-                                                    <p class="text-sm text-yellow-600">"Kirim pengajuan ke Validator Wilayah untuk verifikasi."</p>
-                                                </div>
-                                                <button
-                                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-                                                    on:click=handle_submit_to_wilayah
-                                                    prop:disabled=move || action_loading.get()
-                                                >
-                                                    <i class="fas fa-paper-plane"></i>
-                                                    "Submit ke Wilayah"
-                                                </button>
-                                            </div>
-                                        </Show>
-
-                                        // Validator Wilayah: Forward/Return (SubmitWilayah=2002)
-                                        <Show when=move || sk == 2002>
-                                            <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                                                <p class="font-medium text-indigo-800 mb-3">"Tindakan Validator Wilayah"</p>
-                                                <div class="flex gap-3">
-                                                    <button
-                                                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                                                        on:click=handle_forward_to_pusat
-                                                        prop:disabled=move || action_loading.get()
-                                                    >
-                                                        <i class="fas fa-forward"></i>
-                                                        "Teruskan ke Pusat"
-                                                    </button>
-                                                    <button
-                                                        class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2"
-                                                        on:click=move |_| set_show_return_modal.set(true)
-                                                        prop:disabled=move || action_loading.get()
-                                                    >
-                                                        <i class="fas fa-undo"></i>
-                                                        "Kembalikan ke Operator"
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </Show>
-
-                                        // Validator Pusat: Approve/Reject (AnalisisKelayakan=2005)
-                                        <Show when=move || sk == 2005>
-                                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                                                <p class="font-medium text-purple-800 mb-3">"Keputusan Validator Pusat"</p>
-                                                <Show when=move || is_validator_decision_blocked()>
-                                                    <div class="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                                                        <div class="font-medium">"Aksi dikunci: kualitas data integrasi belum aman"</div>
-                                                        <div class="mt-1">
-                                                            {move || {
-                                                                analisis
-                                                                    .get()
-                                                                    .and_then(|a| a.integrasi_sync)
-                                                                    .map(|sync| {
-                                                                        let mut failed_sources: Vec<String> = vec![];
-                                                                        if sync_state_is_risky(
-                                                                            &sync.mysimkari.state,
-                                                                            sync.mysimkari.error_message.as_deref(),
-                                                                        ) {
-                                                                            failed_sources.push("MySIMKARI".to_string());
-                                                                        }
-                                                                        if sync_state_is_risky(
-                                                                            &sync.siman.state,
-                                                                            sync.siman.error_message.as_deref(),
-                                                                        ) {
-                                                                            failed_sources.push("SIMAN".to_string());
-                                                                        }
-
-                                                                        if failed_sources.is_empty() {
-                                                                            "Periksa status sinkronisasi sebelum melanjutkan.".to_string()
-                                                                        } else {
-                                                                            format!(
-                                                                                "Sumber bermasalah: {}. Lakukan sinkronisasi ulang atau verifikasi manual terlebih dahulu.",
-                                                                                failed_sources.join(", ")
-                                                                            )
-                                                                        }
-                                                                    })
-                                                                    .unwrap_or_else(|| {
-                                                                        "Status sinkronisasi belum tersedia.".to_string()
-                                                                    })
-                                                            }}
-                                                        </div>
-
-                                                        <Show when=move || is_override_allowed()>
-                                                            <div class="mt-3 p-3 rounded-lg bg-white border border-red-200">
-                                                                <label class="flex items-start gap-2 text-sm font-medium text-gray-800">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        class="mt-0.5"
-                                                                        checked=move || override_enabled.get()
-                                                                        on:change=move |ev| {
-                                                                            set_override_enabled.set(event_target_checked(&ev));
-                                                                        }
-                                                                    />
-                                                                    <span>"Aktifkan override darurat (khusus admin)"</span>
-                                                                </label>
-                                                                <textarea
-                                                                    rows="3"
-                                                                    class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                                                    placeholder="Wajib diisi minimal 20 karakter. Contoh: keputusan mendesak karena tenggat operasional dan verifikasi manual telah dilakukan."
-                                                                    on:input=move |ev| set_override_reason.set(event_target_value(&ev))
-                                                                    prop:value=move || override_reason.get()
-                                                                ></textarea>
-                                                                <div class="mt-1 text-xs text-gray-600">
-                                                                    {move || format!("Panjang alasan: {} karakter", override_reason.get().trim().len())}
-                                                                </div>
-                                                                <Show when=move || override_enabled.get() && !is_override_reason_valid(&override_reason.get())>
-                                                                    <div class="mt-1 text-xs text-red-600">"Alasan override minimal 20 karakter."</div>
-                                                                </Show>
-                                                            </div>
-                                                        </Show>
-                                                    </div>
-                                                </Show>
-                                                <div class="flex gap-3">
-                                                    <button
-                                                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                                                        on:click=handle_approve
-                                                        prop:disabled=move || action_loading.get() || !can_validator_decide()
-                                                    >
-                                                        <i class="fas fa-check"></i>
-                                                        "Setujui"
-                                                    </button>
-                                                    <button
-                                                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-                                                        on:click=move |_| set_show_reject_modal.set(true)
-                                                        prop:disabled=move || action_loading.get() || !can_validator_decide()
-                                                    >
-                                                        <i class="fas fa-times"></i>
-                                                        "Tolak"
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </Show>
-
-                                        // Completed/Rejected status info
-                                        <Show when=move || sk == 2006>
-                                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-                                                <i class="fas fa-check-circle text-green-600 text-xl"></i>
-                                                <div>
-                                                    <p class="font-medium text-green-800">"Pengajuan Disetujui"</p>
-                                                    <p class="text-sm text-green-600">"Pengajuan kebutuhan BMN telah disetujui oleh Validator Pusat."</p>
-                                                </div>
-                                            </div>
-                                        </Show>
-                                        <Show when=move || sk == 2007>
-                                            <div class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-                                                <i class="fas fa-times-circle text-red-600 text-xl"></i>
-                                                <div>
-                                                    <p class="font-medium text-red-800">"Pengajuan Ditolak"</p>
-                                                    <p class="text-sm text-red-600">"Pengajuan kebutuhan BMN ditolak oleh Validator Pusat."</p>
-                                                </div>
-                                            </div>
-                                        </Show>
-                                    }
-                                }
-
-                                // Tabs
-                                <div class="border-b border-gray-200">
-                                    <nav class="flex gap-4">
-                                        <button
-                                            class=move || format!(
-                                                "py-2 px-4 border-b-2 font-medium text-sm transition-colors {}",
-                                                if active_tab.get() == "barang" { "border-blue-600 text-blue-600" } else { "border-transparent text-gray-500 hover:text-gray-700" }
-                                            )
-                                            on:click=move |_| set_active_tab.set("barang")
-                                        >
-                                            <i class="fas fa-boxes mr-2"></i>
-                                            "Daftar Barang"
-                                        </button>
-                                        <button
-                                            class=move || format!(
-                                                "py-2 px-4 border-b-2 font-medium text-sm transition-colors {}",
-                                                if active_tab.get() == "analisis" { "border-blue-600 text-blue-600" } else { "border-transparent text-gray-500 hover:text-gray-700" }
-                                            )
-                                            on:click=move |_| set_active_tab.set("analisis")
-                                        >
-                                            <i class="fas fa-chart-bar mr-2"></i>
-                                            "Analisis Kelayakan"
-                                        </button>
-                                        <button
-                                            class=move || format!(
-                                                "py-2 px-4 border-b-2 font-medium text-sm transition-colors {}",
-                                                if active_tab.get() == "aktivitas" { "border-blue-600 text-blue-600" } else { "border-transparent text-gray-500 hover:text-gray-700" }
-                                            )
-                                            on:click=move |_| set_active_tab.set("aktivitas")
-                                        >
-                                            <i class="fas fa-history mr-2"></i>
-                                            "Riwayat Aktivitas"
-                                        </button>
-                                    </nav>
-                                </div>
-
-                                // Tab content: Barang
-                                <Show when=move || active_tab.get() == "barang">
-                                    <div>
-                                        <div class="flex justify-between items-center mb-4">
-                                            <h3 class="text-lg font-semibold">"Daftar Barang"</h3>
-                                            <button
-                                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                                on:click=move |_| set_show_add_barang.set(true)
-                                            >
-                                                <i class="fas fa-plus mr-2"></i>
-                                                "Tambah Barang"
-                                            </button>
+                        // Validator Pusat: Approve/Reject (AnalisisKelayakan=2005)
+                        <Show when=move || sk == 2005>
+                            <SectionCard title="Keputusan Validator Pusat">
+                                // Blocked warning
+                                <Show when=move || is_validator_decision_blocked()>
+                                    <div class="mb-4 rounded-lg border border-danger-500/30 bg-danger-500/[0.08] p-3 text-sm text-danger-300">
+                                        <div class="font-medium">"Aksi dikunci: kualitas data integrasi belum aman"</div>
+                                        <div class="mt-1 text-xs text-danger-400/70">
+                                            {move || {
+                                                analisis
+                                                    .get()
+                                                    .and_then(|a| a.integrasi_sync)
+                                                    .map(|sync| {
+                                                        let mut failed: Vec<&str> = vec![];
+                                                        if sync_state_is_risky(&sync.mysimkari.state, sync.mysimkari.error_message.as_deref()) {
+                                                            failed.push("MySIMKARI");
+                                                        }
+                                                        if sync_state_is_risky(&sync.siman.state, sync.siman.error_message.as_deref()) {
+                                                            failed.push("SIMAN");
+                                                        }
+                                                        if failed.is_empty() {
+                                                            "Periksa status sinkronisasi sebelum melanjutkan.".to_string()
+                                                        } else {
+                                                            format!("Sumber bermasalah: {}. Lakukan sinkronisasi ulang atau verifikasi manual.", failed.join(", "))
+                                                        }
+                                                    })
+                                                    .unwrap_or_else(|| "Status sinkronisasi belum tersedia.".to_string())
+                                            }}
                                         </div>
 
-                                        <Show
-                                            when=move || has_barang
-                                            fallback=|| view! {
-                                                <div class="text-center py-8 text-gray-500">
-                                                    <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
-                                                    <p>"Belum ada barang yang ditambahkan"</p>
+                                        // Override darurat (admin only)
+                                        <Show when=move || is_override_allowed()>
+                                            <div class="mt-3 rounded-lg border border-white/[0.06] bg-surface-panel p-3">
+                                                <label class="flex items-start gap-2 text-sm font-medium text-slate-200">
+                                                    <input
+                                                        type="checkbox"
+                                                        class="mt-0.5"
+                                                        checked=move || override_enabled.get()
+                                                        on:change=move |ev| set_override_enabled.set(event_target_checked(&ev))
+                                                    />
+                                                    <span>"Aktifkan override darurat (khusus admin)"</span>
+                                                </label>
+                                                <textarea
+                                                    rows="3"
+                                                    class="focus-ring mt-2 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
+                                                    placeholder="Wajib diisi minimal 20 karakter. Contoh: keputusan mendesak karena tenggat operasional..."
+                                                    on:input=move |ev| set_override_reason.set(event_target_value(&ev))
+                                                    prop:value=move || override_reason.get()
+                                                ></textarea>
+                                                <div class="mt-1 text-xs text-slate-500">
+                                                    {move || format!("Panjang alasan: {} karakter", override_reason.get().trim().len())}
                                                 </div>
-                                            }
-                                        >
-                                            <div class="overflow-x-auto">
-                                                <table class="w-full text-left border-collapse">
-                                                    <thead>
-                                                        <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-                                                            <th class="p-3 font-semibold border-b">"Nama Barang"</th>
-                                                            <th class="p-3 font-semibold border-b">"Kode"</th>
-                                                            <th class="p-3 font-semibold border-b text-center">"Jumlah"</th>
-                                                            <th class="p-3 font-semibold border-b text-center">"Disetujui"</th>
-                                                            <th class="p-3 font-semibold border-b text-center">"Prioritas"</th>
-                                                            <th class="p-3 font-semibold border-b">"Alasan"</th>
-                                                            <th class="p-3 font-semibold border-b text-center">"Aksi"</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="text-gray-700 text-sm">
-                                                        <For
-                                                            each=move || barang_list_store.get_value().into_iter()
-                                                            key=|b| b.id.clone()
-                                                            children=move |barang: PengajuanKebutuhanBmnBarang| {
-                                                                let barang_id = barang.id.clone();
-                                                                view! {
-                                                                    <tr class="hover:bg-gray-50 border-b last:border-0">
-                                                                        <td class="p-3 font-medium">{barang.nama.clone()}</td>
-                                                                        <td class="p-3 font-mono text-xs">{barang.kode_barang.clone().unwrap_or("-".into())}</td>
-                                                                        <td class="p-3 text-center">{format!("{} {}", barang.jumlah, barang.satuan)}</td>
-                                                                        <td class="p-3 text-center text-green-600 font-medium">{barang.jml_setuju}</td>
-                                                                        <td class="p-3 text-center">
-                                                                            <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-                                                                                {barang.prioritas}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td class="p-3 text-gray-600 max-w-xs truncate">{barang.alasan.clone().unwrap_or("-".into())}</td>
-                                                                        <td class="p-3 text-center">
-                                                                            <button
-                                                                                class="text-red-600 hover:text-red-800"
-                                                                                on:click=move |_| handle_delete_barang(barang_id.clone())
-                                                                            >
-                                                                                <i class="fas fa-trash"></i>
-                                                                            </button>
-                                                                        </td>
-                                                                    </tr>
-                                                                }
-                                                            }
-                                                        />
-                                                    </tbody>
-                                                </table>
+                                                <Show when=move || override_enabled.get() && !is_override_reason_valid(&override_reason.get())>
+                                                    <div class="mt-1 text-xs text-danger-400">"Alasan override minimal 20 karakter."</div>
+                                                </Show>
                                             </div>
                                         </Show>
                                     </div>
                                 </Show>
+                                <div class="flex gap-3">
+                                    <button
+                                        class="inline-flex items-center gap-2 rounded-lg bg-success-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-success-700 disabled:opacity-50"
+                                        on:click=handle_approve
+                                        prop:disabled=move || action_loading.get() || !can_validator_decide()
+                                    >
+                                        <i class="fas fa-check text-xs"></i>
+                                        "Setujui"
+                                    </button>
+                                    <button
+                                        class="inline-flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-danger-700 disabled:opacity-50"
+                                        on:click=move |_| set_show_reject_modal.set(true)
+                                        prop:disabled=move || action_loading.get() || !can_validator_decide()
+                                    >
+                                        <i class="fas fa-times text-xs"></i>
+                                        "Tolak"
+                                    </button>
+                                </div>
+                            </SectionCard>
+                        </Show>
 
-                                // Tab content: Analisis
-                                <Show when=move || active_tab.get() == "analisis">
-                                    <div>
-                                        {move || {
-                                            analisis.get().map(|a| {
-                                                let sync_data = a.integrasi_sync.clone();
-                                                view! {
-                                                    <div class="space-y-4">
-                                                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                                            <div class="bg-blue-50 rounded-lg p-4">
-                                                                <div class="text-blue-600 text-sm">"Total Diminta"</div>
-                                                                <div class="text-2xl font-bold">{a.summary.total_diminta}</div>
-                                                            </div>
-                                                            <div class="bg-green-50 rounded-lg p-4">
-                                                                <div class="text-green-600 text-sm">"Total Existing"</div>
-                                                                <div class="text-2xl font-bold">{a.summary.total_existing}</div>
-                                                            </div>
-                                                            <div class="bg-orange-50 rounded-lg p-4">
-                                                                <div class="text-orange-600 text-sm">"Gap Kebutuhan"</div>
-                                                                <div class="text-2xl font-bold">{a.summary.total_gap}</div>
-                                                            </div>
-                                                            <div class="bg-purple-50 rounded-lg p-4">
-                                                                <div class="text-purple-600 text-sm">"% Kelayakan"</div>
-                                                                <div class="text-2xl font-bold">{format!("{:.1}%", a.summary.kelayakan_persen)}</div>
-                                                            </div>
-                                                        </div>
+                        // Completed / Rejected banners
+                        <Show when=move || sk == 2006>
+                            <div class="flex items-center gap-3 rounded-xl border border-success-500/30 bg-success-500/[0.08] p-4">
+                                <i class="fas fa-check-circle text-xl text-success-400"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-success-300">"Pengajuan Disetujui"</p>
+                                    <p class="text-xs text-success-400/70">"Pengajuan kebutuhan BMN telah disetujui oleh Validator Pusat."</p>
+                                </div>
+                            </div>
+                        </Show>
+                        <Show when=move || sk == 2007>
+                            <div class="flex items-center gap-3 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] p-4">
+                                <i class="fas fa-times-circle text-xl text-danger-400"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-danger-300">"Pengajuan Ditolak"</p>
+                                    <p class="text-xs text-danger-400/70">"Pengajuan kebutuhan BMN ditolak oleh Validator Pusat."</p>
+                                </div>
+                            </div>
+                        </Show>
 
-                                                        // Integrasi sync status
-                                                        {
-                                                            sync_data.map(|sync| {
-                                                                let mysimkari = sync.mysimkari;
-                                                                let siman = sync.siman;
+                        // ── Tabs ──
+                        <div class="border-b border-white/[0.06]">
+                            <nav class="flex gap-1">
+                                {["barang", "analisis", "aktivitas"].into_iter().map(|tab| {
+                                    let icon = match tab {
+                                        "barang" => "fas fa-boxes",
+                                        "analisis" => "fas fa-chart-bar",
+                                        _ => "fas fa-history",
+                                    };
+                                    let label = match tab {
+                                        "barang" => "Daftar Barang",
+                                        "analisis" => "Analisis Kelayakan",
+                                        _ => "Riwayat Aktivitas",
+                                    };
+                                    view! {
+                                        <button
+                                            class=move || format!(
+                                                "border-b-2 px-4 py-2.5 text-sm font-medium transition {}",
+                                                if active_tab.get() == tab {
+                                                    "border-gold-400 text-gold-400"
+                                                } else {
+                                                    "border-transparent text-slate-500 hover:text-slate-300"
+                                                }
+                                            )
+                                            on:click=move |_| set_active_tab.set(tab)
+                                        >
+                                            <i class=format!("{} mr-1.5 text-xs", icon)></i>
+                                            {label}
+                                        </button>
+                                    }
+                                }).collect_view()}
+                            </nav>
+                        </div>
 
-                                                                let mysimkari_badge_class = sync_state_badge_class(&mysimkari.state);
-                                                                let siman_badge_class = sync_state_badge_class(&siman.state);
-                                                                let mysimkari_label = sync_state_label(&mysimkari.state);
-                                                                let siman_label = sync_state_label(&siman.state);
-                                                                let mysimkari_last_sync = mysimkari
-                                                                    .last_sync_at
-                                                                    .clone()
-                                                                    .unwrap_or_else(|| "Belum tersedia".to_string());
-                                                                let mysimkari_error = mysimkari.error_message.clone();
-                                                                let mysimkari_has_error = mysimkari_error.is_some();
-                                                                let mysimkari_error_text =
-                                                                    mysimkari_error.unwrap_or_default();
+                        // ── Tab: Barang ──
+                        <Show when=move || active_tab.get() == "barang">
+                            <div>
+                                <div class="mb-4 flex items-center justify-between">
+                                    <h3 class="text-sm font-semibold text-slate-200">"Daftar Barang"</h3>
+                                    <button
+                                        class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
+                                        on:click=move |_| set_show_add_barang.set(true)
+                                    >
+                                        <i class="fas fa-plus text-xs"></i>
+                                        "Tambah Barang"
+                                    </button>
+                                </div>
 
-                                                                let siman_last_sync = siman
-                                                                    .last_sync_at
-                                                                    .clone()
-                                                                    .unwrap_or_else(|| "Belum tersedia".to_string());
-                                                                let siman_error = siman.error_message.clone();
-                                                                let siman_has_error = siman_error.is_some();
-                                                                let siman_error_text = siman_error.unwrap_or_default();
-
-                                                                view! {
-                                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                        <div class="bg-teal-50 border border-teal-100 rounded-lg p-4">
-                                                                            <div class="flex items-start justify-between gap-3">
-                                                                                <div>
-                                                                                    <div class="text-sm font-semibold text-teal-800">"MySIMKARI Sync"</div>
-                                                                                    <div class="text-xs text-teal-700 mt-1">
-                                                                                        {format!("Records tersinkron: {}", mysimkari.records_synced)}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <span class=format!("px-2 py-1 rounded-full text-xs font-medium {}", mysimkari_badge_class)>
-                                                                                    {mysimkari_label}
-                                                                                </span>
-                                                                            </div>
-                                                                            <div class="mt-3 text-xs text-gray-600 space-y-1">
-                                                                                <div>
-                                                                                    <span class="font-medium">"Last Sync:"</span>
-                                                                                    " "
-                                                                                    {mysimkari_last_sync}
-                                                                                </div>
-                                                                                <Show when=move || mysimkari_has_error>
-                                                                                    <div class="text-red-600">
-                                                                                        <span class="font-medium">"Error:"</span>
-                                                                                        " "
-                                                                                        {mysimkari_error_text.clone()}
-                                                                                    </div>
-                                                                                </Show>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
-                                                                            <div class="flex items-start justify-between gap-3">
-                                                                                <div>
-                                                                                    <div class="text-sm font-semibold text-indigo-800">"SIMAN Sync"</div>
-                                                                                    <div class="text-xs text-indigo-700 mt-1">
-                                                                                        {format!("Records tersinkron: {}", siman.records_synced)}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <span class=format!("px-2 py-1 rounded-full text-xs font-medium {}", siman_badge_class)>
-                                                                                    {siman_label}
-                                                                                </span>
-                                                                            </div>
-                                                                            <div class="mt-3 text-xs text-gray-600 space-y-1">
-                                                                                <div>
-                                                                                    <span class="font-medium">"Last Sync:"</span>
-                                                                                    " "
-                                                                                    {siman_last_sync}
-                                                                                </div>
-                                                                                <Show when=move || siman_has_error>
-                                                                                    <div class="text-red-600">
-                                                                                        <span class="font-medium">"Error:"</span>
-                                                                                        " "
-                                                                                        {siman_error_text.clone()}
-                                                                                    </div>
-                                                                                </Show>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                }
-                                                            })
-                                                        }
-
-                                                        // Gap analysis table with existing assets from SIMAN
-                                                        <div class="mt-6">
-                                                            <h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                                                                <i class="fas fa-chart-bar text-blue-500"></i>
-                                                                "Detail Analisis per Barang"
-                                                            </h4>
-                                                            <div class="overflow-x-auto">
-                                                                <table class="w-full text-left border-collapse">
-                                                                    <thead>
-                                                                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
-                                                                            <th class="p-3 font-semibold border-b">"Nama Barang"</th>
-                                                                            <th class="p-3 font-semibold border-b text-center">"Diminta"</th>
-                                                                            <th class="p-3 font-semibold border-b text-center">"Existing (SIMAN)"</th>
-                                                                            <th class="p-3 font-semibold border-b text-center">"Gap"</th>
-                                                                            <th class="p-3 font-semibold border-b">"Rekomendasi"</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody class="text-gray-700 text-sm">
-                                                                        <For
-                                                                            each=move || a.barang_list.clone()
-                                                                            key=|b| b.barang.id.clone()
-                                                                            children=move |item| {
-                                                                let item_store = StoredValue::new(item.clone());
-                                                                                let gap_class = if item.gap <= 0 {
-                                                                                    "text-green-600"
-                                                                                } else if item.gap < item.barang.jumlah / 2 {
-                                                                                    "text-yellow-600"
-                                                                                } else {
-                                                                                    "text-red-600"
-                                                                                };
-                                                                                let existing_count = item.existing_assets.len();
-
-                                                                                view! {
-                                                                                    <tr class="hover:bg-gray-50 border-b last:border-0">
-                                                                                        <td class="p-3">
-                                                                                            <div class="font-medium">{item.barang.nama.clone()}</div>
-                                                            {
-                                                                (existing_count > 0).then(|| {
-                                                                    view! {
-                                                                        <div class="text-xs text-gray-400 mt-1">
-                                                                            <i class="fas fa-database mr-1"></i>
-                                                                            {format!("{} aset ditemukan di SIMAN", existing_count)}
-                                                                        </div>
-                                                                    }
-                                                                })
-                                                            }
-                                                                                        </td>
-                                                                                        <td class="p-3 text-center font-medium">{item.barang.jumlah}</td>
-                                                                                        <td class="p-3 text-center">
-                                                                                            <span class="text-blue-600 font-medium">{existing_count as i32}</span>
-                                                                                        </td>
-                                                                                        <td class=format!("p-3 text-center font-bold {}", gap_class)>
-                                                                                            {if item.gap > 0 { format!("+{}", item.gap) } else { item.gap.to_string() }}
-                                                                                        </td>
-                                                                                        <td class="p-3 text-sm">{item.recommendation.clone()}</td>
-                                                                                    </tr>
-                                                                                    // Show existing assets if any
-                                                                    <Show when=move || !item_store.with_value(|i| i.existing_assets.is_empty())>
-                                                                                        <tr class="bg-blue-50">
-                                                                                            <td colspan="5" class="p-2">
-                                                                                                <details class="cursor-pointer">
-                                                                                                    <summary class="text-xs text-blue-600 font-medium">
-                                                                                                        <i class="fas fa-list-ul mr-1"></i>
-                                                                                                        "Lihat aset existing dari SIMAN"
-                                                                                                    </summary>
-                                                                                                    <div class="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                                                                                                        <For
-                                                                                            each=move || item_store.get_value().existing_assets
-                                                                                                            key=|ea| ea.no_aset.clone()
-                                                                                                            children=move |ea| {
-                                                                                                                let kondisi_class = match ea.kondisi.as_str() {
-                                                                                                                    "Baik" => "bg-green-100 text-green-800",
-                                                                                                                    "Rusak Ringan" => "bg-yellow-100 text-yellow-800",
-                                                                                                                    _ => "bg-red-100 text-red-800"
-                                                                                                                };
-                                                                                                                view! {
-                                                                                                                    <div class="flex justify-between items-center text-xs bg-white rounded px-2 py-1">
-                                                                                                                        <div>
-                                                                                                                            <span class="font-mono text-gray-500">{ea.no_aset.clone()}</span>
-                                                                                                                            " - "
-                                                                                                                            <span class="font-medium">{ea.nama_aset.clone()}</span>
-                                                                                                                        </div>
-                                                                                                                        <span class=format!("px-2 py-0.5 rounded text-xs {}", kondisi_class)>
-                                                                                                                            {ea.kondisi.clone()}
-                                                                                                                        </span>
-                                                                                                                    </div>
-                                                                                                                }
-                                                                                                            }
-                                                                                                        />
-                                                                                                    </div>
-                                                                                                </details>
-                                                                                            </td>
-                                                                                        </tr>
-                                                                                    </Show>
-                                                                                }
-                                                                            }
-                                                                        />
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
-
-                                                        // SIMAN integration note
-                                                        <div class="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-                                                            <i class="fas fa-info-circle mr-2"></i>
-                                                            "Data aset existing diambil dari SIMAN (Sistem Informasi Manajemen Aset Negara). "
-                                                            "Gap dihitung berdasarkan jumlah yang diminta dikurangi jumlah aset sejenis yang sudah ada."
-                                                        </div>
-
-                                                        // Data Pegawai section (from MySIMKARI)
-                                                        {a.data_pegawai.clone().map(|dp| {
-                                                            let total_pegawai = dp.total_pegawai;
-                                                            let rekap_eselon_empty = dp.rekap_eselon.is_empty();
-                                                            let rekap_eselon_data = StoredValue::new(dp.rekap_eselon);
-                                                            let rekap_non_eselon_empty = dp.rekap_non_eselon.is_empty();
-                                                            let rekap_non_eselon_data = StoredValue::new(dp.rekap_non_eselon);
+                                <Show
+                                    when=move || has_barang
+                                    fallback=|| view! {
+                                        <div class="py-8 text-center">
+                                            <i class="fas fa-box-open mb-2 text-2xl text-slate-600"></i>
+                                            <p class="text-sm text-slate-500">"Belum ada barang yang ditambahkan"</p>
+                                        </div>
+                                    }
+                                >
+                                    <div class="overflow-hidden rounded-xl border border-white/[0.06]">
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full divide-y divide-white/[0.04]">
+                                                <thead class="bg-white/[0.02]">
+                                                    <tr>
+                                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Barang"</th>
+                                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Kode"</th>
+                                                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Jumlah"</th>
+                                                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Disetujui"</th>
+                                                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Prioritas"</th>
+                                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Alasan"</th>
+                                                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Aksi"</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <For
+                                                        each=move || barang_list_store.get_value().into_iter()
+                                                        key=|b| b.id.clone()
+                                                        children=move |barang: PengajuanKebutuhanBmnBarang| {
+                                                            let barang_id = barang.id.clone();
                                                             view! {
-                                                                <div class="mt-6">
-                                                                    <h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                                                                        <i class="fas fa-users text-green-500"></i>
-                                                                        "Rekap Data Pegawai (MySIMKARI)"
-                                                                    </h4>
-
-                                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                                        <div class="bg-green-50 rounded-lg p-4">
-                                                                            <div class="text-green-600 text-sm">"Total Pegawai"</div>
-                                                                            <div class="text-2xl font-bold">{total_pegawai}</div>
-                                                                        </div>
-                                                                        <div class="bg-teal-50 rounded-lg p-4">
-                                                                            <div class="text-teal-600 text-sm">"Sumber Data"</div>
-                                                                            <div class="text-sm font-medium mt-1">"MySIMKARI - Sistem Informasi Manajemen Kepegawaian"</div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    // Eselon table
-                                                                    <Show when=move || !rekap_eselon_empty>
-                                                                        <div class="mb-4">
-                                                                            <h5 class="text-sm font-medium text-gray-700 mb-2">"Rekap per Eselon"</h5>
-                                                                            <div class="overflow-x-auto">
-                                                                                <table class="w-full text-left border-collapse text-sm">
-                                                                                    <thead>
-                                                                                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
-                                                                                            <th class="p-2 border-b">"Eselon"</th>
-                                                                                            <th class="p-2 border-b text-center">"Jumlah"</th>
-                                                                                        </tr>
-                                                                                    </thead>
-                                                                                    <tbody>
-                                                                                        <For
-                                                                                            each=move || rekap_eselon_data.get_value()
-                                                                                            key=|e| e.tingkat_eselon.clone()
-                                                                                            children=move |item| view! {
-                                                                                                <tr class="border-b">
-                                                                                                    <td class="p-2">{item.tingkat_eselon}</td>
-                                                                                                    <td class="p-2 text-center font-medium">{item.jumlah}</td>
-                                                                                                </tr>
-                                                                                            }
-                                                                                        />
-                                                                                    </tbody>
-                                                                                </table>
-                                                                            </div>
-                                                                        </div>
-                                                                    </Show>
-
-                                                                    // Non-eselon table
-                                                                    <Show when=move || !rekap_non_eselon_empty>
-                                                                        <div>
-                                                                            <h5 class="text-sm font-medium text-gray-700 mb-2">"Rekap per Golongan (Non-Eselon)"</h5>
-                                                                            <div class="overflow-x-auto">
-                                                                                <table class="w-full text-left border-collapse text-sm">
-                                                                                    <thead>
-                                                                                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
-                                                                                            <th class="p-2 border-b">"Golongan"</th>
-                                                                                            <th class="p-2 border-b text-center">"Jumlah"</th>
-                                                                                        </tr>
-                                                                                    </thead>
-                                                                                    <tbody>
-                                                                                        <For
-                                                                                            each=move || rekap_non_eselon_data.get_value()
-                                                                                            key=|e| e.golongan.clone()
-                                                                                            children=move |item| view! {
-                                                                                                <tr class="border-b">
-                                                                                                    <td class="p-2">{item.golongan}</td>
-                                                                                                    <td class="p-2 text-center font-medium">{item.jumlah}</td>
-                                                                                                </tr>
-                                                                                            }
-                                                                                        />
-                                                                                    </tbody>
-                                                                                </table>
-                                                                            </div>
-                                                                        </div>
-                                                                    </Show>
-                                                                </div>
-                                                            }.into_any()
-                                                        }).unwrap_or_else(|| view! { <div></div> }.into_any())}
-                                                    </div>
-                                                }.into_any()
-                                            }).unwrap_or_else(|| view! {
-                                                <div class="text-center py-8 text-gray-500">
-                                                    <p>"Data analisis belum tersedia"</p>
-                                                </div>
-                                            }.into_any())
-                                        }}
+                                                                <tr class="border-b border-white/[0.04] transition hover:bg-white/[0.02]">
+                                                                    <td class="px-4 py-3 text-sm font-medium text-slate-200">{barang.nama.clone()}</td>
+                                                                    <td class="px-4 py-3 font-mono text-xs text-slate-400">{barang.kode_barang.clone().unwrap_or("-".into())}</td>
+                                                                    <td class="px-4 py-3 text-center text-sm text-slate-300">{format!("{} {}", barang.jumlah, barang.satuan)}</td>
+                                                                    <td class="px-4 py-3 text-center text-sm font-medium text-success-400">{barang.jml_setuju}</td>
+                                                                    <td class="px-4 py-3 text-center">
+                                                                        <span class="inline-flex items-center rounded-full bg-info-500/15 px-2 py-0.5 text-xs font-medium text-info-300 ring-1 ring-info-500/25">
+                                                                            {barang.prioritas}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="max-w-xs truncate px-4 py-3 text-sm text-slate-400">{barang.alasan.clone().unwrap_or("-".into())}</td>
+                                                                    <td class="px-4 py-3 text-center">
+                                                                        <button
+                                                                            class="text-danger-400 transition hover:text-danger-300"
+                                                                            on:click=move |_| handle_delete_barang(barang_id.clone())
+                                                                        >
+                                                                            <i class="fas fa-trash text-xs"></i>
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        }
+                                                    />
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </Show>
+                            </div>
+                        </Show>
 
-                                // Tab content: Aktivitas
-                                <Show when=move || active_tab.get() == "aktivitas">
-                                    <div>
-                                        <Show
-                                            when=move || !aktivitas.get().is_empty()
-                                            fallback=|| view! {
-                                                <div class="text-center py-8 text-gray-500">
-                                                    <p>"Belum ada aktivitas"</p>
+                        // ── Tab: Analisis ──
+                        <Show when=move || active_tab.get() == "analisis">
+                            <div>
+                                {move || {
+                                    analisis.get().map(|a| {
+                                        let sync_data = a.integrasi_sync.clone();
+                                        let barang_items = StoredValue::new(a.barang_list.clone());
+
+                                        view! {
+                                            <div class="space-y-5">
+                                                // Summary stats
+                                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                                    <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                        <div class="text-xs font-medium text-info-400">"Total Diminta"</div>
+                                                        <div class="mt-1 text-2xl font-bold text-slate-100">{a.summary.total_diminta}</div>
+                                                    </div>
+                                                    <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                        <div class="text-xs font-medium text-success-400">"Total Existing"</div>
+                                                        <div class="mt-1 text-2xl font-bold text-slate-100">{a.summary.total_existing}</div>
+                                                    </div>
+                                                    <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                        <div class="text-xs font-medium text-warning-400">"Gap Kebutuhan"</div>
+                                                        <div class="mt-1 text-2xl font-bold text-slate-100">{a.summary.total_gap}</div>
+                                                    </div>
+                                                    <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                        <div class="text-xs font-medium text-purple-400">"% Kelayakan"</div>
+                                                        <div class="mt-1 text-2xl font-bold text-slate-100">{format!("{:.1}%", a.summary.kelayakan_persen)}</div>
+                                                    </div>
                                                 </div>
-                                            }
-                                        >
-                                            <div class="space-y-3">
-                                                <For
-                                                    each=move || aktivitas.get()
-                                                    key=|a| a.id.clone()
-                                                    children=move |akt| {
-                                                        let to_status = KebutuhanBmnStatus::from_code(akt.to_status_kode);
-                                                        view! {
-                                                            <div class="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                                                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                                                    <i class="fas fa-arrow-right text-blue-600"></i>
+
+                                                // Integrasi sync status
+                                                {sync_data.map(|sync| {
+                                                    let mysimkari = sync.mysimkari;
+                                                    let siman = sync.siman;
+                                                    let my_badge = sync_state_badge_class(&mysimkari.state);
+                                                    let si_badge = sync_state_badge_class(&siman.state);
+                                                    let my_label = sync_state_label(&mysimkari.state);
+                                                    let si_label = sync_state_label(&siman.state);
+                                                    let my_last = mysimkari.last_sync_at.clone().unwrap_or_else(|| "Belum tersedia".to_string());
+                                                    let si_last = siman.last_sync_at.clone().unwrap_or_else(|| "Belum tersedia".to_string());
+                                                    let my_err = mysimkari.error_message.clone();
+                                                    let my_has_err = my_err.is_some();
+                                                    let my_err_text = my_err.unwrap_or_default();
+                                                    let si_err = siman.error_message.clone();
+                                                    let si_has_err = si_err.is_some();
+                                                    let si_err_text = si_err.unwrap_or_default();
+
+                                                    view! {
+                                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                            // MySIMKARI sync card
+                                                            <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                                <div class="flex items-start justify-between gap-3">
+                                                                    <div>
+                                                                        <div class="text-sm font-semibold text-slate-200">"MySIMKARI Sync"</div>
+                                                                        <div class="mt-1 text-xs text-slate-400">
+                                                                            {format!("Records tersinkron: {}", mysimkari.records_synced)}
+                                                                        </div>
+                                                                    </div>
+                                                                    <span class=format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {}", my_badge)>
+                                                                        {my_label}
+                                                                    </span>
                                                                 </div>
-                                                                <div class="flex-1">
-                                                                    <div class="font-medium text-gray-800">{akt.aksi.clone()}</div>
-                                                                    <div class="text-sm text-gray-500 mt-1">
-                                                                        "Ke status: " {to_status.map(|s| s.label()).unwrap_or("Unknown")}
-                                                                    </div>
-                                                                    {
-                                                                        let has_komentar = akt.komentar.is_some();
-                                                                        view! {
-                                                                            <Show when=move || has_komentar>
-                                                                                <div class="text-sm text-gray-600 mt-2 italic">
-                                                                                    "\""{ akt.komentar.clone().unwrap_or_default() }"\""
-                                                                                </div>
-                                                                            </Show>
-                                                                        }
-                                                                    }
-                                                                    <div class="text-xs text-gray-400 mt-2">
-                                                                        {format!("{} - {}", akt.nama.clone().unwrap_or("System".into()), akt.created_at)}
-                                                                    </div>
+                                                                <div class="mt-3 space-y-1 text-xs text-slate-500">
+                                                                    <div><span class="font-medium">"Last Sync:"</span> " " {my_last}</div>
+                                                                    <Show when=move || my_has_err>
+                                                                        <div class="text-danger-400">
+                                                                            <span class="font-medium">"Error:"</span> " " {my_err_text.clone()}
+                                                                        </div>
+                                                                    </Show>
                                                                 </div>
                                                             </div>
-                                                        }
+                                                            // SIMAN sync card
+                                                            <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                                <div class="flex items-start justify-between gap-3">
+                                                                    <div>
+                                                                        <div class="text-sm font-semibold text-slate-200">"SIMAN Sync"</div>
+                                                                        <div class="mt-1 text-xs text-slate-400">
+                                                                            {format!("Records tersinkron: {}", siman.records_synced)}
+                                                                        </div>
+                                                                    </div>
+                                                                    <span class=format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {}", si_badge)>
+                                                                        {si_label}
+                                                                    </span>
+                                                                </div>
+                                                                <div class="mt-3 space-y-1 text-xs text-slate-500">
+                                                                    <div><span class="font-medium">"Last Sync:"</span> " " {si_last}</div>
+                                                                    <Show when=move || si_has_err>
+                                                                        <div class="text-danger-400">
+                                                                            <span class="font-medium">"Error:"</span> " " {si_err_text.clone()}
+                                                                        </div>
+                                                                    </Show>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     }
-                                                />
+                                                })}
+
+                                                // Gap analysis table
+                                                <SectionCard title="Detail Analisis per Barang">
+                                                    <div class="overflow-hidden rounded-xl border border-white/[0.06]">
+                                                        <div class="overflow-x-auto">
+                                                            <table class="min-w-full divide-y divide-white/[0.04]">
+                                                                <thead class="bg-white/[0.02]">
+                                                                    <tr>
+                                                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Barang"</th>
+                                                                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Diminta"</th>
+                                                                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Existing (SIMAN)"</th>
+                                                                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Gap"</th>
+                                                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Rekomendasi"</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <For
+                                                                        each=move || barang_items.get_value()
+                                                                        key=|b| b.barang.id.clone()
+                                                                        children=move |item| {
+                                                                            let item_store = StoredValue::new(item.clone());
+                                                                            let gc = gap_class(item.gap, item.barang.jumlah);
+                                                                            let existing_count = item.existing_assets.len();
+                                                                            let has_existing = existing_count > 0;
+
+                                                                            view! {
+                                                                                <tr class="border-b border-white/[0.04] transition hover:bg-white/[0.02]">
+                                                                                    <td class="px-4 py-3">
+                                                                                        <div class="text-sm font-medium text-slate-200">{item.barang.nama.clone()}</div>
+                                                                                        <Show when=move || has_existing>
+                                                                                            <div class="mt-0.5 text-xs text-slate-500">
+                                                                                                <i class="fas fa-database mr-1"></i>
+                                                                                                {format!("{} aset ditemukan di SIMAN", existing_count)}
+                                                                                            </div>
+                                                                                        </Show>
+                                                                                    </td>
+                                                                                    <td class="px-4 py-3 text-center text-sm font-medium text-slate-200">{item.barang.jumlah}</td>
+                                                                                    <td class="px-4 py-3 text-center text-sm font-medium text-info-400">{existing_count as i32}</td>
+                                                                                    <td class=format!("px-4 py-3 text-center text-sm font-bold {}", gc)>
+                                                                                        {if item.gap > 0 { format!("+{}", item.gap) } else { item.gap.to_string() }}
+                                                                                    </td>
+                                                                                    <td class="px-4 py-3 text-sm text-slate-300">{item.recommendation.clone()}</td>
+                                                                                </tr>
+                                                                                // Expandable existing assets
+                                                                                <Show when=move || !item_store.with_value(|i| i.existing_assets.is_empty())>
+                                                                                    <tr class="bg-white/[0.015]">
+                                                                                        <td colspan="5" class="p-2">
+                                                                                            <details class="cursor-pointer">
+                                                                                                <summary class="text-xs font-medium text-info-400">
+                                                                                                    <i class="fas fa-list-ul mr-1"></i>
+                                                                                                    "Lihat aset existing dari SIMAN"
+                                                                                                </summary>
+                                                                                                <div class="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                                                                                                    <For
+                                                                                                        each=move || item_store.get_value().existing_assets
+                                                                                                        key=|ea| ea.no_aset.clone()
+                                                                                                        children=move |ea| {
+                                                                                                            let kc = kondisi_badge_class(&ea.kondisi);
+                                                                                                            view! {
+                                                                                                                <div class="flex items-center justify-between rounded-lg bg-white/[0.03] px-2 py-1 text-xs">
+                                                                                                                    <div>
+                                                                                                                        <span class="font-mono text-slate-500">{ea.no_aset.clone()}</span>
+                                                                                                                        " - "
+                                                                                                                        <span class="font-medium text-slate-300">{ea.nama_aset.clone()}</span>
+                                                                                                                    </div>
+                                                                                                                    <span class=format!("rounded-full px-2 py-0.5 text-xs {}", kc)>
+                                                                                                                        {ea.kondisi.clone()}
+                                                                                                                    </span>
+                                                                                                                </div>
+                                                                                                            }
+                                                                                                        }
+                                                                                                    />
+                                                                                                </div>
+                                                                                            </details>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                </Show>
+                                                                            }
+                                                                        }
+                                                                    />
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+
+                                                    // SIMAN note
+                                                    <div class="mt-4 rounded-lg border border-info-500/20 bg-info-500/[0.06] p-3 text-xs text-info-300">
+                                                        <i class="fas fa-info-circle mr-1.5"></i>
+                                                        "Data aset existing diambil dari SIMAN. Gap dihitung berdasarkan jumlah diminta dikurangi aset sejenis."
+                                                    </div>
+                                                </SectionCard>
+
+                                                // Pegawai data (MySIMKARI)
+                                                {a.data_pegawai.clone().map(|dp| {
+                                                    let total_pegawai = dp.total_pegawai;
+                                                    let rekap_eselon_empty = dp.rekap_eselon.is_empty();
+                                                    let rekap_eselon_data = StoredValue::new(dp.rekap_eselon);
+                                                    let rekap_non_eselon_empty = dp.rekap_non_eselon.is_empty();
+                                                    let rekap_non_eselon_data = StoredValue::new(dp.rekap_non_eselon);
+                                                    view! {
+                                                        <SectionCard title="Rekap Data Pegawai (MySIMKARI)">
+                                                            <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                                <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                                    <div class="text-xs font-medium text-success-400">"Total Pegawai"</div>
+                                                                    <div class="mt-1 text-2xl font-bold text-slate-100">{total_pegawai}</div>
+                                                                </div>
+                                                                <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                                    <div class="text-xs font-medium text-info-400">"Sumber Data"</div>
+                                                                    <div class="mt-1 text-sm font-medium text-slate-200">"MySIMKARI — Sistem Informasi Manajemen Kepegawaian"</div>
+                                                                </div>
+                                                            </div>
+
+                                                            // Eselon table
+                                                            <Show when=move || !rekap_eselon_empty>
+                                                                <div class="mb-4">
+                                                                    <h5 class="mb-2 text-xs font-medium text-slate-400">"Rekap per Eselon"</h5>
+                                                                    <div class="overflow-hidden rounded-lg border border-white/[0.06]">
+                                                                        <table class="min-w-full divide-y divide-white/[0.04] text-sm">
+                                                                            <thead class="bg-white/[0.02]">
+                                                                                <tr>
+                                                                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-400">"Eselon"</th>
+                                                                                    <th class="px-3 py-2 text-center text-xs font-semibold uppercase text-slate-400">"Jumlah"</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <For
+                                                                                    each=move || rekap_eselon_data.get_value()
+                                                                                    key=|e| e.tingkat_eselon.clone()
+                                                                                    children=move |item| view! {
+                                                                                        <tr class="border-b border-white/[0.04]">
+                                                                                            <td class="px-3 py-2 text-slate-300">{item.tingkat_eselon}</td>
+                                                                                            <td class="px-3 py-2 text-center font-medium text-slate-200">{item.jumlah}</td>
+                                                                                        </tr>
+                                                                                    }
+                                                                                />
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            </Show>
+
+                                                            // Non-eselon table
+                                                            <Show when=move || !rekap_non_eselon_empty>
+                                                                <div>
+                                                                    <h5 class="mb-2 text-xs font-medium text-slate-400">"Rekap per Golongan (Non-Eselon)"</h5>
+                                                                    <div class="overflow-hidden rounded-lg border border-white/[0.06]">
+                                                                        <table class="min-w-full divide-y divide-white/[0.04] text-sm">
+                                                                            <thead class="bg-white/[0.02]">
+                                                                                <tr>
+                                                                                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-400">"Golongan"</th>
+                                                                                    <th class="px-3 py-2 text-center text-xs font-semibold uppercase text-slate-400">"Jumlah"</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <For
+                                                                                    each=move || rekap_non_eselon_data.get_value()
+                                                                                    key=|e| e.golongan.clone()
+                                                                                    children=move |item| view! {
+                                                                                        <tr class="border-b border-white/[0.04]">
+                                                                                            <td class="px-3 py-2 text-slate-300">{item.golongan}</td>
+                                                                                            <td class="px-3 py-2 text-center font-medium text-slate-200">{item.jumlah}</td>
+                                                                                        </tr>
+                                                                                    }
+                                                                                />
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            </Show>
+                                                        </SectionCard>
+                                                    }.into_any()
+                                                }).unwrap_or_else(|| view! { <div></div> }.into_any())}
                                             </div>
-                                        </Show>
+                                        }.into_any()
+                                    }).unwrap_or_else(|| view! {
+                                        <div class="py-8 text-center text-sm text-slate-500">"Data analisis belum tersedia"</div>
+                                    }.into_any())
+                                }}
+                            </div>
+                        </Show>
+
+                        // ── Tab: Aktivitas ──
+                        <Show when=move || active_tab.get() == "aktivitas">
+                            <div>
+                                <Show
+                                    when=move || !aktivitas.get().is_empty()
+                                    fallback=|| view! {
+                                        <div class="py-8 text-center text-sm text-slate-500">"Belum ada aktivitas"</div>
+                                    }
+                                >
+                                    <div class="space-y-3">
+                                        <For
+                                            each=move || aktivitas.get()
+                                            key=|a| a.id.clone()
+                                            children=move |akt| {
+                                                let to_status = KebutuhanBmnStatus::from_code(akt.to_status_kode);
+                                                let has_komentar = akt.komentar.is_some();
+                                                let komentar_text = akt.komentar.clone().unwrap_or_default();
+                                                view! {
+                                                    <div class="flex items-start gap-4 rounded-xl border border-white/[0.06] bg-surface-panel p-4">
+                                                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-info-500/15">
+                                                            <i class="fas fa-arrow-right text-info-400"></i>
+                                                        </div>
+                                                        <div class="flex-1">
+                                                            <div class="text-sm font-medium text-slate-200">{akt.aksi.clone()}</div>
+                                                            <div class="mt-1 text-xs text-slate-400">
+                                                                "Ke status: " {to_status.map(|s| s.label()).unwrap_or("Unknown")}
+                                                            </div>
+                                                            <Show when=move || has_komentar>
+                                                                <div class="mt-2 text-xs italic text-slate-500">
+                                                                    "\"" {komentar_text.clone()} "\""
+                                                                </div>
+                                                            </Show>
+                                                            <div class="mt-2 text-xs text-slate-600">
+                                                                {format!("{} — {}", akt.nama.clone().unwrap_or("System".into()), akt.created_at)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }
+                                        />
                                     </div>
                                 </Show>
                             </div>
-                        }.into_any()
-                    } else {
-                         view! {
-                            <div class="text-center py-8 text-gray-500">
-                                <p>"Data analisis belum tersedia"</p>
-                            </div>
-                        }.into_any()
-                    }
-                }}
-            </Show>
+                        </Show>
+                    </div>
+                }.into_any()
+            }}
+
+            // ── Modals ──
 
             // Add barang modal
             <Show when=move || show_add_barang.get()>
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">"Tambah Barang"</h3>
-                        <form on:submit=handle_add_barang class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Barang *"</label>
+                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div class="mx-4 w-full max-w-lg rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
+                        <h3 class="mb-4 text-lg font-bold text-slate-100">"Tambah Barang"</h3>
+                        <form on:submit=handle_add_barang class="flex flex-col gap-4">
+                            <FormField label="Nama Barang" required=true>
                                 <input
                                     type="text"
                                     required
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     on:input=move |ev| set_new_nama.set(event_target_value(&ev))
                                     prop:value=move || new_nama.get()
                                 />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Kode Barang"</label>
+                            </FormField>
+                            <FormField label="Kode Barang">
                                 <input
                                     type="text"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     on:input=move |ev| {
                                         let v = event_target_value(&ev);
                                         set_new_kode_barang.set(if v.is_empty() { None } else { Some(v) });
                                     }
                                 />
-                            </div>
+                            </FormField>
                             <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Jumlah *"</label>
+                                <FormField label="Jumlah" required=true>
                                     <input
                                         type="number"
                                         min="1"
                                         required
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100"
                                         on:input=move |ev| {
                                             if let Ok(v) = event_target_value(&ev).parse() {
                                                 set_new_jumlah.set(v);
@@ -1137,39 +1059,37 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         }
                                         prop:value=move || new_jumlah.get()
                                     />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Satuan"</label>
+                                </FormField>
+                                <FormField label="Satuan">
                                     <input
                                         type="text"
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100"
                                         on:input=move |ev| set_new_satuan.set(event_target_value(&ev))
                                         prop:value=move || new_satuan.get()
                                     />
-                                </div>
+                                </FormField>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Alasan/Justifikasi"</label>
+                            <FormField label="Alasan / Justifikasi">
                                 <textarea
                                     rows="2"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     on:input=move |ev| {
                                         let v = event_target_value(&ev);
                                         set_new_alasan.set(if v.is_empty() { None } else { Some(v) });
                                     }
                                 ></textarea>
-                            </div>
-                            <div class="flex justify-end gap-3 pt-4 border-t">
+                            </FormField>
+                            <div class="flex justify-end gap-3 border-t border-white/[0.04] pt-4">
                                 <button
                                     type="button"
-                                    class="px-4 py-2 border border-gray-300 rounded-lg"
+                                    class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 transition hover:bg-white/[0.08]"
                                     on:click=move |_| set_show_add_barang.set(false)
                                 >
                                     "Batal"
                                 </button>
                                 <button
                                     type="submit"
-                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                                    class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                                     disabled=move || submitting.get()
                                 >
                                     {move || if submitting.get() { "Menyimpan..." } else { "Simpan" }}
@@ -1180,32 +1100,31 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                 </div>
             </Show>
 
-            // Return to operator modal (validator wilayah)
+            // Return to operator modal
             <Show when=move || show_return_modal.get()>
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">"Kembalikan ke Operator"</h3>
-                        <form on:submit=handle_return_to_operator class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Catatan / Alasan Pengembalian *"</label>
+                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div class="mx-4 w-full max-w-lg rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
+                        <h3 class="mb-4 text-lg font-bold text-slate-100">"Kembalikan ke Operator"</h3>
+                        <form on:submit=handle_return_to_operator class="flex flex-col gap-4">
+                            <FormField label="Catatan / Alasan Pengembalian" required=true>
                                 <textarea
                                     rows="3"
                                     required
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     placeholder="Jelaskan alasan pengembalian..."
                                     on:input=move |ev| set_return_catatan.set(event_target_value(&ev))
                                     prop:value=move || return_catatan.get()
                                 ></textarea>
-                            </div>
-                            <div class="flex justify-end gap-3 pt-4 border-t">
+                            </FormField>
+                            <div class="flex justify-end gap-3 border-t border-white/[0.04] pt-4">
                                 <button
                                     type="button"
-                                    class="px-4 py-2 border border-gray-300 rounded-lg"
+                                    class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 transition hover:bg-white/[0.08]"
                                     on:click=move |_| set_show_return_modal.set(false)
                                 >"Batal"</button>
                                 <button
                                     type="submit"
-                                    class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
+                                    class="rounded-lg bg-warning-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-warning-700 disabled:opacity-50"
                                     disabled=move || action_loading.get()
                                 >"Kembalikan"</button>
                             </div>
@@ -1214,32 +1133,31 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                 </div>
             </Show>
 
-            // Reject modal (validator pusat)
+            // Reject modal
             <Show when=move || show_reject_modal.get()>
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">"Tolak Pengajuan"</h3>
-                        <form on:submit=handle_reject class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Alasan Penolakan *"</label>
+                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div class="mx-4 w-full max-w-lg rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
+                        <h3 class="mb-4 text-lg font-bold text-slate-100">"Tolak Pengajuan"</h3>
+                        <form on:submit=handle_reject class="flex flex-col gap-4">
+                            <FormField label="Alasan Penolakan" required=true>
                                 <textarea
                                     rows="3"
                                     required
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     placeholder="Jelaskan alasan penolakan..."
                                     on:input=move |ev| set_reject_alasan.set(event_target_value(&ev))
                                     prop:value=move || reject_alasan.get()
                                 ></textarea>
-                            </div>
-                            <div class="flex justify-end gap-3 pt-4 border-t">
+                            </FormField>
+                            <div class="flex justify-end gap-3 border-t border-white/[0.04] pt-4">
                                 <button
                                     type="button"
-                                    class="px-4 py-2 border border-gray-300 rounded-lg"
+                                    class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 transition hover:bg-white/[0.08]"
                                     on:click=move |_| set_show_reject_modal.set(false)
                                 >"Batal"</button>
                                 <button
                                     type="submit"
-                                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                                    class="rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-danger-700 disabled:opacity-50"
                                     disabled=move || action_loading.get()
                                 >"Tolak"</button>
                             </div>
@@ -1247,6 +1165,6 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                     </div>
                 </div>
             </Show>
-        </div>
+        </PageLayout>
     }
 }

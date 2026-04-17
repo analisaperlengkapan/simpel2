@@ -3,13 +3,12 @@
 //! Displays paginated list of BMN needs analysis requests with filtering and batch operations.
 
 use crate::api::{
-    KebutuhanBmnQuery, KebutuhanBmnStatus, KebutuhanBmnSummary, fetch_kebutuhan_bmn_list,
+    AppError, KebutuhanBmnQuery, KebutuhanBmnStatus, KebutuhanBmnSummary, fetch_kebutuhan_bmn_list,
 };
 use crate::components::batch_operations_toolbar::{
     BatchOperationResult, BatchOperationsToolbar, BatchResultSummary,
 };
-use crate::components::list_feedback::{EmptyState, LoadingState};
-use crate::components::page_header::PageHeader;
+use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
 use uuid::Uuid;
@@ -27,7 +26,6 @@ pub fn KebutuhanBmnList() -> impl IntoView {
     let (batch_result, set_batch_result) = signal::<Option<BatchOperationResult>>(None);
     let (refresh_trigger, set_refresh_trigger) = signal(0);
 
-    // Create query from filters
     let query = Memo::new(move |_| KebutuhanBmnQuery {
         tahun: tahun_filter.get(),
         status_kode: status_filter.get(),
@@ -38,21 +36,12 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         },
     });
 
-    // Fetch data resource
     let data_resource = LocalResource::new(move || {
         let q = query.get();
         let p = page.get();
         let pp = per_page.get();
-        let _ = refresh_trigger.get(); // Trigger refresh
-        async move {
-            match fetch_kebutuhan_bmn_list(q, p, pp).await {
-                Ok(response) => Some(response),
-                Err(e) => {
-                    leptos::logging::error!("Failed to fetch kebutuhan BMN: {:?}", e);
-                    None
-                }
-            }
-        }
+        let _ = refresh_trigger.get();
+        async move { fetch_kebutuhan_bmn_list(q, p, pp).await }
     });
 
     // Reset page when filters change
@@ -61,14 +50,12 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         set_page.set(1);
     });
 
-    // Handle batch operation completion
     let handle_operation_complete = Callback::new(move |result: BatchOperationResult| {
         set_batch_result.set(Some(result));
         set_selected_ids.set(Vec::new());
         set_refresh_trigger.update(|v| *v += 1);
     });
 
-    // Toggle selection for a single item
     let toggle_selection = move |id: Uuid| {
         set_selected_ids.update(|ids| {
             if ids.contains(&id) {
@@ -79,275 +66,291 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         });
     };
 
-    // Select all visible items
     let select_all = move |items: Vec<Uuid>| {
         set_selected_ids.set(items);
     };
 
-    // Clear selection
-    let clear_selection = move |_| {
-        set_selected_ids.set(Vec::new());
-    };
-
-    // Current year for filter dropdown
-    let current_year = 2025;
+    let current_year = 2026;
     let years: Vec<i32> = (2020..=current_year + 1).rev().collect();
 
     view! {
-        <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <PageLayout
+            title="Analisis Kebutuhan BMN"
+            icon="fas fa-clipboard-list"
+            description="Kelola pengajuan kebutuhan barang milik negara"
+        >
             // Batch result summary
             <BatchResultSummary
                 result=batch_result
                 on_close=Callback::new(move |_| set_batch_result.set(None))
             />
 
-            <PageHeader
-                title="Analisis Kebutuhan BMN"
-                subtitle="Kelola pengajuan kebutuhan barang milik negara"
-                action_href=routes::path::KEBUTUHAN_BUAT
-                action_label="Buat Pengajuan"
-            />
-
-            // Filters
-            <div class="flex flex-wrap gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
-                // Search
-                <div class="flex-1 min-w-[200px]">
-                    <input
-                        type="text"
-                        placeholder="Cari nama pengajuan..."
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        on:input=move |ev| set_search_query.set(event_target_value(&ev))
-                        prop:value=move || search_query.get()
-                    />
-                </div>
-
-                // Year filter
-                <select
-                    class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-                    on:change=move |ev| {
-                        let val = event_target_value(&ev);
-                        set_tahun_filter.set(val.parse().ok());
-                    }
+            // Action bar
+            <div class="mb-4 flex items-center justify-between">
+                <div></div>
+                <a
+                    href=routes::path::KEBUTUHAN_BUAT
+                    class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                 >
-                    <option value="">"Semua Tahun"</option>
-                    <For
-                        each=move || years.clone()
-                        key=|y| *y
-                        children=move |y| view! { <option value=y.to_string()>{y}</option> }
-                    />
-                </select>
-
-                // Status filter
-                <select
-                    class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-                    on:change=move |ev| {
-                        let val = event_target_value(&ev);
-                        set_status_filter.set(val.parse().ok());
-                    }
-                >
-                    <option value="">"Semua Status"</option>
-                    <option value="2000">"Draft"</option>
-                    <option value="2001">"Input Barang"</option>
-                    <option value="2002">"Diajukan ke Validator"</option>
-                    <option value="2003">"Revisi Satker"</option>
-                    <option value="2004">"Analisis Kelayakan"</option>
-                    <option value="2005">"Penyusunan Prioritas"</option>
-                    <option value="2006">"Disetujui"</option>
-                    <option value="2007">"Ditolak"</option>
-                    <option value="2008">"Selesai"</option>
-                    <option value="2009">"Dibatalkan"</option>
-                </select>
-
-                // Clear selection button (only show when items are selected)
-                <Show when=move || !selected_ids.get().is_empty()>
-                    <button
-                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center"
-                        on:click=clear_selection
-                    >
-                        <i class="fas fa-times mr-2"></i>
-                        "Batal Pilih"
-                    </button>
-                </Show>
+                    <i class="fas fa-plus text-xs"></i>
+                    "Buat Pengajuan"
+                </a>
             </div>
 
-            // Data table
-            <Suspense fallback=move || view! { <LoadingState /> }>
-                {move || {
-                    data_resource.get().flatten().map(|response| {
-                        // Pre-clone data for multiple uses
-                        let data_for_for = response.data.clone();
-                        let data_for_select_all = response.data.clone();
-                        let data_len = response.data.len();
-                        let total = response.total;
-                        let total_pages = response.total_pages;
+            // Filters
+            <SectionCard title="Filter" dense=true>
+                <div class="flex flex-wrap gap-3">
+                    // Search
+                    <div class="min-w-[200px] flex-1">
+                        <input
+                            type="text"
+                            placeholder="Cari nama pengajuan..."
+                            class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
+                            on:input=move |ev| set_search_query.set(event_target_value(&ev))
+                            prop:value=move || search_query.get()
+                        />
+                    </div>
 
-                        if response.data.is_empty() {
-                            view! {
-                                <EmptyState
-                                    title="Belum ada pengajuan kebutuhan BMN"
-                                    description="Klik tombol \"Buat Pengajuan\" untuk memulai"
-                                />
-                            }.into_any()
-                        } else {
-                            view! {
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-                                                <th class="p-3 font-semibold border-b w-12">
-                                                    <input
-                                                        type="checkbox"
-                                                        class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                                                        prop:checked={
-                                                            let data_for_checked = data_for_select_all.clone();
-                                                            move || {
-                                                                let selected = selected_ids.get();
-                                                                let all_ids: Vec<Uuid> = data_for_checked.clone().iter()
-                                                                    .filter_map(|item| Uuid::parse_str(&item.id).ok())
-                                                                    .collect();
-                                                                !all_ids.is_empty() && all_ids.iter().all(|id| selected.contains(id))
-                                                            }
-                                                        }
-                                                        on:change=move |_| {
-                                                            let all_ids: Vec<Uuid> = data_for_select_all.clone().iter()
-                                                                .filter_map(|item| Uuid::parse_str(&item.id).ok())
-                                                                .collect();
-                                                            let selected = selected_ids.get();
-                                                            if all_ids.iter().all(|id| selected.contains(id)) {
-                                                                set_selected_ids.set(Vec::new());
-                                                            } else {
-                                                                select_all(all_ids);
-                                                            }
-                                                        }
-                                                    />
-                                                </th>
-                                                <th class="p-3 font-semibold border-b">"Nama Pengajuan"</th>
-                                                <th class="p-3 font-semibold border-b text-center">"Tahun"</th>
-                                                <th class="p-3 font-semibold border-b text-center">"Satker"</th>
-                                                <th class="p-3 font-semibold border-b text-center">"Barang"</th>
-                                                <th class="p-3 font-semibold border-b text-right">"Diminta"</th>
-                                                <th class="p-3 font-semibold border-b text-right">"Disetujui"</th>
-                                                <th class="p-3 font-semibold border-b">"Status"</th>
-                                                <th class="p-3 font-semibold border-b text-center">"Aksi"</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="text-gray-700 text-sm">
-                                            <For
-                                                each=move || data_for_for.clone()
-                                                key=|item| item.id.clone()
-                                                children=move |item: KebutuhanBmnSummary| {
-                                                    let status = KebutuhanBmnStatus::from_code(item.status_kode);
-                                                    let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-gray-100 text-gray-800");
-                                                    let id_for_link = item.id.clone();
-                                                    let id_for_edit = item.id.clone();
-                                                    let item_uuid = Uuid::parse_str(&item.id).ok();
-
-                                                    view! {
-                                                        <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
-                                                            <td class="p-3">
-                                                                {item_uuid.map(|uuid| view! {
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                                                                        prop:checked=move || selected_ids.get().contains(&uuid)
-                                                                        on:change=move |_| toggle_selection(uuid)
-                                                                    />
-                                                                })}
-                                                            </td>
-                                                            <td class="p-3">
-                                                                <a
-                                                                    href=routes::url::kebutuhan_detail(&id_for_link)
-                                                                    class="font-medium text-blue-600 hover:text-blue-800"
-                                                                >
-                                                                    {item.nama.clone()}
-                                                                </a>
-                                                            </td>
-                                                            <td class="p-3 text-center">{item.tahun}</td>
-                                                            <td class="p-3 text-center">
-                                                                <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
-                                                                    {item.total_satker}
-                                                                </span>
-                                                            </td>
-                                                            <td class="p-3 text-center">
-                                                                <span class="bg-purple-50 text-purple-700 px-2 py-1 rounded-full text-xs font-medium">
-                                                                    {item.total_barang}
-                                                                </span>
-                                                            </td>
-                                                            <td class="p-3 text-right font-mono">{item.total_jumlah_diminta}</td>
-                                                            <td class="p-3 text-right font-mono text-green-600">{item.total_jumlah_disetujui}</td>
-                                                            <td class="p-3">
-                                                                <span class=format!("px-2 py-1 rounded-full text-xs font-medium {}", badge_class)>
-                                                                    {item.status_nama.clone()}
-                                                                </span>
-                                                            </td>
-                                                            <td class="p-3">
-                                                                <div class="flex justify-center gap-2">
-                                                                    <a
-                                                                        href=routes::url::kebutuhan_detail(&id_for_edit)
-                                                                        class="text-blue-600 hover:text-blue-800 p-1"
-                                                                        title="Detail"
-                                                                    >
-                                                                        <i class="fas fa-eye"></i>
-                                                                    </a>
-                                                                    <a
-                                                                        href=routes::url::kebutuhan_edit(&item.id)
-                                                                        class="text-gray-600 hover:text-gray-800 p-1"
-                                                                        title="Edit"
-                                                                    >
-                                                                        <i class="fas fa-edit"></i>
-                                                                    </a>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                }
-                                            />
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                // Pagination
-                                <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                                    <div class="text-sm text-gray-500">
-                                        "Menampilkan "
-                                        <span class="font-medium">{response.data.len()}</span>
-                                        " dari "
-                                        <span class="font-medium">{response.total}</span>
-                                        " pengajuan"
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <button
-                                            class="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            prop:disabled=move || page.get() <= 1
-                                            on:click=move |_| set_page.update(|p| *p -= 1)
-                                        >
-                                            <i class="fas fa-chevron-left mr-1"></i>
-                                            "Sebelumnya"
-                                        </button>
-                                        <span class="px-4 py-2 text-gray-600">
-                                            "Halaman " {move || page.get()} " / " {response.total_pages}
-                                        </span>
-                                        <button
-                                            class="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            prop:disabled=move || page.get() >= response.total_pages
-                                            on:click=move |_| set_page.update(|p| *p += 1)
-                                        >
-                                            "Selanjutnya"
-                                            <i class="fas fa-chevron-right ml-1"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            }.into_any()
+                    // Year filter
+                    <select
+                        class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-200"
+                        on:change=move |ev| {
+                            let val = event_target_value(&ev);
+                            set_tahun_filter.set(val.parse().ok());
                         }
-                    })
-                }}
-            </Suspense>
+                    >
+                        <option value="">"Semua Tahun"</option>
+                        {years.iter().map(|y| view! { <option value=y.to_string()>{*y}</option> }).collect_view()}
+                    </select>
+
+                    // Status filter
+                    <select
+                        class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-200"
+                        on:change=move |ev| {
+                            let val = event_target_value(&ev);
+                            set_status_filter.set(val.parse().ok());
+                        }
+                    >
+                        <option value="">"Semua Status"</option>
+                        <option value="2000">"Draft"</option>
+                        <option value="2001">"Input Barang"</option>
+                        <option value="2002">"Diajukan ke Validator"</option>
+                        <option value="2003">"Revisi Satker"</option>
+                        <option value="2004">"Analisis Kelayakan"</option>
+                        <option value="2005">"Penyusunan Prioritas"</option>
+                        <option value="2006">"Disetujui"</option>
+                        <option value="2007">"Ditolak"</option>
+                        <option value="2008">"Selesai"</option>
+                        <option value="2009">"Dibatalkan"</option>
+                    </select>
+
+                    // Clear selection
+                    <Show when=move || !selected_ids.get().is_empty()>
+                        <button
+                            class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-300 transition hover:bg-white/[0.08]"
+                            on:click=move |_| set_selected_ids.set(Vec::new())
+                        >
+                            <i class="fas fa-times text-xs"></i>
+                            "Batal Pilih"
+                        </button>
+                    </Show>
+                </div>
+            </SectionCard>
+
+            // Data table
+            <div class="mt-4">
+                <Suspense fallback=move || view! { <LoadingState /> }>
+                    {move || match data_resource.get() {
+                        None => view! { <LoadingState /> }.into_any(),
+                        Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
+                        Some(Ok(response)) => {
+                            if response.data.is_empty() {
+                                view! {
+                                    <EmptyState
+                                        icon="fas fa-clipboard-list"
+                                        title="Belum Ada Pengajuan"
+                                        description="Klik tombol \"Buat Pengajuan\" untuk memulai."
+                                    />
+                                }.into_any()
+                            } else {
+                                let data_for_for = response.data.clone();
+                                let data_for_select_all = response.data.clone();
+                                let total = response.total;
+                                let total_pages = response.total_pages;
+
+                                view! {
+                                    <div class="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel">
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full divide-y divide-white/[0.04]">
+                                                <thead class="bg-white/[0.02]">
+                                                    <tr>
+                                                        <th class="w-12 px-3 py-3">
+                                                            <input
+                                                                type="checkbox"
+                                                                class="h-4 w-4 rounded border-white/20 bg-white/[0.04] text-gold-500 focus:ring-gold-500/30"
+                                                                prop:checked={
+                                                                    let data_for_checked = data_for_select_all.clone();
+                                                                    move || {
+                                                                        let selected = selected_ids.get();
+                                                                        let all_ids: Vec<Uuid> = data_for_checked.iter()
+                                                                            .filter_map(|item| Uuid::parse_str(&item.id).ok())
+                                                                            .collect();
+                                                                        !all_ids.is_empty() && all_ids.iter().all(|id| selected.contains(id))
+                                                                    }
+                                                                }
+                                                                on:change=move |_| {
+                                                                    let all_ids: Vec<Uuid> = data_for_select_all.iter()
+                                                                        .filter_map(|item| Uuid::parse_str(&item.id).ok())
+                                                                        .collect();
+                                                                    let selected = selected_ids.get();
+                                                                    if all_ids.iter().all(|id| selected.contains(id)) {
+                                                                        set_selected_ids.set(Vec::new());
+                                                                    } else {
+                                                                        select_all(all_ids);
+                                                                    }
+                                                                }
+                                                            />
+                                                        </th>
+                                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Pengajuan"</th>
+                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Tahun"</th>
+                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Satker"</th>
+                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Barang"</th>
+                                                        <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Diminta"</th>
+                                                        <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Disetujui"</th>
+                                                        <th class="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">"Status"</th>
+                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Aksi"</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {data_for_for.into_iter().map(|item| {
+                                                        let status = KebutuhanBmnStatus::from_code(item.status_kode);
+                                                        let badge_class = status_badge_class(status.as_ref());
+                                                        let id_for_link = item.id.clone();
+                                                        let id_for_edit = item.id.clone();
+                                                        let item_uuid = Uuid::parse_str(&item.id).ok();
+
+                                                        view! {
+                                                            <tr class="border-b border-white/[0.04] transition hover:bg-white/[0.02]">
+                                                                <td class="px-3 py-3">
+                                                                    {item_uuid.map(|uuid| view! {
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            class="h-4 w-4 rounded border-white/20 bg-white/[0.04] text-gold-500 focus:ring-gold-500/30"
+                                                                            prop:checked=move || selected_ids.get().contains(&uuid)
+                                                                            on:change=move |_| toggle_selection(uuid)
+                                                                        />
+                                                                    })}
+                                                                </td>
+                                                                <td class="px-4 py-3">
+                                                                    <a
+                                                                        href=routes::url::kebutuhan_detail(&id_for_link)
+                                                                        class="text-sm font-medium text-gold-400 transition hover:text-gold-300"
+                                                                    >
+                                                                        {item.nama.clone()}
+                                                                    </a>
+                                                                </td>
+                                                                <td class="px-3 py-3 text-center text-sm text-slate-300">{item.tahun}</td>
+                                                                <td class="px-3 py-3 text-center">
+                                                                    <span class="inline-flex items-center rounded-full bg-info-500/15 px-2 py-0.5 text-xs font-medium text-info-300 ring-1 ring-info-500/25">
+                                                                        {item.total_satker}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="px-3 py-3 text-center">
+                                                                    <span class="inline-flex items-center rounded-full bg-purple-500/15 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-500/25">
+                                                                        {item.total_barang}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="px-3 py-3 text-right font-mono text-sm text-slate-300">{item.total_jumlah_diminta}</td>
+                                                                <td class="px-3 py-3 text-right font-mono text-sm text-success-400">{item.total_jumlah_disetujui}</td>
+                                                                <td class="px-3 py-3">
+                                                                    <span class=format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {}", badge_class)>
+                                                                        {item.status_nama.clone()}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="px-3 py-3">
+                                                                    <div class="flex justify-center gap-3">
+                                                                        <a
+                                                                            href=routes::url::kebutuhan_detail(&id_for_edit)
+                                                                            class="text-info-400 transition hover:text-info-300"
+                                                                            title="Detail"
+                                                                        >
+                                                                            <i class="fas fa-eye text-xs"></i>
+                                                                        </a>
+                                                                        <a
+                                                                            href=routes::url::kebutuhan_edit(&item.id)
+                                                                            class="text-slate-400 transition hover:text-slate-200"
+                                                                            title="Edit"
+                                                                        >
+                                                                            <i class="fas fa-edit text-xs"></i>
+                                                                        </a>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }).collect_view()}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        // Pagination
+                                        <div class="flex items-center justify-between border-t border-white/[0.04] px-5 py-3">
+                                            <p class="text-xs text-slate-400">
+                                                "Menampilkan "
+                                                <span class="font-medium text-slate-200">{response.data.len()}</span>
+                                                " dari "
+                                                <span class="font-medium text-slate-200">{total}</span>
+                                                " pengajuan"
+                                            </p>
+                                            <div class="flex items-center gap-2">
+                                                <button
+                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
+                                                    prop:disabled=move || page.get() <= 1
+                                                    on:click=move |_| set_page.update(|p| *p -= 1)
+                                                >
+                                                    <i class="fas fa-chevron-left text-2xs"></i>
+                                                    "Sebelumnya"
+                                                </button>
+                                                <span class="text-xs text-slate-400">
+                                                    {move || page.get()} " / " {total_pages}
+                                                </span>
+                                                <button
+                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
+                                                    prop:disabled=move || page.get() >= total_pages
+                                                    on:click=move |_| set_page.update(|p| *p += 1)
+                                                >
+                                                    "Selanjutnya"
+                                                    <i class="fas fa-chevron-right text-2xs"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }.into_any()
+                            }
+                        }
+                    }}
+                </Suspense>
+            </div>
 
             // Batch operations toolbar (floating at bottom)
             <BatchOperationsToolbar
                 selected_ids=selected_ids
                 on_operation_complete=handle_operation_complete
             />
-        </div>
+        </PageLayout>
+    }
+}
+
+/// Map KebutuhanBmnStatus to dark-theme badge classes.
+fn status_badge_class(status: Option<&KebutuhanBmnStatus>) -> &'static str {
+    use KebutuhanBmnStatus::*;
+    match status {
+        Some(Draft) | Some(Cancelled) => "bg-slate-500/15 text-slate-300 ring-slate-500/25",
+        Some(InputBarang) | Some(PenyusunanPrioritas) => "bg-info-500/15 text-info-300 ring-info-500/25",
+        Some(SubmitSatker) => "bg-gold-500/15 text-gold-300 ring-gold-500/25",
+        Some(RevisiSatker) => "bg-warning-500/15 text-warning-300 ring-warning-500/25",
+        Some(AnalisisKelayakan) => "bg-purple-500/15 text-purple-300 ring-purple-500/25",
+        Some(Approved) | Some(Completed) => "bg-success-500/15 text-success-300 ring-success-500/25",
+        Some(Rejected) => "bg-danger-500/15 text-danger-300 ring-danger-500/25",
+        None => "bg-slate-500/15 text-slate-300 ring-slate-500/25",
     }
 }

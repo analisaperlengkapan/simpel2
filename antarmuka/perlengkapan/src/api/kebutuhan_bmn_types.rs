@@ -58,16 +58,16 @@ impl KebutuhanBmnStatus {
 
     pub fn badge_class(&self) -> &'static str {
         match self {
-            Self::Draft => "bg-gray-100 text-gray-800",
-            Self::InputBarang => "bg-blue-100 text-blue-800",
-            Self::SubmitSatker => "bg-yellow-100 text-yellow-800",
-            Self::RevisiSatker => "bg-orange-100 text-orange-800",
-            Self::AnalisisKelayakan => "bg-purple-100 text-purple-800",
-            Self::PenyusunanPrioritas => "bg-indigo-100 text-indigo-800",
-            Self::Approved => "bg-green-100 text-green-800",
-            Self::Rejected => "bg-red-100 text-red-800",
-            Self::Completed => "bg-emerald-100 text-emerald-800",
-            Self::Cancelled => "bg-slate-100 text-slate-800",
+            Self::Draft => "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25",
+            Self::InputBarang => "bg-info-500/15 text-info-300 ring-1 ring-info-500/25",
+            Self::SubmitSatker => "bg-gold-500/15 text-gold-300 ring-1 ring-gold-500/25",
+            Self::RevisiSatker => "bg-warning-500/15 text-warning-300 ring-1 ring-warning-500/25",
+            Self::AnalisisKelayakan => "bg-purple-500/15 text-purple-300 ring-1 ring-purple-500/25",
+            Self::PenyusunanPrioritas => "bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/25",
+            Self::Approved => "bg-success-500/15 text-success-300 ring-1 ring-success-500/25",
+            Self::Rejected => "bg-danger-500/15 text-danger-300 ring-1 ring-danger-500/25",
+            Self::Completed => "bg-success-500/15 text-success-300 ring-1 ring-success-500/25",
+            Self::Cancelled => "bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/25",
         }
     }
 }

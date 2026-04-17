@@ -5,16 +5,14 @@
 //! - Perform gap analysis
 //! - Approve or reject submissions
 //! - Generate analysis reports
-//!
-//! Requirements: REQ-K010, REQ-K011, REQ-K012, REQ-K013, REQ-K014
 
+use crate::components::layout::{LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::dashboard::MetricCard;
-use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 // ============================================================================
 // API Models
@@ -90,7 +88,7 @@ pub struct GapAnalysisItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidatorPusatActionRequest {
-    pub action: String, // "approve" or "reject"
+    pub action: String,
     pub catatan: String,
     pub approved_items: Option<Vec<ApprovedItem>>,
 }
@@ -119,9 +117,9 @@ pub fn AnalysisPage() -> impl IntoView {
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal::<Option<String>>(None);
     let (success_message, set_success_message) = signal::<Option<String>>(None);
-    let (show_action_modal, set_show_action_modal) = signal(false);
-    let (action_type, set_action_type) = signal::<Option<String>>(None);
-    let (catatan, set_catatan) = signal(String::new());
+    let (_show_action_modal, _set_show_action_modal) = signal(false);
+    let (_action_type, _set_action_type) = signal::<Option<String>>(None);
+    let (_catatan, _set_catatan) = signal(String::new());
     let (approved_quantities, set_approved_quantities) = signal::<HashMap<Uuid, i32>>(HashMap::new());
 
     // Load submissions on mount
@@ -130,7 +128,7 @@ pub fn AnalysisPage() -> impl IntoView {
             set_loading.set(true);
             match fetch_submissions_for_analysis().await {
                 Ok(subs) => set_submissions.set(subs),
-                Err(e) => set_error.set(Some(e.to_string())),
+                Err(e) => set_error.set(Some(e.user_message())),
             }
             set_loading.set(false);
         });
@@ -143,7 +141,6 @@ pub fn AnalysisPage() -> impl IntoView {
             set_error.set(None);
             match fetch_analysis_data(submission_id).await {
                 Ok(data) => {
-                    // Initialize approved quantities with requested amounts
                     let mut quantities = HashMap::new();
                     for item in &data.satker_detail.barang_items {
                         quantities.insert(item.id, item.jumlah);
@@ -151,72 +148,79 @@ pub fn AnalysisPage() -> impl IntoView {
                     set_approved_quantities.set(quantities);
                     set_selected_analysis.set(Some(data));
                 }
-                Err(e) => set_error.set(Some(e.to_string())),
+                Err(e) => set_error.set(Some(e.user_message())),
             }
             set_loading.set(false);
         });
     };
 
     view! {
-        <div class="container mx-auto px-4 py-8">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                "Analisis Kebutuhan BMN - Validator Pusat"
-            </h1>
-
-            {move || error.get().map(|e| view! {
-                <Alert message=e variant=AlertVariant::Error />
-            })}
-
-            {move || success_message.get().map(|msg| view! {
-                <Alert message=msg variant=AlertVariant::Success />
-            })}
-
-            {move || loading.get().then(|| view! {
-                <div class="flex justify-center items-center py-12">
-                    <Spinner size="lg" />
-                    <span class="ml-3 text-gray-600">"Memuat data..."</span>
+        <PageLayout
+            title="Analisis Kebutuhan BMN"
+            icon="fas fa-chart-bar"
+            description="Validator Pusat — analisis dan keputusan pengajuan kebutuhan BMN"
+        >
+            // Error banner
+            <Show when=move || error.get().is_some()>
+                <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {move || error.get().unwrap_or_default()}
                 </div>
-            })}
+            </Show>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            // Success banner
+            <Show when=move || success_message.get().is_some()>
+                <div class="mb-4 flex items-center gap-2 rounded-xl border border-success-500/30 bg-success-500/[0.08] px-4 py-3 text-sm text-success-300">
+                    <i class="fas fa-check-circle"></i>
+                    {move || success_message.get().unwrap_or_default()}
+                </div>
+            </Show>
+
+            // Loading
+            <Show when=move || loading.get()>
+                <LoadingState message="Memuat data analisis...".to_string() />
+            </Show>
+
+            // Main grid: sidebar + content
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                // Sidebar: submission list
                 <div class="lg:col-span-1">
-                    <Card title="Daftar Pengajuan">
-                        <div class="space-y-2">
-                            {move || {
-                                let subs = submissions.get();
-                                if subs.is_empty() && !loading.get() {
-                                    view! {
-                                        <div class="text-center py-8 text-gray-500">
-                                            "Tidak ada pengajuan yang perlu dianalisis"
-                                        </div>
-                                    }.into_any()
-                                } else {
-                                    view! {
-                                        <div class="space-y-2">
-                                            {subs.into_iter().map(|sub| {
-                                                let sub_id = sub.id;
-                                                view! {
-                                                    <div
-                                                        class="p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
-                                                        on:click=move |_| load_analysis(sub_id)
-                                                    >
-                                                        <div class="font-semibold text-gray-900">
-                                                            {sub.satker_nama.clone().unwrap_or_else(|| sub.ms_satker_id.clone())}
-                                                        </div>
-                                                        <div class="text-sm text-gray-600 mt-1">
-                                                            "Prioritas: " {sub.prioritas}
-                                                        </div>
+                    <SectionCard title="Daftar Pengajuan">
+                        {move || {
+                            let subs = submissions.get();
+                            if subs.is_empty() && !loading.get() {
+                                view! {
+                                    <div class="py-8 text-center text-sm text-slate-500">
+                                        "Tidak ada pengajuan yang perlu dianalisis"
+                                    </div>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <div class="space-y-2">
+                                        {subs.into_iter().map(|sub| {
+                                            let sub_id = sub.id;
+                                            view! {
+                                                <div
+                                                    class="cursor-pointer rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-white/10 hover:bg-white/[0.04]"
+                                                    on:click=move |_| load_analysis(sub_id)
+                                                >
+                                                    <div class="text-sm font-semibold text-slate-200">
+                                                        {sub.satker_nama.clone().unwrap_or_else(|| sub.ms_satker_id.clone())}
                                                     </div>
-                                                }
-                                            }).collect_view()}
-                                        </div>
-                                    }.into_any()
-                                }
-                            }}
-                        </div>
-                    </Card>
+                                                    <div class="mt-1 text-xs text-slate-400">
+                                                        "Prioritas: " {sub.prioritas}
+                                                    </div>
+                                                </div>
+                                            }
+                                        }).collect_view()}
+                                    </div>
+                                }.into_any()
+                            }
+                        }}
+                    </SectionCard>
                 </div>
 
+                // Content: analysis detail
                 <div class="lg:col-span-2">
                     {move || {
                         if let Some(analysis) = selected_analysis.get() {
@@ -229,17 +233,17 @@ pub fn AnalysisPage() -> impl IntoView {
                             }.into_any()
                         } else {
                             view! {
-                                <Card>
-                                    <div class="text-center py-12 text-gray-500">
+                                <SectionCard title="Analisis">
+                                    <div class="py-12 text-center text-sm text-slate-500">
                                         "Pilih pengajuan untuk melihat analisis"
                                     </div>
-                                </Card>
+                                </SectionCard>
                             }.into_any()
                         }
                     }}
                 </div>
             </div>
-        </div>
+        </PageLayout>
     }
 }
 
@@ -250,45 +254,45 @@ fn AnalysisContent(
     set_approved_quantities: WriteSignal<HashMap<Uuid, i32>>,
 ) -> impl IntoView {
     view! {
-        <div class="space-y-6">
-            <Card title="Data SIMAN (REQ-K010)">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="space-y-5">
+            <SectionCard title="Data SIMAN">
+                <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
                     <MetricCard
                         title="Total Aset"
                         value=analysis.siman_data.total_assets.to_string()
-                        icon="📦"
+                        icon="fas fa-box"
                     />
                     <MetricCard
                         title="Kondisi Baik"
                         value=analysis.siman_data.assets_by_condition.get("BAIK").unwrap_or(&0).to_string()
-                        icon="✅"
+                        icon="fas fa-check"
                     />
                 </div>
-            </Card>
+            </SectionCard>
 
-            <Card title="Data MySIMKARI (REQ-K011)">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <SectionCard title="Data MySIMKARI">
+                <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
                     <MetricCard
                         title="Total Pegawai"
                         value=analysis.mysimkari_data.total_pegawai.to_string()
-                        icon="👥"
+                        icon="fas fa-users"
                     />
                     <MetricCard
                         title="Jaksa"
                         value=analysis.mysimkari_data.jaksa_count.to_string()
-                        icon="⚖️"
+                        icon="fas fa-balance-scale"
                     />
                     <MetricCard
                         title="Non-Jaksa"
                         value=analysis.mysimkari_data.non_jaksa_count.to_string()
-                        icon="👔"
+                        icon="fas fa-user-tie"
                     />
                 </div>
-            </Card>
+            </SectionCard>
 
-            <Card title="Gap Analysis">
+            <SectionCard title="Gap Analysis">
                 <GapAnalysisTable data=analysis.gap_analysis.clone() />
-            </Card>
+            </SectionCard>
         </div>
     }
 }
@@ -296,33 +300,39 @@ fn AnalysisContent(
 #[component]
 fn GapAnalysisTable(data: Vec<GapAnalysisItem>) -> impl IntoView {
     view! {
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Kode"</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Nama Barang"</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Standar"</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Existing"</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Diminta"</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Gap"</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Rekomendasi"</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {data.into_iter().map(|item| view! {
+        <div class="overflow-hidden rounded-xl border border-white/[0.06]">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-white/[0.04]">
+                    <thead class="bg-white/[0.02]">
                         <tr>
-                            <td class="px-4 py-3 text-sm">{item.kode_barang}</td>
-                            <td class="px-4 py-3 text-sm">{item.nama_barang}</td>
-                            <td class="px-4 py-3 text-sm text-right">{item.standard_quantity}</td>
-                            <td class="px-4 py-3 text-sm text-right">{item.existing_quantity}</td>
-                            <td class="px-4 py-3 text-sm text-right">{item.requested_quantity}</td>
-                            <td class="px-4 py-3 text-sm text-right font-semibold">{item.gap}</td>
-                            <td class="px-4 py-3 text-sm">{item.recommendation}</td>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Kode"</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Barang"</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Standar"</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Existing"</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Diminta"</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Gap"</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Rekomendasi"</th>
                         </tr>
-                    }).collect_view()}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {data.into_iter().enumerate().map(|(idx, item)| {
+                            let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
+                            let gap_color = if item.gap > 0 { "text-danger-400" } else if item.gap < 0 { "text-success-400" } else { "text-slate-300" };
+                            view! {
+                                <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                    <td class="px-4 py-3 font-mono text-xs text-slate-400">{item.kode_barang}</td>
+                                    <td class="px-4 py-3 text-sm text-slate-200">{item.nama_barang}</td>
+                                    <td class="px-4 py-3 text-right text-sm text-slate-300">{item.standard_quantity}</td>
+                                    <td class="px-4 py-3 text-right text-sm text-info-400">{item.existing_quantity}</td>
+                                    <td class="px-4 py-3 text-right text-sm text-slate-300">{item.requested_quantity}</td>
+                                    <td class=format!("px-4 py-3 text-right text-sm font-bold {}", gap_color)>{item.gap}</td>
+                                    <td class="px-4 py-3 text-sm text-slate-400">{item.recommendation}</td>
+                                </tr>
+                            }
+                        }).collect_view()}
+                    </tbody>
+                </table>
+            </div>
         </div>
     }
 }
@@ -338,7 +348,10 @@ async fn fetch_submissions_for_analysis() -> Result<Vec<SatkerSubmission>, crate
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<Vec<SatkerSubmission>> = response
@@ -357,7 +370,10 @@ async fn fetch_analysis_data(satker_id: Uuid) -> Result<AnalysisData, crate::api
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<AnalysisData> = response
@@ -367,5 +383,5 @@ async fn fetch_analysis_data(satker_id: Uuid) -> Result<AnalysisData, crate::api
 
     api_response
         .data
-        .ok_or_else(|| crate::api::AppError::Unknown("Analysis data not found".to_string()))
+        .ok_or_else(|| crate::api::AppError::Unknown("Data analisis tidak ditemukan".to_string()))
 }
