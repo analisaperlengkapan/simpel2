@@ -40,6 +40,7 @@ use pages::kebutuhan_bmn::PeriodManagement;
 use pages::not_found::NotFound;
 use pages::pakaian_dinas::SpesifikasiPage;
 use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
+use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};
 use pages::placeholder::PlaceholderPage;
 use pages::search_page::SearchPage;
 use pages::workflow::config_management::WorkflowConfigManagement;
@@ -66,9 +67,7 @@ use components::panduan::PanduanPengguna;
 use components::pemakaian_bmn_form::PemakaianBmnForm;
 use components::pemakaian_bmn_monitoring::PemakaianBmnMonitoring;
 use components::pemakaian_bmn_renew::PemakaianBmnRenew;
-use components::penghapusan_bmn_detail::PenghapusanBmnDetail;
 use components::penghapusan_form::PenghapusanForm;
-use components::penghapusan_list::PenghapusanList;
 use components::qrcode_generator::QrCodeGenerator;
 
 // ── Version ──────────────────────────────────────────────────────────────
@@ -202,12 +201,12 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("/pemakaian-bmn/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetailPage /></SessionAuthGuard> } />
                             <Route path=path!("/pemakaian-bmn/:id/renew") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnRenew /></SessionAuthGuard> } />
                             <Route path=path!("/pengelolaan/pemakaian/monitoring") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnMonitoring /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanList /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanList /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnListPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnListPage /></SessionAuthGuard> } />
                             <Route path=path!("/pengelolaan/penghapusan/buat") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanForm /></SessionAuthGuard> } />
                             <Route path=path!("/pengelolaan/penghapusan/baru") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanForm /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnDetail /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnDetail /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnDetailPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnDetailPage /></SessionAuthGuard> } />
 
                             // ── Analitik ─────────────────────────────
                             <Route path=path!("/analitik/roadmap") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisList /></SessionAuthGuard> } />
