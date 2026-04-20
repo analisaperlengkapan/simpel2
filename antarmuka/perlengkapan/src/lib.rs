@@ -29,6 +29,10 @@ use components::app_chrome::{AppFooter, AppHeader};
 use components::sidebar::Sidebar;
 use components::guards::{SessionAdminGuard, SessionAuthGuard};
 use features::auth::AuthService;
+use pages::bank_aset::{
+    BankAsetDashboardPage, BankAsetDetailPage, BankAsetListPage, BankAsetQrCodePage,
+    BankAsetSebaranPage,
+};
 use pages::dashboard::DashboardHome;
 use pages::dashboard_perlengkapan::DashboardPerlengkapan;
 use pages::login::LoginPage;
@@ -159,8 +163,12 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("/dashboard/search") view=move || view! { <SessionAuthGuard user_session=user_session><SearchPage /></SessionAuthGuard> } />
 
                             // ── Bank Aset ────────────────────────────
-                            <Route path=path!("/bank-aset/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><AsetList /></SessionAuthGuard> } />
-                            <Route path=path!("/bank-aset/qrcode") view=move || view! { <SessionAuthGuard user_session=user_session><QrCodeGenerator /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDashboardPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/dashboard") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDashboardPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetListPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/daftar/:id") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDetailPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/sebaran") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetSebaranPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/qrcode") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetQrCodePage /></SessionAuthGuard> } />
 
                             // ── Kebutuhan BMN ────────────────────────
                             <Route path=path!("/kebutuhan-bmn/periode") view=move || view! { <SessionAuthGuard user_session=user_session><PeriodManagement /></SessionAuthGuard> } />

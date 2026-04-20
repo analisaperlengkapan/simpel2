@@ -1,3 +1,4 @@
+pub mod bank_aset;
 pub mod dashboard;
 pub mod dashboard_perlengkapan;
 pub mod login;

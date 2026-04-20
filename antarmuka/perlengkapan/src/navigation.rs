@@ -36,9 +36,19 @@ const MODUL_UTAMA_GROUPS: &[NavGroup] = &[
         accent: "#34d399",
         items: &[
             NavItem {
+                href: routes::path::BANK_ASET_DASHBOARD,
+                icon: "fas fa-chart-simple",
+                label: "Dashboard",
+            },
+            NavItem {
                 href: routes::path::BANK_ASET_DAFTAR,
                 icon: "fas fa-list",
                 label: "Daftar Aset",
+            },
+            NavItem {
+                href: routes::path::BANK_ASET_SEBARAN,
+                icon: "fas fa-map-location-dot",
+                label: "Sebaran",
             },
             NavItem {
                 href: routes::path::BANK_ASET_QRCODE,

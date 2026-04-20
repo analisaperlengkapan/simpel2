@@ -10,7 +10,9 @@ pub mod path {
     pub const DASHBOARD: &str = "/perlengkapan/dashboard";
     pub const DASHBOARD_SEARCH: &str = "/perlengkapan/dashboard/search";
 
+    pub const BANK_ASET_DASHBOARD: &str = "/perlengkapan/bank-aset/dashboard";
     pub const BANK_ASET_DAFTAR: &str = "/perlengkapan/bank-aset/daftar";
+    pub const BANK_ASET_SEBARAN: &str = "/perlengkapan/bank-aset/sebaran";
     pub const BANK_ASET_QRCODE: &str = "/perlengkapan/bank-aset/qrcode";
 
     pub const KEBUTUHAN_DAFTAR: &str = "/perlengkapan/kebutuhan-bmn/daftar";
@@ -66,6 +68,10 @@ pub mod url {
 
     pub fn kebutuhan_satker_detail(satker_id: &str) -> String {
         format!("/perlengkapan/kebutuhan-bmn/satker/{}", satker_id)
+    }
+
+    pub fn bank_aset_detail(id: &str) -> String {
+        format!("/perlengkapan/bank-aset/daftar/{}", id)
     }
 
     pub fn dashboard_perlengkapan_with_query(query: &str) -> String {
