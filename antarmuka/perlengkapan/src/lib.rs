@@ -39,6 +39,7 @@ use pages::login::LoginPage;
 use pages::kebutuhan_bmn::PeriodManagement;
 use pages::not_found::NotFound;
 use pages::pakaian_dinas::SpesifikasiPage;
+use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
 use pages::placeholder::PlaceholderPage;
 use pages::search_page::SearchPage;
 use pages::workflow::config_management::WorkflowConfigManagement;
@@ -62,9 +63,7 @@ use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
 use components::pakaian_dinas_ukuran::UkuranPegawai;
 use components::panduan::PanduanPengguna;
-use components::pemakaian_bmn_detail::PemakaianBmnDetail;
 use components::pemakaian_bmn_form::PemakaianBmnForm;
-use components::pemakaian_bmn_list::PemakaianBmnList;
 use components::pemakaian_bmn_monitoring::PemakaianBmnMonitoring;
 use components::pemakaian_bmn_renew::PemakaianBmnRenew;
 use components::penghapusan_bmn_detail::PenghapusanBmnDetail;
@@ -195,12 +194,12 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("/pakaian-dinas/laporan/rekap") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasLaporan /></SessionAuthGuard> } />
 
                             // ── Pengelolaan BMN ──────────────────────
-                            <Route path=path!("/pengelolaan/pemakaian") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnList /></SessionAuthGuard> } />
-                            <Route path=path!("/pemakaian-bmn") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnList /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/pemakaian") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnListPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pemakaian-bmn") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnListPage /></SessionAuthGuard> } />
                             <Route path=path!("/pengelolaan/pemakaian/buat") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnForm /></SessionAuthGuard> } />
                             <Route path=path!("/pemakaian-bmn/baru") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnForm /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/pemakaian/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetail /></SessionAuthGuard> } />
-                            <Route path=path!("/pemakaian-bmn/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetail /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/pemakaian/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetailPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pemakaian-bmn/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetailPage /></SessionAuthGuard> } />
                             <Route path=path!("/pemakaian-bmn/:id/renew") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnRenew /></SessionAuthGuard> } />
                             <Route path=path!("/pengelolaan/pemakaian/monitoring") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnMonitoring /></SessionAuthGuard> } />
                             <Route path=path!("/pengelolaan/penghapusan") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanList /></SessionAuthGuard> } />
