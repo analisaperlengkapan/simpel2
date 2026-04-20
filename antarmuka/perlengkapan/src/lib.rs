@@ -37,6 +37,7 @@ use pages::dashboard::DashboardHome;
 use pages::dashboard_perlengkapan::DashboardPerlengkapan;
 use pages::login::LoginPage;
 use pages::kebutuhan_bmn::PeriodManagement;
+use pages::admin::{AdminAuditPage, AdminMasterDataPage};
 use pages::not_found::NotFound;
 use pages::pakaian_dinas::SpesifikasiPage;
 use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
@@ -218,16 +219,8 @@ pub fn App() -> impl IntoView {
                             // ── Admin ────────────────────────────────
                             <Route path=path!("/admin/users") view=move || view! { <SessionAdminGuard user_session=user_session><AdminUsersPage /></SessionAdminGuard> } />
                             <Route path=path!("/admin/roles") view=move || view! { <SessionAdminGuard user_session=user_session><AdminRolesPage /></SessionAdminGuard> } />
-                            <Route path=path!("/admin/audit") view=move || view! {
-                                <SessionAdminGuard user_session=user_session>
-                                    <PlaceholderPage title="Audit Log" icon="fas fa-history" description="Jejak audit seluruh aktivitas." />
-                                </SessionAdminGuard>
-                            } />
-                            <Route path=path!("/admin/master") view=move || view! {
-                                <SessionAdminGuard user_session=user_session>
-                                    <PlaceholderPage title="Master Data" icon="fas fa-database" description="Pengelolaan data referensi." />
-                                </SessionAdminGuard>
-                            } />
+                            <Route path=path!("/admin/audit") view=move || view! { <SessionAdminGuard user_session=user_session><AdminAuditPage /></SessionAdminGuard> } />
+                            <Route path=path!("/admin/master") view=move || view! { <SessionAdminGuard user_session=user_session><AdminMasterDataPage /></SessionAdminGuard> } />
                             <Route path=path!("/admin/workflow") view=move || view! { <SessionAdminGuard user_session=user_session><WorkflowConfigManagement /></SessionAdminGuard> } />
                             <Route path=path!("/admin/workflow-monitoring") view=move || view! { <SessionAdminGuard user_session=user_session><WorkflowMonitoring /></SessionAdminGuard> } />
 
