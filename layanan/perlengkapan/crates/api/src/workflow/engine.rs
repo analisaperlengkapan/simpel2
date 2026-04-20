@@ -154,7 +154,7 @@ impl WorkflowEngine {
     /// Requirements: REQ-W004, REQ-W005, NFR-M004
     pub async fn transition(&self, request: TransitionRequest) -> Result<TransitionResult> {
         let start = std::time::Instant::now();
-        let entity_type = "kebutuhan_bmn"; // TODO: Make this configurable
+        let entity_type = self.config.name.as_str();
 
         // 1. Validate transition is allowed
         self.validate_transition(&request.from_state, &request.to_state)?;
@@ -460,6 +460,50 @@ impl WorkflowEngine {
         &self.config
     }
 
+    /// Compute an RFC3339 deadline for a target state using the config's
+    /// `sla_minutes` mapping. Returns None if no SLA is configured for that
+    /// state — the notification then omits a deadline rather than inventing
+    /// one. Weekend/holiday-aware business-hour math can be layered on top
+    /// later; for now we use wall-clock minutes, which matches how the UI
+    /// renders countdowns today.
+    fn compute_sla_deadline(&self, target_state: &str) -> Option<String> {
+        let minutes = self.config.sla_minutes.get(target_state).copied()?;
+        if minutes == 0 {
+            return None;
+        }
+        let deadline = Utc::now() + chrono::Duration::minutes(minutes as i64);
+        Some(deadline.to_rfc3339())
+    }
+
+    /// Look up the active document template id for a given template type.
+    ///
+    /// Replaces the previous placeholder UUIDs. Resolves against
+    /// `dokumen.document_templates` by `template_type`, picking the highest
+    /// active version.
+    async fn resolve_template_id(
+        client: &deadpool_postgres::Client,
+        template_type: &str,
+    ) -> Result<Uuid> {
+        let row = client
+            .query_opt(
+                r#"
+                SELECT id FROM dokumen.document_templates
+                WHERE template_type = $1 AND is_active = TRUE
+                ORDER BY version DESC
+                LIMIT 1
+                "#,
+                &[&template_type],
+            )
+            .await?
+            .ok_or_else(|| {
+                WorkflowError::InvalidState(format!(
+                    "No active document template registered for type '{}'",
+                    template_type
+                ))
+            })?;
+        Ok(row.get("id"))
+    }
+
     /// Generate document for an entity after approval
     ///
     /// This method fetches entity data and calls the dokumen service to generate
@@ -490,9 +534,7 @@ impl WorkflowEngine {
 
                 let row = client.query_one(query, &[entity_id]).await?;
 
-                // TODO: Get template_id from configuration or database
-                // For now, use a placeholder UUID (should be created in migration)
-                let template_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+                let template_id = Self::resolve_template_id(&client, "sk_kebutuhan_bmn").await?;
 
                 let entity_data = serde_json::json!({
                     "id": entity_id.to_string(),
@@ -517,7 +559,7 @@ impl WorkflowEngine {
 
                 let row = client.query_one(query, &[entity_id]).await?;
 
-                let template_id = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
+                let template_id = Self::resolve_template_id(&client, "sk_penghapusan").await?;
 
                 let entity_data = serde_json::json!({
                     "id": entity_id.to_string(),
@@ -691,7 +733,7 @@ impl WorkflowEngine {
                     entity_id: request.entity_id.to_string(),
                     current_state: request.to_state.clone(),
                     required_role: "Verifikator".to_string(),
-                    deadline: None, // TODO: Calculate from SLA
+                    deadline: self.compute_sla_deadline(&request.to_state),
                 };
 
                 (approvers, notification, NotificationPriority::High)

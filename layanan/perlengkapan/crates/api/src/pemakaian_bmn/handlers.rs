@@ -143,11 +143,13 @@ pub async fn get_permit_document(
 
     let permit = service.get_permit_detail(id).await?;
 
-    // Verify user has access to this permit
-    // User can access if they created it or are in the same satker
-    if permit.izin.created_by != claims.user_id {
-        // TODO: Add satker-based authorization check
-        // For now, allow all authenticated users
+    // Creator or cross-satker role (pusat/admin) may access; everyone else is
+    // rejected until authenc exposes per-user satker codes (commit 20 lands a
+    // richer ValidateTokenResponse).
+    if permit.izin.created_by != claims.user_id && !claims.is_cross_satker_role() {
+        return Err(AppError::Authorization(
+            "Anda tidak memiliki akses ke dokumen izin ini".to_string(),
+        ));
     }
 
     // Check if document exists - try new konsep_surat_url, then legacy document_url
