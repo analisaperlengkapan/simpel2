@@ -33,9 +33,27 @@ pub fn create_routes(state: AppState) -> Router {
             "/dashboard/perlengkapan/export/pdf",
             get(dashboard::handlers::export_dashboard_pdf),
         )
-        // Asset (Read-Only)
+        // Asset (Read-Only, legacy)
         .route("/assets", get(get_all_assets))
         .route("/assets/{id}", get(get_asset_by_id))
+        // Bank Aset (unified SIMAN façade)
+        .route("/bank-aset", get(crate::bank_aset::list_bank_aset))
+        .route(
+            "/bank-aset/dashboard",
+            get(crate::bank_aset::get_bank_aset_dashboard),
+        )
+        .route(
+            "/bank-aset/sebaran",
+            get(crate::bank_aset::get_bank_aset_sebaran),
+        )
+        .route(
+            "/bank-aset/last-sync",
+            get(crate::bank_aset::get_bank_aset_last_sync),
+        )
+        .route(
+            "/bank-aset/{id}",
+            get(crate::bank_aset::get_bank_aset_detail),
+        )
         // Analisis Kebutuhan
         .route("/analisis", get(get_all_analisis).post(create_analisis))
         .route("/analisis/{id}", get(get_analisis_by_id))
