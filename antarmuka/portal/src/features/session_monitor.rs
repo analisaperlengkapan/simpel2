@@ -1,13 +1,14 @@
 //! Session synchronization and token refresh monitor.
 
-use crate::features::auth::UserSession;
+use crate::features::auth::{AuthService, UserSession};
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 /// Setup cross-tab storage listener to sync logout/login state.
 pub fn setup_cross_tab_session_sync(
-    _set_user_session: WriteSignal<Option<UserSession>>,
-    _set_show_timeout_warning: WriteSignal<bool>,
-    _set_timeout_countdown: WriteSignal<i64>,
+    set_user_session: WriteSignal<Option<UserSession>>,
+    set_show_timeout_warning: WriteSignal<bool>,
+    set_timeout_countdown: WriteSignal<i64>,
 ) {
     #[cfg(target_arch = "wasm32")]
     {
@@ -27,11 +28,11 @@ pub fn setup_cross_tab_session_sync(
 
 /// Setup automatic token refresh and session timeout monitoring.
 pub fn setup_session_refresh_monitor(
-    _user_session: ReadSignal<Option<UserSession>>,
-    _timeout_countdown: ReadSignal<i64>,
-    _set_user_session: WriteSignal<Option<UserSession>>,
-    _set_show_timeout_warning: WriteSignal<bool>,
-    _set_timeout_countdown: WriteSignal<i64>,
+    user_session: ReadSignal<Option<UserSession>>,
+    timeout_countdown: ReadSignal<i64>,
+    set_user_session: WriteSignal<Option<UserSession>>,
+    set_show_timeout_warning: WriteSignal<bool>,
+    set_timeout_countdown: WriteSignal<i64>,
 ) {
     #[cfg(target_arch = "wasm32")]
     {

@@ -23,7 +23,7 @@ dotenvy = { workspace = true }
 
 # Optional dependencies - backend only (not for WASM)
 tokio = { version = "1.47.1", features = ["sync", "macros", "rt", "time"], optional = true }
-ipnetwork = { version = "0.20", default-features = false, optional = true }
+ipnetwork = { workspace = true, optional = true }
 redis = { workspace = true, optional = true }
 garde = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }

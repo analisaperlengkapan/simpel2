@@ -2,8 +2,6 @@
 
 #[cfg(test)]
 mod integrasi_grpc_integration_test {
-    use uuid::Uuid;
-
     #[tokio::test]
     async fn test_get_siman_assets_grpc() {
         // Mock gRPC client call
