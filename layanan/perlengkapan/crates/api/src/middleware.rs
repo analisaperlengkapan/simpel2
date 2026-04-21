@@ -123,23 +123,35 @@ where
                 // In production, ValidateToken should return richer context or we call GetUser.
                 // Assuming "scopes" contains role info for now.
 
+                // Prefer first-class `realm_roles` from the expanded
+                // ValidateTokenResponse (commit 20); fall back to the
+                // legacy `role:` scope convention when the issuer has
+                // not been updated yet.
                 let role = resp
-                    .scopes
-                    .iter()
-                    .find(|s| s.starts_with("role:"))
-                    .map(|s| s.trim_start_matches("role:").to_string())
+                    .realm_roles
+                    .first()
+                    .cloned()
+                    .or_else(|| {
+                        resp.scopes
+                            .iter()
+                            .find(|s| s.starts_with("role:"))
+                            .map(|s| s.trim_start_matches("role:").to_string())
+                    })
                     .unwrap_or_else(|| "user".to_string());
 
-                // Extract user attributes primarily from prefixed scopes
-                // (`username:`, `nip:`, `name:`, `jabatan:`, `satker:`). Until
-                // authenc exposes these as first-class fields on
-                // `ValidateTokenResponse` (tracked as commit 20), this scope-
-                // prefix convention is the source of truth.
+                // First-class fields land as of commit 20; scope-prefix
+                // fallbacks keep us compatible with tokens minted before
+                // the authenc upgrade.
+                let scope_lookup = |prefix: &str| -> Option<String> {
+                    resp.scopes
+                        .iter()
+                        .find(|s| s.starts_with(prefix))
+                        .map(|s| s.trim_start_matches(prefix).to_string())
+                };
                 let username = resp
-                    .scopes
-                    .iter()
-                    .find(|s| s.starts_with("username:"))
-                    .map(|s| s.trim_start_matches("username:").to_string())
+                    .username
+                    .clone()
+                    .or_else(|| scope_lookup("username:"))
                     .unwrap_or_else(|| user_id.to_string());
 
                 Ok(Claims {
@@ -147,31 +159,14 @@ where
                     username,
                     role: role.clone(),
                     permissions: resp.scopes.clone(),
-                    nip: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("nip:"))
-                        .map(|s| s.trim_start_matches("nip:").to_string()),
-                    name: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("name:"))
-                        .map(|s| s.trim_start_matches("name:").to_string()),
-                    nama: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("nama:"))
-                        .map(|s| s.trim_start_matches("nama:").to_string()),
-                    jabatan: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("jabatan:"))
-                        .map(|s| s.trim_start_matches("jabatan:").to_string()),
+                    nip: resp.nip.clone().or_else(|| scope_lookup("nip:")),
+                    name: resp.name.clone().or_else(|| scope_lookup("name:")),
+                    nama: resp.name.clone().or_else(|| scope_lookup("nama:")),
+                    jabatan: resp.jabatan.clone().or_else(|| scope_lookup("jabatan:")),
                     satker_code: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("satker:"))
-                        .map(|s| s.trim_start_matches("satker:").to_string()),
+                        .satker_code
+                        .clone()
+                        .or_else(|| scope_lookup("satker:")),
                 })
             }
             Err(e) => {
