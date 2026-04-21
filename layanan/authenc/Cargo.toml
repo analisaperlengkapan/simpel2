@@ -132,7 +132,7 @@ jsonwebtoken = { version = "10.1.0", optional = true, default-features = false, 
     "aws_lc_rs",
 ] }
 argon2 = { version = "0.5", optional = true, features = ["std", "rand"] }
-bcrypt = "0.17.1"
+bcrypt = { workspace = true }
 # RSA REMOVED: Vulnerable to timing attacks (RUSTSEC-2023-0071) - replaced with Ed25519
 
 # Database
