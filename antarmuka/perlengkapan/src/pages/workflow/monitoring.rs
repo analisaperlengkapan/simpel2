@@ -2,11 +2,18 @@
 //!
 //! Real-time monitoring of workflow metrics, SLA compliance, and bottlenecks.
 
-use crate::api::workflow::format_sla;
+use std::collections::HashMap;
+
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+use crate::api::client::api_get;
+use crate::api::error::{AppError, AppResult};
+use crate::api::workflow::format_sla;
+use crate::components::layout::{
+    EmptyState, ErrorState, LoadingState, PageLayout, SectionCard, StatCard, StatTone,
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // API Types (matching backend monitoring.rs)
@@ -54,129 +61,73 @@ pub struct ApiResponse<T> {
 // API Functions
 // ═══════════════════════════════════════════════════════════════════════════
 
-#[cfg(target_arch = "wasm32")]
-pub async fn fetch_workflow_metrics() -> Result<ApiResponse<WorkflowMetrics>, crate::api::AppError> {
-    use crate::api::client::{get_auth_token, API_BASE};
-    use gloo_net::http::Request;
-
-    let url = format!("{}/workflow/monitoring/metrics", API_BASE);
-    let token = get_auth_token().unwrap_or_default();
-
-    let resp = Request::get(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
-
-    if !resp.ok() {
-        return Err(format!("API error: HTTP {}", resp.status()).into());
-    }
-
-    resp.json::<ApiResponse<WorkflowMetrics>>()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))
+pub async fn fetch_workflow_metrics() -> AppResult<WorkflowMetrics> {
+    let resp: ApiResponse<WorkflowMetrics> = api_get("/workflow/monitoring/metrics").await?;
+    Ok(resp.data)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_workflow_metrics() -> Result<ApiResponse<WorkflowMetrics>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
-}
-
-#[cfg(target_arch = "wasm32")]
-pub async fn fetch_active_workflows() -> Result<ApiResponse<Vec<WorkflowSummary>>, crate::api::AppError> {
-    use crate::api::client::{get_auth_token, API_BASE};
-    use gloo_net::http::Request;
-
-    let url = format!("{}/workflow/monitoring/active", API_BASE);
-    let token = get_auth_token().unwrap_or_default();
-
-    let resp = Request::get(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
-
-    if !resp.ok() {
-        return Err(format!("API error: HTTP {}", resp.status()).into());
-    }
-
-    resp.json::<ApiResponse<Vec<WorkflowSummary>>>()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_active_workflows() -> Result<ApiResponse<Vec<WorkflowSummary>>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+pub async fn fetch_active_workflows() -> AppResult<Vec<WorkflowSummary>> {
+    let resp: ApiResponse<Vec<WorkflowSummary>> = api_get("/workflow/monitoring/active").await?;
+    Ok(resp.data)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Metric Card Component
+// Presentational helpers
 // ═══════════════════════════════════════════════════════════════════════════
 
-#[component]
-fn MetricCard(
-    title: &'static str,
-    value: String,
-    icon: &'static str,
-    color: &'static str,
-    #[prop(optional)] subtitle: String,
-) -> impl IntoView {
-    view! {
-        <div style=format!(
-            "background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; position: relative; overflow: hidden;"
-        )>
-            // Background icon
-            <div style=format!(
-                "position: absolute; top: -10px; right: -10px; font-size: 5rem; color: {}10; opacity: 0.3;",
-                color
-            )>
-                <i class=icon></i>
-            </div>
+fn bottleneck_tone(usage_percent: f64) -> (StatTone, &'static str) {
+    if usage_percent >= 90.0 {
+        (StatTone::Danger, "text-danger-400")
+    } else if usage_percent >= 75.0 {
+        (StatTone::Warning, "text-warning-400")
+    } else {
+        (StatTone::Gold, "text-gold-400")
+    }
+}
 
-            // Content
-            <div style="position: relative; z-index: 1;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                    <div style=format!(
-                        "width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: {}15; border: 1px solid {}40; border-radius: 10px;",
-                        color, color
-                    )>
-                        <i class=icon style=format!("font-size: 1.1rem; color: {};", color)></i>
-                    </div>
-                    <div style="font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">
-                        {title}
-                    </div>
-                </div>
-                <div style="font-size: 2rem; font-weight: 800; color: #e2e8f0; margin-bottom: 4px;">
-                    {value}
-                </div>
-                {if !subtitle.is_empty() {
-                    view! {
-                        <div style="font-size: 0.75rem; color: #64748b;">
-                            {subtitle}
-                        </div>
-                    }.into_any()
-                } else {
-                    view! { <div></div> }.into_any()
-                }}
-            </div>
-        </div>
+fn bottleneck_bar_classes(usage_percent: f64) -> &'static str {
+    if usage_percent >= 90.0 {
+        "bg-danger-500"
+    } else if usage_percent >= 75.0 {
+        "bg-warning-500"
+    } else {
+        "bg-gold-400"
+    }
+}
+
+fn format_time_in_state(minutes: i64) -> String {
+    if minutes < 60 {
+        format!("{minutes} menit")
+    } else if minutes < 1440 {
+        format!("{} jam", minutes / 60)
+    } else {
+        format!("{} hari", minutes / 1440)
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Bottleneck Card Component
+// Bottleneck Card
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[component]
 fn BottleneckCard(bottleneck: BottleneckInfo) -> impl IntoView {
     let usage_percent = bottleneck.sla_usage_percent.unwrap_or(0.0);
-    let color = if usage_percent >= 90.0 {
-        "#f87171"
-    } else if usage_percent >= 75.0 {
-        "#fb923c"
-    } else {
-        "#fbbf24"
+    let (tone, text_class) = bottleneck_tone(usage_percent);
+    let bar_class = bottleneck_bar_classes(usage_percent);
+    let width_class = match usage_percent.min(100.0) as u32 {
+        0..=5 => "w-[5%]",
+        6..=10 => "w-[10%]",
+        11..=25 => "w-1/4",
+        26..=50 => "w-1/2",
+        51..=75 => "w-3/4",
+        76..=90 => "w-[90%]",
+        _ => "w-full",
+    };
+
+    let badge_class = match tone {
+        StatTone::Danger => "bg-danger-500/15 text-danger-400 ring-danger-500/40",
+        StatTone::Warning => "bg-warning-500/15 text-warning-400 ring-warning-500/40",
+        _ => "bg-gold-500/15 text-gold-400 ring-gold-500/40",
     };
 
     let sla_display = bottleneck
@@ -185,38 +136,32 @@ fn BottleneckCard(bottleneck: BottleneckInfo) -> impl IntoView {
         .unwrap_or_else(|| "—".to_string());
 
     view! {
-        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-                <div style="flex: 1;">
-                    <div style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0; margin-bottom: 4px;">
-                        {bottleneck.state.clone()}
-                    </div>
-                    <div style="font-size: 0.75rem; color: #64748b;">
+        <div class="rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
+            <div class="mb-3 flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="text-sm font-bold text-slate-200">{bottleneck.state.clone()}</div>
+                    <div class="mt-0.5 text-xs text-slate-500">
                         {bottleneck.count} " workflows aktif"
                     </div>
                 </div>
-                <div style=format!(
-                    "padding: 4px 10px; background: {}15; border: 1px solid {}40; border-radius: 8px; font-size: 0.7rem; font-weight: 600; color: {};",
-                    color, color, color
-                )>
+                <span class=format!("rounded-lg px-2.5 py-1 text-[0.7rem] font-semibold ring-1 {badge_class}")>
                     {format!("{:.1}%", usage_percent)}
-                </div>
+                </span>
             </div>
 
-            // Progress bar
-            <div style="background: rgba(255,255,255,0.06); border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 12px;">
-                <div style=format!(
-                    "height: 100%; background: linear-gradient(90deg, {}, {}); width: {}%; transition: width 0.3s;",
-                    color, color, usage_percent.min(100.0)
-                )></div>
+            <div class="mb-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                <div class=format!("h-full rounded-full transition-all duration-300 {bar_class} {width_class}")></div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #94a3b8;">
+            <div class="flex justify-between text-[0.7rem] text-slate-400">
                 <span>
-                    "Avg: " <strong style="color: #e2e8f0;">{format!("{:.0}", bottleneck.avg_time_minutes)} " min"</strong>
+                    "Avg: "
+                    <strong class=format!("font-semibold {text_class}")>
+                        {format!("{:.0}", bottleneck.avg_time_minutes)} " menit"
+                    </strong>
                 </span>
                 <span>
-                    "SLA: " <strong style="color: #e2e8f0;">{sla_display}</strong>
+                    "SLA: " <strong class="font-semibold text-slate-200">{sla_display}</strong>
                 </span>
             </div>
         </div>
@@ -224,59 +169,51 @@ fn BottleneckCard(bottleneck: BottleneckInfo) -> impl IntoView {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Workflow Status Table Component
+// Workflow Status Table
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[component]
 fn WorkflowStatusTable(workflows: Vec<WorkflowSummary>) -> impl IntoView {
     view! {
-        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden;">
-            <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.08);">
-                <h3 style="font-size: 1rem; font-weight: 700; color: #e2e8f0; margin: 0;">
-                    "Workflows Aktif"
-                </h3>
-            </div>
-            <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.08);">
-                            <th style="padding: 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">"Kode Barang"</th>
-                            <th style="padding: 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">"Nama Barang"</th>
-                            <th style="padding: 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">"Status"</th>
-                            <th style="padding: 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">"Waktu di State"</th>
+        <div class="overflow-hidden rounded-xl border border-white/[0.08]">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-white/[0.06]">
+                    <thead class="bg-white/[0.02]">
+                        <tr>
+                            <th scope="col" class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400">
+                                "Kode Barang"
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400">
+                                "Nama Barang"
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400">
+                                "Status"
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400">
+                                "Waktu di State"
+                            </th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-white/[0.04]">
                         {workflows.into_iter().map(|wf| {
-                            let time_display = if wf.time_in_state_minutes < 60 {
-                                format!("{} menit", wf.time_in_state_minutes)
-                            } else if wf.time_in_state_minutes < 1440 {
-                                format!("{} jam", wf.time_in_state_minutes / 60)
-                            } else {
-                                format!("{} hari", wf.time_in_state_minutes / 1440)
-                            };
-
+                            let time_display = format_time_in_state(wf.time_in_state_minutes);
                             view! {
-                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                                    <td style="padding: 14px 12px;">
-                                        <span style="font-size: 0.8rem; font-weight: 600; color: #60a5fa; font-family: monospace;">
+                                <tr class="transition hover:bg-white/[0.02]">
+                                    <td class="px-3 py-3">
+                                        <span class="font-mono text-xs font-semibold text-info-300">
                                             {wf.kode_barang}
                                         </span>
                                     </td>
-                                    <td style="padding: 14px 12px;">
-                                        <span style="font-size: 0.8rem; color: #e2e8f0;">
-                                            {wf.nama_barang}
-                                        </span>
+                                    <td class="px-3 py-3 text-sm text-slate-200">
+                                        {wf.nama_barang}
                                     </td>
-                                    <td style="padding: 14px 12px;">
-                                        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; font-size: 0.7rem; color: #94a3b8;">
+                                    <td class="px-3 py-3">
+                                        <span class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[0.7rem] font-medium text-slate-300">
                                             {wf.status}
                                         </span>
                                     </td>
-                                    <td style="padding: 14px 12px;">
-                                        <span style="font-size: 0.8rem; color: #94a3b8;">
-                                            {time_display}
-                                        </span>
+                                    <td class="px-3 py-3 text-sm text-slate-400">
+                                        {time_display}
                                     </td>
                                 </tr>
                             }
@@ -289,244 +226,219 @@ fn WorkflowStatusTable(workflows: Vec<WorkflowSummary>) -> impl IntoView {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// State Distribution Grid
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[component]
+fn StateDistributionGrid(by_state: HashMap<String, i64>) -> impl IntoView {
+    let mut entries: Vec<_> = by_state.into_iter().collect();
+    entries.sort_by(|a, b| b.1.cmp(&a.1));
+
+    view! {
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {entries.into_iter().map(|(state, count)| view! {
+                <div class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                    <div class="text-[0.7rem] font-semibold uppercase tracking-wider text-slate-500">
+                        {state}
+                    </div>
+                    <div class="mt-2 text-2xl font-bold text-white">{count}</div>
+                </div>
+            }).collect::<Vec<_>>()}
+        </div>
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Main Monitoring Dashboard Component
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[component]
 pub fn WorkflowMonitoring() -> impl IntoView {
-    let metrics_resource = LocalResource::new(|| fetch_workflow_metrics());
-    let workflows_resource = LocalResource::new(|| fetch_active_workflows());
+    let (metrics, set_metrics) = signal::<Option<WorkflowMetrics>>(None);
+    let (workflows, set_workflows) = signal::<Option<Vec<WorkflowSummary>>>(None);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal::<Option<AppError>>(None);
+    let (reload_tick, set_reload_tick) = signal(0_u32);
 
-    // Auto-refresh every 30 seconds
-    let (refresh_counter, set_refresh_counter) = signal(0);
+    // Fetch both resources when tick changes.
+    Effect::new(move |_| {
+        let _ = reload_tick.get();
+        set_loading.set(true);
+        set_error.set(None);
+        spawn_local(async move {
+            let metrics_result = fetch_workflow_metrics().await;
+            let workflows_result = fetch_active_workflows().await;
+            match (metrics_result, workflows_result) {
+                (Ok(m), Ok(w)) => {
+                    set_metrics.set(Some(m));
+                    set_workflows.set(Some(w));
+                }
+                (Err(e), _) | (_, Err(e)) => {
+                    set_error.set(Some(e));
+                }
+            }
+            set_loading.set(false);
+        });
+    });
 
+    // Auto-refresh every 30s.
     Effect::new(move |_| {
         let interval = gloo_timers::callback::Interval::new(30_000, move || {
-            set_refresh_counter.update(|c| *c += 1);
-            metrics_resource.refetch();
-            workflows_resource.refetch();
+            set_reload_tick.update(|c| *c += 1);
         });
-
-        // Keep interval alive
         std::mem::forget(interval);
     });
 
-    let manual_refresh = move |_| {
-        metrics_resource.refetch();
-        workflows_resource.refetch();
+    let trigger_refresh = move |_| {
+        set_reload_tick.update(|c| *c += 1);
     };
 
     view! {
-        <div style="max-width: 1600px; margin: 0 auto;">
-            // Header
-            <div style="margin-bottom: 28px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 4px; height: 32px; background: linear-gradient(180deg, #60a5fa, #3b82f6); border-radius: 2px;"></div>
-                        <h1 style="font-size: 1.5rem; font-weight: 800; color: #e2e8f0; margin: 0;">
-                            "Monitoring Workflow"
-                        </h1>
-                    </div>
-                    <button
-                        on:click=manual_refresh
-                        style="padding: 10px 18px; background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); border-radius: 10px; color: #60a5fa; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;"
-                        class="hover:bg-blue-500/20"
-                    >
-                        <i class="fas fa-sync-alt"></i>
-                        "Refresh"
-                    </button>
-                </div>
-                <p style="font-size: 0.9rem; color: #94a3b8; margin: 0 0 0 16px;">
-                    "Pantau performa workflow secara real-time dengan metrik SLA dan bottleneck"
-                </p>
-            </div>
-
-            // Metrics Section
-            <Suspense fallback=move || view! {
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 28px;">
-                    {(0..4).map(|_| view! {
-                        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; height: 140px;">
-                            <div style="width: 60%; height: 16px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-bottom: 16px;"></div>
-                            <div style="width: 40%; height: 32px; background: rgba(255,255,255,0.06); border-radius: 4px;"></div>
-                        </div>
-                    }).collect::<Vec<_>>()}
-                </div>
-            }>
-                {move || {
-                    metrics_resource.get().map(|result| match result {
-                        Ok(response) => {
-                            let metrics = response.data;
-                            view! {
-                                <div>
-                                    // Key Metrics Grid
-                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 28px;">
-                                        <MetricCard
-                                            title="Total Aktif"
-                                            value=metrics.total_active.to_string()
-                                            icon="fas fa-tasks"
-                                            color="#60a5fa"
-                                            subtitle="Workflows dalam proses".to_string()
-                                        />
-                                        <MetricCard
-                                            title="SLA Breaches"
-                                            value=metrics.sla_breaches.to_string()
-                                            icon="fas fa-exclamation-triangle"
-                                            color="#f87171"
-                                            subtitle="Melebihi batas waktu".to_string()
-                                        />
-                                        <MetricCard
-                                            title="Mendekati SLA"
-                                            value=metrics.approaching_sla.to_string()
-                                            icon="fas fa-clock"
-                                            color="#fb923c"
-                                            subtitle="Dalam 25% batas waktu".to_string()
-                                        />
-                                        <MetricCard
-                                            title="Bottlenecks"
-                                            value=metrics.bottlenecks.len().to_string()
-                                            icon="fas fa-hourglass-half"
-                                            color="#fbbf24"
-                                            subtitle="States dengan delay".to_string()
-                                        />
-                                    </div>
-
-                                    // Bottlenecks Section
-                                    {if !metrics.bottlenecks.is_empty() {
-                                        view! {
-                                            <div style="margin-bottom: 28px;">
-                                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-                                                    <i class="fas fa-hourglass-half" style="color: #fbbf24; font-size: 1.2rem;"></i>
-                                                    <h2 style="font-size: 1.2rem; font-weight: 700; color: #e2e8f0; margin: 0;">
-                                                        "Bottlenecks Terdeteksi"
-                                                    </h2>
-                                                </div>
-                                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
-                                                    {metrics.bottlenecks.into_iter().map(|bottleneck| view! {
-                                                        <BottleneckCard bottleneck=bottleneck />
-                                                    }).collect::<Vec<_>>()}
-                                                </div>
-                                            </div>
-                                        }.into_any()
-                                    } else {
-                                        view! {
-                                            <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; padding: 16px; margin-bottom: 28px; display: flex; align-items: center; gap: 12px;">
-                                                <i class="fas fa-check-circle" style="color: #22c55e; font-size: 1.5rem;"></i>
-                                                <div>
-                                                    <div style="font-size: 0.9rem; font-weight: 600; color: #22c55e; margin-bottom: 4px;">
-                                                        "Tidak Ada Bottleneck"
-                                                    </div>
-                                                    <div style="font-size: 0.8rem; color: #86efac;">
-                                                        "Semua workflow states berjalan lancar dalam batas SLA"
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        }.into_any()
-                                    }}
-
-                                    // Workflows by State
-                                    {if !metrics.by_state.is_empty() {
-                                        view! {
-                                            <div style="margin-bottom: 28px;">
-                                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-                                                    <i class="fas fa-chart-pie" style="color: #a78bfa; font-size: 1.2rem;"></i>
-                                                    <h2 style="font-size: 1.2rem; font-weight: 700; color: #e2e8f0; margin: 0;">
-                                                        "Distribusi per State"
-                                                    </h2>
-                                                </div>
-                                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-                                                    {metrics.by_state.into_iter().map(|(state, count)| view! {
-                                                        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px;">
-                                                            <div style="font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
-                                                                {state}
-                                                            </div>
-                                                            <div style="font-size: 1.5rem; font-weight: 800; color: #e2e8f0;">
-                                                                {count}
-                                                            </div>
-                                                        </div>
-                                                    }).collect::<Vec<_>>()}
-                                                </div>
-                                            </div>
-                                        }.into_any()
-                                    } else {
-                                        view! { <div></div> }.into_any()
-                                    }}
-                                </div>
-                            }.into_any()
-                        }
-                        Err(e) => view! {
-                            <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;">
-                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f87171; margin-bottom: 16px;"></i>
-                                <h3 style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin: 0 0 8px 0;">
-                                    "Gagal Memuat Metrics"
-                                </h3>
-                                <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
-                                    {e.to_string()}
-                                </p>
-                            </div>
-                        }.into_any()
-                    })
-                }}
-            </Suspense>
-
-            // Active Workflows Table
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-                <i class="fas fa-list" style="color: #60a5fa; font-size: 1.2rem;"></i>
-                <h2 style="font-size: 1.2rem; font-weight: 700; color: #e2e8f0; margin: 0;">
-                    "Workflows Aktif"
-                </h2>
-            </div>
-
-            <Suspense fallback=move || view! {
-                <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; height: 300px;">
-                    <div style="width: 40%; height: 20px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-bottom: 20px;"></div>
-                    {(0..5).map(|_| view! {
-                        <div style="width: 100%; height: 40px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-bottom: 12px;"></div>
-                    }).collect::<Vec<_>>()}
-                </div>
-            }>
-                {move || {
-                    workflows_resource.get().map(|result| match result {
-                        Ok(response) => {
-                            if response.data.is_empty() {
-                                view! {
-                                    <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;">
-                                        <i class="fas fa-inbox" style="font-size: 3rem; color: #64748b; margin-bottom: 16px;"></i>
-                                        <h3 style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin: 0 0 8px 0;">
-                                            "Tidak Ada Workflow Aktif"
-                                        </h3>
-                                        <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
-                                            "Semua workflows telah selesai atau belum ada yang dimulai"
-                                        </p>
-                                    </div>
-                                }.into_any()
-                            } else {
-                                view! {
-                                    <WorkflowStatusTable workflows=response.data />
-                                }.into_any()
-                            }
-                        }
-                        Err(e) => view! {
-                            <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;">
-                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f87171; margin-bottom: 16px;"></i>
-                                <h3 style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0; margin: 0 0 8px 0;">
-                                    "Gagal Memuat Workflows"
-                                </h3>
-                                <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
-                                    {e.to_string()}
-                                </p>
-                            </div>
-                        }.into_any()
-                    })
-                }}
-            </Suspense>
-
-            // Auto-refresh indicator
-            <div style="margin-top: 20px; text-align: center;">
-                <span style="font-size: 0.7rem; color: #64748b;">
-                    <i class="fas fa-sync-alt" style="margin-right: 6px;"></i>
-                    "Auto-refresh setiap 30 detik"
+        <PageLayout
+            title="Monitoring Workflow"
+            description="Pantau performa workflow secara real-time dengan metrik SLA dan bottleneck."
+            icon="fas fa-gauge-high"
+            actions=Box::new(move || view! {
+                <button
+                    type="button"
+                    on:click=trigger_refresh
+                    class="focus-ring inline-flex items-center gap-2 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-semibold text-info-300 transition hover:bg-info-500/20"
+                >
+                    <i class="fas fa-sync-alt text-[0.7rem]"></i>
+                    "Refresh"
+                </button>
+                <span class="inline-flex items-center gap-1.5 text-[0.7rem] text-slate-500">
+                    <i class="fas fa-clock-rotate-left"></i>
+                    "Auto-refresh 30 detik"
                 </span>
+            }.into_any())
+        >
+            {move || {
+                if loading.get() && metrics.get().is_none() {
+                    view! { <LoadingState message="Memuat metrics workflow..." /> }.into_any()
+                } else if let Some(err) = error.get() {
+                    view! {
+                        <ErrorState
+                            error=err
+                            title="Gagal memuat metrics workflow".to_string()
+                            on_retry=Box::new(move || { set_reload_tick.update(|t| *t += 1); })
+                        />
+                    }.into_any()
+                } else if let Some(m) = metrics.get() {
+                    let w = workflows.get().unwrap_or_default();
+                    view! { <MonitoringContent metrics=m workflows=w /> }.into_any()
+                } else {
+                    view! { <LoadingState message="Memuat metrics workflow..." /> }.into_any()
+                }
+            }}
+        </PageLayout>
+    }
+}
+
+#[component]
+fn MonitoringContent(metrics: WorkflowMetrics, workflows: Vec<WorkflowSummary>) -> impl IntoView {
+    let bottlenecks = metrics.bottlenecks.clone();
+    let bottleneck_count = bottlenecks.len();
+    let has_bottlenecks = !bottlenecks.is_empty();
+    let by_state = metrics.by_state.clone();
+    let has_state_distribution = !by_state.is_empty();
+
+    view! {
+        <SectionCard
+            title="Ringkasan Metrics"
+            description="Indikator utama performa workflow."
+            icon="fas fa-chart-simple"
+        >
+            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                    label="Total Aktif"
+                    value=metrics.total_active.to_string()
+                    caption="Workflows dalam proses"
+                    icon="fas fa-tasks"
+                    tone=StatTone::Info
+                />
+                <StatCard
+                    label="SLA Breaches"
+                    value=metrics.sla_breaches.to_string()
+                    caption="Melebihi batas waktu"
+                    icon="fas fa-exclamation-triangle"
+                    tone=StatTone::Danger
+                />
+                <StatCard
+                    label="Mendekati SLA"
+                    value=metrics.approaching_sla.to_string()
+                    caption="Dalam 25% batas waktu"
+                    icon="fas fa-clock"
+                    tone=StatTone::Warning
+                />
+                <StatCard
+                    label="Bottlenecks"
+                    value=bottleneck_count.to_string()
+                    caption="States dengan delay"
+                    icon="fas fa-hourglass-half"
+                    tone=StatTone::Gold
+                />
             </div>
-        </div>
+        </SectionCard>
+
+        <SectionCard
+            title="Bottlenecks"
+            description="State yang mendekati atau melewati SLA."
+            icon="fas fa-hourglass-half"
+        >
+            {if has_bottlenecks {
+                view! {
+                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {bottlenecks.into_iter().map(|b| view! {
+                            <BottleneckCard bottleneck=b />
+                        }).collect::<Vec<_>>()}
+                    </div>
+                }.into_any()
+            } else {
+                view! {
+                    <div class="flex items-center gap-3 rounded-xl border border-success-500/30 bg-success-500/[0.08] p-4">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-500/15 text-success-400 ring-1 ring-success-500/25">
+                            <i class="fas fa-check-circle"></i>
+                        </span>
+                        <div>
+                            <div class="text-sm font-semibold text-success-300">
+                                "Tidak ada bottleneck"
+                            </div>
+                            <div class="mt-0.5 text-xs text-success-200/70">
+                                "Semua workflow state berjalan dalam batas SLA."
+                            </div>
+                        </div>
+                    </div>
+                }.into_any()
+            }}
+        </SectionCard>
+
+        {has_state_distribution.then(|| view! {
+            <SectionCard
+                title="Distribusi per State"
+                description="Jumlah workflow aktif di setiap state."
+                icon="fas fa-chart-pie"
+            >
+                <StateDistributionGrid by_state=by_state />
+            </SectionCard>
+        })}
+
+        <SectionCard
+            title="Workflows Aktif"
+            description="Daftar instansi workflow yang sedang berjalan."
+            icon="fas fa-list"
+        >
+            {if workflows.is_empty() {
+                view! {
+                    <EmptyState
+                        title="Tidak ada workflow aktif".to_string()
+                        description="Semua workflow telah selesai atau belum ada yang dimulai.".to_string()
+                        icon="fas fa-inbox".to_string()
+                    />
+                }.into_any()
+            } else {
+                view! { <WorkflowStatusTable workflows=workflows /> }.into_any()
+            }}
+        </SectionCard>
     }
 }
