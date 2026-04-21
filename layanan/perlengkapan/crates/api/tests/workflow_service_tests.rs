@@ -111,7 +111,7 @@ mod workflow_service_tests {
 
     #[test]
     fn test_sla_tracking() {
-        use chrono::{Duration, Utc};
+        use chrono::{DateTime, Duration, Utc};
 
         let created_at = Utc::now();
         let sla_hours = 24;

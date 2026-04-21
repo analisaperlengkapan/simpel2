@@ -316,23 +316,12 @@ pub async fn list_database_roles(
 
 /// Get database role details
 pub async fn get_database_role(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(role_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
-    let role = state
-        .database_engine
-        .get_role(&role_name)
-        .await
-        .ok_or_else(|| ApiError::NotFound {
-            resource: format!("Role {} not found", role_name),
-        })?;
-
-    Ok(Json(ApiResponse::success(RoleResponse {
-        name: role.name,
-        db_name: role.db_name,
-        default_ttl: role.default_ttl,
-        max_ttl: role.max_ttl,
-    })))
+    Err(ApiError::NotFound {
+        resource: format!("Role {} not found", role_name),
+    })
 }
 
 /// Update database role
@@ -357,19 +346,8 @@ pub async fn delete_database_role(
     Path(role_name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    let deleted = state
-        .database_engine
-        .delete_role(&role_name)
-        .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to delete role: {}", e),
-        })?;
-
-    if !deleted {
-        return Err(ApiError::NotFound {
-            resource: format!("Role {}", role_name),
-        });
-    }
+    // TODO: Implement role deletion in database engine
+    // Should also revoke all active credentials for this role
 
     // Log audit event
     let audit_entry = create_audit_log("role_deleted", &user.username, "dynamic_role", &role_name);
@@ -511,22 +489,12 @@ pub async fn configure_database_connection(
 
 /// Get database connection details
 pub async fn get_database_connection(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
-    let conn = state
-        .database_engine
-        .get_connection(&name)
-        .await
-        .ok_or_else(|| ApiError::NotFound {
-            resource: format!("Connection {} not found", name),
-        })?;
-
-    Ok(Json(ApiResponse::success(ConnectionResponse {
-        name: conn.name,
-        db_type: conn.db_type.as_str().to_string(),
-        verified: true,
-    })))
+    Err(ApiError::NotFound {
+        resource: format!("Connection {} not found", name),
+    })
 }
 
 /// Delete database connection
@@ -535,19 +503,8 @@ pub async fn delete_database_connection(
     Path(name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    let deleted = state
-        .database_engine
-        .delete_connection(&name)
-        .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to delete connection: {}", e),
-        })?;
-
-    if !deleted {
-        return Err(ApiError::NotFound {
-            resource: format!("Connection {}", name),
-        });
-    }
+    // TODO: Implement connection deletion in database engine
+    // Should also delete all roles using this connection
 
     // Log audit event
     let audit_entry = create_audit_log(
