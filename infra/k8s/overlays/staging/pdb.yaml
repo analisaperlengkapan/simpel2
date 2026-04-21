@@ -1,12 +1,14 @@
 # PodDisruptionBudget for Staging
-# Minimal availability for development
+# Single-replica workloads: minAvailable: 0 (anti-accidental-disruption only;
+# maxUnavailable: 1 with a single replica offers zero protection and blocks
+# node drain on the one healthy pod).
 
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: postgres-pdb
 spec:
-  maxUnavailable: 1
+  minAvailable: 0
   selector:
     matchLabels:
       app: postgres
@@ -16,7 +18,47 @@ kind: PodDisruptionBudget
 metadata:
   name: authenc-pdb
 spec:
-  maxUnavailable: 1
+  minAvailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: authenc
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: secreton-pdb
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: secreton
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: layanan-integrasi-pdb
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: layanan-integrasi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: layanan-perlengkapan-pdb
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: layanan-perlengkapan
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: perlengkapan-pdb
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: perlengkapan

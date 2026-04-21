@@ -17,6 +17,9 @@ resources:
   - pdb.yaml
   - mtls.yaml
   - allow-ingress-gateway-networkpolicy.yaml
+  - priority-classes.yaml
+  - service-accounts.yaml
+  - network-policies-internal.yaml
 
 # Labels for staging environment (using new syntax)
 labels:
@@ -30,6 +33,11 @@ commonAnnotations:
 
 # Patches for staging-specific values
 patches:
+  # Uniform pod hardening: securityContext, readOnlyRootFilesystem, capabilities.drop[ALL],
+  # seccompProfile, serviceAccountName, priorityClassName, terminationGracePeriodSeconds,
+  # and tmp emptyDir for Rust backends.
+  - path: security-context-patch.yaml
+
   # Portal nginx ConfigMap override patch for staging CSP
   - path: frontend-config-patch.yaml
     target:
