@@ -24,6 +24,52 @@ pub struct Claims {
     pub name: Option<String>,
     pub nama: Option<String>,
     pub jabatan: Option<String>,
+    /// Satker code ("kdsatker_keu") extracted from the `satker:` scope.
+    /// Used for satker-level authorization — handlers must reject writes to
+    /// other satker's data unless the caller holds an admin/pusat role.
+    pub satker_code: Option<String>,
+}
+
+impl Claims {
+    /// Roles allowed to read/write data across satker boundaries. Anything
+    /// else is treated as satker-scoped.
+    pub fn is_cross_satker_role(&self) -> bool {
+        matches!(
+            self.role.as_str(),
+            "admin"
+                | "admin_pusat"
+                | "superadmin"
+                | "validator_pusat"
+                | "pusat"
+                | "analis_pusat"
+        )
+    }
+
+    /// Returns true when the caller may access data belonging to the given
+    /// satker code. Admin/pusat roles always pass; everyone else must match
+    /// their own `satker_code`.
+    pub fn can_access_satker(&self, target: &str) -> bool {
+        if self.is_cross_satker_role() {
+            return true;
+        }
+        match &self.satker_code {
+            Some(code) => code == target,
+            None => false,
+        }
+    }
+
+    /// Assert that the caller may act on data scoped to `target_satker`.
+    /// Returns `AppError::Authorization` when the satker boundary is violated.
+    pub fn require_satker(&self, target_satker: &str) -> Result<(), AppError> {
+        if self.can_access_satker(target_satker) {
+            Ok(())
+        } else {
+            Err(AppError::Authorization(format!(
+                "Akses ditolak: data milik satker lain ({})",
+                target_satker
+            )))
+        }
+    }
 }
 
 impl<S> FromRequestParts<S> for Claims
@@ -77,39 +123,50 @@ where
                 // In production, ValidateToken should return richer context or we call GetUser.
                 // Assuming "scopes" contains role info for now.
 
+                // Prefer first-class `realm_roles` from the expanded
+                // ValidateTokenResponse (commit 20); fall back to the
+                // legacy `role:` scope convention when the issuer has
+                // not been updated yet.
                 let role = resp
-                    .scopes
-                    .iter()
-                    .find(|s| s.starts_with("role:"))
-                    .map(|s| s.trim_start_matches("role:").to_string())
+                    .realm_roles
+                    .first()
+                    .cloned()
+                    .or_else(|| {
+                        resp.scopes
+                            .iter()
+                            .find(|s| s.starts_with("role:"))
+                            .map(|s| s.trim_start_matches("role:").to_string())
+                    })
                     .unwrap_or_else(|| "user".to_string());
+
+                // First-class fields land as of commit 20; scope-prefix
+                // fallbacks keep us compatible with tokens minted before
+                // the authenc upgrade.
+                let scope_lookup = |prefix: &str| -> Option<String> {
+                    resp.scopes
+                        .iter()
+                        .find(|s| s.starts_with(prefix))
+                        .map(|s| s.trim_start_matches(prefix).to_string())
+                };
+                let username = resp
+                    .username
+                    .clone()
+                    .or_else(|| scope_lookup("username:"))
+                    .unwrap_or_else(|| user_id.to_string());
 
                 Ok(Claims {
                     user_id,
-                    username: "unknown".to_string(), // Missing from ValidateTokenResponse currently
+                    username,
                     role: role.clone(),
                     permissions: resp.scopes.clone(),
-                    // Extended fields - try to extract from scopes or use defaults
-                    nip: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("nip:"))
-                        .map(|s| s.trim_start_matches("nip:").to_string()),
-                    name: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("name:"))
-                        .map(|s| s.trim_start_matches("name:").to_string()),
-                    nama: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("nama:"))
-                        .map(|s| s.trim_start_matches("nama:").to_string()),
-                    jabatan: resp
-                        .scopes
-                        .iter()
-                        .find(|s| s.starts_with("jabatan:"))
-                        .map(|s| s.trim_start_matches("jabatan:").to_string()),
+                    nip: resp.nip.clone().or_else(|| scope_lookup("nip:")),
+                    name: resp.name.clone().or_else(|| scope_lookup("name:")),
+                    nama: resp.name.clone().or_else(|| scope_lookup("nama:")),
+                    jabatan: resp.jabatan.clone().or_else(|| scope_lookup("jabatan:")),
+                    satker_code: resp
+                        .satker_code
+                        .clone()
+                        .or_else(|| scope_lookup("satker:")),
                 })
             }
             Err(e) => {

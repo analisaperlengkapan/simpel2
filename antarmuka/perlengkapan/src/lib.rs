@@ -16,17 +16,36 @@
 #![allow(clippy::collapsible_if)]
 mod api;
 mod components;
+mod features;
+mod navigation;
 mod pages;
+mod routes;
 
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
 
-use components::profile_menu::ProfileMenu;
+use components::app_chrome::{AppFooter, AppHeader};
 use components::sidebar::Sidebar;
+use components::guards::{SessionAdminGuard, SessionAuthGuard};
+use features::auth::AuthService;
+use pages::bank_aset::{
+    BankAsetDashboardPage, BankAsetDetailPage, BankAsetListPage, BankAsetQrCodePage,
+    BankAsetSebaranPage,
+};
 use pages::dashboard::DashboardHome;
+use pages::dashboard_perlengkapan::DashboardPerlengkapan;
+use pages::login::LoginPage;
+use pages::kebutuhan_bmn::PeriodManagement;
+use pages::admin::{AdminAuditPage, AdminMasterDataPage};
 use pages::not_found::NotFound;
+use pages::pakaian_dinas::SpesifikasiPage;
+use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
+use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};
 use pages::placeholder::PlaceholderPage;
+use pages::search_page::SearchPage;
+use pages::workflow::config_management::WorkflowConfigManagement;
+use pages::workflow::monitoring::WorkflowMonitoring;
 
 // Migrated business components
 use components::admin_users::{AdminRolesPage, AdminUsersPage};
@@ -46,13 +65,10 @@ use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
 use components::pakaian_dinas_ukuran::UkuranPegawai;
 use components::panduan::PanduanPengguna;
-use components::pemakaian_bmn_detail::PemakaianBmnDetail;
 use components::pemakaian_bmn_form::PemakaianBmnForm;
-use components::pemakaian_bmn_list::PemakaianBmnList;
 use components::pemakaian_bmn_monitoring::PemakaianBmnMonitoring;
-use components::penghapusan_bmn_detail::PenghapusanBmnDetail;
+use components::pemakaian_bmn_renew::PemakaianBmnRenew;
 use components::penghapusan_form::PenghapusanForm;
-use components::penghapusan_list::PenghapusanList;
 use components::qrcode_generator::QrCodeGenerator;
 
 // ── Version ──────────────────────────────────────────────────────────────
@@ -67,6 +83,33 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     let sidebar_open = RwSignal::new(false);
+    let (user_session, set_user_session) = signal(AuthService::load_session());
+    let is_login_page = move || {
+        web_sys::window()
+            .and_then(|w| w.location().pathname().ok())
+            .map(|path| {
+                let normalized = path.trim_end_matches('/');
+                normalized == "/perlengkapan/login" || normalized == "/login"
+            })
+            .unwrap_or(false)
+    };
+
+    let main_class = move || {
+        if is_login_page() {
+            "flex-1 overflow-y-auto p-0"
+        } else {
+            "flex-1 overflow-y-auto p-6 lg:ml-[250px]"
+        }
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        Effect::new(move |_| {
+            AuthService::setup_storage_listener(move |session| {
+                set_user_session.set(session);
+            });
+        });
+    }
 
     view! {
         <Html attr:lang="id" />
@@ -75,113 +118,121 @@ pub fn App() -> impl IntoView {
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
 
         <Router base="/perlengkapan">
-            // ══ Full-page dark shell ═════════════════════════════════
-            <div style="min-height: 100vh; display: flex; flex-direction: column; background: linear-gradient(180deg, #0f172a 0%, #111c36 50%, #0a1020 100%); font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;">
+            <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
+                // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
+                <div class="hidden lg:ml-[250px]"></div>
 
-                // ── Header ───────────────────────────────────────────
-                <header style="background: #0c1425; border-bottom: 1px solid rgba(255,255,255,0.06); position: sticky; top: 0; z-index: 50;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; height: 56px;">
-                        // Left: mobile toggle + brand
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <button
-                                on:click=move |_| sidebar_open.update(|o| *o = !*o)
-                                style="background: none; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 4px;"
-                                class="lg:hidden"
-                            >
-                                <i class="fas fa-bars"></i>
-                            </button>
-                            <a href="/perlengkapan/dashboard" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
-                                <img
-                                    src="/perlengkapan/assets/kejaksaan-logo.png"
-                                    alt="Kejaksaan RI"
-                                    style="width: 30px; height: 30px; object-fit: contain;"
-                                />
-                                <span style="font-size: 1.1rem; font-weight: 800; color: #ffffff; letter-spacing: 0.02em;">
-                                    "SIMPEL"
-                                </span>
-                            </a>
-                        </div>
-                        // Right: profile avatar
-                        <ProfileMenu />
-                    </div>
-                </header>
+                {move || (!is_login_page()).then(|| {
+                    let toggle = Callback::new(move |_: ()| sidebar_open.update(|o| *o = !*o));
+                    view! { <AppHeader on_toggle_sidebar=toggle /> }
+                })}
 
-                // ── Body (sidebar + main) ────────────────────────────
-                <div style="display: flex; flex: 1; min-height: 0;">
-                    <Sidebar sidebar_open=sidebar_open />
+                <div class="flex min-h-0 flex-1">
+                    {move || if is_login_page() {
+                        view! { <></> }.into_any()
+                    } else {
+                        view! { <Sidebar sidebar_open=sidebar_open /> }.into_any()
+                    }}
 
-                    <main style="flex: 1; overflow-y: auto; padding: 1.5rem; margin-left: 0;" class="lg:ml-[250px]">
+                        <main class=main_class>
                         <Routes fallback=move || view! { <NotFound /> }.into_any()>
                             // Dashboard home (default)
+                            <Route path=path!("/login") view=move || {
+                                if AuthService::load_session().is_some() {
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.location().set_href(routes::path::DASHBOARD);
+                                    }
+                                    view! { <div></div> }.into_any()
+                                } else {
+                                    view! { <LoginPage /> }.into_any()
+                                }
+                            } />
                             <Route path=path!("/") view=move || {
-                                // Redirect root to dashboard
-                                if let Some(window) = web_sys::window() {
-                                    let _ = window.location().set_href("/perlengkapan/dashboard");
+                                // Redirect root based on authentication status.
+                                if AuthService::load_session().is_some() {
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.location().set_href(routes::path::DASHBOARD);
+                                    }
+                                } else if let Some(window) = web_sys::window() {
+                                    let _ = window.location().set_href(routes::path::LOGIN);
                                 }
                                 view! { <div></div> }
                             } />
-                            <Route path=path!("/dashboard") view=DashboardHome />
+                            <Route path=path!("/dashboard") view=move || view! { <SessionAuthGuard user_session=user_session><DashboardHome /></SessionAuthGuard> } />
+                            <Route path=path!("/dashboard/search") view=move || view! { <SessionAuthGuard user_session=user_session><SearchPage /></SessionAuthGuard> } />
 
                             // ── Bank Aset ────────────────────────────
-                            <Route path=path!("/dashboard/bank-aset/daftar") view=AsetList />
-                            <Route path=path!("/dashboard/bank-aset/qrcode") view=QrCodeGenerator />
+                            <Route path=path!("/bank-aset") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDashboardPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/dashboard") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDashboardPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetListPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/daftar/:id") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDetailPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/sebaran") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetSebaranPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bank-aset/qrcode") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetQrCodePage /></SessionAuthGuard> } />
 
                             // ── Kebutuhan BMN ────────────────────────
-                            <Route path=path!("/dashboard/kebutuhan-bmn/daftar") view=KebutuhanBmnList />
-                            <Route path=path!("/dashboard/kebutuhan-bmn/buat") view=KebutuhanBmnForm />
-                            <Route path=path!("/dashboard/kebutuhan-bmn/detail/:id") view=KebutuhanBmnDetail />
-                            <Route path=path!("/dashboard/kebutuhan-bmn/satker/:satker_id") view=KebutuhanBmnSatkerDetail />
-                            <Route path=path!("/dashboard/kebutuhan-bmn/laporan") view=LaporanKebutuhanBmn />
+                            <Route path=path!("/kebutuhan-bmn/periode") view=move || view! { <SessionAuthGuard user_session=user_session><PeriodManagement /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnList /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnList /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn/buat") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnForm /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn/baru") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnForm /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn/:id/edit") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnForm /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnDetail /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn/:id") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnDetail /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn/satker/:satker_id") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnSatkerDetail /></SessionAuthGuard> } />
+                            <Route path=path!("/kebutuhan-bmn/laporan") view=move || view! { <SessionAuthGuard user_session=user_session><LaporanKebutuhanBmn /></SessionAuthGuard> } />
 
                             // ── Pakaian Dinas ────────────────────────
-                            <Route path=path!("/dashboard/pakaian-dinas/jenis") view=PakaianDinasJenisList />
-                            <Route path=path!("/dashboard/pakaian-dinas/pengajuan") view=PakaianDinasPengajuanList />
-                            <Route path=path!("/dashboard/pakaian-dinas/ukuran") view=move || view! { <UkuranPegawai pegawai_id="0".to_string() pegawai_nama="Pegawai".to_string() pegawai_nip="000".to_string() /> } />
-                            <Route path=path!("/dashboard/pakaian-dinas/laporan") view=PakaianDinasLaporan />
+                            <Route path=path!("/pakaian-dinas/jenis") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasJenisList /></SessionAuthGuard> } />
+                            <Route path=path!("/pakaian-dinas/jenis/:id/spesifikasi") view=move || view! {
+                                <SessionAuthGuard user_session=user_session>
+                                    <SpesifikasiPage />
+                                </SessionAuthGuard>
+                            } />
+                            <Route path=path!("/pakaian-dinas/pengajuan") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasPengajuanList /></SessionAuthGuard> } />
+                            <Route path=path!("/pakaian-dinas/ukuran") view=move || view! { <SessionAuthGuard user_session=user_session><UkuranPegawai pegawai_id="0".to_string() pegawai_nama="Pegawai".to_string() pegawai_nip="000".to_string() /></SessionAuthGuard> } />
+                            <Route path=path!("/pakaian-dinas/laporan") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasLaporan /></SessionAuthGuard> } />
+                            <Route path=path!("/pakaian-dinas/laporan/rekap") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasLaporan /></SessionAuthGuard> } />
 
                             // ── Pengelolaan BMN ──────────────────────
-                            <Route path=path!("/dashboard/pengelolaan/pemakaian") view=PemakaianBmnList />
-                            <Route path=path!("/dashboard/pengelolaan/pemakaian/buat") view=PemakaianBmnForm />
-                            <Route path=path!("/dashboard/pengelolaan/pemakaian/detail/:id") view=PemakaianBmnDetail />
-                            <Route path=path!("/dashboard/pengelolaan/pemakaian/monitoring") view=PemakaianBmnMonitoring />
-                            <Route path=path!("/dashboard/pengelolaan/penghapusan") view=PenghapusanList />
-                            <Route path=path!("/dashboard/pengelolaan/penghapusan/buat") view=PenghapusanForm />
-                            <Route path=path!("/dashboard/pengelolaan/penghapusan/detail/:id") view=PenghapusanBmnDetail />
+                            <Route path=path!("/pengelolaan/pemakaian") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnListPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pemakaian-bmn") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnListPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/pemakaian/buat") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnForm /></SessionAuthGuard> } />
+                            <Route path=path!("/pemakaian-bmn/baru") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnForm /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/pemakaian/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetailPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pemakaian-bmn/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetailPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pemakaian-bmn/:id/renew") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnRenew /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/pemakaian/monitoring") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnMonitoring /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnListPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnListPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan/buat") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanForm /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan/baru") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanForm /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnDetailPage /></SessionAuthGuard> } />
+                            <Route path=path!("/pengelolaan/penghapusan/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnDetailPage /></SessionAuthGuard> } />
 
                             // ── Analitik ─────────────────────────────
-                            <Route path=path!("/dashboard/analitik/roadmap") view=AnalisisList />
-                            <Route path=path!("/dashboard/analitik/roadmap/buat") view=AnalisisForm />
-                            <Route path=path!("/dashboard/analitik/kodefikasi") view=MappingKodefikasiDashboard />
+                            <Route path=path!("/analitik/roadmap") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisList /></SessionAuthGuard> } />
+                            <Route path=path!("/analisis/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisList /></SessionAuthGuard> } />
+                            <Route path=path!("/analitik/roadmap/buat") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisForm /></SessionAuthGuard> } />
+                            <Route path=path!("/analisis/baru") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisForm /></SessionAuthGuard> } />
+                            <Route path=path!("/analitik/kodefikasi") view=move || view! { <SessionAuthGuard user_session=user_session><MappingKodefikasiDashboard /></SessionAuthGuard> } />
 
                             // ── Admin ────────────────────────────────
-                            <Route path=path!("/dashboard/admin/users") view=AdminUsersPage />
-                            <Route path=path!("/dashboard/admin/roles") view=AdminRolesPage />
-                            <Route path=path!("/dashboard/admin/audit") view=move || view! {
-                                <PlaceholderPage title="Audit Log" icon="fas fa-history" description="Jejak audit seluruh aktivitas." />
-                            } />
-                            <Route path=path!("/dashboard/admin/master") view=move || view! {
-                                <PlaceholderPage title="Master Data" icon="fas fa-database" description="Pengelolaan data referensi." />
-                            } />
+                            <Route path=path!("/admin/users") view=move || view! { <SessionAdminGuard user_session=user_session><AdminUsersPage /></SessionAdminGuard> } />
+                            <Route path=path!("/admin/roles") view=move || view! { <SessionAdminGuard user_session=user_session><AdminRolesPage /></SessionAdminGuard> } />
+                            <Route path=path!("/admin/audit") view=move || view! { <SessionAdminGuard user_session=user_session><AdminAuditPage /></SessionAdminGuard> } />
+                            <Route path=path!("/admin/master") view=move || view! { <SessionAdminGuard user_session=user_session><AdminMasterDataPage /></SessionAdminGuard> } />
+                            <Route path=path!("/admin/workflow") view=move || view! { <SessionAdminGuard user_session=user_session><WorkflowConfigManagement /></SessionAdminGuard> } />
+                            <Route path=path!("/admin/workflow-monitoring") view=move || view! { <SessionAdminGuard user_session=user_session><WorkflowMonitoring /></SessionAdminGuard> } />
 
                             // ── Bantuan ──────────────────────────────
-                            <Route path=path!("/dashboard/bantuan/panduan") view=PanduanPengguna />
-                            <Route path=path!("/dashboard/bantuan/faq") view=FaqPage />
-                            <Route path=path!("/dashboard/bantuan/helpdesk") view=HelpdeskPage />
+                            <Route path=path!("/bantuan/panduan") view=move || view! { <SessionAuthGuard user_session=user_session><PanduanPengguna /></SessionAuthGuard> } />
+                            <Route path=path!("/bantuan/faq") view=move || view! { <SessionAuthGuard user_session=user_session><FaqPage /></SessionAuthGuard> } />
+                            <Route path=path!("/bantuan/helpdesk") view=move || view! { <SessionAuthGuard user_session=user_session><HelpdeskPage /></SessionAuthGuard> } />
                         </Routes>
                     </main>
                 </div>
 
-                // ── Footer ───────────────────────────────────────────
-                <footer style="background: rgba(10,16,32,0.9); border-top: 1px solid rgba(255,255,255,0.05); padding: 10px 1.25rem;" class="lg:ml-[250px]">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.7rem; color: #475569;">
-                            "SIMPEL v" {APP_VERSION} " · Kejaksaan Agung RI"
-                        </span>
-                        <span style="font-size: 0.65rem; color: #334155;">
-                            "© 2025 Biro Perlengkapan"
-                        </span>
-                    </div>
-                </footer>
+                {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
             </div>
         </Router>
     }

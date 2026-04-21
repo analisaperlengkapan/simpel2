@@ -1,0 +1,88 @@
+---
+# Allow DNS egress from all pods (kube-dns in kube-system).
+# Required because we add Egress policies below which flip default-allow to default-deny.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Allow all pods egress to istio control plane (istiod xDS, cert-provisioning, health).
+# Without this, our per-workload egress policies below block sidecar bootstrap and
+# every outbound TCP from the app is refused by the un-configured envoy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-control-plane-egress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 15010
+        - protocol: TCP
+          port: 15012
+        - protocol: TCP
+          port: 15014
+        - protocol: TCP
+          port: 443
+---
+# Allow layanan-integrasi egress to external HTTPS (SIMAN/MySIMKARI/MonSAKTI)
+# and to in-cluster Postgres. External egress via 0.0.0.0/0 excluding cluster CIDRs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: layanan-integrasi-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: layanan-integrasi
+  policyTypes:
+    - Egress
+  egress:
+    # Allow HTTPS to external APIs (exclude RFC1918 to avoid clashing with in-cluster rules)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow Postgres
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379

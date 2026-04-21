@@ -1,21 +1,33 @@
 //! Role Switcher — inline role selector for embedding in profile dropdown.
 //!
-//! Renders a list of role buttons (no separate dropdown).
+//! The real authoritative role comes from the JWT in `auth_token`. This
+//! switcher only controls a UI preference key (`ui_active_role`) used by
+//! development views that preview how each role sees the app. It never
+//! mutates the session — the JWT claims always win in guards.
 
+use crate::features::auth::AuthService;
 use leptos::prelude::*;
 
-/// Get active role key from localStorage.
+const UI_ACTIVE_ROLE_KEY: &str = "ui_active_role";
+
+/// Read the UI preview role. Defaults to whichever role the JWT reports, or
+/// `operator_satker` when no session is loaded.
 pub fn get_active_role() -> String {
-    web_sys::window()
+    if let Some(stored) = web_sys::window()
         .and_then(|w| w.local_storage().ok().flatten())
-        .and_then(|s| s.get_item("active_role").ok().flatten())
+        .and_then(|s| s.get_item(UI_ACTIVE_ROLE_KEY).ok().flatten())
+    {
+        return stored;
+    }
+
+    AuthService::load_session()
+        .map(|s| s.role)
         .unwrap_or_else(|| "operator_satker".to_string())
 }
 
-/// Set active role key in localStorage.
 fn set_active_role_storage(role: &str) {
     if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
-        let _ = storage.set_item("active_role", role);
+        let _ = storage.set_item(UI_ACTIVE_ROLE_KEY, role);
     }
 }
 

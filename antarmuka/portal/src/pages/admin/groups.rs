@@ -4,7 +4,9 @@
 //! REQ-PORTAL-015
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel, SuccessBanner};
+use crate::utils::async_load::load_vec_once;
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::{CreateGroupApiRequest, GroupInfo, MASTER_REALM_ID};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -12,7 +14,6 @@ use leptos::task::spawn_local;
 /// Groups management page
 #[component]
 pub fn GroupsManagementPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (groups, set_groups) = signal(Vec::<GroupInfo>::new());
@@ -33,14 +34,16 @@ pub fn GroupsManagementPage() -> impl IntoView {
         let api = api.clone();
         move || {
             let api = api.clone();
-            set_loading.set(true);
-            spawn_local(async move {
-                match api.iam_list_groups().await {
-                    Ok(list) => set_groups.set(list),
-                    Err(e) => set_error.set(Some(format!("Gagal memuat grup: {}", e))),
-                }
-                set_loading.set(false);
-            });
+            load_vec_once(
+                move || {
+                    let api = api.clone();
+                    async move { api.iam_list_groups().await }
+                },
+                set_groups,
+                set_error,
+                set_loading,
+                "Gagal memuat grup",
+            );
         }
     };
 
@@ -126,14 +129,7 @@ pub fn GroupsManagementPage() -> impl IntoView {
         });
     }
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     // Filter groups by search
     let filtered_groups = move || {
@@ -172,10 +168,10 @@ pub fn GroupsManagementPage() -> impl IntoView {
                 </div>
 
                 {move || success.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">"✅ " {msg}</div>
+                    <SuccessBanner message=msg />
                 })}
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">"❌ " {msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -200,10 +196,7 @@ pub fn GroupsManagementPage() -> impl IntoView {
                             <Show
                                 when=move || !loading.get()
                                 fallback=|| view! {
-                                    <div class="p-8 text-center text-gray-500">
-                                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto mb-3"></div>
-                                        "Memuat..."
-                                    </div>
+                                    <LoadingPanel message="Memuat data grup..." />
                                 }
                             >
                                 <div class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
@@ -247,10 +240,11 @@ pub fn GroupsManagementPage() -> impl IntoView {
                                 </div>
 
                                 <Show when=move || filtered_groups().is_empty()>
-                                    <div class="p-8 text-center">
-                                        <p class="text-3xl mb-2">"📁"</p>
-                                        <p class="text-sm text-gray-500">"Belum ada grup."</p>
-                                        <p class="text-xs text-gray-400 mt-1">"Klik \"Buat Grup\" untuk menambahkan."</p>
+                                    <div class="p-4">
+                                        <EmptyPanel
+                                            title="Belum ada grup"
+                                            message="Klik tombol Buat Grup untuk menambahkan struktur baru."
+                                        />
                                     </div>
                                 </Show>
                             </Show>

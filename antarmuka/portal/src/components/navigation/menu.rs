@@ -1,0 +1,259 @@
+//! Portal navigation menu model.
+//!
+//! Provides a centralized RBAC-aware menu tree consumed by navbar and sidebar.
+
+use crate::features::auth::UserSession;
+use crate::routes;
+
+#[derive(Clone, Debug)]
+pub enum MenuVisibility {
+    Public,
+    Authenticated,
+    AdminOnly,
+    AnyPermission(&'static [&'static str]),
+}
+
+#[derive(Clone, Debug)]
+pub struct PortalMenuItem {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub href: &'static str,
+    pub visibility: MenuVisibility,
+    pub children: Vec<PortalMenuItem>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PortalMenuSection {
+    pub title: &'static str,
+    pub items: Vec<PortalMenuItem>,
+}
+
+impl PortalMenuItem {
+    fn leaf(
+        id: &'static str,
+        label: &'static str,
+        href: &'static str,
+        visibility: MenuVisibility,
+    ) -> Self {
+        Self {
+            id,
+            label,
+            href,
+            visibility,
+            children: Vec::new(),
+        }
+    }
+
+    fn parent(
+        id: &'static str,
+        label: &'static str,
+        href: &'static str,
+        visibility: MenuVisibility,
+        children: Vec<PortalMenuItem>,
+    ) -> Self {
+        Self {
+            id,
+            label,
+            href,
+            visibility,
+            children,
+        }
+    }
+}
+
+pub fn resolve_menu_sections(session: Option<&UserSession>) -> Vec<PortalMenuSection> {
+    let sections = vec![
+        PortalMenuSection {
+            title: "Utama",
+            items: vec![
+                PortalMenuItem::leaf(
+                    "dashboard",
+                    "Dashboard",
+                    routes::path::DASHBOARD,
+                    MenuVisibility::Authenticated,
+                ),
+                PortalMenuItem::leaf(
+                    "apps",
+                    "Aplikasi",
+                    routes::path::APPS,
+                    MenuVisibility::Authenticated,
+                ),
+                PortalMenuItem::leaf(
+                    "notifications",
+                    "Notifikasi",
+                    routes::path::NOTIFICATIONS,
+                    MenuVisibility::Authenticated,
+                ),
+                PortalMenuItem::leaf(
+                    "settings",
+                    "Pengaturan",
+                    routes::path::SETTINGS,
+                    MenuVisibility::Authenticated,
+                ),
+            ],
+        },
+        PortalMenuSection {
+            title: "Akun",
+            items: vec![
+                PortalMenuItem::leaf(
+                    "profile",
+                    "Profil",
+                    routes::path::PROFILE,
+                    MenuVisibility::Authenticated,
+                ),
+                PortalMenuItem::leaf(
+                    "passkeys",
+                    "Passkey",
+                    routes::path::PASSKEYS,
+                    MenuVisibility::Authenticated,
+                ),
+                PortalMenuItem::leaf(
+                    "password",
+                    "Ubah Kata Sandi",
+                    routes::path::PASSWORD,
+                    MenuVisibility::Authenticated,
+                ),
+                PortalMenuItem::leaf(
+                    "sessions",
+                    "Sesi Aktif",
+                    routes::path::SESSIONS,
+                    MenuVisibility::Authenticated,
+                ),
+            ],
+        },
+        PortalMenuSection {
+            title: "Administrasi",
+            items: vec![PortalMenuItem::parent(
+                "admin",
+                "Panel Administrasi",
+                routes::path::ADMIN,
+                MenuVisibility::AdminOnly,
+                vec![
+                    PortalMenuItem::leaf(
+                        "admin-users",
+                        "Pengguna",
+                        routes::path::ADMIN_USERS,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-roles",
+                        "Peran",
+                        routes::path::ADMIN_ROLES,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-permissions",
+                        "Izin",
+                        routes::path::ADMIN_PERMISSIONS,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-realms",
+                        "Realm",
+                        routes::path::ADMIN_REALMS,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-clients",
+                        "Klien",
+                        routes::path::ADMIN_CLIENTS,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-groups",
+                        "Grup",
+                        routes::path::ADMIN_GROUPS,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-realm-settings",
+                        "Pengaturan Realm",
+                        routes::path::ADMIN_REALM_SETTINGS,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-audit",
+                        "Audit Log",
+                        routes::path::ADMIN_AUDIT,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-federation",
+                        "Federasi",
+                        routes::path::ADMIN_FEDERATION,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-auth-flows",
+                        "Alur Otentikasi",
+                        routes::path::ADMIN_AUTH_FLOWS,
+                        MenuVisibility::AdminOnly,
+                    ),
+                    PortalMenuItem::leaf(
+                        "admin-linked-accounts",
+                        "Akun Tertaut",
+                        routes::path::ADMIN_LINKED_ACCOUNTS,
+                        MenuVisibility::AdminOnly,
+                    ),
+                ],
+            )],
+        },
+    ];
+
+    sections
+        .into_iter()
+        .filter_map(|section| {
+            let filtered_items: Vec<PortalMenuItem> = section
+                .items
+                .into_iter()
+                .filter_map(|item| filter_item(item, session))
+                .collect();
+
+            if filtered_items.is_empty() {
+                None
+            } else {
+                Some(PortalMenuSection {
+                    title: section.title,
+                    items: filtered_items,
+                })
+            }
+        })
+        .collect()
+}
+
+pub fn topbar_items(session: Option<&UserSession>) -> Vec<PortalMenuItem> {
+    resolve_menu_sections(session)
+        .into_iter()
+        .find(|section| section.title == "Utama")
+        .map(|section| section.items)
+        .unwrap_or_default()
+}
+
+fn filter_item(item: PortalMenuItem, session: Option<&UserSession>) -> Option<PortalMenuItem> {
+    if !is_visible(&item.visibility, session) {
+        return None;
+    }
+
+    let children = item
+        .children
+        .into_iter()
+        .filter_map(|child| filter_item(child, session))
+        .collect();
+
+    Some(PortalMenuItem { children, ..item })
+}
+
+fn is_visible(visibility: &MenuVisibility, session: Option<&UserSession>) -> bool {
+    match visibility {
+        MenuVisibility::Public => true,
+        MenuVisibility::Authenticated => session.is_some(),
+        MenuVisibility::AdminOnly => session.is_some_and(|s| s.role.is_admin()),
+        MenuVisibility::AnyPermission(required) => session.is_some_and(|s| {
+            required.iter().any(|target| {
+                s.permissions
+                    .iter()
+                    .any(|current| current == *target || current == "admin:*")
+            })
+        }),
+    }
+}

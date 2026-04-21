@@ -59,15 +59,6 @@ pub fn HomePage() -> impl IntoView {
                     </div>
                 </div>
 
-                // Footer branding / version
-                <div class="mt-12 text-center animate-fade-in">
-                    <p class="text-sm font-medium text-slate-400">
-                        "© 2026 Kejaksaan Republik Indonesia"
-                    </p>
-                    <p class="text-xs text-slate-500 mt-1">
-                        "Portal SIMPEL v2.0 • Performa Tinggi"
-                    </p>
-                </div>
             </div>
         </AuthLayout>
     }

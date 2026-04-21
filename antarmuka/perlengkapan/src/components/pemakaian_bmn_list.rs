@@ -4,6 +4,10 @@
 //! Requirements: REQ-P001, REQ-P011, REQ-P012
 
 use crate::api::{IzinPemakaianBmn, fetch_pemakaian_bmn_list};
+use crate::components::list_feedback::{EmptyState, LoadingState};
+use crate::components::page_header::PageHeader;
+use crate::components::pagination_controls::PaginationControls;
+use crate::routes;
 use leptos::prelude::*;
 
 #[component]
@@ -72,20 +76,12 @@ pub fn PemakaianBmnList() -> impl IntoView {
 
     view! {
         <div class="p-6 space-y-6">
-            // Header
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800">"Izin Pemakaian BMN"</h2>
-                    <p class="text-sm text-gray-600 mt-1">"Kelola izin pemakaian Barang Milik Negara"</p>
-                </div>
-                <a
-                    href="/perlengkapan/dashboard/pemakaian-bmn/baru"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-                >
-                    <i class="fas fa-plus"></i>
-                    "Ajukan Izin Baru"
-                </a>
-            </div>
+            <PageHeader
+                title="Izin Pemakaian BMN"
+                subtitle="Kelola izin pemakaian Barang Milik Negara"
+                action_href=routes::path::PEMAKAIAN_BUAT_LEGACY
+                action_label="Ajukan Izin Baru"
+            />
 
             // Filters
             <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
@@ -158,21 +154,16 @@ pub fn PemakaianBmnList() -> impl IntoView {
 
             // Permits List
             <div class="bg-white rounded-lg shadow-sm border border-gray-100">
-                <Suspense fallback=move || view! {
-                    <div class="p-8 text-center">
-                        <i class="fas fa-spinner fa-spin text-2xl text-gray-400 mb-2"></i>
-                        <p class="text-gray-600">"Memuat data..."</p>
-                    </div>
-                }>
+                <Suspense fallback=move || view! { <LoadingState /> }>
                     {move || {
                         permits_resource.get().flatten().map(|response| {
                             if response.data.is_empty() {
                                 view! {
-                                    <div class="p-12 text-center">
-                                        <i class="fas fa-clipboard-list text-5xl text-gray-300 mb-4"></i>
-                                        <p class="text-gray-600 text-lg">"Belum ada data izin pemakaian"</p>
-                                        <p class="text-gray-500 text-sm mt-2">"Klik tombol 'Ajukan Izin Baru' untuk membuat permohonan"</p>
-                                    </div>
+                                    <EmptyState
+                                        title="Belum ada data izin pemakaian"
+                                        description="Klik tombol 'Ajukan Izin Baru' untuk membuat permohonan"
+                                        icon_class="fas fa-clipboard-list"
+                                    />
                                 }.into_any()
                             } else {
                                 view! {
@@ -229,7 +220,7 @@ pub fn PemakaianBmnList() -> impl IntoView {
                                                                     <td class="px-4 py-3">
                                                                         <div class="flex gap-2">
                                                                             <a
-                                                                                href={format!("/dashboard/pemakaian-bmn/{}", permit.id)}
+                                                                                href={format!("/perlengkapan/pemakaian-bmn/{}", permit.id)}
                                                                                 class="text-blue-600 hover:text-blue-800"
                                                                                 title="Detail"
                                                                             >
@@ -253,29 +244,14 @@ pub fn PemakaianBmnList() -> impl IntoView {
                                             </table>
                                         </div>
 
-                                        // Pagination
-                                        <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                                            <div class="text-sm text-gray-700">
-                                                "Menampilkan halaman " <span class="font-medium">{response.page}</span>
-                                                " dari " <span class="font-medium">{response.total_pages}</span>
-                                                " (" <span class="font-medium">{response.total}</span> " total)"
-                                            </div>
-                                            <div class="flex gap-2">
-                                                <button
-                                                    class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    prop:disabled=move || page.get() <= 1
-                                                    on:click=move |_| set_page.update(|p| *p -= 1)
-                                                >
-                                                    <i class="fas fa-chevron-left"></i>
-                                                </button>
-                                                <button
-                                                    class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    prop:disabled=move || page.get() >= response.total_pages
-                                                    on:click=move |_| set_page.update(|p| *p += 1)
-                                                >
-                                                    <i class="fas fa-chevron-right"></i>
-                                                </button>
-                                            </div>
+                                        <div class="px-4 py-3 border-t border-gray-200">
+                                            <PaginationControls
+                                                current_page=response.page
+                                                total_pages=response.total_pages
+                                                total_items=Some(response.total)
+                                                on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
+                                                on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
+                                            />
                                         </div>
                                     </div>
                                 }.into_any()

@@ -1,0 +1,190 @@
+---
+# authenc — Rust backend, needs /tmp for logs/OTP scratch
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authenc
+spec:
+  template:
+    spec:
+      serviceAccountName: authenc
+      priorityClassName: simpelv2-staging-default
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: authenc
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+---
+# secreton — StatefulSet; already has PVC for data, add tmp emptyDir
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: secreton
+spec:
+  template:
+    spec:
+      serviceAccountName: secreton
+      priorityClassName: simpelv2-staging-default
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: secreton
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+---
+# layanan-integrasi — Rust backend + scheduler
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: layanan-integrasi
+spec:
+  template:
+    spec:
+      serviceAccountName: layanan-integrasi
+      priorityClassName: simpelv2-staging-default
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: integrasi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+---
+# layanan-perlengkapan — Rust backend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: layanan-perlengkapan
+spec:
+  template:
+    spec:
+      serviceAccountName: layanan-perlengkapan
+      priorityClassName: simpelv2-staging-default
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: perlengkapan-backend
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+---
+# portal — nginx frontend, already has nginx-cache/nginx-run/tmp volumes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal
+spec:
+  template:
+    spec:
+      serviceAccountName: portal
+      priorityClassName: simpelv2-staging-default
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: portal
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+---
+# perlengkapan — nginx frontend, already has nginx-cache/nginx-run volumes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perlengkapan
+spec:
+  template:
+    spec:
+      serviceAccountName: perlengkapan
+      priorityClassName: simpelv2-staging-default
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: perlengkapan
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

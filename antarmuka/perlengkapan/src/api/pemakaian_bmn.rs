@@ -1,5 +1,8 @@
 #[allow(unused_imports)]
 use super::common::*;
+
+#[cfg(target_arch = "wasm32")]
+use crate::api::client::{auth_get_json, auth_post_json};
 use serde_json::Value;
 
 use serde::{Deserialize, Serialize};
@@ -249,10 +252,7 @@ pub async fn fetch_pemakaian_bmn_list(
     pegawai_nip: Option<String>,
     satker_id: Option<String>,
     search: Option<String>,
-) -> Result<PaginatedResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
+) -> Result<PaginatedResponse<IzinPemakaianBmn>, crate::api::AppError> {
     let mut url = format!("{}?page={}&per_page={}", PEMAKAIAN_BMN_BASE, page, per_page);
     if let Some(s) = status {
         url.push_str(&format!("&status={}", s));
@@ -270,22 +270,7 @@ pub async fn fetch_pemakaian_bmn_list(
         url.push_str(&format!("&search={}", q));
     }
 
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+    auth_get_json(&url).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -297,7 +282,7 @@ pub async fn fetch_pemakaian_bmn_list(
     _pegawai_nip: Option<String>,
     _satker_id: Option<String>,
     _search: Option<String>,
-) -> Result<PaginatedResponse<IzinPemakaianBmn>, String> {
+) -> Result<PaginatedResponse<IzinPemakaianBmn>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -313,106 +298,45 @@ pub async fn fetch_pemakaian_bmn_list(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_pemakaian_bmn_detail(
     id: &str,
-) -> Result<ApiResponse<IzinPemakaianDetailResponse>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!("{}/{}", PEMAKAIAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<IzinPemakaianDetailResponse>, crate::api::AppError> {
+    auth_get_json(&format!("{}/{}", PEMAKAIAN_BMN_BASE, id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_pemakaian_bmn_detail(
     _id: &str,
-) -> Result<ApiResponse<IzinPemakaianDetailResponse>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<IzinPemakaianDetailResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Create Permit ---
 #[cfg(target_arch = "wasm32")]
 pub async fn create_pemakaian_bmn(
     request: CreateIzinPemakaianRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(PEMAKAIAN_BMN_BASE)
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(PEMAKAIAN_BMN_BASE, &request).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_pemakaian_bmn(
     _request: CreateIzinPemakaianRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Check BMN Availability ---
 #[cfg(target_arch = "wasm32")]
 pub async fn check_bmn_availability(
     bmn_nup: &str,
-) -> Result<ApiResponse<BmnAvailabilityResponse>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!(
-        "{}/bmn/{}/availability",
-        PEMAKAIAN_BMN_BASE, bmn_nup
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
+    auth_get_json(&format!("{}/bmn/{}/availability", PEMAKAIAN_BMN_BASE, bmn_nup)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn check_bmn_availability(
     _bmn_nup: &str,
-) -> Result<ApiResponse<BmnAvailabilityResponse>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Workflow Transition ---
@@ -420,69 +344,30 @@ pub async fn check_bmn_availability(
 pub async fn transition_pemakaian_bmn_status(
     id: &str,
     request: PemakaianWorkflowTransitionRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!("{}/{}/transition", PEMAKAIAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(&format!("{}/{}/transition", PEMAKAIAN_BMN_BASE, id), &request).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn transition_pemakaian_bmn_status(
     _id: &str,
     _request: PemakaianWorkflowTransitionRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Activate Permit ---
 #[cfg(target_arch = "wasm32")]
 pub async fn activate_pemakaian_bmn(
     id: &str,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!("{}/{}/activate", PEMAKAIAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(&format!("{}/{}/activate", PEMAKAIAN_BMN_BASE, id), &serde_json::json!({}))
+        .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn activate_pemakaian_bmn(_id: &str) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
-    Err("Server-side stub".to_string())
+pub async fn activate_pemakaian_bmn(_id: &str) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Revoke Permit ---
@@ -490,38 +375,16 @@ pub async fn activate_pemakaian_bmn(_id: &str) -> Result<ApiResponse<IzinPemakai
 pub async fn revoke_pemakaian_bmn(
     id: &str,
     request: RevokePermitRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!("{}/{}/revoke", PEMAKAIAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(&format!("{}/{}/revoke", PEMAKAIAN_BMN_BASE, id), &request).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn revoke_pemakaian_bmn(
     _id: &str,
     _request: RevokePermitRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Renew Permit ---
@@ -529,137 +392,58 @@ pub async fn revoke_pemakaian_bmn(
 pub async fn renew_pemakaian_bmn(
     id: &str,
     request: RenewPermitRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!("{}/{}/renew", PEMAKAIAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(&format!("{}/{}/renew", PEMAKAIAN_BMN_BASE, id), &request).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn renew_pemakaian_bmn(
     _id: &str,
     _request: RenewPermitRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- BMN Usage History ---
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_bmn_usage_history(
     bmn_nup: &str,
-) -> Result<ApiResponse<BmnUsageStats>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!("{}/bmn/{}/history", PEMAKAIAN_BMN_BASE, bmn_nup))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<BmnUsageStats>, crate::api::AppError> {
+    auth_get_json(&format!("{}/bmn/{}/history", PEMAKAIAN_BMN_BASE, bmn_nup)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_bmn_usage_history(_bmn_nup: &str) -> Result<ApiResponse<BmnUsageStats>, String> {
-    Err("Server-side stub".to_string())
+pub async fn fetch_bmn_usage_history(_bmn_nup: &str) -> Result<ApiResponse<BmnUsageStats>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Pegawai Usage History ---
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_pegawai_usage_history(
     pegawai_nip: &str,
-) -> Result<ApiResponse<PegawaiUsageStats>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!(
-        "{}/pegawai/{}/history",
-        PEMAKAIAN_BMN_BASE, pegawai_nip
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PegawaiUsageStats>, crate::api::AppError> {
+    auth_get_json(&format!("{}/pegawai/{}/history", PEMAKAIAN_BMN_BASE, pegawai_nip)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_pegawai_usage_history(
     _pegawai_nip: &str,
-) -> Result<ApiResponse<PegawaiUsageStats>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PegawaiUsageStats>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Get Expiring Permits ---
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_expiring_permits(
     days: i32,
-) -> Result<ApiResponse<Vec<IzinPemakaianBmn>>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!("{}/expiring?days={}", PEMAKAIAN_BMN_BASE, days))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<Vec<IzinPemakaianBmn>>, crate::api::AppError> {
+    auth_get_json(&format!("{}/expiring?days={}", PEMAKAIAN_BMN_BASE, days)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_expiring_permits(
     _days: i32,
-) -> Result<ApiResponse<Vec<IzinPemakaianBmn>>, String> {
+) -> Result<ApiResponse<Vec<IzinPemakaianBmn>>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: vec![],
@@ -672,41 +456,20 @@ pub async fn fetch_expiring_permits(
 pub async fn generate_pemakaian_konsep_surat(
     id: &str,
     request: GenerateKonsepSuratRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!(
-        "{}/{}/generate-konsep-surat",
-        PEMAKAIAN_BMN_BASE, id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/generate-konsep-surat", PEMAKAIAN_BMN_BASE, id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn generate_pemakaian_konsep_surat(
     _id: &str,
     _request: GenerateKonsepSuratRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Pemakaian BMN: Upload Signed PDF ---
@@ -714,36 +477,18 @@ pub async fn generate_pemakaian_konsep_surat(
 pub async fn upload_pemakaian_signed_pdf(
     id: &str,
     request: UploadSignedPdfRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!("{}/{}/upload-signed-pdf", PEMAKAIAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/upload-signed-pdf", PEMAKAIAN_BMN_BASE, id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn upload_pemakaian_signed_pdf(
     _id: &str,
     _request: UploadSignedPdfRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }

@@ -69,27 +69,6 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: layanan-portal
-spec:
-  template:
-    spec:
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: portal-backend
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: layanan-perlengkapan
 spec:
   template:

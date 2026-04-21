@@ -4,15 +4,15 @@
 //! REQ-PORTAL-013
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel};
+use crate::utils::async_load::load_vec_once;
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::RoleInfo;
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 
 /// Roles management page
 #[component]
 pub fn RolesManagementPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (roles, set_roles) = signal(Vec::<RoleInfo>::new());
@@ -23,24 +23,20 @@ pub fn RolesManagementPage() -> impl IntoView {
         let api = api.clone();
         Effect::new(move || {
             let api = api.clone();
-            spawn_local(async move {
-                match api.iam_list_roles().await {
-                    Ok(list) => set_roles.set(list),
-                    Err(e) => set_error.set(Some(format!("Gagal memuat peran: {}", e))),
-                }
-                set_loading.set(false);
-            });
+            load_vec_once(
+                move || {
+                    let api = api.clone();
+                    async move { api.iam_list_roles().await }
+                },
+                set_roles,
+                set_error,
+                set_loading,
+                "Gagal memuat peran",
+            );
         });
     }
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -54,16 +50,13 @@ pub fn RolesManagementPage() -> impl IntoView {
                 </div>
 
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">"❌ " {msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 <Show
                     when=move || !loading.get()
                     fallback=|| view! {
-                        <div class="p-8 text-center text-gray-500">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-3"></div>
-                            "Memuat..."
-                        </div>
+                        <LoadingPanel message="Memuat data peran..." />
                     }
                 >
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -90,10 +83,10 @@ pub fn RolesManagementPage() -> impl IntoView {
                     </div>
 
                     <Show when=move || roles.get().is_empty()>
-                        <div class="text-center py-12 bg-white rounded-xl border">
-                            <p class="text-4xl mb-3">"🛡️"</p>
-                            <p class="text-gray-500">"Belum ada peran."</p>
-                        </div>
+                        <EmptyPanel
+                            title="Belum ada peran"
+                            message="Data peran belum tersedia pada realm aktif."
+                        />
                     </Show>
                 </Show>
             </div>

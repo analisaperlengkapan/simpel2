@@ -21,35 +21,14 @@ export async function setupAuthenticatedSession(page: Page, options: AuthSetupOp
   } = options;
 
   const mockSession = JSON.stringify({
-    id: '20000000-0000-0000-0000-000000000001',
     username: nip,
-    name,
-    email: `${nip}@kejaksaan.go.id`,
-    role: { Custom: role },
-    avatar: null,
-    division: 'Biro Perlengkapan',
-    captcha_validated: true,
-    mfa_enabled: false,
-    mfa_setup_required: false,
-    created_at: new Date().toISOString(),
-    access_token: 'mock-jwt-token',
-    refresh_token: 'mock-refresh',
-    expires_at: Math.floor(Date.now() / 1000) + 86400,
-    permissions: role === 'admin' ? ['*'] : [],
+    role,
+    access_token: 'mock-jwt-token-for-e2e',
   });
   await page.addInitScript(({ session, role }) => {
-    localStorage.setItem('user_session', session);
+    localStorage.setItem('perlengkapan_user_session', session);
     localStorage.setItem('auth_token', 'mock-jwt-token-for-e2e');
     localStorage.setItem('active_role', role);
-    localStorage.setItem(
-      'available_roles',
-      JSON.stringify([
-        'operator_satker',
-        'validator_wilayah',
-        'validator_pusat',
-        'admin',
-      ]),
-    );
   }, { session: mockSession, role });
 }
 
@@ -69,35 +48,42 @@ test.describe('Dashboard & Navigation', () => {
 
   test('should display dashboard with welcome banner', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Dashboard Perlengkapan')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Sistem Informasi Manajemen Perlengkapan')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('Portal Perlengkapan Kejaksaan')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByRole('heading', { name: 'Ringkasan Sistem Manajemen' })).toBeVisible({ timeout: 30000 });
   });
 
   test('should display quick navigation menu items', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    // Check main menu items
-    await expect(page.getByText('Bank Aset')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Kebutuhan BMN')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Pemakaian BMN')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Pakaian Dinas')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Penghapusan BMN')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Mutasi BMN')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByRole('heading', { name: 'Pemeliharaan' })).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Hibah BMN')).toBeVisible({ timeout: 30000 });
+    // Check current module cards in dashboard main area.
+    await expect(
+      page.locator('main').getByRole('link', { name: /Bank Aset Katalog dan registrasi BMN/i }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(
+      page.locator('main').getByRole('link', { name: /Kebutuhan BMN Analisis kebutuhan dan perencanaan/i }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(
+      page.locator('main').getByRole('link', { name: /Pakaian Dinas Pengajuan dan distribusi atribut/i }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(
+      page.locator('main').getByRole('link', { name: /Pemakaian BMN Izin pemakaian dan monitoring/i }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(
+      page.locator('main').getByRole('link', { name: /Penghapusan BMN Disposal dan penghapusan BMN/i }),
+    ).toBeVisible({ timeout: 30000 });
   });
 
   test('should show admin panel for admin role', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Panel Admin')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Manajemen User')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Manajemen Role')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('Panel Administrator')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('Manajemen Pengguna')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('Otorisasi (RBAC)')).toBeVisible({ timeout: 30000 });
   });
 
   test('should hide admin panel for non-admin roles', async ({ page }) => {
     await setupAuthenticatedSession(page, { role: 'operator_satker' });
     await page.goto('/perlengkapan/dashboard');
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Panel Admin')).not.toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('Panel Administrator')).not.toBeVisible({ timeout: 30000 });
   });
 
   test('should navigate to bank aset', async ({ page }) => {
@@ -111,8 +97,12 @@ test.describe('Dashboard & Navigation', () => {
   });
 
   test('should navigate to pemakaian BMN', async ({ page }) => {
-    await page.getByRole('link', { name: /Pemakaian BMN/i }).first().click();
-    await expect(page).toHaveURL(/\/dashboard\/pemakaian-bmn/);
+    const pemakaianCard = page
+      .locator('main')
+      .getByRole('link', { name: /Pemakaian BMN Izin pemakaian dan monitoring/i });
+    await pemakaianCard.scrollIntoViewIfNeeded();
+    await pemakaianCard.click();
+    await expect(page).toHaveURL(/\/dashboard\/pengelolaan\/pemakaian/);
   });
 
   test('should navigate to pakaian dinas', async ({ page }) => {
@@ -122,12 +112,12 @@ test.describe('Dashboard & Navigation', () => {
 
   test('should show header with app branding', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('SIMPEL')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('header').getByText('SIMPEL')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('header')).toBeVisible({ timeout: 30000 });
   });
 
   test('should show footer with copyright', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Kejaksaan Republik Indonesia')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/SIMPEL v0\.1\.0 · Kejaksaan Agung RI/)).toBeVisible({ timeout: 30000 });
   });
 });

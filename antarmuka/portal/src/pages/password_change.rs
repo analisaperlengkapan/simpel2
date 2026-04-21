@@ -217,7 +217,13 @@ pub fn PasswordChangePage() -> impl IntoView {
                     // timer (e.g. user navigated away), skip the navigation.
                     gloo_timers::future::TimeoutFuture::new(1_500).await;
                     if is_mounted.load(Ordering::SeqCst) {
-                        nav("/dashboard", Default::default());
+                        if let Some(target) = crate::features::auth::AuthService::take_post_login_redirect() {
+                            if let Some(window) = web_sys::window() {
+                                let _ = window.location().set_href(&target);
+                            }
+                        } else {
+                            nav("/dashboard", Default::default());
+                        }
                     }
                 }
                 Err(e) => set_error.set(Some(format!("Gagal mengubah kata sandi: {}", e))),

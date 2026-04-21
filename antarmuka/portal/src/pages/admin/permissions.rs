@@ -5,7 +5,8 @@
 //! REQ-PORTAL-018
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_app_state};
+use crate::components::feedback::EmptyPanel;
+use crate::utils::app_state::use_main_layout_session_and_logout;
 use leptos::prelude::*;
 
 /// Active sub-section
@@ -21,8 +22,8 @@ enum PermTab {
 impl PermTab {
     fn label(&self) -> &'static str {
         match self {
-            Self::Resources => "Resource",
-            Self::Scopes => "Scope",
+            Self::Resources => "Sumber Daya",
+            Self::Scopes => "Cakupan",
             Self::Policies => "Kebijakan",
             Self::Permissions => "Izin",
             Self::Evaluate => "Evaluasi",
@@ -53,32 +54,22 @@ impl PermTab {
 /// Permissions & Scopes management page
 #[component]
 pub fn PermissionsManagementPage() -> impl IntoView {
-    let state = use_app_state();
-
     let (active_tab, set_active_tab) = signal(PermTab::Resources);
     let (search, set_search) = signal(String::new());
-
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <nav class="text-sm text-gray-500 mb-1">
                     <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
-                    " / Izin & Scope"
+                    " / Izin & Cakupan"
                 </nav>
 
                 <div class="flex items-center justify-between mb-6">
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-900">"Izin & Scope"</h1>
-                        <p class="text-sm text-gray-500 mt-1">"Kelola resource, scope, kebijakan, dan izin otorisasi"</p>
+                        <h1 class="text-2xl font-bold text-gray-900">"Izin & Cakupan"</h1>
+                        <p class="text-sm text-gray-500 mt-1">"Kelola sumber daya, cakupan, kebijakan, dan izin otorisasi"</p>
                     </div>
                 </div>
 
@@ -114,7 +105,7 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                                 type="text"
                                 prop:value=search
                                 on:input=move |ev| set_search.set(event_target_value(&ev))
-                                placeholder="Cari..."
+                                placeholder="Cari konfigurasi otorisasi..."
                                 class="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
                             />
                         </div>
@@ -123,8 +114,8 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                         <Show when=move || active_tab.get() == PermTab::Resources>
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="font-medium text-gray-900">"Authorization Resources"</h3>
-                                    <button class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">"＋ Tambah Resource"</button>
+                                    <h3 class="font-medium text-gray-900">"Sumber Daya Otorisasi"</h3>
+                                    <button class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">"＋ Tambah Sumber Daya"</button>
                                 </div>
                                 <div class="bg-gray-50 rounded-lg border">
                                     <table class="w-full">
@@ -133,11 +124,11 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                                                 <th class="px-4 py-3 text-left">"Nama"</th>
                                                 <th class="px-4 py-3 text-left">"Tipe"</th>
                                                 <th class="px-4 py-3 text-left">"URI"</th>
-                                                <th class="px-4 py-3 text-left">"Scope"</th>
+                                                <th class="px-4 py-3 text-left">"Cakupan"</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400 text-sm">"Belum ada resource yang dikonfigurasi."</td></tr>
+                                            <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400 text-sm">"Belum ada sumber daya yang dikonfigurasi."</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -148,8 +139,8 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                         <Show when=move || active_tab.get() == PermTab::Scopes>
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="font-medium text-gray-900">"Authorization Scopes"</h3>
-                                    <button class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">"＋ Tambah Scope"</button>
+                                    <h3 class="font-medium text-gray-900">"Cakupan Otorisasi"</h3>
+                                    <button class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">"＋ Tambah Cakupan"</button>
                                 </div>
                                 <div class="bg-gray-50 rounded-lg border">
                                     <table class="w-full">
@@ -161,7 +152,7 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr><td colspan="3" class="px-4 py-8 text-center text-gray-400 text-sm">"Belum ada scope yang dikonfigurasi."</td></tr>
+                                            <tr><td colspan="3" class="px-4 py-8 text-center text-gray-400 text-sm">"Belum ada cakupan yang dikonfigurasi."</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -172,24 +163,27 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                         <Show when=move || active_tab.get() == PermTab::Policies>
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="font-medium text-gray-900">"Authorization Policies"</h3>
+                                    <h3 class="font-medium text-gray-900">"Kebijakan Otorisasi"</h3>
                                     <button class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">"＋ Buat Kebijakan"</button>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                                     <div class="border rounded-lg p-3 text-center hover:bg-gray-50 cursor-pointer">
                                         <p class="text-lg mb-1">"👤"</p>
-                                        <p class="text-xs font-medium text-gray-700">"Role Policy"</p>
+                                        <p class="text-xs font-medium text-gray-700">"Kebijakan Peran"</p>
                                     </div>
                                     <div class="border rounded-lg p-3 text-center hover:bg-gray-50 cursor-pointer">
                                         <p class="text-lg mb-1">"👥"</p>
-                                        <p class="text-xs font-medium text-gray-700">"Group Policy"</p>
+                                        <p class="text-xs font-medium text-gray-700">"Kebijakan Grup"</p>
                                     </div>
                                     <div class="border rounded-lg p-3 text-center hover:bg-gray-50 cursor-pointer">
                                         <p class="text-lg mb-1">"⏰"</p>
-                                        <p class="text-xs font-medium text-gray-700">"Time Policy"</p>
+                                        <p class="text-xs font-medium text-gray-700">"Kebijakan Waktu"</p>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-400 text-center">"Belum ada kebijakan yang dikonfigurasi."</p>
+                                <EmptyPanel
+                                    title="Belum ada kebijakan"
+                                    message="Tambahkan kebijakan untuk mendefinisikan aturan otorisasi."
+                                />
                             </div>
                         </Show>
 
@@ -197,20 +191,23 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                         <Show when=move || active_tab.get() == PermTab::Permissions>
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="font-medium text-gray-900">"Permissions"</h3>
+                                    <h3 class="font-medium text-gray-900">"Izin Otorisasi"</h3>
                                     <button class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">"＋ Buat Izin"</button>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                                     <div class="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                                        <p class="text-sm font-medium text-gray-700">"📦 Resource-based Permission"</p>
-                                        <p class="text-xs text-gray-500 mt-1">"Izin berbasis resource."</p>
+                                        <p class="text-sm font-medium text-gray-700">"📦 Izin Berbasis Sumber Daya"</p>
+                                        <p class="text-xs text-gray-500 mt-1">"Izin berdasarkan sumber daya."</p>
                                     </div>
                                     <div class="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                                        <p class="text-sm font-medium text-gray-700">"🔍 Scope-based Permission"</p>
-                                        <p class="text-xs text-gray-500 mt-1">"Izin berbasis scope."</p>
+                                        <p class="text-sm font-medium text-gray-700">"🔍 Izin Berbasis Cakupan"</p>
+                                        <p class="text-xs text-gray-500 mt-1">"Izin berdasarkan cakupan."</p>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-400 text-center">"Belum ada izin yang dikonfigurasi."</p>
+                                <EmptyPanel
+                                    title="Belum ada izin"
+                                    message="Buat izin untuk menghubungkan resource, scope, dan kebijakan."
+                                />
                             </div>
                         </Show>
 
@@ -229,9 +226,9 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Resource"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Sumber Daya"</label>
                                         <select class="w-full px-3 py-2 border rounded-lg text-sm">
-                                            <option>"Pilih resource..."</option>
+                                            <option>"Pilih sumber daya..."</option>
                                         </select>
                                     </div>
                                 </div>

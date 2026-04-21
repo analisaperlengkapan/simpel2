@@ -660,6 +660,10 @@ pub struct ValidatorPusatKeputusanRequest {
     /// true = approve, false = reject
     pub is_approved: bool,
     pub alasan: Option<String>,
+    #[serde(default)]
+    pub override_darurat: Option<bool>,
+    #[serde(default)]
+    pub override_reason: Option<String>,
 }
 
 /// Response with analysis data for validator pusat
@@ -732,7 +736,24 @@ pub struct AnalisisKelayakanResponse {
     pub satker: PengajuanKebutuhanBmnSatker,
     pub barang_list: Vec<BarangWithExistingInventory>,
     pub data_pegawai: Option<DataPegawaiRekap>,
+    pub integrasi_sync: Option<IntegrasiSyncMetadata>,
     pub summary: AnalisisSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrasiSyncMetadata {
+    pub mysimkari: IntegrasiSyncStatus,
+    pub siman: IntegrasiSyncStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrasiSyncStatus {
+    pub source: String,
+    pub state: String,
+    pub last_sync_at: Option<String>,
+    pub next_sync_at: Option<String>,
+    pub records_synced: i64,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

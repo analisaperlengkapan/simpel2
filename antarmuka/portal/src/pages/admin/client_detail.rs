@@ -5,7 +5,9 @@
 //! REQ-PORTAL-017
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
+use crate::utils::async_load::load_value_once;
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::ClientInfo;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -29,8 +31,8 @@ impl ClientTab {
             Self::Credentials => "Kredensial",
             Self::Roles => "Peran",
             Self::ClientScopes => "Cakupan Klien",
-            Self::Mappers => "Mapper",
-            Self::Scope => "Scope",
+            Self::Mappers => "Pemeta",
+            Self::Scope => "Cakupan",
             Self::Sessions => "Sesi",
         }
     }
@@ -63,7 +65,6 @@ impl ClientTab {
 /// Client detail page — takes client ID from path
 #[component]
 pub fn ClientDetailPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let params = leptos_router::hooks::use_params_map();
@@ -81,14 +82,16 @@ pub fn ClientDetailPage() -> impl IntoView {
         Effect::new(move || {
             let api = api.clone();
             let cid = client_id();
-            set_loading.set(true);
-            spawn_local(async move {
-                match api.iam_get_client(&cid).await {
-                    Ok(c) => set_client.set(Some(c)),
-                    Err(e) => set_error.set(Some(format!("Gagal memuat klien: {}", e))),
-                }
-                set_loading.set(false);
-            });
+            load_value_once(
+                move || {
+                    let api = api.clone();
+                    async move { api.iam_get_client(&cid).await.map(Some) }
+                },
+                set_client,
+                set_error,
+                set_loading,
+                "Gagal memuat detail klien",
+            );
         });
     }
 
@@ -106,9 +109,9 @@ pub fn ClientDetailPage() -> impl IntoView {
             spawn_local(async move {
                 match api.iam_regenerate_client_secret(&cid).await {
                     Ok(_) => {
-                        set_success.set(Some("Client secret berhasil di-regenerasi".to_string()))
+                        set_success.set(Some("Rahasia klien berhasil diperbarui".to_string()))
                     }
-                    Err(e) => set_error.set(Some(format!("Gagal regenerasi secret: {}", e))),
+                    Err(e) => set_error.set(Some(format!("Gagal memperbarui rahasia klien: {}", e))),
                 }
             });
         });
@@ -119,7 +122,7 @@ pub fn ClientDetailPage() -> impl IntoView {
         client
             .get()
             .and_then(|c| c.name.clone())
-            .unwrap_or_else(|| "Unnamed Client".to_string())
+            .unwrap_or_else(|| "Klien Tanpa Nama".to_string())
     };
     let client_client_id = move || {
         client
@@ -154,14 +157,7 @@ pub fn ClientDetailPage() -> impl IntoView {
     };
     let client_id_display = move || client.get().map(|c| c.id.clone()).unwrap_or_default();
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -174,19 +170,16 @@ pub fn ClientDetailPage() -> impl IntoView {
                 </nav>
 
                 {move || success.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">"✅ " {msg}</div>
+                    <SuccessBanner message=msg />
                 })}
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">"❌ " {msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 <Show
                     when=move || !loading.get()
                     fallback=|| view! {
-                        <div class="bg-white rounded-xl border p-12 text-center">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                            "Memuat detail klien..."
-                        </div>
+                        <LoadingPanel message="Memuat detail klien..." />
                     }
                 >
                     <Show when=move || client.get().is_some()>
@@ -214,7 +207,7 @@ pub fn ClientDetailPage() -> impl IntoView {
 
                             <div class="grid grid-cols-3 divide-x border-t">
                                 <div class="px-4 py-3 text-center">
-                                    <p class="text-xs text-gray-500">"ID"</p>
+                                    <p class="text-xs text-gray-500">"ID Klien"</p>
                                     <p class="text-xs font-mono text-gray-700 truncate">{client_id_display}</p>
                                 </div>
                                 <div class="px-4 py-3 text-center">
@@ -222,7 +215,7 @@ pub fn ClientDetailPage() -> impl IntoView {
                                     <p class="text-sm text-gray-700">{client_created}</p>
                                 </div>
                                 <div class="px-4 py-3 text-center">
-                                    <p class="text-xs text-gray-500">"Redirect URIs"</p>
+                                    <p class="text-xs text-gray-500">"URI Pengalihan"</p>
                                     <p class="text-sm text-gray-700">{move || client_uris().len()}</p>
                                 </div>
                             </div>
@@ -260,7 +253,7 @@ pub fn ClientDetailPage() -> impl IntoView {
                                         <dl class="space-y-4">
                                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div class="border rounded-lg p-4">
-                                                    <dt class="text-xs text-gray-500 mb-1">"Client ID"</dt>
+                                                    <dt class="text-xs text-gray-500 mb-1">"ID Klien"</dt>
                                                     <dd class="text-sm font-mono font-semibold text-gray-900">{client_client_id}</dd>
                                                 </div>
                                                 <div class="border rounded-lg p-4">

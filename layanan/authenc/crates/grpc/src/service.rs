@@ -322,12 +322,44 @@ impl AuthencService for AuthencGrpcService {
                     .map(|s| s.split_whitespace().map(String::from).collect())
                     .unwrap_or_else(Vec::new);
 
+                // Pull first-class identity claims out of the flattened
+                // `custom` map so callers no longer have to parse prefixed
+                // scope entries (`username:...`, `satker:...`, etc.).
+                let pick = |key: &str| -> Option<String> {
+                    claims
+                        .custom
+                        .get(key)
+                        .and_then(|v| v.as_str().map(|s| s.to_string()))
+                };
+                let username = pick("username");
+                let name = pick("name").or_else(|| pick("nama"));
+                let nip = pick("nip");
+                let jabatan = pick("jabatan");
+                let satker_code = pick("satker_code").or_else(|| pick("satker"));
+                let realm_roles = claims
+                    .custom
+                    .get("realm_access")
+                    .and_then(|v| v.get("roles"))
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|r| r.as_str().map(|s| s.to_string()))
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+
                 Ok(Response::new(ValidateTokenResponse {
                     valid: true,
                     user_id: Some(claims.sub),
                     scopes,
                     expires_at: Some(claims.exp),
                     error: None,
+                    username,
+                    name,
+                    nip,
+                    jabatan,
+                    satker_code,
+                    realm_roles,
                 }))
             }
             Err(e) => {
@@ -338,6 +370,12 @@ impl AuthencService for AuthencGrpcService {
                     scopes: vec![],
                     expires_at: None,
                     error: Some(e.to_string()),
+                    username: None,
+                    name: None,
+                    nip: None,
+                    jabatan: None,
+                    satker_code: None,
+                    realm_roles: vec![],
                 }))
             }
         }

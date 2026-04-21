@@ -3,6 +3,7 @@
 //! Top navigation with navy/gold government branding, user menu, search, and theme switcher.
 //! Follows Kejaksaan RI design system.
 
+use crate::components::navigation::menu::{PortalMenuItem, resolve_menu_sections, topbar_items};
 use crate::features::auth::{AuthService, UserSession};
 use leptos::prelude::*;
 use lib_ui::components::{BrandedLogo, BrandedLogoSize, GlobalSearchBar, NotificationBell};
@@ -21,6 +22,8 @@ pub fn Navbar(
     use std::rc::Rc;
     let on_logout_rc = Rc::new(on_logout);
     let (mobile_open, set_mobile_open) = signal(false);
+    let quick_links = topbar_items(user_session.as_ref());
+    let menu_sections = resolve_menu_sections(user_session.as_ref());
 
     let handle_logout_click = {
         let on_logout = Rc::clone(&on_logout_rc);
@@ -80,24 +83,14 @@ pub fn Navbar(
                     <div class="hidden lg:flex items-center flex-1 justify-center space-x-1 mx-8">
                         {user_session.as_ref().map(|_| view! {
                             <>
-                                <a
-                                    href="/portal/dashboard"
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium text-sm"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                                    </svg>
-                                    "Dashboard"
-                                </a>
-                                <a
-                                    href="/portal/apps"
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium text-sm"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                                    </svg>
-                                    "Aplikasi"
-                                </a>
+                                {quick_links.clone().into_iter().take(4).map(|item| {
+                                    let class = topbar_link_class(item.href);
+                                    view! {
+                                        <a href=item.href class=class>
+                                            {item.label}
+                                        </a>
+                                    }
+                                }).collect_view()}
                                 // Global Search
                                 <div class="flex-1 max-w-md ml-2">
                                     <GlobalSearchBar />
@@ -215,62 +208,20 @@ pub fn Navbar(
                             </div>
 
                             // Navigation links
-                            <a href="/portal/dashboard" class="flex items-center gap-3 px-4 py-3 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                                </svg>
-                                "Dashboard"
-                            </a>
-                            <a href="/portal/apps" class="flex items-center gap-3 px-4 py-3 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                                </svg>
-                                "Aplikasi"
-                            </a>
-                            <a href="/portal/notifications" class="flex items-center gap-3 px-4 py-3 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                                </svg>
-                                "Notifikasi"
-                            </a>
-                            <a href="/portal/settings" class="flex items-center gap-3 px-4 py-3 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                </svg>
-                                "Pengaturan"
-                            </a>
-
-                            // Account management links
-                            <div class="border-t border-white/10 my-2"></div>
-                            <p class="px-4 py-1 text-xs text-gold-400/70 uppercase font-semibold tracking-wider">"Akun"</p>
-                            <a href="/portal/profile" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                "👤 Profil"
-                            </a>
-                            <a href="/portal/passkeys" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                "🔐 Passkey"
-                            </a>
-                            <a href="/portal/password" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                "🔒 Ubah Kata Sandi"
-                            </a>
-                            <a href="/portal/sessions" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                "📱 Sesi Aktif"
-                            </a>
-
-                            // Admin link
-                            <div class="border-t border-white/10 my-2"></div>
-                            <a href="/portal/admin" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200"
-                                on:click=move |_| set_mobile_open.set(false)>
-                                "🛡️ Admin Panel"
-                            </a>
+                            {menu_sections.clone().into_iter().map(|section| {
+                                let section_items = section.items.clone();
+                                let mobile_signal = set_mobile_open;
+                                view! {
+                                    <div class="space-y-1">
+                                        <p class="px-4 pt-2 text-xs text-gold-300/80 uppercase tracking-wider font-semibold">
+                                            {section.title}
+                                        </p>
+                                        {section_items.into_iter().map(|item| {
+                                            view! { <MobileMenuItem item=item set_mobile_open=mobile_signal /> }
+                                        }).collect_view()}
+                                    </div>
+                                }
+                            }).collect_view()}
 
                             <div class="border-t border-white/10 my-2"></div>
 
@@ -289,5 +240,69 @@ pub fn Navbar(
                 </div>
             </div>
         </nav>
+    }
+}
+
+#[component]
+fn MobileMenuItem(item: PortalMenuItem, set_mobile_open: WriteSignal<bool>) -> impl IntoView {
+    let has_children = !item.children.is_empty();
+    let children = item.children.clone();
+    let class = if current_path().starts_with(item.href) {
+        "flex items-center gap-3 px-4 py-2.5 rounded-xl text-white bg-white/10 transition-all duration-200 font-medium".to_string()
+    } else {
+        "flex items-center gap-3 px-4 py-2.5 rounded-xl text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200".to_string()
+    };
+
+    view! {
+        <div class="space-y-1">
+            <a href=item.href class=class on:click=move |_| set_mobile_open.set(false)>
+                {item.label}
+            </a>
+
+            {if has_children {
+                view! {
+                    <ul class="pl-3 space-y-1">
+                        {children.into_iter().map(|child| {
+                            view! {
+                                <li>
+                                    <a
+                                        href=child.href
+                                        class="block px-4 py-2 rounded-lg text-sm text-navy-200 hover:text-white hover:bg-white/10 transition-colors"
+                                        on:click=move |_| set_mobile_open.set(false)
+                                    >
+                                        {child.label}
+                                    </a>
+                                </li>
+                            }
+                        }).collect_view()}
+                    </ul>
+                }.into_any()
+            } else {
+                view! { <></> }.into_any()
+            }}
+        </div>
+    }
+}
+
+fn topbar_link_class(href: &'static str) -> String {
+    if current_path().starts_with(href) {
+        "px-4 py-2 rounded-lg text-white bg-white/15 transition-all duration-200 font-medium text-sm"
+            .to_string()
+    } else {
+        "px-4 py-2 rounded-lg text-navy-100 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium text-sm"
+            .to_string()
+    }
+}
+
+fn current_path() -> String {
+    #[cfg(target_arch = "wasm32")]
+    {
+        web_sys::window()
+            .and_then(|w| w.location().pathname().ok())
+            .unwrap_or_default()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        String::new()
     }
 }

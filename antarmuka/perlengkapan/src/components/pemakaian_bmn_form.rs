@@ -14,6 +14,7 @@ use crate::api::{
     BmnAvailabilityResponse, CreateBmnItemRequest, CreateIzinPemakaianRequest,
     check_bmn_availability, create_pemakaian_bmn,
 };
+use crate::routes;
 use leptos::prelude::*;
 
 #[component]
@@ -207,7 +208,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     // Redirect after success
                     gloo_timers::future::TimeoutFuture::new(1500).await;
                     leptos_router::hooks::use_navigate()(
-                        "/dashboard/pemakaian-bmn",
+                        "/perlengkapan/pemakaian-bmn",
                         Default::default(),
                     );
                 }
@@ -663,7 +664,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 // Submit buttons
                 <div class="pt-6 flex justify-end gap-3 border-t">
                     <a
-                        href="/perlengkapan/dashboard/pemakaian-bmn"
+                        href=routes::path::PEMAKAIAN_DAFTAR_LEGACY
                         class="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

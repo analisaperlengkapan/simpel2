@@ -1,7 +1,10 @@
 //! Profile Menu — avatar dropdown with role switcher + logout.
 
+use crate::features::auth::AuthService;
+use crate::routes;
 use super::role_switcher::{RoleSwitcher, get_active_role};
 use leptos::prelude::*;
+use leptos_router::components::A;
 
 /// Profile avatar button + dropdown with role switcher and logout.
 #[component]
@@ -46,20 +49,22 @@ pub fn ProfileMenu() -> impl IntoView {
 
                 // ── Actions ──────────────────────────────────────
                 <div style="padding: 8px;">
-                    <a href="/perlengkapan/dashboard/admin/config" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: #94a3b8; font-size: 0.82rem; transition: all 0.15s;" class="hover:bg-white/[0.04] hover:text-white">
+                    <A href=routes::path::ADMIN_MASTER attr:style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: #94a3b8; font-size: 0.82rem; transition: all 0.15s;" attr:class="hover:bg-white/[0.04] hover:text-white">
                         <i class="fas fa-cog" style="width: 18px; text-align: center; font-size: 0.8rem;"></i>
                         <span>"Pengaturan"</span>
-                    </a>
+                    </A>
                     <button
                         style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: none; background: none; color: #f87171; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; text-align: left;"
                         class="hover:bg-red-500/[0.1]"
                         on:click=move |_| {
-                            // Clear auth and redirect to login
-                            if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
-                                let _ = storage.remove_item("auth_token");
-                            }
+                            #[cfg(target_arch = "wasm32")]
+                            AuthService::logout();
+
+                            #[cfg(not(target_arch = "wasm32"))]
+                            AuthService::clear_session();
+
                             if let Some(window) = web_sys::window() {
-                                let _ = window.location().set_href("/perlengkapan/");
+                                let _ = window.location().set_href(routes::path::LOGIN);
                             }
                         }
                     >

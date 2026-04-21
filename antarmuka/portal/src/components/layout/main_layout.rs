@@ -4,6 +4,7 @@
 //! Uses navy/gold government branding consistent with Kejaksaan RI design system.
 
 use crate::components::navigation::Navbar;
+use crate::components::navigation::SidebarNavigation;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
 
@@ -23,11 +24,15 @@ pub fn MainLayout(
 ) -> impl IntoView {
     view! {
         <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-            <Navbar user_session=user_session on_logout=on_logout />
+            <Navbar user_session=user_session.clone() on_logout=on_logout />
 
-            <main id="main-content" class="flex-1" role="main">
-                {children()}
-            </main>
+            <div class="flex flex-1 min-h-0">
+                <SidebarNavigation user_session=user_session.clone() />
+
+                <main id="main-content" class="flex-1 min-w-0" role="main">
+                    {children()}
+                </main>
+            </div>
 
             <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto" role="contentinfo">
                 <div class="container mx-auto px-4 py-6">

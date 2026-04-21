@@ -16,8 +16,13 @@
     <link data-trunk rel="tailwind-css" href="styles/tailwind.css" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link data-trunk rel="copy-dir" href="assets/" />
-    <link data-trunk rel="rust" data-bin="perlengkapan-microfrontend" data-wasm-opt="1"
-        data-wasm-opt-params="--enable-bulk-memory" />
+    <link
+        data-trunk
+        rel="rust"
+        data-bin="perlengkapan-microfrontend"
+        data-wasm-opt="1"
+        data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext"
+    />
 
     <meta name="description" content="Sistem Informasi Manajemen Perlengkapan — Kejaksaan Republik Indonesia">
     <meta name="robots" content="noindex, nofollow">

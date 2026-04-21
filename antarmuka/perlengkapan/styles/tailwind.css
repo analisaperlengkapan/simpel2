@@ -1,3 +1,58 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ===== Kejaksaan design tokens =====================================
+ * CSS custom properties mirror the Tailwind theme so non-Tailwind
+ * surfaces (SVG fills, inline <style> whitelists in legacy screens
+ * during migration, generated PDF previews) can pick up the same
+ * palette without re-hardcoding hex codes. Contract tests enforce
+ * that component source files never ship raw hex values — they must
+ * reference either Tailwind classes or these variables.
+ */
+@layer base {
+  :root {
+    --surface-base:   #0f172a;
+    --surface-raised: #111c36;
+    --surface-sunken: #0a1020;
+    --surface-panel:  #0c1425;
+    --surface-border: rgba(148, 163, 184, 0.14);
+    --surface-muted:  rgba(148, 163, 184, 0.06);
+
+    --brand-gold: #d4a843;
+    --brand-gold-bright: #facc15;
+    --brand-navy: #1e3a5f;
+
+    --text-primary:   #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted:     #94a3b8;
+    --text-dim:       #64748b;
+
+    --state-success: #10b981;
+    --state-warning: #f59e0b;
+    --state-danger:  #ef4444;
+    --state-info:    #3b82f6;
+  }
+
+  html, body {
+    background: linear-gradient(180deg,
+      var(--surface-base)   0%,
+      var(--surface-raised) 50%,
+      var(--surface-sunken) 100%);
+    color: var(--text-primary);
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  /* Utility so pages can always wrap main content without re-declaring. */
+  .surface-panel {
+    background: var(--surface-panel);
+    border: 1px solid var(--surface-border);
+  }
+
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950;
+  }
+}

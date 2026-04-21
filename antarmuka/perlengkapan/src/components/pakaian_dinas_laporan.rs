@@ -4,11 +4,67 @@
 //! Format follows simpel_web-main: cetakRekapTemplateV & cetakDaftarTemplateV
 
 use crate::api::{
-    JenisPakaianDinas, LaporanDaftarPegawai, LaporanQuery, LaporanRekapUkuran,
+    AppError, JenisPakaianDinas, LaporanDaftarPegawai, LaporanQuery, LaporanRekapUkuran,
     PengajuanPakaianDinas, fetch_jenis_pakaian_dinas, fetch_laporan_daftar_pegawai,
     fetch_laporan_rekap_ukuran, fetch_pengajuan_pakaian_dinas,
 };
+use crate::components::layout::{
+    EmptyState, ErrorState, LoadingState, PageLayout, SectionCard,
+};
 use leptos::prelude::*;
+
+// ── Helper: build export URL from current filter state ────────────────────
+fn build_export_url(
+    jenis_laporan: &str,
+    jenis_file: &str,
+    pengajuan: &Option<String>,
+    satker: &Option<String>,
+    jenis_kelamin: &Option<String>,
+    eselon: &Option<String>,
+    jenis_pegawai: &Option<String>,
+) -> String {
+    let mut url = format!(
+        "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file={}",
+        jenis_laporan, jenis_file
+    );
+    if let Some(v) = pengajuan { url.push_str(&format!("&pengajuan_id={}", v)); }
+    if let Some(v) = satker { url.push_str(&format!("&satker_id={}", v)); }
+    if let Some(v) = jenis_kelamin { url.push_str(&format!("&jenis_kelamin={}", v)); }
+    if let Some(v) = eselon { url.push_str(&format!("&eselon={}", v)); }
+    if let Some(v) = jenis_pegawai { url.push_str(&format!("&jenis={}", v)); }
+    url
+}
+
+fn open_url(url: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            let _ = window.open_with_url_and_target(url, "_blank");
+        }
+    }
+}
+
+/// Helper to render a filter select with dark-theme styling.
+fn filter_select(
+    label: &'static str,
+    on_change: impl Fn(Option<String>) + 'static,
+    children: impl IntoView,
+) -> impl IntoView {
+    view! {
+        <div>
+            <label class="mb-1.5 block text-xs font-medium text-slate-400">{label}</label>
+            <select
+                class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
+                on:change=move |ev| {
+                    let val = event_target_value(&ev);
+                    on_change(if val.is_empty() { None } else { Some(val) });
+                }
+            >
+                {children}
+            </select>
+        </div>
+    }
+}
 
 #[component]
 pub fn PakaianDinasLaporan() -> impl IntoView {
@@ -22,150 +78,114 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
 
     // Fetch filter options
     let pengajuan_options = LocalResource::new(|| async move {
-        match fetch_pengajuan_pakaian_dinas(1, 100, None).await {
-            Ok(r) => r.data,
-            Err(_) => vec![],
-        }
+        fetch_pengajuan_pakaian_dinas(1, 100, None).await.map(|r| r.data)
     });
 
     let jenis_options = LocalResource::new(|| async move {
-        match fetch_jenis_pakaian_dinas(1, 100).await {
-            Ok(r) => r.data,
-            Err(_) => vec![],
-        }
+        fetch_jenis_pakaian_dinas(1, 100).await.map(|r| r.data)
     });
 
-    view! {
-        <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div class="mb-6">
-                <h2 class="text-xl font-bold text-gray-800">"Laporan Pakaian Dinas"</h2>
-                <p class="text-sm text-gray-500 mt-1">
-                    "Lihat rekap dan daftar pegawai berdasarkan ukuran pakaian dinas"
-                </p>
-            </div>
+    let tab_class = move |tab: &'static str| {
+        let active = active_tab.get() == tab;
+        if active {
+            "flex items-center gap-2 border-b-2 border-gold-400 px-4 py-2.5 text-sm font-semibold text-gold-400"
+        } else {
+            "flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-400 transition hover:text-slate-200"
+        }
+    };
 
+    view! {
+        <PageLayout
+            title="Laporan Pakaian Dinas"
+            icon="fas fa-chart-pie"
+            description="Rekap dan daftar pegawai berdasarkan ukuran pakaian dinas"
+        >
             // Tabs
-            <div class="flex border-b border-gray-200 mb-6">
-                <button
-                    class=move || {
-                        format!(
-                            "px-4 py-2 font-medium text-sm border-b-2 transition-colors {}",
-                            if active_tab.get() == "rekap" {
-                                "border-blue-600 text-blue-600"
-                            } else {
-                                "border-transparent text-gray-500 hover:text-gray-700"
-                            },
-                        )
-                    }
-                    on:click=move |_| set_active_tab.set("rekap")
-                >
-                    <i class="fas fa-chart-pie mr-2"></i>
+            <div class="mb-5 flex border-b border-white/[0.06]">
+                <button class=move || tab_class("rekap") on:click=move |_| set_active_tab.set("rekap")>
+                    <i class="fas fa-chart-pie text-xs"></i>
                     "Rekap Ukuran"
                 </button>
-                <button
-                    class=move || {
-                        format!(
-                            "px-4 py-2 font-medium text-sm border-b-2 transition-colors {}",
-                            if active_tab.get() == "pegawai" {
-                                "border-blue-600 text-blue-600"
-                            } else {
-                                "border-transparent text-gray-500 hover:text-gray-700"
-                            },
-                        )
-                    }
-                    on:click=move |_| set_active_tab.set("pegawai")
-                >
-                    <i class="fas fa-users mr-2"></i>
+                <button class=move || tab_class("pegawai") on:click=move |_| set_active_tab.set("pegawai")>
+                    <i class="fas fa-users text-xs"></i>
                     "Daftar Pegawai"
                 </button>
             </div>
 
-            // Filters — matching simpel_web-main laporanV.blade.php
-            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 class="text-sm font-semibold text-gray-700 mb-3">"Filter Laporan"</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            // Filters
+            <SectionCard title="Filter Laporan" dense=true>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     // Pengajuan filter
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">
-                            "Periode Pengajuan"
-                        </label>
-                        <Suspense fallback=move || {
-                            view! { <select class="w-full px-3 py-2 border rounded-lg"></select> }
+                        <label class="mb-1.5 block text-xs font-medium text-slate-400">"Periode Pengajuan"</label>
+                        <Suspense fallback=move || view! {
+                            <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                <option>"Memuat..."</option>
+                            </select>
                         }>
-                            {move || {
-                                pengajuan_options
-                                    .get()
-                                    .map(|options| {
-                                        view! {
-                                            <select
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                on:change=move |ev| {
-                                                    let val = event_target_value(&ev);
-                                                    set_selected_pengajuan
-                                                        .set(if val.is_empty() { None } else { Some(val) });
-                                                }
-                                            >
-                                                <option value="">"Semua Periode"</option>
-                                                <For
-                                                    each=move || options.clone()
-                                                    key=|p| p.id.clone()
-                                                    children=move |p: PengajuanPakaianDinas| {
-                                                        view! {
-                                                            <option value=p.id.clone()>
-                                                                {format!("{} ({})", p.nama, p.tahun)}
-                                                            </option>
-                                                        }
-                                                    }
-                                                />
-                                            </select>
+                            {move || match pengajuan_options.get() {
+                                Some(Ok(options)) => view! {
+                                    <select
+                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
+                                        on:change=move |ev| {
+                                            let val = event_target_value(&ev);
+                                            set_selected_pengajuan.set(if val.is_empty() { None } else { Some(val) });
                                         }
-                                    })
+                                    >
+                                        <option value="">"Semua Periode"</option>
+                                        {options.into_iter().map(|p| {
+                                            let label = format!("{} ({})", p.nama, p.tahun);
+                                            view! { <option value=p.id>{label}</option> }
+                                        }).collect_view()}
+                                    </select>
+                                }.into_any(),
+                                _ => view! {
+                                    <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                        <option>"Semua Periode"</option>
+                                    </select>
+                                }.into_any(),
                             }}
                         </Suspense>
                     </div>
 
                     // Jenis Pakaian filter
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">
-                            "Jenis Pakaian"
-                        </label>
-                        <Suspense fallback=move || {
-                            view! { <select class="w-full px-3 py-2 border rounded-lg"></select> }
+                        <label class="mb-1.5 block text-xs font-medium text-slate-400">"Jenis Pakaian"</label>
+                        <Suspense fallback=move || view! {
+                            <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                <option>"Memuat..."</option>
+                            </select>
                         }>
-                            {move || {
-                                jenis_options
-                                    .get()
-                                    .map(|options| {
-                                        view! {
-                                            <select
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                on:change=move |ev| {
-                                                    let val = event_target_value(&ev);
-                                                    set_selected_jenis
-                                                        .set(if val.is_empty() { None } else { Some(val) });
-                                                }
-                                            >
-                                                <option value="">"Semua Jenis"</option>
-                                                <For
-                                                    each=move || options.clone()
-                                                    key=|j| j.id.clone()
-                                                    children=move |j: JenisPakaianDinas| {
-                                                        view! { <option value=j.id.clone()>{j.nama}</option> }
-                                                    }
-                                                />
-                                            </select>
+                            {move || match jenis_options.get() {
+                                Some(Ok(options)) => view! {
+                                    <select
+                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
+                                        on:change=move |ev| {
+                                            let val = event_target_value(&ev);
+                                            set_selected_jenis.set(if val.is_empty() { None } else { Some(val) });
                                         }
-                                    })
+                                    >
+                                        <option value="">"Semua Jenis"</option>
+                                        {options.into_iter().map(|j| {
+                                            view! { <option value=j.id>{j.nama}</option> }
+                                        }).collect_view()}
+                                    </select>
+                                }.into_any(),
+                                _ => view! {
+                                    <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                        <option>"Semua Jenis"</option>
+                                    </select>
+                                }.into_any(),
                             }}
                         </Suspense>
                     </div>
 
                     // Satker filter
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">"Satker"</label>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-400">"Satker"</label>
                         <input
                             type="text"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 placeholder-slate-500"
                             placeholder="ID Satker (opsional)"
                             on:change=move |ev| {
                                 let val = event_target_value(&ev);
@@ -174,161 +194,94 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         />
                     </div>
 
-                    // Jenis Kelamin filter
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">"Jenis Kelamin"</label>
-                        <select
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            on:change=move |ev| {
-                                let val = event_target_value(&ev);
-                                set_selected_jenis_kelamin.set(if val.is_empty() { None } else { Some(val) });
-                            }
-                        >
-                            <option value="">"Semua"</option>
-                            <option value="L">"Laki-laki"</option>
-                            <option value="P">"Perempuan"</option>
-                        </select>
-                    </div>
+                    // Jenis Kelamin
+                    {filter_select("Jenis Kelamin", move |v| set_selected_jenis_kelamin.set(v), view! {
+                        <option value="">"Semua"</option>
+                        <option value="L">"Laki-laki"</option>
+                        <option value="P">"Perempuan"</option>
+                    })}
 
-                    // Jenis Pegawai filter (Jaksa / TU)
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">"Jenis Pegawai"</label>
-                        <select
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            on:change=move |ev| {
-                                let val = event_target_value(&ev);
-                                set_selected_jenis_pegawai.set(if val.is_empty() { None } else { Some(val) });
-                            }
-                        >
-                            <option value="">"Semua"</option>
-                            <option value="0">"Jaksa"</option>
-                            <option value="1">"Tata Usaha"</option>
-                        </select>
-                    </div>
+                    // Jenis Pegawai
+                    {filter_select("Jenis Pegawai", move |v| set_selected_jenis_pegawai.set(v), view! {
+                        <option value="">"Semua"</option>
+                        <option value="0">"Jaksa"</option>
+                        <option value="1">"Tata Usaha"</option>
+                    })}
 
-                    // Eselon filter
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">"Eselon"</label>
-                        <select
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            on:change=move |ev| {
-                                let val = event_target_value(&ev);
-                                set_selected_eselon.set(if val.is_empty() { None } else { Some(val) });
-                            }
-                        >
-                            <option value="">"Semua Eselon"</option>
-                            <option value="I">"Eselon I"</option>
-                            <option value="II">"Eselon II"</option>
-                            <option value="III">"Eselon III"</option>
-                            <option value="IV">"Eselon IV"</option>
-                        </select>
-                    </div>
+                    // Eselon
+                    {filter_select("Eselon", move |v| set_selected_eselon.set(v), view! {
+                        <option value="">"Semua Eselon"</option>
+                        <option value="I">"Eselon I"</option>
+                        <option value="II">"Eselon II"</option>
+                        <option value="III">"Eselon III"</option>
+                        <option value="IV">"Eselon IV"</option>
+                    })}
                 </div>
-            </div>
+            </SectionCard>
 
-            // Export buttons — matching simpel_web-main cetak functionality
-            <div class="mb-6 flex gap-3">
+            // Export buttons
+            <div class="mt-4 flex flex-wrap gap-3">
                 <button
-                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                    class="inline-flex items-center gap-2 rounded-lg border border-success-500/30 bg-success-500/10 px-4 py-2.5 text-sm font-medium text-success-300 transition hover:bg-success-500/20"
                     on:click=move |_| {
-                        let jenis_laporan = active_tab.get();
-                        let mut url = format!(
-                            "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file=excel",
-                            jenis_laporan
-                        );
-                        if let Some(ref pid) = selected_pengajuan.get() {
-                            url.push_str(&format!("&pengajuan_id={}", pid));
-                        }
-                        if let Some(ref sid) = selected_satker.get() {
-                            url.push_str(&format!("&satker_id={}", sid));
-                        }
-                        if let Some(ref jk) = selected_jenis_kelamin.get() {
-                            url.push_str(&format!("&jenis_kelamin={}", jk));
-                        }
-                        if let Some(ref e) = selected_eselon.get() {
-                            url.push_str(&format!("&eselon={}", e));
-                        }
-                        if let Some(ref j) = selected_jenis_pegawai.get() {
-                            url.push_str(&format!("&jenis={}", j));
-                        }
-                        #[cfg(target_arch = "wasm32")]
-                        {
-                            if let Some(window) = web_sys::window() {
-                                let _ = window.open_with_url_and_target(&url, "_blank");
-                            }
-                        }
+                        let url = build_export_url(active_tab.get(), "excel", &selected_pengajuan.get(), &selected_satker.get(), &selected_jenis_kelamin.get(), &selected_eselon.get(), &selected_jenis_pegawai.get());
+                        open_url(&url);
                     }
                 >
-                    <i class="fas fa-file-excel"></i>
+                    <i class="fas fa-file-excel text-xs"></i>
                     "Cetak Excel"
                 </button>
                 <button
-                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                    class="inline-flex items-center gap-2 rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-2.5 text-sm font-medium text-danger-300 transition hover:bg-danger-500/20"
                     on:click=move |_| {
-                        let jenis_laporan = active_tab.get();
-                        let mut url = format!(
-                            "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file=pdf",
-                            jenis_laporan
-                        );
-                        if let Some(ref pid) = selected_pengajuan.get() {
-                            url.push_str(&format!("&pengajuan_id={}", pid));
-                        }
-                        if let Some(ref sid) = selected_satker.get() {
-                            url.push_str(&format!("&satker_id={}", sid));
-                        }
-                        if let Some(ref jk) = selected_jenis_kelamin.get() {
-                            url.push_str(&format!("&jenis_kelamin={}", jk));
-                        }
-                        if let Some(ref e) = selected_eselon.get() {
-                            url.push_str(&format!("&eselon={}", e));
-                        }
-                        if let Some(ref j) = selected_jenis_pegawai.get() {
-                            url.push_str(&format!("&jenis={}", j));
-                        }
-                        #[cfg(target_arch = "wasm32")]
-                        {
-                            if let Some(window) = web_sys::window() {
-                                let _ = window.open_with_url_and_target(&url, "_blank");
-                            }
-                        }
+                        let url = build_export_url(active_tab.get(), "pdf", &selected_pengajuan.get(), &selected_satker.get(), &selected_jenis_kelamin.get(), &selected_eselon.get(), &selected_jenis_pegawai.get());
+                        open_url(&url);
                     }
                 >
-                    <i class="fas fa-file-pdf"></i>
+                    <i class="fas fa-file-pdf text-xs"></i>
                     "Cetak PDF"
                 </button>
             </div>
 
             // Tab Content
-            <Show when=move || active_tab.get() == "rekap">
-                <RekapUkuranTab
-                    pengajuan_id=selected_pengajuan.get()
-                    satker_id=selected_satker.get()
-                    jenis_pakaian_id=selected_jenis.get()
-                    jenis_kelamin=selected_jenis_kelamin.get()
-                    jenis=selected_jenis_pegawai.get()
-                    eselon=selected_eselon.get()
-                />
-            </Show>
-
-            <Show when=move || active_tab.get() == "pegawai">
-                <DaftarPegawaiTab
-                    pengajuan_id=selected_pengajuan.get()
-                    satker_id=selected_satker.get()
-                    jenis_pakaian_id=selected_jenis.get()
-                    jenis_kelamin=selected_jenis_kelamin.get()
-                    jenis=selected_jenis_pegawai.get()
-                    eselon=selected_eselon.get()
-                />
-            </Show>
-        </div>
+            <div class="mt-4">
+                <Show when=move || active_tab.get() == "rekap">
+                    <RekapUkuranTab
+                        pengajuan_id=selected_pengajuan.get()
+                        satker_id=selected_satker.get()
+                        jenis_pakaian_id=selected_jenis.get()
+                        jenis_kelamin=selected_jenis_kelamin.get()
+                        jenis=selected_jenis_pegawai.get()
+                        eselon=selected_eselon.get()
+                    />
+                </Show>
+                <Show when=move || active_tab.get() == "pegawai">
+                    <DaftarPegawaiTab
+                        pengajuan_id=selected_pengajuan.get()
+                        satker_id=selected_satker.get()
+                        jenis_pakaian_id=selected_jenis.get()
+                        jenis_kelamin=selected_jenis_kelamin.get()
+                        jenis=selected_jenis_pegawai.get()
+                        eselon=selected_eselon.get()
+                    />
+                </Show>
+            </div>
+        </PageLayout>
     }
 }
 
-/// Rekap Ukuran Tab — matching simpel_web-main cetakRekapTemplateV.blade.php
-///
-/// Shows a table per spesifikasi (pakaian_nama) with:
-/// - Columns: Ukuran values
-/// - Rows: jumlah_laki, jumlah_perempuan, jumlah_total
+// ── Rekap Ukuran Tab ──────────────────────────────────────────────────────
+
+/// Maps ukuran_group to accent class tokens.
+fn group_accent(ukuran_group: &str) -> (&'static str, &'static str) {
+    match ukuran_group {
+        "BAJU" => ("info", "fas fa-tshirt"),
+        "CELANA" => ("success", "fas fa-male"),
+        "SEPATU" => ("gold", "fas fa-shoe-prints"),
+        _ => ("slate", "fas fa-box"),
+    }
+}
+
 #[component]
 fn RekapUkuranTab(
     pengajuan_id: Option<String>,
@@ -347,189 +300,128 @@ fn RekapUkuranTab(
             eselon: eselon.clone(),
             jenis: jenis.clone(),
         };
-        async move {
-            match fetch_laporan_rekap_ukuran(query).await {
-                Ok(r) => Some(r.data),
-                Err(e) => {
-                    leptos::logging::error!("Failed to fetch rekap: {:?}", e);
-                    None
-                }
-            }
-        }
+        async move { fetch_laporan_rekap_ukuran(query).await.map(|r| r.data) }
     });
 
     view! {
-        <Suspense fallback=move || {
-            view! { <div class="text-center py-8">"Memuat data rekap..."</div> }
-        }>
-            {move || {
-                data.get()
-                    .flatten()
-                    .map(|rekap| {
-                        if rekap.is_empty() {
-                            view! {
-                                <div class="text-center py-12 text-gray-500">
-                                    <i class="fas fa-chart-bar text-4xl mb-3 text-gray-300"></i>
-                                    <p>"Tidak ada data untuk filter yang dipilih."</p>
-                                </div>
-                            }
-                                .into_any()
-                        } else {
-                            // Group by pakaian_nama (spesifikasi)
-                            let mut groups: Vec<String> = vec![];
-                            for r in &rekap {
-                                if !groups.contains(&r.pakaian_nama) {
-                                    groups.push(r.pakaian_nama.clone());
-                                }
-                            }
-
-                            let groups_for_view = groups.clone();
-                            let rekap_for_view = rekap.clone();
-
-                            view! {
-                                <div class="space-y-8">
-                                    {groups_for_view
-                                        .into_iter()
-                                        .map(|group_name| {
-                                            let items: Vec<LaporanRekapUkuran> = rekap_for_view
-                                                .iter()
-                                                .filter(|r| r.pakaian_nama == group_name)
-                                                .cloned()
-                                                .collect();
-                                            let ukuran_group = items
-                                                .first()
-                                                .map(|r| r.ukuran_group.clone())
-                                                .unwrap_or_default();
-                                            let items_for_header = items.clone();
-                                            let items_for_body_l = items.clone();
-                                            let items_for_body_p = items.clone();
-                                            let items_for_body_total = items.clone();
-                                            let total_l: i64 = items.iter().map(|r| r.jumlah_laki).sum();
-                                            let total_p: i64 = items.iter().map(|r| r.jumlah_perempuan).sum();
-                                            let total_all: i64 = items.iter().map(|r| r.jumlah_total).sum();
-                                            let color_class = match ukuran_group.as_str() {
-                                                "BAJU" => "blue",
-                                                "CELANA" => "green",
-                                                "SEPATU" => "orange",
-                                                _ => "gray",
-                                            };
-
-                                            view! {
-                                                <div class=format!(
-                                                    "bg-{}-50 rounded-lg p-4 border border-{}-200",
-                                                    color_class, color_class,
-                                                )>
-                                                    <h4 class=format!(
-                                                        "font-semibold text-{}-800 mb-3 text-lg",
-                                                        color_class,
-                                                    )>
-                                                        {format!("{} ({})", group_name, ukuran_group)}
-                                                    </h4>
-                                                    <div class="overflow-x-auto">
-                                                        <table class="w-full text-sm border-collapse">
-                                                            <thead>
-                                                                <tr class=format!(
-                                                                    "bg-{}-100 text-{}-700",
-                                                                    color_class, color_class,
-                                                                )>
-                                                                    <th class="p-2 text-left border font-semibold">
-                                                                        "Gender"
-                                                                    </th>
-                                                                    {items_for_header
-                                                                        .iter()
-                                                                        .map(|r| {
-                                                                            view! {
-                                                                                <th class="p-2 text-center border font-semibold">
-                                                                                    {r.ukuran.clone()}
-                                                                                </th>
-                                                                            }
-                                                                        })
-                                                                        .collect::<Vec<_>>()}
-                                                                    <th class="p-2 text-center border font-bold">
-                                                                        "Total"
-                                                                    </th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                // Laki-laki row
-                                                                <tr class="border-b">
-                                                                    <td class="p-2 font-medium border">
-                                                                        "Laki-laki (L)"
-                                                                    </td>
-                                                                    {items_for_body_l
-                                                                        .iter()
-                                                                        .map(|r| {
-                                                                            view! {
-                                                                                <td class="p-2 text-center border">
-                                                                                    {r.jumlah_laki.to_string()}
-                                                                                </td>
-                                                                            }
-                                                                        })
-                                                                        .collect::<Vec<_>>()}
-                                                                    <td class="p-2 text-center border font-bold">
-                                                                        {total_l.to_string()}
-                                                                    </td>
-                                                                </tr>
-                                                                // Perempuan row
-                                                                <tr class="border-b">
-                                                                    <td class="p-2 font-medium border">
-                                                                        "Perempuan (P)"
-                                                                    </td>
-                                                                    {items_for_body_p
-                                                                        .iter()
-                                                                        .map(|r| {
-                                                                            view! {
-                                                                                <td class="p-2 text-center border">
-                                                                                    {r.jumlah_perempuan.to_string()}
-                                                                                </td>
-                                                                            }
-                                                                        })
-                                                                        .collect::<Vec<_>>()}
-                                                                    <td class="p-2 text-center border font-bold">
-                                                                        {total_p.to_string()}
-                                                                    </td>
-                                                                </tr>
-                                                                // Total row
-                                                                <tr class=format!(
-                                                                    "bg-{}-100 font-semibold",
-                                                                    color_class,
-                                                                )>
-                                                                    <td class="p-2 font-bold border">"Jumlah"</td>
-                                                                    {items_for_body_total
-                                                                        .iter()
-                                                                        .map(|r| {
-                                                                            view! {
-                                                                                <td class="p-2 text-center border font-bold">
-                                                                                    {r.jumlah_total.to_string()}
-                                                                                </td>
-                                                                            }
-                                                                        })
-                                                                        .collect::<Vec<_>>()}
-                                                                    <td class="p-2 text-center border font-bold">
-                                                                        {total_all.to_string()}
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            }
-                                        })
-                                        .collect::<Vec<_>>()}
-                                </div>
-                            }
-                                .into_any()
-                        }
-                    })
+        <Suspense fallback=move || view! { <LoadingState message="Memuat data rekap...".to_string() /> }>
+            {move || match data.get() {
+                None => view! { <LoadingState /> }.into_any(),
+                Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
+                Some(Ok(rekap)) => {
+                    if rekap.is_empty() {
+                        view! {
+                            <EmptyState
+                                icon="fas fa-chart-bar"
+                                title="Tidak Ada Data"
+                                description="Tidak ada data untuk filter yang dipilih."
+                            />
+                        }.into_any()
+                    } else {
+                        render_rekap_groups(rekap)
+                    }
+                }
             }}
         </Suspense>
     }
 }
 
-/// Daftar Pegawai Tab — matching simpel_web-main cetakDaftarTemplateV.blade.php
-///
-/// Table columns: No, NIP, Nama, Jabatan, Golongan, Status (J/T), Gender, Busana Muslimah,
-/// then ukuran columns (Baju, Celana, Sepatu)
+/// Group rekap items by pakaian_nama and render a table per group.
+fn render_rekap_groups(rekap: Vec<LaporanRekapUkuran>) -> AnyView {
+    let mut groups: Vec<String> = vec![];
+    for r in &rekap {
+        if !groups.contains(&r.pakaian_nama) {
+            groups.push(r.pakaian_nama.clone());
+        }
+    }
+
+    view! {
+        <div class="flex flex-col gap-5">
+            {groups.into_iter().map(|group_name| {
+                let items: Vec<LaporanRekapUkuran> = rekap
+                    .iter()
+                    .filter(|r| r.pakaian_nama == group_name)
+                    .cloned()
+                    .collect();
+                render_rekap_table(group_name, items)
+            }).collect_view()}
+        </div>
+    }.into_any()
+}
+
+/// Render a single rekap table for one pakaian group.
+fn render_rekap_table(group_name: String, items: Vec<LaporanRekapUkuran>) -> impl IntoView {
+    let ukuran_group = items.first().map(|r| r.ukuran_group.clone()).unwrap_or_default();
+    let (accent, icon) = group_accent(&ukuran_group);
+    let total_l: i64 = items.iter().map(|r| r.jumlah_laki).sum();
+    let total_p: i64 = items.iter().map(|r| r.jumlah_perempuan).sum();
+    let total_all: i64 = items.iter().map(|r| r.jumlah_total).sum();
+
+    let header_bg = format!("bg-{}-500/10", accent);
+    let header_text = format!("text-{}-400", accent);
+    let ring = format!("ring-{}-500/25", accent);
+
+    view! {
+        <div class=format!("overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel ring-1 {}", ring)>
+            // Group header
+            <div class=format!("flex items-center gap-3 px-5 py-3 {}", header_bg)>
+                <i class=format!("{} text-sm {}", icon, header_text)></i>
+                <h4 class=format!("text-sm font-semibold {}", header_text)>
+                    {format!("{} ({})", group_name, ukuran_group)}
+                </h4>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-white/[0.06] bg-white/[0.02]">
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase text-slate-400">"Gender"</th>
+                            {items.iter().map(|r| {
+                                let ukuran = r.ukuran.clone();
+                                view! {
+                                    <th class="px-3 py-2.5 text-center text-xs font-semibold uppercase text-slate-400">{ukuran}</th>
+                                }
+                            }).collect_view()}
+                            <th class="px-4 py-2.5 text-center text-xs font-bold uppercase text-slate-300">"Total"</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        // Laki-laki row
+                        <tr class="border-b border-white/[0.04]">
+                            <td class="px-4 py-2.5 text-sm font-medium text-slate-200">"Laki-laki (L)"</td>
+                            {items.iter().map(|r| {
+                                let v = r.jumlah_laki.to_string();
+                                view! { <td class="px-3 py-2.5 text-center text-slate-300">{v}</td> }
+                            }).collect_view()}
+                            <td class="px-4 py-2.5 text-center font-bold text-slate-100">{total_l.to_string()}</td>
+                        </tr>
+                        // Perempuan row
+                        <tr class="border-b border-white/[0.04]">
+                            <td class="px-4 py-2.5 text-sm font-medium text-slate-200">"Perempuan (P)"</td>
+                            {items.iter().map(|r| {
+                                let v = r.jumlah_perempuan.to_string();
+                                view! { <td class="px-3 py-2.5 text-center text-slate-300">{v}</td> }
+                            }).collect_view()}
+                            <td class="px-4 py-2.5 text-center font-bold text-slate-100">{total_p.to_string()}</td>
+                        </tr>
+                        // Total row
+                        <tr class="bg-white/[0.03]">
+                            <td class="px-4 py-2.5 text-sm font-bold text-slate-100">"Jumlah"</td>
+                            {items.iter().map(|r| {
+                                let v = r.jumlah_total.to_string();
+                                view! { <td class="px-3 py-2.5 text-center font-bold text-slate-100">{v}</td> }
+                            }).collect_view()}
+                            <td class="px-4 py-2.5 text-center font-bold text-gold-400">{total_all.to_string()}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+// ── Daftar Pegawai Tab ────────────────────────────────────────────────────
+
 #[component]
 fn DaftarPegawaiTab(
     pengajuan_id: Option<String>,
@@ -551,164 +443,114 @@ fn DaftarPegawaiTab(
             jenis: jenis.clone(),
         };
         let p = page.get();
-        async move {
-            match fetch_laporan_daftar_pegawai(query, p, 20).await {
-                Ok(r) => Some(r),
-                Err(e) => {
-                    leptos::logging::error!("Failed to fetch daftar pegawai: {:?}", e);
-                    None
-                }
-            }
-        }
+        async move { fetch_laporan_daftar_pegawai(query, p, 20).await }
     });
 
     view! {
-        <Suspense fallback=move || {
-            view! { <div class="text-center py-8">"Memuat daftar pegawai..."</div> }
-        }>
-            {move || {
-                data.get()
-                    .flatten()
-                    .map(|response| {
-                        if response.data.is_empty() {
-                            view! {
-                                <div class="text-center py-12 text-gray-500">
-                                    <i class="fas fa-users text-4xl mb-3 text-gray-300"></i>
-                                    <p>"Tidak ada data untuk filter yang dipilih."</p>
-                                </div>
-                            }
-                                .into_any()
-                        } else {
-                            view! {
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-                                                <th class="p-3 font-semibold border-b">"No"</th>
-                                                <th class="p-3 font-semibold border-b">"NIP"</th>
-                                                <th class="p-3 font-semibold border-b">"Nama"</th>
-                                                <th class="p-3 font-semibold border-b">"Jabatan"</th>
-                                                <th class="p-3 font-semibold border-b">"Golongan"</th>
-                                                <th class="p-3 font-semibold border-b text-center">
-                                                    "Status"
-                                                </th>
-                                                <th class="p-3 font-semibold border-b text-center">
-                                                    "Gender"
-                                                </th>
-                                                <th class="p-3 font-semibold border-b text-center">
-                                                    "Busana Muslimah"
-                                                </th>
-                                                <th class="p-3 font-semibold border-b text-center">
-                                                    "Baju"
-                                                </th>
-                                                <th class="p-3 font-semibold border-b text-center">
-                                                    "Celana"
-                                                </th>
-                                                <th class="p-3 font-semibold border-b text-center">
-                                                    "Sepatu"
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="text-gray-700 text-sm">
-                                            <For
-                                                each=move || {
-                                                    response.data.clone().into_iter().enumerate()
-                                                }
-                                                key=|(_, item)| item.nip.clone()
-                                                children=move |(idx, item): (
-                                                    usize,
-                                                    LaporanDaftarPegawai,
-                                                )| {
-                                                    let status_label = match item
-                                                        .jenis
-                                                        .as_deref()
-                                                    {
-                                                        Some("0") => "J",
-                                                        Some("1") => "T",
-                                                        _ => "-",
-                                                    };
-                                                    let hijab_label = match item.with_hijab {
-                                                        Some(true) => "Y",
-                                                        Some(false) => "T",
-                                                        None => "-",
-                                                    };
-                                                    view! {
-                                                        <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
-                                                            <td class="p-3">
-                                                                {((page.get() - 1) * 20 + idx as i32 + 1)
-                                                                    .to_string()}
-                                                            </td>
-                                                            <td class="p-3 font-mono text-sm">{item.nip}</td>
-                                                            <td class="p-3 font-medium">{item.nama}</td>
-                                                            <td class="p-3">
-                                                                {item.jabatan.unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                            <td class="p-3 text-center">
-                                                                {item.gol_kd.unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                            <td class="p-3 text-center">{status_label}</td>
-                                                            <td class="p-3 text-center">
-                                                                {item
-                                                                    .jenis_kelamin
-                                                                    .unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                            <td class="p-3 text-center">{hijab_label}</td>
-                                                            <td class="p-3 text-center font-semibold">
-                                                                {item
-                                                                    .ukuran_baju
-                                                                    .unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                            <td class="p-3 text-center font-semibold">
-                                                                {item
-                                                                    .ukuran_celana
-                                                                    .unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                            <td class="p-3 text-center font-semibold">
-                                                                {item
-                                                                    .ukuran_sepatu
-                                                                    .unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                }
-                                            />
-                                        </tbody>
-                                    </table>
-
-                                    // Pagination
-                                    <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                                        <div class="text-sm text-gray-500">
-                                            "Menampilkan halaman "
-                                            <span class="font-medium">{response.page}</span> " dari "
-                                            <span class="font-medium">{response.total_pages}</span>
-                                            " (" <span class="font-medium">{response.total}</span>
-                                            " pegawai)"
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <button
-                                                class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                prop:disabled=move || page.get() <= 1
-                                                on:click=move |_| set_page.update(|p| *p -= 1)
-                                            >
-                                                "Sebelumnya"
-                                            </button>
-                                            <button
-                                                class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                prop:disabled=move || {
-                                                    page.get() >= response.total_pages
-                                                }
-                                                on:click=move |_| set_page.update(|p| *p += 1)
-                                            >
-                                                "Selanjutnya"
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-                                .into_any()
-                        }
-                    })
+        <Suspense fallback=move || view! { <LoadingState message="Memuat daftar pegawai...".to_string() /> }>
+            {move || match data.get() {
+                None => view! { <LoadingState /> }.into_any(),
+                Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
+                Some(Ok(response)) => {
+                    if response.data.is_empty() {
+                        view! {
+                            <EmptyState
+                                icon="fas fa-users"
+                                title="Tidak Ada Data"
+                                description="Tidak ada data untuk filter yang dipilih."
+                            />
+                        }.into_any()
+                    } else {
+                        render_pegawai_table(response.data, response.page, response.total, response.total_pages, page, set_page)
+                    }
+                }
             }}
         </Suspense>
     }
+}
+
+/// Renders the pegawai list table matching legacy cetakDaftarTemplateV.
+fn render_pegawai_table(
+    data: Vec<LaporanDaftarPegawai>,
+    current_page: i32,
+    total: i64,
+    total_pages: i32,
+    page: ReadSignal<i32>,
+    set_page: WriteSignal<i32>,
+) -> AnyView {
+    let headers = ["No", "NIP", "Nama", "Jabatan", "Gol", "Status", "Gender", "Hijab", "Baju", "Celana", "Sepatu"];
+
+    view! {
+        <div class="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-white/[0.04]">
+                    <thead class="bg-white/[0.02]">
+                        <tr>
+                            {headers.iter().map(|h| view! {
+                                <th class="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{*h}</th>
+                            }).collect_view()}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.into_iter().enumerate().map(|(idx, item)| {
+                            let status_label = match item.jenis.as_deref() {
+                                Some("0") => "J",
+                                Some("1") => "T",
+                                _ => "-",
+                            };
+                            let hijab_label = match item.with_hijab {
+                                Some(true) => "Y",
+                                Some(false) => "T",
+                                None => "-",
+                            };
+                            let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
+                            let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
+                            view! {
+                                <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                    <td class="px-3 py-2.5 text-sm text-slate-400">{num}</td>
+                                    <td class="px-3 py-2.5 font-mono text-xs text-slate-300">{item.nip}</td>
+                                    <td class="px-3 py-2.5 text-sm font-medium text-slate-100">{item.nama}</td>
+                                    <td class="px-3 py-2.5 text-sm text-slate-400">{item.jabatan.unwrap_or_else(|| "-".to_string())}</td>
+                                    <td class="px-3 py-2.5 text-center text-xs text-slate-400">{item.gol_kd.unwrap_or_else(|| "-".to_string())}</td>
+                                    <td class="px-3 py-2.5 text-center text-xs text-slate-300">{status_label}</td>
+                                    <td class="px-3 py-2.5 text-center text-xs text-slate-300">{item.jenis_kelamin.unwrap_or_else(|| "-".to_string())}</td>
+                                    <td class="px-3 py-2.5 text-center text-xs text-slate-300">{hijab_label}</td>
+                                    <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">{item.ukuran_baju.unwrap_or_else(|| "-".to_string())}</td>
+                                    <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">{item.ukuran_celana.unwrap_or_else(|| "-".to_string())}</td>
+                                    <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">{item.ukuran_sepatu.unwrap_or_else(|| "-".to_string())}</td>
+                                </tr>
+                            }
+                        }).collect_view()}
+                    </tbody>
+                </table>
+            </div>
+
+            // Pagination
+            <div class="flex items-center justify-between border-t border-white/[0.04] px-5 py-3">
+                <p class="text-xs text-slate-400">
+                    "Halaman "
+                    <span class="font-medium text-slate-200">{current_page}</span>
+                    " dari "
+                    <span class="font-medium text-slate-200">{total_pages}</span>
+                    " (" <span class="font-medium text-slate-200">{total}</span> " pegawai)"
+                </p>
+                <div class="flex gap-2">
+                    <button
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
+                        prop:disabled=move || page.get() <= 1
+                        on:click=move |_| set_page.update(|p| *p -= 1)
+                    >
+                        "Sebelumnya"
+                    </button>
+                    <button
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
+                        prop:disabled=move || page.get() >= total_pages
+                        on:click=move |_| set_page.update(|p| *p += 1)
+                    >
+                        "Selanjutnya"
+                    </button>
+                </div>
+            </div>
+        </div>
+    }.into_any()
 }

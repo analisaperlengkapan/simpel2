@@ -1,4 +1,5 @@
 use crate::api::{CreatePenghapusanBmnWorkflowRequest, create_penghapusan_bmn_workflow};
+use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
@@ -52,7 +53,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                     set_success.set(true);
                     gloo_timers::future::TimeoutFuture::new(1000).await;
                     navigate(
-                        &format!("/dashboard/pengelolaan/penghapusan/{}", resp.data.id),
+                        &format!("/perlengkapan/pengelolaan/penghapusan/{}", resp.data.id),
                         Default::default(),
                     );
                 }
@@ -241,7 +242,7 @@ pub fn PenghapusanForm() -> impl IntoView {
 
                 <div class="pt-4 flex justify-end gap-3">
                     <a
-                        href="/perlengkapan/dashboard/pengelolaan/penghapusan/daftar"
+                        href=routes::path::PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY
                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

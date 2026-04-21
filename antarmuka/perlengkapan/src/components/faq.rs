@@ -1,6 +1,7 @@
 //! FAQ — Frequently Asked Questions page.
 
 use leptos::prelude::*;
+use crate::components::layout::PageLayout;
 
 #[component]
 pub fn FaqPage() -> impl IntoView {
@@ -42,34 +43,36 @@ pub fn FaqPage() -> impl IntoView {
     let open_idx = RwSignal::new(None::<usize>);
 
     view! {
-        <div style="max-width: 800px; margin: 0 auto;">
-            <div style="margin-bottom: 28px;">
-                <h1 style="font-size: 1.4rem; font-weight: 800; color: #e2e8f0; margin: 0;">"FAQ"</h1>
-                <p style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">"Pertanyaan yang sering diajukan tentang SIMPEL"</p>
-            </div>
-
-            {faqs.into_iter().enumerate().map(|(i, (question, answer))| {
-                view! {
-                    <div style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                        <button
-                            on:click=move |_| open_idx.update(|o| *o = if *o == Some(i) { None } else { Some(i) })
-                            style="width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 0; background: none; border: none; cursor: pointer; text-align: left;"
-                        >
-                            <span style="font-size: 0.88rem; font-weight: 600; color: #e2e8f0;">{question}</span>
-                            <i class="fas fa-chevron-down" style=move || format!(
-                                "color: #475569; font-size: 0.7rem; transform: rotate({}deg);",
-                                if open_idx.get() == Some(i) { 180 } else { 0 }
-                            )></i>
-                        </button>
-                        <div style=move || format!(
-                            "overflow: hidden; max-height: {};",
-                            if open_idx.get() == Some(i) { "200px" } else { "0" }
-                        )>
-                            <p style="font-size: 0.82rem; color: #94a3b8; line-height: 1.6; padding: 0 0 16px 0; margin: 0;">{answer}</p>
+        <PageLayout
+            title="FAQ"
+            icon="fas fa-circle-question"
+            description="Pertanyaan yang sering diajukan tentang SIMPEL"
+        >
+            <div class="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel">
+                {faqs.into_iter().enumerate().map(|(i, (question, answer))| {
+                    view! {
+                        <div class="border-b border-white/[0.04] last:border-b-0">
+                            <button
+                                type="button"
+                                on:click=move |_| open_idx.update(|o| *o = if *o == Some(i) { None } else { Some(i) })
+                                class="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-white/[0.02]"
+                            >
+                                <span class="text-sm font-semibold text-slate-100">{question}</span>
+                                <i class="fas fa-chevron-down text-2xs text-slate-500 transition-transform"
+                                   class:rotate-180=move || open_idx.get() == Some(i)
+                                ></i>
+                            </button>
+                            <div
+                                class="overflow-hidden transition-all duration-200"
+                                class:max-h-0=move || open_idx.get() != Some(i)
+                                class:max-h-52=move || open_idx.get() == Some(i)
+                            >
+                                <p class="px-5 pb-4 text-sm leading-relaxed text-slate-400">{answer}</p>
+                            </div>
                         </div>
-                    </div>
-                }
-            }).collect_view()}
-        </div>
+                    }
+                }).collect_view()}
+            </div>
+        </PageLayout>
     }
 }

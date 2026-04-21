@@ -91,6 +91,14 @@ message ValidateTokenResponse {
   repeated string scopes = 3;
   optional int64 expires_at = 4;
   optional string error = 5;
+  // Richer first-class claims so callers no longer have to parse
+  // prefixed entries from `scopes` (`username:...`, `satker:...`, etc.).
+  optional string username = 6;
+  optional string name = 7;
+  optional string nip = 8;
+  optional string jabatan = 9;
+  optional string satker_code = 10;
+  repeated string realm_roles = 11;
 }
 
 message RevokeTokenRequest {

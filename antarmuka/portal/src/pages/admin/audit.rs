@@ -4,7 +4,8 @@
 //! REQ-PORTAL-015
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel};
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::{AuditLogEntry, AuditLogQuery};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -12,7 +13,6 @@ use leptos::task::spawn_local;
 /// Audit logs page
 #[component]
 pub fn AuditLogsPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (logs, set_logs) = signal(Vec::<AuditLogEntry>::new());
@@ -81,14 +81,7 @@ pub fn AuditLogsPage() -> impl IntoView {
         }
     };
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -100,7 +93,7 @@ pub fn AuditLogsPage() -> impl IntoView {
                 <h1 class="text-2xl font-bold text-gray-900 mb-6">"Audit Log"</h1>
 
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">"❌ " {msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 // Filters
@@ -139,10 +132,7 @@ pub fn AuditLogsPage() -> impl IntoView {
                     <Show
                         when=move || !loading.get()
                         fallback=|| view! {
-                            <div class="p-8 text-center text-gray-500">
-                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-3"></div>
-                                "Memuat..."
-                            </div>
+                            <LoadingPanel message="Memuat audit log..." />
                         }
                     >
                         <div class="overflow-x-auto">
@@ -187,8 +177,11 @@ pub fn AuditLogsPage() -> impl IntoView {
                         </div>
 
                         <Show when=move || logs.get().is_empty()>
-                            <div class="text-center py-8 text-gray-500">
-                                "Tidak ada log ditemukan."
+                            <div class="m-4">
+                                <EmptyPanel
+                                    title="Tidak ada audit log"
+                                    message="Tidak ditemukan data log untuk filter yang dipilih."
+                                />
                             </div>
                         </Show>
 

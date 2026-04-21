@@ -239,6 +239,33 @@ pub fn permit_expiry_reminder_errors_total() -> &'static IntCounterVec {
     })
 }
 
+/// SLA check duration histogram (in seconds)
+pub fn workflow_sla_check_duration() -> &'static HistogramVec {
+    static METRIC: OnceLock<HistogramVec> = OnceLock::new();
+    METRIC.get_or_init(|| {
+        register_histogram_vec!(
+            "workflow_sla_check_duration_seconds",
+            "SLA check duration in seconds",
+            &["workflow_type"], // workflow_type: all/kebutuhan_bmn/pemakaian_bmn/penghapusan_bmn
+            vec![0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0]
+        )
+        .expect("Failed to register workflow_sla_check_duration_seconds metric")
+    })
+}
+
+/// SLA check counter
+pub fn workflow_sla_check_total() -> &'static IntCounterVec {
+    static METRIC: OnceLock<IntCounterVec> = OnceLock::new();
+    METRIC.get_or_init(|| {
+        register_int_counter_vec!(
+            "workflow_sla_check_total",
+            "Total number of SLA checks performed",
+            &["status"] // status: success/error
+        )
+        .expect("Failed to register workflow_sla_check_total metric")
+    })
+}
+
 /// Export metrics in Prometheus text format
 pub fn export_metrics() -> Result<String, Box<dyn std::error::Error>> {
     let encoder = TextEncoder::new();
@@ -263,6 +290,8 @@ mod tests {
         let _ = workflow_sla_breaches_total();
         let _ = workflow_sla_breach_duration();
         let _ = workflow_escalations_total();
+        let _ = workflow_sla_check_duration();
+        let _ = workflow_sla_check_total();
         let _ = integration_sync_duration();
         let _ = integration_syncs_total();
         let _ = integration_records_synced();

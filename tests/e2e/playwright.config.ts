@@ -1,119 +1,114 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
 
+/**
+ * Read environment variables from file.
+ * https://github.com/motdotla/dotenv
+ */
+// require('dotenv').config();
+
+/**
+ * See https://playwright.dev/docs/test-configuration.
+ */
 export default defineConfig({
   testDir: '.',
-  timeout: 60000,
-  expect: {
-    timeout: 10000,
-  },
-  fullyParallel: false,
+  testMatch: ['**/*.spec.ts'],
+  testIgnore: [
+    '**/node_modules/**',
+    '**/playwright-report/**',
+    '**/test-results/**',
+    '**/results/**',
+  ],
+  /* Run tests in files in parallel */
+  fullyParallel: true,
+  /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
+  /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : 4,
+  /* Opt out of parallel tests on CI. */
+  workers: process.env.CI ? 1 : undefined,
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ['html', { outputFolder: path.join(__dirname, 'test-results', 'html-report') }],
+    ['html', { outputFolder: 'playwright-report' }],
+    ['junit', { outputFile: 'results/junit.xml' }],
     ['list'],
   ],
-  outputDir: path.join(__dirname, 'test-results', 'artifacts'),
+  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    baseURL: process.env.API_BASE_URL || 'http://localhost:8093',
+    /* Base URL to use in actions like `await page.goto('/')`. */
+    baseURL: process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:8080',
+
+    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    extraHTTPHeaders: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
+
+    /* Screenshot on failure */
+    screenshot: 'only-on-failure',
+
+    /* Video on failure */
+    video: 'retain-on-failure',
+
+    /* Maximum time each action can take */
+    actionTimeout: 10000,
+
+    /* Maximum time for navigation */
+    navigationTimeout: 30000,
   },
+
+  /* Configure projects by test category */
   projects: [
-    // Pure API tests - no browser, fastest execution
     {
-      name: 'api-fast',
-      use: {},
-      testMatch: [
-        'edge-cases-validation.spec.ts',
-        'workflow-edge-cases.spec.ts',
-        'search-filter-pagination.spec.ts',
-        'batch-operations-export.spec.ts',
-      ],
-    },
-    // API business-process tests with screenshot documentation
-    {
-      name: 'api-e2e',
-      use: {
-        ...devices['Desktop Chrome'],
-        screenshot: 'on',
-      },
-      testMatch: [
-        'business-process-kebutuhan-bmn.spec.ts',
-        'business-process-pemakaian-bmn.spec.ts',
-        'business-process-penghapusan-bmn.spec.ts',
-        'business-process-pakaian-dinas.spec.ts',
-        'business-process-integration.spec.ts',
-      ],
-    },
-    // Legacy UI-based tests (require browser + running frontend)
-    {
-      name: 'legacy',
+      name: 'api-chromium',
       use: { ...devices['Desktop Chrome'] },
       testMatch: [
-        'tests/perlengkapan.spec.ts',
+        '**/business-process-*.spec.ts',
+        '**/edge-cases-validation.spec.ts',
+        '**/workflow-edge-cases.spec.ts',
+        '**/search-filter-pagination.spec.ts',
+        '**/batch-operations-export.spec.ts',
       ],
     },
-    // Full UI E2E tests (require browser + running perlengkapan WASM frontend)
     {
-      name: 'ui-e2e',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.FRONTEND_URL || 'http://localhost:8080',
-        screenshot: 'on',
-      },
-      testMatch: [
-        'tests/auth-login-flow.spec.ts',
-        'tests/dashboard-navigation.spec.ts',
-        'tests/ui-kebutuhan-bmn.spec.ts',
-        'tests/ui-pakaian-dinas.spec.ts',
-        'tests/ui-pemakaian-bmn.spec.ts',
-        'tests/ui-penghapusan-bmn.spec.ts',
-        'tests/ui-bank-aset-pengelolaan.spec.ts',
-        'tests/ui-admin-role-management.spec.ts',
-      ],
+      name: 'ui-chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ['**/tests/**/*.spec.ts'],
     },
-    // Portal authentication E2E tests (real authenc backend, captcha solving)
-    {
-      name: 'portal-auth',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.PORTAL_URL || 'http://localhost:18080',
-        screenshot: 'on',
-        video: 'on-first-retry',
-      },
-      testMatch: [
-        'tests/portal-auth-e2e.spec.ts',
-      ],
-    },
-    // Portal screenshot E2E (all pages, staging gateway)
-    {
-      name: 'portal-screenshots',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.PORTAL_URL || 'http://10.1.7.121',
-        screenshot: 'on',
-        video: 'on-first-retry',
-        viewport: { width: 1920, height: 1080 },
-      },
-      testMatch: [
-        'tests/portal-screenshots-e2e.spec.ts',
-      ],
-    },
-    // Integration tests: layanan-integrasi ↔ authenc (gRPC + REST API)
-    {
-      name: 'integrasi',
-      use: {
-        baseURL: process.env.AUTHENC_URL || 'http://localhost:18088',
-      },
-      testMatch: [
-        'tests/integrasi-authenc-e2e.spec.ts',
-      ],
-    },
+
+    // Uncomment to test on other browsers
+    // {
+    //   name: 'firefox',
+    //   use: { ...devices['Desktop Firefox'] },
+    // },
+
+    // {
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
+
+    /* Test against mobile viewports. */
+    // {
+    //   name: 'Mobile Chrome',
+    //   use: { ...devices['Pixel 5'] },
+    // },
+    // {
+    //   name: 'Mobile Safari',
+    //   use: { ...devices['iPhone 12'] },
+    // },
   ],
+
+  /* Run your local dev server before starting the tests */
+  // webServer: {
+  //   command: 'npm run start',
+  //   url: 'http://127.0.0.1:8080',
+  //   reuseExistingServer: !process.env.CI,
+  // },
+
+  /* Global timeout for each test */
+  timeout: 60000,
+
+  /* Expect timeout */
+  expect: {
+    timeout: 5000,
+  },
+
+  /* Output folder for test artifacts */
+  outputDir: 'test-results/',
 });

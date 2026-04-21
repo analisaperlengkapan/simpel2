@@ -25,19 +25,6 @@ spec:
     # ============================================
     - match:
         - uri:
-            prefix: /api/portal
-      route:
-        - destination:
-            host: layanan-portal.simpelv2-production.svc.cluster.local
-            port:
-              number: 3010
-      timeout: 30s
-      retries:
-        attempts: 3
-        perTryTimeout: 10s
-
-    - match:
-        - uri:
             prefix: /api/perlengkapan
       route:
         - destination:

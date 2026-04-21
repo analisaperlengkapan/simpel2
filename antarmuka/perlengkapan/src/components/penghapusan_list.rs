@@ -1,4 +1,8 @@
 use crate::api::{PenghapusanBmnFilters, PenghapusanBmnWorkflow, fetch_penghapusan_bmn_list};
+use crate::components::list_feedback::{EmptyState, LoadingState};
+use crate::components::page_header::PageHeader;
+use crate::components::pagination_controls::PaginationControls;
+use crate::routes;
 use leptos::prelude::*;
 
 /// Returns (bg_class, text_class, label) for a given status_kode
@@ -46,16 +50,11 @@ pub fn PenghapusanList() -> impl IntoView {
 
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-bold text-gray-800">"Usulan SK Penghapusan BMN"</h2>
-                <a
-                    href="/perlengkapan/dashboard/pengelolaan/penghapusan/baru"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
-                >
-                    <i class="fas fa-plus mr-2"></i>
-                    "Usul Penghapusan"
-                </a>
-            </div>
+            <PageHeader
+                title="Usulan SK Penghapusan BMN"
+                action_href=routes::path::PENGELOLAAN_PENGHAPUSAN_BUAT
+                action_label="Usul Penghapusan"
+            />
 
             // Status filter bar
             <div class="flex flex-wrap gap-2 mb-4">
@@ -84,15 +83,15 @@ pub fn PenghapusanList() -> impl IntoView {
                 }).collect_view()}
             </div>
 
-            <Suspense fallback=move || view! { <div class="text-center py-8">"Memuat data..."</div> }>
+            <Suspense fallback=move || view! { <LoadingState /> }>
                 {move || {
                     data_resource.get().flatten().map(|response| {
                         if response.data.is_empty() {
                             view! {
-                                <div class="text-center py-12 text-gray-500">
-                                    <i class="fas fa-clipboard-list text-4xl mb-3 text-gray-300"></i>
-                                    <p>"Belum ada data Usulan SK Penghapusan BMN."</p>
-                                </div>
+                                <EmptyState
+                                    title="Belum ada data Usulan SK Penghapusan BMN."
+                                    icon_class="fas fa-clipboard-list"
+                                />
                             }.into_any()
                         } else {
                             view! {
@@ -114,7 +113,7 @@ pub fn PenghapusanList() -> impl IntoView {
                                             key=|item| item.id.clone()
                                             children=move |item: PenghapusanBmnWorkflow| {
                                                 let (bg, tc, lbl) = status_badge(item.status_kode);
-                                                let detail_url = format!("/dashboard/pengelolaan/penghapusan/{}", item.id);
+                                                let detail_url = format!("/perlengkapan/pengelolaan/penghapusan/{}", item.id);
                                                 view! {
                                                     <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
                                                         <td class="p-3 font-mono text-xs">{item.kode_barang}</td>
@@ -143,28 +142,13 @@ pub fn PenghapusanList() -> impl IntoView {
                                     </tbody>
                                 </table>
 
-                                // Pagination
-                                <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                                    <div class="text-sm text-gray-500">
-                                        "Menampilkan halaman " <span class="font-medium">{response.page}</span> " dari " <span class="font-medium">{response.total_pages}</span>
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <button
-                                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            prop:disabled=move || page.get() <= 1
-                                            on:click=move |_| set_page.update(|p| *p -= 1)
-                                        >
-                                            "Sebelumnya"
-                                        </button>
-                                        <button
-                                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            prop:disabled=move || page.get() >= response.total_pages
-                                            on:click=move |_| set_page.update(|p| *p += 1)
-                                        >
-                                            "Selanjutnya"
-                                        </button>
-                                    </div>
-                                </div>
+                                <PaginationControls
+                                    current_page=response.page
+                                    total_pages=response.total_pages
+                                    total_items=None
+                                    on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
+                                    on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
+                                />
                             </div>
                             }.into_any()
                         }

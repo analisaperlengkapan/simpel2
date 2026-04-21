@@ -1,0 +1,568 @@
+//! Pemakaian BMN detail — permit lifecycle surface.
+
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos_router::components::A;
+use leptos_router::hooks::use_params_map;
+use wasm_bindgen::JsCast;
+use web_sys::{Event, HtmlInputElement, HtmlTextAreaElement};
+
+use crate::api::error::AppError;
+use crate::api::pemakaian_bmn::{
+    self, IzinPemakaianDetailResponse, RenewPermitRequest, RevokePermitRequest,
+};
+use crate::components::layout::{
+    EmptyState, ErrorState, LoadingState, PageBreadcrumb, PageLayout, SectionCard,
+};
+use crate::routes::path;
+
+#[component]
+pub fn PemakaianBmnDetailPage() -> impl IntoView {
+    let params = use_params_map();
+    let id_signal = Signal::derive(move || params.with(|p| p.get("id").unwrap_or_default()));
+
+    let (detail, set_detail) = signal::<Option<IzinPemakaianDetailResponse>>(None);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal::<Option<AppError>>(None);
+    let (reload_tick, set_reload_tick) = signal(0_u32);
+    let (action_msg, set_action_msg) = signal::<Option<(bool, String)>>(None);
+    let (show_revoke, set_show_revoke) = signal(false);
+    let (show_renew, set_show_renew) = signal(false);
+    let (revoke_reason, set_revoke_reason) = signal::<String>(String::new());
+    let (renew_start, set_renew_start) = signal::<String>(String::new());
+    let (renew_end, set_renew_end) = signal::<String>(String::new());
+    let (renew_keperluan, set_renew_keperluan) = signal::<String>(String::new());
+    let (submitting, set_submitting) = signal(false);
+
+    Effect::new(move |_| {
+        let _ = reload_tick.get();
+        let id = id_signal.get();
+        if id.is_empty() {
+            set_loading.set(false);
+            set_error.set(Some(AppError::not_found("Id izin tidak diberikan.")));
+            return;
+        }
+        set_loading.set(true);
+        set_error.set(None);
+        spawn_local(async move {
+            match pemakaian_bmn::fetch_pemakaian_bmn_detail(&id).await {
+                Ok(resp) => set_detail.set(Some(resp.data)),
+                Err(e) => set_error.set(Some(e)),
+            }
+            set_loading.set(false);
+        });
+    });
+
+    let reload = move || set_reload_tick.update(|t| *t += 1);
+
+    let open_revoke = move |_| {
+        set_revoke_reason.set(String::new());
+        set_show_revoke.set(true);
+    };
+    let close_revoke = move |_| set_show_revoke.set(false);
+
+    let submit_revoke = move |_| {
+        let id = id_signal.get();
+        let reason = revoke_reason.get();
+        if reason.trim().is_empty() {
+            set_action_msg.set(Some((false, "Alasan pencabutan wajib diisi.".to_string())));
+            return;
+        }
+        set_submitting.set(true);
+        spawn_local(async move {
+            match pemakaian_bmn::revoke_pemakaian_bmn(&id, RevokePermitRequest { alasan: reason })
+                .await
+            {
+                Ok(_) => {
+                    set_action_msg.set(Some((true, "Izin berhasil dicabut.".to_string())));
+                    set_show_revoke.set(false);
+                    set_reload_tick.update(|t| *t += 1);
+                }
+                Err(e) => {
+                    set_action_msg.set(Some((false, e.user_message())));
+                }
+            }
+            set_submitting.set(false);
+        });
+    };
+
+    let open_renew = move |_| {
+        set_renew_start.set(String::new());
+        set_renew_end.set(String::new());
+        set_renew_keperluan.set(String::new());
+        set_show_renew.set(true);
+    };
+    let close_renew = move |_| set_show_renew.set(false);
+
+    let submit_renew = move |_| {
+        let id = id_signal.get();
+        let start = renew_start.get();
+        let end = renew_end.get();
+        let keperluan = renew_keperluan.get();
+        if start.is_empty() || end.is_empty() || keperluan.trim().is_empty() {
+            set_action_msg.set(Some((
+                false,
+                "Tanggal mulai, selesai, dan keperluan wajib diisi.".to_string(),
+            )));
+            return;
+        }
+        set_submitting.set(true);
+        spawn_local(async move {
+            match pemakaian_bmn::renew_pemakaian_bmn(
+                &id,
+                RenewPermitRequest {
+                    tanggal_mulai: start,
+                    tanggal_selesai: end,
+                    keperluan,
+                },
+            )
+            .await
+            {
+                Ok(_) => {
+                    set_action_msg.set(Some((true, "Izin berhasil diperpanjang.".to_string())));
+                    set_show_renew.set(false);
+                    set_reload_tick.update(|t| *t += 1);
+                }
+                Err(e) => {
+                    set_action_msg.set(Some((false, e.user_message())));
+                }
+            }
+            set_submitting.set(false);
+        });
+    };
+
+    let breadcrumbs = vec![
+        PageBreadcrumb::new("Dashboard", path::DASHBOARD),
+        PageBreadcrumb::new("Pemakaian BMN", path::PENGELOLAAN_PEMAKAIAN),
+        PageBreadcrumb::leaf("Detail"),
+    ];
+
+    view! {
+        <PageLayout
+            title="Detail Izin Pemakaian"
+            description="Kelola aksi lifecycle: perpanjang, cabut, dan pantau sisa waktu."
+            icon="fas fa-handshake"
+            breadcrumbs=breadcrumbs
+            actions=Box::new(move || view! {
+                <A
+                    href=path::PENGELOLAAN_PEMAKAIAN
+                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                >
+                    <i class="fas fa-arrow-left text-[0.7rem]"></i>
+                    "Kembali"
+                </A>
+            }.into_any())
+        >
+            {move || {
+                if let Some((ok, msg)) = action_msg.get() {
+                    let tone = if ok {
+                        "border-success-500/30 bg-success-500/10 text-success-200"
+                    } else {
+                        "border-danger-500/30 bg-danger-500/10 text-danger-200"
+                    };
+                    view! {
+                        <div class=format!("rounded-lg border px-4 py-2 text-xs {}", tone)>
+                            {msg}
+                        </div>
+                    }.into_any()
+                } else {
+                    view! { <div class="hidden"></div> }.into_any()
+                }
+            }}
+
+            {move || {
+                if loading.get() && detail.get().is_none() {
+                    view! { <LoadingState message="Memuat detail izin..." /> }.into_any()
+                } else if let Some(err) = error.get() {
+                    view! {
+                        <ErrorState
+                            error=err
+                            on_retry=Box::new(move || reload())
+                        />
+                    }.into_any()
+                } else if let Some(d) = detail.get() {
+                    view! {
+                        <DetailBody
+                            detail=d
+                            on_renew=open_renew
+                            on_revoke=open_revoke
+                        />
+                    }.into_any()
+                } else {
+                    view! {
+                        <EmptyState
+                            title="Izin tidak ditemukan"
+                            description="Permohonan izin tidak tersedia dalam basis data."
+                            icon="fas fa-folder-open"
+                        />
+                    }.into_any()
+                }
+            }}
+
+            <Show when=move || show_revoke.get()>
+                <RevokeModal
+                    reason=revoke_reason
+                    set_reason=set_revoke_reason
+                    submitting=submitting
+                    on_close=close_revoke
+                    on_submit=submit_revoke
+                />
+            </Show>
+
+            <Show when=move || show_renew.get()>
+                <RenewModal
+                    start=renew_start
+                    end=renew_end
+                    keperluan=renew_keperluan
+                    set_start=set_renew_start
+                    set_end=set_renew_end
+                    set_keperluan=set_renew_keperluan
+                    submitting=submitting
+                    on_close=close_renew
+                    on_submit=submit_renew
+                />
+            </Show>
+        </PageLayout>
+    }
+}
+
+#[component]
+fn DetailBody(
+    detail: IzinPemakaianDetailResponse,
+    on_renew: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
+    on_revoke: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
+) -> impl IntoView {
+    let izin = detail.izin.clone();
+    let status = izin.status.clone();
+    let is_active = status == "ACTIVE" || status == "APPROVED";
+    let can_revoke = is_active;
+    let can_renew = is_active;
+
+    let nomor = izin.nomor_izin.clone().unwrap_or_else(|| "-".to_string());
+    let periode = format!("{} → {}", izin.tanggal_mulai, izin.tanggal_selesai);
+    let pemohon_nama = izin.pegawai_nama.clone();
+    let pemohon_nip = izin.pegawai_nip.clone();
+    let pemohon_satker = izin.pegawai_satker_nama.clone();
+    let bmn_nama = izin.bmn_nama_barang.clone();
+    let bmn_nup = izin.bmn_nup.clone();
+    let bmn_kode = izin.bmn_kode_barang.clone();
+    let keperluan = izin.keperluan.clone();
+    let lokasi = izin
+        .lokasi_pemakaian
+        .clone()
+        .unwrap_or_else(|| "-".to_string());
+
+    let days = detail.days_until_expiry;
+    let expiring_soon = detail.is_expiring_soon;
+
+    view! {
+        <LifecycleSummary
+            status=status.clone()
+            days=days
+            expiring_soon=expiring_soon
+            periode=periode.clone()
+            can_renew=can_renew
+            can_revoke=can_revoke
+            on_renew=on_renew
+            on_revoke=on_revoke
+        />
+
+        <SectionCard
+            title=format!("Izin #{}", nomor)
+            description="Informasi umum permohonan."
+            icon="fas fa-circle-info"
+        >
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <InfoField label="Pemohon" value=pemohon_nama />
+                <InfoField label="NIP" value=pemohon_nip />
+                <InfoField label="Satker" value=pemohon_satker />
+                <InfoField label="BMN" value=bmn_nama />
+                <InfoField label="NUP" value=bmn_nup />
+                <InfoField label="Kode Barang" value=bmn_kode />
+                <InfoField label="Periode" value=periode.clone() />
+                <InfoField label="Lokasi Pemakaian" value=lokasi />
+            </div>
+            <div class="mt-4 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
+                <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Keperluan"</p>
+                <p class="mt-1 text-sm text-slate-200">{keperluan}</p>
+            </div>
+        </SectionCard>
+    }
+}
+
+#[component]
+fn LifecycleSummary(
+    status: String,
+    days: Option<i64>,
+    expiring_soon: bool,
+    periode: String,
+    can_renew: bool,
+    can_revoke: bool,
+    on_renew: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
+    on_revoke: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
+) -> impl IntoView {
+    let (status_label, status_tone) = match status.as_str() {
+        "DRAFT" => ("Draft", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
+        "SUBMITTED" => ("Diajukan", "bg-info-500/10 text-info-300 ring-info-500/20"),
+        "APPROVED" => (
+            "Disetujui",
+            "bg-success-500/10 text-success-300 ring-success-500/20",
+        ),
+        "ACTIVE" => (
+            "Aktif",
+            "bg-success-500/10 text-success-300 ring-success-500/20",
+        ),
+        "EXPIRED" => (
+            "Kadaluarsa",
+            "bg-warning-500/10 text-warning-300 ring-warning-500/20",
+        ),
+        "REVOKED" => (
+            "Dicabut",
+            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
+        ),
+        "REJECTED" => (
+            "Ditolak",
+            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
+        ),
+        _ => ("Lainnya", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
+    };
+
+    let countdown = match days {
+        Some(d) if d < 0 => (format!("Lewat {} hari", -d), "text-danger-300"),
+        Some(0) => ("Berakhir hari ini".to_string(), "text-warning-300"),
+        Some(d) if d <= 7 => (format!("{} hari lagi", d), "text-warning-300"),
+        Some(d) => (format!("{} hari lagi", d), "text-slate-300"),
+        None => ("—".to_string(), "text-slate-500"),
+    };
+
+    let warning_banner = expiring_soon.then(|| view! {
+        <div class="mt-3 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-200">
+            <i class="fas fa-triangle-exclamation mt-0.5 text-warning-300"></i>
+            <span>"Izin akan berakhir dalam 7 hari. Pertimbangkan perpanjangan sebelum masa aktif habis."</span>
+        </div>
+    });
+
+    view! {
+        <SectionCard
+            title="Lifecycle"
+            description="Status dan sisa waktu izin."
+            icon="fas fa-gauge-high"
+            actions=Box::new(move || view! {
+                <button
+                    type="button"
+                    on:click=on_renew
+                    disabled=!can_renew
+                    class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
+                >
+                    <i class="fas fa-repeat text-[0.6rem]"></i>
+                    "Perpanjang"
+                </button>
+                <button
+                    type="button"
+                    on:click=on_revoke
+                    disabled=!can_revoke
+                    class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs font-semibold text-danger-200 transition hover:bg-danger-500/20 disabled:opacity-40"
+                >
+                    <i class="fas fa-ban text-[0.6rem]"></i>
+                    "Cabut Izin"
+                </button>
+            }.into_any())
+        >
+            <div class="grid gap-4 sm:grid-cols-3">
+                <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
+                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Status"</p>
+                    <p class="mt-1">
+                        <span class=format!(
+                            "inline-flex rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold ring-1 {}",
+                            status_tone
+                        )>
+                            {status_label}
+                        </span>
+                    </p>
+                </div>
+                <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
+                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Periode"</p>
+                    <p class="mt-1 text-sm text-slate-100">{periode}</p>
+                </div>
+                <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
+                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Sisa Waktu"</p>
+                    <p class=format!("mt-1 text-sm font-semibold {}", countdown.1)>
+                        {countdown.0}
+                    </p>
+                </div>
+            </div>
+            {warning_banner}
+        </SectionCard>
+    }
+}
+
+#[component]
+fn InfoField(#[prop(into)] label: String, #[prop(into)] value: String) -> impl IntoView {
+    view! {
+        <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
+            <dt class="text-[0.65rem] uppercase tracking-wide text-slate-500">{label}</dt>
+            <dd class="mt-1 text-sm text-slate-100">{value}</dd>
+        </div>
+    }
+}
+
+#[component]
+fn RevokeModal(
+    reason: ReadSignal<String>,
+    set_reason: WriteSignal<String>,
+    submitting: ReadSignal<bool>,
+    on_close: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
+    on_submit: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
+) -> impl IntoView {
+    let on_reason = move |ev: Event| {
+        if let Some(target) = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlTextAreaElement>().ok())
+        {
+            set_reason.set(target.value());
+        }
+    };
+    view! {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div class="w-[95vw] max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-5 shadow-2xl">
+                <header class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-semibold text-white">"Cabut Izin Pemakaian"</h2>
+                        <p class="mt-1 text-xs text-slate-400">"Berikan alasan pencabutan. Aksi ini mengubah status izin menjadi REVOKED."</p>
+                    </div>
+                    <button
+                        type="button"
+                        on:click=on_close
+                        class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-slate-300 transition hover:bg-white/[0.08]"
+                    >
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </header>
+                <textarea
+                    class="focus-ring mt-4 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
+                    rows="4"
+                    placeholder="Tuliskan alasan pencabutan..."
+                    on:input=on_reason
+                    prop:value=move || reason.get()
+                ></textarea>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        on:click=on_close
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
+                    >
+                        "Batal"
+                    </button>
+                    <button
+                        type="button"
+                        on:click=on_submit
+                        disabled=move || submitting.get()
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-danger-500/80 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-danger-500 disabled:opacity-50"
+                    >
+                        <i class="fas fa-ban text-[0.6rem]"></i>
+                        {move || if submitting.get() { "Memproses..." } else { "Cabut" }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+fn RenewModal(
+    start: ReadSignal<String>,
+    end: ReadSignal<String>,
+    keperluan: ReadSignal<String>,
+    set_start: WriteSignal<String>,
+    set_end: WriteSignal<String>,
+    set_keperluan: WriteSignal<String>,
+    submitting: ReadSignal<bool>,
+    on_close: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
+    on_submit: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
+) -> impl IntoView {
+    let on_start = move |ev: Event| {
+        if let Some(target) = ev.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok()) {
+            set_start.set(target.value());
+        }
+    };
+    let on_end = move |ev: Event| {
+        if let Some(target) = ev.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok()) {
+            set_end.set(target.value());
+        }
+    };
+    let on_keperluan = move |ev: Event| {
+        if let Some(target) = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlTextAreaElement>().ok())
+        {
+            set_keperluan.set(target.value());
+        }
+    };
+    view! {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div class="w-[95vw] max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-5 shadow-2xl">
+                <header class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-semibold text-white">"Perpanjang Izin"</h2>
+                        <p class="mt-1 text-xs text-slate-400">"Tentukan periode perpanjangan dan keperluan lanjutannya."</p>
+                    </div>
+                    <button
+                        type="button"
+                        on:click=on_close
+                        class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-slate-300 transition hover:bg-white/[0.08]"
+                    >
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </header>
+                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label class="flex flex-col gap-1">
+                        <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">"Tanggal Mulai"</span>
+                        <input
+                            type="date"
+                            class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                            on:input=on_start
+                            prop:value=move || start.get()
+                        />
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">"Tanggal Selesai"</span>
+                        <input
+                            type="date"
+                            class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                            on:input=on_end
+                            prop:value=move || end.get()
+                        />
+                    </label>
+                </div>
+                <label class="mt-3 flex flex-col gap-1">
+                    <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">"Keperluan"</span>
+                    <textarea
+                        class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
+                        rows="3"
+                        placeholder="Alasan perpanjangan izin..."
+                        on:input=on_keperluan
+                        prop:value=move || keperluan.get()
+                    ></textarea>
+                </label>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        on:click=on_close
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
+                    >
+                        "Batal"
+                    </button>
+                    <button
+                        type="button"
+                        on:click=on_submit
+                        disabled=move || submitting.get()
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
+                    >
+                        <i class="fas fa-repeat text-[0.6rem]"></i>
+                        {move || if submitting.get() { "Memproses..." } else { "Perpanjang" }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}

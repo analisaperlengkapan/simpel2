@@ -1,6 +1,7 @@
 //! Helpdesk — support contact page.
 
 use leptos::prelude::*;
+use crate::components::layout::{PageLayout, SectionCard, FormField};
 
 #[component]
 pub fn HelpdeskPage() -> impl IntoView {
@@ -9,70 +10,75 @@ pub fn HelpdeskPage() -> impl IntoView {
     let submitted = RwSignal::new(false);
 
     view! {
-        <div style="max-width: 800px; margin: 0 auto;">
-            <div style="margin-bottom: 28px;">
-                <h1 style="font-size: 1.4rem; font-weight: 800; color: #e2e8f0; margin: 0;">"Helpdesk"</h1>
-                <p style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">"Hubungi tim dukungan teknis SIMPEL"</p>
-            </div>
-
+        <PageLayout
+            title="Helpdesk"
+            icon="fas fa-headset"
+            description="Hubungi tim dukungan teknis SIMPEL"
+        >
             // Contact cards
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 28px;">
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 20px;">
-                    <i class="fas fa-envelope" style="color: #60a5fa; font-size: 1.2rem; margin-bottom: 10px; display: block;"></i>
-                    <div style="font-size: 0.82rem; font-weight: 600; color: #e2e8f0; margin-bottom: 4px;">"Email"</div>
-                    <div style="font-size: 0.78rem; color: #94a3b8;">"helpdesk-simpel@kejaksaan.go.id"</div>
-                </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 20px;">
-                    <i class="fas fa-phone" style="color: #34d399; font-size: 1.2rem; margin-bottom: 10px; display: block;"></i>
-                    <div style="font-size: 0.82rem; font-weight: 600; color: #e2e8f0; margin-bottom: 4px;">"Telepon"</div>
-                    <div style="font-size: 0.78rem; color: #94a3b8;">"(021) 123-4567 ext. 890"</div>
-                </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 20px;">
-                    <i class="fas fa-clock" style="color: #fbbf24; font-size: 1.2rem; margin-bottom: 10px; display: block;"></i>
-                    <div style="font-size: 0.82rem; font-weight: 600; color: #e2e8f0; margin-bottom: 4px;">"Jam Kerja"</div>
-                    <div style="font-size: 0.78rem; color: #94a3b8;">"Senin - Jumat, 08:00 - 16:00"</div>
-                </div>
+            <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <SectionCard title="Email" dense=true>
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-envelope text-info-400 text-lg"></i>
+                        <span class="text-sm text-slate-300">"helpdesk-simpel@kejaksaan.go.id"</span>
+                    </div>
+                </SectionCard>
+                <SectionCard title="Telepon" dense=true>
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-phone text-success-400 text-lg"></i>
+                        <span class="text-sm text-slate-300">"(021) 123-4567 ext. 890"</span>
+                    </div>
+                </SectionCard>
+                <SectionCard title="Jam Kerja" dense=true>
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-clock text-gold-400 text-lg"></i>
+                        <span class="text-sm text-slate-300">"Senin - Jumat, 08:00 - 16:00"</span>
+                    </div>
+                </SectionCard>
             </div>
 
             // Contact form
-            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 28px;">
-                <h2 style="font-size: 1rem; font-weight: 700; color: #e2e8f0; margin: 0 0 20px 0;">"Kirim Pesan"</h2>
-
+            <SectionCard title="Kirim Pesan">
                 {move || if submitted.get() {
                     view! {
-                        <div style="text-align: center; padding: 24px;">
-                            <i class="fas fa-check-circle" style="font-size: 2rem; color: #34d399; margin-bottom: 12px; display: block;"></i>
-                            <div style="font-size: 0.9rem; font-weight: 600; color: #e2e8f0; margin-bottom: 6px;">"Pesan Terkirim"</div>
-                            <div style="font-size: 0.8rem; color: #94a3b8;">"Tim helpdesk akan merespons dalam 1×24 jam kerja."</div>
+                        <div class="flex flex-col items-center py-6 text-center">
+                            <i class="fas fa-check-circle text-3xl text-success-400 mb-3"></i>
+                            <p class="text-sm font-semibold text-white">"Pesan Terkirim"</p>
+                            <p class="mt-1 text-sm text-slate-400">"Tim helpdesk akan merespons dalam 1×24 jam kerja."</p>
                         </div>
                     }.into_any()
                 } else {
                     view! {
-                        <div>
-                            <div style="margin-bottom: 16px;">
-                                <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">"Subjek"</label>
-                                <input type="text" placeholder="Judul pesan..."
-                                    style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e2e8f0; font-size: 0.82rem; outline: none;"
+                        <div class="flex flex-col gap-5">
+                            <FormField label="Subjek" full_width=true>
+                                <input
+                                    type="text"
+                                    placeholder="Judul pesan..."
+                                    class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     on:input=move |ev| subject.set(event_target_value(&ev))
                                 />
-                            </div>
-                            <div style="margin-bottom: 16px;">
-                                <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">"Pesan"</label>
-                                <textarea placeholder="Jelaskan kendala atau pertanyaan Anda..."
-                                    style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e2e8f0; font-size: 0.82rem; outline: none; min-height: 120px; resize: vertical;"
+                            </FormField>
+                            <FormField label="Pesan" full_width=true>
+                                <textarea
+                                    placeholder="Jelaskan kendala atau pertanyaan Anda..."
+                                    class="focus-ring min-h-[120px] w-full resize-y rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     on:input=move |ev| message.set(event_target_value(&ev))
                                 ></textarea>
+                            </FormField>
+                            <div class="flex justify-end border-t border-white/[0.04] pt-4">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
+                                    on:click=move |_| submitted.set(true)
+                                >
+                                    <i class="fas fa-paper-plane text-xs"></i>
+                                    "Kirim Pesan"
+                                </button>
                             </div>
-                            <button
-                                style="padding: 10px 24px; background: linear-gradient(135deg, #d4a843, #facc15); color: #0f172a; font-weight: 700; font-size: 0.82rem; border: none; border-radius: 10px; cursor: pointer;"
-                                on:click=move |_| submitted.set(true)
-                            >
-                                <i class="fas fa-paper-plane" style="margin-right: 6px;"></i> "Kirim Pesan"
-                            </button>
                         </div>
                     }.into_any()
                 }}
-            </div>
-        </div>
+            </SectionCard>
+        </PageLayout>
     }
 }

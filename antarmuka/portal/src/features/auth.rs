@@ -515,6 +515,46 @@ impl AuthService {
         }
     }
 
+    /// Remember a deep-link redirect target across MFA/password-change
+    /// detours. Stored in sessionStorage so it's scoped to the tab and
+    /// cleared automatically when the tab closes. Only `/perlengkapan/…`
+    /// paths are accepted to prevent open-redirect abuse.
+    pub fn save_post_login_redirect(target: &str) {
+        if !target.starts_with("/perlengkapan") {
+            return;
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(storage) = web_sys::window()
+                .and_then(|w| w.session_storage().ok())
+                .flatten()
+            {
+                let _ = storage.set_item("post_login_redirect", target);
+            }
+        }
+    }
+
+    /// Consume any stored post-login redirect, clearing it so it fires once.
+    pub fn take_post_login_redirect() -> Option<String> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let storage = web_sys::window()
+                .and_then(|w| w.session_storage().ok())
+                .flatten()?;
+            let value = storage.get_item("post_login_redirect").ok().flatten()?;
+            let _ = storage.remove_item("post_login_redirect");
+            if value.starts_with("/perlengkapan") {
+                Some(value)
+            } else {
+                None
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            None
+        }
+    }
+
     /// Logout user - calls backend and clears local state
     pub fn logout() {
         // 1. Read refresh token BEFORE clearing localStorage

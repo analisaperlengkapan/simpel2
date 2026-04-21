@@ -4,7 +4,8 @@
 //! REQ-PORTAL-021
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_app_state};
+use crate::components::feedback::EmptyPanel;
+use crate::utils::app_state::use_main_layout_session_and_logout;
 use leptos::prelude::*;
 
 /// Active tab
@@ -17,7 +18,7 @@ enum LinkedTab {
 impl LinkedTab {
     fn label(&self) -> &'static str {
         match self {
-            Self::LinkedAccounts => "Akun Terhubung",
+            Self::LinkedAccounts => "Akun Tertaut",
             Self::Consents => "Persetujuan",
         }
     }
@@ -33,26 +34,17 @@ impl LinkedTab {
 /// Linked Accounts & Consents page
 #[component]
 pub fn LinkedAccountsPage() -> impl IntoView {
-    let state = use_app_state();
     let (active_tab, set_active_tab) = signal(LinkedTab::LinkedAccounts);
-
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-5xl mx-auto px-4 py-8">
                 <nav class="text-sm text-gray-500 mb-1">
                     <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
-                    " / Akun Terhubung"
+                    " / Akun Tertaut"
                 </nav>
-                <h1 class="text-2xl font-bold text-gray-900 mb-6">"Akun Terhubung & Persetujuan"</h1>
+                <h1 class="text-2xl font-bold text-gray-900 mb-6">"Akun Tertaut & Persetujuan"</h1>
 
                 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div class="border-b">
@@ -80,7 +72,7 @@ pub fn LinkedAccountsPage() -> impl IntoView {
                         // === Linked Accounts ===
                         <Show when=move || active_tab.get() == LinkedTab::LinkedAccounts>
                             <div class="space-y-4">
-                                <h3 class="font-medium text-gray-900">"Penyedia Identitas Terhubung"</h3>
+                                <h3 class="font-medium text-gray-900">"Penyedia Identitas Tertaut"</h3>
                                 {[("Google", "🔵", false), ("GitHub", "⚫", false), ("Microsoft", "🟦", false), ("SAML", "🔶", false)].iter().map(|(name, icon, linked)| {
                                     view! {
                                         <div class="flex items-center justify-between px-4 py-4 border rounded-lg">
@@ -109,10 +101,10 @@ pub fn LinkedAccountsPage() -> impl IntoView {
                             <div class="space-y-4">
                                 <h3 class="font-medium text-gray-900">"Persetujuan OAuth2"</h3>
                                 <p class="text-sm text-gray-500">"Aplikasi yang telah diberikan akses ke akun Anda."</p>
-                                <div class="text-center py-8">
-                                    <p class="text-3xl mb-2">"✅"</p>
-                                    <p class="text-sm text-gray-400">"Belum ada persetujuan yang diberikan."</p>
-                                </div>
+                                <EmptyPanel
+                                    title="Belum ada persetujuan"
+                                    message="Belum ada aplikasi yang diberikan akses OAuth2."
+                                />
                             </div>
                         </Show>
                     </div>

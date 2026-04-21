@@ -3,6 +3,7 @@
 pub mod auth;
 pub mod microfrontends;
 pub mod oauth;
+pub mod session_monitor;
 
 #[cfg(test)]
 mod auth_tests;

@@ -113,3 +113,16 @@ pub fn app_state_logout() {
     let state = use_app_state();
     state.set(AppState::default());
 }
+
+/// Common MainLayout context tuple for pages using AppState-authenticated shell.
+pub fn use_main_layout_session_and_logout() -> (UserSession, Box<dyn Fn()>) {
+    let state = use_app_state();
+    let session = state.get().user.unwrap_or_default();
+
+    let on_logout = Box::new(move || {
+        crate::features::auth::AuthService::logout();
+        state.set(AppState::default());
+    }) as Box<dyn Fn()>;
+
+    (session, on_logout)
+}

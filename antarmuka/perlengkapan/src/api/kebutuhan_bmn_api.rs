@@ -2,6 +2,11 @@
 use super::common::*;
 use super::kebutuhan_bmn_types::*;
 
+#[cfg(target_arch = "wasm32")]
+use crate::api::client::{
+    auth_delete_json, auth_get_binary, auth_get_json, auth_post_json, auth_put_json,
+};
+
 use serde::{Deserialize, Serialize};
 
 // ============================================================================
@@ -13,31 +18,13 @@ const KEBUTUHAN_BMN_BASE: &str = "/api/pembinaan/perlengkapan/kebutuhan-bmn";
 // --- Dashboard ---
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_kebutuhan_bmn_dashboard()
--> Result<ApiResponse<KebutuhanBmnDashboardStats>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!("{}/dashboard", KEBUTUHAN_BMN_BASE))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+-> Result<ApiResponse<KebutuhanBmnDashboardStats>, crate::api::AppError> {
+    auth_get_json(&format!("{}/dashboard", KEBUTUHAN_BMN_BASE)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_kebutuhan_bmn_dashboard()
--> Result<ApiResponse<KebutuhanBmnDashboardStats>, String> {
+-> Result<ApiResponse<KebutuhanBmnDashboardStats>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: KebutuhanBmnDashboardStats {
@@ -61,10 +48,7 @@ pub async fn fetch_kebutuhan_bmn_list(
     query: KebutuhanBmnQuery,
     page: i32,
     per_page: i32,
-) -> Result<PaginatedResponse<KebutuhanBmnSummary>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
+) -> Result<PaginatedResponse<KebutuhanBmnSummary>, crate::api::AppError> {
     let mut url = format!(
         "{}/pengajuan?page={}&per_page={}",
         KEBUTUHAN_BMN_BASE, page, per_page
@@ -82,22 +66,7 @@ pub async fn fetch_kebutuhan_bmn_list(
         url.push_str(&format!("&search={}", search));
     }
 
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+    auth_get_json(&url).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -105,7 +74,7 @@ pub async fn fetch_kebutuhan_bmn_list(
     _query: KebutuhanBmnQuery,
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<KebutuhanBmnSummary>, String> {
+) -> Result<PaginatedResponse<KebutuhanBmnSummary>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -120,135 +89,55 @@ pub async fn fetch_kebutuhan_bmn_list(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_kebutuhan_bmn_detail(
     id: &str,
-) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
+    auth_get_json(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_kebutuhan_bmn_detail(
     _id: &str,
-) -> Result<ApiResponse<PengajuanDetailResponse>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn create_kebutuhan_bmn(
     request: CreateKebutuhanBmnRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!("{}/pengajuan", KEBUTUHAN_BMN_BASE))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
+    auth_post_json(&format!("{}/pengajuan", KEBUTUHAN_BMN_BASE), &request).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_kebutuhan_bmn(
     _request: CreateKebutuhanBmnRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn update_kebutuhan_bmn(
     id: &str,
     request: UpdateKebutuhanBmnRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::put(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
+    auth_put_json(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id), &request).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn update_kebutuhan_bmn(
     _id: &str,
     _request: UpdateKebutuhanBmnRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn delete_kebutuhan_bmn(id: &str) -> Result<ApiResponse<()>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::delete(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+pub async fn delete_kebutuhan_bmn(id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
+    auth_delete_json(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_kebutuhan_bmn(_id: &str) -> Result<ApiResponse<()>, String> {
-    Err("Server-side stub".to_string())
+pub async fn delete_kebutuhan_bmn(_id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Workflow Transition ---
@@ -256,41 +145,20 @@ pub async fn delete_kebutuhan_bmn(_id: &str) -> Result<ApiResponse<()>, String> 
 pub async fn transition_kebutuhan_bmn_status(
     id: &str,
     request: WorkflowTransitionRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!(
-        "{}/pengajuan/{}/transition",
-        KEBUTUHAN_BMN_BASE, id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/pengajuan/{}/transition", KEBUTUHAN_BMN_BASE, id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn transition_kebutuhan_bmn_status(
     _id: &str,
     _request: WorkflowTransitionRequest,
-) -> Result<ApiResponse<PengajuanDetailResponse>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Satker Operations ---
@@ -299,31 +167,13 @@ pub async fn fetch_pengajuan_satkers(
     pengajuan_id: &str,
     page: i32,
     per_page: i32,
-) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
+) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     let url = format!(
         "{}/pengajuan/{}/satker?page={}&per_page={}",
         KEBUTUHAN_BMN_BASE, pengajuan_id, page, per_page
     );
 
-    let resp = Request::get(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+    auth_get_json(&url).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -331,7 +181,7 @@ pub async fn fetch_pengajuan_satkers(
     _pengajuan_id: &str,
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, String> {
+) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -346,108 +196,48 @@ pub async fn fetch_pengajuan_satkers(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_satker_with_barang(
     satker_id: &str,
-) -> Result<ApiResponse<SatkerWithBarangResponse>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!("{}/satker/{}", KEBUTUHAN_BMN_BASE, satker_id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<SatkerWithBarangResponse>, crate::api::AppError> {
+    auth_get_json(&format!("{}/satker/{}", KEBUTUHAN_BMN_BASE, satker_id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_satker_with_barang(
     _satker_id: &str,
-) -> Result<ApiResponse<SatkerWithBarangResponse>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<SatkerWithBarangResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn transition_satker_status(
     satker_id: &str,
     request: WorkflowTransitionRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!(
-        "{}/satker/{}/transition",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/satker/{}/transition", KEBUTUHAN_BMN_BASE, satker_id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn transition_satker_status(
     _satker_id: &str,
     _request: WorkflowTransitionRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_satker_aktivitas(
     satker_id: &str,
-) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!(
-        "{}/satker/{}/aktivitas",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>, crate::api::AppError> {
+    auth_get_json(&format!("{}/satker/{}/aktivitas", KEBUTUHAN_BMN_BASE, satker_id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_satker_aktivitas(
     _satker_id: &str,
-) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>, String> {
+) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: vec![],
@@ -458,36 +248,15 @@ pub async fn fetch_satker_aktivitas(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_satker_analisis(
     satker_id: &str,
-) -> Result<ApiResponse<AnalisisKelayakanResponse>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!(
-        "{}/satker/{}/analisis",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<AnalisisKelayakanResponse>, crate::api::AppError> {
+    auth_get_json(&format!("{}/satker/{}/analisis", KEBUTUHAN_BMN_BASE, satker_id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_satker_analisis(
     _satker_id: &str,
-) -> Result<ApiResponse<AnalisisKelayakanResponse>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<AnalisisKelayakanResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Barang Operations ---
@@ -495,175 +264,78 @@ pub async fn fetch_satker_analisis(
 pub async fn create_kebutuhan_bmn_barang(
     satker_id: &str,
     request: CreateKebutuhanBmnBarangRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!(
-        "{}/satker/{}/barang",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/satker/{}/barang", KEBUTUHAN_BMN_BASE, satker_id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn create_kebutuhan_bmn_barang(
     _satker_id: &str,
     _request: CreateKebutuhanBmnBarangRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn update_kebutuhan_bmn_barang(
     barang_id: &str,
     request: UpdateBarangApprovalRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::put(&format!("{}/barang/{}", KEBUTUHAN_BMN_BASE, barang_id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
+    auth_put_json(
+        &format!("{}/barang/{}", KEBUTUHAN_BMN_BASE, barang_id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn update_kebutuhan_bmn_barang(
     _barang_id: &str,
     _request: UpdateBarangApprovalRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn delete_kebutuhan_bmn_barang(
     barang_id: &str,
-) -> Result<ApiResponse<()>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::delete(&format!("{}/barang/{}", KEBUTUHAN_BMN_BASE, barang_id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<()>, crate::api::AppError> {
+    auth_delete_json(&format!("{}/barang/{}", KEBUTUHAN_BMN_BASE, barang_id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_kebutuhan_bmn_barang(_barang_id: &str) -> Result<ApiResponse<()>, String> {
-    Err("Server-side stub".to_string())
+pub async fn delete_kebutuhan_bmn_barang(_barang_id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Priority Operations ---
 #[cfg(target_arch = "wasm32")]
 pub async fn set_kebutuhan_bmn_prioritas(
     request: SetPrioritasRequest,
-) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!("{}/prioritas", KEBUTUHAN_BMN_BASE))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, crate::api::AppError> {
+    auth_post_json(&format!("{}/prioritas", KEBUTUHAN_BMN_BASE), &request).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn set_kebutuhan_bmn_prioritas(
     _request: SetPrioritasRequest,
-) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Export ---
 #[cfg(target_arch = "wasm32")]
-pub async fn export_kebutuhan_bmn(id: &str) -> Result<Vec<u8>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!("{}/pengajuan/{}/export", KEBUTUHAN_BMN_BASE, id))
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.binary().await
+pub async fn export_kebutuhan_bmn(id: &str) -> Result<Vec<u8>, crate::api::AppError> {
+    auth_get_binary(&format!("{}/pengajuan/{}/export", KEBUTUHAN_BMN_BASE, id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn export_kebutuhan_bmn(_id: &str) -> Result<Vec<u8>, String> {
-    Err("Server-side stub".to_string())
+pub async fn export_kebutuhan_bmn(_id: &str) -> Result<Vec<u8>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Batch Operations ---
@@ -693,36 +365,16 @@ pub struct BatchOperationResponse {
 pub async fn batch_approve_kebutuhan(
     ids: Vec<uuid::Uuid>,
     komentar: Option<String>,
-) -> Result<BatchOperationResponse, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
+) -> Result<BatchOperationResponse, crate::api::AppError> {
     use serde_json::json;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
 
     let body = json!({
         "kebutuhan_ids": ids,
         "komentar": komentar,
     });
 
-    let resp = Request::post(&format!("{}/batch/approve", KEBUTUHAN_BMN_BASE))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&body)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    let api_response: ApiResponse<BatchOperationResponse> = resp.json().await?;
+    let api_response: ApiResponse<BatchOperationResponse> =
+        auth_post_json(&format!("{}/batch/approve", KEBUTUHAN_BMN_BASE), &body).await?;
     Ok(api_response.data)
 }
 
@@ -730,44 +382,24 @@ pub async fn batch_approve_kebutuhan(
 pub async fn batch_approve_kebutuhan(
     _ids: Vec<uuid::Uuid>,
     _komentar: Option<String>,
-) -> Result<BatchOperationResponse, String> {
-    Err("Server-side stub".to_string())
+) -> Result<BatchOperationResponse, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn batch_reject_kebutuhan(
     ids: Vec<uuid::Uuid>,
     komentar: String,
-) -> Result<BatchOperationResponse, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
+) -> Result<BatchOperationResponse, crate::api::AppError> {
     use serde_json::json;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
 
     let body = json!({
         "kebutuhan_ids": ids,
         "komentar": komentar,
     });
 
-    let resp = Request::post(&format!("{}/batch/reject", KEBUTUHAN_BMN_BASE))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&body)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    let api_response: ApiResponse<BatchOperationResponse> = resp.json().await?;
+    let api_response: ApiResponse<BatchOperationResponse> =
+        auth_post_json(&format!("{}/batch/reject", KEBUTUHAN_BMN_BASE), &body).await?;
     Ok(api_response.data)
 }
 
@@ -775,8 +407,8 @@ pub async fn batch_reject_kebutuhan(
 pub async fn batch_reject_kebutuhan(
     _ids: Vec<uuid::Uuid>,
     _komentar: String,
-) -> Result<BatchOperationResponse, String> {
-    Err("Server-side stub".to_string())
+) -> Result<BatchOperationResponse, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -784,13 +416,8 @@ pub async fn batch_update_status(
     ids: Vec<uuid::Uuid>,
     target_status: i32,
     komentar: Option<String>,
-) -> Result<BatchOperationResponse, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
+) -> Result<BatchOperationResponse, crate::api::AppError> {
     use serde_json::json;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
 
     let body = json!({
         "kebutuhan_ids": ids,
@@ -798,23 +425,8 @@ pub async fn batch_update_status(
         "komentar": komentar,
     });
 
-    let resp = Request::post(&format!("{}/batch/update-status", KEBUTUHAN_BMN_BASE))
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&body)?
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    let api_response: ApiResponse<BatchOperationResponse> = resp.json().await?;
+    let api_response: ApiResponse<BatchOperationResponse> =
+        auth_post_json(&format!("{}/batch/update-status", KEBUTUHAN_BMN_BASE), &body).await?;
     Ok(api_response.data)
 }
 
@@ -823,8 +435,8 @@ pub async fn batch_update_status(
     _ids: Vec<uuid::Uuid>,
     _target_status: i32,
     _komentar: Option<String>,
-) -> Result<BatchOperationResponse, String> {
-    Err("Server-side stub".to_string())
+) -> Result<BatchOperationResponse, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Kebutuhan BMN Workflow: Submit Satker to Wilayah ---
@@ -832,41 +444,20 @@ pub async fn batch_update_status(
 pub async fn submit_kebutuhan_satker_to_wilayah(
     satker_id: &str,
     request: SubmitKebutuhanSatkerRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!(
-        "{}/satker/{}/submit-wilayah",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/satker/{}/submit-wilayah", KEBUTUHAN_BMN_BASE, satker_id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn submit_kebutuhan_satker_to_wilayah(
     _satker_id: &str,
     _request: SubmitKebutuhanSatkerRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Kebutuhan BMN Workflow: Validator Wilayah Action ---
@@ -874,41 +465,20 @@ pub async fn submit_kebutuhan_satker_to_wilayah(
 pub async fn kebutuhan_validator_wilayah_action(
     satker_id: &str,
     request: KebutuhanValidatorWilayahActionRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!(
-        "{}/satker/{}/validator-wilayah",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/satker/{}/validator-wilayah", KEBUTUHAN_BMN_BASE, satker_id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn kebutuhan_validator_wilayah_action(
     _satker_id: &str,
     _request: KebutuhanValidatorWilayahActionRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // --- Kebutuhan BMN Workflow: Validator Pusat Decision ---
@@ -916,41 +486,20 @@ pub async fn kebutuhan_validator_wilayah_action(
 pub async fn kebutuhan_validator_pusat_keputusan(
     satker_id: &str,
     request: ValidatorPusatKeputusanRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::post(&format!(
-        "{}/satker/{}/keputusan-pusat",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .header("Content-Type", "application/json")
-    .json(&request)?
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        let err_text = resp.text().await.unwrap_or_default();
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {} - {}",
-            resp.status(),
-            err_text
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/satker/{}/keputusan-pusat", KEBUTUHAN_BMN_BASE, satker_id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn kebutuhan_validator_pusat_keputusan(
     _satker_id: &str,
     _request: ValidatorPusatKeputusanRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, String> {
-    Err("Server-side stub".to_string())
+) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
 }
 
 // ============================================================================
@@ -963,13 +512,7 @@ pub async fn search_siman_assets(
     search: &str,
     kategori: Option<&str>,
     limit: Option<usize>,
-) -> Result<ApiResponse<Vec<SimanAsset>>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
+) -> Result<ApiResponse<Vec<SimanAsset>>, crate::api::AppError> {
     let mut url = format!("{}/siman/search?search={}", KEBUTUHAN_BMN_BASE, search);
     if let Some(kat) = kategori {
         url.push_str(&format!("&kategori={}", kat));
@@ -978,19 +521,7 @@ pub async fn search_siman_assets(
         url.push_str(&format!("&limit={}", lim));
     }
 
-    let resp = Request::get(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+    auth_get_json(&url).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -998,7 +529,7 @@ pub async fn search_siman_assets(
     _search: &str,
     _kategori: Option<&str>,
     _limit: Option<usize>,
-) -> Result<ApiResponse<Vec<SimanAsset>>, String> {
+) -> Result<ApiResponse<Vec<SimanAsset>>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: vec![],
@@ -1010,35 +541,14 @@ pub async fn search_siman_assets(
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_siman_satker_summary(
     satker_id: &str,
-) -> Result<ApiResponse<SatkerAssetSummary>, gloo_net::Error> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let token = get_auth_token()
-        .ok_or_else(|| gloo_net::Error::GlooError("No authentication token found".to_string()))?;
-
-    let resp = Request::get(&format!(
-        "{}/siman/summary/{}",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .header("Authorization", &format!("Bearer {}", token))
-    .send()
-    .await?;
-
-    if !resp.ok() {
-        return Err(gloo_net::Error::GlooError(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    resp.json().await
+) -> Result<ApiResponse<SatkerAssetSummary>, crate::api::AppError> {
+    auth_get_json(&format!("{}/siman/summary/{}", KEBUTUHAN_BMN_BASE, satker_id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_siman_satker_summary(
     _satker_id: &str,
-) -> Result<ApiResponse<SatkerAssetSummary>, String> {
+) -> Result<ApiResponse<SatkerAssetSummary>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: SatkerAssetSummary {

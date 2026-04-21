@@ -1,36 +1,6 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Helper to set a mock session in localStorage matching the UserSession struct.
- *
- * UserSession fields (from lib-ui use_auth.rs):
- *   id, username, role (Serde tagged enum e.g. {Custom:"role_name"}), name, email,
- *   avatar?, division, captcha_validated, mfa_enabled, mfa_setup_required,
- *   created_at?, access_token?, refresh_token?, expires_at? (Unix ts),
- *   permissions[]
- */
-function mockUserSession(overrides: Record<string, unknown> = {}) {
-  return JSON.stringify({
-    id: '20000000-0000-0000-0000-000000000001',
-    username: '199203142014031001',
-    role: { Custom: 'admin' },
-    name: 'User E2E Test',
-    email: 'e2e@kejaksaan.go.id',
-    avatar: null,
-    division: 'Biro Perlengkapan',
-    captcha_validated: true,
-    mfa_enabled: false,
-    mfa_setup_required: false,
-    created_at: new Date().toISOString(),
-    access_token: 'mock-jwt-token-for-e2e',
-    refresh_token: 'mock-refresh-token',
-    expires_at: Math.floor(Date.now() / 1000) + 86400,
-    permissions: ['*'],
-    ...overrides,
-  });
-}
-
-/**
  * E2E Test: Authentication & Login Flow
  *
  * Tests the complete authentication flow:
@@ -41,68 +11,100 @@ function mockUserSession(overrides: Record<string, unknown> = {}) {
  * 5. Logout button works
  */
 test.describe('Authentication & Login Flow', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+  });
+
   test('should show landing page with login button', async ({ page }) => {
     await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('SIMPEL Perlengkapan')).toBeVisible();
-    await expect(page.getByRole('button', { name: /login|masuk/i })).toBeVisible();
+    await page.waitForURL(/\/perlengkapan\/login/, { timeout: 30000 });
+    await expect(page.getByRole('heading', { name: /masuk untuk melanjutkan/i })).toBeVisible({
+      timeout: 30000,
+    });
+    await expect(page.getByRole('link', { name: /masuk via portal|masuk/i })).toBeVisible();
   });
 
   test('should redirect to portal login on click', async ({ page }) => {
     await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
-    const loginButton = page.getByRole('button', { name: /login|masuk/i });
-    await loginButton.click();
-    // Should redirect to portal login with return_url parameter
-    await expect(page).toHaveURL(/\/portal\/login|\/login/);
+    const loginLink = page.getByRole('link', { name: /masuk via portal|masuk/i });
+    await loginLink.click();
+    // Should redirect to portal login with redirect_uri target to perlengkapan dashboard.
+    await expect(page).toHaveURL(/\/portal\/login\?redirect_uri=/);
+    await expect(page).toHaveURL(/%2Fperlengkapan%2Fdashboard/);
   });
 
   test('should show dashboard after successful login', async ({ page }) => {
-    // Set mock session via addInitScript so it's available before page scripts run
-    const session = mockUserSession();
+    // Set mock perlengkapan session via addInitScript so it is available
+    // before app initialization.
+    const session = JSON.stringify({
+      username: '199203142014031001',
+      role: 'admin',
+      access_token: 'mock-jwt-token-for-e2e',
+    });
     await page.addInitScript((session) => {
-      localStorage.setItem('user_session', session);
+      localStorage.setItem('perlengkapan_user_session', session);
       localStorage.setItem('auth_token', 'mock-jwt-token-for-e2e');
+      localStorage.setItem('active_role', 'admin');
     }, session);
 
     // Navigate to dashboard
     await page.goto('/perlengkapan/dashboard');
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Dashboard Perlengkapan')).toBeVisible({ timeout: 30000 });
+    await expect(page).toHaveURL(/\/perlengkapan\/dashboard/);
+    await expect(page.locator('button[title="Profil"]')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('SIMPEL Perlengkapan')).not.toBeVisible();
   });
 
   test('should show role switcher in dashboard header', async ({ page }) => {
-    const session = mockUserSession();
+    const session = JSON.stringify({
+      username: '199203142014031001',
+      role: 'admin',
+      access_token: 'mock-jwt-token-for-e2e',
+    });
     await page.addInitScript((session) => {
-      localStorage.setItem('user_session', session);
+      localStorage.setItem('perlengkapan_user_session', session);
       localStorage.setItem('auth_token', 'mock-jwt-token-for-e2e');
-      localStorage.setItem('available_roles', JSON.stringify([
-        'operator_satker', 'validator_wilayah', 'validator_pusat', 'admin'
-      ]));
       localStorage.setItem('active_role', 'admin');
     }, session);
 
     await page.goto('/perlengkapan/dashboard');
     await page.waitForLoadState('networkidle');
-    // Role switcher dropdown trigger should be visible
-    await expect(page.locator('button[title="Ganti Role"]')).toBeVisible({ timeout: 30000 });
+    // Open profile dropdown first, then role switcher content should appear.
+    await page.locator('button[title="Profil"]').click();
+    await expect(page.getByText('Ganti Role')).toBeVisible({ timeout: 30000 });
+    await expect(
+      page
+        .locator('div:has-text("Ganti Role")')
+        .getByRole('button', { name: /admin/i })
+        .first(),
+    ).toBeVisible({ timeout: 30000 });
   });
 
   test('should logout and redirect to landing page', async ({ page }) => {
-    const session = mockUserSession({ role: { Custom: 'operator_satker' } });
+    const session = JSON.stringify({
+      username: '199203142014031001',
+      role: 'operator_satker',
+      access_token: 'mock-jwt-token-for-e2e',
+    });
     await page.addInitScript((session) => {
-      localStorage.setItem('user_session', session);
+      localStorage.setItem('perlengkapan_user_session', session);
       localStorage.setItem('auth_token', 'mock-jwt-token-for-e2e');
+      localStorage.setItem('active_role', 'operator_satker');
     }, session);
 
     await page.goto('/perlengkapan/dashboard');
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Dashboard Perlengkapan')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('button[title="Profil"]')).toBeVisible({ timeout: 30000 });
 
     // Click logout
-    const logoutButton = page.getByRole('button', { name: /logout/i });
-    if (await logoutButton.isVisible()) {
-      await logoutButton.click();
-      // Logout clears session and redirects to portal login
-      await expect(page).toHaveURL(/\/portal\/login/, { timeout: 10000 });
-    }
+    await page.locator('button[title="Profil"]').click();
+    await page.getByRole('button', { name: /keluar/i }).click();
+
+    // Logout clears session and redirects to perlengkapan login page.
+    await page.waitForURL(/\/perlengkapan\/login/, { timeout: 30000 });
+    await expect(page).toHaveURL(/\/perlengkapan\/login/, { timeout: 30000 });
   });
 });

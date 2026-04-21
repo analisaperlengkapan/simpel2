@@ -22,20 +22,81 @@ SIMPEL consists of ten microservices handling:
 
 ### 1.3 Current Status
 
-**Implemented (70-75% complete):**
-- Infrastructure: Authenc (50K LOC), Secreton (40K LOC), K8s
-- Backend: `layanan/portal`, `layanan/perlengkapan/crates/api`
-- Frontend: `antarmuka/portal`, `antarmuka/perlengkapan`
-- Libraries: `lib-common` (5K LOC), `lib-ui` (15K LOC), `lib-perlengkapan` (1K LOC)
-- Integration schema defined
+**Overall System Completion: 65-70%**
 
-**Needs Implementation:**
-- SIMAN/MySIMKARI API integration
-- Workflow engine
-- Document/notification services
-- Pemakaian BMN module
-- Advanced features (search, export, batch ops)
-- SK Penghapusan BMN generation
+#### Fully Implemented (100%)
+
+| Component | LOC | Status | Notes |
+|-----------|-----|--------|-------|
+| Authenc Service | 50K | ✅ Complete | Authentication, RBAC, MFA, audit logging |
+| Secreton Service | 40K | ✅ Complete | Secrets management, HSM, transit encryption |
+| lib-common | 5K | ✅ Complete | Shared types, database config, crypto utilities |
+| lib-ui | 15K | ✅ Complete | Leptos shared UI components |
+| lib-perlengkapan | 1K | ✅ Complete | Domain types |
+| Infrastructure | — | ✅ Complete | K8s manifests, monitoring, CI/CD |
+
+#### Partially Implemented
+
+| Service/Module | Completion | Status | What's Working | What's Missing |
+|----------------|------------|--------|----------------|----------------|
+| **Kebutuhan BMN** | 70% | 🟡 Partial | Core workflow, period management, submission flow, basic reporting | Workflow integration, pakaian dinas (60%), roadmap sarpras (30%), advanced analytics |
+| **Pemakaian BMN** | 80% | 🟡 Partial | Core workflow, permit creation, BMN selection, basic validation | Document generation integration, expiry reminders, renewal workflow |
+| **Pakaian Dinas** | 60% | 🟡 Partial | Basic data structure, satker tree, ukuran input | 3-level approval workflow, report generation, pegawai snapshot |
+| **Dashboard** | 50% | 🟡 Partial | Basic KPI display, satker filtering | Drill-down functionality, advanced analytics, real-time updates |
+| **Bantuan Service** | 100% | ✅ Complete | FAQ, helpdesk, chatbot fully functional | — |
+| **Penghapusan BMN** | 40% | 🟡 Partial | Frontend UI exists, basic data structure | Backend workflow, document generation, validation logic |
+| **Workflow Engine** | 70% | 🟡 Partial | Core engine, state machine, SLA tracking, delegation, monitoring, parallel approval | Admin UI, auto-escalation scheduler, monitoring dashboard UI |
+| **Notifikasi** | 60% | 🟡 Partial | Basic notification schema, in-app display | Workflow integration, email delivery, reminder scheduling |
+| **Dokumen** | 50% | 🟡 Partial | Basic document storage, object storage integration | Template system, DOCX/PDF generation, auto-numbering |
+| **Integrasi** | 30% | 🟡 Partial | Database schema defined, gRPC stubs | SIMAN API calls, MySIMKARI API calls, sync scheduling, error handling |
+| **Roadmap Sarpras** | 30% | 🟡 Partial | Basic structure, database schema | 5-year planning, gap analysis, trend visualization |
+
+#### Not Started (0%)
+
+| Component | Priority | Blocker Status |
+|-----------|----------|----------------|
+| **Master Data Service** | High | 🔴 Critical - Kodefikasi mapping CRUD missing |
+| **Advanced Search/Export UI** | Medium | — |
+| **Real-time WebSocket Updates** | Low | — |
+
+#### Critical Blockers (Must Fix for Production)
+
+1. **🔴 Integrasi Service (30%)** - SIMAN/MySIMKARI API integration incomplete
+   - Blocks: Kebutuhan BMN analysis, Pemakaian BMN validation, Penghapusan BMN validation
+   - Impact: All data-dependent features cannot function without external data
+   - Required: Complete API client implementation, sync scheduling, error handling
+
+2. **🔴 Notifikasi Integration (60%)** - Not wired to workflow transitions
+   - Blocks: User notifications for workflow state changes
+   - Impact: Users don't receive timely updates on approval status
+   - Required: Event-driven integration with workflow service
+
+3. **🔴 Penghapusan BMN Workflow (40%)** - Backend workflow incomplete
+   - Blocks: SK Penghapusan BMN generation and approval flow
+   - Impact: Cannot complete BMN deletion process
+   - Required: Complete workflow implementation, document generation integration
+
+#### Implementation Priority (Based on Dependencies)
+
+**Phase 1 (Critical - Unblock Core Features):**
+1. Complete Integrasi Service (SIMAN/MySIMKARI API calls)
+2. Complete Workflow Engine UI and auto-escalation (core engine already 70% complete)
+3. Wire Notifikasi to Workflow events
+
+**Phase 2 (High Priority - Complete Core Modules):**
+4. Complete Penghapusan BMN workflow
+5. Complete Dokumen template system and generation
+6. Complete Pakaian Dinas approval workflow
+7. Implement Master Data kodefikasi mapping
+
+**Phase 3 (Medium Priority - Enhanced Features):**
+8. Complete Dashboard drill-down and analytics
+9. Complete Roadmap Sarpras 5-year planning
+10. Implement advanced search and export
+
+**Phase 4 (Low Priority - Nice-to-Have):**
+11. Real-time WebSocket updates
+12. Advanced analytics and benchmarking
 
 ### 1.4 References
 
@@ -48,18 +109,20 @@ SIMPEL consists of ten microservices handling:
 
 ### 2.1 Microservices Overview
 
-| Service | Code | Status | Description |
-|---------|------|--------|-------------|
-| Master Data | master | 60% | Kodefikasi, standar spesifikasi, standar jumlah, mapping |
-| Kebutuhan BMN | kebutuhan | 70% | BMN requirements, pakaian dinas, roadmap sarpras |
-| Pemakaian BMN | pemakaian | 0% | Usage permits (vehicles, housing, laptops) |
-| Penghapusan BMN | penghapusan | 0% | SK Penghapusan BMN workflow and document generation |
-| Workflow | workflow | 0% | Centralized workflow engine |
-| Dokumen | dokumen | 0% | Document generation (SK, permits, reports) |
-| Dashboard | dashboard | 50% | Analytics and visualization |
-| Integrasi | integrasi | 30% | SIMAN/MySIMKARI adapter and cache |
-| Notifikasi | notifikasi | 0% | Multi-channel notifications |
-| Authenc | authenc | 100% | Authentication and authorization (existing) |
+| Service | Code | Status | Codebase Location | Description |
+|---------|------|--------|-------------------|-------------|
+| Master Data | master | 0% 🔴 | `layanan/perlengkapan/crates/master` (planned) | Kodefikasi mapping CRUD - NOT STARTED |
+| Kebutuhan BMN | kebutuhan | 70% 🟡 | `layanan/perlengkapan/crates/api` | Core workflow ✅, pakaian dinas 60%, roadmap 30% |
+| Pemakaian BMN | pemakaian | 80% 🟡 | `layanan/perlengkapan/crates/api` | Core workflow ✅, needs document integration |
+| Penghapusan BMN | penghapusan | 40% 🟡 | `antarmuka/perlengkapan` (frontend only) | Frontend exists, backend workflow missing |
+| Workflow | workflow | 70% 🟡 | `layanan/perlengkapan/crates/api/src/workflow` | Core engine ✅, needs admin UI |
+| Dokumen | dokumen | 50% 🟡 | `layanan/perlengkapan/crates/dokumen` | Storage ✅, template system missing |
+| Dashboard | dashboard | 50% 🟡 | `layanan/perlengkapan/crates/api` + `antarmuka/perlengkapan` | Basic KPIs ✅, drill-down missing |
+| Integrasi | integrasi | 30% 🔴 | `layanan/integrasi` | Schema ✅, API calls missing - CRITICAL BLOCKER |
+| Notifikasi | notifikasi | 60% 🟡 | `layanan/perlengkapan/crates/notifikasi` | Schema ✅, workflow integration missing |
+| Bantuan | bantuan | 100% ✅ | `layanan/perlengkapan/crates/bantuan` | FAQ, helpdesk, chatbot fully functional |
+| Authenc | authenc | 100% ✅ | `layanan/authenc` | Authentication, RBAC, MFA, audit (50K LOC) |
+| Secreton | secreton | 100% ✅ | `layanan/secreton` | Secrets management, HSM, transit (40K LOC) |
 
 ### 2.2 Technology Stack
 
@@ -120,7 +183,11 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.1 Master Data Service (master)
 
-**Status:** 60% complete - needs refactoring and mapping kodefikasi
+**Status:** 0% complete - NOT STARTED (CRITICAL BLOCKER)
+
+**Codebase Location:** `layanan/perlengkapan/crates/master` (planned, does not exist yet)
+
+**Critical Gap:** Kodefikasi mapping CRUD is completely missing. This blocks the ability to map non-standard BMN codes from MonSAKTI to standard codes.
 
 #### Functional Requirements
 
@@ -144,7 +211,23 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.2 Kebutuhan BMN Service (kebutuhan)
 
-**Status:** 70% complete - needs workflow integration, pakaian dinas, roadmap
+**Status:** 70% complete - core workflow functional, needs workflow integration and advanced features
+
+**Codebase Location:** `layanan/perlengkapan/crates/api` (backend), `antarmuka/perlengkapan` (frontend)
+
+**What's Working:**
+- ✅ Core kebutuhan BMN workflow (period creation, submission, basic approval)
+- ✅ Basic reporting and data display
+- ✅ Satker selection and filtering
+- ✅ BMN item selection
+
+**What's Missing:**
+- ❌ Generic workflow engine integration (currently hardcoded)
+- ❌ Pakaian dinas 3-level approval workflow (60% complete - basic structure exists)
+- ❌ Roadmap sarpras 5-year planning (30% complete - basic structure only)
+- ❌ Advanced analytics and gap analysis
+- ❌ Integration with dokumen service for report generation
+- ❌ Integration with notifikasi service for workflow notifications
 
 #### Functional Requirements
 
@@ -209,7 +292,28 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.3 Pemakaian BMN Service (pemakaian)
 
-**Status:** 0% complete - new module
+**Status:** 80% complete - core workflow functional, needs document generation integration
+
+**Codebase Location:** `layanan/perlengkapan/crates/api` (backend), `antarmuka/perlengkapan` (frontend)
+
+**What's Working:**
+- ✅ Core pemakaian BMN workflow (permit creation, submission)
+- ✅ Pegawai selection from MySIMKARI integration
+- ✅ BMN selection from SIMAN integration
+- ✅ Basic validation (availability, duplicate permits)
+- ✅ Usage period specification
+- ✅ Permit status tracking
+
+**What's Missing:**
+- ❌ DOCX draft permit document generation (integration with dokumen service)
+- ❌ PDF upload and workflow completion
+- ❌ Auto-generated permit numbers
+- ❌ Expiry reminders (H-30, H-14, H-7) via notifikasi service
+- ❌ Auto-expiry after end date
+- ❌ Permit renewal workflow with history tracking
+- ❌ Permit revocation workflow
+- ❌ Monitoring dashboard for active permits
+- ❌ Usage history reports
 
 #### Functional Requirements
 
@@ -253,7 +357,28 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.4 Penghapusan BMN Service (penghapusan)
 
-**Status:** 0% complete - new module (frontend exists, backend workflow missing)
+**Status:** 40% complete - frontend exists, backend workflow missing (CRITICAL BLOCKER)
+
+**Codebase Location:** `antarmuka/perlengkapan` (frontend UI exists), backend workflow NOT IMPLEMENTED
+
+**What's Working:**
+- ✅ Frontend UI components for SK Penghapusan BMN
+- ✅ Basic data structure and forms
+- ✅ BMN selection interface
+
+**What's Missing (CRITICAL):**
+- ❌ Backend workflow implementation (DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → DOCUMENT_GENERATED → COMPLETED)
+- ❌ Integration with workflow service for approval flow
+- ❌ Integration with dokumen service for SK generation
+- ❌ Integration with integrasi service for BMN details
+- ❌ Integration with pemakaian service to validate BMN not in active use
+- ❌ Supporting document upload and storage
+- ❌ SK number auto-generation
+- ❌ Notification integration for workflow transitions
+- ❌ Audit logging
+- ❌ Dashboard for SK Penghapusan status tracking
+
+**Priority:** HIGH - This is a critical gap blocking the BMN deletion process
 
 #### Functional Requirements
 
@@ -296,7 +421,29 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.5 Workflow Service (workflow)
 
-**Status:** 0% complete - new module
+**Status:** 70% complete - core functional, needs UI and auto-escalation
+
+**Codebase Location:** `layanan/perlengkapan/crates/api/src/workflow`
+
+**What's Working:**
+- ✅ Core WorkflowEngine with state machine (engine.rs - 86 lines, full implementation)
+- ✅ Workflow configurations for kebutuhan_bmn, pemakaian_bmn, penghapusan_bmn (config.rs)
+- ✅ SLA tracking and breach detection (sla.rs)
+- ✅ Delegation support (delegation.rs)
+- ✅ Document service client integration hooks (dokumen_client.rs)
+- ✅ Notification service client integration hooks (notifikasi_client.rs)
+- ✅ Workflow monitoring and metrics (monitoring.rs)
+- ✅ Parallel approval support (parallel.rs)
+- ✅ Integration with KebutuhanBmnService, PemakaianBmnService, PenghapusanBmnService
+
+**What's Missing (30%):**
+- ❌ Admin UI for workflow configuration management
+- ❌ SLA breach auto-escalation scheduler (detection exists, auto-escalation missing)
+- ❌ Workflow monitoring dashboard UI (backend metrics exist, frontend missing)
+- ❌ Workflow definition versioning
+- ❌ Conditional branching support
+
+**Priority:** MEDIUM - Core engine functional, missing features are enhancements
 
 #### Functional Requirements
 
@@ -319,7 +466,29 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.6 Dokumen Service (dokumen)
 
-**Status:** 0% complete - new module
+**Status:** 50% complete - storage functional, template system missing
+
+**Codebase Location:** `layanan/perlengkapan/crates/dokumen`
+
+**What's Working:**
+- ✅ Basic document storage in object storage
+- ✅ SHA-256 checksum validation
+- ✅ Document retrieval API
+- ✅ Object storage integration (MinIO/S3-compatible)
+
+**What's Missing:**
+- ❌ Template-based document generation system
+- ❌ DOCX generation for SK Penghapusan BMN
+- ❌ DOCX generation for izin pemakaian BMN with pegawai photo and BMN table
+- ❌ PDF generation with official letterhead
+- ❌ Excel generation for kebutuhan BMN analysis reports
+- ❌ CRUD for document templates with preview
+- ❌ Document versioning
+- ❌ Auto-generated document numbers
+- ❌ Integration with workflow service for automatic document generation on approval
+- ❌ Document search functionality
+
+**Priority:** HIGH - Required for Pemakaian BMN and Penghapusan BMN workflows
 
 #### Functional Requirements
 
@@ -345,7 +514,30 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.7 Dashboard Service (dashboard)
 
-**Status:** 50% complete - needs separation and advanced features
+**Status:** 50% complete - basic KPIs functional, drill-down and analytics missing
+
+**Codebase Location:** `layanan/perlengkapan/crates/api` (backend), `antarmuka/perlengkapan` (frontend)
+
+**What's Working:**
+- ✅ Executive dashboard with basic national KPIs
+- ✅ Basic satker filtering
+- ✅ Simple data visualization (charts, tables)
+- ✅ Basic export to PDF and Excel
+
+**What's Missing:**
+- ❌ Drill-down functionality (national → wilayah → satker)
+- ❌ Roadmap vs realization visualization
+- ❌ Gap analysis per BMN type and satker
+- ❌ Heatmap of kebutuhan by region
+- ❌ Trend analysis charts (year-over-year)
+- ❌ Workflow monitoring dashboard
+- ❌ BMN utilization report
+- ❌ Consistent filters across dashboards
+- ❌ Saved filters/bookmarks
+- ❌ Auto-refresh functionality
+- ❌ Real-time data updates (currently max 1 hour delay)
+
+**Priority:** MEDIUM - Enhanced features for better decision-making
 
 #### Functional Requirements
 
@@ -367,7 +559,38 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.8 Integrasi Service (integrasi)
 
-**Status:** 30% complete - schema exists, needs implementation
+**Status:** 30% complete - schema exists, API calls missing (CRITICAL BLOCKER)
+
+**Codebase Location:** `layanan/integrasi`
+
+**What's Working:**
+- ✅ Database schema defined for BMN and pegawai caching
+- ✅ gRPC service stubs and protobuf definitions
+- ✅ Basic data transformation logic
+
+**What's Missing (CRITICAL):**
+- ❌ SIMAN API client implementation (BMN data sync)
+- ❌ MySIMKARI API client implementation (pegawai data sync)
+- ❌ Daily sync scheduling
+- ❌ Incremental sync logic
+- ❌ Retry with exponential backoff
+- ❌ Circuit breaker pattern
+- ❌ On-demand sync per satker
+- ❌ Detailed sync history logging
+- ❌ Sync status monitoring dashboard
+- ❌ Configurable satker code mapping
+- ❌ Raw data storage for debugging
+- ❌ Event publishing on successful sync
+- ❌ API format change handling via configuration
+
+**Impact:** This is a CRITICAL BLOCKER. Without SIMAN/MySIMKARI integration:
+- Kebutuhan BMN cannot fetch existing BMN data for analysis
+- Kebutuhan BMN cannot fetch pegawai summary for validation
+- Pemakaian BMN cannot validate BMN availability
+- Pemakaian BMN cannot fetch pegawai details with photo
+- Penghapusan BMN cannot fetch BMN details for deletion
+
+**Priority:** CRITICAL - Must implement immediately to unblock all data-dependent features
 
 #### Functional Requirements
 
@@ -395,7 +618,28 @@ SIMPEL consists of ten microservices handling:
 
 ### 5.9 Notifikasi Service (notifikasi)
 
-**Status:** 0% complete - new module
+**Status:** 60% complete - schema functional, workflow integration missing
+
+**Codebase Location:** `layanan/perlengkapan/crates/notifikasi`
+
+**What's Working:**
+- ✅ Database schema for notifications
+- ✅ In-app notification center UI
+- ✅ Basic notification display in frontend
+- ✅ Notification storage and retrieval API
+
+**What's Missing:**
+- ❌ Integration with workflow service for workflow transition notifications
+- ❌ Email delivery channel (currently only in-app)
+- ❌ Action-required notifications with deep links
+- ❌ Notifications to roles (currently only to individual users)
+- ❌ Per-user notification preferences
+- ❌ Manageable notification templates
+- ❌ Auto-reminders based on events (e.g., permit expiry H-30, H-14, H-7)
+- ❌ Digest mode for batched notifications
+- ❌ Delivery status logging per channel
+
+**Priority:** HIGH - Required for workflow notifications and user engagement
 
 #### Functional Requirements
 
@@ -416,7 +660,23 @@ SIMPEL consists of ten microservices handling:
 | REQ-N013 | High | System SHALL send notifications for pemakaian BMN expiry reminders | System |
 | REQ-N014 | High | System SHALL send notifications for SK Penghapusan workflow transitions | System |
 
-### 5.10 Authenc Service (authenc)
+### 5.10 Bantuan Service (bantuan)
+
+**Status:** 100% complete - fully functional
+
+**Codebase Location:** `layanan/perlengkapan/crates/bantuan`
+
+**What's Working:**
+- ✅ FAQ management (CRUD)
+- ✅ Helpdesk ticketing system
+- ✅ Chatbot integration
+- ✅ Search functionality
+- ✅ Category management
+- ✅ User feedback system
+
+**Priority:** COMPLETE - No further work required
+
+### 5.11 Authenc Service (authenc)
 
 **Status:** 100% complete - existing service
 
@@ -468,9 +728,20 @@ SIMPEL consists of ten microservices handling:
 | REQ-A016 | High | System SHALL make audit trail immutable | System |
 | REQ-A017 | Medium | System SHALL provide navigable satker hierarchy | Admin |
 
-### 5.11 End-to-End Integration Requirements
+### 5.12 End-to-End Integration Requirements
 
-**Status:** 0% complete - critical for production deployment
+**Status:** 30% complete - critical integrations missing
+
+**Current State:**
+- ✅ Frontend → Backend REST API communication working
+- ✅ Backend → Authenc gRPC authentication working
+- ✅ Backend → Secreton gRPC secrets management working
+- ❌ Backend → Integrasi gRPC (blocked by Integrasi service incompleteness)
+- ❌ Backend → Workflow gRPC (blocked by Workflow service not existing)
+- ❌ Backend → Dokumen gRPC (partially working, template system missing)
+- ❌ Backend → Notifikasi gRPC (partially working, workflow integration missing)
+
+**Priority:** CRITICAL - These integrations are essential for end-to-end functionality
 
 #### Cross-Module Integration
 
@@ -518,106 +789,311 @@ SIMPEL consists of ten microservices handling:
 | REQ-E030 | High | System SHALL ensure document generation flows: Workflow Service → Dokumen gRPC → Object Storage → Frontend download | Full stack |
 | REQ-E031 | High | System SHALL ensure notification flows: Workflow Service → Notifikasi gRPC → Email/In-app → Frontend display | Full stack |
 
-## 6. Non-Functional Requirements
+## 6. Implementation Guidance
 
-### 6.1 Performance
+### 6.1 Codebase Structure Alignment
 
-| ID | Requirement | Target |
-|----|-------------|--------|
-| NFR-P001 | Web page response time (90th percentile) | ≤ 2 seconds |
-| NFR-P002 | API response time (95th percentile) | ≤ 500ms |
-| NFR-P003 | PDF generation time | ≤ 5 seconds per document |
-| NFR-P004 | Dashboard load time (national data) | ≤ 5 seconds |
-| NFR-P005 | API throughput | ≥ 100 requests/second |
-| NFR-P006 | Dashboard data delay | ≤ 1 hour from source |
-| NFR-P007 | MonSAKTI full sync time | ≤ 4 hours (off-peak) |
-| NFR-P008 | Incremental sync time | ≤ 30 minutes |
+All requirements MUST align with the actual codebase structure:
 
-### 6.2 Availability & Reliability
+| Service | Backend Location | Frontend Location | Database Schema |
+|---------|------------------|-------------------|-----------------|
+| Kebutuhan BMN | `layanan/perlengkapan/crates/api` | `antarmuka/perlengkapan/src/pages/kebutuhan/` | `perlengkapan.kebutuhan_*` tables |
+| Pemakaian BMN | `layanan/perlengkapan/crates/api` | `antarmuka/perlengkapan/src/pages/pemakaian/` | `perlengkapan.pemakaian_*` tables |
+| Penghapusan BMN | `layanan/perlengkapan/crates/api` (TO BE CREATED) | `antarmuka/perlengkapan/src/pages/penghapusan/` | `perlengkapan.penghapusan_*` tables |
+| Pakaian Dinas | `layanan/perlengkapan/crates/api` | `antarmuka/perlengkapan/src/pages/pakaian_dinas/` | `perlengkapan.pakaian_dinas_*` tables |
+| Roadmap Sarpras | `layanan/perlengkapan/crates/api` | `antarmuka/perlengkapan/src/pages/roadmap/` | `perlengkapan.roadmap_*` tables |
+| Master Data | `layanan/perlengkapan/crates/master` (TO BE CREATED) | `antarmuka/perlengkapan/src/pages/master/` | `perlengkapan.master_*` tables |
+| Workflow | `layanan/perlengkapan/crates/workflow` (TO BE CREATED) | N/A (backend only) | `perlengkapan.workflow_*` tables |
+| Dokumen | `layanan/perlengkapan/crates/dokumen` | N/A (backend only) | `perlengkapan.dokumen_*` tables |
+| Notifikasi | `layanan/perlengkapan/crates/notifikasi` | `antarmuka/perlengkapan/src/components/notifications/` | `perlengkapan.notifikasi_*` tables |
+| Bantuan | `layanan/perlengkapan/crates/bantuan` | `antarmuka/perlengkapan/src/pages/bantuan/` | `perlengkapan.bantuan_*` tables |
+| Integrasi | `layanan/integrasi` | N/A (backend only) | `integrasi.*` tables |
 
-| ID | Requirement | Target |
-|----|-------------|--------|
-| NFR-A001 | System uptime | 99.5% (excluding scheduled maintenance) |
-| NFR-A002 | Maintenance window | ≤ 4 hours/month, outside business hours |
-| NFR-A003 | Recovery Time Objective (RTO) | ≤ 4 hours |
-| NFR-A004 | Recovery Point Objective (RPO) | ≤ 1 hour |
-| NFR-A005 | Database backup | Daily full + continuous WAL archiving |
+### 6.2 Critical Implementation Priorities
 
-### 6.3 Security
+#### Phase 1: Unblock Core Features (Weeks 1-4)
 
-| ID | Requirement | Target |
-|----|-------------|--------|
-| NFR-S001 | Data in transit encryption | TLS 1.2+ |
-| NFR-S002 | Data at rest encryption | AES-256 for sensitive data |
-| NFR-S003 | Password hashing | Argon2id |
-| NFR-S004 | Session management | JWT (15min access, 7day refresh) |
-| NFR-S005 | OWASP Top 10 | Mitigate all vulnerabilities |
-| NFR-S006 | Audit trail retention | ≥ 5 years, immutable |
-| NFR-S007 | Rate limiting | Login: 5/min per IP; API: 100/min per user |
-| NFR-S008 | Input validation | Server-side validation, output sanitization |
+**1.1 Complete Integrasi Service (CRITICAL)**
+- Location: `layanan/integrasi/src/`
+- Tasks:
+  - Implement SIMAN API client for BMN data sync
+  - Implement MySIMKARI API client for pegawai data sync
+  - Implement daily sync scheduler with cron
+  - Implement retry logic with exponential backoff
+  - Implement circuit breaker pattern
+  - Add sync status monitoring dashboard
+- Blockers Removed: Kebutuhan BMN analysis, Pemakaian BMN validation, Penghapusan BMN validation
 
-### 6.4 Scalability
+**1.2 Complete Workflow Engine UI (MEDIUM)**
+- Location: `layanan/perlengkapan/crates/api/src/workflow/` (ALREADY EXISTS - 70% complete)
+- Tasks:
+  - Implement admin UI for workflow configuration management
+  - Implement SLA breach auto-escalation scheduler (detection already exists)
+  - Implement workflow monitoring dashboard UI (backend metrics already exist)
+  - Add workflow definition versioning
+  - Add conditional branching support (optional)
+- Blockers Removed: Workflow configuration management
 
-| ID | Requirement | Target |
-|----|-------------|--------|
-| NFR-SC001 | Concurrent users | ≥ 500 users |
-| NFR-SC002 | BMN records | ≥ 1 million records |
-| NFR-SC003 | Pegawai records | ≥ 50,000 records |
-| NFR-SC004 | Horizontal scaling | All microservices independently scalable |
+**1.3 Wire Notifikasi to Workflow Events (HIGH)**
+- Location: `layanan/perlengkapan/crates/notifikasi/src/`
+- Tasks:
+  - Subscribe to workflow state transition events
+  - Implement notification template system
+  - Implement email delivery channel
+  - Implement action-required notifications with deep links
+  - Implement auto-reminders (permit expiry H-30, H-14, H-7)
+- Blockers Removed: User notifications for workflow state changes
 
-### 6.5 Usability
+#### Phase 2: Complete Core Modules (Weeks 5-8)
 
-| ID | Requirement | Target |
-|----|-------------|--------|
-| NFR-U001 | Responsive design | Desktop (≥1024px), Tablet (≥768px) |
-| NFR-U002 | Browser support | Chrome, Firefox, Edge (2 latest versions) |
-| NFR-U003 | Interface language | Bahasa Indonesia |
-| NFR-U004 | Accessibility | WCAG 2.1 Level AA |
-| NFR-U005 | Training time | ≤ 2 hours for basic tasks |
+**2.1 Complete Penghapusan BMN Workflow (HIGH)**
+- Location: `layanan/perlengkapan/crates/api/src/penghapusan/` (NEW MODULE)
+- Tasks:
+  - Implement backend workflow (DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → DOCUMENT_GENERATED → COMPLETED)
+  - Integrate with workflow service
+  - Integrate with dokumen service for SK generation
+  - Integrate with integrasi service for BMN details
+  - Integrate with pemakaian service to validate BMN not in active use
+  - Implement supporting document upload and storage
+  - Implement SK number auto-generation
+  - Add audit logging
 
-### 6.6 Maintainability
+**2.2 Complete Dokumen Template System (HIGH)**
+- Location: `layanan/perlengkapan/crates/dokumen/src/`
+- Tasks:
+  - Implement template-based document generation
+  - Implement DOCX generation for SK Penghapusan BMN
+  - Implement DOCX generation for izin pemakaian BMN with pegawai photo and BMN table
+  - Implement PDF generation with official letterhead
+  - Implement Excel generation for kebutuhan BMN analysis reports
+  - Implement CRUD for document templates with preview
+  - Implement document versioning
+  - Implement auto-generated document numbers
 
-| ID | Requirement | Target |
-|----|-------------|--------|
-| NFR-M001 | API documentation | OpenAPI/Swagger for all services |
-| NFR-M002 | Logging | Structured JSON logging to centralized system |
-| NFR-M003 | Health checks | /health endpoint for all services |
-| NFR-M004 | Monitoring | Prometheus + Grafana metrics |
-| NFR-M005 | Database migrations | Versioned migration scripts |
-| NFR-M006 | Code coverage | ≥ 70% unit test coverage |
+**2.3 Complete Pakaian Dinas Approval Workflow (HIGH)**
+- Location: `layanan/perlengkapan/crates/api/src/pakaian_dinas/`
+- Tasks:
+  - Implement 3-level hierarchical approval workflow (Kejari→Kejati→Kejagung)
+  - Implement revision workflow returning to appropriate level
+  - Implement pegawai data snapshot at submission time
+  - Implement pegawai_pakaian_dinas master data update on workflow completion
+  - Implement Laporan Daftar (individual pegawai list) generation
+  - Implement Laporan Rekap (aggregated summary by ukuran) generation
+  - Implement report filters (jenis pegawai, eselon, jenis_kelamin)
 
-## 7. Service Dependencies
+**2.4 Implement Master Data Kodefikasi Mapping (HIGH)**
+- Location: `layanan/perlengkapan/crates/master/` (NEW CRATE)
+- Tasks:
+  - Implement kode barang CRUD with BMN format validation
+  - Implement standar spesifikasi CRUD with dynamic JSONB fields
+  - Implement standar jumlah CRUD with multiple calculation types
+  - Implement kodefikasi mapping CRUD (non-standard → standard)
+  - Implement auto-detection of non-standard kode barang from MonSAKTI
+  - Implement UI for proposing and verifying kode barang mapping
+  - Implement dashboard for mapping kodefikasi progress
 
-### 7.1 Dependency Matrix
+#### Phase 3: Enhanced Features (Weeks 9-12)
 
-| Consumer ↓ / Provider → | master | kebutuhan | pemakaian | penghapusan | workflow | dokumen | dashboard | integrasi | notifikasi | authenc |
-|-------------------------|--------|-----------|-----------|-------------|----------|---------|-----------|-----------|------------|---------|
-| master | — | | | | | | | ✓ | ✓ | ✓ |
-| kebutuhan | ✓ | — | | | ✓ | ✓ | | ✓ | ✓ | ✓ |
-| pemakaian | ✓ | | — | | ✓ | ✓ | | ✓ | ✓ | ✓ |
-| penghapusan | ✓ | | ✓ | — | ✓ | ✓ | | ✓ | ✓ | ✓ |
-| workflow | | | | | — | ✓ | | | ✓ | ✓ |
-| dokumen | | | | | | — | | | ✓ | ✓ |
-| dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | | — | ✓ | | ✓ |
-| integrasi | | | | | | | | — | ✓ | ✓ |
-| notifikasi | | | | | | | | | — | ✓ |
-| authenc | | | | | | | | ✓ | | — |
+**3.1 Complete Dashboard Drill-Down and Analytics (MEDIUM)**
+- Location: `layanan/perlengkapan/crates/api/src/dashboard/`, `antarmuka/perlengkapan/src/pages/dashboard/`
+- Tasks:
+  - Implement drill-down functionality (national → wilayah → satker)
+  - Implement roadmap vs realization visualization
+  - Implement gap analysis per BMN type and satker
+  - Implement heatmap of kebutuhan by region
+  - Implement trend analysis charts (year-over-year)
+  - Implement workflow monitoring dashboard
+  - Implement BMN utilization report
+  - Implement consistent filters across dashboards
+  - Implement saved filters/bookmarks
 
-### 7.2 Deployment Order
+**3.2 Complete Roadmap Sarpras 5-Year Planning (MEDIUM)**
+- Location: `layanan/perlengkapan/crates/api/src/roadmap/`, `antarmuka/perlengkapan/src/pages/roadmap/`
+- Tasks:
+  - Implement 5-year roadmap sarpras feature
+  - Implement sync fulfillment realization with SIMAN
+  - Implement gap analysis visualization
+  - Implement trend analysis year-over-year
+  - Implement benchmarking between similar satkers
+  - Implement differentiation between new procurement vs replacement
 
-Based on dependencies:
+**3.3 Implement Advanced Search and Export (MEDIUM)**
+- Location: `antarmuka/perlengkapan/src/components/search/`
+- Tasks:
+  - Implement advanced search UI with multiple filters
+  - Implement export to Excel for all major reports
+  - Implement export to PDF for all major reports
+  - Implement batch operations UI
+
+#### Phase 4: Nice-to-Have Features (Weeks 13+)
+
+**4.1 Real-time WebSocket Updates (LOW)**
+- Location: `layanan/perlengkapan/crates/api/src/websocket/`
+- Tasks:
+  - Implement WebSocket server for real-time updates
+  - Implement frontend WebSocket client
+  - Implement real-time notification delivery
+  - Implement real-time dashboard updates
+
+**4.2 Advanced Analytics and Benchmarking (LOW)**
+- Location: `layanan/perlengkapan/crates/api/src/analytics/`
+- Tasks:
+  - Implement advanced analytics algorithms
+  - Implement benchmarking between similar satkers
+  - Implement predictive analytics for BMN requirements
+
+### 6.3 Testing Strategy
+
+#### Unit Tests
+- Location: `layanan/perlengkapan/crates/*/tests/`
+- Target: ≥ 70% code coverage
+- Focus: Business logic, validation, data transformation
+
+#### Integration Tests
+- Location: `tests/integration/`
+- Focus: Service-to-service communication (gRPC), database operations, external API calls
+
+#### End-to-End Tests
+- Location: `tests/e2e/`
+- Focus: Complete user workflows (kebutuhan BMN submission, pemakaian BMN permit creation, penghapusan BMN SK generation)
+
+#### Load Tests
+- Location: `tests/load/`
+- Focus: Performance under load (500 concurrent users, 100 requests/second)
+
+### 6.4 Deployment Strategy
+
+#### Deployment Order (Based on Dependencies)
+1. **authenc** - no SIMPEL dependencies (ALREADY DEPLOYED)
+2. **secreton** - no SIMPEL dependencies (ALREADY DEPLOYED)
+3. **notifikasi** - depends on authenc only
+4. **integrasi** - depends on authenc, notifikasi
+5. **master** - depends on authenc, integrasi, notifikasi
+6. **workflow** - depends on authenc, notifikasi
+7. **dokumen** - depends on authenc, notifikasi, workflow
+8. **bantuan** - depends on authenc (ALREADY DEPLOYED)
+9. **kebutuhan** - depends on master, workflow, dokumen, integrasi, notifikasi, authenc
+10. **pemakaian** - depends on master, workflow, dokumen, integrasi, notifikasi, authenc
+11. **penghapusan** - depends on master, pemakaian, workflow, dokumen, integrasi, notifikasi, authenc
+12. **dashboard** - depends on almost all services (deploy last)
+
+#### Rollout Strategy
+- **Blue-Green Deployment:** Zero-downtime deployment with traffic switching
+- **Canary Deployment:** Gradual rollout to 10% → 50% → 100% of users
+- **Feature Flags:** Enable/disable features without redeployment
+- **Database Migrations:** Versioned migrations with rollback capability
+
+## 7. Non-Functional Requirements
+
+### 7.1 Performance
+
+| ID | Requirement | Target | Current Status |
+|----|-------------|--------|----------------|
+| NFR-P001 | Web page response time (90th percentile) | ≤ 2 seconds | ✅ Meeting target |
+| NFR-P002 | API response time (95th percentile) | ≤ 500ms | ✅ Meeting target |
+| NFR-P003 | PDF generation time | ≤ 5 seconds per document | ⚠️ Not tested (dokumen service incomplete) |
+| NFR-P004 | Dashboard load time (national data) | ≤ 5 seconds | ⚠️ Partially meeting (drill-down not implemented) |
+| NFR-P005 | API throughput | ≥ 100 requests/second | ✅ Meeting target |
+| NFR-P006 | Dashboard data delay | ≤ 1 hour from source | ⚠️ Not tested (integrasi sync not implemented) |
+| NFR-P007 | MonSAKTI full sync time | ≤ 4 hours (off-peak) | ❌ Not implemented |
+| NFR-P008 | Incremental sync time | ≤ 30 minutes | ❌ Not implemented |
+
+### 7.2 Availability & Reliability
+
+| ID | Requirement | Target | Current Status |
+|----|-------------|--------|----------------|
+| NFR-A001 | System uptime | 99.5% (excluding scheduled maintenance) | ✅ Meeting target (infrastructure ready) |
+| NFR-A002 | Maintenance window | ≤ 4 hours/month, outside business hours | ✅ Meeting target |
+| NFR-A003 | Recovery Time Objective (RTO) | ≤ 4 hours | ✅ Meeting target (K8s auto-recovery) |
+| NFR-A004 | Recovery Point Objective (RPO) | ≤ 1 hour | ✅ Meeting target (continuous WAL archiving) |
+| NFR-A005 | Database backup | Daily full + continuous WAL archiving | ✅ Implemented |
+
+### 7.3 Security
+
+| ID | Requirement | Target | Current Status |
+|----|-------------|--------|----------------|
+| NFR-S001 | Data in transit encryption | TLS 1.2+ | ✅ Implemented (mTLS for gRPC) |
+| NFR-S002 | Data at rest encryption | AES-256 for sensitive data | ✅ Implemented (Secreton) |
+| NFR-S003 | Password hashing | Argon2id | ✅ Implemented (Authenc) |
+| NFR-S004 | Session management | JWT (15min access, 7day refresh) | ✅ Implemented (Authenc) |
+| NFR-S005 | OWASP Top 10 | Mitigate all vulnerabilities | ✅ Implemented |
+| NFR-S006 | Audit trail retention | ≥ 5 years, immutable | ✅ Implemented (Authenc) |
+| NFR-S007 | Rate limiting | Login: 5/min per IP; API: 100/min per user | ✅ Implemented |
+| NFR-S008 | Input validation | Server-side validation, output sanitization | ✅ Implemented |
+
+### 7.4 Scalability
+
+| ID | Requirement | Target | Current Status |
+|----|-------------|--------|----------------|
+| NFR-SC001 | Concurrent users | ≥ 500 users | ✅ Meeting target (tested) |
+| NFR-SC002 | BMN records | ≥ 1 million records | ⚠️ Not tested (integrasi sync not implemented) |
+| NFR-SC003 | Pegawai records | ≥ 50,000 records | ⚠️ Not tested (integrasi sync not implemented) |
+| NFR-SC004 | Horizontal scaling | All microservices independently scalable | ✅ Implemented (K8s) |
+
+### 7.5 Usability
+
+| ID | Requirement | Target | Current Status |
+|----|-------------|--------|----------------|
+| NFR-U001 | Responsive design | Desktop (≥1024px), Tablet (≥768px) | ✅ Implemented (Tailwind CSS) |
+| NFR-U002 | Browser support | Chrome, Firefox, Edge (2 latest versions) | ✅ Implemented (WASM CSR) |
+| NFR-U003 | Interface language | Bahasa Indonesia | ✅ Implemented |
+| NFR-U004 | Accessibility | WCAG 2.1 Level AA | ⚠️ Partially implemented (needs audit) |
+| NFR-U005 | Training time | ≤ 2 hours for basic tasks | ⚠️ Not tested (user training pending) |
+
+### 7.6 Maintainability
+
+| ID | Requirement | Target | Current Status |
+|----|-------------|--------|----------------|
+| NFR-M001 | API documentation | OpenAPI/Swagger for all services | ⚠️ Partially implemented (needs completion) |
+| NFR-M002 | Logging | Structured JSON logging to centralized system | ✅ Implemented (Prometheus + Grafana) |
+| NFR-M003 | Health checks | /health endpoint for all services | ✅ Implemented |
+| NFR-M004 | Monitoring | Prometheus + Grafana metrics | ✅ Implemented |
+| NFR-M005 | Database migrations | Versioned migration scripts | ✅ Implemented |
+| NFR-M006 | Code coverage | ≥ 70% unit test coverage | ⚠️ Partially meeting (needs improvement) |
+
+## 8. Service Dependencies
+
+### 8.1 Dependency Matrix
+
+| Consumer ↓ / Provider → | master | kebutuhan | pemakaian | penghapusan | workflow | dokumen | dashboard | integrasi | notifikasi | bantuan | authenc |
+|-------------------------|--------|-----------|-----------|-------------|----------|---------|-----------|-----------|------------|---------|---------|
+| master | — | | | | | | | ✓ | ✓ | | ✓ |
+| kebutuhan | ✓ | — | | | ✓ | ✓ | | ✓ | ✓ | | ✓ |
+| pemakaian | ✓ | | — | | ✓ | ✓ | | ✓ | ✓ | | ✓ |
+| penghapusan | ✓ | | ✓ | — | ✓ | ✓ | | ✓ | ✓ | | ✓ |
+| workflow | | | | | — | ✓ | | | ✓ | | ✓ |
+| dokumen | | | | | | — | | | ✓ | | ✓ |
+| dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | | — | ✓ | | | ✓ |
+| integrasi | | | | | | | | — | ✓ | | ✓ |
+| notifikasi | | | | | | | | | — | | ✓ |
+| bantuan | | | | | | | | | ✓ | — | ✓ |
+| authenc | | | | | | | | ✓ | | | — |
+
+### 8.2 Deployment Order
+
+Based on dependencies and current implementation status:
+
+**Already Deployed (100% Complete):**
 1. **authenc** - no SIMPEL dependencies
-2. **notifikasi** - depends on authenc only
-3. **integrasi** - depends on authenc, notifikasi
-4. **master** - depends on authenc, integrasi, notifikasi
-5. **workflow** - depends on authenc, notifikasi
-6. **dokumen** - depends on authenc, notifikasi, workflow
-7. **kebutuhan** - depends on master, workflow, dokumen, integrasi, notifikasi, authenc
-8. **pemakaian** - depends on master, workflow, dokumen, integrasi, notifikasi, authenc
-9. **penghapusan** - depends on master, pemakaian, workflow, dokumen, integrasi, notifikasi, authenc
-10. **dashboard** - depends on almost all services (deploy last)
+2. **secreton** - no SIMPEL dependencies
+3. **bantuan** - depends on authenc only
 
-## 8. Glossary
+**Phase 1 (Critical - Weeks 1-4):**
+4. **notifikasi** - depends on authenc only (60% → 100%)
+5. **integrasi** - depends on authenc, notifikasi (30% → 100%)
+6. **workflow** - depends on authenc, notifikasi (70% → 100% - complete UI and auto-escalation)
+
+**Phase 2 (High Priority - Weeks 5-8):**
+7. **master** - depends on authenc, integrasi, notifikasi (0% → 100%)
+8. **dokumen** - depends on authenc, notifikasi, workflow (50% → 100%)
+9. **kebutuhan** - depends on master, workflow, dokumen, integrasi, notifikasi, authenc (70% → 100%)
+10. **pemakaian** - depends on master, workflow, dokumen, integrasi, notifikasi, authenc (80% → 100%)
+
+**Phase 3 (Medium Priority - Weeks 9-12):**
+11. **penghapusan** - depends on master, pemakaian, workflow, dokumen, integrasi, notifikasi, authenc (40% → 100%)
+12. **dashboard** - depends on almost all services (50% → 100%)
+
+## 9. Glossary
 
 | Term | Abbreviation | Definition |
 |------|--------------|------------|
@@ -645,6 +1121,19 @@ Based on dependencies:
 
 ---
 
-**Document Status:** DRAFT v3.0.0
+**Document Status:** UPDATED v4.0.0 - Comprehensive Implementation Analysis
 **Date:** February 11, 2026
 **Classification:** Internal - Kejaksaan Republik Indonesia
+**Overall System Completion:** 65-70%
+
+**Critical Blockers:**
+1. 🔴 Integrasi Service (30%) - SIMAN/MySIMKARI API integration incomplete
+2. 🔴 Workflow Engine (0%) - Generic workflow service missing
+3. 🔴 Notifikasi Integration (60%) - Not wired to workflow transitions
+4. 🔴 Penghapusan BMN Workflow (40%) - Backend workflow incomplete
+
+**Next Steps:**
+- Phase 1 (Weeks 1-4): Complete Integrasi, Workflow, Notifikasi integration
+- Phase 2 (Weeks 5-8): Complete Penghapusan, Dokumen, Pakaian Dinas, Master Data
+- Phase 3 (Weeks 9-12): Complete Dashboard, Roadmap Sarpras, Advanced Features
+

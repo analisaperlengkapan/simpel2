@@ -1,4 +1,5 @@
 use crate::api::{CreateAnalisisRequest, create_analisis};
+use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
@@ -36,7 +37,7 @@ pub fn AnalisisForm() -> impl IntoView {
                     set_success.set(true);
                     // Redirect after short delay to show success
                     gloo_timers::future::TimeoutFuture::new(1000).await;
-                    navigate("/dashboard/analisis/daftar", Default::default());
+                    navigate(routes::path::ANALISIS_DAFTAR_LEGACY, Default::default());
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));
@@ -121,7 +122,7 @@ pub fn AnalisisForm() -> impl IntoView {
 
                 <div class="pt-4 flex justify-end gap-3">
                     <a
-                        href="/perlengkapan/dashboard/analisis/daftar"
+                        href=routes::path::ANALISIS_DAFTAR_LEGACY
                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

@@ -44,16 +44,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: layanan-portal-pdb
-spec:
-  minAvailable: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-portal
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
   name: redis-pdb
 spec:
   maxUnavailable: 0  # Redis is single instance

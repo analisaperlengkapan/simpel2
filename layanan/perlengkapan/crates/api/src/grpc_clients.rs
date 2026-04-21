@@ -98,6 +98,12 @@ impl AuthencClient {
                 scopes: vec![],
                 expires_at: None,
                 error: None,
+                username: None,
+                name: None,
+                nip: None,
+                jabatan: None,
+                satker_code: None,
+                realm_roles: vec![],
             })
         }
     }

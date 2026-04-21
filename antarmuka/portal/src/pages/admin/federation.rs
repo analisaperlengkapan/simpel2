@@ -4,15 +4,15 @@
 //! REQ-PORTAL-014
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel};
+use crate::utils::async_load::load_vec_once;
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::authenc_api::IdentityProviderInfo;
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 
 /// Federation management page
 #[component]
 pub fn FederationManagementPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (providers, set_providers) = signal(Vec::<IdentityProviderInfo>::new());
@@ -23,24 +23,20 @@ pub fn FederationManagementPage() -> impl IntoView {
         let api = api.clone();
         Effect::new(move || {
             let api = api.clone();
-            spawn_local(async move {
-                match api.iam_list_identity_providers().await {
-                    Ok(list) => set_providers.set(list),
-                    Err(e) => set_error.set(Some(format!("Gagal memuat IdP: {}", e))),
-                }
-                set_loading.set(false);
-            });
+            load_vec_once(
+                move || {
+                    let api = api.clone();
+                    async move { api.iam_list_identity_providers().await }
+                },
+                set_providers,
+                set_error,
+                set_loading,
+                "Gagal memuat IdP",
+            );
         });
     }
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
+    let (session, on_logout) = use_main_layout_session_and_logout();
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -54,16 +50,13 @@ pub fn FederationManagementPage() -> impl IntoView {
                 </div>
 
                 {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">"❌ " {msg}</div>
+                    <ErrorBanner message=msg />
                 })}
 
                 <Show
                     when=move || !loading.get()
                     fallback=|| view! {
-                        <div class="p-8 text-center text-gray-500">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-3"></div>
-                            "Memuat..."
-                        </div>
+                        <LoadingPanel message="Memuat data identity provider..." />
                     }
                 >
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -108,11 +101,10 @@ pub fn FederationManagementPage() -> impl IntoView {
                     </div>
 
                     <Show when=move || providers.get().is_empty()>
-                        <div class="text-center py-12 bg-white rounded-xl border">
-                            <p class="text-4xl mb-3">"🌐"</p>
-                            <p class="text-gray-500">"Belum ada Identity Provider yang dikonfigurasi."</p>
-                            <p class="text-sm text-gray-400 mt-2">"Tambahkan IdP untuk mengaktifkan Single Sign-On."</p>
-                        </div>
+                        <EmptyPanel
+                            title="Belum ada Identity Provider"
+                            message="Tambahkan IdP untuk mengaktifkan Single Sign-On lintas sistem."
+                        />
                     </Show>
                 </Show>
             </div>

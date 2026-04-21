@@ -46,16 +46,6 @@ scrape_configs:
         target_label: instance
         replacement: 'integrasi'
 
-  # Portal service
-  - job_name: 'portal'
-    metrics_path: '/metrics'
-    static_configs:
-      - targets: ['layanan-portal:8080']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'portal'
-
   # Authenc service
   - job_name: 'authenc'
     metrics_path: '/metrics'

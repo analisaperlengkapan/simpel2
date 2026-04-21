@@ -1,3 +1,13 @@
+pub mod admin;
+pub mod bank_aset;
 pub mod dashboard;
+pub mod dashboard_perlengkapan;
+pub mod login;
+pub mod kebutuhan_bmn;
+pub mod pakaian_dinas;
+pub mod pemakaian_bmn;
+pub mod penghapusan_bmn;
 pub mod not_found;
 pub mod placeholder;
+pub mod workflow;
+pub mod search_page;

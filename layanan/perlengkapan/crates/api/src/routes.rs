@@ -33,9 +33,27 @@ pub fn create_routes(state: AppState) -> Router {
             "/dashboard/perlengkapan/export/pdf",
             get(dashboard::handlers::export_dashboard_pdf),
         )
-        // Asset (Read-Only)
+        // Asset (Read-Only, legacy)
         .route("/assets", get(get_all_assets))
         .route("/assets/{id}", get(get_asset_by_id))
+        // Bank Aset (unified SIMAN façade)
+        .route("/bank-aset", get(crate::bank_aset::list_bank_aset))
+        .route(
+            "/bank-aset/dashboard",
+            get(crate::bank_aset::get_bank_aset_dashboard),
+        )
+        .route(
+            "/bank-aset/sebaran",
+            get(crate::bank_aset::get_bank_aset_sebaran),
+        )
+        .route(
+            "/bank-aset/last-sync",
+            get(crate::bank_aset::get_bank_aset_last_sync),
+        )
+        .route(
+            "/bank-aset/{id}",
+            get(crate::bank_aset::get_bank_aset_detail),
+        )
         // Analisis Kebutuhan
         .route("/analisis", get(get_all_analisis).post(create_analisis))
         .route("/analisis/{id}", get(get_analisis_by_id))
@@ -77,7 +95,19 @@ pub fn create_routes(state: AppState) -> Router {
             post(crate::penghapusan_bmn::validator_wilayah_action),
         )
         .route(
+            "/penghapusan-bmn/{id}/forward-pusat",
+            post(crate::penghapusan_bmn::forward_to_pusat),
+        )
+        .route(
+            "/penghapusan-bmn/{id}/return-operator",
+            post(crate::penghapusan_bmn::return_to_operator),
+        )
+        .route(
             "/penghapusan-bmn/{id}/generate-sk",
+            post(crate::penghapusan_bmn::generate_konsep_sk),
+        )
+        .route(
+            "/penghapusan-bmn/{id}/generate-konsep-sk",
             post(crate::penghapusan_bmn::generate_konsep_sk),
         )
         .route(
@@ -152,6 +182,20 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pakaian-dinas/ukuran-pakaian-pegawai",
             get(pakaian_dinas::get_personal_ukuran).post(pakaian_dinas::update_personal_ukuran),
+        )
+        // Pegawai Profile (reporting fields + sizes)
+        .route(
+            "/pakaian-dinas/pegawai-profile",
+            post(pakaian_dinas::upsert_pegawai_profile),
+        )
+        .route(
+            "/pakaian-dinas/pegawai-profile/bulk",
+            post(pakaian_dinas::bulk_upsert_pegawai_profiles),
+        )
+        // Spesifikasi by Jenis (sub-resource)
+        .route(
+            "/pakaian-dinas/jenis/{jenis_id}/spesifikasi",
+            get(pakaian_dinas::get_spesifikasi_by_jenis),
         )
         // MySIMKARI Integration
         .route(
@@ -251,6 +295,10 @@ pub fn create_routes(state: AppState) -> Router {
         )
         .route(
             "/kebutuhan-bmn/satker/{id}/keputusan-pusat",
+            post(kebutuhan_bmn::validator_pusat_keputusan),
+        )
+        .route(
+            "/kebutuhan-bmn/satker/{id}/validator-pusat",
             post(kebutuhan_bmn::validator_pusat_keputusan),
         )
         // Barang Operations
@@ -410,6 +458,57 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pemakaian-bmn/monitoring/utilization-report",
             get(pemakaian_bmn::get_bmn_utilization_report),
+        )
+        // ============ Workflow Definition Routes ============
+        .route(
+            "/workflow/definitions",
+            get(crate::workflow::definition_handlers::get_workflow_definitions)
+                .post(crate::workflow::definition_handlers::create_workflow_definition),
+        )
+        .route(
+            "/workflow/definitions/{name}",
+            get(crate::workflow::definition_handlers::get_workflow_definition_by_name)
+                .put(crate::workflow::definition_handlers::update_workflow_definition)
+                .delete(crate::workflow::definition_handlers::delete_workflow_definition),
+        )
+        .route(
+            "/workflow/definitions/{name}/steps",
+            post(crate::workflow::definition_handlers::upsert_workflow_step),
+        )
+        .route(
+            "/workflow/definitions/{name}/steps/{state}",
+            delete(crate::workflow::definition_handlers::delete_workflow_step),
+        )
+        // ============ Workflow Monitoring Routes ============
+        .route(
+            "/workflow/monitoring/metrics",
+            get(crate::workflow::handlers::get_workflow_metrics),
+        )
+        .route(
+            "/workflow/monitoring/active",
+            get(crate::workflow::handlers::get_active_workflows),
+        )
+        .route(
+            "/workflow/monitoring/sla-breaches",
+            get(crate::workflow::handlers::get_sla_breaches),
+        )
+        .route(
+            "/workflow/monitoring/bottlenecks",
+            get(crate::workflow::handlers::get_bottlenecks),
+        )
+        // ============ Admin Routes (audit + master data) ============
+        .route("/admin/audit", get(crate::admin::list_audit_logs))
+        .route(
+            "/admin/master",
+            get(crate::admin::list_master_sources),
+        )
+        .route(
+            "/admin/master/{source}",
+            get(crate::admin::list_master_records).post(crate::admin::create_master_record),
+        )
+        .route(
+            "/admin/master/{source}/{id}",
+            put(crate::admin::update_master_record).delete(crate::admin::delete_master_record),
         )
         .with_state(state)
 }

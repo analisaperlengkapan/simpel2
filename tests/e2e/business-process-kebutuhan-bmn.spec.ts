@@ -44,6 +44,22 @@ test.describe('Business Process: Kebutuhan BMN - Full E2E Flow', () => {
   let barangId: string;
   let backendAvailable = false;
 
+  async function resolvePengajuanId(request: APIRequestContext): Promise<string | undefined> {
+    if (pengajuanId && !pengajuanId.startsWith('00000000-0000-0000-0000-0000000001')) {
+      return pengajuanId;
+    }
+
+    const listed = await listKebutuhanBmnPengajuan(request, validatorPusat, { page: 1, per_page: 1 });
+    if (listed.status >= 200 && listed.status < 500) {
+      const item = listed.body?.data?.items?.[0] ?? listed.body?.data?.[0];
+      if (item?.id) {
+        pengajuanId = item.id;
+      }
+    }
+
+    return pengajuanId;
+  }
+
   test.describe.configure({ mode: 'serial' });
 
   test.beforeAll(async ({ request }) => {
@@ -103,12 +119,13 @@ test.describe('Business Process: Kebutuhan BMN - Full E2E Flow', () => {
   });
 
   test('1.3 - Validator Pusat adds satker to pengajuan', async ({ request, page }) => {
-    if (!pengajuanId || pengajuanId.startsWith('00000000-0000-0000-0000-0000000001')) {
+    const resolvedPengajuanId = await resolvePengajuanId(request);
+    if (!resolvedPengajuanId) {
       test.skip();
       return;
     }
 
-    const result = await addSatkerToPengajuan(request, validatorPusat, pengajuanId, {
+    const result = await addSatkerToPengajuan(request, validatorPusat, resolvedPengajuanId, {
       satker_id: operatorSatker.satker_id,
       satker_nama: operatorSatker.satker_nama,
     });
@@ -127,16 +144,19 @@ test.describe('Business Process: Kebutuhan BMN - Full E2E Flow', () => {
     if (result.status === 201 || result.status === 200) {
       satkerId = result.body.data?.id;
       expect(satkerId).toBeTruthy();
+    } else {
+      satkerId = operatorSatker.satker_id;
     }
   });
 
   test('1.4 - Transition pengajuan to InputBarang status', async ({ request, page }) => {
-    if (!pengajuanId || pengajuanId.startsWith('00000000-0000-0000-0000-0000000001')) {
+    const resolvedPengajuanId = await resolvePengajuanId(request);
+    if (!resolvedPengajuanId) {
       test.skip();
       return;
     }
 
-    const result = await transitionPengajuanStatus(request, validatorPusat, pengajuanId, {
+    const result = await transitionPengajuanStatus(request, validatorPusat, resolvedPengajuanId, {
       target_status: KEBUTUHAN_BMN_STATUS.INPUT_BARANG,
       komentar: 'Pengajuan dibuka untuk input barang oleh satker',
     });
@@ -158,8 +178,7 @@ test.describe('Business Process: Kebutuhan BMN - Full E2E Flow', () => {
 
   test('2.1 - Operator Satker adds barang items with penjelasan', async ({ request, page }) => {
     if (!satkerId) {
-      test.skip();
-      return;
+      satkerId = operatorSatker.satker_id;
     }
 
     const barangList = [
@@ -221,8 +240,7 @@ test.describe('Business Process: Kebutuhan BMN - Full E2E Flow', () => {
     page,
   }) => {
     if (!satkerId) {
-      test.skip();
-      return;
+      satkerId = operatorSatker.satker_id;
     }
 
     const result = await submitSatkerToWilayah(request, operatorSatker, satkerId, {
@@ -260,8 +278,7 @@ test.describe('Business Process: Kebutuhan BMN - Full E2E Flow', () => {
 
   test('3.1 - Validator Wilayah reviews and forwards to Pusat', async ({ request, page }) => {
     if (!satkerId) {
-      test.skip();
-      return;
+      satkerId = operatorSatker.satker_id;
     }
 
     const result = await validatorWilayahAction(request, validatorWilayah, satkerId, {
@@ -321,8 +338,7 @@ test.describe('Business Process: Kebutuhan BMN - Full E2E Flow', () => {
     page,
   }) => {
     if (!satkerId) {
-      test.skip();
-      return;
+      satkerId = operatorSatker.satker_id;
     }
 
     const result = await getAnalisisKelayakan(request, validatorPusat, satkerId);
@@ -360,8 +376,7 @@ test.describe('Business Process: Kebutuhan BMN - Full E2E Flow', () => {
     page,
   }) => {
     if (!satkerId) {
-      test.skip();
-      return;
+      satkerId = operatorSatker.satker_id;
     }
 
     const result = await validatorPusatKeputusan(request, validatorPusat, satkerId, {

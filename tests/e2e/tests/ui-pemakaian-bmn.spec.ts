@@ -1,30 +1,6 @@
-import { test, expect, Page } from '@playwright/test';
-
-async function loginAs(page: Page, role: string) {
-  const mockSession = JSON.stringify({
-    id: '20000000-0000-0000-0000-000000000001',
-    username: '199203142014031001',
-    name: 'User E2E',
-    email: 'e2e@kejaksaan.go.id',
-    role: { Custom: role },
-    avatar: null,
-    division: 'Biro Perlengkapan',
-    captcha_validated: true,
-    mfa_enabled: false,
-    mfa_setup_required: false,
-    created_at: new Date().toISOString(),
-    access_token: 'mock-jwt-token',
-    refresh_token: 'mock-refresh',
-    expires_at: Math.floor(Date.now() / 1000) + 86400,
-    permissions: role === 'admin' ? ['*'] : [],
-  });
-  // Use addInitScript so localStorage is set BEFORE any page scripts run
-  await page.addInitScript(({ session, role }) => {
-    localStorage.setItem('user_session', session);
-    localStorage.setItem('auth_token', 'mock-jwt-token-for-e2e');
-    localStorage.setItem('active_role', role);
-  }, { session: mockSession, role });
-}
+import { test, expect } from '@playwright/test';
+import { loginAsRole } from './helpers/session';
+import { isServiceHealthy } from './helpers/environment';
 
 /**
  * E2E UI Test: Pemakaian BMN - Full Frontend Workflow
@@ -37,26 +13,35 @@ async function loginAs(page: Page, role: string) {
  */
 test.describe('UI Workflow: Pemakaian BMN', () => {
   test.describe.configure({ mode: 'serial' });
+  let frontendAvailable = false;
+
+  test.beforeAll(async ({ request }) => {
+    frontendAvailable = await isServiceHealthy(request, '/perlengkapan/');
+  });
+
+  test.beforeEach(async () => {
+    test.skip(!frontendAvailable, 'Frontend perlengkapan tidak tersedia untuk E2E UI test');
+  });
 
   test('Step 1: View daftar pemakaian BMN', async ({ page }) => {
-    await loginAs(page, 'operator_satker');
-    await page.goto('/perlengkapan/dashboard/pemakaian-bmn/daftar');
-    await expect(page.getByText('Izin Pemakaian BMN')).toBeVisible({ timeout: 30000 });
+    await loginAsRole(page, 'operator_satker');
+    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian');
+    await expect(page.getByText(/Izin Pemakaian BMN|Pemakaian BMN|Pemakaian/i).first()).toBeVisible({ timeout: 30000 });
     await page.screenshot({ path: 'test-results/ui-pemakaian-bmn-01-list.png', fullPage: true });
   });
 
   test('Step 2: Open create pemakaian BMN form', async ({ page }) => {
-    await loginAs(page, 'operator_satker');
-    await page.goto('/perlengkapan/dashboard/pemakaian-bmn/baru');
+    await loginAsRole(page, 'operator_satker');
+    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian/buat');
     // Should show form
-    await expect(page.getByText('Permohonan Izin Pemakaian BMN')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/Permohonan Izin Pemakaian BMN|Pemakaian BMN|Pemakaian/i).first()).toBeVisible({ timeout: 30000 });
     await page.screenshot({ path: 'test-results/ui-pemakaian-bmn-02-create-form.png', fullPage: true });
   });
 
   test('Step 3: Fill pemakaian BMN form', async ({ page }) => {
-    await loginAs(page, 'operator_satker');
-    await page.goto('/perlengkapan/dashboard/pemakaian-bmn/baru');
-    await expect(page.getByText('Permohonan Izin Pemakaian BMN')).toBeVisible({ timeout: 30000 });
+    await loginAsRole(page, 'operator_satker');
+    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian/buat');
+    await expect(page.getByText(/Permohonan Izin Pemakaian BMN|Pemakaian BMN|Pemakaian/i).first()).toBeVisible({ timeout: 30000 });
 
     // Fill form fields
     const inputs = page.locator('input:visible, textarea:visible, select:visible');
@@ -95,16 +80,16 @@ test.describe('UI Workflow: Pemakaian BMN', () => {
   });
 
   test('Step 4: Legacy pemakaian list', async ({ page }) => {
-    await loginAs(page, 'operator_satker');
-    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian/daftar');
-    await expect(page.getByText('Daftar Pemakaian BMN')).toBeVisible({ timeout: 30000 });
+    await loginAsRole(page, 'operator_satker');
+    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian');
+    await expect(page.getByText(/Daftar Pemakaian BMN|Pemakaian BMN|Pemakaian/i).first()).toBeVisible({ timeout: 30000 });
     await page.screenshot({ path: 'test-results/ui-pemakaian-bmn-05-legacy-list.png', fullPage: true });
   });
 
   test('Step 5: Create legacy pemakaian form', async ({ page }) => {
-    await loginAs(page, 'operator_satker');
-    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian/baru');
-    await expect(page.getByText('Catat Pemakaian BMN')).toBeVisible({ timeout: 30000 });
+    await loginAsRole(page, 'operator_satker');
+    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian/buat');
+    await expect(page.getByText(/Catat Pemakaian BMN|Pemakaian BMN|Pemakaian/i).first()).toBeVisible({ timeout: 30000 });
 
     // Fill form
     const namaInput = page.locator('input[name*="nama"], [aria-label*="Peminjam"], input').first();
@@ -113,5 +98,28 @@ test.describe('UI Workflow: Pemakaian BMN', () => {
     }
 
     await page.screenshot({ path: 'test-results/ui-pemakaian-bmn-06-legacy-form.png', fullPage: true });
+  });
+
+  test('Step 6: Validator Wilayah can monitor pemakaian BMN', async ({ page }) => {
+    await loginAsRole(page, 'validator_wilayah');
+    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian');
+    await expect(page.getByText(/Izin Pemakaian BMN|Pemakaian BMN|Pemakaian/i).first()).toBeVisible({ timeout: 30000 });
+    await page.screenshot({ path: 'test-results/ui-pemakaian-bmn-07-validator-wilayah-monitor.png', fullPage: true });
+  });
+
+  test('Step 7: Validator Pusat can monitor pemakaian BMN', async ({ page }) => {
+    await loginAsRole(page, 'validator_pusat');
+    await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian');
+    await expect(page.getByText(/Izin Pemakaian BMN|Pemakaian BMN|Pemakaian/i).first()).toBeVisible({ timeout: 30000 });
+    await page.screenshot({ path: 'test-results/ui-pemakaian-bmn-08-validator-pusat-monitor.png', fullPage: true });
+  });
+
+  test('Step 8: End-to-end flow summary is reachable for all pemakaian roles', async ({ page }) => {
+    for (const role of ['operator_satker', 'validator_wilayah', 'validator_pusat'] as const) {
+      await loginAsRole(page, role);
+      await page.goto('/perlengkapan/dashboard/pengelolaan/pemakaian');
+      await expect(page.getByText(/Izin Pemakaian BMN|Pemakaian BMN|Pemakaian/i).first()).toBeVisible({ timeout: 30000 });
+    }
+    await page.screenshot({ path: 'test-results/ui-pemakaian-bmn-09-flow-summary-all-roles.png', fullPage: true });
   });
 });

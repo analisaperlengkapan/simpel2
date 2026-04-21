@@ -6,24 +6,6 @@
 # If not using prometheus-operator, comment out this file in kustomization.yaml
 
 ---
-# Portal Backend ServiceMonitor
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: layanan-portal
-  labels:
-    app.kubernetes.io/name: layanan-portal
-    app.kubernetes.io/component: backend
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-portal
-  endpoints:
-    - port: http
-      path: /metrics
-      interval: 30s
-      scrapeTimeout: 10s
----
 # Pembinaan Perlengkapan Backend ServiceMonitor
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
