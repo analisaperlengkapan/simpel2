@@ -122,7 +122,7 @@ tower-http = { version = "0.6.6", optional = true, features = [
     "add-extension",
 ] }
 hyper = { version = "1.7.0", features = ["full"] }
-reqwest = { version = "0.13.2", optional = true, features = [
+reqwest = { workspace = true, optional = true, features = [
     "json",
     "blocking",
 ] }
@@ -142,7 +142,7 @@ deadpool-postgres = { workspace = true, optional = true }
 postgres-types = { workspace = true }
 refinery = { workspace = true, features = ["tokio-postgres"] }
 redis = { workspace = true }
-lru = "0.16.3"
+lru = { workspace = true }
 
 # Serialization & Data
 uuid = { workspace = true, features = ["v4", "serde", "js"] }
@@ -206,7 +206,7 @@ url = { version = "2.5.4", optional = true }
 urlencoding = "2.1"
 
 # Messaging
-rdkafka = { version = "0.38", features = ["tokio", "ssl-vendored"], optional = true }
+rdkafka = { workspace = true, features = ["ssl-vendored"], optional = true }
 
 # Object Storage (S3/MinIO)
 aws-sdk-s3 = "1.90.0"
