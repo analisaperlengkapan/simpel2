@@ -167,8 +167,6 @@ configMapGenerator:
 
 # Image tags for production (use prod version tags)
 images:
-  - name: localhost:32000/simpelv2/layanan-portal
-    newTag: prod
   - name: localhost:32000/simpelv2/layanan-integrasi
     newTag: prod
   - name: localhost:32000/simpelv2/layanan-integrasi-grpc

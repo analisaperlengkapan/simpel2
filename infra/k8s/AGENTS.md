@@ -40,7 +40,7 @@ This directory contains **Kustomize-based** Kubernetes manifests for deploying S
 infra/k8s/
 ├── base/                           # Shared base resources
 │   ├── backend/                    # Backend microservices (Axum)
-│   │   ├── layanan-portal.yaml
+│   │   ├── layanan-integrasi.yaml
 │   │   ├── layanan-perlengkapan.yaml
 │   │   └── kustomization.yaml
 │   ├── frontend/                   # Frontend microfrontends (Leptos WASM)
@@ -272,8 +272,7 @@ localhost:32000/simpelv2/<image-name>:<tag>
 | `portal` | 8080 | Deployment | Main portal frontend |
 | `portal` | 8080 | Deployment | Portal microfrontend |
 | `perlengkapan` | 8080 | Deployment | Pembinaan microfrontend |
-| `layanan-portal` | 3010 | Deployment | Portal backend API |
-| `layanan-integrasi` | - | CronJob | External API integration (MonSAKTI/MySIMKARI/SIMAN) |
+| `layanan-integrasi` | 50051 | Deployment | External API integration (gRPC: MonSAKTI/MySIMKARI/SIMAN) |
 | `layanan-perlengkapan` | 3020 | Deployment | Perlengkapan backend API |
 | `authenc` | 8088/9088/9090 | Deployment | Identity Provider |
 | `secreton` | 8200/9000/9090 | StatefulSet | Secrets Vault |
@@ -597,7 +596,7 @@ curl -s http://172.15.10.200/ -H "Host: simpel.kejaksaan.go.id"
 
 ```bash
 # Promote a specific image from staging to production
-IMAGE=layanan-portal
+IMAGE=layanan-perlengkapan
 
 # Tag staging as production
 docker pull localhost:32000/simpelv2/${IMAGE}:stag

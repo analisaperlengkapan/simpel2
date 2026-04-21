@@ -197,8 +197,6 @@ secretGenerator:
 
 # Image tags for staging (use dev/latest tags available in registry)
 images:
-  - name: localhost:32000/simpelv2/layanan-portal
-    newTag: stag
   - name: localhost:32000/simpelv2/layanan-integrasi
     newTag: stag
   - name: localhost:32000/simpelv2/layanan-perlengkapan
