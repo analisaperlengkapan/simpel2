@@ -312,6 +312,11 @@ mod mysimkari_tests {
             pangkat: None,
             jabatan: None,
             status: None,
+            eselon: None,
+            jenis_kelamin: Some("L".to_string()),
+            jenis_pegawai: None,
+            mapped_unit_kerja: None,
+            kode_satker: None,
             last_pengajuan_satker_pegawai_id: None,
             updated_at: Utc::now(),
         };
