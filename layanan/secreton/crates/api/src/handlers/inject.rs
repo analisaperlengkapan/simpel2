@@ -108,6 +108,7 @@ pub struct InjectionSession {
 /// POST /v1/inject/env
 pub async fn inject_env(
     State(state): State<Arc<crate::services::ServiceContainer>>,
+    user: crate::extractors::AuthenticatedUser,
     Extension(ctx): Extension<RequestContext>,
     Json(request): Json<InjectEnvRequest>,
 ) -> Result<Json<ApiResponse<InjectEnvResponse>>, ApiError> {
@@ -140,7 +141,7 @@ pub async fn inject_env(
     let mut secret_paths = Vec::new();
 
     // Build policy context for authorization
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let user_id = user.id.to_string();
     let policy_context = serde_json::json!({
         "user_id": ctx.user_id,
         "user_email": ctx.user_email,
@@ -171,12 +172,12 @@ pub async fn inject_env(
         secret_paths.push(secret_config.path.clone());
 
         // Authorization check
-        if !policy_set.evaluate(user_id, &secret_config.path, "read", Some(&policy_context)) {
+        if !policy_set.evaluate(&user_id, &secret_config.path, "read", Some(&policy_context)) {
             return Err(ApiError::Forbidden);
         }
 
         // Fetch secret from Secreton
-        let secret_data = fetch_secret(&state, &secret_config.path, user_id).await?;
+        let secret_data = fetch_secret(&state, &secret_config.path, &user_id).await?;
 
         // Process based on configuration
         if let Some(key) = &secret_config.key {
@@ -227,6 +228,21 @@ pub async fn inject_env(
     // Store session for tracking
     store_session(&state, &session).await?;
 
+    // Audit log the injection
+    let audit_log = crate::helpers::create_audit_log_with_metadata(
+        "inject.env",
+        &user_id,
+        "inject",
+        &request.job_id,
+        {
+            let mut m = HashMap::new();
+            m.insert("session_id".to_string(), session_id.clone());
+            m.insert("secrets_count".to_string(), request.secrets.len().to_string());
+            m
+        },
+    );
+    let _ = state.audit.log(audit_log).await;
+
     // Schedule automatic cleanup
     schedule_cleanup(state, &session_id, ttl).await;
 
@@ -245,6 +261,7 @@ pub async fn inject_env(
 /// DELETE /v1/inject/cleanup/{session_id}
 pub async fn cleanup_session(
     State(state): State<Arc<crate::services::ServiceContainer>>,
+    user: crate::extractors::AuthenticatedUser,
     Extension(ctx): Extension<RequestContext>,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
@@ -254,9 +271,9 @@ pub async fn cleanup_session(
     let session = get_session(&state, &session_id).await?;
 
     // Authorization check: Allow if owner OR if has delete permission
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let user_id = user.id.to_string();
     // Prevent "anonymous" users from claiming ownership
-    let is_owner = session.created_by == user_id && user_id != "anonymous";
+    let is_owner = session.created_by == user_id && user_id != "00000000-0000-0000-0000-000000000000";
 
     if !is_owner {
         let namespace = ctx.derive_namespace();
@@ -268,7 +285,7 @@ pub async fn cleanup_session(
                 message: e.to_string(),
             })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
-        if !policy_set.evaluate(user_id, "sys/inject/sessions", "delete", None) {
+        if !policy_set.evaluate(&user_id, "sys/inject/sessions", "delete", None) {
             return Err(ApiError::Forbidden);
         }
     }
@@ -283,7 +300,18 @@ pub async fn cleanup_session(
     deactivate_session(&state, &session_id).await?;
 
     // Audit log the cleanup
-    audit_cleanup(&session).await;
+    let audit_log = crate::helpers::create_audit_log_with_metadata(
+        "inject.cleanup",
+        &user_id,
+        "inject",
+        &session.job_id,
+        {
+            let mut m = HashMap::new();
+            m.insert("session_id".to_string(), session_id.clone());
+            m
+        },
+    );
+    let _ = state.audit.log(audit_log).await;
 
     info!("Successfully cleaned up session {}", session_id);
 
@@ -504,18 +532,26 @@ async fn schedule_cleanup(
 
         info!("Auto-cleanup triggered for session {}", session_id);
 
-        if let Err(e) = deactivate_session(&state, &session_id).await {
-            error!("Failed to auto-cleanup session {}: {}", session_id, e);
+        if let Ok(session) = get_session_internal(&state, &session_id).await {
+            if let Err(e) = deactivate_session(&state, &session_id).await {
+                error!("Failed to auto-cleanup session {}: {}", session_id, e);
+            } else {
+                // Audit auto-cleanup
+                let audit_log = crate::helpers::create_audit_log_with_metadata(
+                    "inject.auto_cleanup",
+                    "system",
+                    "inject",
+                    &session.job_id,
+                    {
+                        let mut m = HashMap::new();
+                        m.insert("session_id".to_string(), session_id.clone());
+                        m
+                    },
+                );
+                let _ = state.audit.log(audit_log).await;
+            }
         }
     });
-}
-
-async fn audit_cleanup(session: &InjectionSession) {
-    info!(
-        "Audit: Session {} for job {} cleaned up",
-        session.id, session.job_id
-    );
-    // TODO: Write to audit log
 }
 
 /// Create routes for CI/CD injection endpoints

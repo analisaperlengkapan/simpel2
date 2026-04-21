@@ -362,8 +362,59 @@ impl DatabaseSecretsEngine {
 
     /// Delete database role
     pub async fn delete_role(&self, name: &str) -> Result<bool, DatabaseError> {
+        // First, check if role exists and get its credentials to revoke
+        let active_creds_to_revoke: Vec<String> = {
+            let active = self.active_credentials.read().await;
+            active
+                .values()
+                .filter(|c| c.role_name == name)
+                .map(|c| c.id.clone())
+                .collect()
+        };
+
+        // Revoke all active credentials for this role
+        for cred_id in active_creds_to_revoke {
+            let _ = self.revoke_credentials(&cred_id).await;
+        }
+
         let mut roles = self.roles.write().await;
         Ok(roles.remove(name).is_some())
+    }
+
+    /// Get database connection details
+    pub async fn get_connection(&self, name: &str) -> Option<DatabaseConnection> {
+        let connections = self.connections.read().await;
+        connections.get(name).cloned()
+    }
+
+    /// Delete database connection
+    pub async fn delete_connection(&self, name: &str) -> Result<bool, DatabaseError> {
+        // Find all roles using this connection
+        let roles_to_delete: Vec<String> = {
+            let roles = self.roles.read().await;
+            roles
+                .values()
+                .filter(|r| r.db_name == name)
+                .map(|r| r.name.clone())
+                .collect()
+        };
+
+        // Delete all roles using this connection (which also revokes credentials)
+        for role_name in roles_to_delete {
+            self.delete_role(&role_name).await?;
+        }
+
+        // Remove the connection
+        let mut connections = self.connections.write().await;
+        let removed = connections.remove(name).is_some();
+
+        // Also remove from pools
+        if removed {
+            let mut pools = self.db_pools.write().await;
+            pools.remove(name);
+        }
+
+        Ok(removed)
     }
 
     /// Generate credentials for a role
