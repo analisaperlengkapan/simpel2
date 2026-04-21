@@ -319,6 +319,10 @@ mod mysimkari_tests {
             kode_satker: None,
             last_pengajuan_satker_pegawai_id: None,
             updated_at: Utc::now(),
+            eselon: None,
+            jenis_kelamin: Some("L".to_string()),
+            gol_kd: None,
+            jenis: None,
         };
 
         // Tuple style return from get_pegawai_with_sizes
