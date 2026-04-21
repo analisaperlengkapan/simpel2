@@ -13,7 +13,6 @@ use leptos::task::spawn_local;
 use lib_ui::components::captcha::Captcha;
 use web_sys;
 
-#[cfg(target_arch = "wasm32")]
 fn resolve_perlengkapan_redirect_target() -> Option<String> {
     let search = web_sys::window()
         .and_then(|w| w.location().search().ok())
