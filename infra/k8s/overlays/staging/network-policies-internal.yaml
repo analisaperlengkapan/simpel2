@@ -20,6 +20,32 @@ spec:
         - protocol: TCP
           port: 53
 ---
+# Allow all pods egress to istio control plane (istiod xDS, cert-provisioning, health).
+# Without this, our per-workload egress policies below block sidecar bootstrap and
+# every outbound TCP from the app is refused by the un-configured envoy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-control-plane-egress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 15010
+        - protocol: TCP
+          port: 15012
+        - protocol: TCP
+          port: 15014
+        - protocol: TCP
+          port: 443
+---
 # Allow layanan-integrasi egress to external HTTPS (SIMAN/MySIMKARI/MonSAKTI)
 # and to in-cluster Postgres. External egress via 0.0.0.0/0 excluding cluster CIDRs.
 apiVersion: networking.k8s.io/v1
