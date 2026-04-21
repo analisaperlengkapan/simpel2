@@ -1,7 +1,7 @@
 //! Panduan Pengguna — user guide page.
 
-use leptos::prelude::*;
 use crate::components::layout::{PageLayout, SectionCard};
+use leptos::prelude::*;
 
 #[component]
 pub fn PanduanPengguna() -> impl IntoView {

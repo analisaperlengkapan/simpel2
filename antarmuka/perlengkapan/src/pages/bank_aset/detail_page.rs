@@ -114,7 +114,10 @@ fn DetailBody(
     let nama = item.nama_aset.clone().unwrap_or_else(|| "-".to_string());
     let kategori = item.kategori_aset.clone();
     let no_aset = item.no_aset.clone();
-    let nilai = item.nilai_perolehan.map(format_rupiah).unwrap_or_else(|| "-".to_string());
+    let nilai = item
+        .nilai_perolehan
+        .map(format_rupiah)
+        .unwrap_or_else(|| "-".to_string());
     let kondisi = item.kondisi.clone().unwrap_or_else(|| "-".to_string());
 
     let pemakaian = detail.riwayat_pemakaian.clone();
@@ -216,7 +219,8 @@ fn render_riwayat(entries: &[RiwayatEntry], empty_msg: &str) -> impl IntoView {
                 description=msg
                 icon="fas fa-clock"
             />
-        }.into_any();
+        }
+        .into_any();
     }
     let rows: Vec<_> = entries.iter().map(|e| {
         let ref_no = e.ref_no.clone().unwrap_or_else(|| "-".to_string());

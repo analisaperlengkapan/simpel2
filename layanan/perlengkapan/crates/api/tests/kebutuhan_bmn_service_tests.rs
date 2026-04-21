@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod kebutuhan_bmn_service_tests {
-    use uuid::Uuid;
     use chrono::NaiveDate;
+    use uuid::Uuid;
 
     #[derive(Debug, Clone)]
     struct PengajuanKebutuhanBmn {
@@ -72,6 +72,9 @@ mod kebutuhan_bmn_service_tests {
         let deadline = NaiveDate::from_ymd_opt(2024, 3, 31).unwrap();
         let submission_date = NaiveDate::from_ymd_opt(2024, 3, 15).unwrap();
 
-        assert!(submission_date <= deadline, "Submission must be before deadline");
+        assert!(
+            submission_date <= deadline,
+            "Submission must be before deadline"
+        );
     }
 }

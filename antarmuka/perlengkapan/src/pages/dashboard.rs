@@ -41,7 +41,11 @@ fn StatCard(
             "shadow-emerald-500/30",
         ),
         "amber" => ("bg-amber-500/15", "text-amber-300", "shadow-amber-500/30"),
-        "violet" => ("bg-violet-500/15", "text-violet-300", "shadow-violet-500/30"),
+        "violet" => (
+            "bg-violet-500/15",
+            "text-violet-300",
+            "shadow-violet-500/30",
+        ),
         _ => ("bg-slate-500/15", "text-slate-300", "shadow-slate-500/30"),
     };
 
@@ -86,17 +90,61 @@ fn QuickNav(
     tone: &'static str,
 ) -> impl IntoView {
     let (icon_bg, icon_text, ring) = match tone {
-        "emerald" => ("bg-emerald-500/15", "text-emerald-300", "group-hover:ring-emerald-400/30"),
-        "blue" => ("bg-blue-500/15", "text-blue-300", "group-hover:ring-blue-400/30"),
-        "indigo" => ("bg-indigo-500/15", "text-indigo-300", "group-hover:ring-indigo-400/30"),
-        "purple" => ("bg-purple-500/15", "text-purple-300", "group-hover:ring-purple-400/30"),
-        "red" => ("bg-red-500/15", "text-red-300", "group-hover:ring-red-400/30"),
-        "amber" => ("bg-amber-500/15", "text-amber-300", "group-hover:ring-amber-400/30"),
-        "teal" => ("bg-teal-500/15", "text-teal-300", "group-hover:ring-teal-400/30"),
-        "pink" => ("bg-pink-500/15", "text-pink-300", "group-hover:ring-pink-400/30"),
-        "orange" => ("bg-orange-500/15", "text-orange-300", "group-hover:ring-orange-400/30"),
-        "cyan" => ("bg-cyan-500/15", "text-cyan-300", "group-hover:ring-cyan-400/30"),
-        _ => ("bg-slate-500/15", "text-slate-300", "group-hover:ring-slate-400/30"),
+        "emerald" => (
+            "bg-emerald-500/15",
+            "text-emerald-300",
+            "group-hover:ring-emerald-400/30",
+        ),
+        "blue" => (
+            "bg-blue-500/15",
+            "text-blue-300",
+            "group-hover:ring-blue-400/30",
+        ),
+        "indigo" => (
+            "bg-indigo-500/15",
+            "text-indigo-300",
+            "group-hover:ring-indigo-400/30",
+        ),
+        "purple" => (
+            "bg-purple-500/15",
+            "text-purple-300",
+            "group-hover:ring-purple-400/30",
+        ),
+        "red" => (
+            "bg-red-500/15",
+            "text-red-300",
+            "group-hover:ring-red-400/30",
+        ),
+        "amber" => (
+            "bg-amber-500/15",
+            "text-amber-300",
+            "group-hover:ring-amber-400/30",
+        ),
+        "teal" => (
+            "bg-teal-500/15",
+            "text-teal-300",
+            "group-hover:ring-teal-400/30",
+        ),
+        "pink" => (
+            "bg-pink-500/15",
+            "text-pink-300",
+            "group-hover:ring-pink-400/30",
+        ),
+        "orange" => (
+            "bg-orange-500/15",
+            "text-orange-300",
+            "group-hover:ring-orange-400/30",
+        ),
+        "cyan" => (
+            "bg-cyan-500/15",
+            "text-cyan-300",
+            "group-hover:ring-cyan-400/30",
+        ),
+        _ => (
+            "bg-slate-500/15",
+            "text-slate-300",
+            "group-hover:ring-slate-400/30",
+        ),
     };
 
     view! {

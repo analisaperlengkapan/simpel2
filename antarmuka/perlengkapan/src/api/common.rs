@@ -574,8 +574,9 @@ pub async fn fetch_assets(
         url.push_str(&format!("&category={}", encode(&cat)));
     }
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -616,8 +617,9 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, crat
 
     let url = "/api/pembinaan/perlengkapan/dashboard/stats";
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -657,8 +659,9 @@ pub async fn fetch_asset_by_id(id: String) -> Result<ApiResponse<Asset>, crate::
 
     let url = format!("/api/pembinaan/perlengkapan/assets/{}", id);
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -677,7 +680,9 @@ pub async fn fetch_asset_by_id(id: String) -> Result<ApiResponse<Asset>, crate::
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_asset_by_id(_id: String) -> Result<ApiResponse<Asset>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -693,8 +698,9 @@ pub async fn fetch_pengadaan(
         page, per_page
     );
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -735,8 +741,9 @@ pub async fn create_pengadaan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengadaan";
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -759,7 +766,9 @@ pub async fn create_pengadaan(
 pub async fn create_pengadaan(
     _request: CreatePengadaanRequest,
 ) -> Result<ApiResponse<Pengadaan>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -770,8 +779,9 @@ pub async fn fetch_pengadaan_hps(
     use gloo_net::http::Request;
 
     let url = format!("/api/pembinaan/perlengkapan/pengadaan/{}/hps", pengadaan_id);
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -793,7 +803,9 @@ pub async fn fetch_pengadaan_hps(
 pub async fn fetch_pengadaan_hps(
     _pengadaan_id: String,
 ) -> Result<ApiResponse<Vec<PengadaanHps>>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -807,8 +819,9 @@ pub async fn create_pengadaan_hps(
         "/api/pembinaan/perlengkapan/pengadaan/{}/hps",
         request.pengadaan_id
     );
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -831,7 +844,9 @@ pub async fn create_pengadaan_hps(
 pub async fn create_pengadaan_hps(
     _request: CreatePengadaanHpsRequest,
 ) -> Result<ApiResponse<PengadaanHps>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // Similarly for other sub-documents... I will add them if I have enough token space, but this demonstrates the pattern.
@@ -851,8 +866,9 @@ pub async fn fetch_analisis(
         page, per_page
     );
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -893,8 +909,9 @@ pub async fn create_analisis(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/analisis";
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -917,7 +934,9 @@ pub async fn create_analisis(
 pub async fn create_analisis(
     _request: CreateAnalisisRequest,
 ) -> Result<ApiResponse<AnalisisKebutuhan>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -933,8 +952,9 @@ pub async fn fetch_pemakaian(
         page, per_page
     );
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -975,8 +995,9 @@ pub async fn create_pemakaian(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pemakaian";
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -999,7 +1020,9 @@ pub async fn create_pemakaian(
 pub async fn create_pemakaian(
     _request: CreatePemakaianRequest,
 ) -> Result<ApiResponse<Pemakaian>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1015,8 +1038,9 @@ pub async fn fetch_hibah(
         page, per_page
     );
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -1034,7 +1058,10 @@ pub async fn fetch_hibah(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_hibah(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Hibah>, crate::api::AppError> {
+pub async fn fetch_hibah(
+    _page: i32,
+    _per_page: i32,
+) -> Result<PaginatedResponse<Hibah>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1054,8 +1081,9 @@ pub async fn create_hibah(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/hibah";
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -1075,8 +1103,12 @@ pub async fn create_hibah(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_hibah(_request: CreateHibahRequest) -> Result<ApiResponse<Hibah>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+pub async fn create_hibah(
+    _request: CreateHibahRequest,
+) -> Result<ApiResponse<Hibah>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1092,8 +1124,9 @@ pub async fn fetch_mutasi(
         page, per_page
     );
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -1111,7 +1144,10 @@ pub async fn fetch_mutasi(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_mutasi(_page: i32, _per_page: i32) -> Result<PaginatedResponse<Mutasi>, crate::api::AppError> {
+pub async fn fetch_mutasi(
+    _page: i32,
+    _per_page: i32,
+) -> Result<PaginatedResponse<Mutasi>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -1131,8 +1167,9 @@ pub async fn create_mutasi(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/mutasi";
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -1152,8 +1189,12 @@ pub async fn create_mutasi(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn create_mutasi(_request: CreateMutasiRequest) -> Result<ApiResponse<Mutasi>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+pub async fn create_mutasi(
+    _request: CreateMutasiRequest,
+) -> Result<ApiResponse<Mutasi>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1169,8 +1210,9 @@ pub async fn fetch_penghapusan(
         page, per_page
     );
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -1211,8 +1253,9 @@ pub async fn create_penghapusan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/penghapusan";
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -1235,7 +1278,9 @@ pub async fn create_penghapusan(
 pub async fn create_penghapusan(
     _request: CreatePenghapusanRequest,
 ) -> Result<ApiResponse<Penghapusan>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1251,8 +1296,9 @@ pub async fn fetch_pengalihan(
         page, per_page
     );
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -1293,8 +1339,9 @@ pub async fn create_pengalihan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pengalihan";
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -1317,7 +1364,9 @@ pub async fn create_pengalihan(
 pub async fn create_pengalihan(
     _request: CreatePengalihanRequest,
 ) -> Result<ApiResponse<Pengalihan>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1333,8 +1382,9 @@ pub async fn fetch_pemeliharaan(
         page, per_page
     );
 
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
@@ -1375,8 +1425,9 @@ pub async fn create_pemeliharaan(
     use gloo_net::http::Request;
 
     let url = "/api/pembinaan/perlengkapan/pemeliharaan";
-    let token = get_auth_token()
-        .ok_or_else(|| crate::api::AppError::network("No authentication token found".to_string()))?;
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
 
     let resp = Request::post(url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -1399,5 +1450,7 @@ pub async fn create_pemeliharaan(
 pub async fn create_pemeliharaan(
     _request: CreatePemeliharaanRequest,
 ) -> Result<ApiResponse<Pemeliharaan>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }

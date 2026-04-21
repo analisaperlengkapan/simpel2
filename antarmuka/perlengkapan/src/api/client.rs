@@ -5,8 +5,8 @@
 //! pipeline that translates status codes into typed errors.
 
 use gloo_net::http::Request;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::api::error::{AppError, AppResult};
 

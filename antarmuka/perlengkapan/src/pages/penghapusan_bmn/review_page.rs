@@ -7,12 +7,12 @@
 //!
 //! Requirements: REQ-PH005, REQ-PH006
 
+use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 // ============================================================================
 // API Models
@@ -128,7 +128,8 @@ pub fn ReviewPage() -> impl IntoView {
                     let message = if action == "forward" {
                         "Permohonan berhasil diteruskan ke Validator Pusat (REQ-PH006)".to_string()
                     } else {
-                        "Permohonan berhasil dikembalikan ke Operator Satker (REQ-PH006)".to_string()
+                        "Permohonan berhasil dikembalikan ke Operator Satker (REQ-PH006)"
+                            .to_string()
                     };
                     set_success_message.set(Some(message));
                     set_show_action_modal.set(false);
@@ -424,7 +425,10 @@ async fn fetch_requests_for_review() -> Result<Vec<PenghapusanRequest>, crate::a
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<Vec<PenghapusanRequest>> = response
@@ -448,7 +452,10 @@ async fn submit_validator_wilayah_action(
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     Ok(())

@@ -417,28 +417,42 @@ fn render_table(items: Vec<PenghapusanBmnWorkflow>) -> impl IntoView + use<> {
 fn status_descriptor(status: &str) -> (&'static str, &'static str) {
     match status {
         "DRAFT" => ("Draft", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
-        "SUBMIT_WILAYAH" | "SUBMITTED" => {
-            ("Review Wilayah", "bg-info-500/10 text-info-300 ring-info-500/20")
-        }
-        "RETURNED_TO_OPERATOR" => {
-            ("Dikembalikan", "bg-warning-500/10 text-warning-300 ring-warning-500/20")
-        }
-        "SUBMIT_PUSAT" | "REVIEWED" => {
-            ("Review Pusat", "bg-info-500/10 text-info-300 ring-info-500/20")
-        }
-        "VERIFIKASI_PUSAT" => {
-            ("Verifikasi Pusat", "bg-info-500/10 text-info-300 ring-info-500/20")
-        }
-        "KONSEP_SK_GENERATED" => {
-            ("Konsep SK", "bg-warning-500/10 text-warning-300 ring-warning-500/20")
-        }
+        "SUBMIT_WILAYAH" | "SUBMITTED" => (
+            "Review Wilayah",
+            "bg-info-500/10 text-info-300 ring-info-500/20",
+        ),
+        "RETURNED_TO_OPERATOR" => (
+            "Dikembalikan",
+            "bg-warning-500/10 text-warning-300 ring-warning-500/20",
+        ),
+        "SUBMIT_PUSAT" | "REVIEWED" => (
+            "Review Pusat",
+            "bg-info-500/10 text-info-300 ring-info-500/20",
+        ),
+        "VERIFIKASI_PUSAT" => (
+            "Verifikasi Pusat",
+            "bg-info-500/10 text-info-300 ring-info-500/20",
+        ),
+        "KONSEP_SK_GENERATED" => (
+            "Konsep SK",
+            "bg-warning-500/10 text-warning-300 ring-warning-500/20",
+        ),
         "SK_SIGNED" | "APPROVED" => (
             "SK Ditandatangani",
             "bg-success-500/10 text-success-300 ring-success-500/20",
         ),
-        "COMPLETED" => ("Selesai", "bg-success-500/10 text-success-300 ring-success-500/20"),
-        "REJECTED" => ("Ditolak", "bg-danger-500/10 text-danger-300 ring-danger-500/20"),
-        _ => ("Lainnya", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
+        "COMPLETED" => (
+            "Selesai",
+            "bg-success-500/10 text-success-300 ring-success-500/20",
+        ),
+        "REJECTED" => (
+            "Ditolak",
+            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
+        ),
+        _ => (
+            "Lainnya",
+            "bg-slate-500/10 text-slate-300 ring-slate-500/20",
+        ),
     }
 }
 

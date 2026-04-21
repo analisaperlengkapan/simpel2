@@ -3,8 +3,8 @@
 //! Manage linked social/federated accounts and OAuth2 consent grants.
 //! REQ-PORTAL-021
 
-use crate::components::layout::main_layout::MainLayout;
 use crate::components::feedback::EmptyPanel;
+use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::use_main_layout_session_and_logout;
 use leptos::prelude::*;
 

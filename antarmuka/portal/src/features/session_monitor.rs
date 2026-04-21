@@ -72,7 +72,8 @@ pub fn setup_session_refresh_monitor(
                                     Ok(token_response) => {
                                         AuthService::update_session_token(&token_response);
                                         set_user_session.set(AuthService::load_session());
-                                        if let Some(refreshed_session) = AuthService::load_session() {
+                                        if let Some(refreshed_session) = AuthService::load_session()
+                                        {
                                             current_session = refreshed_session;
                                         }
                                     }

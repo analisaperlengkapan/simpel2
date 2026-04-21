@@ -77,34 +77,44 @@ pub fn BankAsetListPage() -> impl IntoView {
         set_reload_tick.update(|t| *t += 1);
     };
     let on_kategori = move |ev: Event| {
-        let target = ev.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
+        let target = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
         if let Some(el) = target {
             set_kategori.set(el.value());
             set_page.set(1);
         }
     };
     let on_kondisi = move |ev: Event| {
-        let target = ev.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
+        let target = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
         if let Some(el) = target {
             set_kondisi.set(el.value());
             set_page.set(1);
         }
     };
     let on_sort = move |ev: Event| {
-        let target = ev.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
+        let target = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
         if let Some(el) = target {
             set_sort.set(el.value());
             set_page.set(1);
         }
     };
     let on_search_input = move |ev: Event| {
-        let target = ev.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
+        let target = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
         if let Some(el) = target {
             set_search.set(el.value());
         }
     };
     let on_satker = move |ev: Event| {
-        let target = ev.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
+        let target = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
         if let Some(el) = target {
             set_satker.set(el.value());
         }

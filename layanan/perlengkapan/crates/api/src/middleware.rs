@@ -36,12 +36,7 @@ impl Claims {
     pub fn is_cross_satker_role(&self) -> bool {
         matches!(
             self.role.as_str(),
-            "admin"
-                | "admin_pusat"
-                | "superadmin"
-                | "validator_pusat"
-                | "pusat"
-                | "analis_pusat"
+            "admin" | "admin_pusat" | "superadmin" | "validator_pusat" | "pusat" | "analis_pusat"
         )
     }
 
@@ -163,10 +158,7 @@ where
                     name: resp.name.clone().or_else(|| scope_lookup("name:")),
                     nama: resp.name.clone().or_else(|| scope_lookup("nama:")),
                     jabatan: resp.jabatan.clone().or_else(|| scope_lookup("jabatan:")),
-                    satker_code: resp
-                        .satker_code
-                        .clone()
-                        .or_else(|| scope_lookup("satker:")),
+                    satker_code: resp.satker_code.clone().or_else(|| scope_lookup("satker:")),
                 })
             }
             Err(e) => {

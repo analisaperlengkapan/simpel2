@@ -673,7 +673,9 @@ pub fn IntegrationStatusCard(
     let class = class.unwrap_or_default();
 
     let resolved_status_class = status_class.unwrap_or_else(|| match status.as_str() {
-        "healthy" => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300".to_string(),
+        "healthy" => {
+            "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300".to_string()
+        }
         "degraded" => {
             "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300".to_string()
         }

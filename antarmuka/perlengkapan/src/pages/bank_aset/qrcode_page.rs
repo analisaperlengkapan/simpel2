@@ -7,8 +7,8 @@ use std::collections::HashSet;
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlSelectElement, SubmitEvent};
 
-use qrcode::render::svg as qrsvg;
 use qrcode::QrCode;
+use qrcode::render::svg as qrsvg;
 use serde::Serialize;
 
 use crate::api::bank_aset::{self, BankAsetItem, ListFilter};
@@ -103,17 +103,26 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
     });
 
     let on_kategori = move |ev: Event| {
-        if let Some(el) = ev.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok()) {
+        if let Some(el) = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok())
+        {
             set_kategori.set(el.value());
         }
     };
     let on_size = move |ev: Event| {
-        if let Some(el) = ev.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok()) {
+        if let Some(el) = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok())
+        {
             set_label_size.set(LabelSize::from_str(&el.value()));
         }
     };
     let on_search_input = move |ev: Event| {
-        if let Some(el) = ev.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok()) {
+        if let Some(el) = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlInputElement>().ok())
+        {
             set_search.set(el.value());
         }
     };
@@ -137,7 +146,11 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
 
     let selected_items = move || {
         let sel = selected.get();
-        items.get().into_iter().filter(|it| sel.contains(&it.id)).collect::<Vec<_>>()
+        items
+            .get()
+            .into_iter()
+            .filter(|it| sel.contains(&it.id))
+            .collect::<Vec<_>>()
     };
 
     let open_preview = move |_| set_show_preview.set(true);

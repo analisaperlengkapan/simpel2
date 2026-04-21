@@ -105,7 +105,9 @@ pub fn RequestCreationPage() -> impl IntoView {
     // Create request
     let create_request = move || {
         if selected_bmn.get().is_empty() {
-            set_error.set(Some("Pilih minimal 1 BMN untuk dihapus (REQ-PH002)".to_string()));
+            set_error.set(Some(
+                "Pilih minimal 1 BMN untuk dihapus (REQ-PH002)".to_string(),
+            ));
             return;
         }
 
@@ -116,7 +118,9 @@ pub fn RequestCreationPage() -> impl IntoView {
         }
 
         if uploaded_files.get().is_empty() {
-            set_error.set(Some("Upload minimal 1 dokumen pendukung (REQ-PH003)".to_string()));
+            set_error.set(Some(
+                "Upload minimal 1 dokumen pendukung (REQ-PH003)".to_string(),
+            ));
             return;
         }
 
@@ -143,7 +147,7 @@ pub fn RequestCreationPage() -> impl IntoView {
                     }
 
                     set_success_message.set(Some(
-                        "Permohonan penghapusan BMN berhasil dibuat (REQ-PH001)".to_string()
+                        "Permohonan penghapusan BMN berhasil dibuat (REQ-PH001)".to_string(),
                     ));
                 }
                 Err(e) => set_error.set(Some(e.to_string())),
@@ -322,7 +326,10 @@ async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<Vec<BmnItem>> = response
@@ -333,7 +340,9 @@ async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
     Ok(api_response.data.unwrap_or_default())
 }
 
-async fn create_penghapusan_request(request: CreatePenghapusanRequest) -> Result<PenghapusanRequest, crate::api::AppError> {
+async fn create_penghapusan_request(
+    request: CreatePenghapusanRequest,
+) -> Result<PenghapusanRequest, crate::api::AppError> {
     let response = gloo_net::http::Request::post("/api/v1/penghapusan-bmn")
         .json(&request)
         .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?
@@ -342,7 +351,10 @@ async fn create_penghapusan_request(request: CreatePenghapusanRequest) -> Result
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<PenghapusanRequest> = response
@@ -350,7 +362,9 @@ async fn create_penghapusan_request(request: CreatePenghapusanRequest) -> Result
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
+    api_response
+        .data
+        .ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
 async fn add_bmn_to_request(request_id: Uuid, bmn: BmnItem) -> Result<(), crate::api::AppError> {
@@ -370,15 +384,23 @@ async fn add_bmn_to_request(request_id: Uuid, bmn: BmnItem) -> Result<(), crate:
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     Ok(())
 }
 
-async fn upload_document(request_id: Uuid, file: web_sys::File) -> Result<(), crate::api::AppError> {
+async fn upload_document(
+    request_id: Uuid,
+    file: web_sys::File,
+) -> Result<(), crate::api::AppError> {
     let form_data = web_sys::FormData::new().map_err(|_| "Failed to create FormData")?;
-    form_data.append_with_blob("file", &file).map_err(|_| "Failed to append file")?;
+    form_data
+        .append_with_blob("file", &file)
+        .map_err(|_| "Failed to append file")?;
 
     let url = format!("/api/v1/penghapusan-bmn/{}/attachments", request_id);
 
@@ -390,7 +412,10 @@ async fn upload_document(request_id: Uuid, file: web_sys::File) -> Result<(), cr
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     Ok(())

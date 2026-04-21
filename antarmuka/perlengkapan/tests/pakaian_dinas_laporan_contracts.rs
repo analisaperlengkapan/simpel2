@@ -44,9 +44,7 @@ fn laporan_component_supports_pdf_and_excel_export() {
         "laporan component should offer PDF export"
     );
     assert!(
-        page.contains("jenis_file=xlsx")
-            || page.contains("\"xlsx\"")
-            || page.contains("excel"),
+        page.contains("jenis_file=xlsx") || page.contains("\"xlsx\"") || page.contains("excel"),
         "laporan component should offer Excel/XLSX export"
     );
 }
@@ -55,7 +53,13 @@ fn laporan_component_supports_pdf_and_excel_export() {
 fn laporan_component_uses_shared_layout_primitives() {
     let page = source("src/components/pakaian_dinas_laporan.rs");
 
-    for primitive in ["PageLayout", "SectionCard", "LoadingState", "EmptyState", "ErrorState"] {
+    for primitive in [
+        "PageLayout",
+        "SectionCard",
+        "LoadingState",
+        "EmptyState",
+        "ErrorState",
+    ] {
         assert!(
             page.contains(primitive),
             "laporan component should use shared layout primitive {primitive}"

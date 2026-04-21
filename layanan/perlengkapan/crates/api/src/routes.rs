@@ -498,10 +498,7 @@ pub fn create_routes(state: AppState) -> Router {
         )
         // ============ Admin Routes (audit + master data) ============
         .route("/admin/audit", get(crate::admin::list_audit_logs))
-        .route(
-            "/admin/master",
-            get(crate::admin::list_master_sources),
-        )
+        .route("/admin/master", get(crate::admin::list_master_sources))
         .route(
             "/admin/master/{source}",
             get(crate::admin::list_master_records).post(crate::admin::create_master_record),

@@ -59,7 +59,11 @@ fn push_query(buf: &mut String, key: &str, value: &str) {
 pub async fn fetch_audit_logs(filter: &AuditFilter) -> AppResult<PaginatedResponse<AuditLogEntry>> {
     let mut url = format!("{API_BASE}/admin/audit");
     let page = if filter.page < 1 { 1 } else { filter.page };
-    let per_page = if filter.per_page < 1 { 25 } else { filter.per_page };
+    let per_page = if filter.per_page < 1 {
+        25
+    } else {
+        filter.per_page
+    };
     push_query(&mut url, "page", &page.to_string());
     push_query(&mut url, "per_page", &per_page.to_string());
     if let Some(v) = &filter.actor {

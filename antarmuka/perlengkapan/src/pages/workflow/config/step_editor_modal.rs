@@ -20,11 +20,17 @@ pub fn StepEditorModal(
     let (next_states, set_next_states) = signal::<Vec<String>>(step.next_states.clone());
     let (sla_enabled, set_sla_enabled) = signal(step.sla_minutes.is_some());
     let (sla_value, set_sla_value) = {
-        let (v, _) = step.sla_minutes.map(best_time_unit).unwrap_or((1, TimeUnit::Hours));
+        let (v, _) = step
+            .sla_minutes
+            .map(best_time_unit)
+            .unwrap_or((1, TimeUnit::Hours));
         signal(v)
     };
     let (sla_unit, set_sla_unit) = {
-        let (_, u) = step.sla_minutes.map(best_time_unit).unwrap_or((1, TimeUnit::Hours));
+        let (_, u) = step
+            .sla_minutes
+            .map(best_time_unit)
+            .unwrap_or((1, TimeUnit::Hours));
         signal(u)
     };
     let (escalation, set_escalation) = signal(step.escalation_enabled);

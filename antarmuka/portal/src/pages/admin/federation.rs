@@ -3,10 +3,10 @@
 //! Manage external Identity Providers (SAML, OIDC, social login).
 //! REQ-PORTAL-014
 
-use crate::components::layout::main_layout::MainLayout;
 use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel};
-use crate::utils::async_load::load_vec_once;
+use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
+use crate::utils::async_load::load_vec_once;
 use crate::utils::authenc_api::IdentityProviderInfo;
 use leptos::prelude::*;
 

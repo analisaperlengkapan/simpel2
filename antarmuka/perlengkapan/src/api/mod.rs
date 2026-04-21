@@ -1,7 +1,6 @@
 pub mod error;
 pub use error::AppError;
 /// API module — types and fetch functions for all domains.
-
 pub mod admin;
 pub mod bank_aset;
 pub mod client;

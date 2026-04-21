@@ -5,7 +5,7 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
-use crate::api::pakaian_dinas::{fetch_spesifikasi_pakaian, SpesifikasiPakaianDinas};
+use crate::api::pakaian_dinas::{SpesifikasiPakaianDinas, fetch_spesifikasi_pakaian};
 use crate::components::layout::{
     DataTable, DataTableColumn, EmptyState, ErrorState, LoadingState, PageLayout, SectionCard,
 };
@@ -23,26 +23,21 @@ fn render_spesifikasi_table(items: Vec<SpesifikasiPakaianDinas>) -> AnyView {
             view! { <span class="font-medium text-slate-100">{nama}</span> }.into_any()
         }),
         DataTableColumn::new("Keterangan", |item: &SpesifikasiPakaianDinas| {
-            let text = item
-                .keterangan
-                .clone()
-                .unwrap_or_else(|| "-".to_string());
+            let text = item.keterangan.clone().unwrap_or_else(|| "-".to_string());
             view! { <span class="text-slate-400">{text}</span> }.into_any()
         }),
-        DataTableColumn::new("Foto", |item: &SpesifikasiPakaianDinas| {
-            match &item.foto {
-                Some(url) if !url.is_empty() => {
-                    let src = url.clone();
-                    view! {
-                        <img src=src alt="Foto spesifikasi" class="h-10 w-10 rounded-lg object-cover" />
-                    }
-                    .into_any()
+        DataTableColumn::new("Foto", |item: &SpesifikasiPakaianDinas| match &item.foto {
+            Some(url) if !url.is_empty() => {
+                let src = url.clone();
+                view! {
+                    <img src=src alt="Foto spesifikasi" class="h-10 w-10 rounded-lg object-cover" />
                 }
-                _ => view! {
-                    <span class="text-slate-500 text-xs">"Tidak ada"</span>
-                }
-                .into_any(),
+                .into_any()
             }
+            _ => view! {
+                <span class="text-slate-500 text-xs">"Tidak ada"</span>
+            }
+            .into_any(),
         }),
         DataTableColumn::new("Tanggal Dibuat", |item: &SpesifikasiPakaianDinas| {
             let date = item.created_at.chars().take(10).collect::<String>();
@@ -61,8 +56,7 @@ fn render_spesifikasi_table(items: Vec<SpesifikasiPakaianDinas>) -> AnyView {
 #[component]
 pub fn SpesifikasiPage() -> impl IntoView {
     let params = use_params_map();
-    let jenis_id =
-        move || params.with(|p| p.get("id").unwrap_or_default().to_string());
+    let jenis_id = move || params.with(|p| p.get("id").unwrap_or_default().to_string());
 
     let data = LocalResource::new(move || {
         let id = jenis_id();

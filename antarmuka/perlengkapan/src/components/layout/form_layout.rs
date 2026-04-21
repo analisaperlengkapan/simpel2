@@ -34,11 +34,7 @@ pub fn FormField(
     #[prop(default = false)] full_width: bool,
     children: Children,
 ) -> impl IntoView {
-    let col_class = if full_width {
-        "md:col-span-2"
-    } else {
-        ""
-    };
+    let col_class = if full_width { "md:col-span-2" } else { "" };
 
     view! {
         <div class=format!("flex flex-col gap-1.5 {}", col_class)>

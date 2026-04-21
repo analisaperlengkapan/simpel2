@@ -22,7 +22,10 @@ pub fn RoleMatrix(steps: Vec<WorkflowStep>) -> impl IntoView {
             .required_role
             .clone()
             .unwrap_or_else(|| "(tanpa role)".to_string());
-        groups.entry(role).or_default().push(step.state_name.clone());
+        groups
+            .entry(role)
+            .or_default()
+            .push(step.state_name.clone());
     }
 
     let rows = steps

@@ -49,13 +49,16 @@ pub struct ApiResponse<T> {
 fn require_auth_token() -> Result<String, crate::api::AppError> {
     use crate::api::client::get_auth_token;
     get_auth_token().ok_or_else(|| {
-        crate::api::AppError::Auth("No authentication token found. Silakan login ulang.".to_string())
+        crate::api::AppError::Auth(
+            "No authentication token found. Silakan login ulang.".to_string(),
+        )
     })
 }
 
 /// Fetch all workflow definitions
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_workflow_definitions() -> Result<ApiResponse<Vec<WorkflowDefinition>>, crate::api::AppError> {
+pub async fn fetch_workflow_definitions()
+-> Result<ApiResponse<Vec<WorkflowDefinition>>, crate::api::AppError> {
     use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
@@ -78,7 +81,8 @@ pub async fn fetch_workflow_definitions() -> Result<ApiResponse<Vec<WorkflowDefi
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_workflow_definitions() -> Result<ApiResponse<Vec<WorkflowDefinition>>, crate::api::AppError> {
+pub async fn fetch_workflow_definitions()
+-> Result<ApiResponse<Vec<WorkflowDefinition>>, crate::api::AppError> {
     Ok(ApiResponse {
         success: true,
         data: vec![],
@@ -116,7 +120,9 @@ pub async fn fetch_workflow_definition_detail(
 pub async fn fetch_workflow_definition_detail(
     _name: &str,
 ) -> Result<ApiResponse<WorkflowDefinitionDetail>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 /// Format SLA minutes to human-readable string
@@ -198,7 +204,9 @@ pub async fn create_workflow_definition(
 pub async fn create_workflow_definition(
     _request: CreateWorkflowRequest,
 ) -> Result<ApiResponse<WorkflowDefinition>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 /// Update an existing workflow definition
@@ -235,12 +243,16 @@ pub async fn update_workflow_definition(
     _name: &str,
     _request: UpdateWorkflowRequest,
 ) -> Result<ApiResponse<WorkflowDefinition>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 /// Delete a workflow definition
 #[cfg(target_arch = "wasm32")]
-pub async fn delete_workflow_definition(name: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
+pub async fn delete_workflow_definition(
+    name: &str,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
     use crate::api::client::API_BASE;
     use gloo_net::http::Request;
 
@@ -263,8 +275,12 @@ pub async fn delete_workflow_definition(name: &str) -> Result<ApiResponse<()>, c
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_workflow_definition(_name: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+pub async fn delete_workflow_definition(
+    _name: &str,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 /// Add or update a workflow step
@@ -301,7 +317,9 @@ pub async fn upsert_workflow_step(
     _workflow_name: &str,
     _request: UpsertStepRequest,
 ) -> Result<ApiResponse<WorkflowStep>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 /// Delete a workflow step
@@ -339,5 +357,7 @@ pub async fn delete_workflow_step(
     _workflow_name: &str,
     _state_name: &str,
 ) -> Result<ApiResponse<()>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }

@@ -120,7 +120,8 @@ pub fn AnalysisPage() -> impl IntoView {
     let (_show_action_modal, _set_show_action_modal) = signal(false);
     let (_action_type, _set_action_type) = signal::<Option<String>>(None);
     let (_catatan, _set_catatan) = signal(String::new());
-    let (approved_quantities, set_approved_quantities) = signal::<HashMap<Uuid, i32>>(HashMap::new());
+    let (approved_quantities, set_approved_quantities) =
+        signal::<HashMap<Uuid, i32>>(HashMap::new());
 
     // Load submissions on mount
     Effect::new(move || {

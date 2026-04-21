@@ -9,10 +9,7 @@ pub struct DataTableColumn<T> {
 }
 
 impl<T> DataTableColumn<T> {
-    pub fn new(
-        header: &'static str,
-        cell: impl Fn(&T) -> AnyView + Send + Sync + 'static,
-    ) -> Self {
+    pub fn new(header: &'static str, cell: impl Fn(&T) -> AnyView + Send + Sync + 'static) -> Self {
         Self {
             header,
             align: "text-left",

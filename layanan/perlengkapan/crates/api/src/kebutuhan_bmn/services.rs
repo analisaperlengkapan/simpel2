@@ -543,10 +543,8 @@ impl KebutuhanBmnService {
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
                 .map(str::to_string);
-            let override_note = format!(
-                "[OVERRIDE DARURAT] {}",
-                override_reason.unwrap_or_default()
-            );
+            let override_note =
+                format!("[OVERRIDE DARURAT] {}", override_reason.unwrap_or_default());
 
             match base_reason {
                 Some(reason) => Some(format!("{}\n\n{}", reason, override_note)),
@@ -932,7 +930,8 @@ impl KebutuhanBmnService {
         let mut non_eselon_counts: HashMap<(String, String, bool), i64> = HashMap::new();
 
         for pegawai in all_items {
-            if let Some(tingkat_eselon) = Self::extract_eselon_level(&pegawai.jabatan, &pegawai.extra_fields)
+            if let Some(tingkat_eselon) =
+                Self::extract_eselon_level(&pegawai.jabatan, &pegawai.extra_fields)
             {
                 *eselon_counts.entry(tingkat_eselon).or_insert(0) += 1;
                 continue;
@@ -967,12 +966,14 @@ impl KebutuhanBmnService {
 
         let mut rekap_non_eselon: Vec<RekapNonEselonItem> = non_eselon_counts
             .into_iter()
-            .map(|((golongan, pangkat, is_jaksa), jumlah)| RekapNonEselonItem {
-                golongan,
-                pangkat,
-                is_jaksa,
-                jumlah,
-            })
+            .map(
+                |((golongan, pangkat, is_jaksa), jumlah)| RekapNonEselonItem {
+                    golongan,
+                    pangkat,
+                    is_jaksa,
+                    jumlah,
+                },
+            )
             .collect();
         rekap_non_eselon.sort_by(|a, b| {
             a.golongan
@@ -988,7 +989,10 @@ impl KebutuhanBmnService {
         })
     }
 
-    fn extract_eselon_level(jabatan: &str, extra_fields: &HashMap<String, String>) -> Option<String> {
+    fn extract_eselon_level(
+        jabatan: &str,
+        extra_fields: &HashMap<String, String>,
+    ) -> Option<String> {
         let from_extra = extra_fields
             .get("tingkat_eselon")
             .or_else(|| extra_fields.get("eselon"))
@@ -1021,8 +1025,8 @@ impl KebutuhanBmnService {
     async fn get_integrasi_sync_metadata(&self) -> Option<IntegrasiSyncMetadata> {
         let integrasi_client = self.integrasi_client.as_ref()?;
 
-        let mysimkari = Self::fetch_sync_status(integrasi_client, DataSource::Mysimkari, "mysimkari")
-            .await;
+        let mysimkari =
+            Self::fetch_sync_status(integrasi_client, DataSource::Mysimkari, "mysimkari").await;
         let siman = Self::fetch_sync_status(integrasi_client, DataSource::Siman, "siman").await;
 
         Some(IntegrasiSyncMetadata { mysimkari, siman })

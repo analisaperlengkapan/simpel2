@@ -60,7 +60,10 @@ mod validation_tests {
 
     #[test]
     fn test_sanitize_input() {
-        assert_eq!(sanitize_string("<script>alert('xss')</script>"), "alert('xss')");
+        assert_eq!(
+            sanitize_string("<script>alert('xss')</script>"),
+            "alert('xss')"
+        );
         assert_eq!(sanitize_string("Normal text"), "Normal text");
         assert_eq!(sanitize_string("Text with <b>tags</b>"), "Text with tags");
     }
@@ -93,6 +96,9 @@ fn is_valid_date_range(start: chrono::NaiveDate, end: chrono::NaiveDate) -> bool
 }
 
 fn sanitize_string(input: &str) -> String {
-    input.replace("<script>", "").replace("</script>", "")
-        .replace("<b>", "").replace("</b>", "")
+    input
+        .replace("<script>", "")
+        .replace("</script>", "")
+        .replace("<b>", "")
+        .replace("</b>", "")
 }

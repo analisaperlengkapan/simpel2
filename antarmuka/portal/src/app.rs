@@ -6,10 +6,10 @@
 //! - **Accessibility**: WCAG 2.1 AA compliance
 //! - **Government Branding**: Konsisten dengan identitas Kejaksaan RI
 
+use crate::app_page_views;
 use crate::app_routes::{
     render_session_admin_page, render_session_auth_page, render_session_layout_page,
 };
-use crate::app_page_views;
 use crate::components::session_timeout_modal::SessionTimeoutModal;
 use crate::features::auth::AuthService;
 use crate::features::session_monitor::{
@@ -326,4 +326,3 @@ pub fn App() -> impl IntoView {
         </BrandingProvider>
     }
 }
-

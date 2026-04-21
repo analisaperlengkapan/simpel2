@@ -35,7 +35,7 @@ mod encoding_tests {
 
     #[test]
     fn test_json_serialization() {
-        use serde::{Serialize, Deserialize};
+        use serde::{Deserialize, Serialize};
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
         struct TestData {

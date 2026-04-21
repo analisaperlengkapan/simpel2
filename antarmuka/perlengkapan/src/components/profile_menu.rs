@@ -1,8 +1,8 @@
 //! Profile Menu — avatar dropdown with role switcher + logout.
 
+use super::role_switcher::{RoleSwitcher, get_active_role};
 use crate::features::auth::AuthService;
 use crate::routes;
-use super::role_switcher::{RoleSwitcher, get_active_role};
 use leptos::prelude::*;
 use leptos_router::components::A;
 

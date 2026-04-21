@@ -13,10 +13,10 @@ mod prioritization_tests {
 
     #[derive(Debug, Clone)]
     struct ScoreBreakdown {
-        gap_magnitude_score: f64,      // 40%
-        asset_criticality_score: f64,  // 30%
-        satker_type_score: f64,        // 20%
-        justification_score: f64,      // 10%
+        gap_magnitude_score: f64,     // 40%
+        asset_criticality_score: f64, // 30%
+        satker_type_score: f64,       // 20%
+        justification_score: f64,     // 10%
     }
 
     fn calculate_priority_score(
@@ -120,9 +120,18 @@ mod prioritization_tests {
     #[test]
     fn test_priority_ranking() {
         let mut scores = vec![
-            ("Satker A", calculate_priority_score(80, true, "Cabjari", 400)),
-            ("Satker B", calculate_priority_score(50, false, "Kejari_B", 200)),
-            ("Satker C", calculate_priority_score(90, true, "Kejari_C", 450)),
+            (
+                "Satker A",
+                calculate_priority_score(80, true, "Cabjari", 400),
+            ),
+            (
+                "Satker B",
+                calculate_priority_score(50, false, "Kejari_B", 200),
+            ),
+            (
+                "Satker C",
+                calculate_priority_score(90, true, "Kejari_C", 450),
+            ),
         ];
 
         scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());

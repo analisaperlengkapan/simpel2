@@ -4,8 +4,7 @@
 
 use crate::api::{
     AppError, CreatePengajuanPakaianDinasRequest, PengajuanPakaianDinas,
-    create_pengajuan_pakaian_dinas, delete_pengajuan_pakaian_dinas,
-    fetch_pengajuan_pakaian_dinas,
+    create_pengajuan_pakaian_dinas, delete_pengajuan_pakaian_dinas, fetch_pengajuan_pakaian_dinas,
 };
 use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
@@ -47,9 +46,21 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
             let request = CreatePengajuanPakaianDinasRequest {
                 nama,
                 tahun,
-                tgl_open: if tgl_open.is_empty() { None } else { Some(tgl_open) },
-                tgl_close: if tgl_close.is_empty() { None } else { Some(tgl_close) },
-                keterangan: if keterangan.is_empty() { None } else { Some(keterangan) },
+                tgl_open: if tgl_open.is_empty() {
+                    None
+                } else {
+                    Some(tgl_open)
+                },
+                tgl_close: if tgl_close.is_empty() {
+                    None
+                } else {
+                    Some(tgl_close)
+                },
+                keterangan: if keterangan.is_empty() {
+                    None
+                } else {
+                    Some(keterangan)
+                },
             };
 
             match create_pengajuan_pakaian_dinas(request).await {
@@ -193,11 +204,20 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
 /// Status badge for pengajuan items.
 fn status_badge(status: String, is_open: bool) -> impl IntoView {
     let (class, text) = if is_open {
-        ("bg-success-500/15 text-success-300 ring-success-500/25", "Dibuka".to_string())
+        (
+            "bg-success-500/15 text-success-300 ring-success-500/25",
+            "Dibuka".to_string(),
+        )
     } else {
         match status.as_str() {
-            "draft" => ("bg-slate-500/15 text-slate-300 ring-slate-500/25", "Draft".to_string()),
-            "selesai" => ("bg-info-500/15 text-info-300 ring-info-500/25", "Selesai".to_string()),
+            "draft" => (
+                "bg-slate-500/15 text-slate-300 ring-slate-500/25",
+                "Draft".to_string(),
+            ),
+            "selesai" => (
+                "bg-info-500/15 text-info-300 ring-info-500/25",
+                "Selesai".to_string(),
+            ),
             _ => ("bg-gold-500/15 text-gold-300 ring-gold-500/25", status),
         }
     };

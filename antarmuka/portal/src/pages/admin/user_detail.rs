@@ -4,10 +4,10 @@
 //! 6 tabs: Details, Attributes, Credentials, Role Mappings, Groups, Sessions
 //! REQ-PORTAL-016
 
-use crate::components::layout::main_layout::MainLayout;
 use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
-use crate::utils::async_load::load_value_once;
+use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
+use crate::utils::async_load::load_value_once;
 use crate::utils::authenc_api::{IamUser, UpdateUserRequest};
 use leptos::prelude::*;
 use leptos::task::spawn_local;

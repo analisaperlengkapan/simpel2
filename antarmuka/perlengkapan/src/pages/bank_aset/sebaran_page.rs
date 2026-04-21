@@ -92,31 +92,39 @@ pub fn BankAsetSebaranPage() -> impl IntoView {
 
 fn render_table(satker: Vec<SebaranSatker>) -> impl IntoView {
     let total_aset: i64 = satker.iter().map(|s| s.total_aset).sum();
-    let rows: Vec<_> = satker.into_iter().enumerate().map(|(i, s)| {
-        let rank = (i + 1).to_string();
-        let kode = s.kode_satker.clone().unwrap_or_else(|| "-".to_string());
-        let nama = s.nama_satker.clone();
-        let total = format_thousands(s.total_aset);
-        let baik = format_thousands(s.aset_baik);
-        let rusak = format_thousands(s.aset_rusak);
-        let nilai = format_rupiah(s.nilai_perolehan);
-        let pct = if total_aset > 0 { (s.total_aset as f64) / (total_aset as f64) * 100.0 } else { 0.0 };
-        let pct_label = format!("{:.1}%", pct);
-        view! {
-            <tr class="border-b border-white/[0.04] last:border-0">
-                <td class="py-3 pr-3 text-xs font-semibold text-gold-300">{rank}</td>
-                <td class="py-3 pr-3">
-                    <p class="text-sm font-semibold text-slate-100">{nama}</p>
-                    <p class="mt-0.5 text-[0.7rem] text-slate-500">{kode}</p>
-                </td>
-                <td class="py-3 pr-3 text-right text-sm text-slate-200">{total}</td>
-                <td class="py-3 pr-3 text-right text-xs text-success-300">{baik}</td>
-                <td class="py-3 pr-3 text-right text-xs text-danger-300">{rusak}</td>
-                <td class="py-3 pr-3 text-right text-sm text-slate-300">{nilai}</td>
-                <td class="py-3 text-right text-xs text-slate-400">{pct_label}</td>
-            </tr>
-        }
-    }).collect();
+    let rows: Vec<_> = satker
+        .into_iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let rank = (i + 1).to_string();
+            let kode = s.kode_satker.clone().unwrap_or_else(|| "-".to_string());
+            let nama = s.nama_satker.clone();
+            let total = format_thousands(s.total_aset);
+            let baik = format_thousands(s.aset_baik);
+            let rusak = format_thousands(s.aset_rusak);
+            let nilai = format_rupiah(s.nilai_perolehan);
+            let pct = if total_aset > 0 {
+                (s.total_aset as f64) / (total_aset as f64) * 100.0
+            } else {
+                0.0
+            };
+            let pct_label = format!("{:.1}%", pct);
+            view! {
+                <tr class="border-b border-white/[0.04] last:border-0">
+                    <td class="py-3 pr-3 text-xs font-semibold text-gold-300">{rank}</td>
+                    <td class="py-3 pr-3">
+                        <p class="text-sm font-semibold text-slate-100">{nama}</p>
+                        <p class="mt-0.5 text-[0.7rem] text-slate-500">{kode}</p>
+                    </td>
+                    <td class="py-3 pr-3 text-right text-sm text-slate-200">{total}</td>
+                    <td class="py-3 pr-3 text-right text-xs text-success-300">{baik}</td>
+                    <td class="py-3 pr-3 text-right text-xs text-danger-300">{rusak}</td>
+                    <td class="py-3 pr-3 text-right text-sm text-slate-300">{nilai}</td>
+                    <td class="py-3 text-right text-xs text-slate-400">{pct_label}</td>
+                </tr>
+            }
+        })
+        .collect();
     view! {
         <div class="overflow-x-auto">
             <table class="w-full">

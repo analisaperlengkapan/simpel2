@@ -3,10 +3,10 @@
 //! Manage roles and permissions.
 //! REQ-PORTAL-013
 
-use crate::components::layout::main_layout::MainLayout;
 use crate::components::feedback::{EmptyPanel, ErrorBanner, LoadingPanel};
-use crate::utils::async_load::load_vec_once;
+use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
+use crate::utils::async_load::load_vec_once;
 use crate::utils::authenc_api::RoleInfo;
 use leptos::prelude::*;
 

@@ -68,8 +68,7 @@ pub struct IntegrationHealth {
 // ============================================================================
 
 async fn fetch_portal_dashboard() -> Result<PortalDashboardMetrics, String> {
-    let token = crate::features::auth::AuthService::get_token()
-        .ok_or("Not authenticated")?;
+    let token = crate::features::auth::AuthService::get_token().ok_or("Not authenticated")?;
 
     let resp = gloo_net::http::Request::get("/api/v1/dashboard/portal")
         .header("Authorization", &format!("Bearer {}", token))
@@ -91,10 +90,7 @@ async fn fetch_portal_dashboard() -> Result<PortalDashboardMetrics, String> {
 // ============================================================================
 
 #[component]
-pub fn PortalDashboardPage(
-    user_session: UserSession,
-    on_logout: Box<dyn Fn()>,
-) -> impl IntoView {
+pub fn PortalDashboardPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
     let metrics = LocalResource::new(|| async move { fetch_portal_dashboard().await });
 
     // Auto-refresh every 30 seconds

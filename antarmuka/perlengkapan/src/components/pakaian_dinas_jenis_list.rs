@@ -39,7 +39,11 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
         spawn_local(async move {
             let request = CreateJenisPakaianDinasRequest {
                 nama,
-                keterangan: if keterangan.is_empty() { None } else { Some(keterangan) },
+                keterangan: if keterangan.is_empty() {
+                    None
+                } else {
+                    Some(keterangan)
+                },
             };
 
             match create_jenis_pakaian_dinas(request).await {

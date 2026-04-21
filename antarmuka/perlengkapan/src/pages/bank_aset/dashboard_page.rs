@@ -185,27 +185,37 @@ fn render_kondisi(data: &BankAsetDashboard) -> impl IntoView + use<> {
     if data.kondisi_breakdown.is_empty() {
         return view! {
             <p class="py-6 text-center text-sm text-slate-500">"Belum ada data kondisi."</p>
-        }.into_any();
+        }
+        .into_any();
     }
     let total: i64 = data.kondisi_breakdown.iter().map(|k| k.count).sum();
-    let rows: Vec<_> = data.kondisi_breakdown.iter().take(8).map(|k| {
-        let pct = if total > 0 { (k.count as f64) / (total as f64) * 100.0 } else { 0.0 };
-        let pct_label = format!("{:.1}%", pct);
-        let width = format!("width: {:.1}%;", pct.min(100.0).max(2.0));
-        let kondisi = k.kondisi.clone();
-        let count_label = format_thousands(k.count);
-        view! {
-            <div>
-                <div class="flex items-center justify-between text-xs">
-                    <span class="font-medium text-slate-200">{kondisi}</span>
-                    <span class="text-slate-400">{count_label} " (" {pct_label} ")"</span>
+    let rows: Vec<_> = data
+        .kondisi_breakdown
+        .iter()
+        .take(8)
+        .map(|k| {
+            let pct = if total > 0 {
+                (k.count as f64) / (total as f64) * 100.0
+            } else {
+                0.0
+            };
+            let pct_label = format!("{:.1}%", pct);
+            let width = format!("width: {:.1}%;", pct.min(100.0).max(2.0));
+            let kondisi = k.kondisi.clone();
+            let count_label = format_thousands(k.count);
+            view! {
+                <div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-medium text-slate-200">{kondisi}</span>
+                        <span class="text-slate-400">{count_label} " (" {pct_label} ")"</span>
+                    </div>
+                    <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.05]">
+                        <div class="h-full rounded-full bg-gold-gradient" style=width></div>
+                    </div>
                 </div>
-                <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.05]">
-                    <div class="h-full rounded-full bg-gold-gradient" style=width></div>
-                </div>
-            </div>
-        }
-    }).collect();
+            }
+        })
+        .collect();
     view! { <div class="flex flex-col gap-3">{rows}</div> }.into_any()
 }
 
@@ -213,7 +223,8 @@ fn render_kategori(data: &BankAsetDashboard) -> impl IntoView + use<> {
     if data.kategori_breakdown.is_empty() {
         return view! {
             <p class="py-6 text-center text-sm text-slate-500">"Belum ada data kategori."</p>
-        }.into_any();
+        }
+        .into_any();
     }
     let rows: Vec<_> = data.kategori_breakdown.iter().take(10).map(|k| {
         let kategori = k.kategori.clone();
@@ -238,22 +249,28 @@ fn render_top_satker(data: &BankAsetDashboard) -> impl IntoView + use<> {
     if data.top_satker.is_empty() {
         return view! {
             <p class="py-6 text-center text-sm text-slate-500">"Belum ada data satker."</p>
-        }.into_any();
-    }
-    let rows: Vec<_> = data.top_satker.iter().enumerate().map(|(i, s)| {
-        let rank = (i + 1).to_string();
-        let satker = s.satker.clone();
-        let count = format_thousands(s.count);
-        let nilai = format_rupiah(s.nilai);
-        view! {
-            <tr class="border-b border-white/[0.04] last:border-0">
-                <td class="py-3 pr-3 text-xs font-semibold text-gold-300">{rank}</td>
-                <td class="py-3 pr-3 text-sm text-slate-100">{satker}</td>
-                <td class="py-3 pr-3 text-right text-sm text-slate-300">{count}</td>
-                <td class="py-3 text-right text-sm text-slate-300">{nilai}</td>
-            </tr>
         }
-    }).collect();
+        .into_any();
+    }
+    let rows: Vec<_> = data
+        .top_satker
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let rank = (i + 1).to_string();
+            let satker = s.satker.clone();
+            let count = format_thousands(s.count);
+            let nilai = format_rupiah(s.nilai);
+            view! {
+                <tr class="border-b border-white/[0.04] last:border-0">
+                    <td class="py-3 pr-3 text-xs font-semibold text-gold-300">{rank}</td>
+                    <td class="py-3 pr-3 text-sm text-slate-100">{satker}</td>
+                    <td class="py-3 pr-3 text-right text-sm text-slate-300">{count}</td>
+                    <td class="py-3 text-right text-sm text-slate-300">{nilai}</td>
+                </tr>
+            }
+        })
+        .collect();
     view! {
         <div class="overflow-x-auto">
             <table class="w-full">
@@ -268,36 +285,50 @@ fn render_top_satker(data: &BankAsetDashboard) -> impl IntoView + use<> {
                 <tbody>{rows}</tbody>
             </table>
         </div>
-    }.into_any()
+    }
+    .into_any()
 }
 
 fn render_per_tahun(data: &BankAsetDashboard) -> impl IntoView + use<> {
     if data.per_tahun.is_empty() {
         return view! {
             <p class="py-6 text-center text-sm text-slate-500">"Belum ada data tahun perolehan."</p>
-        }.into_any();
-    }
-    let max = data.per_tahun.iter().map(|t| t.count).max().unwrap_or(1).max(1);
-    let bars: Vec<_> = data.per_tahun.iter().take(15).map(|t| {
-        let pct = (t.count as f64) / (max as f64) * 100.0;
-        let height = format!("height: {:.1}%;", pct.max(4.0));
-        let year = t.tahun.to_string();
-        let count = format_thousands(t.count);
-        view! {
-            <div class="flex flex-col items-center gap-2">
-                <div class="flex h-28 w-full items-end">
-                    <div class="w-full rounded-t bg-gold-gradient" style=height></div>
-                </div>
-                <span class="text-[0.65rem] font-semibold text-slate-200">{year}</span>
-                <span class="text-[0.6rem] text-slate-500">{count}</span>
-            </div>
         }
-    }).collect();
+        .into_any();
+    }
+    let max = data
+        .per_tahun
+        .iter()
+        .map(|t| t.count)
+        .max()
+        .unwrap_or(1)
+        .max(1);
+    let bars: Vec<_> = data
+        .per_tahun
+        .iter()
+        .take(15)
+        .map(|t| {
+            let pct = (t.count as f64) / (max as f64) * 100.0;
+            let height = format!("height: {:.1}%;", pct.max(4.0));
+            let year = t.tahun.to_string();
+            let count = format_thousands(t.count);
+            view! {
+                <div class="flex flex-col items-center gap-2">
+                    <div class="flex h-28 w-full items-end">
+                        <div class="w-full rounded-t bg-gold-gradient" style=height></div>
+                    </div>
+                    <span class="text-[0.65rem] font-semibold text-slate-200">{year}</span>
+                    <span class="text-[0.6rem] text-slate-500">{count}</span>
+                </div>
+            }
+        })
+        .collect();
     view! {
         <div class="grid grid-cols-5 gap-3 sm:grid-cols-8 lg:grid-cols-10 xl:grid-cols-15">
             {bars}
         </div>
-    }.into_any()
+    }
+    .into_any()
 }
 
 pub(super) fn format_thousands<N: Into<i128>>(n: N) -> String {
@@ -311,11 +342,7 @@ pub(super) fn format_thousands<N: Into<i128>>(n: N) -> String {
         }
         out.push(*b as char);
     }
-    if n < 0 {
-        format!("-{out}")
-    } else {
-        out
-    }
+    if n < 0 { format!("-{out}") } else { out }
 }
 
 pub(super) fn format_rupiah(n: f64) -> String {

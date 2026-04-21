@@ -15,9 +15,9 @@ use crate::api::{
     update_kebutuhan_bmn,
 };
 use crate::components::layout::{FormField, LoadingState, PageLayout, SectionCard};
+use leptos::callback::Callback;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::callback::Callback;
 
 #[derive(Clone, PartialEq)]
 enum ViewMode {
@@ -191,17 +191,32 @@ fn PeriodList(
 }
 
 #[component]
-fn PeriodCard(
-    period: KebutuhanBmnSummary,
-    on_edit: Callback<()>,
-) -> impl IntoView {
+fn PeriodCard(period: KebutuhanBmnSummary, on_edit: Callback<()>) -> impl IntoView {
     let status_badge = match period.status_kode {
-        2000 => ("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25", "Draft"),
-        2001..=2005 => ("bg-info-500/15 text-info-300 ring-1 ring-info-500/25", "Aktif"),
-        2006 => ("bg-success-500/15 text-success-300 ring-1 ring-success-500/25", "Selesai"),
-        2007 => ("bg-danger-500/15 text-danger-300 ring-1 ring-danger-500/25", "Ditolak"),
-        2009 => ("bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/25", "Dibatalkan"),
-        _ => ("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25", "Unknown"),
+        2000 => (
+            "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25",
+            "Draft",
+        ),
+        2001..=2005 => (
+            "bg-info-500/15 text-info-300 ring-1 ring-info-500/25",
+            "Aktif",
+        ),
+        2006 => (
+            "bg-success-500/15 text-success-300 ring-1 ring-success-500/25",
+            "Selesai",
+        ),
+        2007 => (
+            "bg-danger-500/15 text-danger-300 ring-1 ring-danger-500/25",
+            "Ditolak",
+        ),
+        2009 => (
+            "bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/25",
+            "Dibatalkan",
+        ),
+        _ => (
+            "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25",
+            "Unknown",
+        ),
     };
 
     let is_active = period.status_kode >= 2001 && period.status_kode <= 2005;
@@ -259,11 +274,7 @@ fn PeriodCard(
 }
 
 #[component]
-fn PeriodForm(
-    mode: FormMode,
-    on_cancel: Callback<()>,
-    on_success: Callback<()>,
-) -> impl IntoView {
+fn PeriodForm(mode: FormMode, on_cancel: Callback<()>, on_success: Callback<()>) -> impl IntoView {
     // Form state
     let (nama, set_nama) = signal(String::new());
     let (deskripsi, set_deskripsi) = signal::<Option<String>>(None);

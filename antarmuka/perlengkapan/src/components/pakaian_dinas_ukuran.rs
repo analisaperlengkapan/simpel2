@@ -7,8 +7,8 @@ use crate::api::{
     fetch_master_ukuran, fetch_pegawai_ukuran, fetch_pegawai_with_sizes, upsert_pegawai_ukuran,
 };
 use crate::components::layout::{
-    DataTable, DataTableColumn, EmptyState, ErrorState, LoadingState, PageLayout, SectionCard,
-    FormField,
+    DataTable, DataTableColumn, EmptyState, ErrorState, FormField, LoadingState, PageLayout,
+    SectionCard,
 };
 use crate::routes;
 use leptos::prelude::*;
@@ -288,19 +288,39 @@ fn render_satker_table(
             view! { <span class="font-medium text-slate-100">{nama}</span> }.into_any()
         }),
         DataTableColumn::new("Jabatan", |item: &(usize, PegawaiWithSizes)| {
-            let jab = item.1.pegawai.jabatan.clone().unwrap_or_else(|| "-".to_string());
+            let jab = item
+                .1
+                .pegawai
+                .jabatan
+                .clone()
+                .unwrap_or_else(|| "-".to_string());
             view! { <span class="text-slate-400">{jab}</span> }.into_any()
         }),
         DataTableColumn::new("Baju", |item: &(usize, PegawaiWithSizes)| {
-            let v = item.1.ukuran.as_ref().and_then(|u| u.ukuran_baju.clone()).unwrap_or_else(|| "-".to_string());
+            let v = item
+                .1
+                .ukuran
+                .as_ref()
+                .and_then(|u| u.ukuran_baju.clone())
+                .unwrap_or_else(|| "-".to_string());
             view! { <span class="text-center text-slate-300">{v}</span> }.into_any()
         }),
         DataTableColumn::new("Celana", |item: &(usize, PegawaiWithSizes)| {
-            let v = item.1.ukuran.as_ref().and_then(|u| u.ukuran_celana.clone()).unwrap_or_else(|| "-".to_string());
+            let v = item
+                .1
+                .ukuran
+                .as_ref()
+                .and_then(|u| u.ukuran_celana.clone())
+                .unwrap_or_else(|| "-".to_string());
             view! { <span class="text-center text-slate-300">{v}</span> }.into_any()
         }),
         DataTableColumn::new("Sepatu", |item: &(usize, PegawaiWithSizes)| {
-            let v = item.1.ukuran.as_ref().and_then(|u| u.ukuran_sepatu.clone()).unwrap_or_else(|| "-".to_string());
+            let v = item
+                .1
+                .ukuran
+                .as_ref()
+                .and_then(|u| u.ukuran_sepatu.clone())
+                .unwrap_or_else(|| "-".to_string());
             view! { <span class="text-center text-slate-300">{v}</span> }.into_any()
         }),
         DataTableColumn::new("Status", |item: &(usize, PegawaiWithSizes)| {

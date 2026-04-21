@@ -324,7 +324,10 @@ fn LifecycleSummary(
             "Ditolak",
             "bg-danger-500/10 text-danger-300 ring-danger-500/20",
         ),
-        _ => ("Lainnya", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
+        _ => (
+            "Lainnya",
+            "bg-slate-500/10 text-slate-300 ring-slate-500/20",
+        ),
     };
 
     let countdown = match days {
@@ -481,12 +484,18 @@ fn RenewModal(
     on_submit: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
 ) -> impl IntoView {
     let on_start = move |ev: Event| {
-        if let Some(target) = ev.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok()) {
+        if let Some(target) = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlInputElement>().ok())
+        {
             set_start.set(target.value());
         }
     };
     let on_end = move |ev: Event| {
-        if let Some(target) = ev.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok()) {
+        if let Some(target) = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlInputElement>().ok())
+        {
             set_end.set(target.value());
         }
     };
