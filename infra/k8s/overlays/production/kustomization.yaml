@@ -15,6 +15,7 @@ resources:
   - hpa.yaml
   - pdb.yaml
   - resource-quota.yaml
+  - network-policies-internal.yaml
 
 # Labels for production environment (using new syntax)
 labels:
