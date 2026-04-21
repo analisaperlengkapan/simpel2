@@ -248,6 +248,12 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                                 if is_mounted.load(Ordering::SeqCst) {
                                                                     if session.require_password_change {
                                                                         nav("/password", Default::default());
+                                                                    } else if let Some(target) =
+                                                                        AuthService::take_post_login_redirect()
+                                                                    {
+                                                                        if let Some(window) = web_sys::window() {
+                                                                            let _ = window.location().set_href(&target);
+                                                                        }
                                                                     } else {
                                                                         nav("/dashboard", Default::default());
                                                                     }

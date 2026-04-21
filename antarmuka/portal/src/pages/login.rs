@@ -70,6 +70,9 @@ pub fn LoginPage(
                 return;
             }
             let redirect_target = resolve_perlengkapan_redirect_target();
+            if let Some(ref target) = redirect_target {
+                AuthService::save_post_login_redirect(target);
+            }
             let api = api.clone();
             let nav = nav.clone();
             let app_state = app_state;
