@@ -723,7 +723,20 @@ fn contains_dangerous_sql(sql: &str) -> bool {
                 // Allow "GRANT EXECUTE" / "REVOKE EXECUTE" which are legitimate DDL
                 let prefix_start = idx.saturating_sub(10);
                 let prefix_text = &sql_lower[prefix_start..idx].trim_end();
-                if prefix_text.ends_with("grant") || prefix_text.ends_with("revoke") {
+                let is_grant_or_revoke = ["grant", "revoke"].iter().any(|keyword| {
+                    if let Some(stripped) = prefix_text.strip_suffix(keyword) {
+                        // keyword must also be at a word boundary
+                        stripped.is_empty()
+                            || stripped
+                                .as_bytes()
+                                .last()
+                                .map(|&b| !b.is_ascii_alphanumeric() && b != b'_')
+                                .unwrap_or(true)
+                    } else {
+                        false
+                    }
+                });
+                if is_grant_or_revoke {
                     continue;
                 }
                 return true;
@@ -759,6 +772,9 @@ mod tests {
         assert!(!contains_dangerous_sql(
             "REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM {{username}}"
         ));
+        // Partial-word "grant"/"revoke" must NOT bypass detection
+        assert!(contains_dangerous_sql("FOREGRANT EXECUTE dangerous_call"));
+        assert!(contains_dangerous_sql("SOMEREVOKE EXECUTE dangerous_call"));
     }
 
     #[test]
