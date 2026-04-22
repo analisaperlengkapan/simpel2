@@ -17,7 +17,7 @@
 use async_trait::async_trait;
 use authenc_core::services::oauth2_service::OAuth2ServiceImpl;
 use authenc_types::{
-    AuthorizationResponse, ClientId, RealmId, TokenClaims, UserId, domain::*, domain_types::*,
+    ClientId, RealmId, TokenClaims, UserId, domain_types::*,
     error::AuthencError, result::Result, traits::*,
 };
 use chrono::{Duration, Utc};
@@ -332,7 +332,7 @@ async fn test_authorization_code_flow_with_pkce_s256() {
 
 #[tokio::test]
 async fn test_authorization_code_flow_invalid_pkce() {
-    let (service, client_store, code_store, _) = create_oauth2_service();
+    let (service, client_store, _code_store, _) = create_oauth2_service();
 
     let client = create_test_client("test-client", None, true);
     client_store.add_client(client.clone()).await;
