@@ -409,23 +409,54 @@ impl DatabaseSecretsEngine {
 
     /// Delete database role and revoke all active credentials for it
     pub async fn delete_role(&self, name: &str) -> Result<bool, DatabaseError> {
-        // Collect credential IDs for this role
-        let cred_ids: Vec<String> = {
+        // Remove the role first under a write lock to prevent new credentials
+        // from being generated for a role that is being deleted.
+        let removed_role = {
+            let mut roles = self.roles.write().await;
+            roles.remove(name)
+        };
+
+        let role = match removed_role {
+            Some(r) => r,
+            None => return Ok(false),
+        };
+
+        // Collect credentials for this role (role is already removed so no
+        // new credentials can be generated for it).
+        let creds: Vec<DatabaseCredentials> = {
             let active = self.active_credentials.read().await;
             active
                 .values()
                 .filter(|c| c.role_name == name)
-                .map(|c| c.id.clone())
+                .cloned()
                 .collect()
         };
 
-        // Revoke each credential (ignore errors — DB pool may be gone)
-        for cred_id in &cred_ids {
-            let _ = self.revoke_credentials(cred_id).await;
+        // Look up the connection for revocation SQL (best-effort)
+        let connection = {
+            let connections = self.connections.read().await;
+            connections.get(&role.db_name).cloned()
+        };
+
+        // Revoke each credential's database user, then remove from tracking.
+        // We use the role data we already have instead of calling
+        // revoke_credentials() (which would fail with RoleNotFound).
+        for cred in &creds {
+            if let Some(ref conn) = connection {
+                // Best-effort: execute revocation SQL (ignore errors — DB pool may be gone)
+                let _ = self
+                    .execute_revocation_statements(
+                        conn,
+                        &role.revocation_statements,
+                        &cred.username,
+                    )
+                    .await;
+            }
+            let mut active = self.active_credentials.write().await;
+            active.remove(&cred.id);
         }
 
-        let mut roles = self.roles.write().await;
-        Ok(roles.remove(name).is_some())
+        Ok(true)
     }
 
     /// Delete database connection, cascading to all roles that reference it.
@@ -435,43 +466,76 @@ impl DatabaseSecretsEngine {
         &self,
         name: &str,
     ) -> Result<Option<Vec<String>>, DatabaseError> {
-        // Check if connection exists before cascading destructive operations
-        {
-            let connections = self.connections.read().await;
-            if !connections.contains_key(name) {
+        // Atomically check existence and collect cascade targets under a single
+        // connections write lock. This prevents concurrent delete_connection
+        // calls from both cascading, and prevents new roles from referencing
+        // this connection (create_role needs a connections read lock).
+        //
+        // We remove the connection from the map but keep the data for
+        // revocation SQL execution during cascade.
+        let (removed_conn, role_names) = {
+            let mut connections = self.connections.write().await;
+            let removed = connections.remove(name);
+            if removed.is_none() {
                 return Ok(None);
             }
-        }
 
-        // Find all roles that reference this connection
-        let role_names: Vec<String> = {
+            // While still holding the connections write lock, snapshot the roles
+            // that reference this connection. No new roles can be created for
+            // this connection because create_role needs a connections read lock.
             let roles = self.roles.read().await;
-            roles
+            let names: Vec<String> = roles
                 .values()
                 .filter(|r| r.db_name == name)
                 .map(|r| r.name.clone())
-                .collect()
+                .collect();
+
+            (removed, names)
         };
 
-        // Delete each associated role (which also revokes their credentials)
-        for role_name in &role_names {
-            let _ = self.delete_role(role_name).await;
-        }
+        let conn = removed_conn.unwrap();
 
-        // Remove the connection itself
-        let mut connections = self.connections.write().await;
-        let existed = connections.remove(name).is_some();
-        drop(connections);
+        // Delete each associated role and revoke their credentials.
+        // Since the connection is already removed from the map, delete_role
+        // won't find it for revocation SQL. We handle revocation directly.
+        for role_name in &role_names {
+            // Remove the role atomically
+            let removed_role = {
+                let mut roles = self.roles.write().await;
+                roles.remove(role_name)
+            };
+
+            if let Some(role) = removed_role {
+                // Collect and revoke credentials for this role
+                let creds: Vec<DatabaseCredentials> = {
+                    let active = self.active_credentials.read().await;
+                    active
+                        .values()
+                        .filter(|c| c.role_name == role_name.as_str())
+                        .cloned()
+                        .collect()
+                };
+
+                for cred in &creds {
+                    // Best-effort: execute revocation SQL using the removed connection data
+                    let _ = self
+                        .execute_revocation_statements(
+                            &conn,
+                            &role.revocation_statements,
+                            &cred.username,
+                        )
+                        .await;
+                    let mut active = self.active_credentials.write().await;
+                    active.remove(&cred.id);
+                }
+            }
+        }
 
         // Remove the connection pool
         let mut pools = self.db_pools.write().await;
         pools.remove(name);
 
-        if existed {
-            Ok(Some(role_names))
-        } else {
-            Ok(None)
-        }
+        Ok(Some(role_names))
     }
 
     /// Generate credentials for a role
