@@ -341,8 +341,14 @@ impl DatabaseSecretsEngine {
         }
         drop(connections);
 
-        // Store role
+        // Store role (reject if already exists)
         let mut roles = self.roles.write().await;
+        if roles.contains_key(&role.name) {
+            return Err(DatabaseError::InvalidConfig(format!(
+                "Role '{}' already exists",
+                role.name
+            )));
+        }
         roles.insert(role.name.clone(), role);
 
         Ok(())

@@ -214,6 +214,13 @@ async fn create_role_internal(
         });
     }
 
+    // Validate creation statements are not empty
+    if request.creation_statements.is_empty() {
+        return Err(ApiError::BadRequest {
+            message: "Creation statements are required".to_string(),
+        });
+    }
+
     // Validate statements contain placeholders
     for stmt in &request.creation_statements {
         if !stmt.contains("{{username}}") && !stmt.contains("{{password}}") {
@@ -272,8 +279,13 @@ async fn create_role_internal(
         .database_engine
         .create_role(role)
         .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to create role: {}", e),
+        .map_err(|e| match e {
+            secreton_core::services::secrets::database::DatabaseError::InvalidConfig(msg) => {
+                ApiError::BadRequest { message: msg }
+            }
+            other => ApiError::Internal {
+                message: format!("Failed to create role: {}", other),
+            },
         })?;
 
     Ok(RoleResponse {
@@ -353,6 +365,13 @@ pub async fn update_database_role(
     if role_name.is_empty() {
         return Err(ApiError::BadRequest {
             message: "Role name cannot be empty".to_string(),
+        });
+    }
+
+    // Validate creation statements are not empty
+    if request.creation_statements.is_empty() {
+        return Err(ApiError::BadRequest {
+            message: "Creation statements are required".to_string(),
         });
     }
 
@@ -640,6 +659,22 @@ pub async fn delete_database_connection(
     Path(name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
+    // Log audit entries for cascaded role deletions before they happen
+    let all_role_names = state.database_engine.list_roles().await;
+    for role_name in &all_role_names {
+        if let Some(role) = state.database_engine.get_role(role_name).await {
+            if role.db_name == name {
+                let audit_entry = create_audit_log(
+                    "role_deleted_cascade",
+                    &user.username,
+                    "dynamic_role",
+                    role_name,
+                );
+                let _ = state.audit.log(audit_entry).await;
+            }
+        }
+    }
+
     let deleted = state
         .database_engine
         .delete_connection(&name)
