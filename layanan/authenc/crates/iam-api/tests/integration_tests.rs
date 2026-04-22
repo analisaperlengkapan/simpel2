@@ -1,10 +1,11 @@
 //! Integration tests for IAM API
 
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-};
-use tower::ServiceExt;
+// Imports will be uncommented when test implementations are added:
+// use axum::{
+//     body::Body,
+//     http::{Request, StatusCode},
+// };
+// use tower::ServiceExt;
 
 // TODO: Add proper test setup with mock services
 
