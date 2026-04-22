@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_postgres::{Client as PgClient, NoTls};
 use tokio_postgres_rustls::MakeRustlsConnect;
+use tracing::warn;
 use uuid::Uuid;
 
 /// Error types for database secrets engine
@@ -195,6 +196,19 @@ enum DbPool {
 }
 
 /// Database secrets engine
+///
+/// # Lock ordering invariant
+///
+/// To prevent deadlocks, locks must always be acquired in this order:
+///   1. `connections` (read or write)
+///   2. `roles` (read or write)
+///   3. `active_credentials` (read or write)
+///   4. `db_pools` (read or write)
+///
+/// A method may skip levels (e.g. acquire only `roles` then `active_credentials`)
+/// but must never acquire a lock that precedes one it already holds.
+/// `delete_connection` intentionally releases `connections` before acquiring
+/// `roles` to avoid inverting this ordering.
 pub struct DatabaseSecretsEngine {
     connections: Arc<RwLock<HashMap<String, DatabaseConnection>>>,
     roles: Arc<RwLock<HashMap<String, DatabaseRole>>>,
@@ -464,14 +478,35 @@ impl DatabaseSecretsEngine {
         // revoke_credentials() (which would fail with RoleNotFound).
         for cred in &creds {
             if let Some(ref conn) = connection {
-                // Best-effort: execute revocation SQL (ignore errors — DB pool may be gone)
-                let _ = self
+                // Best-effort: execute revocation SQL.
+                // Log failures so operators can manually clean up orphaned DB users.
+                if let Err(e) = self
                     .execute_revocation_statements(
                         conn,
                         &role.revocation_statements,
                         &cred.username,
                     )
-                    .await;
+                    .await
+                {
+                    warn!(
+                        credential_id = %cred.id,
+                        username = %cred.username,
+                        role = %name,
+                        db_name = %role.db_name,
+                        error = %e,
+                        "Failed to revoke database user during role deletion; \
+                         manual cleanup may be required"
+                    );
+                }
+            } else {
+                warn!(
+                    credential_id = %cred.id,
+                    username = %cred.username,
+                    role = %name,
+                    db_name = %role.db_name,
+                    "Cannot revoke database user during role deletion: \
+                     connection not found; manual cleanup may be required"
+                );
             }
             let mut active = self.active_credentials.write().await;
             active.remove(&cred.id);
@@ -537,14 +572,26 @@ impl DatabaseSecretsEngine {
                 };
 
                 for cred in &creds {
-                    // Best-effort: execute revocation SQL using the removed connection data
-                    let _ = self
+                    // Best-effort: execute revocation SQL using the removed connection data.
+                    // Log failures so operators can manually clean up orphaned DB users.
+                    if let Err(e) = self
                         .execute_revocation_statements(
                             &conn,
                             &role.revocation_statements,
                             &cred.username,
                         )
-                        .await;
+                        .await
+                    {
+                        warn!(
+                            credential_id = %cred.id,
+                            username = %cred.username,
+                            role = %role_name,
+                            connection = %name,
+                            error = %e,
+                            "Failed to revoke database user during connection deletion; \
+                             manual cleanup may be required"
+                        );
+                    }
                     let mut active = self.active_credentials.write().await;
                     active.remove(&cred.id);
                 }

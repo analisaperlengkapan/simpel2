@@ -231,6 +231,15 @@ pub async fn inject_env(
     // Store session for tracking
     store_session(&state, &session).await?;
 
+    // Audit log session creation
+    let audit_entry = crate::helpers::create_audit_log(
+        "inject_session_created",
+        &user_id,
+        "inject_session",
+        &session_id,
+    );
+    let _ = state.audit.log(audit_entry).await;
+
     // Schedule automatic cleanup
     schedule_cleanup(state, &session_id, ttl).await;
 
@@ -291,8 +300,14 @@ pub async fn cleanup_session(
     // Mark session as inactive
     deactivate_session(&state, &session_id).await?;
 
-    // Audit log the cleanup
-    audit_cleanup(&session).await;
+    // Audit log the manual cleanup
+    let audit_entry = crate::helpers::create_audit_log(
+        "inject_session_cleaned_up",
+        &user_id,
+        "inject_session",
+        &session_id,
+    );
+    let _ = state.audit.log(audit_entry).await;
 
     info!("Successfully cleaned up session {}", session_id);
 
@@ -517,16 +532,17 @@ async fn schedule_cleanup(
 
         if let Err(e) = deactivate_session(&state, &session_id).await {
             error!("Failed to auto-cleanup session {}: {}", session_id, e);
+        } else {
+            // Audit log the auto-cleanup
+            let audit_entry = crate::helpers::create_audit_log(
+                "inject_session_auto_cleaned_up",
+                "system",
+                "inject_session",
+                &session_id,
+            );
+            let _ = state.audit.log(audit_entry).await;
         }
     });
-}
-
-async fn audit_cleanup(session: &InjectionSession) {
-    info!(
-        "Audit: Session {} for job {} cleaned up",
-        session.id, session.job_id
-    );
-    // TODO: Write to audit log
 }
 
 /// Create routes for CI/CD injection endpoints
