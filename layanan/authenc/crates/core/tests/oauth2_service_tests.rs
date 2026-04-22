@@ -337,6 +337,9 @@ async fn test_authorization_code_flow_invalid_pkce() {
     let client = create_test_client("test-client", None, true);
     client_store.add_client(client.clone()).await;
 
+    // Use a shared realm_id so the test actually reaches PKCE validation
+    let shared_realm_id = RealmId::new();
+
     // Step 1: Authorization with PKCE
     let code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 
@@ -349,7 +352,7 @@ async fn test_authorization_code_flow_invalid_pkce() {
         code_challenge_method: "S256".to_string(),
         user_id: UserId::new(),
         response_type: "code".to_string(),
-        realm_id: RealmId::new(),
+        realm_id: shared_realm_id,
         nonce: None,
     };
 
@@ -365,7 +368,7 @@ async fn test_authorization_code_flow_invalid_pkce() {
         code_verifier: Some("wrong-verifier".to_string()),
         refresh_token: None,
         scope: None,
-        realm_id: RealmId::new(),
+        realm_id: shared_realm_id,
     };
 
     let result = service.token(token_request).await;
