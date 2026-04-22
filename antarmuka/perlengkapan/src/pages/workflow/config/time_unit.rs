@@ -47,9 +47,9 @@ pub fn best_time_unit(minutes: u32) -> (u32, TimeUnit) {
     if minutes == 0 {
         return (0, TimeUnit::Minutes);
     }
-    if minutes % 1440 == 0 {
+    if minutes.is_multiple_of(1440) {
         (minutes / 1440, TimeUnit::Days)
-    } else if minutes % 60 == 0 {
+    } else if minutes.is_multiple_of(60) {
         (minutes / 60, TimeUnit::Hours)
     } else {
         (minutes, TimeUnit::Minutes)

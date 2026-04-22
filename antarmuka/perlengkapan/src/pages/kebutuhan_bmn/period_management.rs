@@ -343,7 +343,7 @@ fn PeriodForm(mode: FormMode, on_cancel: Callback<()>, on_success: Callback<()>)
         let pilihan_satker_val = pilihan_satker.get();
         let satker_ids_val = satker_ids.get();
         let version_val = version.get();
-        let on_success_clone = on_success.clone();
+        let on_success_clone = on_success;
 
         async move {
             let result = match current_mode {

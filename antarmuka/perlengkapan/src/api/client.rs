@@ -28,9 +28,7 @@ pub fn require_auth_token() -> AppResult<String> {
 }
 
 fn full_url(path: &str) -> String {
-    if path.starts_with("http://") || path.starts_with("https://") {
-        path.to_string()
-    } else if path.starts_with('/') && path.starts_with(API_BASE) {
+    if path.starts_with("http://") || path.starts_with("https://") || path.starts_with(API_BASE) {
         path.to_string()
     } else if path.starts_with('/') {
         format!("{API_BASE}{path}")

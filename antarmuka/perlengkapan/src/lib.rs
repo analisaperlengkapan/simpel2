@@ -129,7 +129,7 @@ pub fn App() -> impl IntoView {
 
                 <div class="flex min-h-0 flex-1">
                     {move || if is_login_page() {
-                        view! { <></> }.into_any()
+                        ().into_any()
                     } else {
                         view! { <Sidebar sidebar_open=sidebar_open /> }.into_any()
                     }}

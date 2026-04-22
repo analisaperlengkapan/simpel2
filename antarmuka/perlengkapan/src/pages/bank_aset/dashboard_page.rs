@@ -200,7 +200,7 @@ fn render_kondisi(data: &BankAsetDashboard) -> impl IntoView + use<> {
                 0.0
             };
             let pct_label = format!("{:.1}%", pct);
-            let width = format!("width: {:.1}%;", pct.min(100.0).max(2.0));
+            let width = format!("width: {:.1}%;", pct.clamp(2.0, 100.0));
             let kondisi = k.kondisi.clone();
             let count_label = format_thousands(k.count);
             view! {
@@ -337,7 +337,7 @@ pub(super) fn format_thousands<N: Into<i128>>(n: N) -> String {
     let bytes = s.as_bytes();
     let mut out = String::with_capacity(s.len() + s.len() / 3);
     for (i, b) in bytes.iter().enumerate() {
-        if i > 0 && (bytes.len() - i) % 3 == 0 {
+        if i > 0 && (bytes.len() - i).is_multiple_of(3) {
             out.push('.');
         }
         out.push(*b as char);
