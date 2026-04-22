@@ -29,7 +29,7 @@ mod cache_tests {
 
     #[test]
     fn test_cache_pattern_matching() {
-        let pattern = "user:*";
+        let _pattern = "user:*";
         let key1 = "user:123";
         let key2 = "user:456";
         let key3 = "session:789";

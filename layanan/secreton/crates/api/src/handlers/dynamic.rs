@@ -509,7 +509,7 @@ pub async fn configure_database_connection(
 
     let response = ConnectionResponse {
         name,
-        db_type: request.db_type,
+        db_type: db_type.as_str().to_string(),
         verified: request.verify_connection,
     };
 
