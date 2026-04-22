@@ -1,17 +1,22 @@
 //! Session synchronization and token refresh monitor.
 
-use crate::features::auth::{AuthService, UserSession};
+use crate::features::auth::UserSession;
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 
 /// Setup cross-tab storage listener to sync logout/login state.
 pub fn setup_cross_tab_session_sync(
-    set_user_session: WriteSignal<Option<UserSession>>,
-    set_show_timeout_warning: WriteSignal<bool>,
-    set_timeout_countdown: WriteSignal<i64>,
+    _set_user_session: WriteSignal<Option<UserSession>>,
+    _set_show_timeout_warning: WriteSignal<bool>,
+    _set_timeout_countdown: WriteSignal<i64>,
 ) {
     #[cfg(target_arch = "wasm32")]
     {
+        use crate::features::auth::AuthService;
+
+        let set_user_session = _set_user_session;
+        let set_show_timeout_warning = _set_show_timeout_warning;
+        let set_timeout_countdown = _set_timeout_countdown;
+
         Effect::new(move |_| {
             AuthService::setup_storage_listener(move |session| {
                 let is_session_none = session.is_none();
@@ -28,17 +33,25 @@ pub fn setup_cross_tab_session_sync(
 
 /// Setup automatic token refresh and session timeout monitoring.
 pub fn setup_session_refresh_monitor(
-    user_session: ReadSignal<Option<UserSession>>,
-    timeout_countdown: ReadSignal<i64>,
-    set_user_session: WriteSignal<Option<UserSession>>,
-    set_show_timeout_warning: WriteSignal<bool>,
-    set_timeout_countdown: WriteSignal<i64>,
+    _user_session: ReadSignal<Option<UserSession>>,
+    _timeout_countdown: ReadSignal<i64>,
+    _set_user_session: WriteSignal<Option<UserSession>>,
+    _set_show_timeout_warning: WriteSignal<bool>,
+    _set_timeout_countdown: WriteSignal<i64>,
 ) {
     #[cfg(target_arch = "wasm32")]
     {
+        use crate::features::auth::AuthService;
         use gloo_timers::future::TimeoutFuture;
+        use leptos::task::spawn_local;
         use std::sync::Arc;
         use std::sync::atomic::{AtomicBool, Ordering};
+
+        let user_session = _user_session;
+        let timeout_countdown = _timeout_countdown;
+        let set_user_session = _set_user_session;
+        let set_show_timeout_warning = _set_show_timeout_warning;
+        let set_timeout_countdown = _set_timeout_countdown;
 
         Effect::new(move |_| {
             if let Some(_session) = user_session.get() {
