@@ -1,8 +1,8 @@
 # 🏛️ SIMPEL (Sistem Informasi Perlengkapan)
 
-[![Rust](https://img.shields.io/badge/rust-1.93%2B-orange.svg)](https://rustlang.org)
-[![Leptos](https://img.shields.io/badge/leptos-0.8.14-green.svg)](https://leptos.dev)
-[![Axum](https://img.shields.io/badge/axum-0.8.7-blue.svg)](https://github.com/tokio-rs/axum)
+[![Rust](https://img.shields.io/badge/rust-1.95%2B-orange.svg)](https://rustlang.org)
+[![Leptos](https://img.shields.io/badge/leptos-0.8.19-green.svg)](https://leptos.dev)
+[![Axum](https://img.shields.io/badge/axum-0.8.9-blue.svg)](https://github.com/tokio-rs/axum)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
 
 **SIMPEL** adalah platform untuk manajemen Barang Milik Negara (BMN) di lingkungan Kejaksaan Republik Indonesia. Dibangun sepenuhnya menggunakan **Rust** dengan arsitektur workspace tunggal yang terdiri dari microfrontend (WebAssembly), backend services, dan layanan infrastruktur inti.
