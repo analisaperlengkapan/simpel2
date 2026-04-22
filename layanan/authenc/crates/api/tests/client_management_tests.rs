@@ -122,13 +122,13 @@ fn test_oidc_client_secret_rotation() {
 #[test]
 fn test_client_handlers_exist() {
     // Verify client management handler module is accessible
+    #[allow(unused_imports)]
     use authenc_api::handlers::client;
-    assert!(true);
 }
 
 #[test]
 fn test_client_registration_handlers_exist() {
     // Verify DCR handler module is accessible
+    #[allow(unused_imports)]
     use authenc_api::handlers::client_registration;
-    assert!(true);
 }

@@ -466,31 +466,30 @@ impl DatabaseSecretsEngine {
         &self,
         name: &str,
     ) -> Result<Option<Vec<String>>, DatabaseError> {
-        // Atomically check existence and collect cascade targets under a single
-        // connections write lock. This prevents concurrent delete_connection
-        // calls from both cascading, and prevents new roles from referencing
-        // this connection (create_role needs a connections read lock).
-        //
-        // We remove the connection from the map but keep the data for
-        // revocation SQL execution during cascade.
-        let (removed_conn, role_names) = {
+        // Remove the connection first. We must NOT hold the connections write
+        // lock while acquiring the roles lock, because create_role and
+        // update_role acquire connections.read() then roles.write(). Holding
+        // connections.write() here and then requesting roles.read() would
+        // invert that ordering and risk a deadlock.
+        let removed_conn = {
             let mut connections = self.connections.write().await;
-            let removed = connections.remove(name);
-            if removed.is_none() {
-                return Ok(None);
-            }
+            connections.remove(name)
+        };
 
-            // While still holding the connections write lock, snapshot the roles
-            // that reference this connection. No new roles can be created for
-            // this connection because create_role needs a connections read lock.
+        if removed_conn.is_none() {
+            return Ok(None);
+        }
+
+        // Now snapshot the roles that reference this connection.
+        // The connection is already removed, so create_role / update_role
+        // will reject any new roles referencing it.
+        let role_names: Vec<String> = {
             let roles = self.roles.read().await;
-            let names: Vec<String> = roles
+            roles
                 .values()
                 .filter(|r| r.db_name == name)
                 .map(|r| r.name.clone())
-                .collect();
-
-            (removed, names)
+                .collect()
         };
 
         let conn = removed_conn.unwrap();
@@ -1184,23 +1183,33 @@ impl DatabaseSecretsEngine {
         credential_id: &str,
         increment: u32,
     ) -> Result<DatabaseCredentials, DatabaseError> {
-        // Get existing credentials
-        let mut active = self.active_credentials.write().await;
-        let credentials = active.get_mut(credential_id).ok_or_else(|| {
-            DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
-        })?;
+        // Read credentials and role info first (without holding a write lock)
+        // to avoid deadlock with delete_role which acquires roles.write() then
+        // active_credentials.write().
+        let (role_name, current_expires_at, username) = {
+            let active = self.active_credentials.read().await;
+            let credentials = active.get(credential_id).ok_or_else(|| {
+                DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
+            })?;
+            (
+                credentials.role_name.clone(),
+                credentials.expires_at,
+                credentials.username.clone(),
+            )
+        };
 
         // Get role to check max_ttl
-        let roles = self.roles.read().await;
-        let role = roles
-            .get(&credentials.role_name)
-            .ok_or_else(|| DatabaseError::RoleNotFound(credentials.role_name.clone()))?
-            .clone();
-        drop(roles);
+        let role = {
+            let roles = self.roles.read().await;
+            roles
+                .get(&role_name)
+                .ok_or_else(|| DatabaseError::RoleNotFound(role_name.clone()))?
+                .clone()
+        };
 
         // Calculate new expiration time
         let now = Utc::now();
-        let current_ttl = (credentials.expires_at - now).num_seconds();
+        let current_ttl = (current_expires_at - now).num_seconds();
         let new_ttl = current_ttl + increment as i64;
 
         // Check against max_ttl
@@ -1211,10 +1220,7 @@ impl DatabaseSecretsEngine {
             )));
         }
 
-        // Update expiration time
-        credentials.expires_at = now + Duration::seconds(new_ttl);
-
-        // Execute renew statements if configured
+        // Execute renew statements if configured (before updating expiry)
         if !role.renew_statements.is_empty() {
             let connections = self.connections.read().await;
             let connection = connections
@@ -1231,11 +1237,18 @@ impl DatabaseSecretsEngine {
             self.execute_renew_statements(
                 &connection,
                 &role.renew_statements,
-                &credentials.username,
+                &username,
                 new_ttl as u32,
             )
             .await?;
         }
+
+        // Now acquire write lock and update expiration time
+        let mut active = self.active_credentials.write().await;
+        let credentials = active.get_mut(credential_id).ok_or_else(|| {
+            DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
+        })?;
+        credentials.expires_at = now + Duration::seconds(new_ttl);
 
         Ok(credentials.clone())
     }
