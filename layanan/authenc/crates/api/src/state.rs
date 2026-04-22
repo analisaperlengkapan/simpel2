@@ -90,8 +90,6 @@ impl ApiState {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_api_state_creation() {
         // This is a placeholder test - actual tests will require mock services

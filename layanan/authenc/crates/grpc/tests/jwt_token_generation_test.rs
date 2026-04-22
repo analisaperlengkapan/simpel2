@@ -4,7 +4,6 @@
 
 use authenc_crypto::jwt::JwtService;
 use authenc_types::config::JwtConfig;
-use chrono::Duration;
 
 #[test]
 fn test_jwt_service_initialization() {

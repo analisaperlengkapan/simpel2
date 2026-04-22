@@ -256,6 +256,24 @@ fn validate_role_request(role_name: &str, request: &CreateRoleRequest) -> ApiRes
         }
     }
 
+    // Validate rotation statements for SQL injection (if provided)
+    for stmt in &request.rotation_statements {
+        if contains_dangerous_sql(stmt) {
+            return Err(ApiError::BadRequest {
+                message: "Rotation statements contain potentially dangerous SQL".to_string(),
+            });
+        }
+    }
+
+    // Validate renew statements for SQL injection (if provided)
+    for stmt in &request.renew_statements {
+        if contains_dangerous_sql(stmt) {
+            return Err(ApiError::BadRequest {
+                message: "Renew statements contain potentially dangerous SQL".to_string(),
+            });
+        }
+    }
+
     // Validate TTL values
     if request.default_ttl == 0 || request.default_ttl > request.max_ttl {
         return Err(ApiError::BadRequest {
@@ -710,18 +728,18 @@ fn contains_dangerous_sql(sql: &str) -> bool {
     for pattern in &word_boundary_patterns {
         for (idx, _) in sql_lower.match_indices(pattern) {
             let before_ok = idx == 0
-                || !sql_lower.as_bytes()[idx - 1].is_ascii_alphanumeric()
-                    && sql_lower.as_bytes()[idx - 1] != b'_';
+                || (!sql_lower.as_bytes()[idx - 1].is_ascii_alphanumeric()
+                    && sql_lower.as_bytes()[idx - 1] != b'_');
             let end = idx + pattern.len();
             let after_ok = end >= sql_lower.len()
-                || !sql_lower.as_bytes()[end].is_ascii_alphanumeric()
-                    && sql_lower.as_bytes()[end] != b'_';
+                || (!sql_lower.as_bytes()[end].is_ascii_alphanumeric()
+                    && sql_lower.as_bytes()[end] != b'_');
 
             // Only flag if the word stands alone AND is followed by something
             // that looks like a procedure call or dynamic SQL (not a privilege grant)
             if before_ok && after_ok {
                 // Allow "GRANT EXECUTE" / "REVOKE EXECUTE" which are legitimate DDL
-                let prefix_start = idx.saturating_sub(10);
+                let prefix_start = idx.saturating_sub(20);
                 let prefix_text = &sql_lower[prefix_start..idx].trim_end();
                 let is_grant_or_revoke = ["grant", "revoke"].iter().any(|keyword| {
                     if let Some(stripped) = prefix_text.strip_suffix(keyword) {

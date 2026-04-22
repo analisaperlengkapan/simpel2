@@ -58,7 +58,6 @@ pub fn error_mapping_interceptor<T>(result: Result<T, Status>) -> Result<T, Stat
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tonic::metadata::MetadataMap;
 
     #[test]
     fn test_auth_interceptor_without_cert() {
