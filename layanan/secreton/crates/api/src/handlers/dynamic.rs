@@ -318,6 +318,7 @@ pub async fn list_database_roles(
 pub async fn get_database_role(
     State(state): State<AppState>,
     Path(role_name): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
     let role = state
         .database_engine
@@ -326,6 +327,10 @@ pub async fn get_database_role(
         .ok_or_else(|| ApiError::NotFound {
             resource: format!("Role {}", role_name),
         })?;
+
+    // Log audit event
+    let audit_entry = create_audit_log("role_read", &user.username, "dynamic_role", &role_name);
+    let _ = state.audit.log(audit_entry).await;
 
     let response = RoleResponse {
         name: role.name,
@@ -504,6 +509,7 @@ pub async fn configure_database_connection(
 pub async fn get_database_connection(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
     let conn = state
         .database_engine
@@ -512,6 +518,15 @@ pub async fn get_database_connection(
         .ok_or_else(|| ApiError::NotFound {
             resource: format!("Connection {}", name),
         })?;
+
+    // Log audit event
+    let audit_entry = create_audit_log(
+        "connection_read",
+        &user.username,
+        "dynamic_connection",
+        &name,
+    );
+    let _ = state.audit.log(audit_entry).await;
 
     let response = ConnectionResponse {
         name: conn.name,
