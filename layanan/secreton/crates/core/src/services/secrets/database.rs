@@ -737,12 +737,21 @@ impl DatabaseSecretsEngine {
 
     /// Revoke credentials
     pub async fn revoke_credentials(&self, credential_id: &str) -> Result<(), DatabaseError> {
-        // Get credentials
-        let mut active = self.active_credentials.write().await;
-        let credentials = active.remove(credential_id).ok_or_else(|| {
-            DatabaseError::RevocationFailed(format!("Credentials {} not found", credential_id))
-        })?;
-        drop(active);
+        // Look up credentials without removing them yet — we only remove from
+        // tracking after the revocation SQL succeeds so that a failed revocation
+        // does not silently orphan a live database user.
+        let credentials = {
+            let active = self.active_credentials.read().await;
+            active
+                .get(credential_id)
+                .cloned()
+                .ok_or_else(|| {
+                    DatabaseError::RevocationFailed(format!(
+                        "Credentials {} not found",
+                        credential_id
+                    ))
+                })?
+        };
 
         // Get role and connection
         let roles = self.roles.read().await;
@@ -771,6 +780,10 @@ impl DatabaseSecretsEngine {
             &credentials.username,
         )
         .await?;
+
+        // Only remove from tracking after successful revocation
+        let mut active = self.active_credentials.write().await;
+        active.remove(credential_id);
 
         Ok(())
     }
