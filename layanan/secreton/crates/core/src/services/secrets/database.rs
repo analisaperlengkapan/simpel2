@@ -37,6 +37,9 @@ pub enum DatabaseError {
     #[error("Revocation failed: {0}")]
     RevocationFailed(String),
 
+    #[error("Role already exists: {0}")]
+    RoleAlreadyExists(String),
+
     #[error("Unsupported database type: {0}")]
     UnsupportedDatabase(String),
 }
@@ -344,10 +347,7 @@ impl DatabaseSecretsEngine {
         // Store role (reject if already exists)
         let mut roles = self.roles.write().await;
         if roles.contains_key(&role.name) {
-            return Err(DatabaseError::InvalidConfig(format!(
-                "Role '{}' already exists",
-                role.name
-            )));
+            return Err(DatabaseError::RoleAlreadyExists(role.name.clone()));
         }
         roles.insert(role.name.clone(), role);
 

@@ -287,6 +287,11 @@ async fn create_role_internal(
         .create_role(role)
         .await
         .map_err(|e| match e {
+            secreton_core::services::secrets::database::DatabaseError::RoleAlreadyExists(name) => {
+                ApiError::Conflict {
+                    resource: format!("Role {}", name),
+                }
+            }
             secreton_core::services::secrets::database::DatabaseError::InvalidConfig(msg) => {
                 ApiError::BadRequest { message: msg }
             }

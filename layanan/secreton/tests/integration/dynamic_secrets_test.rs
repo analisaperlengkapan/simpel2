@@ -219,11 +219,11 @@ mod dynamic_secrets_tests {
         assert_eq!(stored_role.max_ttl, 86400);
         drop(roles);
 
-        // UPDATE: Modify role (create with same name)
+        // UPDATE: Modify role (use update_role for existing role)
         let mut updated_role = role.clone();
         updated_role.default_ttl = 7200;
         updated_role.max_ttl = 172800;
-        let update_result = engine.create_role(updated_role).await;
+        let update_result = engine.update_role(updated_role).await;
         assert!(update_result.is_ok(), "Role update should succeed");
 
         // Verify update
