@@ -1212,6 +1212,17 @@ impl DatabaseSecretsEngine {
         let current_ttl = (current_expires_at - now).num_seconds();
         let new_ttl = current_ttl + increment as i64;
 
+        // Reject if credentials have already expired and the increment is not
+        // large enough to bring the TTL back above zero.  Without this guard a
+        // negative new_ttl would wrap to ~4.3 billion when cast to u32 for the
+        // {{ttl}} placeholder in renew SQL statements.
+        if new_ttl <= 0 {
+            return Err(DatabaseError::InvalidConfig(format!(
+                "Credentials have expired (remaining TTL {}s); cannot renew",
+                current_ttl
+            )));
+        }
+
         // Check against max_ttl
         if new_ttl > role.max_ttl as i64 {
             return Err(DatabaseError::InvalidConfig(format!(
