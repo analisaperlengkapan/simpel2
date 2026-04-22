@@ -408,7 +408,9 @@ impl DatabaseSecretsEngine {
             }
         }
 
-        drop(existing);
+        // Drop the immutable borrow so we can mutably insert below.
+        // `existing` is a reference into `roles`, so we must let it go.
+        let _ = existing;
         roles.insert(role.name.clone(), role);
 
         Ok(())
@@ -957,20 +959,20 @@ impl DatabaseSecretsEngine {
         // Generate credentials
         let credentials = self.generate_credentials(role_name, ttl).await?;
 
-        // Create lease
-        let ttl_secs = ttl.unwrap_or_else(|| {
-            // Get default TTL from role
-            let roles = futures::executor::block_on(self.roles.read());
-            roles.get(role_name).map(|r| r.default_ttl).unwrap_or(3600)
-        }) as i64;
-
-        let max_ttl = {
-            let roles = futures::executor::block_on(self.roles.read());
-            roles
-                .get(role_name)
-                .map(|r| r.max_ttl as i64)
-                .unwrap_or(86400)
+        // Read role defaults using async .await instead of block_on to avoid
+        // blocking the tokio worker thread (which can deadlock on a
+        // single-threaded runtime or degrade throughput under contention).
+        let (default_ttl, max_ttl) = {
+            let roles = self.roles.read().await;
+            let role = roles.get(role_name);
+            (
+                role.map(|r| r.default_ttl).unwrap_or(3600),
+                role.map(|r| r.max_ttl as i64).unwrap_or(86400),
+            )
         };
+
+        // Create lease
+        let ttl_secs = ttl.unwrap_or(default_ttl) as i64;
 
         let resource_path = format!("database/creds/{}", role_name);
         let lease = lease_manager
