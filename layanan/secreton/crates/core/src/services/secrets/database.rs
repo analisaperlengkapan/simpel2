@@ -366,10 +366,54 @@ impl DatabaseSecretsEngine {
         roles.keys().cloned().collect()
     }
 
-    /// Delete database role
+    /// Delete database role and revoke all active credentials for it
     pub async fn delete_role(&self, name: &str) -> Result<bool, DatabaseError> {
+        // Collect credential IDs for this role
+        let cred_ids: Vec<String> = {
+            let active = self.active_credentials.read().await;
+            active
+                .values()
+                .filter(|c| c.role_name == name)
+                .map(|c| c.id.clone())
+                .collect()
+        };
+
+        // Revoke each credential (ignore errors — DB pool may be gone)
+        for cred_id in &cred_ids {
+            let _ = self.revoke_credentials(cred_id).await;
+        }
+
         let mut roles = self.roles.write().await;
         Ok(roles.remove(name).is_some())
+    }
+
+    /// Delete database connection, cascading to all roles that reference it
+    pub async fn delete_connection(&self, name: &str) -> Result<bool, DatabaseError> {
+        // Find all roles that reference this connection
+        let role_names: Vec<String> = {
+            let roles = self.roles.read().await;
+            roles
+                .values()
+                .filter(|r| r.db_name == name)
+                .map(|r| r.name.clone())
+                .collect()
+        };
+
+        // Delete each associated role (which also revokes their credentials)
+        for role_name in &role_names {
+            let _ = self.delete_role(role_name).await;
+        }
+
+        // Remove the connection itself
+        let mut connections = self.connections.write().await;
+        let existed = connections.remove(name).is_some();
+        drop(connections);
+
+        // Remove the connection pool
+        let mut pools = self.db_pools.write().await;
+        pools.remove(name);
+
+        Ok(existed)
     }
 
     /// Generate credentials for a role

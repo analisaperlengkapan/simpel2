@@ -364,8 +364,19 @@ pub async fn delete_database_role(
     Path(role_name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement role deletion in database engine
-    // Should also revoke all active credentials for this role
+    let deleted = state
+        .database_engine
+        .delete_role(&role_name)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to delete role: {}", e),
+        })?;
+
+    if !deleted {
+        return Err(ApiError::NotFound {
+            resource: format!("Role {}", role_name),
+        });
+    }
 
     // Log audit event
     let audit_entry = create_audit_log("role_deleted", &user.username, "dynamic_role", &role_name);
@@ -543,8 +554,19 @@ pub async fn delete_database_connection(
     Path(name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement connection deletion in database engine
-    // Should also delete all roles using this connection
+    let deleted = state
+        .database_engine
+        .delete_connection(&name)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to delete connection: {}", e),
+        })?;
+
+    if !deleted {
+        return Err(ApiError::NotFound {
+            resource: format!("Connection {}", name),
+        });
+    }
 
     // Log audit event
     let audit_entry = create_audit_log(
