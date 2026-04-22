@@ -348,6 +348,12 @@ impl DatabaseSecretsEngine {
         Ok(())
     }
 
+    /// Get database connection configuration
+    pub async fn get_connection(&self, name: &str) -> Option<DatabaseConnection> {
+        let connections = self.connections.read().await;
+        connections.get(name).cloned()
+    }
+
     /// Get database role
     pub async fn get_role(&self, name: &str) -> Option<DatabaseRole> {
         let roles = self.roles.read().await;

@@ -109,6 +109,7 @@ pub struct InjectionSession {
 pub async fn inject_env(
     State(state): State<Arc<crate::services::ServiceContainer>>,
     Extension(ctx): Extension<RequestContext>,
+    user: crate::extractors::AuthenticatedUser,
     Json(request): Json<InjectEnvRequest>,
 ) -> Result<Json<ApiResponse<InjectEnvResponse>>, ApiError> {
     info!(
@@ -140,7 +141,7 @@ pub async fn inject_env(
     let mut secret_paths = Vec::new();
 
     // Build policy context for authorization
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let user_id = user.id.to_string();
     let policy_context = serde_json::json!({
         "user_id": ctx.user_id,
         "user_email": ctx.user_email,
@@ -171,12 +172,12 @@ pub async fn inject_env(
         secret_paths.push(secret_config.path.clone());
 
         // Authorization check
-        if !policy_set.evaluate(user_id, &secret_config.path, "read", Some(&policy_context)) {
+        if !policy_set.evaluate(&user_id, &secret_config.path, "read", Some(&policy_context)) {
             return Err(ApiError::Forbidden);
         }
 
         // Fetch secret from Secreton
-        let secret_data = fetch_secret(&state, &secret_config.path, user_id).await?;
+        let secret_data = fetch_secret(&state, &secret_config.path, &user_id).await?;
 
         // Process based on configuration
         if let Some(key) = &secret_config.key {
@@ -246,6 +247,7 @@ pub async fn inject_env(
 pub async fn cleanup_session(
     State(state): State<Arc<crate::services::ServiceContainer>>,
     Extension(ctx): Extension<RequestContext>,
+    user: crate::extractors::AuthenticatedUser,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     info!("Cleaning up injection session {}", session_id);
@@ -254,9 +256,9 @@ pub async fn cleanup_session(
     let session = get_session(&state, &session_id).await?;
 
     // Authorization check: Allow if owner OR if has delete permission
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
-    // Prevent "anonymous" users from claiming ownership
-    let is_owner = session.created_by == user_id && user_id != "anonymous";
+    let user_id = user.id.to_string();
+    // Prevent nil-UUID users from claiming ownership
+    let is_owner = session.created_by == user_id && !user.id.is_nil();
 
     if !is_owner {
         let namespace = ctx.derive_namespace();
@@ -268,7 +270,7 @@ pub async fn cleanup_session(
                 message: e.to_string(),
             })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
-        if !policy_set.evaluate(user_id, "sys/inject/sessions", "delete", None) {
+        if !policy_set.evaluate(&user_id, "sys/inject/sessions", "delete", None) {
             return Err(ApiError::Forbidden);
         }
     }
@@ -296,9 +298,10 @@ pub async fn cleanup_session(
 pub async fn list_sessions(
     State(state): State<Arc<crate::services::ServiceContainer>>,
     Extension(ctx): Extension<RequestContext>,
+    user: crate::extractors::AuthenticatedUser,
 ) -> Result<Json<ApiResponse<Vec<InjectionSession>>>, ApiError> {
     // Authorization check
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let user_id = user.id.to_string();
     {
         let namespace = ctx.derive_namespace();
         let rules = state
@@ -309,7 +312,7 @@ pub async fn list_sessions(
                 message: e.to_string(),
             })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
-        if !policy_set.evaluate(user_id, "sys/inject/sessions", "list", None) {
+        if !policy_set.evaluate(&user_id, "sys/inject/sessions", "list", None) {
             return Err(ApiError::Forbidden);
         }
     }
@@ -325,10 +328,11 @@ pub async fn list_sessions(
 pub async fn get_session_details(
     State(state): State<Arc<crate::services::ServiceContainer>>,
     Extension(ctx): Extension<RequestContext>,
+    user: crate::extractors::AuthenticatedUser,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<InjectionSession>>, ApiError> {
     // Authorization check
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let user_id = user.id.to_string();
     {
         let namespace = ctx.derive_namespace();
         let rules = state
@@ -339,7 +343,7 @@ pub async fn get_session_details(
                 message: e.to_string(),
             })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
-        if !policy_set.evaluate(user_id, "sys/inject/sessions", "read", None) {
+        if !policy_set.evaluate(&user_id, "sys/inject/sessions", "read", None) {
             return Err(ApiError::Forbidden);
         }
     }

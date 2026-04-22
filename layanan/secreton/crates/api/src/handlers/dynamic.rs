@@ -316,12 +316,25 @@ pub async fn list_database_roles(
 
 /// Get database role details
 pub async fn get_database_role(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(role_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
-    Err(ApiError::NotFound {
-        resource: format!("Role {} not found", role_name),
-    })
+    let role = state
+        .database_engine
+        .get_role(&role_name)
+        .await
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Role {}", role_name),
+        })?;
+
+    let response = RoleResponse {
+        name: role.name,
+        db_name: role.db_name,
+        default_ttl: role.default_ttl,
+        max_ttl: role.max_ttl,
+    };
+
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// Update database role
@@ -489,12 +502,24 @@ pub async fn configure_database_connection(
 
 /// Get database connection details
 pub async fn get_database_connection(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
-    Err(ApiError::NotFound {
-        resource: format!("Connection {} not found", name),
-    })
+    let conn = state
+        .database_engine
+        .get_connection(&name)
+        .await
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Connection {}", name),
+        })?;
+
+    let response = ConnectionResponse {
+        name: conn.name,
+        db_type: conn.db_type.as_str().to_string(),
+        verified: conn.verify_connection,
+    };
+
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// Delete database connection
