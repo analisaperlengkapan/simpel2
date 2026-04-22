@@ -6,6 +6,7 @@ mod kebutuhan_bmn_service_tests {
     use uuid::Uuid;
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct PengajuanKebutuhanBmn {
         id: Uuid,
         nama: String,
@@ -40,10 +41,8 @@ mod kebutuhan_bmn_service_tests {
 
     #[test]
     fn test_status_transition() {
-        let mut status = 2000; // DRAFT
-
         // DRAFT -> SUBMITTED
-        status = 2002;
+        let mut status = 2002;
         assert_eq!(status, 2002);
 
         // SUBMITTED -> REVIEWED_WILAYAH

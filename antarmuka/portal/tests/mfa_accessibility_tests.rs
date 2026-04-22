@@ -109,6 +109,7 @@ mod a11y_test_utils {
     }
 
     /// Test screen reader compatibility
+    #[allow(dead_code)]
     pub fn test_screen_reader_content(element: &Element) -> Vec<String> {
         let mut issues = Vec::new();
 
