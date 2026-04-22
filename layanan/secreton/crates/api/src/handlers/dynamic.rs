@@ -349,6 +349,13 @@ pub async fn update_database_role(
     user: AuthenticatedUser,
     Json(request): Json<CreateRoleRequest>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
+    // Verify the role exists before updating — prevent silent upsert
+    if state.database_engine.get_role(&role_name).await.is_none() {
+        return Err(ApiError::NotFound {
+            resource: format!("Role {}", role_name),
+        });
+    }
+
     let response = create_role_internal(&state, role_name.clone(), request).await?;
 
     // Log audit event
