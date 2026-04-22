@@ -260,8 +260,12 @@ pub async fn cleanup_session(
 
     // Authorization check: Allow if owner OR if has delete permission
     let user_id = user.id.to_string();
-    // Prevent nil-UUID users from claiming ownership
-    let is_owner = session.created_by == user_id && !user.id.is_nil();
+    // Prevent nil-UUID users from claiming ownership.
+    // Also match against the username for backward compatibility with
+    // sessions created before the switch from ctx.user_id to
+    // AuthenticatedUser (where created_by may be a non-UUID string).
+    let is_owner = !user.id.is_nil()
+        && (session.created_by == user_id || session.created_by == user.username);
 
     if !is_owner {
         let namespace = ctx.derive_namespace();

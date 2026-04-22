@@ -684,6 +684,16 @@ pub async fn delete_database_connection(
 fn contains_dangerous_sql(sql: &str) -> bool {
     let sql_lower = sql.to_lowercase();
 
+    // Reject multiple statements: a semicolon followed by any non-whitespace
+    // content indicates statement chaining which is never legitimate in a
+    // single creation/revocation/rotation/renew statement template.
+    if let Some(semi_pos) = sql_lower.find(';') {
+        let after_semi = sql_lower[semi_pos + 1..].trim();
+        if !after_semi.is_empty() {
+            return true;
+        }
+    }
+
     // Patterns that are dangerous as substrings anywhere
     let substring_patterns = [
         ";--",
@@ -784,6 +794,21 @@ mod tests {
         assert!(contains_dangerous_sql("ñañañañañañañañaña exec something"));
         assert!(!contains_dangerous_sql(
             "GRANT EXECUTE ON schéma.función TO {{username}}"
+        ));
+        // Statement chaining via semicolons must be detected
+        assert!(contains_dangerous_sql(
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}'; SELECT * FROM pg_shadow"
+        ));
+        assert!(contains_dangerous_sql(
+            "CREATE USER {{username}}; DROP TABLE users"
+        ));
+        // Trailing semicolons (no content after) are acceptable
+        assert!(!contains_dangerous_sql(
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}';"
+        ));
+        // Trailing semicolons with only whitespace are acceptable
+        assert!(!contains_dangerous_sql(
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}';   "
         ));
     }
 
