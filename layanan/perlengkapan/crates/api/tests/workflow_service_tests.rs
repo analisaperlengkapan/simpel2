@@ -16,6 +16,7 @@ mod workflow_service_tests {
     }
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct WorkflowInstance {
         id: Uuid,
         entity_id: Uuid,

@@ -6,6 +6,7 @@ mod pemakaian_bmn_service_tests {
     use uuid::Uuid;
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct IzinPemakaianBmn {
         id: Uuid,
         pegawai_nip: String,
