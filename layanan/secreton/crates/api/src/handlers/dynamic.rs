@@ -424,6 +424,9 @@ pub async fn update_database_role(
                     resource: format!("Role {}", role_name),
                 }
             }
+            secreton_core::services::secrets::database::DatabaseError::InvalidConfig(msg) => {
+                ApiError::BadRequest { message: msg }
+            }
             other => ApiError::Internal {
                 message: format!("Failed to update role: {}", other),
             },
