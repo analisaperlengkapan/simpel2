@@ -1,10 +1,11 @@
 //! Integration tests for authenc-api
 
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-};
-use tower::ServiceExt;
+// Imports will be uncommented when test implementations are added:
+// use axum::{
+//     body::Body,
+//     http::{Request, StatusCode},
+// };
+// use tower::ServiceExt;
 
 // Note: These are placeholder tests that demonstrate the structure.
 // Full implementation requires mock services for:

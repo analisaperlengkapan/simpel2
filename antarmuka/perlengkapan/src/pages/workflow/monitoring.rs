@@ -232,7 +232,7 @@ fn WorkflowStatusTable(workflows: Vec<WorkflowSummary>) -> impl IntoView {
 #[component]
 fn StateDistributionGrid(by_state: HashMap<String, i64>) -> impl IntoView {
     let mut entries: Vec<_> = by_state.into_iter().collect();
-    entries.sort_by(|a, b| b.1.cmp(&a.1));
+    entries.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     view! {
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

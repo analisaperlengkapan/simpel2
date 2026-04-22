@@ -2,13 +2,13 @@
 //!
 //! Displays comprehensive metrics for the Perlengkapan microfrontend with drill-down support
 
+use crate::routes;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use lib_ui::components::dashboard::{BarChart, GapAnalysisTable, MetricCard, PieChart};
-use lib_ui::components::navigation::Breadcrumb;
 use lib_ui::components::forms::Select;
+use lib_ui::components::navigation::Breadcrumb;
 use lib_ui::core::types::{BreadcrumbItem, ChartDataPoint, GapAnalysisRow};
-use crate::routes;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -19,8 +19,8 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq)]
 pub enum DrillDownLevel {
     National,
-    Wilayah(String),  // wilayah_code
-    Satker(String),   // satker_id
+    Wilayah(String), // wilayah_code
+    Satker(String),  // satker_id
 }
 
 impl DrillDownLevel {
@@ -124,7 +124,10 @@ async fn fetch_perlengkapan_dashboard(
     wilayah_code: Option<String>,
     satker_id: Option<String>,
 ) -> Result<PerlengkapanDashboardMetrics, crate::api::AppError> {
-    let mut url = format!("/api/v1/dashboard/perlengkapan?tahun_anggaran={}", tahun_anggaran);
+    let mut url = format!(
+        "/api/v1/dashboard/perlengkapan?tahun_anggaran={}",
+        tahun_anggaran
+    );
 
     if let Some(satker) = satker_id {
         url.push_str(&format!("&satker_id={}", satker));
@@ -138,7 +141,10 @@ async fn fetch_perlengkapan_dashboard(
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     response
@@ -154,7 +160,10 @@ async fn fetch_wilayah_options() -> Result<Vec<WilayahOption>, crate::api::AppEr
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     response
@@ -163,7 +172,9 @@ async fn fetch_wilayah_options() -> Result<Vec<WilayahOption>, crate::api::AppEr
         .map_err(|e| crate::api::AppError::Unknown(format!("JSON parse error: {}", e)))
 }
 
-async fn fetch_satker_options(wilayah_code: Option<String>) -> Result<Vec<SatkerOption>, crate::api::AppError> {
+async fn fetch_satker_options(
+    wilayah_code: Option<String>,
+) -> Result<Vec<SatkerOption>, crate::api::AppError> {
     let url = if let Some(code) = wilayah_code {
         format!("/api/v1/satker?wilayah_code={}", code)
     } else {
@@ -176,7 +187,10 @@ async fn fetch_satker_options(wilayah_code: Option<String>) -> Result<Vec<Satker
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     response
@@ -236,14 +250,12 @@ fn DrillDownSelectors(
     let current_level_for_indicator = current_level.clone();
 
     // Initialize from current level
-    Effect::new(move |_| {
-        match &current_level_for_effect {
-            DrillDownLevel::Wilayah(code) => set_selected_wilayah.set(Some(code.clone())),
-            DrillDownLevel::Satker(id) => set_selected_satker.set(Some(id.clone())),
-            DrillDownLevel::National => {
-                set_selected_wilayah.set(None);
-                set_selected_satker.set(None);
-            }
+    Effect::new(move |_| match &current_level_for_effect {
+        DrillDownLevel::Wilayah(code) => set_selected_wilayah.set(Some(code.clone())),
+        DrillDownLevel::Satker(id) => set_selected_satker.set(Some(id.clone())),
+        DrillDownLevel::National => {
+            set_selected_wilayah.set(None);
+            set_selected_satker.set(None);
         }
     });
 
@@ -253,7 +265,13 @@ fn DrillDownSelectors(
             window().location().set_href(routes::path::DASHBOARD).ok();
         } else {
             // Navigate to wilayah level
-            window().location().set_href(&routes::url::dashboard_perlengkapan_with_query(&format!("wilayah_code={}", value))).ok();
+            window()
+                .location()
+                .set_href(&routes::url::dashboard_perlengkapan_with_query(&format!(
+                    "wilayah_code={}",
+                    value
+                )))
+                .ok();
         }
     };
 
@@ -261,13 +279,25 @@ fn DrillDownSelectors(
         if value.is_empty() {
             // Navigate back to wilayah level
             if let Some(wilayah) = selected_wilayah.get() {
-                window().location().set_href(&routes::url::dashboard_perlengkapan_with_query(&format!("wilayah_code={}", wilayah))).ok();
+                window()
+                    .location()
+                    .set_href(&routes::url::dashboard_perlengkapan_with_query(&format!(
+                        "wilayah_code={}",
+                        wilayah
+                    )))
+                    .ok();
             } else {
                 window().location().set_href(routes::path::DASHBOARD).ok();
             }
         } else {
             // Navigate to satker level
-            window().location().set_href(&routes::url::dashboard_perlengkapan_with_query(&format!("satker_id={}", value))).ok();
+            window()
+                .location()
+                .set_href(&routes::url::dashboard_perlengkapan_with_query(&format!(
+                    "satker_id={}",
+                    value
+                )))
+                .ok();
         }
     };
 
@@ -372,9 +402,7 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
     let satker_id = move || query_map.get().get("satker_id");
 
     // Drill-down level state
-    let drill_down_level = move || {
-        DrillDownLevel::from_query_params(wilayah_code(), satker_id())
-    };
+    let drill_down_level = move || DrillDownLevel::from_query_params(wilayah_code(), satker_id());
 
     // Fetch dashboard data with drill-down filters
     let dashboard_resource = LocalResource::new(move || async move {
@@ -382,14 +410,12 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
     });
 
     // Fetch wilayah options
-    let wilayah_options_resource = LocalResource::new(|| async move {
-        fetch_wilayah_options().await
-    });
+    let wilayah_options_resource =
+        LocalResource::new(|| async move { fetch_wilayah_options().await });
 
     // Fetch satker options (filtered by wilayah if applicable)
-    let satker_options_resource = LocalResource::new(move || async move {
-        fetch_satker_options(wilayah_code()).await
-    });
+    let satker_options_resource =
+        LocalResource::new(move || async move { fetch_satker_options(wilayah_code()).await });
 
     // Build breadcrumb items based on drill-down level
     let breadcrumb_items = move || {
@@ -411,7 +437,10 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
                 if let Some(wil_code) = wilayah_code() {
                     items.push(BreadcrumbItem {
                         label: format!("Wilayah {}", wil_code),
-                        path: Some(format!("/perlengkapan/perlengkapan?wilayah_code={}", wil_code)),
+                        path: Some(format!(
+                            "/perlengkapan/perlengkapan?wilayah_code={}",
+                            wil_code
+                        )),
                         icon: Some("📍".to_string()),
                     });
                 }
@@ -482,12 +511,34 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
 #[component]
 fn DashboardContent(metrics: PerlengkapanDashboardMetrics) -> impl IntoView {
     let total_kebutuhan: i64 = metrics.kebutuhan_metrics.total_by_status.values().sum();
-    let approved = metrics.kebutuhan_metrics.total_by_status.get("APPROVED").copied().unwrap_or(0);
-    let pending = metrics.kebutuhan_metrics.total_by_status.get("SUBMITTED").copied().unwrap_or(0)
-        + metrics.kebutuhan_metrics.total_by_status.get("REVIEWED_WILAYAH").copied().unwrap_or(0);
-    let rejected = metrics.kebutuhan_metrics.total_by_status.get("REJECTED").copied().unwrap_or(0);
+    let approved = metrics
+        .kebutuhan_metrics
+        .total_by_status
+        .get("APPROVED")
+        .copied()
+        .unwrap_or(0);
+    let pending = metrics
+        .kebutuhan_metrics
+        .total_by_status
+        .get("SUBMITTED")
+        .copied()
+        .unwrap_or(0)
+        + metrics
+            .kebutuhan_metrics
+            .total_by_status
+            .get("REVIEWED_WILAYAH")
+            .copied()
+            .unwrap_or(0);
+    let rejected = metrics
+        .kebutuhan_metrics
+        .total_by_status
+        .get("REJECTED")
+        .copied()
+        .unwrap_or(0);
 
-    let gap_rows: Vec<GapAnalysisRow> = metrics.gap_analysis.iter()
+    let gap_rows: Vec<GapAnalysisRow> = metrics
+        .gap_analysis
+        .iter()
         .take(10)
         .map(|g| GapAnalysisRow {
             kode_barang: g.kode_barang.clone(),
@@ -517,7 +568,10 @@ fn DashboardContent(metrics: PerlengkapanDashboardMetrics) -> impl IntoView {
         },
     ];
 
-    let satker_chart_data: Vec<ChartDataPoint> = metrics.kebutuhan_metrics.total_by_satker.iter()
+    let satker_chart_data: Vec<ChartDataPoint> = metrics
+        .kebutuhan_metrics
+        .total_by_satker
+        .iter()
         .take(10)
         .map(|s| ChartDataPoint {
             label: s.satker_nama.clone(),

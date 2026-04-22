@@ -53,7 +53,9 @@ urlencoding = "2.1"
 base64 = { workspace = true }
 chrono = { workspace = true }
 # Explicitly enable wasm_js feature for getrandom 0.3+ which is pulled transitively
-getrandom = { version = "0.3.3", features = ["wasm_js"] }
+getrandom = { workspace = true }
+# Enable wasm_js for getrandom 0.4 pulled transitively by updated deps (e.g. uuid 1.23+)
+getrandom_04 = { workspace = true }
 once_cell.workspace = true
 
 [dev-dependencies]

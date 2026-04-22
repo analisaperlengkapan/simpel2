@@ -10,9 +10,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    AppState,
     errors::AppError,
     workflow::monitoring::{WorkflowMonitor, WorkflowSummary},
-    AppState,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -61,10 +61,7 @@ pub async fn get_workflow_metrics(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to get metrics: {}", e)))?;
 
-    Ok((
-        StatusCode::OK,
-        Json(ApiResponse::success(metrics)),
-    ))
+    Ok((StatusCode::OK, Json(ApiResponse::success(metrics))))
 }
 
 /// GET /api/v1/workflow/monitoring/active
@@ -92,17 +89,12 @@ pub async fn get_active_workflows(
         let workflows = monitor
             .get_workflows_by_state(state_name, 100, 0)
             .await
-            .map_err(|e| {
-                AppError::Internal(format!("Failed to get workflows: {}", e))
-            })?;
+            .map_err(|e| AppError::Internal(format!("Failed to get workflows: {}", e)))?;
 
         all_workflows.extend(workflows);
     }
 
-    Ok((
-        StatusCode::OK,
-        Json(ApiResponse::success(all_workflows)),
-    ))
+    Ok((StatusCode::OK, Json(ApiResponse::success(all_workflows))))
 }
 
 /// GET /api/v1/workflow/monitoring/sla-breaches
@@ -134,9 +126,7 @@ pub async fn get_sla_breaches(
 /// GET /api/v1/workflow/monitoring/bottlenecks
 ///
 /// Get list of workflow bottlenecks
-pub async fn get_bottlenecks(
-    State(state): State<AppState>,
-) -> Result<impl IntoResponse, AppError> {
+pub async fn get_bottlenecks(State(state): State<AppState>) -> Result<impl IntoResponse, AppError> {
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     let bottlenecks = monitor
@@ -144,10 +134,7 @@ pub async fn get_bottlenecks(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to detect bottlenecks: {}", e)))?;
 
-    Ok((
-        StatusCode::OK,
-        Json(ApiResponse::success(bottlenecks)),
-    ))
+    Ok((StatusCode::OK, Json(ApiResponse::success(bottlenecks))))
 }
 
 #[cfg(test)]

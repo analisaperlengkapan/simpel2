@@ -71,7 +71,9 @@ pub async fn fetch_penghapusan_bmn_detail(
 pub async fn fetch_penghapusan_bmn_detail(
     _id: &str,
 ) -> Result<ApiResponse<PenghapusanBmnDetailResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Create Penghapusan BMN ---
@@ -86,7 +88,9 @@ pub async fn create_penghapusan_bmn_workflow(
 pub async fn create_penghapusan_bmn_workflow(
     _request: CreatePenghapusanBmnWorkflowRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Update Penghapusan BMN ---
@@ -103,18 +107,26 @@ pub async fn update_penghapusan_bmn_workflow(
     _id: &str,
     _request: UpdatePenghapusanBmnWorkflowRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Delete Penghapusan BMN ---
 #[cfg(target_arch = "wasm32")]
-pub async fn delete_penghapusan_bmn_workflow(id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
+pub async fn delete_penghapusan_bmn_workflow(
+    id: &str,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
     auth_delete_json(&format!("{}/{}", PENGHAPUSAN_BMN_BASE, id)).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_penghapusan_bmn_workflow(_id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+pub async fn delete_penghapusan_bmn_workflow(
+    _id: &str,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Submit Penghapusan BMN to Validator Wilayah ---
@@ -133,7 +145,9 @@ pub async fn submit_penghapusan_to_wilayah(
 pub async fn submit_penghapusan_to_wilayah(
     _id: &str,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Validator Wilayah Action for Penghapusan BMN ---
@@ -154,7 +168,9 @@ pub async fn penghapusan_validator_wilayah_action(
     _id: &str,
     _request: PenghapusanValidatorWilayahActionRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Generate Konsep SK Penghapusan BMN ---
@@ -173,7 +189,9 @@ pub async fn generate_penghapusan_konsep_sk(
 pub async fn generate_penghapusan_konsep_sk(
     _id: &str,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Upload Signed SK Penghapusan BMN ---
@@ -194,7 +212,9 @@ pub async fn upload_penghapusan_signed_sk(
     _id: &str,
     _request: UploadSignedSKRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Legacy Workflow Transition for Penghapusan BMN ---
@@ -203,7 +223,11 @@ pub async fn transition_penghapusan_bmn_status(
     id: &str,
     request: PenghapusanWorkflowTransitionRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
-    auth_post_json(&format!("{}/{}/transition", PENGHAPUSAN_BMN_BASE, id), &request).await
+    auth_post_json(
+        &format!("{}/{}/transition", PENGHAPUSAN_BMN_BASE, id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -211,5 +235,7 @@ pub async fn transition_penghapusan_bmn_status(
     _id: &str,
     _request: PenghapusanWorkflowTransitionRequest,
 ) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }

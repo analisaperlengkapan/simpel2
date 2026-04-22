@@ -10,11 +10,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{
-    errors::AppError,
-    workflow::config::WorkflowConfig,
-    AppState,
-};
+use crate::{AppState, errors::AppError, workflow::config::WorkflowConfig};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Request/Response Types
@@ -121,10 +117,7 @@ pub async fn get_workflow_definitions(
         workflow_config_to_response(&WorkflowConfig::default_pakaian_dinas()),
     ];
 
-    Ok((
-        StatusCode::OK,
-        Json(ApiResponse::success(definitions)),
-    ))
+    Ok((StatusCode::OK, Json(ApiResponse::success(definitions))))
 }
 
 /// GET /api/v1/workflow/definitions/{name}
@@ -143,16 +136,13 @@ pub async fn get_workflow_definition_by_name(
             return Err(AppError::NotFound(format!(
                 "Workflow definition '{}' not found",
                 name
-            )))
+            )));
         }
     };
 
     let detail = workflow_config_to_detail_response(&config);
 
-    Ok((
-        StatusCode::OK,
-        Json(ApiResponse::success(detail)),
-    ))
+    Ok((StatusCode::OK, Json(ApiResponse::success(detail))))
 }
 
 /// POST /api/v1/workflow/definitions
@@ -223,7 +213,8 @@ pub async fn delete_workflow_step(
     // For now, workflow definitions are hardcoded
     // Return error indicating this operation is not yet supported
     Err::<(StatusCode, Json<ApiResponse<()>>), AppError>(AppError::BadRequest(
-        "Deleting workflow steps is not supported. Workflow configurations are managed in code.".to_string(),
+        "Deleting workflow steps is not supported. Workflow configurations are managed in code."
+            .to_string(),
     ))
 }
 

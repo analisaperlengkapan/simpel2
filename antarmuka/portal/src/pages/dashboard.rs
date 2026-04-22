@@ -234,34 +234,16 @@ pub fn DashboardPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> imp
 #[component]
 fn StatCard(label: &'static str, value: i64, color: &'static str) -> impl IntoView {
     let (bg, text) = match color {
-        "blue" => (
-            "bg-blue-500/10 border-blue-400/30",
-            "text-blue-200",
-        ),
+        "blue" => ("bg-blue-500/10 border-blue-400/30", "text-blue-200"),
         "green" => (
             "bg-emerald-500/10 border-emerald-400/30",
             "text-emerald-200",
         ),
-        "indigo" => (
-            "bg-indigo-500/10 border-indigo-400/30",
-            "text-indigo-200",
-        ),
-        "purple" => (
-            "bg-violet-500/10 border-violet-400/30",
-            "text-violet-200",
-        ),
-        "amber" => (
-            "bg-amber-500/10 border-amber-400/30",
-            "text-amber-200",
-        ),
-        "red" => (
-            "bg-red-500/10 border-red-400/30",
-            "text-red-200",
-        ),
-        _ => (
-            "bg-slate-500/10 border-slate-400/30",
-            "text-slate-200",
-        ),
+        "indigo" => ("bg-indigo-500/10 border-indigo-400/30", "text-indigo-200"),
+        "purple" => ("bg-violet-500/10 border-violet-400/30", "text-violet-200"),
+        "amber" => ("bg-amber-500/10 border-amber-400/30", "text-amber-200"),
+        "red" => ("bg-red-500/10 border-red-400/30", "text-red-200"),
+        _ => ("bg-slate-500/10 border-slate-400/30", "text-slate-200"),
     };
 
     view! {
@@ -281,18 +263,9 @@ fn InfoCard(
 ) -> impl IntoView {
     let accent = accent.unwrap_or("blue");
     let (text_color, bg_color) = match accent {
-        "green" => (
-            "text-emerald-300",
-            "bg-emerald-500/15",
-        ),
-        "amber" => (
-            "text-amber-300",
-            "bg-amber-500/15",
-        ),
-        _ => (
-            "text-blue-300",
-            "bg-blue-500/15",
-        ),
+        "green" => ("text-emerald-300", "bg-emerald-500/15"),
+        "amber" => ("text-amber-300", "bg-amber-500/15"),
+        _ => ("text-blue-300", "bg-blue-500/15"),
     };
 
     view! {

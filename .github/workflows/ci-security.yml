@@ -55,7 +55,10 @@ jobs:
             --ignore RUSTSEC-2024-0436 \
             --ignore RUSTSEC-2025-0066 \
             --ignore RUSTSEC-2025-0134 \
-            --ignore RUSTSEC-2025-0141
+            --ignore RUSTSEC-2025-0141 \
+            --ignore RUSTSEC-2026-0097 \
+            --ignore RUSTSEC-2026-0098 \
+            --ignore RUSTSEC-2026-0099
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

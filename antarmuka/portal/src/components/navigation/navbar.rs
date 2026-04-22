@@ -278,7 +278,7 @@ fn MobileMenuItem(item: PortalMenuItem, set_mobile_open: WriteSignal<bool>) -> i
                     </ul>
                 }.into_any()
             } else {
-                view! { <></> }.into_any()
+                ().into_any()
             }}
         </div>
     }

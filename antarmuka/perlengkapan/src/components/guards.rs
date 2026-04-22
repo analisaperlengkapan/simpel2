@@ -52,9 +52,8 @@ pub fn RoleGuard(
 
     move || match AuthService::load_session() {
         Some(session) => {
-            let allowed = roles.with_value(|required| {
-                required.iter().any(|r| session.has_role(r.as_str()))
-            });
+            let allowed =
+                roles.with_value(|required| required.iter().any(|r| session.has_role(r.as_str())));
             if allowed {
                 children.with_value(|c| c().into_any())
             } else {
@@ -68,10 +67,7 @@ pub fn RoleGuard(
 /// Gate UI to a specific satker. Admins bypass the check so pusat users can
 /// still inspect any satker without needing a cross-role hack.
 #[component]
-pub fn SatkerGuard(
-    #[prop(into)] satker_code: String,
-    children: ChildrenFn,
-) -> impl IntoView {
+pub fn SatkerGuard(#[prop(into)] satker_code: String, children: ChildrenFn) -> impl IntoView {
     let satker_code = StoredValue::new(satker_code);
     let children = StoredValue::new_local(children);
 

@@ -39,10 +39,7 @@ pub fn LoadingPanel(#[prop(optional, into)] message: String) -> impl IntoView {
 }
 
 #[component]
-pub fn EmptyPanel(
-    #[prop(into)] title: String,
-    #[prop(into)] message: String,
-) -> impl IntoView {
+pub fn EmptyPanel(#[prop(into)] title: String, #[prop(into)] message: String) -> impl IntoView {
     view! {
         <div class="text-center py-12 bg-white rounded-xl border">
             <p class="text-base font-medium text-gray-700">{title}</p>

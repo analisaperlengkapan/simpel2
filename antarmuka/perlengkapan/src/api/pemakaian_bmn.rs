@@ -306,7 +306,9 @@ pub async fn fetch_pemakaian_bmn_detail(
 pub async fn fetch_pemakaian_bmn_detail(
     _id: &str,
 ) -> Result<ApiResponse<IzinPemakaianDetailResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Create Permit ---
@@ -321,7 +323,9 @@ pub async fn create_pemakaian_bmn(
 pub async fn create_pemakaian_bmn(
     _request: CreateIzinPemakaianRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Check BMN Availability ---
@@ -329,14 +333,20 @@ pub async fn create_pemakaian_bmn(
 pub async fn check_bmn_availability(
     bmn_nup: &str,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
-    auth_get_json(&format!("{}/bmn/{}/availability", PEMAKAIAN_BMN_BASE, bmn_nup)).await
+    auth_get_json(&format!(
+        "{}/bmn/{}/availability",
+        PEMAKAIAN_BMN_BASE, bmn_nup
+    ))
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn check_bmn_availability(
     _bmn_nup: &str,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Workflow Transition ---
@@ -345,7 +355,11 @@ pub async fn transition_pemakaian_bmn_status(
     id: &str,
     request: PemakaianWorkflowTransitionRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    auth_post_json(&format!("{}/{}/transition", PEMAKAIAN_BMN_BASE, id), &request).await
+    auth_post_json(
+        &format!("{}/{}/transition", PEMAKAIAN_BMN_BASE, id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -353,7 +367,9 @@ pub async fn transition_pemakaian_bmn_status(
     _id: &str,
     _request: PemakaianWorkflowTransitionRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Activate Permit ---
@@ -361,13 +377,20 @@ pub async fn transition_pemakaian_bmn_status(
 pub async fn activate_pemakaian_bmn(
     id: &str,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    auth_post_json(&format!("{}/{}/activate", PEMAKAIAN_BMN_BASE, id), &serde_json::json!({}))
-        .await
+    auth_post_json(
+        &format!("{}/{}/activate", PEMAKAIAN_BMN_BASE, id),
+        &serde_json::json!({}),
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn activate_pemakaian_bmn(_id: &str) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+pub async fn activate_pemakaian_bmn(
+    _id: &str,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Revoke Permit ---
@@ -384,7 +407,9 @@ pub async fn revoke_pemakaian_bmn(
     _id: &str,
     _request: RevokePermitRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Renew Permit ---
@@ -401,7 +426,9 @@ pub async fn renew_pemakaian_bmn(
     _id: &str,
     _request: RenewPermitRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- BMN Usage History ---
@@ -413,8 +440,12 @@ pub async fn fetch_bmn_usage_history(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_bmn_usage_history(_bmn_nup: &str) -> Result<ApiResponse<BmnUsageStats>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+pub async fn fetch_bmn_usage_history(
+    _bmn_nup: &str,
+) -> Result<ApiResponse<BmnUsageStats>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Pegawai Usage History ---
@@ -422,14 +453,20 @@ pub async fn fetch_bmn_usage_history(_bmn_nup: &str) -> Result<ApiResponse<BmnUs
 pub async fn fetch_pegawai_usage_history(
     pegawai_nip: &str,
 ) -> Result<ApiResponse<PegawaiUsageStats>, crate::api::AppError> {
-    auth_get_json(&format!("{}/pegawai/{}/history", PEMAKAIAN_BMN_BASE, pegawai_nip)).await
+    auth_get_json(&format!(
+        "{}/pegawai/{}/history",
+        PEMAKAIAN_BMN_BASE, pegawai_nip
+    ))
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_pegawai_usage_history(
     _pegawai_nip: &str,
 ) -> Result<ApiResponse<PegawaiUsageStats>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Get Expiring Permits ---
@@ -469,7 +506,9 @@ pub async fn generate_pemakaian_konsep_surat(
     _id: &str,
     _request: GenerateKonsepSuratRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Pemakaian BMN: Upload Signed PDF ---
@@ -490,5 +529,7 @@ pub async fn upload_pemakaian_signed_pdf(
     _id: &str,
     _request: UploadSignedPdfRequest,
 ) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }

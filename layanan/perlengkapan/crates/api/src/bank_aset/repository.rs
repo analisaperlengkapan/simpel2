@@ -77,8 +77,12 @@ impl BankAsetRepository {
             Some("updated_at_asc") => "ORDER BY updated_at ASC",
             Some("nama_asc") => "ORDER BY ur_sskel ASC NULLS LAST",
             Some("nama_desc") => "ORDER BY ur_sskel DESC NULLS LAST",
-            Some("nilai_asc") => "ORDER BY (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) ASC",
-            Some("nilai_desc") => "ORDER BY (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) DESC",
+            Some("nilai_asc") => {
+                "ORDER BY (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) ASC"
+            }
+            Some("nilai_desc") => {
+                "ORDER BY (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) DESC"
+            }
             _ => "ORDER BY updated_at DESC",
         };
 

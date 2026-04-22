@@ -8,9 +8,7 @@ use crate::api::{
     PengajuanPakaianDinas, fetch_jenis_pakaian_dinas, fetch_laporan_daftar_pegawai,
     fetch_laporan_rekap_ukuran, fetch_pengajuan_pakaian_dinas,
 };
-use crate::components::layout::{
-    EmptyState, ErrorState, LoadingState, PageLayout, SectionCard,
-};
+use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
 
 // ── Helper: build export URL from current filter state ────────────────────
@@ -27,11 +25,21 @@ fn build_export_url(
         "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file={}",
         jenis_laporan, jenis_file
     );
-    if let Some(v) = pengajuan { url.push_str(&format!("&pengajuan_id={}", v)); }
-    if let Some(v) = satker { url.push_str(&format!("&satker_id={}", v)); }
-    if let Some(v) = jenis_kelamin { url.push_str(&format!("&jenis_kelamin={}", v)); }
-    if let Some(v) = eselon { url.push_str(&format!("&eselon={}", v)); }
-    if let Some(v) = jenis_pegawai { url.push_str(&format!("&jenis={}", v)); }
+    if let Some(v) = pengajuan {
+        url.push_str(&format!("&pengajuan_id={}", v));
+    }
+    if let Some(v) = satker {
+        url.push_str(&format!("&satker_id={}", v));
+    }
+    if let Some(v) = jenis_kelamin {
+        url.push_str(&format!("&jenis_kelamin={}", v));
+    }
+    if let Some(v) = eselon {
+        url.push_str(&format!("&eselon={}", v));
+    }
+    if let Some(v) = jenis_pegawai {
+        url.push_str(&format!("&jenis={}", v));
+    }
     url
 }
 
@@ -78,12 +86,15 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
 
     // Fetch filter options
     let pengajuan_options = LocalResource::new(|| async move {
-        fetch_pengajuan_pakaian_dinas(1, 100, None).await.map(|r| r.data)
+        fetch_pengajuan_pakaian_dinas(1, 100, None)
+            .await
+            .map(|r| r.data)
     });
 
-    let jenis_options = LocalResource::new(|| async move {
-        fetch_jenis_pakaian_dinas(1, 100).await.map(|r| r.data)
-    });
+    let jenis_options =
+        LocalResource::new(
+            || async move { fetch_jenis_pakaian_dinas(1, 100).await.map(|r| r.data) },
+        );
 
     let tab_class = move |tab: &'static str| {
         let active = active_tab.get() == tab;
@@ -346,12 +357,16 @@ fn render_rekap_groups(rekap: Vec<LaporanRekapUkuran>) -> AnyView {
                 render_rekap_table(group_name, items)
             }).collect_view()}
         </div>
-    }.into_any()
+    }
+    .into_any()
 }
 
 /// Render a single rekap table for one pakaian group.
 fn render_rekap_table(group_name: String, items: Vec<LaporanRekapUkuran>) -> impl IntoView {
-    let ukuran_group = items.first().map(|r| r.ukuran_group.clone()).unwrap_or_default();
+    let ukuran_group = items
+        .first()
+        .map(|r| r.ukuran_group.clone())
+        .unwrap_or_default();
     let (accent, icon) = group_accent(&ukuran_group);
     let total_l: i64 = items.iter().map(|r| r.jumlah_laki).sum();
     let total_p: i64 = items.iter().map(|r| r.jumlah_perempuan).sum();
@@ -478,7 +493,10 @@ fn render_pegawai_table(
     page: ReadSignal<i32>,
     set_page: WriteSignal<i32>,
 ) -> AnyView {
-    let headers = ["No", "NIP", "Nama", "Jabatan", "Gol", "Status", "Gender", "Hijab", "Baju", "Celana", "Sepatu"];
+    let headers = [
+        "No", "NIP", "Nama", "Jabatan", "Gol", "Status", "Gender", "Hijab", "Baju", "Celana",
+        "Sepatu",
+    ];
 
     view! {
         <div class="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel">

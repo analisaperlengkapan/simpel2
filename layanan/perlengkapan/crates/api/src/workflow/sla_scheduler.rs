@@ -243,7 +243,10 @@ impl SlaEscalationScheduler {
                 total_breaches, total_escalations, duration
             );
         } else {
-            info!("SLA check completed: No breaches detected in {:?}", duration);
+            info!(
+                "SLA check completed: No breaches detected in {:?}",
+                duration
+            );
         }
 
         // Record metrics
@@ -272,9 +275,10 @@ impl SlaEscalationScheduler {
         };
 
         // Check all SLA breaches
-        let breaches = monitor.check_all_sla().await.map_err(|e| {
-            anyhow::anyhow!("Failed to check SLA for {}: {}", workflow_type, e)
-        })?;
+        let breaches = monitor
+            .check_all_sla()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to check SLA for {}: {}", workflow_type, e))?;
 
         let breach_count = breaches.len();
         let mut escalation_count = 0;

@@ -594,7 +594,8 @@ fn ActionModal(
     };
     let description = move || {
         if is_forward() {
-            "Pengajuan akan diteruskan ke Validator Pusat untuk dianalisis lebih lanjut.".to_string()
+            "Pengajuan akan diteruskan ke Validator Pusat untuk dianalisis lebih lanjut."
+                .to_string()
         } else {
             "Pengajuan akan dikembalikan ke Operator Satker untuk direvisi.".to_string()
         }
@@ -716,7 +717,10 @@ async fn submit_validator_wilayah_action(
     satker_id: Uuid,
     request: ValidatorWilayahActionRequest,
 ) -> Result<SatkerDetail, AppError> {
-    let url = format!("/api/v1/kebutuhan-bmn/satker/{}/validator-wilayah", satker_id);
+    let url = format!(
+        "/api/v1/kebutuhan-bmn/satker/{}/validator-wilayah",
+        satker_id
+    );
     let response = gloo_net::http::Request::post(&url)
         .json(&request)?
         .send()

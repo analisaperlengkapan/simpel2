@@ -25,15 +25,12 @@ pub mod path {
     pub const PAKAIAN_PENGAJUAN: &str = "/perlengkapan/pakaian-dinas/pengajuan";
     pub const PAKAIAN_UKURAN: &str = "/perlengkapan/pakaian-dinas/ukuran";
     pub const PAKAIAN_LAPORAN: &str = "/perlengkapan/pakaian-dinas/laporan";
-    pub const PAKAIAN_LAPORAN_REKAP_LEGACY: &str =
-        "/perlengkapan/pakaian-dinas/laporan/rekap";
+    pub const PAKAIAN_LAPORAN_REKAP_LEGACY: &str = "/perlengkapan/pakaian-dinas/laporan/rekap";
 
     pub const PENGELOLAAN_PEMAKAIAN: &str = "/perlengkapan/pengelolaan/pemakaian";
     pub const PENGELOLAAN_PENGHAPUSAN: &str = "/perlengkapan/pengelolaan/penghapusan";
-    pub const PENGELOLAAN_PEMAKAIAN_BUAT: &str =
-        "/perlengkapan/pengelolaan/pemakaian/buat";
-    pub const PENGELOLAAN_PENGHAPUSAN_BUAT: &str =
-        "/perlengkapan/pengelolaan/penghapusan/buat";
+    pub const PENGELOLAAN_PEMAKAIAN_BUAT: &str = "/perlengkapan/pengelolaan/pemakaian/buat";
+    pub const PENGELOLAAN_PENGHAPUSAN_BUAT: &str = "/perlengkapan/pengelolaan/penghapusan/buat";
     pub const PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY: &str =
         "/perlengkapan/pengelolaan/penghapusan/daftar";
 

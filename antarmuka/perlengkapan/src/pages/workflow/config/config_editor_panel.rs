@@ -5,8 +5,8 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::api::workflow::{
-    CreateWorkflowRequest, UpdateWorkflowRequest, WorkflowDefinition,
-    create_workflow_definition, update_workflow_definition,
+    CreateWorkflowRequest, UpdateWorkflowRequest, WorkflowDefinition, create_workflow_definition,
+    update_workflow_definition,
 };
 
 #[component]
@@ -17,16 +17,29 @@ pub fn ConfigEditorPanel(
     #[prop(into)] on_save: Callback<()>,
 ) -> impl IntoView {
     let is_create = workflow.is_none();
-    let title = if is_create { "Buat Workflow Baru" } else { "Edit Workflow" };
+    let title = if is_create {
+        "Buat Workflow Baru"
+    } else {
+        "Edit Workflow"
+    };
     let subtitle = if is_create {
         "Buat definisi workflow baru untuk proses persetujuan"
     } else {
         "Perbarui metadata workflow yang sudah ada"
     };
 
-    let (name, set_name) = signal(workflow.as_ref().map(|w| w.name.clone()).unwrap_or_default());
-    let (description, set_description) =
-        signal(workflow.as_ref().map(|w| w.description.clone()).unwrap_or_default());
+    let (name, set_name) = signal(
+        workflow
+            .as_ref()
+            .map(|w| w.name.clone())
+            .unwrap_or_default(),
+    );
+    let (description, set_description) = signal(
+        workflow
+            .as_ref()
+            .map(|w| w.description.clone())
+            .unwrap_or_default(),
+    );
     let (version, set_version) = signal(
         workflow
             .as_ref()

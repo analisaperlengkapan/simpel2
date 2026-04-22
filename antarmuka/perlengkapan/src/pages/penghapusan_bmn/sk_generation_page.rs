@@ -117,7 +117,8 @@ pub fn SkGenerationPage() -> impl IntoView {
             match upload_signed_sk_document(request_id, file).await {
                 Ok(_) => {
                     set_success_message.set(Some(
-                        "SK Penghapusan yang sudah ditandatangani berhasil diupload (REQ-PH010)".to_string()
+                        "SK Penghapusan yang sudah ditandatangani berhasil diupload (REQ-PH010)"
+                            .to_string(),
                     ));
 
                     // Reload requests
@@ -407,7 +408,10 @@ async fn fetch_requests_for_sk() -> Result<Vec<PenghapusanRequest>, crate::api::
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<Vec<PenghapusanRequest>> = response
@@ -418,7 +422,9 @@ async fn fetch_requests_for_sk() -> Result<Vec<PenghapusanRequest>, crate::api::
     Ok(api_response.data.unwrap_or_default())
 }
 
-async fn generate_sk_document(request_id: Uuid) -> Result<GenerateSKResponse, crate::api::AppError> {
+async fn generate_sk_document(
+    request_id: Uuid,
+) -> Result<GenerateSKResponse, crate::api::AppError> {
     let url = format!("/api/v1/penghapusan-bmn/{}/generate-sk", request_id);
     let response = gloo_net::http::Request::post(&url)
         .send()
@@ -426,7 +432,10 @@ async fn generate_sk_document(request_id: Uuid) -> Result<GenerateSKResponse, cr
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<GenerateSKResponse> = response
@@ -434,12 +443,19 @@ async fn generate_sk_document(request_id: Uuid) -> Result<GenerateSKResponse, cr
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
+    api_response
+        .data
+        .ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
-async fn upload_signed_sk_document(request_id: Uuid, file: web_sys::File) -> Result<(), crate::api::AppError> {
+async fn upload_signed_sk_document(
+    request_id: Uuid,
+    file: web_sys::File,
+) -> Result<(), crate::api::AppError> {
     let form_data = web_sys::FormData::new().map_err(|_| "Failed to create FormData")?;
-    form_data.append_with_blob("file", &file).map_err(|_| "Failed to append file")?;
+    form_data
+        .append_with_blob("file", &file)
+        .map_err(|_| "Failed to append file")?;
 
     let url = format!("/api/v1/penghapusan-bmn/{}/upload-signed-sk", request_id);
 
@@ -451,7 +467,10 @@ async fn upload_signed_sk_document(request_id: Uuid, file: web_sys::File) -> Res
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     Ok(())

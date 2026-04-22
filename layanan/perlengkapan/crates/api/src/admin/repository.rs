@@ -78,8 +78,10 @@ pub async fn list_audit_logs(
          {where_sql}"
     );
 
-    let params_refs: Vec<&(dyn ToSql + Sync)> =
-        params.iter().map(|p| p.as_ref() as &(dyn ToSql + Sync)).collect();
+    let params_refs: Vec<&(dyn ToSql + Sync)> = params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
+        .collect();
 
     let total: i64 = client
         .query_one(count_sql.as_str(), &params_refs)
@@ -277,8 +279,10 @@ pub async fn list_master_records(
         where_sql.push_str(&format!(" AND ({})", clauses.join(" OR ")));
     }
 
-    let params_refs: Vec<&(dyn ToSql + Sync)> =
-        params.iter().map(|p| p.as_ref() as &(dyn ToSql + Sync)).collect();
+    let params_refs: Vec<&(dyn ToSql + Sync)> = params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
+        .collect();
 
     let count_sql = format!(
         "SELECT COUNT(*)::BIGINT FROM {}.{} {}",
@@ -345,8 +349,10 @@ pub async fn create_master_record(
         placeholders.push(format!("${}", params.len()));
     }
 
-    let params_refs: Vec<&(dyn ToSql + Sync)> =
-        params.iter().map(|p| p.as_ref() as &(dyn ToSql + Sync)).collect();
+    let params_refs: Vec<&(dyn ToSql + Sync)> = params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
+        .collect();
 
     let select_cols = build_select_columns(table);
     let sql = format!(
@@ -404,8 +410,10 @@ pub async fn update_master_record(
     params.push(id_param);
     let id_placeholder = params.len();
 
-    let params_refs: Vec<&(dyn ToSql + Sync)> =
-        params.iter().map(|p| p.as_ref() as &(dyn ToSql + Sync)).collect();
+    let params_refs: Vec<&(dyn ToSql + Sync)> = params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
+        .collect();
 
     let select_cols = build_select_columns(table);
     let sql = format!(
@@ -423,11 +431,7 @@ pub async fn update_master_record(
     Ok(row_to_master_record(table, &row))
 }
 
-pub async fn delete_master_record(
-    pool: &Pool,
-    table: &MasterTable,
-    id: &str,
-) -> AppResult<()> {
+pub async fn delete_master_record(pool: &Pool, table: &MasterTable, id: &str) -> AppResult<()> {
     if !table.writable {
         return Err(AppError::Authorization(format!(
             "Master data '{}' bersifat read-only di hub admin",
@@ -489,10 +493,7 @@ fn row_to_master_record(table: &MasterTable, row: &tokio_postgres::Row) -> Maste
     }
 }
 
-fn coerce_id_param(
-    table: &MasterTable,
-    id: &str,
-) -> AppResult<Box<dyn ToSql + Sync + Send>> {
+fn coerce_id_param(table: &MasterTable, id: &str) -> AppResult<Box<dyn ToSql + Sync + Send>> {
     if table.id_is_uuid {
         let uuid = Uuid::parse_str(id)
             .map_err(|_| AppError::BadRequest(format!("ID tidak valid: {}", id)))?;
@@ -505,10 +506,7 @@ fn coerce_id_param(
     }
 }
 
-fn coerce_code_param(
-    code_col: &str,
-    value: &str,
-) -> AppResult<Box<dyn ToSql + Sync + Send>> {
+fn coerce_code_param(code_col: &str, value: &str) -> AppResult<Box<dyn ToSql + Sync + Send>> {
     // ms_aktivitas_bmn.kode is INTEGER; everything else is text.
     if code_col == "kode" {
         let n: i32 = value

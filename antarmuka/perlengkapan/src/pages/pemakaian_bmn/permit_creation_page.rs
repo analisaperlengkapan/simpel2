@@ -9,12 +9,12 @@
 //!
 //! Requirements: REQ-P001 to REQ-P010
 
+use chrono::NaiveDate;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::NaiveDate;
 
 // ============================================================================
 // API Models
@@ -145,7 +145,9 @@ pub fn PermitCreationPage() -> impl IntoView {
         let start = start_date.get();
         let end = end_date.get();
         if start.is_empty() || end.is_empty() {
-            set_error.set(Some("Tanggal mulai dan selesai harus diisi (REQ-P005)".to_string()));
+            set_error.set(Some(
+                "Tanggal mulai dan selesai harus diisi (REQ-P005)".to_string(),
+            ));
             return;
         }
 
@@ -171,7 +173,9 @@ pub fn PermitCreationPage() -> impl IntoView {
                         let _ = add_bmn_to_permit(permit.id, bmn).await;
                     }
 
-                    set_success_message.set(Some("Izin pemakaian berhasil dibuat (REQ-P001)".to_string()));
+                    set_success_message.set(Some(
+                        "Izin pemakaian berhasil dibuat (REQ-P001)".to_string(),
+                    ));
                 }
                 Err(e) => set_error.set(Some(e.to_string())),
             }
@@ -366,7 +370,10 @@ async fn fetch_pegawai_list() -> Result<Vec<Pegawai>, crate::api::AppError> {
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<Vec<Pegawai>> = response
@@ -384,7 +391,10 @@ async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<Vec<BmnItem>> = response
@@ -404,7 +414,10 @@ async fn create_permit_api(request: CreatePermitRequest) -> Result<Permit, crate
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<Permit> = response
@@ -412,7 +425,9 @@ async fn create_permit_api(request: CreatePermitRequest) -> Result<Permit, crate
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
+    api_response
+        .data
+        .ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
 async fn add_bmn_to_permit(permit_id: Uuid, bmn: BmnItem) -> Result<(), crate::api::AppError> {
@@ -430,7 +445,10 @@ async fn add_bmn_to_permit(permit_id: Uuid, bmn: BmnItem) -> Result<(), crate::a
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     Ok(())

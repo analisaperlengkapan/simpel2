@@ -2,10 +2,11 @@
 
 #[cfg(test)]
 mod kebutuhan_bmn_service_tests {
-    use uuid::Uuid;
     use chrono::NaiveDate;
+    use uuid::Uuid;
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct PengajuanKebutuhanBmn {
         id: Uuid,
         nama: String,
@@ -40,10 +41,8 @@ mod kebutuhan_bmn_service_tests {
 
     #[test]
     fn test_status_transition() {
-        let mut status = 2000; // DRAFT
-
         // DRAFT -> SUBMITTED
-        status = 2002;
+        let mut status = 2002;
         assert_eq!(status, 2002);
 
         // SUBMITTED -> REVIEWED_WILAYAH
@@ -72,6 +71,9 @@ mod kebutuhan_bmn_service_tests {
         let deadline = NaiveDate::from_ymd_opt(2024, 3, 31).unwrap();
         let submission_date = NaiveDate::from_ymd_opt(2024, 3, 15).unwrap();
 
-        assert!(submission_date <= deadline, "Submission must be before deadline");
+        assert!(
+            submission_date <= deadline,
+            "Submission must be before deadline"
+        );
     }
 }

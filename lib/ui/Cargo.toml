@@ -48,7 +48,9 @@ urlencoding = "2.1"
 uuid = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
-getrandom = { version = "0.3.3", features = ["wasm_js"] }
+getrandom = { workspace = true }
+# Enable wasm_js for getrandom 0.4 pulled transitively by updated deps (e.g. uuid 1.23+)
+getrandom_04 = { workspace = true }
 lib-common = { path = "../common", default-features = false, features = ["validation", "crypto"] }
 
 [build-dependencies]

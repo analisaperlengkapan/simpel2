@@ -62,7 +62,6 @@ pub fn LoginPage(
     {
         let api = api.clone();
         let nav = navigate.clone();
-        let app_state = app_state;
         Effect::new(move || {
             let count = passkey_trigger.get();
             if count == 0 {
@@ -74,7 +73,6 @@ pub fn LoginPage(
             }
             let api = api.clone();
             let nav = nav.clone();
-            let app_state = app_state;
             set_passkey_loading.set(true);
             set_error_message.set(String::new());
 
@@ -220,7 +218,6 @@ pub fn LoginPage(
         let redirect_target = resolve_perlengkapan_redirect_target();
 
         let nav = navigate.clone();
-        let app_state = app_state;
 
         spawn_local(async move {
             match AuthService::login(credentials).await {

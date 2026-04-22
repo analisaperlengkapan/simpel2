@@ -63,7 +63,9 @@ impl KebutuhanBmnStatus {
             Self::SubmitSatker => "bg-gold-500/15 text-gold-300 ring-1 ring-gold-500/25",
             Self::RevisiSatker => "bg-warning-500/15 text-warning-300 ring-1 ring-warning-500/25",
             Self::AnalisisKelayakan => "bg-purple-500/15 text-purple-300 ring-1 ring-purple-500/25",
-            Self::PenyusunanPrioritas => "bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/25",
+            Self::PenyusunanPrioritas => {
+                "bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/25"
+            }
             Self::Approved => "bg-success-500/15 text-success-300 ring-1 ring-success-500/25",
             Self::Rejected => "bg-danger-500/15 text-danger-300 ring-1 ring-danger-500/25",
             Self::Completed => "bg-success-500/15 text-success-300 ring-1 ring-success-500/25",

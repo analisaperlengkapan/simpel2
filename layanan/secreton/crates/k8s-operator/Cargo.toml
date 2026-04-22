@@ -27,7 +27,7 @@ k8s-openapi.workspace = true
 schemars.workspace = true
 
 # HTTP client
-reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+reqwest = { workspace = true, features = ["json", "rustls"] }
 
 # CLI
 clap = { workspace = true, features = ["derive", "env"] }

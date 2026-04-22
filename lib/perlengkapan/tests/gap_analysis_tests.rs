@@ -63,13 +63,10 @@ mod gap_analysis_tests {
     #[test]
     fn test_gap_analysis_with_condition_filter() {
         // Simulate filtering by condition
-        let assets = vec![
-            ("BAIK", 5),
-            ("RUSAK RINGAN", 2),
-            ("RUSAK BERAT", 1),
-        ];
+        let assets = vec![("BAIK", 5), ("RUSAK RINGAN", 2), ("RUSAK BERAT", 1)];
 
-        let good_count: i32 = assets.iter()
+        let good_count: i32 = assets
+            .iter()
             .filter(|(condition, _)| *condition == "BAIK")
             .map(|(_, count)| count)
             .sum();
@@ -85,9 +82,7 @@ mod gap_analysis_tests {
             ("Kejari C", 12, 12, 0),
         ];
 
-        let total_gap: i32 = satker_gaps.iter()
-            .map(|(_, _, _, gap)| gap)
-            .sum();
+        let total_gap: i32 = satker_gaps.iter().map(|(_, _, _, gap)| gap).sum();
 
         assert_eq!(total_gap, 7);
     }

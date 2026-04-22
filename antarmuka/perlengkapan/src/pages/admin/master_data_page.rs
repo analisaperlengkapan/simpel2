@@ -140,10 +140,7 @@ fn SourceGrid(
 }
 
 #[component]
-fn SourceDetail(
-    source: MasterSource,
-    #[prop(into)] on_back: Callback<()>,
-) -> impl IntoView {
+fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> impl IntoView {
     let source_key = source.key.clone();
     let source_label = source.label.clone();
 
@@ -190,23 +187,24 @@ fn SourceDetail(
     };
 
     let source_key_delete = source_key.clone();
-    let confirm_delete: Arc<dyn Fn(MasterRecord) + Send + Sync> = Arc::new(move |rec: MasterRecord| {
-        let key = source_key_delete.clone();
-        let id = rec.id.clone();
-        spawn_local(async move {
-            match delete_master_record(&key, &id).await {
-                Ok(()) => {
-                    set_action_msg.set(Some((true, "Record berhasil dihapus.".to_string())));
-                    set_deleting.set(None);
-                    set_reload_tick.update(|t| *t += 1);
+    let confirm_delete: Arc<dyn Fn(MasterRecord) + Send + Sync> =
+        Arc::new(move |rec: MasterRecord| {
+            let key = source_key_delete.clone();
+            let id = rec.id.clone();
+            spawn_local(async move {
+                match delete_master_record(&key, &id).await {
+                    Ok(()) => {
+                        set_action_msg.set(Some((true, "Record berhasil dihapus.".to_string())));
+                        set_deleting.set(None);
+                        set_reload_tick.update(|t| *t += 1);
+                    }
+                    Err(e) => {
+                        set_action_msg.set(Some((false, e.user_message())));
+                        set_deleting.set(None);
+                    }
                 }
-                Err(e) => {
-                    set_action_msg.set(Some((false, e.user_message())));
-                    set_deleting.set(None);
-                }
-            }
+            });
         });
-    });
 
     let source_key_for_editor = source_key.clone();
 
@@ -493,12 +491,24 @@ fn RecordEditorModal(
     #[prop(into)] on_saved: Callback<()>,
 ) -> impl IntoView {
     let is_create = record.is_none();
-    let title = if is_create { "Tambah Record" } else { "Edit Record" };
+    let title = if is_create {
+        "Tambah Record"
+    } else {
+        "Edit Record"
+    };
 
-    let (code, set_code) = signal(record.as_ref().and_then(|r| r.code.clone()).unwrap_or_default());
+    let (code, set_code) = signal(
+        record
+            .as_ref()
+            .and_then(|r| r.code.clone())
+            .unwrap_or_default(),
+    );
     let (name, set_name) = signal(record.as_ref().map(|r| r.name.clone()).unwrap_or_default());
     let (description, set_description) = signal(
-        record.as_ref().and_then(|r| r.description.clone()).unwrap_or_default(),
+        record
+            .as_ref()
+            .and_then(|r| r.description.clone())
+            .unwrap_or_default(),
     );
     let (active, set_active) = signal(record.as_ref().map(|r| r.active).unwrap_or(true));
     let (saving, set_saving) = signal(false);

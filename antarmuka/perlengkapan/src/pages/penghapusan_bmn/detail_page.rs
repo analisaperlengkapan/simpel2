@@ -7,7 +7,9 @@ use leptos_router::hooks::use_params_map;
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement};
 
-use crate::api::common::{PenghapusanBmnDetailResponse, PenghapusanBmnWorkflow, UploadSignedSKRequest};
+use crate::api::common::{
+    PenghapusanBmnDetailResponse, PenghapusanBmnWorkflow, UploadSignedSKRequest,
+};
 use crate::api::error::AppError;
 use crate::api::penghapusan_bmn;
 use crate::components::layout::{
@@ -98,10 +100,7 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
         spawn_local(async move {
             match penghapusan_bmn::generate_penghapusan_konsep_sk(&id).await {
                 Ok(_) => {
-                    set_action_msg.set(Some((
-                        true,
-                        "Konsep SK berhasil digenerate.".to_string(),
-                    )));
+                    set_action_msg.set(Some((true, "Konsep SK berhasil digenerate.".to_string())));
                     set_reload_tick.update(|t| *t += 1);
                 }
                 Err(e) => set_action_msg.set(Some((false, e.user_message()))),
@@ -214,7 +213,10 @@ fn DetailBody(
         .nilai_residu
         .map(format_rupiah)
         .unwrap_or_else(|| "-".to_string());
-    let catatan_operator = p.catatan_operator.clone().unwrap_or_else(|| "-".to_string());
+    let catatan_operator = p
+        .catatan_operator
+        .clone()
+        .unwrap_or_else(|| "-".to_string());
 
     view! {
         <StatusSummary status=status.clone() />
@@ -518,19 +520,22 @@ fn UploadSignedSKModal(
 fn status_descriptor(status: &str) -> (&'static str, &'static str) {
     match status {
         "DRAFT" => ("Draft", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
-        "SUBMIT_WILAYAH" | "SUBMITTED" => {
-            ("Review Wilayah", "bg-info-500/10 text-info-300 ring-info-500/20")
-        }
+        "SUBMIT_WILAYAH" | "SUBMITTED" => (
+            "Review Wilayah",
+            "bg-info-500/10 text-info-300 ring-info-500/20",
+        ),
         "RETURNED_TO_OPERATOR" => (
             "Dikembalikan ke Operator",
             "bg-warning-500/10 text-warning-300 ring-warning-500/20",
         ),
-        "SUBMIT_PUSAT" | "REVIEWED" => {
-            ("Review Pusat", "bg-info-500/10 text-info-300 ring-info-500/20")
-        }
-        "VERIFIKASI_PUSAT" => {
-            ("Verifikasi Pusat", "bg-info-500/10 text-info-300 ring-info-500/20")
-        }
+        "SUBMIT_PUSAT" | "REVIEWED" => (
+            "Review Pusat",
+            "bg-info-500/10 text-info-300 ring-info-500/20",
+        ),
+        "VERIFIKASI_PUSAT" => (
+            "Verifikasi Pusat",
+            "bg-info-500/10 text-info-300 ring-info-500/20",
+        ),
         "KONSEP_SK_GENERATED" => (
             "Konsep SK",
             "bg-warning-500/10 text-warning-300 ring-warning-500/20",
@@ -539,9 +544,18 @@ fn status_descriptor(status: &str) -> (&'static str, &'static str) {
             "SK Ditandatangani",
             "bg-success-500/10 text-success-300 ring-success-500/20",
         ),
-        "COMPLETED" => ("Selesai", "bg-success-500/10 text-success-300 ring-success-500/20"),
-        "REJECTED" => ("Ditolak", "bg-danger-500/10 text-danger-300 ring-danger-500/20"),
-        _ => ("Lainnya", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
+        "COMPLETED" => (
+            "Selesai",
+            "bg-success-500/10 text-success-300 ring-success-500/20",
+        ),
+        "REJECTED" => (
+            "Ditolak",
+            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
+        ),
+        _ => (
+            "Lainnya",
+            "bg-slate-500/10 text-slate-300 ring-slate-500/20",
+        ),
     }
 }
 
@@ -549,9 +563,7 @@ fn stage_hint(status: &str) -> &'static str {
     match status {
         "DRAFT" => "Lengkapi data usulan lalu ajukan ke validator wilayah.",
         "SUBMIT_WILAYAH" | "SUBMITTED" => "Menunggu verifikasi validator wilayah.",
-        "RETURNED_TO_OPERATOR" => {
-            "Usulan dikembalikan. Perbaiki sesuai catatan lalu ajukan ulang."
-        }
+        "RETURNED_TO_OPERATOR" => "Usulan dikembalikan. Perbaiki sesuai catatan lalu ajukan ulang.",
         "SUBMIT_PUSAT" | "REVIEWED" => "Menunggu verifikasi validator pusat.",
         "VERIFIKASI_PUSAT" => "Validator pusat sedang memverifikasi dokumen.",
         "KONSEP_SK_GENERATED" => {
@@ -570,7 +582,7 @@ fn format_rupiah(n: f64) -> String {
     let bytes = s.as_bytes();
     let mut out = String::with_capacity(s.len() + s.len() / 3);
     for (i, b) in bytes.iter().enumerate() {
-        if i > 0 && (bytes.len() - i) % 3 == 0 {
+        if i > 0 && (bytes.len() - i).is_multiple_of(3) {
             out.push('.');
         }
         out.push(*b as char);

@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod workflow_service_tests {
-    use uuid::Uuid;
     use std::collections::HashMap;
+    use uuid::Uuid;
 
     #[derive(Debug, Clone, PartialEq)]
     enum WorkflowState {
@@ -16,6 +16,7 @@ mod workflow_service_tests {
     }
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct WorkflowInstance {
         id: Uuid,
         entity_id: Uuid,
@@ -110,7 +111,7 @@ mod workflow_service_tests {
 
     #[test]
     fn test_sla_tracking() {
-        use chrono::{DateTime, Utc, Duration};
+        use chrono::{Duration, Utc};
 
         let created_at = Utc::now();
         let sla_hours = 24;

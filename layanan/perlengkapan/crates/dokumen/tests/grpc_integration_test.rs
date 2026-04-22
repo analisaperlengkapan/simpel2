@@ -35,7 +35,7 @@ mod dokumen_grpc_integration_test {
 
         assert!(result.is_ok());
         let documents = result.unwrap();
-        assert!(documents.len() >= 0);
+        assert!(!documents.is_empty());
     }
 
     // Mock helper functions

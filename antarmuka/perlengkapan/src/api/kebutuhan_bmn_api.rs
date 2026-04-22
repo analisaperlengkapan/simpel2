@@ -97,7 +97,9 @@ pub async fn fetch_kebutuhan_bmn_detail(
 pub async fn fetch_kebutuhan_bmn_detail(
     _id: &str,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -111,7 +113,9 @@ pub async fn create_kebutuhan_bmn(
 pub async fn create_kebutuhan_bmn(
     _request: CreateKebutuhanBmnRequest,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -119,7 +123,11 @@ pub async fn update_kebutuhan_bmn(
     id: &str,
     request: UpdateKebutuhanBmnRequest,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
-    auth_put_json(&format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id), &request).await
+    auth_put_json(
+        &format!("{}/pengajuan/{}", KEBUTUHAN_BMN_BASE, id),
+        &request,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -127,7 +135,9 @@ pub async fn update_kebutuhan_bmn(
     _id: &str,
     _request: UpdateKebutuhanBmnRequest,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -137,7 +147,9 @@ pub async fn delete_kebutuhan_bmn(id: &str) -> Result<ApiResponse<()>, crate::ap
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn delete_kebutuhan_bmn(_id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Workflow Transition ---
@@ -158,7 +170,9 @@ pub async fn transition_kebutuhan_bmn_status(
     _id: &str,
     _request: WorkflowTransitionRequest,
 ) -> Result<ApiResponse<PengajuanDetailResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Satker Operations ---
@@ -204,7 +218,9 @@ pub async fn fetch_satker_with_barang(
 pub async fn fetch_satker_with_barang(
     _satker_id: &str,
 ) -> Result<ApiResponse<SatkerWithBarangResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -224,14 +240,20 @@ pub async fn transition_satker_status(
     _satker_id: &str,
     _request: WorkflowTransitionRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_satker_aktivitas(
     satker_id: &str,
 ) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>, crate::api::AppError> {
-    auth_get_json(&format!("{}/satker/{}/aktivitas", KEBUTUHAN_BMN_BASE, satker_id)).await
+    auth_get_json(&format!(
+        "{}/satker/{}/aktivitas",
+        KEBUTUHAN_BMN_BASE, satker_id
+    ))
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -249,14 +271,20 @@ pub async fn fetch_satker_aktivitas(
 pub async fn fetch_satker_analisis(
     satker_id: &str,
 ) -> Result<ApiResponse<AnalisisKelayakanResponse>, crate::api::AppError> {
-    auth_get_json(&format!("{}/satker/{}/analisis", KEBUTUHAN_BMN_BASE, satker_id)).await
+    auth_get_json(&format!(
+        "{}/satker/{}/analisis",
+        KEBUTUHAN_BMN_BASE, satker_id
+    ))
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_satker_analisis(
     _satker_id: &str,
 ) -> Result<ApiResponse<AnalisisKelayakanResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Barang Operations ---
@@ -277,7 +305,9 @@ pub async fn create_kebutuhan_bmn_barang(
     _satker_id: &str,
     _request: CreateKebutuhanBmnBarangRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -297,7 +327,9 @@ pub async fn update_kebutuhan_bmn_barang(
     _barang_id: &str,
     _request: UpdateBarangApprovalRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -308,8 +340,12 @@ pub async fn delete_kebutuhan_bmn_barang(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_kebutuhan_bmn_barang(_barang_id: &str) -> Result<ApiResponse<()>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+pub async fn delete_kebutuhan_bmn_barang(
+    _barang_id: &str,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Priority Operations ---
@@ -324,7 +360,9 @@ pub async fn set_kebutuhan_bmn_prioritas(
 pub async fn set_kebutuhan_bmn_prioritas(
     _request: SetPrioritasRequest,
 ) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Export ---
@@ -335,7 +373,9 @@ pub async fn export_kebutuhan_bmn(id: &str) -> Result<Vec<u8>, crate::api::AppEr
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn export_kebutuhan_bmn(_id: &str) -> Result<Vec<u8>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Batch Operations ---
@@ -383,7 +423,9 @@ pub async fn batch_approve_kebutuhan(
     _ids: Vec<uuid::Uuid>,
     _komentar: Option<String>,
 ) -> Result<BatchOperationResponse, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -408,7 +450,9 @@ pub async fn batch_reject_kebutuhan(
     _ids: Vec<uuid::Uuid>,
     _komentar: String,
 ) -> Result<BatchOperationResponse, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -425,8 +469,11 @@ pub async fn batch_update_status(
         "komentar": komentar,
     });
 
-    let api_response: ApiResponse<BatchOperationResponse> =
-        auth_post_json(&format!("{}/batch/update-status", KEBUTUHAN_BMN_BASE), &body).await?;
+    let api_response: ApiResponse<BatchOperationResponse> = auth_post_json(
+        &format!("{}/batch/update-status", KEBUTUHAN_BMN_BASE),
+        &body,
+    )
+    .await?;
     Ok(api_response.data)
 }
 
@@ -436,7 +483,9 @@ pub async fn batch_update_status(
     _target_status: i32,
     _komentar: Option<String>,
 ) -> Result<BatchOperationResponse, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Kebutuhan BMN Workflow: Submit Satker to Wilayah ---
@@ -457,7 +506,9 @@ pub async fn submit_kebutuhan_satker_to_wilayah(
     _satker_id: &str,
     _request: SubmitKebutuhanSatkerRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Kebutuhan BMN Workflow: Validator Wilayah Action ---
@@ -467,7 +518,10 @@ pub async fn kebutuhan_validator_wilayah_action(
     request: KebutuhanValidatorWilayahActionRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     auth_post_json(
-        &format!("{}/satker/{}/validator-wilayah", KEBUTUHAN_BMN_BASE, satker_id),
+        &format!(
+            "{}/satker/{}/validator-wilayah",
+            KEBUTUHAN_BMN_BASE, satker_id
+        ),
         &request,
     )
     .await
@@ -478,7 +532,9 @@ pub async fn kebutuhan_validator_wilayah_action(
     _satker_id: &str,
     _request: KebutuhanValidatorWilayahActionRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Kebutuhan BMN Workflow: Validator Pusat Decision ---
@@ -488,7 +544,10 @@ pub async fn kebutuhan_validator_pusat_keputusan(
     request: ValidatorPusatKeputusanRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     auth_post_json(
-        &format!("{}/satker/{}/keputusan-pusat", KEBUTUHAN_BMN_BASE, satker_id),
+        &format!(
+            "{}/satker/{}/keputusan-pusat",
+            KEBUTUHAN_BMN_BASE, satker_id
+        ),
         &request,
     )
     .await
@@ -499,7 +558,9 @@ pub async fn kebutuhan_validator_pusat_keputusan(
     _satker_id: &str,
     _request: ValidatorPusatKeputusanRequest,
 ) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // ============================================================================
@@ -542,7 +603,11 @@ pub async fn search_siman_assets(
 pub async fn fetch_siman_satker_summary(
     satker_id: &str,
 ) -> Result<ApiResponse<SatkerAssetSummary>, crate::api::AppError> {
-    auth_get_json(&format!("{}/siman/summary/{}", KEBUTUHAN_BMN_BASE, satker_id)).await
+    auth_get_json(&format!(
+        "{}/siman/summary/{}",
+        KEBUTUHAN_BMN_BASE, satker_id
+    ))
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]

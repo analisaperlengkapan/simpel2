@@ -18,6 +18,7 @@ mod tests {
             jabatan: Some("Admin".to_string()),
             name: Some("Test User".to_string()),
             nip: Some("123456789".to_string()),
+            satker_code: Some("001".to_string()),
         }
     }
 

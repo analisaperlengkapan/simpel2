@@ -6,9 +6,9 @@ use crate::api::{
     AnalisisKelayakanResponse, CreateKebutuhanBmnBarangRequest, KebutuhanBmnStatus,
     KebutuhanValidatorWilayahActionRequest, PengajuanKebutuhanBmnAktivitas,
     PengajuanKebutuhanBmnBarang, SatkerWithBarangResponse, SubmitKebutuhanSatkerRequest,
-    ValidatorPusatKeputusanRequest, WorkflowTransitionRequest,
-    create_kebutuhan_bmn_barang, delete_kebutuhan_bmn_barang, fetch_satker_aktivitas,
-    fetch_satker_analisis, fetch_satker_with_barang, kebutuhan_validator_pusat_keputusan,
+    ValidatorPusatKeputusanRequest, WorkflowTransitionRequest, create_kebutuhan_bmn_barang,
+    delete_kebutuhan_bmn_barang, fetch_satker_aktivitas, fetch_satker_analisis,
+    fetch_satker_with_barang, kebutuhan_validator_pusat_keputusan,
     kebutuhan_validator_wilayah_action, submit_kebutuhan_satker_to_wilayah,
     transition_satker_status,
 };
@@ -201,8 +201,10 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
             .get()
             .and_then(|a| a.integrasi_sync)
             .map(|sync| {
-                sync_state_is_risky(&sync.mysimkari.state, sync.mysimkari.error_message.as_deref())
-                    || sync_state_is_risky(&sync.siman.state, sync.siman.error_message.as_deref())
+                sync_state_is_risky(
+                    &sync.mysimkari.state,
+                    sync.mysimkari.error_message.as_deref(),
+                ) || sync_state_is_risky(&sync.siman.state, sync.siman.error_message.as_deref())
             })
             .unwrap_or(false)
     };
@@ -293,7 +295,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
             return;
         }
 
-        let use_override = is_validator_decision_blocked() && is_override_allowed() && override_enabled.get();
+        let use_override =
+            is_validator_decision_blocked() && is_override_allowed() && override_enabled.get();
         let override_reason_text = override_reason.get().trim().to_string();
         let sid = satker_id.get();
         set_action_loading.set(true);
@@ -331,7 +334,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
             return;
         }
 
-        let use_override = is_validator_decision_blocked() && is_override_allowed() && override_enabled.get();
+        let use_override =
+            is_validator_decision_blocked() && is_override_allowed() && override_enabled.get();
         let override_reason_text = override_reason.get().trim().to_string();
         let reject_reason = reject_alasan.get();
 

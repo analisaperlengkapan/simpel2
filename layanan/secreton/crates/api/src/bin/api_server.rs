@@ -303,7 +303,7 @@ async fn serve_rest_with_tls(
 
     // Start server with TLS
     let rustls_config = RustlsConfig::from_config(Arc::new(server_config));
-    axum_server::from_tcp_rustls(listener, rustls_config)
+    axum_server::from_tcp_rustls(listener, rustls_config)?
         .serve(app.into_make_service())
         .await
         .map_err(|e| {

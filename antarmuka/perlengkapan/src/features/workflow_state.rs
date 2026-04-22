@@ -319,8 +319,7 @@ pub fn WorkflowTimeline(
     let items = entries
         .into_iter()
         .map(|entry| {
-            let is_current = !current.is_empty()
-                && entry.state.eq_ignore_ascii_case(&current);
+            let is_current = !current.is_empty() && entry.state.eq_ignore_ascii_case(&current);
             let phase = WorkflowPhase::classify(&entry.state);
             let dot_classes = if is_current {
                 "h-3 w-3 rounded-full bg-gold-500 ring-2 ring-gold-500/40"

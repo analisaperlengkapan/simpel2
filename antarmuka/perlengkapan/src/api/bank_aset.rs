@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::api::client::{api_get, API_BASE};
+use crate::api::client::{API_BASE, api_get};
 use crate::api::common::PaginatedResponse;
 use crate::api::error::{AppError, AppResult};
 
@@ -143,7 +143,11 @@ fn push_query(buf: &mut String, key: &str, value: &str) {
 pub async fn fetch_list(filter: &ListFilter) -> AppResult<PaginatedResponse<BankAsetItem>> {
     let mut url = format!("{API_BASE}/bank-aset");
     let page = if filter.page < 1 { 1 } else { filter.page };
-    let per_page = if filter.per_page < 1 { 25 } else { filter.per_page };
+    let per_page = if filter.per_page < 1 {
+        25
+    } else {
+        filter.per_page
+    };
     push_query(&mut url, "page", &page.to_string());
     push_query(&mut url, "per_page", &per_page.to_string());
     if let Some(v) = &filter.kategori {

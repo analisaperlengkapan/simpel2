@@ -10,9 +10,9 @@
 //!   Admin (Pengguna, Otorisasi, Audit Log, Master Data)
 //!   Bantuan (Panduan, FAQ, Helpdesk)
 
+use crate::{navigation, routes};
 use leptos::prelude::*;
 use leptos_router::components::A;
-use crate::{navigation, routes};
 
 // ══════════════════════════════════════════════════════════════════════
 // Helper: section header
@@ -58,9 +58,7 @@ fn NavLink(
 // ══════════════════════════════════════════════════════════════════════
 
 #[component]
-fn NavSection(
-    group: navigation::NavGroup,
-) -> impl IntoView {
+fn NavSection(group: navigation::NavGroup) -> impl IntoView {
     let is_open = RwSignal::new(false);
 
     view! {

@@ -50,8 +50,13 @@ impl UserSession {
     /// `starts_with("admin_")` string matching — that was a frequent source
     /// of false positives for roles like `admin_master_read_only`.
     pub fn is_admin(&self) -> bool {
-        const ADMIN_ROLES: &[&str] =
-            &["admin", "super_admin", "admin_pusat", "admin_wilayah", "admin_satker"];
+        const ADMIN_ROLES: &[&str] = &[
+            "admin",
+            "super_admin",
+            "admin_pusat",
+            "admin_wilayah",
+            "admin_satker",
+        ];
         self.has_any_role(ADMIN_ROLES)
     }
 
@@ -159,8 +164,7 @@ impl AuthService {
         }
         let payload_bytes =
             base64_decode_url(parts[1]).map_err(|e| format!("base64 decode: {e}"))?;
-        let payload =
-            String::from_utf8(payload_bytes).map_err(|e| format!("utf8 decode: {e}"))?;
+        let payload = String::from_utf8(payload_bytes).map_err(|e| format!("utf8 decode: {e}"))?;
         let claims: Claims =
             serde_json::from_str(&payload).map_err(|e| format!("claim decode: {e}"))?;
 
@@ -247,8 +251,8 @@ impl AuthService {
             if let Some(window) = web_sys::window()
                 && let Ok(request) = Request::new_with_str_and_init(&url, &opts)
             {
-                let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-                    .await;
+                let _ =
+                    wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await;
             }
         });
     }

@@ -5,10 +5,7 @@ use crate::features::auth::UserSession;
 use leptos::prelude::*;
 
 #[component]
-pub fn SidebarNavigation(
-    #[prop(optional)]
-    user_session: Option<UserSession>,
-) -> impl IntoView {
+pub fn SidebarNavigation(#[prop(optional)] user_session: Option<UserSession>) -> impl IntoView {
     let sections = resolve_menu_sections(user_session.as_ref());
 
     view! {
@@ -74,7 +71,7 @@ fn MenuItemNode(item: PortalMenuItem, depth: usize) -> impl IntoView {
                     </ul>
                 }.into_any()
             } else {
-                view! { <></> }.into_any()
+                ().into_any()
             }}
         </div>
     }

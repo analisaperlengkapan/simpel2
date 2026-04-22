@@ -8,12 +8,12 @@
 //!
 //! Requirements: REQ-P006, REQ-P007, REQ-P008, REQ-P009, REQ-P010
 
+use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 // ============================================================================
 // API Models
@@ -90,7 +90,7 @@ pub fn DocumentManagementPage() -> impl IntoView {
             match generate_permit_document(permit_id).await {
                 Ok(response) => {
                     set_success_message.set(Some(
-                        "Dokumen konsep izin berhasil dibuat (REQ-P006, REQ-P007)".to_string()
+                        "Dokumen konsep izin berhasil dibuat (REQ-P006, REQ-P007)".to_string(),
                     ));
 
                     // Reload permits to get updated document_url
@@ -412,7 +412,10 @@ async fn fetch_permits() -> Result<Vec<Permit>, crate::api::AppError> {
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<Vec<Permit>> = response
@@ -423,7 +426,9 @@ async fn fetch_permits() -> Result<Vec<Permit>, crate::api::AppError> {
     Ok(api_response.data.unwrap_or_default())
 }
 
-async fn generate_permit_document(permit_id: Uuid) -> Result<GenerateDocumentResponse, crate::api::AppError> {
+async fn generate_permit_document(
+    permit_id: Uuid,
+) -> Result<GenerateDocumentResponse, crate::api::AppError> {
     let url = format!("/api/v1/pemakaian-bmn/{}/generate-konsep-surat", permit_id);
     let response = gloo_net::http::Request::post(&url)
         .send()
@@ -431,7 +436,10 @@ async fn generate_permit_document(permit_id: Uuid) -> Result<GenerateDocumentRes
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     let api_response: ApiResponse<GenerateDocumentResponse> = response
@@ -439,12 +447,19 @@ async fn generate_permit_document(permit_id: Uuid) -> Result<GenerateDocumentRes
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))?;
 
-    api_response.data.ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
+    api_response
+        .data
+        .ok_or_else(|| crate::api::AppError::Unknown("No data in response".to_string()))
 }
 
-async fn upload_signed_document(permit_id: Uuid, file: web_sys::File) -> Result<(), crate::api::AppError> {
+async fn upload_signed_document(
+    permit_id: Uuid,
+    file: web_sys::File,
+) -> Result<(), crate::api::AppError> {
     let form_data = web_sys::FormData::new().map_err(|_| "Failed to create FormData")?;
-    form_data.append_with_blob("file", &file).map_err(|_| "Failed to append file")?;
+    form_data
+        .append_with_blob("file", &file)
+        .map_err(|_| "Failed to append file")?;
 
     let url = format!("/api/v1/pemakaian-bmn/{}/upload-signed-pdf", permit_id);
 
@@ -456,7 +471,10 @@ async fn upload_signed_document(permit_id: Uuid, file: web_sys::File) -> Result<
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
-        return Err(crate::api::AppError::Unknown(format!("HTTP error: {}", response.status())));
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP error: {}",
+            response.status()
+        )));
     }
 
     Ok(())

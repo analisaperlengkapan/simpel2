@@ -1,7 +1,7 @@
 //! FAQ — Frequently Asked Questions page.
 
-use leptos::prelude::*;
 use crate::components::layout::PageLayout;
+use leptos::prelude::*;
 
 #[component]
 pub fn FaqPage() -> impl IntoView {

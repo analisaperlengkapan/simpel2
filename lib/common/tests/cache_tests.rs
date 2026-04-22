@@ -7,14 +7,14 @@ mod cache_tests {
     #[test]
     fn test_sensitivity_level_ttl() {
         // Test that sensitivity levels have appropriate TTL values
-        let public = SensitivityLevel::Public;
-        let internal = SensitivityLevel::Internal;
-        let confidential = SensitivityLevel::Confidential;
+        let low = SensitivityLevel::Low;
+        let medium = SensitivityLevel::Medium;
+        let high = SensitivityLevel::High;
 
         // These are conceptual tests - actual TTL is in CacheManager implementation
-        assert!(matches!(public, SensitivityLevel::Public));
-        assert!(matches!(internal, SensitivityLevel::Internal));
-        assert!(matches!(confidential, SensitivityLevel::Confidential));
+        assert!(matches!(low, SensitivityLevel::Low));
+        assert!(matches!(medium, SensitivityLevel::Medium));
+        assert!(matches!(high, SensitivityLevel::High));
     }
 
     #[test]

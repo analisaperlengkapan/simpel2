@@ -119,7 +119,10 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                     let filtered = if expiring_only {
                         resp.data
                             .into_iter()
-                            .filter(|item| days_until(&item.tanggal_selesai).is_some_and(|d| (0..=7).contains(&d)))
+                            .filter(|item| {
+                                days_until(&item.tanggal_selesai)
+                                    .is_some_and(|d| (0..=7).contains(&d))
+                            })
                             .collect::<Vec<_>>()
                     } else {
                         resp.data
@@ -408,12 +411,30 @@ fn status_descriptor(status: &str) -> (&'static str, &'static str) {
     match status {
         "DRAFT" => ("Draft", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
         "SUBMITTED" => ("Diajukan", "bg-info-500/10 text-info-300 ring-info-500/20"),
-        "APPROVED" => ("Disetujui", "bg-success-500/10 text-success-300 ring-success-500/20"),
-        "REJECTED" => ("Ditolak", "bg-danger-500/10 text-danger-300 ring-danger-500/20"),
-        "ACTIVE" => ("Aktif", "bg-success-500/10 text-success-300 ring-success-500/20"),
-        "EXPIRED" => ("Kadaluarsa", "bg-warning-500/10 text-warning-300 ring-warning-500/20"),
-        "REVOKED" => ("Dicabut", "bg-danger-500/10 text-danger-300 ring-danger-500/20"),
-        _ => ("Lainnya", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
+        "APPROVED" => (
+            "Disetujui",
+            "bg-success-500/10 text-success-300 ring-success-500/20",
+        ),
+        "REJECTED" => (
+            "Ditolak",
+            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
+        ),
+        "ACTIVE" => (
+            "Aktif",
+            "bg-success-500/10 text-success-300 ring-success-500/20",
+        ),
+        "EXPIRED" => (
+            "Kadaluarsa",
+            "bg-warning-500/10 text-warning-300 ring-warning-500/20",
+        ),
+        "REVOKED" => (
+            "Dicabut",
+            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
+        ),
+        _ => (
+            "Lainnya",
+            "bg-slate-500/10 text-slate-300 ring-slate-500/20",
+        ),
     }
 }
 

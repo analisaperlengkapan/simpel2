@@ -2,10 +2,11 @@
 
 #[cfg(test)]
 mod pemakaian_bmn_service_tests {
-    use uuid::Uuid;
     use chrono::NaiveDate;
+    use uuid::Uuid;
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct IzinPemakaianBmn {
         id: Uuid,
         pegawai_nip: String,
@@ -43,13 +44,11 @@ mod pemakaian_bmn_service_tests {
     #[test]
     fn test_one_bmn_one_permit_rule() {
         // REQ-P004: One BMN = one active permit
-        let active_permits = vec![
-            ("123456", "ACTIVE"),
-            ("789012", "ACTIVE"),
-        ];
+        let active_permits = vec![("123456", "ACTIVE"), ("789012", "ACTIVE")];
 
         let bmn_to_check = "123456";
-        let has_active_permit = active_permits.iter()
+        let has_active_permit = active_permits
+            .iter()
             .any(|(nup, status)| *nup == bmn_to_check && *status == "ACTIVE");
 
         assert!(has_active_permit, "BMN already has active permit");

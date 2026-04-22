@@ -1,7 +1,7 @@
 //! Shared route helpers for portal app.
 
-use crate::features::auth::UserSession;
 use crate::components::guards::{SessionAdminGuard, SessionAuthGuard};
+use crate::features::auth::UserSession;
 use crate::pages::LoginPage;
 use crate::routes;
 use leptos::prelude::*;
@@ -19,7 +19,10 @@ where
     match user_session.get() {
         Some(session) if session.require_password_change => {
             let nav = leptos_router::hooks::use_navigate();
-            nav(&format!("/{}", routes::segment::PASSWORD), Default::default());
+            nav(
+                &format!("/{}", routes::segment::PASSWORD),
+                Default::default(),
+            );
             view! { <div /> }.into_any()
         }
         Some(session) => page(session, make_logout()),

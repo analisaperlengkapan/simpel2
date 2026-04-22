@@ -4,10 +4,10 @@
 //! 7 tabs: Settings, Credentials, Roles, Client Scopes, Mappers, Scope, Sessions
 //! REQ-PORTAL-017
 
-use crate::components::layout::main_layout::MainLayout;
 use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
-use crate::utils::async_load::load_value_once;
+use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
+use crate::utils::async_load::load_value_once;
 use crate::utils::authenc_api::ClientInfo;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -108,10 +108,10 @@ pub fn ClientDetailPage() -> impl IntoView {
             let cid = client_id();
             spawn_local(async move {
                 match api.iam_regenerate_client_secret(&cid).await {
-                    Ok(_) => {
-                        set_success.set(Some("Rahasia klien berhasil diperbarui".to_string()))
+                    Ok(_) => set_success.set(Some("Rahasia klien berhasil diperbarui".to_string())),
+                    Err(e) => {
+                        set_error.set(Some(format!("Gagal memperbarui rahasia klien: {}", e)))
                     }
-                    Err(e) => set_error.set(Some(format!("Gagal memperbarui rahasia klien: {}", e))),
                 }
             });
         });

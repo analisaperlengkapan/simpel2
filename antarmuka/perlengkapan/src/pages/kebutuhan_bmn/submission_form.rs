@@ -136,8 +136,9 @@ pub fn SubmissionFormPage() -> impl IntoView {
         }
 
         let Some(satker) = satker_detail.get_untracked() else {
-            set_action_error
-                .set(Some("Data satker tidak tersedia, muat ulang halaman.".to_string()));
+            set_action_error.set(Some(
+                "Data satker tidak tersedia, muat ulang halaman.".to_string(),
+            ));
             return;
         };
 
@@ -177,7 +178,9 @@ pub fn SubmissionFormPage() -> impl IntoView {
         };
 
         if barang_items.get_untracked().is_empty() {
-            set_action_error.set(Some("Minimal harus ada 1 barang untuk diajukan.".to_string()));
+            set_action_error.set(Some(
+                "Minimal harus ada 1 barang untuk diajukan.".to_string(),
+            ));
             return;
         }
 
@@ -481,11 +484,9 @@ fn PeriodField(#[prop(into)] label: String, #[prop(into)] value: String) -> impl
 // ============================================================================
 
 async fn fetch_active_pengajuan() -> Result<PengajuanSummary, AppError> {
-    let response = gloo_net::http::Request::get(
-        "/api/v1/kebutuhan-bmn/pengajuan?status_kode=2001",
-    )
-    .send()
-    .await?;
+    let response = gloo_net::http::Request::get("/api/v1/kebutuhan-bmn/pengajuan?status_kode=2001")
+        .send()
+        .await?;
 
     if !response.ok() {
         let status = response.status();
