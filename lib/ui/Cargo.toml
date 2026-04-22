@@ -50,7 +50,7 @@ base64 = { workspace = true }
 rand = { workspace = true }
 getrandom = { workspace = true }
 # Enable wasm_js for getrandom 0.4 pulled transitively by updated deps (e.g. uuid 1.23+)
-getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+getrandom_04 = { workspace = true }
 lib-common = { path = "../common", default-features = false, features = ["validation", "crypto"] }
 
 [build-dependencies]
