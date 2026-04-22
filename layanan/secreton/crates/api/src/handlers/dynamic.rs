@@ -349,20 +349,96 @@ pub async fn update_database_role(
     user: AuthenticatedUser,
     Json(request): Json<CreateRoleRequest>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
-    // Verify the role exists before updating — prevent silent upsert
-    if state.database_engine.get_role(&role_name).await.is_none() {
-        return Err(ApiError::NotFound {
-            resource: format!("Role {}", role_name),
+    // Validate role name
+    if role_name.is_empty() {
+        return Err(ApiError::BadRequest {
+            message: "Role name cannot be empty".to_string(),
         });
     }
 
-    let response = create_role_internal(&state, role_name.clone(), request).await?;
+    // Validate statements contain placeholders
+    for stmt in &request.creation_statements {
+        if !stmt.contains("{{username}}") && !stmt.contains("{{password}}") {
+            return Err(ApiError::BadRequest {
+                message:
+                    "Creation statements must contain {{username}} or {{password}} placeholders"
+                        .to_string(),
+            });
+        }
+
+        if contains_dangerous_sql(stmt) {
+            return Err(ApiError::BadRequest {
+                message: "Creation statements contain potentially dangerous SQL".to_string(),
+            });
+        }
+    }
+
+    for stmt in &request.revocation_statements {
+        if !stmt.contains("{{username}}") {
+            return Err(ApiError::BadRequest {
+                message: "Revocation statements must contain {{username}} placeholder".to_string(),
+            });
+        }
+
+        if contains_dangerous_sql(stmt) {
+            return Err(ApiError::BadRequest {
+                message: "Revocation statements contain potentially dangerous SQL".to_string(),
+            });
+        }
+    }
+
+    // Validate TTL values
+    if request.default_ttl == 0 || request.default_ttl > request.max_ttl {
+        return Err(ApiError::BadRequest {
+            message: format!(
+                "Invalid TTL: default_ttl ({}) must be between 1 and max_ttl ({})",
+                request.default_ttl, request.max_ttl
+            ),
+        });
+    }
+
+    // Capture response values before moving fields into the role struct
+    let response_db_name = request.db_name.clone();
+    let response_default_ttl = request.default_ttl;
+    let response_max_ttl = request.max_ttl;
+
+    // Build role and use atomic update_role (checks existence + writes under one lock)
+    let role = DatabaseRole {
+        name: role_name.clone(),
+        db_name: request.db_name,
+        default_ttl: request.default_ttl,
+        max_ttl: request.max_ttl,
+        creation_statements: request.creation_statements,
+        revocation_statements: request.revocation_statements,
+        rotation_statements: request.rotation_statements,
+        renew_statements: request.renew_statements,
+    };
+
+    state
+        .database_engine
+        .update_role(role)
+        .await
+        .map_err(|e| match e {
+            secreton_core::services::secrets::database::DatabaseError::RoleNotFound(_) => {
+                ApiError::NotFound {
+                    resource: format!("Role {}", role_name),
+                }
+            }
+            other => ApiError::Internal {
+                message: format!("Failed to update role: {}", other),
+            },
+        })?;
 
     // Log audit event
     let audit_entry = create_audit_log("role_updated", &user.username, "dynamic_role", &role_name);
     let _ = state.audit.log(audit_entry).await;
 
-    Ok(Json(ApiResponse::success(response)))
+    Ok(Json(ApiResponse::success(RoleResponse {
+        name: role_name,
+        db_name: response_db_name,
+        default_ttl: response_default_ttl,
+        max_ttl: response_max_ttl,
+    })))
 }
 
 /// Delete database role

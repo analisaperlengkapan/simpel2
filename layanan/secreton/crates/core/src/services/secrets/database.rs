@@ -354,6 +354,40 @@ impl DatabaseSecretsEngine {
         connections.get(name).cloned()
     }
 
+    /// Update an existing database role atomically (check + write under one lock)
+    pub async fn update_role(&self, role: DatabaseRole) -> Result<(), DatabaseError> {
+        // Validate role
+        if role.name.is_empty() {
+            return Err(DatabaseError::InvalidConfig(
+                "Role name cannot be empty".to_string(),
+            ));
+        }
+        if role.creation_statements.is_empty() {
+            return Err(DatabaseError::InvalidConfig(
+                "Creation statements required".to_string(),
+            ));
+        }
+
+        // Verify database connection exists
+        let connections = self.connections.read().await;
+        if !connections.contains_key(&role.db_name) {
+            return Err(DatabaseError::InvalidConfig(format!(
+                "Database connection '{}' not found",
+                role.db_name
+            )));
+        }
+        drop(connections);
+
+        // Atomically check existence and update under a single write lock
+        let mut roles = self.roles.write().await;
+        if !roles.contains_key(&role.name) {
+            return Err(DatabaseError::RoleNotFound(role.name.clone()));
+        }
+        roles.insert(role.name.clone(), role);
+
+        Ok(())
+    }
+
     /// Get database role
     pub async fn get_role(&self, name: &str) -> Option<DatabaseRole> {
         let roles = self.roles.read().await;
