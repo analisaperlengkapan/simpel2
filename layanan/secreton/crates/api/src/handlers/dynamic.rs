@@ -201,12 +201,8 @@ pub struct RoleResponse {
     pub max_ttl: u32,
 }
 
-/// Internal helper to create/update database role
-async fn create_role_internal(
-    state: &AppState,
-    role_name: String,
-    request: CreateRoleRequest,
-) -> ApiResult<RoleResponse> {
+/// Validate a role request's fields (shared by create and update handlers)
+fn validate_role_request(role_name: &str, request: &CreateRoleRequest) -> ApiResult<()> {
     // Validate role name
     if role_name.is_empty() {
         return Err(ApiError::BadRequest {
@@ -262,6 +258,17 @@ async fn create_role_internal(
             ),
         });
     }
+
+    Ok(())
+}
+
+/// Internal helper to create database role
+async fn create_role_internal(
+    state: &AppState,
+    role_name: String,
+    request: CreateRoleRequest,
+) -> ApiResult<RoleResponse> {
+    validate_role_request(&role_name, &request)?;
 
     // Create role
     let role = DatabaseRole {
@@ -361,60 +368,7 @@ pub async fn update_database_role(
     user: AuthenticatedUser,
     Json(request): Json<CreateRoleRequest>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
-    // Validate role name
-    if role_name.is_empty() {
-        return Err(ApiError::BadRequest {
-            message: "Role name cannot be empty".to_string(),
-        });
-    }
-
-    // Validate creation statements are not empty
-    if request.creation_statements.is_empty() {
-        return Err(ApiError::BadRequest {
-            message: "Creation statements are required".to_string(),
-        });
-    }
-
-    // Validate statements contain placeholders
-    for stmt in &request.creation_statements {
-        if !stmt.contains("{{username}}") && !stmt.contains("{{password}}") {
-            return Err(ApiError::BadRequest {
-                message:
-                    "Creation statements must contain {{username}} or {{password}} placeholders"
-                        .to_string(),
-            });
-        }
-
-        if contains_dangerous_sql(stmt) {
-            return Err(ApiError::BadRequest {
-                message: "Creation statements contain potentially dangerous SQL".to_string(),
-            });
-        }
-    }
-
-    for stmt in &request.revocation_statements {
-        if !stmt.contains("{{username}}") {
-            return Err(ApiError::BadRequest {
-                message: "Revocation statements must contain {{username}} placeholder".to_string(),
-            });
-        }
-
-        if contains_dangerous_sql(stmt) {
-            return Err(ApiError::BadRequest {
-                message: "Revocation statements contain potentially dangerous SQL".to_string(),
-            });
-        }
-    }
-
-    // Validate TTL values
-    if request.default_ttl == 0 || request.default_ttl > request.max_ttl {
-        return Err(ApiError::BadRequest {
-            message: format!(
-                "Invalid TTL: default_ttl ({}) must be between 1 and max_ttl ({})",
-                request.default_ttl, request.max_ttl
-            ),
-        });
-    }
+    validate_role_request(&role_name, &request)?;
 
     // Capture response values before moving fields into the role struct
     let response_db_name = request.db_name.clone();

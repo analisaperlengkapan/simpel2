@@ -222,7 +222,7 @@ pub async fn inject_env(
         expires_at,
         secret_paths,
         active: true,
-        created_by: user_id.to_string(),
+        created_by: user_id.clone(),
     };
 
     // Store session for tracking
