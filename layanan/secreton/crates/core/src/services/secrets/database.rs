@@ -429,6 +429,14 @@ impl DatabaseSecretsEngine {
 
     /// Delete database connection, cascading to all roles that reference it
     pub async fn delete_connection(&self, name: &str) -> Result<bool, DatabaseError> {
+        // Check if connection exists before cascading destructive operations
+        {
+            let connections = self.connections.read().await;
+            if !connections.contains_key(name) {
+                return Ok(false);
+            }
+        }
+
         // Find all roles that reference this connection
         let role_names: Vec<String> = {
             let roles = self.roles.read().await;

@@ -618,6 +618,13 @@ pub async fn delete_database_connection(
     Path(name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
+    // Verify connection exists before logging cascade audit entries
+    if state.database_engine.get_connection(&name).await.is_none() {
+        return Err(ApiError::NotFound {
+            resource: format!("Connection {}", name),
+        });
+    }
+
     // Log audit entries for cascaded role deletions before they happen
     let all_role_names = state.database_engine.list_roles().await;
     for role_name in &all_role_names {
@@ -642,6 +649,7 @@ pub async fn delete_database_connection(
             message: format!("Failed to delete connection: {}", e),
         })?;
 
+    // Should always be true since we checked existence above, but handle defensively
     if !deleted {
         return Err(ApiError::NotFound {
             resource: format!("Connection {}", name),
