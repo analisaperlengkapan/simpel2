@@ -739,7 +739,12 @@ fn contains_dangerous_sql(sql: &str) -> bool {
             // that looks like a procedure call or dynamic SQL (not a privilege grant)
             if before_ok && after_ok {
                 // Allow "GRANT EXECUTE" / "REVOKE EXECUTE" which are legitimate DDL
-                let prefix_start = idx.saturating_sub(20);
+                let raw = idx.saturating_sub(20);
+                // Avoid slicing in the middle of a multi-byte UTF-8 character
+                let mut prefix_start = raw;
+                while prefix_start < idx && !sql_lower.is_char_boundary(prefix_start) {
+                    prefix_start += 1;
+                }
                 let prefix_text = &sql_lower[prefix_start..idx].trim_end();
                 let is_grant_or_revoke = ["grant", "revoke"].iter().any(|keyword| {
                     if let Some(stripped) = prefix_text.strip_suffix(keyword) {
@@ -793,6 +798,11 @@ mod tests {
         // Partial-word "grant"/"revoke" must NOT bypass detection
         assert!(contains_dangerous_sql("FOREGRANT EXECUTE dangerous_call"));
         assert!(contains_dangerous_sql("SOMEREVOKE EXECUTE dangerous_call"));
+        // Non-ASCII input must not panic (multi-byte UTF-8 chars near exec)
+        assert!(contains_dangerous_sql("ñañañañañañañañaña exec something"));
+        assert!(!contains_dangerous_sql(
+            "GRANT EXECUTE ON schéma.función TO {{username}}"
+        ));
     }
 
     #[test]

@@ -141,9 +141,12 @@ pub async fn inject_env(
     let mut secret_paths = Vec::new();
 
     // Build policy context for authorization
+    // Use the same user_id source (AuthenticatedUser) for both the policy
+    // context and the evaluate() call to avoid identifier mismatches when
+    // ctx.user_id is not a valid UUID (falls back to Uuid::nil()).
     let user_id = user.id.to_string();
     let policy_context = serde_json::json!({
-        "user_id": ctx.user_id,
+        "user_id": &user_id,
         "user_email": ctx.user_email,
         "user_roles": ctx.user_roles,
         "client_ip": ctx.client_ip.clone().unwrap_or_else(|| "unknown".to_string()),
