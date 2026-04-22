@@ -387,9 +387,28 @@ impl DatabaseSecretsEngine {
 
         // Atomically check existence and update under a single write lock
         let mut roles = self.roles.write().await;
-        if !roles.contains_key(&role.name) {
-            return Err(DatabaseError::RoleNotFound(role.name.clone()));
+        let existing = roles
+            .get(&role.name)
+            .ok_or_else(|| DatabaseError::RoleNotFound(role.name.clone()))?;
+
+        // Reject db_name changes when active credentials exist for this role.
+        // Credentials store the db_name at generation time, but revoke_credentials
+        // looks up the role's *current* db_name to find the connection. Allowing
+        // the change would cause revocation SQL to target the wrong database,
+        // silently orphaning live database users on the original connection.
+        if existing.db_name != role.db_name {
+            let active = self.active_credentials.read().await;
+            let has_active = active.values().any(|c| c.role_name == role.name);
+            if has_active {
+                return Err(DatabaseError::InvalidConfig(
+                    "Cannot change db_name while active credentials exist for this role. \
+                     Revoke all credentials first."
+                        .to_string(),
+                ));
+            }
         }
+
+        drop(existing);
         roles.insert(role.name.clone(), role);
 
         Ok(())
@@ -820,7 +839,7 @@ impl DatabaseSecretsEngine {
             })?
         };
 
-        // Get role and connection
+        // Get role for revocation statements
         let roles = self.roles.read().await;
         let role = roles
             .get(&credentials.role_name)
@@ -828,13 +847,18 @@ impl DatabaseSecretsEngine {
             .clone();
         drop(roles);
 
+        // Use the db_name stored on the credential (captured at generation time)
+        // rather than the role's current db_name. If the role's db_name was
+        // changed after this credential was issued, the role's current value
+        // would point to the wrong database and revocation SQL would silently
+        // fail to remove the live database user.
         let connections = self.connections.read().await;
         let connection = connections
-            .get(&role.db_name)
+            .get(&credentials.db_name)
             .ok_or_else(|| {
                 DatabaseError::InvalidConfig(format!(
                     "Database connection '{}' not found",
-                    role.db_name
+                    credentials.db_name
                 ))
             })?
             .clone();
