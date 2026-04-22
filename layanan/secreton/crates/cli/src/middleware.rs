@@ -142,6 +142,7 @@ impl SealChecker {
     /// Require the engine to be initialized
     ///
     /// This checks only if the engine is initialized, not if it's unsealed.
+    #[allow(dead_code)]
     pub async fn require_initialized(&mut self) -> Result<(), EngineNotReadyError> {
         let status = self.get_status().await?;
 
@@ -155,11 +156,13 @@ impl SealChecker {
     /// Clear the cached status
     ///
     /// This forces the next status check to fetch fresh data from the server.
+    #[allow(dead_code)]
     pub fn clear_cache(&mut self) {
         self.cache = None;
     }
 
     /// Check if the cache is valid
+    #[allow(dead_code)]
     pub fn is_cache_valid(&self) -> bool {
         if let Some(cached) = &self.cache {
             cached.cached_at.elapsed() < self.cache_ttl

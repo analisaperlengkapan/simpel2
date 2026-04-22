@@ -426,6 +426,7 @@ impl RealmManagementServiceImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
     use authenc_types::domain::realm::Realm;
     use authenc_types::domain_types::RealmId;
     use authenc_types::error::AuthencError;

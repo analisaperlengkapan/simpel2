@@ -24,6 +24,7 @@ impl AuthenticatedClient {
     }
 
     /// Get the underlying reqwest client
+    #[allow(dead_code)]
     pub fn client(&self) -> &Client {
         &self.client
     }
@@ -41,6 +42,7 @@ impl AuthenticatedClient {
     }
 
     /// Build a PUT request with automatic token injection
+    #[allow(dead_code)]
     pub fn put(&self, url: &str) -> Result<RequestBuilder> {
         let token = self.get_token()?;
         Ok(self.client.put(url).header("X-Secreton-Token", token))
