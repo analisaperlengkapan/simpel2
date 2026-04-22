@@ -217,6 +217,13 @@ fn validate_role_request(role_name: &str, request: &CreateRoleRequest) -> ApiRes
         });
     }
 
+    // Validate revocation statements are not empty
+    if request.revocation_statements.is_empty() {
+        return Err(ApiError::BadRequest {
+            message: "Revocation statements are required".to_string(),
+        });
+    }
+
     // Validate statements contain placeholders
     for stmt in &request.creation_statements {
         if !stmt.contains("{{username}}") && !stmt.contains("{{password}}") {
