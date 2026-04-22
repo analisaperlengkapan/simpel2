@@ -625,28 +625,20 @@ pub async fn delete_database_connection(
     Path(name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // Verify connection exists before logging cascade audit entries
-    if state.database_engine.get_connection(&name).await.is_none() {
-        return Err(ApiError::NotFound {
-            resource: format!("Connection {}", name),
-        });
-    }
-
-    // Log audit entries for cascaded role deletions before they happen
-    let all_role_names = state.database_engine.list_roles().await;
-    for role_name in &all_role_names {
-        if let Some(role) = state.database_engine.get_role(role_name).await {
-            if role.db_name == name {
-                let audit_entry = create_audit_log(
-                    "role_deleted_cascade",
-                    &user.username,
-                    "dynamic_role",
-                    role_name,
-                );
-                let _ = state.audit.log(audit_entry).await;
+    // Snapshot the roles that reference this connection before deletion,
+    // so we can log cascade audit entries only if the delete succeeds.
+    let cascade_role_names: Vec<String> = {
+        let all_role_names = state.database_engine.list_roles().await;
+        let mut matching = Vec::new();
+        for role_name in &all_role_names {
+            if let Some(role) = state.database_engine.get_role(role_name).await {
+                if role.db_name == name {
+                    matching.push(role_name.clone());
+                }
             }
         }
-    }
+        matching
+    };
 
     let deleted = state
         .database_engine
@@ -656,11 +648,21 @@ pub async fn delete_database_connection(
             message: format!("Failed to delete connection: {}", e),
         })?;
 
-    // Should always be true since we checked existence above, but handle defensively
     if !deleted {
         return Err(ApiError::NotFound {
             resource: format!("Connection {}", name),
         });
+    }
+
+    // Log cascade audit entries only after successful deletion
+    for role_name in &cascade_role_names {
+        let audit_entry = create_audit_log(
+            "role_deleted_cascade",
+            &user.username,
+            "dynamic_role",
+            role_name,
+        );
+        let _ = state.audit.log(audit_entry).await;
     }
 
     // Log audit event
@@ -680,24 +682,56 @@ pub async fn delete_database_connection(
 
 /// Basic SQL injection prevention
 fn contains_dangerous_sql(sql: &str) -> bool {
-    let dangerous_patterns = [
+    let sql_lower = sql.to_lowercase();
+
+    // Patterns that are dangerous as substrings anywhere
+    let substring_patterns = [
         ";--",
         "/*",
         "*/",
         "xp_",
         "sp_",
-        "exec",
-        "execute",
         "drop database",
         "drop table",
         "truncate",
         "delete from",
     ];
 
-    let sql_lower = sql.to_lowercase();
-    dangerous_patterns
+    if substring_patterns
         .iter()
         .any(|pattern| sql_lower.contains(pattern))
+    {
+        return true;
+    }
+
+    // Patterns that must appear as standalone words (not inside other words
+    // like "execute" inside "GRANT EXECUTE ON …")
+    let word_boundary_patterns = ["exec", "execute"];
+    for pattern in &word_boundary_patterns {
+        for (idx, _) in sql_lower.match_indices(pattern) {
+            let before_ok = idx == 0
+                || !sql_lower.as_bytes()[idx - 1].is_ascii_alphanumeric()
+                    && sql_lower.as_bytes()[idx - 1] != b'_';
+            let end = idx + pattern.len();
+            let after_ok = end >= sql_lower.len()
+                || !sql_lower.as_bytes()[end].is_ascii_alphanumeric()
+                    && sql_lower.as_bytes()[end] != b'_';
+
+            // Only flag if the word stands alone AND is followed by something
+            // that looks like a procedure call or dynamic SQL (not a privilege grant)
+            if before_ok && after_ok {
+                // Allow "GRANT EXECUTE" / "REVOKE EXECUTE" which are legitimate DDL
+                let prefix_start = idx.saturating_sub(10);
+                let prefix_text = &sql_lower[prefix_start..idx].trim_end();
+                if prefix_text.ends_with("grant") || prefix_text.ends_with("revoke") {
+                    continue;
+                }
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
@@ -711,11 +745,19 @@ mod tests {
             "SELECT * FROM users; DROP TABLE users;"
         ));
         assert!(contains_dangerous_sql("/* comment */ DROP DATABASE"));
+        assert!(contains_dangerous_sql("EXEC sp_executesql"));
         assert!(!contains_dangerous_sql(
             "CREATE USER {{username}} WITH PASSWORD '{{password}}'"
         ));
         assert!(!contains_dangerous_sql(
             "GRANT SELECT ON database.* TO {{username}}"
+        ));
+        // GRANT EXECUTE is legitimate DDL, not injection
+        assert!(!contains_dangerous_sql(
+            "GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO {{username}}"
+        ));
+        assert!(!contains_dangerous_sql(
+            "REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM {{username}}"
         ));
     }
 

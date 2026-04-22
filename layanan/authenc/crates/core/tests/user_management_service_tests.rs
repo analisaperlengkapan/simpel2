@@ -12,9 +12,7 @@
 //!
 //! Target: >80% code coverage
 
-use async_trait::async_trait;
-use authenc_core::services::user_management_service::UserManagementServiceImpl;
-use authenc_types::{domain::*, domain_types::*, error::AuthencError, result::Result, traits::*};
+use authenc_types::{domain::*, domain_types::*};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -23,12 +21,14 @@ use tokio::sync::Mutex;
 // Mock Implementations
 // ============================================================================
 
+#[allow(dead_code)]
 struct MockUserStore {
     users: Arc<Mutex<HashMap<UserId, User>>>,
     users_by_username: Arc<Mutex<HashMap<(String, RealmId), UserId>>>,
     users_by_email: Arc<Mutex<HashMap<(String, RealmId), UserId>>>,
 }
 
+#[allow(dead_code)]
 impl MockUserStore {
     fn new() -> Self {
         Self {
