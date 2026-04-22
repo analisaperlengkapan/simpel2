@@ -643,36 +643,18 @@ pub async fn delete_database_connection(
     Path(name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // Snapshot the roles that reference this connection before deletion,
-    // so we can log cascade audit entries only if the delete succeeds.
-    let cascade_role_names: Vec<String> = {
-        let all_role_names = state.database_engine.list_roles().await;
-        let mut matching = Vec::new();
-        for role_name in &all_role_names {
-            if let Some(role) = state.database_engine.get_role(role_name).await {
-                if role.db_name == name {
-                    matching.push(role_name.clone());
-                }
-            }
-        }
-        matching
-    };
-
-    let deleted = state
+    let cascade_role_names = state
         .database_engine
         .delete_connection(&name)
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to delete connection: {}", e),
+        })?
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Connection {}", name),
         })?;
 
-    if !deleted {
-        return Err(ApiError::NotFound {
-            resource: format!("Connection {}", name),
-        });
-    }
-
-    // Log cascade audit entries only after successful deletion
+    // Log cascade audit entries for the roles the engine actually deleted
     for role_name in &cascade_role_names {
         let audit_entry = create_audit_log(
             "role_deleted_cascade",

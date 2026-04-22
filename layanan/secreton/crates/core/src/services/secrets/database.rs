@@ -334,7 +334,9 @@ impl DatabaseSecretsEngine {
             ));
         }
 
-        // Verify database connection exists
+        // Acquire both locks to prevent TOCTOU between connection check and role insert.
+        // Hold the connections read lock while writing the role so a concurrent
+        // delete_connection cannot remove the connection between the two checks.
         let connections = self.connections.read().await;
         if !connections.contains_key(&role.db_name) {
             return Err(DatabaseError::InvalidConfig(format!(
@@ -342,9 +344,7 @@ impl DatabaseSecretsEngine {
                 role.db_name
             )));
         }
-        drop(connections);
 
-        // Store role (reject if already exists)
         let mut roles = self.roles.write().await;
         if roles.contains_key(&role.name) {
             return Err(DatabaseError::RoleAlreadyExists(role.name.clone()));
@@ -374,7 +374,9 @@ impl DatabaseSecretsEngine {
             ));
         }
 
-        // Verify database connection exists
+        // Hold the connections read lock while writing the role to prevent a
+        // concurrent delete_connection from removing the connection between the
+        // existence check and the role update.
         let connections = self.connections.read().await;
         if !connections.contains_key(&role.db_name) {
             return Err(DatabaseError::InvalidConfig(format!(
@@ -382,7 +384,6 @@ impl DatabaseSecretsEngine {
                 role.db_name
             )));
         }
-        drop(connections);
 
         // Atomically check existence and update under a single write lock
         let mut roles = self.roles.write().await;
@@ -427,13 +428,18 @@ impl DatabaseSecretsEngine {
         Ok(roles.remove(name).is_some())
     }
 
-    /// Delete database connection, cascading to all roles that reference it
-    pub async fn delete_connection(&self, name: &str) -> Result<bool, DatabaseError> {
+    /// Delete database connection, cascading to all roles that reference it.
+    /// Returns `Ok(None)` if the connection did not exist, or
+    /// `Ok(Some(Vec<String>))` with the names of cascade-deleted roles on success.
+    pub async fn delete_connection(
+        &self,
+        name: &str,
+    ) -> Result<Option<Vec<String>>, DatabaseError> {
         // Check if connection exists before cascading destructive operations
         {
             let connections = self.connections.read().await;
             if !connections.contains_key(name) {
-                return Ok(false);
+                return Ok(None);
             }
         }
 
@@ -461,7 +467,11 @@ impl DatabaseSecretsEngine {
         let mut pools = self.db_pools.write().await;
         pools.remove(name);
 
-        Ok(existed)
+        if existed {
+            Ok(Some(role_names))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Generate credentials for a role
@@ -742,15 +752,9 @@ impl DatabaseSecretsEngine {
         // does not silently orphan a live database user.
         let credentials = {
             let active = self.active_credentials.read().await;
-            active
-                .get(credential_id)
-                .cloned()
-                .ok_or_else(|| {
-                    DatabaseError::RevocationFailed(format!(
-                        "Credentials {} not found",
-                        credential_id
-                    ))
-                })?
+            active.get(credential_id).cloned().ok_or_else(|| {
+                DatabaseError::RevocationFailed(format!("Credentials {} not found", credential_id))
+            })?
         };
 
         // Get role and connection
