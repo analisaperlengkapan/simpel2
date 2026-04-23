@@ -13,16 +13,31 @@ use leptos::prelude::*;
 
 /// Main layout for authenticated pages.
 ///
-/// Reads session from `use_context()` — no props needed.
+/// Reads session from `use_context()` — no props needed in new code.
 /// Provides navbar, sidebar, footer with Kejaksaan RI branding.
+///
+/// The `user_session` and `on_logout` props are accepted for backward
+/// compatibility with pages that haven't migrated to the context-based
+/// pattern yet (e.g. most `pages/admin/*.rs`). When supplied, the
+/// `user_session` prop overrides the context-provided session and
+/// `on_logout` overrides the built-in logout handler.
 #[component]
 pub fn MainLayout(
     /// Page content
     children: Children,
+    /// Legacy: current user session (ignored if `None`; context is used instead).
+    #[prop(optional)]
+    user_session: Option<UserSession>,
+    /// Legacy: logout callback (ignored if `None`; built-in handler is used instead).
+    #[prop(optional)]
+    on_logout: Option<Box<dyn Fn()>>,
 ) -> impl IntoView {
-    // Read session from context (provided by App root)
-    let session = use_context::<ReadSignal<Option<UserSession>>>()
-        .and_then(|sig| sig.get_untracked());
+    // Prefer the prop when supplied (legacy call sites); otherwise read
+    // from context (provided by App root).
+    let session = user_session.or_else(|| {
+        use_context::<ReadSignal<Option<UserSession>>>()
+            .and_then(|sig| sig.get_untracked())
+    });
 
     // Capture the session-timeout writers (provided by App root) so we can
     // dismiss the warning modal before navigating away at logout time —
@@ -41,7 +56,8 @@ pub fn MainLayout(
 
     // Build logout handler that broadcasts + clears, then does a full page
     // reload to discard all WASM memory (session signals, provide_context).
-    let on_logout: Option<Box<dyn Fn()>> = Some(Box::new(move || {
+    // If a legacy `on_logout` prop was passed, prefer that.
+    let on_logout: Option<Box<dyn Fn()>> = on_logout.or_else(|| Some(Box::new(move || {
         // Clear the session-timeout warning first so it cannot flash on
         // the login page after navigation.
         if let Some(setter) = set_show_timeout_warning {
@@ -77,7 +93,7 @@ pub fn MainLayout(
                 set_session.set(None);
             }
         }
-    }));
+    })));
 
     view! {
         <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">

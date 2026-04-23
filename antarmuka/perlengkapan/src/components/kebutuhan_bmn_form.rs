@@ -160,12 +160,17 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
 
             match result {
                 Ok(_) => {
-                    form.finish_ok();
-                    toast.success("Data berhasil disimpan!");
+                    // Show toast immediately, but keep `submitting=true` during
+                    // the navigation delay to prevent double-submission. Only
+                    // call `finish_ok()` inside the timeout, right before we
+                    // navigate away — matching the pattern in analisis_form.rs
+                    // and penghapusan_form.rs.
+                    //
                     // `navigate` was captured at component level (not inside
-                    // spawn_local) to stay within the reactive scope — matching
-                    // the pattern in analisis_form.rs.
+                    // spawn_local) to stay within the reactive scope.
+                    toast.success("Data berhasil disimpan!");
                     gloo_timers::callback::Timeout::new(1500, move || {
+                        form.finish_ok();
                         navigate(routes::path::KEBUTUHAN_DAFTAR, Default::default());
                     })
                     .forget();
