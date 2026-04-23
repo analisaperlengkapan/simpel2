@@ -26,7 +26,7 @@ use leptos_meta::*;
 use leptos_router::{components::*, path};
 
 use components::app_chrome::{AppFooter, AppHeader};
-use components::guards::{SessionAdminGuard, SessionAuthGuard};
+use components::guards::{AdminLayout, AuthenticatedLayout, SessionAdminGuard, SessionAuthGuard};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
 use pages::admin::{AdminAuditPage, AdminMasterDataPage};
@@ -136,7 +136,9 @@ pub fn App() -> impl IntoView {
 
                         <main class=main_class>
                         <Routes fallback=move || view! { <NotFound /> }.into_any()>
-                            // Dashboard home (default)
+                            // ══════════════════════════════════════════
+                            // PUBLIC ROUTES (no auth required)
+                            // ══════════════════════════════════════════
                             <Route path=path!("/login") view=move || {
                                 if AuthService::load_session().is_some() {
                                     if let Some(window) = web_sys::window() {
@@ -158,76 +160,85 @@ pub fn App() -> impl IntoView {
                                 }
                                 view! { <div></div> }
                             } />
-                            <Route path=path!("/dashboard") view=move || view! { <SessionAuthGuard user_session=user_session><DashboardHome /></SessionAuthGuard> } />
-                            <Route path=path!("/dashboard/search") view=move || view! { <SessionAuthGuard user_session=user_session><SearchPage /></SessionAuthGuard> } />
 
-                            // ── Bank Aset ────────────────────────────
-                            <Route path=path!("/bank-aset") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDashboardPage /></SessionAuthGuard> } />
-                            <Route path=path!("/bank-aset/dashboard") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDashboardPage /></SessionAuthGuard> } />
-                            <Route path=path!("/bank-aset/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetListPage /></SessionAuthGuard> } />
-                            <Route path=path!("/bank-aset/daftar/:id") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetDetailPage /></SessionAuthGuard> } />
-                            <Route path=path!("/bank-aset/sebaran") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetSebaranPage /></SessionAuthGuard> } />
-                            <Route path=path!("/bank-aset/qrcode") view=move || view! { <SessionAuthGuard user_session=user_session><BankAsetQrCodePage /></SessionAuthGuard> } />
+                            // ══════════════════════════════════════════
+                            // AUTHENTICATED ROUTES — AuthenticatedLayout
+                            // guards ALL children automatically (like
+                            // Next.js layout.tsx / Laravel middleware)
+                            // ══════════════════════════════════════════
+                            <ParentRoute path=path!("/") view=AuthenticatedLayout>
+                                <Route path=path!("/dashboard") view=DashboardHome />
+                                <Route path=path!("/dashboard/search") view=SearchPage />
 
-                            // ── Kebutuhan BMN ────────────────────────
-                            <Route path=path!("/kebutuhan-bmn/periode") view=move || view! { <SessionAuthGuard user_session=user_session><PeriodManagement /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnList /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnList /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn/buat") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnForm /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn/baru") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnForm /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn/:id/edit") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnForm /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnDetail /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn/:id") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnDetail /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn/satker/:satker_id") view=move || view! { <SessionAuthGuard user_session=user_session><KebutuhanBmnSatkerDetail /></SessionAuthGuard> } />
-                            <Route path=path!("/kebutuhan-bmn/laporan") view=move || view! { <SessionAuthGuard user_session=user_session><LaporanKebutuhanBmn /></SessionAuthGuard> } />
+                                // ── Bank Aset ────────────────────────
+                                <Route path=path!("/bank-aset") view=BankAsetDashboardPage />
+                                <Route path=path!("/bank-aset/dashboard") view=BankAsetDashboardPage />
+                                <Route path=path!("/bank-aset/daftar") view=BankAsetListPage />
+                                <Route path=path!("/bank-aset/daftar/:id") view=BankAsetDetailPage />
+                                <Route path=path!("/bank-aset/sebaran") view=BankAsetSebaranPage />
+                                <Route path=path!("/bank-aset/qrcode") view=BankAsetQrCodePage />
 
-                            // ── Pakaian Dinas ────────────────────────
-                            <Route path=path!("/pakaian-dinas/jenis") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasJenisList /></SessionAuthGuard> } />
-                            <Route path=path!("/pakaian-dinas/jenis/:id/spesifikasi") view=move || view! {
-                                <SessionAuthGuard user_session=user_session>
-                                    <SpesifikasiPage />
-                                </SessionAuthGuard>
-                            } />
-                            <Route path=path!("/pakaian-dinas/pengajuan") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasPengajuanList /></SessionAuthGuard> } />
-                            <Route path=path!("/pakaian-dinas/ukuran") view=move || view! { <SessionAuthGuard user_session=user_session><UkuranPegawai pegawai_id="0".to_string() pegawai_nama="Pegawai".to_string() pegawai_nip="000".to_string() /></SessionAuthGuard> } />
-                            <Route path=path!("/pakaian-dinas/laporan") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasLaporan /></SessionAuthGuard> } />
-                            <Route path=path!("/pakaian-dinas/laporan/rekap") view=move || view! { <SessionAuthGuard user_session=user_session><PakaianDinasLaporan /></SessionAuthGuard> } />
+                                // ── Kebutuhan BMN ────────────────────
+                                <Route path=path!("/kebutuhan-bmn/periode") view=PeriodManagement />
+                                <Route path=path!("/kebutuhan-bmn/daftar") view=KebutuhanBmnList />
+                                <Route path=path!("/kebutuhan-bmn") view=KebutuhanBmnList />
+                                <Route path=path!("/kebutuhan-bmn/buat") view=KebutuhanBmnForm />
+                                <Route path=path!("/kebutuhan-bmn/baru") view=KebutuhanBmnForm />
+                                <Route path=path!("/kebutuhan-bmn/:id/edit") view=KebutuhanBmnForm />
+                                <Route path=path!("/kebutuhan-bmn/detail/:id") view=KebutuhanBmnDetail />
+                                <Route path=path!("/kebutuhan-bmn/:id") view=KebutuhanBmnDetail />
+                                <Route path=path!("/kebutuhan-bmn/satker/:satker_id") view=KebutuhanBmnSatkerDetail />
+                                <Route path=path!("/kebutuhan-bmn/laporan") view=LaporanKebutuhanBmn />
 
-                            // ── Pengelolaan BMN ──────────────────────
-                            <Route path=path!("/pengelolaan/pemakaian") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnListPage /></SessionAuthGuard> } />
-                            <Route path=path!("/pemakaian-bmn") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnListPage /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/pemakaian/buat") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnForm /></SessionAuthGuard> } />
-                            <Route path=path!("/pemakaian-bmn/baru") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnForm /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/pemakaian/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetailPage /></SessionAuthGuard> } />
-                            <Route path=path!("/pemakaian-bmn/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnDetailPage /></SessionAuthGuard> } />
-                            <Route path=path!("/pemakaian-bmn/:id/renew") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnRenew /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/pemakaian/monitoring") view=move || view! { <SessionAuthGuard user_session=user_session><PemakaianBmnMonitoring /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnListPage /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnListPage /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan/buat") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanForm /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan/baru") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanForm /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan/detail/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnDetailPage /></SessionAuthGuard> } />
-                            <Route path=path!("/pengelolaan/penghapusan/:id") view=move || view! { <SessionAuthGuard user_session=user_session><PenghapusanBmnDetailPage /></SessionAuthGuard> } />
+                                // ── Pakaian Dinas ────────────────────
+                                <Route path=path!("/pakaian-dinas/jenis") view=PakaianDinasJenisList />
+                                <Route path=path!("/pakaian-dinas/jenis/:id/spesifikasi") view=SpesifikasiPage />
+                                <Route path=path!("/pakaian-dinas/pengajuan") view=PakaianDinasPengajuanList />
+                                <Route path=path!("/pakaian-dinas/ukuran") view=move || view! { <UkuranPegawai pegawai_id="0".to_string() pegawai_nama="Pegawai".to_string() pegawai_nip="000".to_string() /> } />
+                                <Route path=path!("/pakaian-dinas/laporan") view=PakaianDinasLaporan />
+                                <Route path=path!("/pakaian-dinas/laporan/rekap") view=PakaianDinasLaporan />
 
-                            // ── Analitik ─────────────────────────────
-                            <Route path=path!("/analitik/roadmap") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisList /></SessionAuthGuard> } />
-                            <Route path=path!("/analisis/daftar") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisList /></SessionAuthGuard> } />
-                            <Route path=path!("/analitik/roadmap/buat") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisForm /></SessionAuthGuard> } />
-                            <Route path=path!("/analisis/baru") view=move || view! { <SessionAuthGuard user_session=user_session><AnalisisForm /></SessionAuthGuard> } />
-                            <Route path=path!("/analitik/kodefikasi") view=move || view! { <SessionAuthGuard user_session=user_session><MappingKodefikasiDashboard /></SessionAuthGuard> } />
+                                // ── Pengelolaan BMN ──────────────────
+                                <Route path=path!("/pengelolaan/pemakaian") view=PemakaianBmnListPage />
+                                <Route path=path!("/pemakaian-bmn") view=PemakaianBmnListPage />
+                                <Route path=path!("/pengelolaan/pemakaian/buat") view=PemakaianBmnForm />
+                                <Route path=path!("/pemakaian-bmn/baru") view=PemakaianBmnForm />
+                                <Route path=path!("/pengelolaan/pemakaian/detail/:id") view=PemakaianBmnDetailPage />
+                                <Route path=path!("/pemakaian-bmn/:id") view=PemakaianBmnDetailPage />
+                                <Route path=path!("/pemakaian-bmn/:id/renew") view=PemakaianBmnRenew />
+                                <Route path=path!("/pengelolaan/pemakaian/monitoring") view=PemakaianBmnMonitoring />
+                                <Route path=path!("/pengelolaan/penghapusan") view=PenghapusanBmnListPage />
+                                <Route path=path!("/pengelolaan/penghapusan/daftar") view=PenghapusanBmnListPage />
+                                <Route path=path!("/pengelolaan/penghapusan/buat") view=PenghapusanForm />
+                                <Route path=path!("/pengelolaan/penghapusan/baru") view=PenghapusanForm />
+                                <Route path=path!("/pengelolaan/penghapusan/detail/:id") view=PenghapusanBmnDetailPage />
+                                <Route path=path!("/pengelolaan/penghapusan/:id") view=PenghapusanBmnDetailPage />
 
-                            // ── Admin ────────────────────────────────
-                            <Route path=path!("/admin/users") view=move || view! { <SessionAdminGuard user_session=user_session><AdminUsersPage /></SessionAdminGuard> } />
-                            <Route path=path!("/admin/roles") view=move || view! { <SessionAdminGuard user_session=user_session><AdminRolesPage /></SessionAdminGuard> } />
-                            <Route path=path!("/admin/audit") view=move || view! { <SessionAdminGuard user_session=user_session><AdminAuditPage /></SessionAdminGuard> } />
-                            <Route path=path!("/admin/master") view=move || view! { <SessionAdminGuard user_session=user_session><AdminMasterDataPage /></SessionAdminGuard> } />
-                            <Route path=path!("/admin/workflow") view=move || view! { <SessionAdminGuard user_session=user_session><WorkflowConfigManagement /></SessionAdminGuard> } />
-                            <Route path=path!("/admin/workflow-monitoring") view=move || view! { <SessionAdminGuard user_session=user_session><WorkflowMonitoring /></SessionAdminGuard> } />
+                                // ── Analitik ─────────────────────────
+                                <Route path=path!("/analitik/roadmap") view=AnalisisList />
+                                <Route path=path!("/analisis/daftar") view=AnalisisList />
+                                <Route path=path!("/analitik/roadmap/buat") view=AnalisisForm />
+                                <Route path=path!("/analisis/baru") view=AnalisisForm />
+                                <Route path=path!("/analitik/kodefikasi") view=MappingKodefikasiDashboard />
 
-                            // ── Bantuan ──────────────────────────────
-                            <Route path=path!("/bantuan/panduan") view=move || view! { <SessionAuthGuard user_session=user_session><PanduanPengguna /></SessionAuthGuard> } />
-                            <Route path=path!("/bantuan/faq") view=move || view! { <SessionAuthGuard user_session=user_session><FaqPage /></SessionAuthGuard> } />
-                            <Route path=path!("/bantuan/helpdesk") view=move || view! { <SessionAuthGuard user_session=user_session><HelpdeskPage /></SessionAuthGuard> } />
+                                // ── Bantuan ──────────────────────────
+                                <Route path=path!("/bantuan/panduan") view=PanduanPengguna />
+                                <Route path=path!("/bantuan/faq") view=FaqPage />
+                                <Route path=path!("/bantuan/helpdesk") view=HelpdeskPage />
+                            </ParentRoute>
+
+                            // ══════════════════════════════════════════
+                            // ADMIN ROUTES — AdminLayout guards all
+                            // children (admin role required)
+                            // ══════════════════════════════════════════
+                            <ParentRoute path=path!("/admin") view=AdminLayout>
+                                <Route path=path!("/users") view=AdminUsersPage />
+                                <Route path=path!("/roles") view=AdminRolesPage />
+                                <Route path=path!("/audit") view=AdminAuditPage />
+                                <Route path=path!("/master") view=AdminMasterDataPage />
+                                <Route path=path!("/workflow") view=WorkflowConfigManagement />
+                                <Route path=path!("/workflow-monitoring") view=WorkflowMonitoring />
+                            </ParentRoute>
                         </Routes>
                     </main>
                 </div>
