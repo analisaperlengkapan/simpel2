@@ -176,10 +176,16 @@ configMapGenerator:
 
 # Secret patches for staging
 # ⛔ DO NOT commit real secrets to this file!
-# Real values must be supplied out-of-band via a local overlay:
-#   1. Copy staging-secrets.example.yaml to staging-secrets.yaml (gitignored)
-#   2. Fill in real credentials in staging-secrets.yaml
-#   3. The secretGenerator below will be merged by Kustomize
+# The secretGenerator below produces placeholder secrets (CHANGEME).
+# ⚠️  WARNING: Every `kubectl apply -k overlays/staging` OVERWRITES cluster secrets
+#     with these CHANGEME placeholders. You MUST re-apply real secrets afterward.
+#
+# Deployment workflow (order matters!):
+#   1. kubectl apply -k overlays/staging          # deploys everything with CHANGEME
+#   2. cp staging-secrets.example.yaml staging-secrets.yaml   # one-time setup (gitignored)
+#   3. $EDITOR staging-secrets.yaml               # fill in real credentials
+#   4. kubectl apply -f staging-secrets.yaml -n simpelv2-staging  # overwrite placeholders
+#
 # For production, use Secreton (see root AGENTS.md and layanan/secreton/).
 secretGenerator:
   - name: postgres-credentials

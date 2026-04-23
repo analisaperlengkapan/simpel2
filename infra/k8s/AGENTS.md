@@ -327,18 +327,31 @@ kubectl scale deployment/<name> --replicas=5 -n simpelv2-production
 
 > ⛔ **NEVER commit real secrets to git.** The `kustomization.yaml` files contain only
 > `CHANGEME` placeholders. Real values must be supplied out-of-band.
+>
+> ⚠️ **Every `kubectl apply -k` OVERWRITES cluster secrets with CHANGEME placeholders.**
+> You MUST re-apply real secrets after every kustomize deployment.
 
-**Staging:**
+**Staging (order matters!):**
 ```bash
-# 1. Copy the example file (one-time setup)
+# 1. Deploy with kustomize (this resets secrets to CHANGEME)
+kubectl apply -k overlays/staging
+
+# 2. Copy the example file (one-time setup)
 cp overlays/staging/staging-secrets.example.yaml overlays/staging/staging-secrets.yaml
 # staging-secrets.yaml is gitignored
 
-# 2. Edit with real credentials
+# 3. Edit with real credentials
 $EDITOR overlays/staging/staging-secrets.yaml
 
-# 3. Apply the secrets directly (before or after kustomize apply)
+# 4. Apply real secrets (MUST be done AFTER step 1)
 kubectl apply -f overlays/staging/staging-secrets.yaml -n simpelv2-staging
+```
+
+**Secreton staging** also uses the same pattern:
+```bash
+# See layanan/secreton/deploy/staging/01-secrets.yaml for the template.
+# Copy to 01-secrets.local.yaml, fill real values, then:
+kubectl apply -f layanan/secreton/deploy/staging/01-secrets.local.yaml -n simpelv2-staging
 ```
 
 **Production:**
@@ -347,6 +360,12 @@ kubectl apply -f overlays/staging/staging-secrets.yaml -n simpelv2-staging
 # See layanan/secreton/crates/k8s-operator/README.md for details.
 # Manual Secret objects are only for initial bootstrap.
 ```
+
+> 🔄 **Credential Rotation Required:** Real credentials were previously committed to
+> this repository's git history (database passwords, SIMAN client secrets, MonSAKTI/MySIMKARI
+> JWT tokens). Even though they have been replaced with `CHANGEME` placeholders, the old
+> values remain in `git log`. **All previously exposed credentials MUST be rotated.**
+> Priority: SIMAN client secret and BA key (no built-in expiration), then database passwords.
 
 ## ⚠️ Important Notes
 

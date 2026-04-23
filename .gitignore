@@ -43,6 +43,8 @@ k8s/**/*.autogen.yaml
 # Local staging/production secrets (real values, never commit)
 infra/k8s/overlays/staging/staging-secrets.yaml
 infra/k8s/overlays/production/production-secrets.yaml
+layanan/secreton/deploy/staging/01-secrets.local.yaml
+layanan/secreton/deploy/production/01-secrets.local.yaml
 
 # ================================
 # 🔐 Vault & Encrypted Artifacts
