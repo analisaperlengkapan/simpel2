@@ -29,6 +29,50 @@
 
 ## 🏗️ Architecture
 
+### Communication Flow
+
+```mermaid
+flowchart TB
+    subgraph External["🌐 External Government APIs"]
+        MON["MonSAKTI v1.4\n(8 modules)"]
+        MYS["MySIMKARI\n(Kepegawaian)"]
+        SIM["SIMAN v2.0\n(Aset Negara)"]
+    end
+
+    subgraph Integrasi["⚙️ Layanan Integrasi"]
+        CLIENT["HTTP Client\n+ Token Mgmt"]
+        GRPC_SRV["gRPC Server\n:50051"]
+        DB_OPS["DB Operations\n(bulk insert)"]
+        SCHED["K8s CronJob\n(batch sync)"]
+    end
+
+    subgraph Internal["🔐 Internal Services"]
+        LP["Layanan\nPerlengkapan"]
+        AUTH["Authenc\n(gRPC)"]
+    end
+
+    subgraph Data["💾 Data Layer"]
+        PG[(PostgreSQL\nschema: integrasi)]
+    end
+
+    SCHED -->|"REST/OAuth2"| CLIENT
+    CLIENT -->|"Bearer Token"| MON
+    CLIENT -->|"Bearer Token"| MYS
+    CLIENT -->|"OAuth2"| SIM
+    CLIENT --> DB_OPS
+    DB_OPS --> PG
+    LP -->|"gRPC"| GRPC_SRV
+    GRPC_SRV --> PG
+    GRPC_SRV -->|"gRPC"| AUTH
+
+    style External fill:#e1f5fe
+    style Integrasi fill:#fff3e0
+    style Internal fill:#fce4ec
+    style Data fill:#e8f5e9
+```
+
+### Directory Structure
+
 ```
 layanan/integrasi/
 ├── proto/

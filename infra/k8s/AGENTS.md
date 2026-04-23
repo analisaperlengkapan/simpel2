@@ -14,30 +14,43 @@ This directory contains **Kustomize-based** Kubernetes manifests for deploying S
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    MicroK8s Cluster                             │
-│  ┌──────────────────┐  ┌──────────────────┐                     │
-│  │ simpel.kejaksaan │  │    simple02      │                     │
-│  │    .go.id        │  │    (worker)      │                     │
-│  │  172.15.10.254   │  │  172.15.10.252   │                     │
-│  └──────────────────┘  └──────────────────┘                     │
-├─────────────────────────────────────────────────────────────────┤
-│                    Infrastructure Layer                         │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────────┐ │
-│  │   Istio     │ │   MetalLB   │ │  Longhorn   │ │ Registry  │ │
-│  │  (mesh)     │ │ (172.15.10. │ │  (storage)  │ │ :32000    │ │
-│  │             │ │  200-220)   │ │             │ │           │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └───────────┘ │
-├─────────────────────────────────────────────────────────────────┤
-│                    Application Namespaces                       │
-│  ┌─────────────────────┐  ┌─────────────────────┐              │
-│  │ simpelv2-staging    │  │ simpelv2-production │              │
-│  │ • 1 replica         │  │ • 3 replicas (HA)   │              │
-│  │ • PERMISSIVE mTLS   │  │ • STRICT mTLS       │              │
-│  │ • Debug logging     │  │ • Info logging      │              │
-│  └─────────────────────┘  └─────────────────────┘              │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Cluster["☸️ MicroK8s Cluster"]
+        direction TB
+        subgraph Nodes["🖥️ Nodes"]
+            Master["simpel.kejaksaan.go.id\n172.15.10.254"]
+            Worker["simple02 (worker)\n172.15.10.252"]
+        end
+
+        subgraph Infra["🔧 Infrastructure Layer"]
+            Istio["Istio\n(mesh)"]
+            MetalLB["MetalLB\n(172.15.10.200-250)"]
+            Longhorn["Longhorn\n(storage)"]
+            Registry["Registry\n:32000"]
+        end
+
+        subgraph Staging["simpelv2-staging"]
+            S1["• 1 replica"]
+            S2["• PERMISSIVE mTLS"]
+            S3["• Debug logging"]
+        end
+
+        subgraph Production["simpelv2-production"]
+            P1["• 3 replicas (HA)"]
+            P2["• STRICT mTLS"]
+            P3["• Info logging"]
+        end
+    end
+
+    Nodes --> Infra
+    Infra --> Staging
+    Infra --> Production
+
+    style Cluster fill:#e3f2fd
+    style Infra fill:#fff3e0
+    style Staging fill:#fff9c4
+    style Production fill:#c8e6c9
 ```
 
 ## 📁 Directory Structure
@@ -451,7 +464,7 @@ kubectl delete pod <pod-name> -n <namespace> --force --grace-period=0
 
 # 2. Apply them separately (not via Kustomize)
 kubectl apply -f infra/k8s/overlays/production/production-istio.yaml
-kubectl apply -f infra/k8s/overlays/staging/overlays/staging/staging-istio.yaml
+kubectl apply -f infra/k8s/overlays/staging/staging-istio.yaml
 ```
 
 ### 🟡 Multiple Gateways Competing for Same Port

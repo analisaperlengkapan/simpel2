@@ -197,14 +197,14 @@ Instrument komponen untuk performance tracking:
 
 ```rust
 use leptos::prelude::*;
-use web_sys::Performance;
 
 #[component]
 pub fn PerformanceMonitoredComponent() -> impl IntoView {
-    let start_time = Performance::now();
+    let perf = web_sys::window().unwrap().performance().unwrap();
+    let start_time = perf.now();
 
     on_cleanup(move || {
-        let duration = Performance::now() - start_time;
+        let duration = perf.now() - start_time;
         tracing::info!(duration_ms = duration, "Component render time");
     });
 

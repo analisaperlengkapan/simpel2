@@ -806,11 +806,16 @@ metadata:
   name: perlengkapan-api
 spec:
   http:
+  # Route canary-tagged traffic to canary deployment
   - match:
     - headers:
         canary:
           exact: "true"
     route:
+    - destination:
+        host: perlengkapan-api-canary
+  # Default: weighted split for all other traffic
+  - route:
     - destination:
         host: perlengkapan-api-canary
       weight: 10
