@@ -34,15 +34,27 @@ pub fn PortalAuthLayout(
     move || match user_session.get() {
         Some(session) => {
             if session.require_password_change {
-                let nav = leptos_router::hooks::use_navigate();
-                nav(
-                    &format!("/{}", routes::segment::PASSWORD),
-                    Default::default(),
-                );
-                view! { <div /> }.into_any()
-            } else {
-                view! { <leptos_router::components::Outlet /> }.into_any()
+                // Allow the password-change page itself through to avoid an
+                // infinite redirect loop (the password route is a child of
+                // this same layout guard).
+                let is_password_page = web_sys::window()
+                    .and_then(|w| w.location().pathname().ok())
+                    .map(|p| {
+                        let normalized = p.trim_end_matches('/');
+                        normalized.ends_with(&format!("/{}", routes::segment::PASSWORD))
+                    })
+                    .unwrap_or(false);
+
+                if !is_password_page {
+                    let nav = leptos_router::hooks::use_navigate();
+                    nav(
+                        &format!("/{}", routes::segment::PASSWORD),
+                        Default::default(),
+                    );
+                    return view! { <div /> }.into_any();
+                }
             }
+            view! { <leptos_router::components::Outlet /> }.into_any()
         }
         None => view! {
             <LoginPage on_login_success=on_login_success />

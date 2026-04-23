@@ -5,7 +5,7 @@
 
 use crate::api::{RenewPermitRequest, fetch_pemakaian_bmn_detail, renew_pemakaian_bmn};
 use leptos::prelude::*;
-use leptos_router::hooks::use_params_map;
+use leptos_router::hooks::{use_navigate, use_params_map};
 
 #[component]
 pub fn PemakaianBmnRenew() -> impl IntoView {
@@ -32,6 +32,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal(None::<String>);
     let (success, set_success) = signal(false);
+    let navigate = use_navigate();
 
     let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
@@ -47,18 +48,22 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
             keperluan: keperluan.get(),
         };
 
+        let navigate = navigate.clone();
         leptos::task::spawn_local(async move {
             match renew_pemakaian_bmn(&permit_id, request).await {
                 Ok(_) => {
                     set_success.set(true);
                     set_loading.set(false);
 
-                    // Redirect after success
-                    gloo_timers::future::TimeoutFuture::new(1500).await;
-                    leptos_router::hooks::use_navigate()(
-                        &format!("/perlengkapan/pemakaian-bmn/{}", permit_id),
-                        Default::default(),
-                    );
+                    // Redirect after success — `navigate` captured at component
+                    // level to stay within the reactive scope.
+                    gloo_timers::callback::Timeout::new(1500, move || {
+                        navigate(
+                            &format!("/perlengkapan/pemakaian-bmn/{}", permit_id),
+                            Default::default(),
+                        );
+                    })
+                    .forget();
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal memperpanjang izin: {}", e)));

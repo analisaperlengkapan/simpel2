@@ -24,20 +24,29 @@ pub fn MainLayout(
     let session = use_context::<ReadSignal<Option<UserSession>>>()
         .and_then(|sig| sig.get_untracked());
 
-    // Build logout handler that broadcasts + clears
+    // Build logout handler that broadcasts + clears, then does a full page
+    // reload to discard all WASM memory (session signals, provide_context).
     let on_logout: Option<Box<dyn Fn()>> = Some(Box::new(move || {
         #[cfg(target_arch = "wasm32")]
-        AuthService::broadcast_logout();
+        {
+            // AuthService::logout() already calls broadcast_logout() + clear_session()
+            // and fires a background POST to /api/v1/auth/logout.
+            AuthService::logout();
 
-        AuthService::logout();
-
-        // Update session signal if available
-        if let Some(set_session) = use_context::<WriteSignal<Option<UserSession>>>() {
-            set_session.set(None);
+            // Full page reload to clear WASM memory — SPA navigation would
+            // leave reactive session state in the linear memory.
+            if let Some(window) = web_sys::window() {
+                let _ = window.location().set_href("/portal/login");
+            }
         }
 
-        let nav = leptos_router::hooks::use_navigate();
-        nav("/portal/login", Default::default());
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            AuthService::clear_session();
+            if let Some(set_session) = use_context::<WriteSignal<Option<UserSession>>>() {
+                set_session.set(None);
+            }
+        }
     }));
 
     view! {

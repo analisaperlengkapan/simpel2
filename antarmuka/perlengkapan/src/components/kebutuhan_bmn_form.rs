@@ -11,7 +11,7 @@ use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
-use leptos_router::hooks::use_params_map;
+use leptos_router::hooks::{use_navigate, use_params_map};
 use lib_ui::hooks::{use_form, use_toast::use_toast};
 
 #[derive(Clone, PartialEq, Default)]
@@ -61,6 +61,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
 
     let form = use_form(KebutuhanFormData::default());
     let toast = use_toast();
+    let navigate = use_navigate();
     let (loading, set_loading) = signal(false);
 
     // Load existing data if editing
@@ -115,6 +116,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
 
         let data = form.begin_submit();
         let current_mode = mode.get();
+        let navigate = navigate.clone();
 
         spawn_local(async move {
             let result = match current_mode {
@@ -154,9 +156,11 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                 Ok(_) => {
                     form.finish_ok();
                     toast.success("Data berhasil disimpan!");
-                    let nav = leptos_router::hooks::use_navigate();
+                    // `navigate` was captured at component level (not inside
+                    // spawn_local) to stay within the reactive scope — matching
+                    // the pattern in analisis_form.rs.
                     gloo_timers::callback::Timeout::new(1500, move || {
-                        nav(routes::path::KEBUTUHAN_DAFTAR, Default::default());
+                        navigate(routes::path::KEBUTUHAN_DAFTAR, Default::default());
                     })
                     .forget();
                 }

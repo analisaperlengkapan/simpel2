@@ -1,7 +1,7 @@
 //! Profile Menu — avatar dropdown with role switcher + logout.
 
 use super::role_switcher::{RoleSwitcher, get_active_role};
-use crate::features::auth::AuthService;
+use crate::features::auth::{AuthService, UserSession};
 use crate::routes;
 use leptos::prelude::*;
 use leptos_router::components::A;
@@ -10,6 +10,21 @@ use leptos_router::components::A;
 #[component]
 pub fn ProfileMenu() -> impl IntoView {
     let is_open = RwSignal::new(false);
+
+    // Read user info from the global session context (provided in App root).
+    let session = use_context::<ReadSignal<Option<UserSession>>>();
+    let display_name = move || {
+        session
+            .and_then(|s| s.get())
+            .map(|s| s.name.clone())
+            .unwrap_or_else(|| "Pengguna".to_string())
+    };
+    let display_email = move || {
+        session
+            .and_then(|s| s.get())
+            .and_then(|s| s.email.clone())
+            .unwrap_or_else(|| "-".to_string())
+    };
 
     view! {
         <div style="position: relative;">
@@ -35,8 +50,8 @@ pub fn ProfileMenu() -> impl IntoView {
                             <i class="fas fa-user" style="font-size: 1.2rem; color: #0f172a;"></i>
                         </div>
                         <div>
-                            <div style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">"Administrator"</div>
-                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">"admin@kejaksaan.go.id"</div>
+                            <div style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">{display_name}</div>
+                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">{display_email}</div>
                         </div>
                     </div>
                 </div>
@@ -58,13 +73,25 @@ pub fn ProfileMenu() -> impl IntoView {
                         class="hover:bg-red-500/[0.1]"
                         on:click=move |_| {
                             #[cfg(target_arch = "wasm32")]
-                            AuthService::logout();
+                            {
+                                AuthService::logout();
+                                // Full page reload to clear all WASM memory (reactive
+                                // signals, provide_context data, closures).  SPA
+                                // navigation would leave sensitive session state in
+                                // the WASM linear memory.
+                                if let Some(window) = web_sys::window() {
+                                    let origin = window
+                                        .location()
+                                        .origin()
+                                        .unwrap_or_else(|_| String::new());
+                                    let _ = window
+                                        .location()
+                                        .set_href(&format!("{}/portal/login", origin));
+                                }
+                            }
 
                             #[cfg(not(target_arch = "wasm32"))]
                             AuthService::clear_session();
-
-                            let nav = leptos_router::hooks::use_navigate();
-                            nav(routes::path::LOGIN, Default::default());
                         }
                     >
                         <i class="fas fa-sign-out-alt" style="width: 18px; text-align: center; font-size: 0.8rem;"></i>

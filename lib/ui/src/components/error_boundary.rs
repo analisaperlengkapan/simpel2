@@ -25,9 +25,13 @@ use leptos::prelude::*;
 // ERROR PANEL — user-friendly error display with retry
 // ============================================================================
 
-/// Severity level for error display styling.
+/// Severity level for error **panel display styling**.
+///
+/// Renamed from `ErrorSeverity` to avoid a name collision with the
+/// telemetry-oriented `utils::error_tracking::ErrorSeverity` (5 variants)
+/// when both are glob-reexported at the crate root.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum ErrorSeverity {
+pub enum ErrorPanelSeverity {
     /// Informational — blue styling, non-critical.
     Info,
     /// Warning — yellow styling, degraded but functional.
@@ -58,26 +62,26 @@ pub fn ErrorPanel(
     #[prop(into)]
     message: String,
     /// Visual severity level.
-    #[prop(default = ErrorSeverity::Error)]
-    severity: ErrorSeverity,
+    #[prop(default = ErrorPanelSeverity::Error)]
+    severity: ErrorPanelSeverity,
     /// Optional retry callback. When provided, a "Coba Lagi" button is shown.
     #[prop(optional)]
     on_retry: Option<Callback<()>>,
 ) -> impl IntoView {
     let (border, bg, icon_color, icon) = match severity {
-        ErrorSeverity::Info => (
+        ErrorPanelSeverity::Info => (
             "border-blue-500/30",
             "bg-blue-950/30",
             "text-blue-400",
             "fas fa-info-circle",
         ),
-        ErrorSeverity::Warning => (
+        ErrorPanelSeverity::Warning => (
             "border-yellow-500/30",
             "bg-yellow-950/30",
             "text-yellow-400",
             "fas fa-exclamation-triangle",
         ),
-        ErrorSeverity::Error => (
+        ErrorPanelSeverity::Error => (
             "border-red-500/30",
             "bg-red-950/30",
             "text-red-400",
