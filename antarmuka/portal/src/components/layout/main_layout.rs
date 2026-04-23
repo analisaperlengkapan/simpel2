@@ -29,8 +29,9 @@ pub fn MainLayout(
     let on_logout: Option<Box<dyn Fn()>> = Some(Box::new(move || {
         #[cfg(target_arch = "wasm32")]
         {
-            // AuthService::logout() already calls broadcast_logout() + clear_session()
-            // and fires a background POST to /api/v1/auth/logout.
+            // Note: Portal's AuthService::logout() does NOT call broadcast_logout().
+            // Cross-tab sync works because removing 'user_session' from localStorage
+            // fires a storage event that other tabs' listeners catch.
             AuthService::logout();
 
             // Full page reload to clear WASM memory — SPA navigation would
