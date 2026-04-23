@@ -298,7 +298,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                         // Pagination
                                         <DarkPagination
                                             current_page=Signal::derive(move || page.get() as i64)
-                                            total_pages=total_pages
+                                            total_pages=total_pages as i64
                                             total_items=total
                                             items_shown=response.data.len()
                                             on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))

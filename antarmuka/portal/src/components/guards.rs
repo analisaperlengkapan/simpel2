@@ -22,7 +22,11 @@ use leptos::prelude::*;
 // ============================================================================
 
 /// Authenticated layout guard for portal. Reads `user_session` from context
-/// (provided in App root). Unauthenticated visitors see the login page.
+/// (provided in App root). Unauthenticated visitors see the login page
+/// rendered inline at the originally-requested URL — this is intentional so
+/// that after a successful login the reactive signal update re-renders the
+/// guard into the protected `<Outlet />` at the same URL, preserving the
+/// user's intended destination without needing return-URL plumbing.
 /// Password-change redirect is enforced automatically.
 #[component]
 pub fn PortalAuthLayout(
@@ -31,23 +35,28 @@ pub fn PortalAuthLayout(
     /// Login success writer for fallback login page
     on_login_success: WriteSignal<Option<UserSession>>,
 ) -> impl IntoView {
+    // Capture router hooks at component render time (inside a reactive Owner
+    // scope). Reading them inside the lazy guard closure would be fragile if
+    // the Owner has been disposed.
+    let location = leptos_router::hooks::use_location();
+    let navigate = leptos_router::hooks::use_navigate();
+
     move || match user_session.get() {
         Some(session) => {
             if session.require_password_change {
                 // Allow the password-change page itself through to avoid an
                 // infinite redirect loop (the password route is a child of
-                // this same layout guard).
-                let is_password_page = web_sys::window()
-                    .and_then(|w| w.location().pathname().ok())
-                    .map(|p| {
-                        let normalized = p.trim_end_matches('/');
-                        normalized.ends_with(&format!("/{}", routes::segment::PASSWORD))
-                    })
-                    .unwrap_or(false);
+                // this same layout guard). Use the router's reactive
+                // `use_location()` rather than `window.location.pathname` —
+                // the former is updated synchronously during SPA navigation
+                // and is less fragile to path-structure changes.
+                let is_password_page = location.pathname.with(|p| {
+                    let normalized = p.trim_end_matches('/');
+                    normalized.ends_with(&format!("/{}", routes::segment::PASSWORD))
+                });
 
                 if !is_password_page {
-                    let nav = leptos_router::hooks::use_navigate();
-                    nav(
+                    navigate(
                         &format!("/{}", routes::segment::PASSWORD),
                         Default::default(),
                     );
@@ -71,11 +80,14 @@ pub fn PortalAdminLayout(
     /// Login success writer for fallback login page
     on_login_success: WriteSignal<Option<UserSession>>,
 ) -> impl IntoView {
+    // Capture navigate at render time so the closure below doesn't depend on
+    // a reactive Owner scope that may be disposed during rapid navigation.
+    let navigate = leptos_router::hooks::use_navigate();
+
     move || match user_session.get() {
         Some(session) => {
             if session.require_password_change {
-                let nav = leptos_router::hooks::use_navigate();
-                nav(
+                navigate(
                     &format!("/{}", routes::segment::PASSWORD),
                     Default::default(),
                 );
@@ -203,12 +215,13 @@ pub fn SessionAuthGuard(
     allow_password_change: bool,
 ) -> impl IntoView {
     let children = StoredValue::new_local(children);
+    // Capture navigate at render time (see PortalAdminLayout note).
+    let navigate = leptos_router::hooks::use_navigate();
 
     move || match user_session.get() {
         Some(session) => {
             if !allow_password_change && session.require_password_change {
-                let nav = leptos_router::hooks::use_navigate();
-                nav(
+                navigate(
                     &format!("/{}", routes::segment::PASSWORD),
                     Default::default(),
                 );
@@ -235,12 +248,13 @@ pub fn SessionAdminGuard(
     children: ChildrenFn,
 ) -> impl IntoView {
     let children = StoredValue::new_local(children);
+    // Capture navigate at render time (see PortalAdminLayout note).
+    let navigate = leptos_router::hooks::use_navigate();
 
     move || match user_session.get() {
         Some(session) => {
             if session.require_password_change {
-                let nav = leptos_router::hooks::use_navigate();
-                nav(
+                navigate(
                     &format!("/{}", routes::segment::PASSWORD),
                     Default::default(),
                 );

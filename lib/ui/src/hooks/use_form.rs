@@ -168,6 +168,16 @@ impl<T: Clone + 'static> FormState<T> {
         self.dirty.set(true);
     }
 
+    /// Load pre-existing data into the form **without** marking it dirty.
+    ///
+    /// Use this when populating an edit form from server data — the user
+    /// hasn't actually modified anything yet, so `dirty` should stay `false`
+    /// until they start typing. Distinct from `set()` which is for user edits.
+    pub fn load(&self, value: T) {
+        self.data.set(value);
+        self.dirty.set(false);
+    }
+
     /// Reset the form to its initial values and clear all state.
     pub fn reset(&self) {
         self.initial.with_value(|init| self.data.set(init.clone()));

@@ -44,6 +44,13 @@ pub fn MainLayout(
     // otherwise the modal could flash on the login page. Captured at
     // component render time; the closure below uses them without
     // re-calling `use_context`.
+    //
+    // NOTE: Leptos context lookup is type-based. These generic `WriteSignal<bool>`
+    // / `WriteSignal<i64>` types are only provided once (in `app.rs`), so this
+    // lookup is unambiguous today. If another `WriteSignal<bool>` or
+    // `WriteSignal<i64>` is ever provided higher in the tree, the lookup could
+    // silently shadow. Wrap in a newtype (e.g. `struct ShowTimeoutWarning(...)`)
+    // if that becomes a concern.
     let set_show_timeout_warning = use_context::<WriteSignal<bool>>();
     let set_timeout_countdown = use_context::<WriteSignal<i64>>();
 

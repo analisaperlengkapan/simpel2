@@ -4,7 +4,7 @@
 //! REQ-PORTAL-006
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::utils::app_state::use_api_client;
 use crate::utils::authenc_api::ChangePasswordRequest;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -82,7 +82,6 @@ fn calculate_strength(password: &str) -> PasswordStrength {
 /// Password change page
 #[component]
 pub fn PasswordChangePage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     // Obtain the top-level user_session writer so we can update the reactive
@@ -234,17 +233,8 @@ pub fn PasswordChangePage() -> impl IntoView {
         });
     };
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
-
     view! {
-        <MainLayout user_session=session.clone() on_logout=on_logout>
+        <MainLayout>
             <div class="max-w-lg mx-auto px-4 py-8">
                 <h1 class="text-2xl font-bold text-gray-900 mb-2">"Ubah Kata Sandi"</h1>
                 <p class="text-gray-600 mb-6">"Pastikan kata sandi baru Anda kuat dan unik."</p>

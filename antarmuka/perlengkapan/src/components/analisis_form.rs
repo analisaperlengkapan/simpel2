@@ -51,8 +51,9 @@ pub fn AnalisisForm() -> impl IntoView {
                     navigate(routes::path::ANALITIK_ROADMAP, Default::default());
                 }
                 Err(e) => {
-                    form.finish_err(format!("Gagal menyimpan: {:?}", e));
-                    toast.error(form.error.get_untracked().unwrap_or_default());
+                    let msg = format!("Gagal menyimpan: {:?}", e);
+                    form.finish_err(msg.clone());
+                    toast.error(msg);
                 }
             }
         });

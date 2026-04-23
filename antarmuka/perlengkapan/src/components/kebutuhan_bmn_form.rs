@@ -82,7 +82,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                             .iter()
                             .map(|s| s.ms_satker_id.clone())
                             .collect();
-                        form.set(KebutuhanFormData {
+                        // Use `load()` (not `set()`) so the form isn't
+                        // marked dirty just from populating server data.
+                        form.load(KebutuhanFormData {
                             nama: p.nama,
                             deskripsi: p.deskripsi,
                             tahun: p.tahun,

@@ -67,8 +67,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                     );
                 }
                 Err(e) => {
-                    form.finish_err(format!("Gagal menyimpan: {:?}", e));
-                    toast.error(form.error.get_untracked().unwrap_or_default());
+                    let msg = format!("Gagal menyimpan: {:?}", e);
+                    form.finish_err(msg.clone());
+                    toast.error(msg);
                 }
             }
         });
