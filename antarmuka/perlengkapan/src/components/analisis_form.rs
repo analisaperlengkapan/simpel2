@@ -44,7 +44,7 @@ pub fn AnalisisForm() -> impl IntoView {
                     form.finish_ok();
                     toast.success("Data analisis berhasil disimpan!");
                     gloo_timers::future::TimeoutFuture::new(1000).await;
-                    navigate(routes::path::ANALISIS_DAFTAR_LEGACY, Default::default());
+                    navigate(routes::path::ANALITIK_ROADMAP, Default::default());
                 }
                 Err(e) => {
                     form.finish_err(format!("Gagal menyimpan: {:?}", e));
@@ -116,7 +116,7 @@ pub fn AnalisisForm() -> impl IntoView {
 
                 <div class="pt-4 flex justify-end gap-3">
                     <a
-                        href=routes::path::ANALISIS_DAFTAR_LEGACY
+                        href=routes::path::ANALITIK_ROADMAP
                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

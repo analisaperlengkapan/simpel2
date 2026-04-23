@@ -32,6 +32,13 @@ pub fn MainLayout(
     let set_show_timeout_warning = use_context::<WriteSignal<bool>>();
     let set_timeout_countdown = use_context::<WriteSignal<i64>>();
 
+    // Capture the session writer at render time as well. `use_context` must
+    // run inside a reactive Owner scope, but the logout closure below may
+    // fire long after render (e.g. from a click handler), outside that scope.
+    // Capturing here ensures the non-WASM branch can always clear the signal.
+    #[cfg(not(target_arch = "wasm32"))]
+    let set_user_session = use_context::<WriteSignal<Option<UserSession>>>();
+
     // Build logout handler that broadcasts + clears, then does a full page
     // reload to discard all WASM memory (session signals, provide_context).
     let on_logout: Option<Box<dyn Fn()>> = Some(Box::new(move || {
@@ -61,7 +68,7 @@ pub fn MainLayout(
         #[cfg(not(target_arch = "wasm32"))]
         {
             AuthService::clear_session();
-            if let Some(set_session) = use_context::<WriteSignal<Option<UserSession>>>() {
+            if let Some(set_session) = set_user_session {
                 set_session.set(None);
             }
         }
