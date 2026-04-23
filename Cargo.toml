@@ -422,10 +422,6 @@ gloo = { version = "0.12.0", features = [
 ] }
 gloo-timers = { version = "0.4.0", features = ["futures"] }
 
-# Leptos ecosystem — reactive utilities (90+ hooks: clipboard, scroll, resize, etc.)
-# Verified compatible with leptos 0.8.x (see Phase 1 plan)
-leptos-use = { version = "0.18" }
-
 # WASM utilities
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
