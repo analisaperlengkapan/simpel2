@@ -152,6 +152,12 @@ fn RedirectToLogin() -> impl IntoView {
 /// Forbidden page for non-admin users trying to access admin routes
 #[component]
 pub fn ForbiddenPage() -> impl IntoView {
+    // Capture `use_navigate()` at component render time (inside a reactive
+    // Owner scope). Calling it inside the `on:click` closure directly would
+    // be fragile — if the reactive Owner has been disposed (e.g. during
+    // rapid navigation), `use_context` inside `use_navigate` would panic.
+    let nav = leptos_router::hooks::use_navigate();
+
     view! {
         <div class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
             <div class="text-center max-w-md px-4">
@@ -169,7 +175,6 @@ pub fn ForbiddenPage() -> impl IntoView {
                     href="/portal/dashboard"
                     on:click=move |ev| {
                         ev.prevent_default();
-                        let nav = leptos_router::hooks::use_navigate();
                         nav("/portal/dashboard", Default::default());
                     }
                     class="inline-flex items-center gap-2 px-5 py-2.5 bg-navy-700 hover:bg-navy-800 dark:bg-gold-500 dark:hover:bg-gold-600 text-white dark:text-navy-900 rounded-xl font-medium transition-colors shadow-sm"
