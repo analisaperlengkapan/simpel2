@@ -28,7 +28,6 @@
 // MODULE DECLARATIONS
 // ============================================================================
 
-pub mod api_client;
 pub mod components;
 pub mod core;
 pub mod hooks;

@@ -615,78 +615,31 @@ kubectl get networkpolicies -n <namespace>
 |--------|---------|------------|
 | **Namespace** | `simpelv2-staging` | `simpelv2-production` |
 | **Host/Domain** | `10.1.7.121` | `simpel.kejaksaan.go.id` |
-| **VirtualService** | `simpelv2-staging-routes` | `simpelv2-prod-routes` |
 | **Replicas** | 1 | 3 (HA) |
 | **Image Tags** | `:stag` | `:prod` |
 | **Logging** | `debug` | `info` |
 | **mTLS** | PERMISSIVE | STRICT |
 
-### Promotion Workflow
+### Quick Commands
 
 ```bash
-# 1. Build and tag images for production
-docker tag localhost:32000/simpelv2/<image>:stag localhost:32000/simpelv2/<image>:prod
-docker push localhost:32000/simpelv2/<image>:prod
-
-# 2. Export image and import to worker node (if not using registry)
-docker save localhost:32000/simpelv2/<image>:prod | microk8s ctr --address /var/snap/microk8s/common/run/containerd.sock images import -
-
-# 3. Apply production overlay
-kubectl apply -k overlays/production
-
-# 4. Apply Istio routing (separate from Kustomize)
-kubectl apply -f infra/k8s/overlays/production/production-istio.yaml
-
-# 5. Verify deployment
-kubectl get pods -n simpelv2-production
-curl -s http://172.15.10.200/ -H "Host: simpel.kejaksaan.go.id"
-```
-
-### Istio Routing Configuration
-
-```yaml
-# Routing is managed SEPARATELY from Kustomize (to avoid namespace transformation issues)
-# Files:
-#   - overlays/production/production-istio.yaml  -> Routes to simpelv2-production services
-#   - overlays/staging/staging-istio.yaml       -> Routes to simpelv2-staging services
-
-# Both use the same Gateway: simpelv2-dev-gateway (in istio-system)
-# Differentiated by hosts:
-#   - Production: ["*"]  (matches simpel.kejaksaan.go.id and all other hosts)
-#   - Staging: ["10.1.7.121"]  (matches only staging IP)
-```
-
-### Quick Promotion Commands
-
-```bash
-# Promote a specific image from staging to production
+# Promote image: tag staging → production, push, restart
 IMAGE=layanan-perlengkapan
-
-# Tag staging as production
-docker pull localhost:32000/simpelv2/${IMAGE}:stag
 docker tag localhost:32000/simpelv2/${IMAGE}:stag localhost:32000/simpelv2/${IMAGE}:prod
 docker push localhost:32000/simpelv2/${IMAGE}:prod
-
-# Import to containerd on worker node
-docker save localhost:32000/simpelv2/${IMAGE}:prod | \
-  ssh simple02 "microk8s ctr --address /var/snap/microk8s/common/run/containerd.sock images import -"
-
-# Rolling restart in production
 kubectl rollout restart deployment/${IMAGE} -n simpelv2-production
-kubectl rollout status deployment/${IMAGE} -n simpelv2-production
-```
 
-### Rollback
+# Apply production overlay + Istio routing (SEPARATE from Kustomize)
+kubectl apply -k overlays/production
+kubectl apply -f overlays/production/production-istio.yaml
 
-```bash
-# If production deployment fails, rollback
+# Rollback
 kubectl rollout undo deployment/<name> -n simpelv2-production
-
-# Or redeploy staging image to production
-kubectl set image deployment/<name> <container>=localhost:32000/simpelv2/<image>:stag -n simpelv2-production
 ```
+
+> ⚠️ Istio VirtualService files are **not managed by Kustomize** (to avoid namespace transformation issues). Apply them with `kubectl apply -f` directly.
 
 ---
 
-*Last Updated: 2026-02-03*
+*Last Updated: 2026-04-23*
 *Maintained by: SIMPEL DevOps Team*

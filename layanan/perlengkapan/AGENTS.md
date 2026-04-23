@@ -419,7 +419,6 @@ See root `AGENTS.md` → "Canonical localStorage Keys" for the full key table.
 |-----|--------|----------|
 | `authenc-core` has 127 compilation errors | Blocks gRPC token validation in integration tests | 🔴 CRITICAL |
 | IAM API handlers return `NOT_IMPLEMENTED` | Portal admin pages (Users, Roles, etc.) non-functional | 🟡 HIGH |
-| `lib/ui/api_client.rs` violates architecture | HTTP fetching in visual-only lib (deprecated, no consumers yet) | 🟢 LOW |
 
 ---
 
