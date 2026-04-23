@@ -2,6 +2,12 @@
 
 > **For AI Agents**: This file is the primary reference for understanding and managing the Kubernetes infrastructure of SIMPEL.
 
+## Inherited Global Rules
+
+- This file extends the global rules in `AGENTS.md`.
+- Keep this document focused on infrastructure-specific constraints and operations.
+- Root governance rules remain authoritative for cross-domain architecture and security policies.
+
 ## 📋 Overview
 
 This directory contains **Kustomize-based** Kubernetes manifests for deploying SIMPEL across multiple environments. The structure follows GitOps best practices with base/overlay pattern.
@@ -28,7 +34,7 @@ This directory contains **Kustomize-based** Kubernetes manifests for deploying S
 │  ┌─────────────────────┐  ┌─────────────────────┐              │
 │  │ simpelv2-staging    │  │ simpelv2-production │              │
 │  │ • 1 replica         │  │ • 3 replicas (HA)   │              │
-│  │ • PERMISSIVE mTLS   │  │ • STRICT mTLS       │              │
+│  │ • STRICT mTLS       │  │ • STRICT mTLS       │              │
 │  │ • Debug logging     │  │ • Info logging      │              │
 │  └─────────────────────┘  └─────────────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
@@ -539,7 +545,7 @@ kubectl get networkpolicies -n <namespace>
 | **Root Project** | [`/AGENTS.md`](../../AGENTS.md) | Main codebase conventions, Rust patterns |
 | **Authenc** | [`/layanan/authenc/AGENTS.md`](../authenc/AGENTS.md) | Identity Provider service |
 | **Secreton** | [`/layanan/secreton/AGENTS.md`](../secreton/AGENTS.md) | Secrets Management service |
-| **Layanan Integrasi** | [`/layanan/daskrimti/integrasi/AGENTS.md`](../../layanan/daskrimti/integrasi/AGENTS.md) | Government API integration |
+| **Layanan Integrasi** | [`/layanan/integrasi/AGENTS.md`](../../layanan/integrasi/AGENTS.md) | Government API integration |
 
 ---
 
@@ -555,7 +561,7 @@ kubectl get networkpolicies -n <namespace>
 | **Replicas** | 1 | 3 (HA) |
 | **Image Tags** | `:stag` | `:prod` |
 | **Logging** | `debug` | `info` |
-| **mTLS** | PERMISSIVE | STRICT |
+| **mTLS** | STRICT | STRICT |
 
 ### Promotion Workflow
 

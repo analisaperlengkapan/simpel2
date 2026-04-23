@@ -54,3 +54,59 @@ Autentikasi di proyek ini berpusat di layanan IAM Kustom (`Authenc`).
 
 ### 3. Utilitas Kriptografi (`crypto/`)
 Murni menggunakan algoritme paling termutakhir dan disetujui (Ed25519 untuk penandatanganan, AES-GCM-256 / ChaCha20Poly1305 untuk enkripsi sirkular). Jangan mengimpor `RSA` klasik tanpa instruksi eksplisit via `Secreton`.
+
+---
+
+## 🔍 Observability Patterns
+
+### Structured Logging
+Gunakan `tracing` crate untuk structured logging di semua modul `lib-common`:
+
+```rust
+use tracing::{info, error, instrument, Level};
+
+#[instrument(skip_all)]
+pub fn validate_jwt(token: &str) -> Result<Claims, JwtError> {
+    info!(token_length = token.len(), "Validating JWT token");
+    // Validation logic
+    Ok(claims)
+}
+```
+
+### Logging Guidelines
+- **ERROR**: Failure yang menghentikan operasi (e.g., crypto failure, invalid signature)
+- **WARN**: Recoverable issues (e.g., deprecated usage, non-critical validation failures)
+- **INFO**: Normal operation milestones (e.g., successful validation, cache hit)
+- **DEBUG**: Detailed diagnostic information
+- **TRACE**: Very detailed flow tracing (use sparingly)
+
+### Error Context
+Selalu sertakan context dalam error logging:
+
+```rust
+use tracing::error;
+
+error!(
+    error = %err,
+    user_id = %user_id,
+    operation = "jwt_validation",
+    "Failed to validate JWT token"
+);
+```
+
+### Performance Metrics
+Untuk operasi kritis (crypto, validation), instrument dengan metrics:
+
+```rust
+use tracing::span;
+
+let span = span!(Level::INFO, "crypto_operation", operation = "encrypt");
+let _enter = span.enter();
+
+// Perform crypto operation
+```
+
+### WASM Compatibility Notes
+- Di WASM, gunakan `tracing-wasm` untuk browser console logging
+- Hindari logging yang terlalu verbose di production WASM builds
+- Gunakan feature flag `telemetry` untuk observability features

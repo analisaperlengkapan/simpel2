@@ -2,6 +2,12 @@
 
 > **AI Agent Guide** for working with the Integration Service (MonSAKTI, MySIMKARI, SIMAN)
 
+## Inherited Global Rules
+
+- This file extends the global rules in `AGENTS.md`.
+- Use this document only for **local deltas** specific to `layanan/integrasi`.
+- If guidance here conflicts with root policy, root policy takes precedence unless an explicit local override is documented.
+
 ## 🌍 Service Context
 
 **Layanan Integrasi** adalah microservice Rust yang mengintegrasikan 3 API eksternal pemerintah Indonesia:
@@ -24,7 +30,7 @@
 ## 🏗️ Architecture
 
 ```
-layanan/daskrimti/integrasi/
+layanan/integrasi/
 ├── proto/
 │   └── integrasi.proto     # gRPC service definition
 ├── src/
@@ -629,13 +635,14 @@ MONSAKTI_SCHEDULE=0 25 * * * # ❌ Invalid (hour > 23)
 
 ## 🎓 Best Practices
 
-1. **Always use environment variables** for configuration
+1. **Use environment variables for non-secret configuration**
 2. **Log all API calls** to `api_call_log`
 3. **Store full responses** in JSONB `raw_data`
 4. **Use cron expressions** for scheduling (flexible)
 5. **Test with single satker** before bulk operations
 6. **Monitor token health** daily
 7. **Archive old logs** monthly (90 days retention)
+8. **For production secrets/tokens, use Secreton-managed sources whenever available; `.env` is for local/bootstrap only**
 
 ---
 

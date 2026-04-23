@@ -9,6 +9,16 @@
 - **Production URL:** https://simpel.kejaksaan.go.id/
 - **Compliance:** Zero-trust security, government standards
 
+## 📐 Governance Rule Hierarchy
+
+Use this precedence order for all guidance in this repository:
+
+1. `AGENTS.md` (root) - global mandatory rules
+2. `<domain>/AGENTS.md` - domain-specific overrides and local constraints
+3. Local README/docs - implementation details and operational notes
+
+If there is a conflict, root `AGENTS.md` wins unless a domain file explicitly documents an allowed override for that domain.
+
 ### 🔑 Key Tech Stack
 
 | Component | Technology | Version |
@@ -26,6 +36,28 @@
 ---
 
 ## 🏛️ System Architecture
+
+### Target Architecture (Canonical)
+
+- Keep **modular monolith per bounded context** as the default deployment strategy.
+- Use **internal platform services** (`authenc`, `secreton`, `layanan-integrasi`) through explicit service contracts.
+- Prefer internal modularization first (crate/module boundaries) before splitting into new deployables.
+- Keep communication patterns strict:
+  - microfrontend -> backend via REST/JSON only
+  - backend -> backend/core services via gRPC only
+  - no direct microfrontend access to auth/secrets infrastructure
+
+### Runtime Contract Rules
+
+- Internal endpoint naming must be consistent across:
+  - runtime config/env parsing
+  - Kubernetes manifests
+  - deployment overlays
+- Use canonical env var names for internal gRPC targets:
+  - `AUTHENC_GRPC_URL`
+  - `SECRETON_GRPC_URL`
+  - `INTEGRASI_GRPC_URL`
+- Keep a compatibility alias only for local migration windows, then remove it.
 
 ```mermaid
 flowchart TB
@@ -80,7 +112,7 @@ flowchart TB
 | From | To | Protocol | Allowed? |
 |------|-----|----------|----------|
 | Microfrontend | Backend Service | **REST API** (JSON/HTTP) | ✅ YES |
-| Microfrontend | Authenc | ❌ FORBIDDEN | ⛔ NO |
+| Microfrontend | Authenc | ❌ FORBIDDEN (except explicit gateway proxy route) | ⛔ NO |
 | Microfrontend | Secreton | ❌ FORBIDDEN | ⛔ NO |
 | Backend Service | Backend Service | **gRPC** (Protobuf) | ✅ YES |
 | Backend Service | Authenc | **gRPC** (mTLS) | ✅ YES |
@@ -196,7 +228,8 @@ simpel2/
 - **Inheritance**: Member crates MUST use `dependency_name = { workspace = true }`
 - **NEVER specify versions** in member `Cargo.toml` files
 - **lib-ui**: Use for shared Leptos UI components
-- **lib-common**: Use for shared types, database config, utilities, crypto helpers
+- **lib-common (FREEZE)**: Do NOT add new modules to `lib/common/`. It is a legacy "God Crate". Instead, create specific shared crates like `lib-telemetry` or `lib-auth-client`.
+- **Database Rules**: ⛔ **DO NOT USE SQLx**. Use `tokio-postgres`, `deadpool-postgres`, and `refinery` for all database interactions.
 - **Unified Workspace**: ALL services including `authenc` and `secreton` crates are part of the main workspace
 
 ### 2. 🧹 Code Quality Commands
@@ -251,12 +284,14 @@ pub struct AppState {
     pub secreton_client: SecretonGrpcClient, // gRPC to Secreton
 }
 
-// ✅ Router setup with State
+// ✅ Router setup with State and Centralized Middleware
 pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/v1/items", get(list_items).post(create_item))
         .route("/api/v1/items/{id}", get(get_item).put(update_item))
+        // ⛔ DO NOT duplicate middleware. Use shared middleware from lib (e.g. lib-axum-middleware)
         .layer(tower_http::trace::TraceLayer::new_for_http())
+        // .layer(lib_auth_client::middleware::AuthLayer::new()) // Example centralized auth validation
         .with_state(state)
 }
 
@@ -314,6 +349,16 @@ pub fn Counter(initial: i32) -> impl IntoView {
             <button on:click=increment>"+1"</button>
         </div>
     }
+}
+
+// ✅ Global State Management (NO prop-drilling!)
+#[component]
+pub fn AppRoot() -> impl IntoView {
+    // Provide state globally at the root
+    let (user_session, set_user_session) = signal(None::<UserSession>);
+    provide_context((user_session, set_user_session));
+    
+    view! { <MainRouter /> }
 }
 
 // ✅ Resource for async data (calls REST API, NOT gRPC!)
@@ -395,7 +440,398 @@ let secret = state.secreton_client
     .into_inner()
     .value;
 
-// NEVER use environment variables for secrets in production!
+// NEVER use environment variables as long-term production secrets!
+// Env vars are allowed only for bootstrap/local development.
+```
+
+---
+
+## 🔍 Observability & Monitoring Patterns
+
+### Structured Logging
+- Gunakan `tracing` dengan structured fields untuk semua services
+- Log level: ERROR, WARN, INFO, DEBUG, TRACE
+- Include fields: `request_id`, `user_id`, `service_name`, `operation`, `duration_ms`
+- Use JSON format di production untuk parsing otomatis
+
+```rust
+use tracing::{info, error, instrument};
+
+#[instrument(skip(db))]
+async fn get_item(
+    db: &Database,
+    item_id: Uuid,
+    user_id: Uuid,
+) -> Result<Item> {
+    info!(item_id = %item_id, user_id = %user_id, "Fetching item");
+    // ...
+}
+```
+
+### Metrics Collection
+- Prometheus metrics untuk semua services (counter, histogram, gauge)
+- Counter: request counts, error counts, active sessions
+- Histogram: request latency (P50, P95, P99), response sizes
+- Gauge: active connections, queue sizes, memory usage
+
+```rust
+use prometheus::{IntCounter, Histogram};
+
+lazy_static! {
+    static ref REQUESTS_TOTAL: IntCounter = register_int_counter!(
+        "api_requests_total",
+        "Total number of API requests"
+    ).unwrap();
+    static ref REQUEST_DURATION: Histogram = register_histogram!(
+        "api_request_duration_seconds",
+        "API request duration in seconds"
+    ).unwrap();
+}
+```
+
+### Distributed Tracing
+- OpenTelemetry integration untuk distributed tracing
+- Trace context propagation via gRPC metadata
+- Span naming convention: `service.operation` (e.g., `perlengkapan-api.get_items`)
+- Include baggage untuk cross-service context
+
+```rust
+use opentelemetry::trace::TraceContextExt;
+
+// Propagate trace context via gRPC metadata
+let mut request = tonic::Request::new(request);
+let cx = opentelemetry::Context::current();
+let carrier = opentelemetry::global::get_text_map_propagator(|propagator| {
+    let mut carrier = MetadataMap::new();
+    propagator.inject_context(&cx, &mut carrier);
+    carrier
+});
+request.metadata_mut().extend(carrier);
+```
+
+---
+
+## ⚠️ Error Handling Best Practices
+
+### Error Types Hierarchy
+- `AppError`: Base error type dengan context dan source chain
+- `DomainError`: Business logic errors (validation, authorization)
+- `InfrastructureError`: Database, network, external service errors
+- `ValidationError`: Input validation errors dengan field-level details
+
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum AppError {
+    #[error("Database error: {0}")]
+    Database(#[from] deadpool_postgres::PoolError),
+
+    #[error("Validation error: {0}")]
+    Validation(String),
+
+    #[error("Not found: {resource} with id {id}")]
+    NotFound { resource: String, id: Uuid },
+
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+}
+
+// ✅ ALWAYS map domain errors to HTTP responses (Axum IntoResponse)
+impl axum::response::IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let status = match self {
+            Self::NotFound { .. } => axum::http::StatusCode::NOT_FOUND,
+            Self::Validation(_) => axum::http::StatusCode::BAD_REQUEST,
+            Self::Unauthorized(_) => axum::http::StatusCode::UNAUTHORIZED,
+            Self::Database(_) => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        (status, self.to_string()).into_response()
+    }
+}
+```
+
+### Error Response Format
+Standardized error response untuk semua API endpoints:
+
+```json
+{
+  "error": {
+    "code": "PERLENGKAPAN_NOT_FOUND",
+    "message": "Barang dengan ID xxx tidak ditemukan",
+    "details": {
+      "resource": "perlengkapan",
+      "id": "uuid"
+    },
+    "request_id": "uuid",
+    "timestamp": "2025-01-15T10:30:00Z"
+  }
+}
+```
+
+### Error Propagation
+- **Backend**: Use `thiserror` untuk error enums dengan `#[from]` conversion
+- **Frontend**: Error boundaries dengan user-friendly messages
+- **gRPC**: Status codes mapping (NotFound, InvalidArgument, Internal, Unauthenticated)
+
+```rust
+// gRPC status mapping
+impl From<AppError> for tonic::Status {
+    fn from(err: AppError) -> Self {
+        match err {
+            AppError::NotFound { .. } => Status::not_found(err.to_string()),
+            AppError::Validation(_) => Status::invalid_argument(err.to_string()),
+            AppError::Unauthorized(_) => Status::unauthenticated(err.to_string()),
+            _ => Status::internal(err.to_string()),
+        }
+    }
+}
+```
+
+---
+
+## 🧪 Testing Strategy
+
+### Test Pyramid
+- **Unit Tests (70%)**: Test functions, modules, business logic
+- **Integration Tests (20%)**: Test API endpoints, database interactions
+- **E2E Tests (10%)**: Test user flows across services
+
+### Testing Tools
+- **Unit**: `cargo test` dengan built-in test framework
+- **Integration**: `axum-test` untuk HTTP handlers, `tokio-test` untuk async
+- **E2E**: Playwright untuk microfrontends
+- **Mocking**: `mockall` untuk external dependencies
+
+### Test Organization
+```
+tests/
+├── unit/           # Unit tests per crate
+│   ├── lib/
+│   ├── layanan/
+│   └── antarmuka/
+├── integration/     # Integration tests
+│   ├── api/
+│   └── database/
+└── e2e/            # End-to-end tests
+    ├── flows/
+    └── scenarios/
+```
+
+### Test Patterns
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_create_item_success() {
+        let mock_db = MockDatabase::new();
+        let result = create_item(&mock_db, test_data()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_item_validation_error() {
+        let mock_db = MockDatabase::new();
+        let invalid_data = CreateItemRequest { name: "".to_string() };
+        let result = create_item(&mock_db, invalid_data).await;
+        assert!(matches!(result, Err(AppError::Validation(_))));
+    }
+}
+```
+
+---
+
+## ⚡ Performance Optimization Patterns
+
+### Database Optimization
+- Use connection pooling (deadpool-postgres) dengan optimal pool size
+- Index strategy untuk frequently queried columns
+- Query optimization dengan `EXPLAIN ANALYZE`
+- Read replicas untuk read-heavy operations
+- Prepared statements untuk query yang sering dieksekusi
+
+```rust
+// Connection pool configuration
+let pool = deadpool_postgres::Config::new(
+    "postgres://user:pass@localhost/db"
+)
+.pool_size(20)
+.max_lifetime(Some(Duration::from_secs(1800)))
+.build()?;
+```
+
+### Caching Strategy
+- Redis untuk session data dan hot data
+- Cache invalidation: write-through atau cache-aside
+- TTL configuration per data type (session: 30min, reference data: 1h)
+- Cache warming untuk critical data pada startup
+
+```rust
+// Cache-aside pattern
+async fn get_item_cached(
+    cache: &RedisClient,
+    db: &Database,
+    id: Uuid,
+) -> Result<Item> {
+    let cache_key = format!("item:{}", id);
+
+    // Try cache first
+    if let Some(cached) = cache.get(&cache_key).await? {
+        return Ok(serde_json::from_str(&cached)?);
+    }
+
+    // Cache miss - fetch from DB
+    let item = db.get_item(id).await?;
+
+    // Write to cache
+    cache.set_ex(&cache_key, serde_json::to_string(&item)?, 3600).await?;
+
+    Ok(item)
+}
+```
+
+### WASM Optimization
+- Code splitting untuk microfrontends (lazy loading routes)
+- Compression: gzip/brotli untuk production builds
+- Tree shaking untuk unused code
+- Minimize dependency size di `lib-ui`
+
+```toml
+# Trunk.toml
+[tools]
+wasm-bindgen = "0.2"
+wasm-opt = ['-O3', '--enable-bulk-memory']
+
+[build]
+release = true
+```
+
+---
+
+## 🛡️ Resilience Patterns
+
+### Circuit Breaker
+- Implement circuit breaker untuk gRPC calls ke external services
+- Thresholds: failure rate (50%), timeout (5s), consecutive errors (5)
+- States: Closed, Open, Half-Open
+- Fallback mechanisms untuk degraded service
+
+```rust
+use governor::{Quota, RateLimiter};
+
+// Rate limiter with circuit breaker
+let limiter = RateLimiter::direct(Quota::per_second(10));
+if limiter.check().is_err() {
+    return Err(AppError::RateLimited);
+}
+```
+
+### Retry Strategy
+- Exponential backoff untuk transient failures
+- Max retry limits per operation (3-5 retries)
+- Idempotent operations untuk safe retries
+- Dead letter queue untuk failed messages
+
+```rust
+use backoff::ExponentialBackoff;
+
+async fn retry_with_backoff<F, Fut, T, E>(
+    mut operation: F,
+) -> Result<T, E>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, E>>,
+    E: std::error::Error + Send + Sync + 'static,
+{
+    let backoff = ExponentialBackoff::default();
+    backoff::retry(backoff, operation).await
+}
+```
+
+### Rate Limiting
+- Token bucket algorithm untuk rate limiting
+- Per-user and per-service limits
+- Distributed rate limiting dengan Redis
+- Backpressure handling untuk high load
+
+```rust
+use governor::{Quota, RateLimiter};
+
+// Per-user rate limiting
+let user_limiter = RateLimiter::direct(
+    Quota::per_minute(std::num::NonZeroU32::new(60).unwrap())
+);
+```
+
+---
+
+## 🚀 Deployment Patterns
+
+### Blue-Green Deployment
+- Zero-downtime deployments dengan blue-green strategy
+- Health checks sebelum traffic switch
+- Rollback capability dengan instant switchback
+- Database migration strategy dengan backward compatibility
+
+```yaml
+# Kubernetes example
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perlengkapan-api-blue
+spec:
+  replicas: 3
+  # ... blue deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perlengkapan-api-green
+spec:
+  replicas: 3
+  # ... green deployment
+```
+
+### Canary Deployment
+- Gradual traffic shift (5% → 50% → 100%)
+- Metrics monitoring during canary (error rate, latency)
+- Automated rollback on error rate increase (>1%)
+- Feature flags untuk gradual rollout
+
+```yaml
+# Istio VirtualService for canary
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: perlengkapan-api
+spec:
+  http:
+  - match:
+    - headers:
+        canary:
+          exact: "true"
+    route:
+    - destination:
+        host: perlengkapan-api-canary
+      weight: 10
+    - destination:
+        host: perlengkapan-api-stable
+      weight: 90
+```
+
+### Configuration Management
+- Environment-specific configs (development, staging, production)
+- Secrets via Secreton (bukan environment variables)
+- Config validation at startup dengan clear error messages
+- Hot reload untuk non-critical configs
+
+```rust
+use config::{Config, Environment};
+
+let config = Config::builder()
+    .add_source(config::File::with_name("config/default"))
+    .add_source(config::Environment::with_prefix("APP"))
+    .build()?;
 ```
 
 ---
@@ -410,6 +846,10 @@ let secret = state.secreton_client
 - Use RSA for new signing implementations (use Ed25519)
 - Use environment variables for production secrets (use Secreton)
 - Store JWT tokens in cookies (use `localStorage`)
+- **Use SQLx** (strict restriction; use `tokio-postgres` and `refinery`)
+- **Add to `lib/common/`** (it is frozen; create specific crates instead)
+- Use `.unwrap()` or `expect()` in production (use `?` and custom `AppError`)
+- Do prop-drilling in Leptos for global state (use `provide_context`)
 
 ✅ **DO:**
 - Import from `lib_ui` for shared UI components
@@ -439,6 +879,8 @@ Before implementing a feature, check:
 |-------|----------|
 | Authenc details | `layanan/authenc/AGENTS.md` |
 | Secreton details | `layanan/secreton/AGENTS.md` |
+| Perlengkapan details | `layanan/perlengkapan/AGENTS.md` |
+| Integrasi details | `layanan/integrasi/AGENTS.md` |
 | Shared UI lib | `lib/ui/README.md` |
 | Shared common lib | `lib/common/README.md` |
 | Shared perlengkapan lib | `lib/perlengkapan/README.md` |
