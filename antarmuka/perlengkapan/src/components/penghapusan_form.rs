@@ -54,9 +54,13 @@ pub fn PenghapusanForm() -> impl IntoView {
         spawn_local(async move {
             match create_penghapusan_bmn_workflow(req).await {
                 Ok(resp) => {
-                    form.finish_ok();
+                    // Show toast immediately, but keep `submitting=true` during
+                    // the navigation delay to prevent double-submission. Only
+                    // call `finish_ok()` after the timeout, right before we
+                    // navigate away.
                     toast.success("Usulan penghapusan berhasil disimpan!");
                     gloo_timers::future::TimeoutFuture::new(1000).await;
+                    form.finish_ok();
                     navigate(
                         &format!("/perlengkapan/pengelolaan/penghapusan/{}", resp.data.id),
                         Default::default(),

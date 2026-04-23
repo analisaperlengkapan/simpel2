@@ -41,9 +41,13 @@ pub fn AnalisisForm() -> impl IntoView {
         spawn_local(async move {
             match create_analisis(req).await {
                 Ok(_) => {
-                    form.finish_ok();
+                    // Show toast immediately, but keep `submitting=true` during
+                    // the navigation delay to prevent double-submission. Only
+                    // call `finish_ok()` after the timeout, right before we
+                    // navigate away.
                     toast.success("Data analisis berhasil disimpan!");
                     gloo_timers::future::TimeoutFuture::new(1000).await;
+                    form.finish_ok();
                     navigate(routes::path::ANALITIK_ROADMAP, Default::default());
                 }
                 Err(e) => {

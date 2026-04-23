@@ -53,9 +53,14 @@ pub fn MainLayout(
 
         #[cfg(target_arch = "wasm32")]
         {
-            // Note: Portal's AuthService::logout() does NOT call broadcast_logout().
-            // Cross-tab sync works because removing 'user_session' from localStorage
-            // fires a storage event that other tabs' listeners catch.
+            // Explicitly broadcast before `logout()` clears localStorage, to
+            // match the pattern used by Perlengkapan's `AuthService::logout()`
+            // (which calls `broadcast_logout()` internally). Portal's
+            // `AuthService::logout()` does NOT broadcast on its own, so we
+            // must do it here — otherwise peer tabs only learn about the
+            // logout via the `user_session` removal storage event, which is
+            // a weaker signal than the dedicated `logout_event` broadcast.
+            AuthService::broadcast_logout();
             AuthService::logout();
 
             // Full page reload to clear WASM memory — SPA navigation would
