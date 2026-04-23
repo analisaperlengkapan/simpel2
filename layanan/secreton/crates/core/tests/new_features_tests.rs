@@ -4,6 +4,7 @@
 //! TODO: Implement missing dependencies or rewrite tests
 
 // DISABLED: References non-existent types (DisasterRecoveryManager, etc.)
+#![allow(unexpected_cfgs)]
 #![cfg(feature = "new-features-tests")]
 
 #[cfg(test)]
