@@ -384,4 +384,43 @@ docker build -t layanan-perlengkapan-api:latest .
 
 ---
 
+## 🔗 End-to-End Integration Map
+
+### Frontend → Backend Flow
+
+```
+antarmuka/perlengkapan (WASM)
+  → reads JWT from localStorage key `auth_token`
+  → calls REST API at /api/pembinaan/perlengkapan/*
+  → layanan-perlengkapan-api (Axum)
+    → validates JWT via gRPC → authenc-grpc
+    → fetches secrets via gRPC → secreton-grpc
+    → queries PostgreSQL via deadpool-postgres
+    → returns JSON response
+```
+
+### Cross-Microfrontend Auth
+
+Portal and Perlengkapan share the same `auth_token` localStorage key.
+When Portal logs out, it:
+1. Calls `POST /api/v1/auth/logout` to invalidate server session
+2. Clears `auth_token`, `refresh_token` from localStorage
+3. Fires `logout_event` storage event for cross-tab sync
+4. Does a full page reload to clear WASM memory
+
+Perlengkapan listens for `auth_token` and `logout_event` storage events
+to sync session state across tabs.
+
+See root `AGENTS.md` → "Canonical localStorage Keys" for the full key table.
+
+### Known Integration Gaps
+
+| Gap | Impact | Priority |
+|-----|--------|----------|
+| `authenc-core` has 127 compilation errors | Blocks gRPC token validation in integration tests | 🔴 CRITICAL |
+| IAM API handlers return `NOT_IMPLEMENTED` | Portal admin pages (Users, Roles, etc.) non-functional | 🟡 HIGH |
+| `lib/ui/api_client.rs` violates architecture | HTTP fetching in visual-only lib (deprecated, no consumers yet) | 🟢 LOW |
+
+---
+
 > **Catatan Akhir**: Layanan Perlengkapan adalah service kritis untuk operasional BMN Kejaksaan RI. Pastikan semua perubahan melalui code review dan testing yang menyeluruh sebelum deployment ke production.

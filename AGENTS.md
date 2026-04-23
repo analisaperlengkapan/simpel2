@@ -430,6 +430,22 @@ use lib_ui::hooks::use_auth;
 // JWT validation: microfrontend → REST → gRPC Authenc
 ```
 
+### Canonical localStorage Keys
+
+All microfrontends **MUST** use these exact keys for cross-app session sharing:
+
+| Key | Purpose | Set By |
+|-----|---------|--------|
+| `auth_token` | JWT access token (canonical) | Portal `AuthService`, Perlengkapan `AuthService` |
+| `refresh_token` | JWT refresh token | Portal `AuthService`, Perlengkapan `AuthService` |
+| `user_session` | Serialized session (Portal only, legacy) | Portal `AuthService` |
+| `logout_event` | Cross-tab logout broadcast | Both (set + immediately remove to fire `storage` event) |
+| `temp_token` | MFA flow temporary token | Portal `AuthService` |
+
+⛔ **DO NOT** use alternative key names (e.g. `simpel_access_token`, `jwt_token`,
+`perlengkapan_user_session`). These are legacy keys that cause token mismatch bugs
+between microfrontends.
+
 ### Secrets Management
 
 ```rust

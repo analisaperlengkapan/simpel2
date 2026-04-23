@@ -1,9 +1,18 @@
 //! Shared authenticated HTTP client for SIMPEL microfrontends.
 //!
-//! Provides a centralized, zero-boilerplate API client with automatic JWT
-//! injection — similar to Laravel's `Http::withToken()` or Axios interceptors.
+//! ⚠️ **DEPRECATED — Do not add new consumers.**
 //!
-//! # Usage
+//! Per root `AGENTS.md` architecture rules, `lib-ui` must be free from HTTP
+//! fetching logic ("Hanya khusus komponen visual. Bebas dari logika fetching
+//! HTTP spesifik"). Each microfrontend should own its own API client:
+//!
+//! - Portal: `antarmuka/portal/src/utils/authenc_api.rs`
+//! - Perlengkapan: `antarmuka/perlengkapan/src/api/client.rs`
+//!
+//! This module remains for backward compatibility. New code should import
+//! from the microfrontend-specific client instead.
+//!
+//! # Usage (legacy)
 //!
 //! ```rust,ignore
 //! use lib_ui::api_client::{ApiClient, ApiError, ApiResult};
