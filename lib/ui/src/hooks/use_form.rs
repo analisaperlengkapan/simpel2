@@ -58,9 +58,14 @@
 //!     <FieldError form=form field="nama" />
 //!
 //!     <button on:click=move |_| {
-//!         // submit_validated runs validator first; skips handler if errors present.
-//!         form.submit_validated(|data| async move {
-//!             api::create(data).await.map_err(|e| e.to_string())
+//!         // begin_submit_validated runs validator first; returns None on failure
+//!         // so we skip the API call and let <FieldError> render the messages.
+//!         let Some(data) = form.begin_submit_validated() else { return };
+//!         leptos::task::spawn_local(async move {
+//!             match api::create(data).await {
+//!                 Ok(_) => form.finish_ok(),
+//!                 Err(e) => form.finish_err(e.to_string()),
+//!             }
 //!         });
 //!     } />
 //! }
@@ -140,7 +145,8 @@ pub struct FormState<T: Clone + 'static> {
     pub field_errors: RwSignal<FieldErrors>,
     /// The initial form data (for reset).
     initial: StoredValue<T>,
-    /// Optional validator closure. Called on `submit_validated()` and `validate_field()`.
+    /// Optional validator closure. Called on `validate()`, `validate_field()`,
+    /// and `begin_submit_validated()`.
     validator: StoredValue<Option<ValidatorFn<T>>>,
 }
 
@@ -175,7 +181,7 @@ impl<T: Clone + 'static> FormState<T> {
     /// Attach a validator closure. Returns `self` for chaining.
     ///
     /// The validator runs synchronously against the current form data
-    /// when `validate()`, `validate_field()`, or `submit_validated()` is called.
+    /// when `validate()`, `validate_field()`, or `begin_submit_validated()` is called.
     ///
     /// ```rust,ignore
     /// let form = use_form(MyForm::default()).with_validator(|data| {
