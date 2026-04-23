@@ -93,7 +93,7 @@ case "$ACTION" in
         echo -e "${YELLOW}    kubectl apply -f ${SECRETS_FILE} -n ${NAMESPACE}${NC}"
         echo ""
         echo -e "${YELLOW}  If you haven't created the secrets file yet:${NC}"
-        echo -e "${YELLOW}    cp ${OVERLAY_DIR}/staging-secrets.example.yaml ${SECRETS_FILE}${NC}"
+        echo -e "${YELLOW}    cp ${OVERLAY_DIR}/${ENVIRONMENT}-secrets.example.yaml ${SECRETS_FILE}${NC}"
         echo -e "${YELLOW}    \$EDITOR ${SECRETS_FILE}${NC}"
         echo -e "${RED}========================================================================${NC}"
 
