@@ -561,10 +561,18 @@ impl DatabaseSecretsEngine {
         // Since the connection is already removed from the map, delete_role
         // won't find it for revocation SQL. We handle revocation directly.
         for role_name in &role_names {
-            // Remove the role atomically
+            // Remove the role atomically, but only if it still references
+            // this connection. Between the snapshot above and this removal,
+            // a concurrent delete_role + create_role sequence could have
+            // re-created a role with the same name pointing to a different
+            // connection. Removing it here would incorrectly cascade-delete
+            // an unrelated role.
             let removed_role = {
                 let mut roles = self.roles.write().await;
-                roles.remove(role_name)
+                match roles.get(role_name) {
+                    Some(r) if r.db_name == name => roles.remove(role_name),
+                    _ => None,
+                }
             };
 
             if let Some(role) = removed_role {
