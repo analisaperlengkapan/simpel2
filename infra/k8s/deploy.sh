@@ -83,6 +83,20 @@ case "$ACTION" in
 
         echo -e "\n${GREEN}✓ Deployment applied successfully${NC}"
 
+        # Warn about CHANGEME secrets
+        SECRETS_FILE="${OVERLAY_DIR}/${ENVIRONMENT}-secrets.yaml"
+        echo ""
+        echo -e "${RED}========================================================================${NC}"
+        echo -e "${RED}  WARNING: kustomize deployed CHANGEME placeholder secrets.${NC}"
+        echo -e "${RED}  Pods WILL CrashLoopBackOff until you apply real secrets:${NC}"
+        echo ""
+        echo -e "${YELLOW}    kubectl apply -f ${SECRETS_FILE} -n ${NAMESPACE}${NC}"
+        echo ""
+        echo -e "${YELLOW}  If you haven't created the secrets file yet:${NC}"
+        echo -e "${YELLOW}    cp ${OVERLAY_DIR}/staging-secrets.example.yaml ${SECRETS_FILE}${NC}"
+        echo -e "${YELLOW}    \$EDITOR ${SECRETS_FILE}${NC}"
+        echo -e "${RED}========================================================================${NC}"
+
         # Wait for rollout
         echo -e "\n${YELLOW}Waiting for rollouts to complete...${NC}"
         kubectl rollout status deployment --timeout=300s -n "${NAMESPACE}" 2>/dev/null || true
