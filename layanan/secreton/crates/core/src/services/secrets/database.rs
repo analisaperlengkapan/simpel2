@@ -366,6 +366,11 @@ impl DatabaseSecretsEngine {
                 "Creation statements required".to_string(),
             ));
         }
+        if role.revocation_statements.is_empty() {
+            return Err(DatabaseError::InvalidConfig(
+                "Revocation statements required".to_string(),
+            ));
+        }
 
         // Acquire both locks to prevent TOCTOU between connection check and role insert.
         // Hold the connections read lock while writing the role so a concurrent
@@ -404,6 +409,11 @@ impl DatabaseSecretsEngine {
         if role.creation_statements.is_empty() {
             return Err(DatabaseError::InvalidConfig(
                 "Creation statements required".to_string(),
+            ));
+        }
+        if role.revocation_statements.is_empty() {
+            return Err(DatabaseError::InvalidConfig(
+                "Revocation statements required".to_string(),
             ));
         }
 
@@ -1789,11 +1799,12 @@ mod tests {
         };
         engine.configure_connection(config).await.unwrap();
 
-        // Test that statements without placeholders are rejected
+        // Test that statements without placeholders are rejected at execution time
         let role = DatabaseRole {
             name: "test-role".to_string(),
             db_name: "test-db".to_string(),
             creation_statements: vec!["CREATE USER testuser WITH PASSWORD 'testpass'".to_string()],
+            revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
             ..Default::default()
         };
         engine.create_role(role).await.unwrap();

@@ -707,8 +707,6 @@ fn contains_dangerous_sql(sql: &str) -> bool {
         ";--",
         "/*",
         "*/",
-        "xp_",
-        "sp_",
         "drop database",
         "drop table",
         "truncate",
@@ -720,6 +718,22 @@ fn contains_dangerous_sql(sql: &str) -> bool {
         .any(|pattern| sql_lower.contains(pattern))
     {
         return true;
+    }
+
+    // Patterns that are dangerous only when they appear at a word boundary
+    // (not inside other identifiers like table names starting with "sp_reports").
+    // We check that the character before "sp_"/"xp_" is not alphanumeric or '_',
+    // which would indicate it's part of a larger identifier.
+    let prefix_patterns = ["sp_", "xp_"];
+    for pattern in &prefix_patterns {
+        for (idx, _) in sql_lower.match_indices(pattern) {
+            let before_ok = idx == 0
+                || (!sql_lower.as_bytes()[idx - 1].is_ascii_alphanumeric()
+                    && sql_lower.as_bytes()[idx - 1] != b'_');
+            if before_ok {
+                return true;
+            }
+        }
     }
 
     // Patterns that must appear as standalone words (not inside other words
@@ -817,6 +831,16 @@ mod tests {
         // Trailing semicolons with only whitespace are acceptable
         assert!(!contains_dangerous_sql(
             "CREATE USER {{username}} WITH PASSWORD '{{password}}';   "
+        ));
+        // sp_ and xp_ at word boundaries are dangerous
+        assert!(contains_dangerous_sql("EXEC sp_executesql @sql"));
+        assert!(contains_dangerous_sql("xp_cmdshell 'dir'"));
+        // sp_ and xp_ inside identifiers are NOT dangerous (legitimate table names)
+        assert!(!contains_dangerous_sql(
+            "GRANT SELECT ON mysp_reports TO {{username}}"
+        ));
+        assert!(!contains_dangerous_sql(
+            "GRANT SELECT ON schema.table_xp_data TO {{username}}"
         ));
     }
 

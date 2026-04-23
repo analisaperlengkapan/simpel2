@@ -136,6 +136,16 @@ pub async fn inject_env(
     // Get format
     let format = request.format.unwrap_or_default();
 
+    // Reject nil-UUID users: sessions created by a nil-UUID user can never
+    // be cleaned up by the owner (cleanup_session guards against nil-UUID
+    // ownership). Failing early here prevents orphaned sessions.
+    if user.id.is_nil() {
+        return Err(ApiError::Authentication {
+            message: "Valid authenticated user identity required to create injection sessions"
+                .to_string(),
+        });
+    }
+
     // Fetch secrets and build environment variables
     let mut env_vars = HashMap::new();
     let mut secret_paths = Vec::new();
