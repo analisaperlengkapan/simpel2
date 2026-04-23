@@ -1,6 +1,6 @@
 use crate::correlation::CorrelationId;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
 
 /// Unified request context for infrastructure metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -11,9 +11,14 @@ pub struct RequestContext {
     pub user_agent: Option<String>,
     /// Correlation/Request ID
     pub request_id: CorrelationId,
-    /// Time when the request started
-    #[serde(skip, default = "Instant::now")]
-    pub start_time: Instant,
+    /// Time when the request started.
+    ///
+    /// Uses `chrono::DateTime<Utc>` instead of `std::time::Instant` so that
+    /// this type is WASM-safe — `Instant::now()` panics on
+    /// `wasm32-unknown-unknown`, and `lib-core` is required to compile for
+    /// both backend and WASM targets.
+    #[serde(skip, default = "Utc::now")]
+    pub start_time: DateTime<Utc>,
 }
 
 impl RequestContext {
@@ -27,7 +32,7 @@ impl RequestContext {
             ip_address,
             user_agent,
             request_id,
-            start_time: Instant::now(),
+            start_time: Utc::now(),
         }
     }
 }

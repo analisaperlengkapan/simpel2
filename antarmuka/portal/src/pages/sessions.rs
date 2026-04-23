@@ -4,7 +4,7 @@
 //! REQ-PORTAL-008
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{AppState, use_api_client, use_app_state};
+use crate::utils::app_state::use_api_client;
 use crate::utils::authenc_api::SessionInfo;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -12,7 +12,6 @@ use leptos::task::spawn_local;
 /// Active sessions management page
 #[component]
 pub fn SessionsPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (sessions, set_sessions) = signal(Vec::<SessionInfo>::new());
@@ -64,17 +63,8 @@ pub fn SessionsPage() -> impl IntoView {
         });
     }
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
-
     view! {
-        <MainLayout user_session=session.clone() on_logout=on_logout>
+        <MainLayout>
             <div class="max-w-4xl mx-auto px-4 py-8">
                 <h1 class="text-2xl font-bold text-gray-900 mb-2">"Sesi Aktif"</h1>
                 <p class="text-gray-600 mb-6">"Kelola perangkat dan sesi login yang aktif."</p>

@@ -192,7 +192,7 @@ impl AuditLogger {
                     .unwrap_or_default(),
                 ip_address,
                 user_agent,
-                start_time: std::time::Instant::now(),
+                start_time: chrono::Utc::now(),
             })
         } else {
             None
