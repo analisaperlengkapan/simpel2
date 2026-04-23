@@ -226,9 +226,9 @@ MYSIMKARI_TOKEN=eyJhbGciOiJIUzI1NiJ9...          # Token untuk endpoint get-satk
 MYSIMKARI_TOKEN_PEGAWAI=eyJhbGciOiJIUzI1NiJ9...   # Token untuk endpoint pegawai-satker, pegawai/{nip}, pegawai-aktif, pegawai-mutasi
 
 # SIMAN OAuth2
-SIMAN_CLIENT_ID=simanv2.kejagung
-SIMAN_CLIENT_SECRET=e5f60b3c...
-SIMAN_BA_KEY=05EACC64AEBB01F84C495198C5F9056C
+SIMAN_CLIENT_ID=CHANGEME
+SIMAN_CLIENT_SECRET=CHANGEME
+SIMAN_BA_KEY=CHANGEME
 SIMAN_BASE_URL=https://apigateway.kemenkeu.go.id
 
 # Scheduler
@@ -621,7 +621,7 @@ LIMIT 10;
 # Test OAuth2 manually
 curl -X POST https://sso.kemenkeu.go.id/connect/token \
   -d "grant_type=client_credentials" \
-  -d "client_id=simanv2.kejagung" \
+  -d "client_id=YOUR_CLIENT_ID" \
   -d "client_secret=YOUR_SECRET"
 
 # Verify BA_KEY
