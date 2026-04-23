@@ -570,7 +570,9 @@ impl DatabaseSecretsEngine {
 
         let conn = removed_conn.unwrap();
 
-        // Track revocation warnings so callers can detect partial failures
+        // Track which roles were actually cascade-deleted (not just
+        // snapshotted) and revocation warnings for partial failures.
+        let mut actually_deleted_roles: Vec<String> = Vec::new();
         let mut revocation_warnings: Vec<String> = Vec::new();
 
         // Delete each associated role and revoke their credentials.
@@ -592,6 +594,8 @@ impl DatabaseSecretsEngine {
             };
 
             if let Some(role) = removed_role {
+                actually_deleted_roles.push(role_name.clone());
+
                 // Collect and revoke credentials for this role
                 let creds: Vec<DatabaseCredentials> = {
                     let active = self.active_credentials.read().await;
@@ -639,7 +643,7 @@ impl DatabaseSecretsEngine {
         pools.remove(name);
 
         Ok(Some(DeleteConnectionResult {
-            deleted_roles: role_names,
+            deleted_roles: actually_deleted_roles,
             revocation_warnings,
         }))
     }
