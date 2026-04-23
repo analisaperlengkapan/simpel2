@@ -643,7 +643,7 @@ pub async fn delete_database_connection(
     Path(name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    let cascade_role_names = state
+    let result = state
         .database_engine
         .delete_connection(&name)
         .await
@@ -655,7 +655,7 @@ pub async fn delete_database_connection(
         })?;
 
     // Log cascade audit entries for the roles the engine actually deleted
-    for role_name in &cascade_role_names {
+    for role_name in &result.deleted_roles {
         let audit_entry = create_audit_log(
             "role_deleted_cascade",
             &user.username,
@@ -674,10 +674,18 @@ pub async fn delete_database_connection(
     );
     let _ = state.audit.log(audit_entry).await;
 
-    Ok(Json(ApiResponse::success(serde_json::json!({
+    let mut response = serde_json::json!({
         "deleted": true,
         "connection": name,
-    }))))
+    });
+
+    // Surface revocation warnings so callers can detect partial failures
+    // and operators can manually clean up orphaned database users.
+    if !result.revocation_warnings.is_empty() {
+        response["warnings"] = serde_json::json!(result.revocation_warnings);
+    }
+
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// Basic SQL injection prevention

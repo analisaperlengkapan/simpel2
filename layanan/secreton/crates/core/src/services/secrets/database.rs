@@ -189,6 +189,18 @@ pub struct DatabaseCredentials {
     pub db_name: String,
 }
 
+/// Result of a `delete_connection` cascade operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteConnectionResult {
+    /// Names of roles that were cascade-deleted.
+    pub deleted_roles: Vec<String>,
+
+    /// Human-readable warnings for credentials whose database users could not
+    /// be revoked. Empty when all revocations succeeded. Callers should surface
+    /// these to operators so orphaned database users can be cleaned up manually.
+    pub revocation_warnings: Vec<String>,
+}
+
 /// Database connection pool wrapper
 enum DbPool {
     PostgreSQL(Arc<RwLock<Option<PgClient>>>),
@@ -524,11 +536,12 @@ impl DatabaseSecretsEngine {
 
     /// Delete database connection, cascading to all roles that reference it.
     /// Returns `Ok(None)` if the connection did not exist, or
-    /// `Ok(Some(Vec<String>))` with the names of cascade-deleted roles on success.
+    /// `Ok(Some(DeleteConnectionResult))` on success with the names of
+    /// cascade-deleted roles and any revocation warnings.
     pub async fn delete_connection(
         &self,
         name: &str,
-    ) -> Result<Option<Vec<String>>, DatabaseError> {
+    ) -> Result<Option<DeleteConnectionResult>, DatabaseError> {
         // Remove the connection first. We must NOT hold the connections write
         // lock while acquiring the roles lock, because create_role and
         // update_role acquire connections.read() then roles.write(). Holding
@@ -556,6 +569,9 @@ impl DatabaseSecretsEngine {
         };
 
         let conn = removed_conn.unwrap();
+
+        // Track revocation warnings so callers can detect partial failures
+        let mut revocation_warnings: Vec<String> = Vec::new();
 
         // Delete each associated role and revoke their credentials.
         // Since the connection is already removed from the map, delete_role
@@ -597,6 +613,10 @@ impl DatabaseSecretsEngine {
                         )
                         .await
                     {
+                        let msg = format!(
+                            "Failed to revoke credential {} (user '{}', role '{}', connection '{}'): {}",
+                            cred.id, cred.username, role_name, name, e
+                        );
                         warn!(
                             credential_id = %cred.id,
                             username = %cred.username,
@@ -606,6 +626,7 @@ impl DatabaseSecretsEngine {
                             "Failed to revoke database user during connection deletion; \
                              manual cleanup may be required"
                         );
+                        revocation_warnings.push(msg);
                     }
                     let mut active = self.active_credentials.write().await;
                     active.remove(&cred.id);
@@ -617,7 +638,10 @@ impl DatabaseSecretsEngine {
         let mut pools = self.db_pools.write().await;
         pools.remove(name);
 
-        Ok(Some(role_names))
+        Ok(Some(DeleteConnectionResult {
+            deleted_roles: role_names,
+            revocation_warnings,
+        }))
     }
 
     /// Generate credentials for a role
