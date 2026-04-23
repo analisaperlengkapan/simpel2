@@ -63,7 +63,7 @@ pub struct PerlengkapanRequest {
 }
 
 fn validate_kode_satker(kode: &str) -> Result<(), validator::ValidationError> {
-    if !kode.starts_with("KEJ-") {
+    if kode.len() != 6 || !kode.chars().all(|c| c.is_ascii_digit()) {
         return Err(validator::ValidationError::new("invalid_satker_format"));
     }
     Ok(())

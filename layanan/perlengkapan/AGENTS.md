@@ -2,6 +2,12 @@
 
 > **Service Context**: Backend service untuk manajemen Barang Milik Negara (BMN) Kejaksaan RI.
 
+## Inherited Global Rules
+
+- This file extends the global rules in `AGENTS.md`.
+- Use this document only for **local deltas** specific to `layanan/perlengkapan`.
+- If guidance here conflicts with root policy, root policy takes precedence unless an explicit local override is documented.
+
 ---
 
 ## 🌍 Service Context
@@ -238,7 +244,7 @@ pub async fn create_perlengkapan(
 1. Add route in `crates/api/src/lib.rs`:
 ```rust
 .route("/api/v1/perlengkapan", get(list_perlengkapan).post(create_perlengkapan))
-.route("/api/v1/perlengkapan/:id", get(get_perlengkapan).put(update_perlengkapan))
+.route("/api/v1/perlengkapan/{id}", get(get_perlengkapan).put(update_perlengkapan))
 ```
 
 2. Implement handler in `crates/api/src/handlers/perlengkapan.rs`
