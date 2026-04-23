@@ -1,4 +1,6 @@
 //! Sidebar tree navigation for authenticated portal pages.
+//!
+//! Reads session from context (provided by App root) when no prop is given.
 
 use crate::components::navigation::menu::{PortalMenuItem, resolve_menu_sections};
 use crate::features::auth::UserSession;
@@ -6,6 +8,11 @@ use leptos::prelude::*;
 
 #[component]
 pub fn SidebarNavigation(#[prop(optional)] user_session: Option<UserSession>) -> impl IntoView {
+    // Fall back to context if no prop provided
+    let user_session = user_session.or_else(|| {
+        use_context::<ReadSignal<Option<UserSession>>>()
+            .and_then(|sig| sig.get_untracked())
+    });
     let sections = resolve_menu_sections(user_session.as_ref());
 
     view! {

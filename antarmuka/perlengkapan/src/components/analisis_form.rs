@@ -4,30 +4,36 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
+use lib_ui::hooks::{use_form, use_toast::use_toast};
+
+/// Form data for creating an analysis request.
+#[derive(Clone, Default)]
+struct AnalisisFormData {
+    judul: String,
+    kategori: String,
+    prioritas: String,
+    estimasi: String,
+}
 
 #[component]
 pub fn AnalisisForm() -> impl IntoView {
-    let (judul, set_judul) = signal("".to_string());
-    let (kategori, set_kategori) = signal("".to_string());
-    let (prioritas, set_prioritas) = signal("sedang".to_string());
-    let (estimasi, set_estimasi) = signal("".to_string());
-    let (error, set_error) = signal(None::<String>);
-    let (success, set_success) = signal(false);
-    let (loading, set_loading) = signal(false);
+    let form = use_form(AnalisisFormData {
+        prioritas: "sedang".to_string(),
+        ..Default::default()
+    });
+    let toast = use_toast();
     let navigate = use_navigate();
 
     let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
-        set_loading.set(true);
-        set_error.set(None);
-        set_success.set(false);
+        let data = form.begin_submit();
 
         let req = CreateAnalisisRequest {
-            judul: judul.get(),
-            kategori: kategori.get(),
+            judul: data.judul,
+            kategori: data.kategori,
             deskripsi: None,
-            prioritas: prioritas.get(),
-            estimasi_biaya: estimasi.get().parse::<f64>().ok(),
+            prioritas: data.prioritas,
+            estimasi_biaya: data.estimasi.parse::<f64>().ok(),
             justifikasi: None,
         };
 
@@ -35,16 +41,16 @@ pub fn AnalisisForm() -> impl IntoView {
         spawn_local(async move {
             match create_analisis(req).await {
                 Ok(_) => {
-                    set_success.set(true);
-                    // Redirect after short delay to show success
+                    form.finish_ok();
+                    toast.success("Data analisis berhasil disimpan!");
                     gloo_timers::future::TimeoutFuture::new(1000).await;
                     navigate(routes::path::ANALISIS_DAFTAR_LEGACY, Default::default());
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));
+                    form.finish_err(format!("Gagal menyimpan: {:?}", e));
+                    toast.error(form.error.get_untracked().unwrap_or_default());
                 }
             }
-            set_loading.set(false);
         });
     };
 
@@ -53,20 +59,6 @@ pub fn AnalisisForm() -> impl IntoView {
         <div class="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
             <h2 class="text-xl font-bold text-gray-800 mb-6">"Buat Analisis Kebutuhan"</h2>
 
-            <Show when=move || success.get()>
-                <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
-                    <i class="fas fa-check-circle"></i>
-                    "Data analisis berhasil disimpan!"
-                </div>
-            </Show>
-
-            <Show when=move || error.get().is_some()>
-                <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2">
-                    <i class="fas fa-exclamation-circle"></i>
-                    {error.get()}
-                </div>
-            </Show>
-
             <form on:submit=on_submit class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">"Judul Analisis"</label>
@@ -74,8 +66,8 @@ pub fn AnalisisForm() -> impl IntoView {
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="Contoh: Kebutuhan Server Data Center"
-                        prop:value=move || judul.get()
-                        on:input=move |ev| set_judul.set(event_target_value(&ev))
+                        prop:value=move || form.get().judul.clone()
+                        on:input=move |ev| form.update(|f| f.judul = event_target_value(&ev))
                         required
                     />
                 </div>
@@ -85,8 +77,8 @@ pub fn AnalisisForm() -> impl IntoView {
                         <label class="block text-sm font-medium text-gray-700 mb-1">"Kategori"</label>
                         <select
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            prop:value=move || kategori.get()
-                            on:change=move |ev| set_kategori.set(event_target_value(&ev))
+                            prop:value=move || form.get().kategori.clone()
+                            on:change=move |ev| form.update(|f| f.kategori = event_target_value(&ev))
                             required
                         >
                             <option value="">"Pilih Kategori"</option>
@@ -101,8 +93,8 @@ pub fn AnalisisForm() -> impl IntoView {
                         <label class="block text-sm font-medium text-gray-700 mb-1">"Prioritas"</label>
                         <select
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            prop:value=move || prioritas.get()
-                            on:change=move |ev| set_prioritas.set(event_target_value(&ev))
+                            prop:value=move || form.get().prioritas.clone()
+                            on:change=move |ev| form.update(|f| f.prioritas = event_target_value(&ev))
                         >
                             <option value="rendah">"Rendah"</option>
                             <option value="sedang">"Sedang"</option>
@@ -117,8 +109,8 @@ pub fn AnalisisForm() -> impl IntoView {
                         type="number"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="0"
-                        prop:value=move || estimasi.get()
-                        on:input=move |ev| set_estimasi.set(event_target_value(&ev))
+                        prop:value=move || form.get().estimasi.clone()
+                        on:input=move |ev| form.update(|f| f.estimasi = event_target_value(&ev))
                     />
                 </div>
 
@@ -132,9 +124,9 @@ pub fn AnalisisForm() -> impl IntoView {
                     <button
                         type="submit"
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                        prop:disabled=move || loading.get()
+                        prop:disabled=move || form.submitting.get()
                     >
-                        <Show when=move || loading.get() fallback=|| view! { <i class="fas fa-save"></i> }>
+                        <Show when=move || form.submitting.get() fallback=|| view! { <i class="fas fa-save"></i> }>
                             <i class="fas fa-spinner fa-spin"></i>
                         </Show>
                         "Simpan"

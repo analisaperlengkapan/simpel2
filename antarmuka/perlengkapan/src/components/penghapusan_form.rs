@@ -4,46 +4,49 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
+use lib_ui::hooks::{use_form, use_toast::use_toast};
+
+/// Form data for BMN disposal request.
+#[derive(Clone, Default)]
+struct PenghapusanFormData {
+    satker_id: String,
+    asset_id: String,
+    kode_barang: String,
+    nama_barang: String,
+    nup: String,
+    tanggal: String,
+    alasan: String,
+    metode: String,
+    residu: String,
+    lampiran_persyaratan: String,
+    catatan_operator: String,
+}
 
 #[component]
 pub fn PenghapusanForm() -> impl IntoView {
-    let (satker_id, set_satker_id) = signal("".to_string());
-    let (asset_id, set_asset_id) = signal("".to_string());
-    let (kode_barang, set_kode_barang) = signal("".to_string());
-    let (nama_barang, set_nama_barang) = signal("".to_string());
-    let (nup, set_nup) = signal("".to_string());
-    let (tanggal, set_tanggal) = signal("".to_string());
-    let (alasan, set_alasan) = signal("".to_string());
-    let (metode, set_metode) = signal("".to_string());
-    let (residu, set_residu) = signal("".to_string());
-    let (lampiran_persyaratan, set_lampiran_persyaratan) = signal("".to_string());
-    let (catatan_operator, set_catatan_operator) = signal("".to_string());
-    let (error, set_error) = signal(None::<String>);
-    let (success, set_success) = signal(false);
-    let (loading, set_loading) = signal(false);
+    let form = use_form(PenghapusanFormData::default());
+    let toast = use_toast();
     let navigate = use_navigate();
 
     let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
-        set_loading.set(true);
-        set_error.set(None);
-        set_success.set(false);
+        let data = form.begin_submit();
 
         let req = CreatePenghapusanBmnWorkflowRequest {
-            satker_id: satker_id.get(),
-            asset_id: asset_id.get(),
-            kode_barang: kode_barang.get(),
-            nama_barang: nama_barang.get(),
-            nup: nup.get(),
-            tanggal_penghapusan: tanggal.get(),
-            alasan: alasan.get(),
-            metode_penghapusan: metode.get(),
-            nilai_residu: residu.get().parse::<f64>().ok(),
-            lampiran_persyaratan: lampiran_persyaratan.get(),
-            catatan_operator: if catatan_operator.get().is_empty() {
+            satker_id: data.satker_id,
+            asset_id: data.asset_id,
+            kode_barang: data.kode_barang,
+            nama_barang: data.nama_barang,
+            nup: data.nup,
+            tanggal_penghapusan: data.tanggal,
+            alasan: data.alasan,
+            metode_penghapusan: data.metode,
+            nilai_residu: data.residu.parse::<f64>().ok(),
+            lampiran_persyaratan: data.lampiran_persyaratan,
+            catatan_operator: if data.catatan_operator.is_empty() {
                 None
             } else {
-                Some(catatan_operator.get())
+                Some(data.catatan_operator)
             },
         };
 
@@ -51,7 +54,8 @@ pub fn PenghapusanForm() -> impl IntoView {
         spawn_local(async move {
             match create_penghapusan_bmn_workflow(req).await {
                 Ok(resp) => {
-                    set_success.set(true);
+                    form.finish_ok();
+                    toast.success("Usulan penghapusan berhasil disimpan!");
                     gloo_timers::future::TimeoutFuture::new(1000).await;
                     navigate(
                         &format!("/perlengkapan/pengelolaan/penghapusan/{}", resp.data.id),
@@ -59,10 +63,10 @@ pub fn PenghapusanForm() -> impl IntoView {
                     );
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal menyimpan: {:?}", e)));
+                    form.finish_err(format!("Gagal menyimpan: {:?}", e));
+                    toast.error(form.error.get_untracked().unwrap_or_default());
                 }
             }
-            set_loading.set(false);
         });
     };
 
@@ -70,20 +74,6 @@ pub fn PenghapusanForm() -> impl IntoView {
         <Title text="Usulan Penghapusan BMN — SIMPEL" />
         <div class="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
             <h2 class="text-xl font-bold text-gray-800 mb-6">"Usulan SK Penghapusan BMN"</h2>
-
-            <Show when=move || success.get()>
-                <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
-                    <i class="fas fa-check-circle"></i>
-                    "Usulan penghapusan berhasil disimpan!"
-                </div>
-            </Show>
-
-            <Show when=move || error.get().is_some()>
-                <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2">
-                    <i class="fas fa-exclamation-circle"></i>
-                    {error.get()}
-                </div>
-            </Show>
 
             <form on:submit=on_submit class="space-y-4">
                 // -- Identifikasi BMN --
@@ -97,8 +87,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="ID Satuan Kerja"
-                            prop:value=move || satker_id.get()
-                            on:input=move |ev| set_satker_id.set(event_target_value(&ev))
+                            prop:value=move || form.get().satker_id.clone()
+                            on:input=move |ev| form.update(|f| f.satker_id = event_target_value(&ev))
                             required
                         />
                     </div>
@@ -109,8 +99,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="550e8400-e29b-41d4-a716-446655440000"
-                            prop:value=move || asset_id.get()
-                            on:input=move |ev| set_asset_id.set(event_target_value(&ev))
+                            prop:value=move || form.get().asset_id.clone()
+                            on:input=move |ev| form.update(|f| f.asset_id = event_target_value(&ev))
                             required
                         />
                     </div>
@@ -124,8 +114,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="Kode barang BMN"
-                            prop:value=move || kode_barang.get()
-                            on:input=move |ev| set_kode_barang.set(event_target_value(&ev))
+                            prop:value=move || form.get().kode_barang.clone()
+                            on:input=move |ev| form.update(|f| f.kode_barang = event_target_value(&ev))
                             required
                         />
                     </div>
@@ -136,8 +126,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="Nama barang BMN"
-                            prop:value=move || nama_barang.get()
-                            on:input=move |ev| set_nama_barang.set(event_target_value(&ev))
+                            prop:value=move || form.get().nama_barang.clone()
+                            on:input=move |ev| form.update(|f| f.nama_barang = event_target_value(&ev))
                             required
                         />
                     </div>
@@ -148,8 +138,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="Nomor Urut Pendaftaran"
-                            prop:value=move || nup.get()
-                            on:input=move |ev| set_nup.set(event_target_value(&ev))
+                            prop:value=move || form.get().nup.clone()
+                            on:input=move |ev| form.update(|f| f.nup = event_target_value(&ev))
                             required
                         />
                     </div>
@@ -165,8 +155,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                             id="tanggal"
                             type="date"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            prop:value=move || tanggal.get()
-                            on:input=move |ev| set_tanggal.set(event_target_value(&ev))
+                            prop:value=move || form.get().tanggal.clone()
+                            on:input=move |ev| form.update(|f| f.tanggal = event_target_value(&ev))
                             required
                         />
                     </div>
@@ -175,8 +165,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                         <select
                             id="metode"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            prop:value=move || metode.get()
-                            on:change=move |ev| set_metode.set(event_target_value(&ev))
+                            prop:value=move || form.get().metode.clone()
+                            on:change=move |ev| form.update(|f| f.metode = event_target_value(&ev))
                             required
                         >
                             <option value="">"Pilih Metode"</option>
@@ -195,8 +185,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         rows="3"
                         placeholder="Kondisi rusak berat, hilang, dsb."
-                        prop:value=move || alasan.get()
-                        on:input=move |ev| set_alasan.set(event_target_value(&ev))
+                        prop:value=move || form.get().alasan.clone()
+                        on:input=move |ev| form.update(|f| f.alasan = event_target_value(&ev))
                         required
                     ></textarea>
                 </div>
@@ -208,8 +198,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                         type="number"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="0"
-                        prop:value=move || residu.get()
-                        on:input=move |ev| set_residu.set(event_target_value(&ev))
+                        prop:value=move || form.get().residu.clone()
+                        on:input=move |ev| form.update(|f| f.residu = event_target_value(&ev))
                     />
                 </div>
 
@@ -223,8 +213,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="URL dokumen persyaratan penghapusan"
-                        prop:value=move || lampiran_persyaratan.get()
-                        on:input=move |ev| set_lampiran_persyaratan.set(event_target_value(&ev))
+                        prop:value=move || form.get().lampiran_persyaratan.clone()
+                        on:input=move |ev| form.update(|f| f.lampiran_persyaratan = event_target_value(&ev))
                         required
                     />
                     <p class="text-xs text-gray-500 mt-1">"Upload dokumen persyaratan terlebih dahulu, kemudian tempel URL-nya di sini."</p>
@@ -237,8 +227,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         rows="2"
                         placeholder="Catatan tambahan (opsional)"
-                        prop:value=move || catatan_operator.get()
-                        on:input=move |ev| set_catatan_operator.set(event_target_value(&ev))
+                        prop:value=move || form.get().catatan_operator.clone()
+                        on:input=move |ev| form.update(|f| f.catatan_operator = event_target_value(&ev))
                     ></textarea>
                 </div>
 
@@ -252,9 +242,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                     <button
                         type="submit"
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                        prop:disabled=move || loading.get()
+                        prop:disabled=move || form.submitting.get()
                     >
-                        <Show when=move || loading.get() fallback=|| view! { <i class="fas fa-save"></i> }>
+                        <Show when=move || form.submitting.get() fallback=|| view! { <i class="fas fa-save"></i> }>
                             <i class="fas fa-spinner fa-spin"></i>
                         </Show>
                         "Simpan Draft"
