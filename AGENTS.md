@@ -70,7 +70,7 @@ flowchart TB
 - **`Cargo.toml` (Root)**: Single source of truth untuk SEMUA dependensi eksternal.
 - **`antarmuka/`**: Frontend WASM (Portal, Perlengkapan).
 - **`layanan/`**: Backend services & Core infra (Perlengkapan, Integrasi, Authenc, Secreton).
-- **`lib/`**: Shared crates (`lib-ui`, `lib-common`, `lib-perlengkapan`).
+- **`lib/`**: Shared crates (`lib-ui`, `lib-core`, `lib-backend`, `lib-crypto`, `lib-perlengkapan`).
 
 ### Key Tech Stack
 

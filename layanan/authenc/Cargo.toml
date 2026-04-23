@@ -275,8 +275,8 @@ axum-test = "18.2.1"
 
 # Common library
 lib-core = { workspace = true, features = ["validation"] }
-lib-backend = { path = "../../lib/backend", features = ["redis-cache", "telemetry", "db", "axum", "jwt", "env-config"] }
-lib-crypto = { path = "../../lib/crypto", features = ["encryption"] }
+lib-backend = { workspace = true, features = ["redis-cache", "telemetry", "db", "axum", "jwt", "env-config"] }
+lib-crypto = { workspace = true, features = ["encryption"] }
 
 # Internal crates
 authenc-types = { path = "crates/types" }

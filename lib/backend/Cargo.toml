@@ -20,7 +20,7 @@ hex = { workspace = true }
 async-trait = { workspace = true }
 
 # Backend runtime
-tokio = { version = "1.52.1", features = ["sync", "macros", "rt", "time"] }
+tokio = { workspace = true }
 ipnetwork = { workspace = true }
 
 # Optional backend dependencies
