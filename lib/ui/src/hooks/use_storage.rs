@@ -1,10 +1,37 @@
-//! LocalStorage utilities untuk persistent state
+//! LocalStorage utilities untuk persistent state.
 //!
-//! Simplified version - use directly with signals in components
+//! # API saat ini
+//!
+//! - `use_storage(key, default)` — hook reaktif, mengembalikan
+//!   `(ReadSignal<T>, WriteSignal<T>)`. Dipakai oleh komponen existing
+//!   (`accessibility_controls`, `theme_editor`, `custom_branding`).
+//! - `load_from_storage`, `save_to_storage`, `remove_from_storage`,
+//!   `clear_storage` — utilitas one-shot untuk kebutuhan di luar komponen.
+//!
+//! # Use-case baru: `leptos_use::storage`
+//!
+//! Untuk persistence yang lebih kaya (storage event sync cross-tab,
+//! codec selain JSON, sessionStorage), pakai `leptos_use::storage`:
+//!
+//! ```rust,ignore
+//! use leptos_use::storage::use_local_storage;
+//! use codee::string::JsonSerdeCodec;
+//!
+//! let (value, set_value, _remove) =
+//!     use_local_storage::<MyType, JsonSerdeCodec>("key");
+//! ```
+//!
+//! Perhatikan: `use_local_storage` dari leptos-use mengembalikan
+//! `(Signal<T>, WriteSignal<T>, impl Fn())` — signature berbeda dengan
+//! `use_storage` lokal. Gunakan yang sesuai kebutuhan.
 
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use web_sys::window;
+
+// Re-export modul storage dari leptos-use agar call site baru bisa
+// `use lib_ui::hooks::storage::use_local_storage;`
+pub use leptos_use::storage;
 
 /// Load value from localStorage
 pub fn load_from_storage<T>(key: &str) -> Option<T>

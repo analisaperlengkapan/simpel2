@@ -22,6 +22,9 @@ leptos = { workspace = true }
 leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
 
+# Leptos ecosystem — reactive utilities (clipboard, scroll, media query, etc.)
+leptos-use = { workspace = true }
+
 # Serialization
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
