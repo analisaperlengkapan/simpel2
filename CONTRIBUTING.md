@@ -82,7 +82,7 @@ Mulai langkah kecil Anda hari ini — dari:
 
 ### ⚠️ Batasan Arsitektural Penting (Wajib Dibaca)
 1. **Dilarang menggunakan SQLx**: Ekosistem SIMPEL mewajibkan penggunaan `tokio-postgres`, `deadpool-postgres`, dan `refinery` murni untuk operasi *database*. 
-2. **Pembekuan (Freeze) `lib/common/`**: Jangan menambahkan *module* atau logika baru ke dalam *crate* `lib/common/` karena dapat menjadi *"God Crate"*. Silakan buat *shared crate* terpisah yang spesifik di folder `lib/` (misalnya `lib-telemetry` atau `lib-auth-client`) dan daftarkan pada root `Cargo.toml`.
+2. **Batas Shared Libraries**: `lib/common/` telah dipecah menjadi `lib/core/` (tipe WASM-safe), `lib/backend/` (infrastruktur backend: DB, middleware, gRPC), dan `lib/crypto/` (primitif kripto). DILARANG menambahkan dependensi async/backend ke `lib-core` untuk menjaga kompatibilitas WASM. Jika butuh shared logic baru yang tidak cocok di tiga crate tersebut, buat *shared crate* terpisah di folder `lib/` (misalnya `lib-telemetry` atau `lib-auth-client`) dan daftarkan pada root `Cargo.toml`.
 
 #### **🪟 Windows Setup (WSL2)**
 1. **Install WSL2**: Windows Subsystem for Linux

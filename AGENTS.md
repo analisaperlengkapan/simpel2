@@ -92,7 +92,7 @@ flowchart TB
    - Member crates MUST use `dependency_name = { workspace = true }`. Jangan pernah menaruh versi di crate anak.
 2. **Database Rules**: ⛔ **DO NOT USE SQLx**. Gunakan `tokio-postgres` + `deadpool-postgres` + `refinery`. Setiap layanan (authenc, perlengkapan, secreton) menggunakan DB terpisah.
 3. **Secrets**: Jangan pernah menggunakan Environment Variables untuk rahasia produksi. Gunakan Secreton gRPC Client.
-4. **Library Freeze**: DILARANG menambahkan modul baru ke `lib/common/`. Buat crate shared spesifik jika perlu.
+4. **Library Boundaries**: `lib/common/` telah dipecah menjadi `lib/core/` (WASM-safe types), `lib/backend/` (infrastruktur backend), dan `lib/crypto/` (primitif kripto). DILARANG menambahkan dependensi async (`tokio`, `axum`) ke `lib-core`. Buat crate shared spesifik baru di `lib/` jika diperlukan.
 5. **Security**: Zero-trust antar layanan. Validasi JWT di setiap request REST via middleware yang memanggil Authenc gRPC. Password hash menggunakan Argon2.
 
 ## ⚠️ Common Pitfalls (DO & DON'T)

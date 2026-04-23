@@ -34,12 +34,16 @@ struct KebutuhanFormData {
     version: i32,
 }
 
+/// Current anggaran year used as the form default.
+/// Keep in sync with the `current_year` constant in the view below.
+const DEFAULT_TAHUN: i32 = 2026;
+
 impl Default for KebutuhanFormData {
     fn default() -> Self {
         Self {
             nama: String::new(),
             deskripsi: None,
-            tahun: 2025,
+            tahun: DEFAULT_TAHUN,
             tgl_mulai: String::new(),
             tgl_selesai: String::new(),
             pilihan_satker: PilihanSatker::Semua,
