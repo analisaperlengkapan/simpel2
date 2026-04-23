@@ -2,6 +2,13 @@
 
 > **Domain Konteks**: Utilitas Lintas Domain. Kode di sini harus **Agnostik** terhadap proses bisnis (seperti Keuangan, BMN, dll). Jika kode hanya berlaku untuk "Barang", letakkan di tempat lain!
 
+## ⛔ FREEZE Notice
+
+> **This crate is FROZEN.** Do NOT add new modules or logic to `lib/common/`. It is a legacy "God Crate".
+> Create specific shared crates instead (e.g. `lib-telemetry`, `lib-auth-client`) and register them in the root `Cargo.toml`.
+> Bug fixes and security patches to existing modules are still allowed.
+> See root `AGENTS.md` for the full policy.
+
 ---
 
 ## 🏗️ Topologi Fitur Cargo

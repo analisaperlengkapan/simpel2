@@ -55,7 +55,7 @@ let doubled = move || *count.read() * 2;
 ```
 
 ### Memoization untuk Expensive Computations
-Gunakan `create_memo` untuk memoizing computed values:
+Gunakan `Memo::new` untuk memoizing computed values:
 
 ```rust
 use leptos::prelude::*;
@@ -63,7 +63,7 @@ use leptos::prelude::*;
 let (items, set_items) = signal(vec![/* ... */]);
 
 // Memoized computation - hanya recompute ketika items berubah
-let filtered_items = create_memo(move |_| {
+let filtered_items = Memo::new(move |_| {
     items.read()
         .iter()
         .filter(|item| item.active)
@@ -178,7 +178,7 @@ use std::time::Duration;
 let (search_query, set_search_query) = signal(String::new());
 
 // Debounced search - hanya trigger setelah user berhenti mengetik
-let debounced_search = create_memo(move |_| {
+let debounced_search = Memo::new(move |_| {
     // Implement debouncing logic
     search_query.read().clone()
 });

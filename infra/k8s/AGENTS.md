@@ -34,7 +34,7 @@ This directory contains **Kustomize-based** Kubernetes manifests for deploying S
 │  ┌─────────────────────┐  ┌─────────────────────┐              │
 │  │ simpelv2-staging    │  │ simpelv2-production │              │
 │  │ • 1 replica         │  │ • 3 replicas (HA)   │              │
-│  │ • STRICT mTLS       │  │ • STRICT mTLS       │              │
+│  │ • PERMISSIVE mTLS   │  │ • STRICT mTLS       │              │
 │  │ • Debug logging     │  │ • Info logging      │              │
 │  └─────────────────────┘  └─────────────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
@@ -50,7 +50,7 @@ infra/k8s/
 │   │   ├── layanan-perlengkapan.yaml
 │   │   └── kustomization.yaml
 │   ├── frontend/                   # Frontend microfrontends (Leptos WASM)
-│   │   ├── portal.yaml
+│   │   ├── portal-nginx-config.yaml
 │   │   ├── portal.yaml
 │   │   ├── perlengkapan.yaml
 │   │   └── kustomization.yaml
@@ -90,7 +90,7 @@ infra/k8s/
 │   │   ├── namespace.yaml          # simpelv2-staging
 │   │   ├── hpa.yaml                # Min 1, Max 2 replicas
 │   │   ├── pdb.yaml                # maxUnavailable: 1
-│   │   ├── mtls.yaml               # STRICT mTLS for staging
+│   │   ├── mtls.yaml               # PERMISSIVE mTLS for staging
 │   │   └── kustomization.yaml
 │   └── production/                 # Production environment
 │       ├── namespace.yaml          # simpelv2-production
@@ -143,7 +143,7 @@ infra/k8s/
 | **MetalLB Pool** | `staging-addresspool` | `prod-addresspool` |
 | **Replicas** | 1 | 3 (HA) |
 | **HPA Min/Max** | 1/2 | 3/10 |
-| **mTLS Mode** | STRICT | STRICT |
+| **mTLS Mode** | PERMISSIVE | STRICT |
 | **PodSecurity** | - | restricted |
 | **ResourceQuota** | - | CPU: 20/40, Mem: 40Gi/80Gi |
 | **PDB** | maxUnavailable: 1 | minAvailable: 2 |
@@ -254,7 +254,7 @@ labels:
 
 | Environment | Mode | Note |
 |-------------|------|------|
-| Staging | STRICT | mTLS enforced for production parity |
+| Staging | PERMISSIVE | Some services (e.g. authenc) run without sidecar |
 | Production | STRICT | Enforces mutual TLS only |
 
 ### PodSecurity Standards (Production)
@@ -561,7 +561,7 @@ kubectl get networkpolicies -n <namespace>
 | **Replicas** | 1 | 3 (HA) |
 | **Image Tags** | `:stag` | `:prod` |
 | **Logging** | `debug` | `info` |
-| **mTLS** | STRICT | STRICT |
+| **mTLS** | PERMISSIVE | STRICT |
 
 ### Promotion Workflow
 
