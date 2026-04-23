@@ -54,6 +54,13 @@ pub fn App() -> impl IntoView {
     let (timeout_countdown, set_timeout_countdown) = signal(0i64);
     let (show_timeout_warning, set_show_timeout_warning) = signal(false);
 
+    // Expose the timeout-warning writers via context so descendants
+    // (e.g. MainLayout's logout handler) can dismiss the modal before
+    // navigating away — otherwise the modal could flash on the login
+    // page if it was visible at logout time.
+    provide_context(set_show_timeout_warning);
+    provide_context(set_timeout_countdown);
+
     // Setup cross-tab session sync and token refresh/session timeout monitoring.
     setup_cross_tab_session_sync(
         set_user_session,

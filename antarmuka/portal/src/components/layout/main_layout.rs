@@ -24,9 +24,26 @@ pub fn MainLayout(
     let session = use_context::<ReadSignal<Option<UserSession>>>()
         .and_then(|sig| sig.get_untracked());
 
+    // Capture the session-timeout writers (provided by App root) so we can
+    // dismiss the warning modal before navigating away at logout time —
+    // otherwise the modal could flash on the login page. Captured at
+    // component render time; the closure below uses them without
+    // re-calling `use_context`.
+    let set_show_timeout_warning = use_context::<WriteSignal<bool>>();
+    let set_timeout_countdown = use_context::<WriteSignal<i64>>();
+
     // Build logout handler that broadcasts + clears, then does a full page
     // reload to discard all WASM memory (session signals, provide_context).
     let on_logout: Option<Box<dyn Fn()>> = Some(Box::new(move || {
+        // Clear the session-timeout warning first so it cannot flash on
+        // the login page after navigation.
+        if let Some(setter) = set_show_timeout_warning {
+            setter.set(false);
+        }
+        if let Some(setter) = set_timeout_countdown {
+            setter.set(0);
+        }
+
         #[cfg(target_arch = "wasm32")]
         {
             // Note: Portal's AuthService::logout() does NOT call broadcast_logout().

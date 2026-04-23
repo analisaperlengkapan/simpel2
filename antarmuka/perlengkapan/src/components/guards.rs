@@ -33,28 +33,49 @@ use leptos_router::components::A;
 /// Authenticated layout guard. Use as a `ParentRoute` view to protect all
 /// nested children. Unauthenticated visitors are redirected to login.
 ///
+/// Reads the global `user_session` signal from context so logout / cross-tab
+/// storage events re-evaluate this guard reactively. Falls back to
+/// `AuthService::load_session()` if the context is missing (e.g. in tests).
+///
 /// This replaces wrapping every `<Route>` with `<SessionAuthGuard>`.
 #[component]
 pub fn AuthenticatedLayout() -> impl IntoView {
-    move || match AuthService::load_session() {
-        Some(_session) => {
-            view! { <leptos_router::components::Outlet /> }.into_any()
+    let session_ctx = use_context::<ReadSignal<Option<UserSession>>>();
+
+    move || {
+        let session = match session_ctx {
+            Some(sig) => sig.get(),
+            None => AuthService::load_session(),
+        };
+        match session {
+            Some(_) => view! { <leptos_router::components::Outlet /> }.into_any(),
+            None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
         }
-        None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
     }
 }
 
 /// Admin layout guard. Use as a `ParentRoute` view to protect all nested
 /// children. Non-admin users see a forbidden page; unauthenticated visitors
 /// are redirected to login.
+///
+/// Reads the global `user_session` signal from context so logout / cross-tab
+/// storage events re-evaluate this guard reactively.
 #[component]
 pub fn AdminLayout() -> impl IntoView {
-    move || match AuthService::load_session() {
-        Some(session) if session.is_admin() => {
-            view! { <leptos_router::components::Outlet /> }.into_any()
+    let session_ctx = use_context::<ReadSignal<Option<UserSession>>>();
+
+    move || {
+        let session = match session_ctx {
+            Some(sig) => sig.get(),
+            None => AuthService::load_session(),
+        };
+        match session {
+            Some(s) if s.is_admin() => {
+                view! { <leptos_router::components::Outlet /> }.into_any()
+            }
+            Some(_) => view! { <ForbiddenPage /> }.into_any(),
+            None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
         }
-        Some(_) => view! { <ForbiddenPage /> }.into_any(),
-        None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
     }
 }
 
