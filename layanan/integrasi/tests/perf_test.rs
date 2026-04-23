@@ -49,7 +49,7 @@ async fn test_siman_pagination_performance() {
 
     // Manual Config
     let config = Config {
-        base: lib_common::config::BaseServiceConfig::default(),
+        base: lib_core::config::BaseServiceConfig::default(),
         base_url: "http://localhost".to_string(),
         mysimkari_base_url: "http://localhost".to_string(),
         siman_base_url: mock_server.uri(),

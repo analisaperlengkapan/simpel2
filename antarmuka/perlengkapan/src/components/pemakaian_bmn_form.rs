@@ -16,6 +16,7 @@ use crate::api::{
 };
 use crate::routes;
 use leptos::prelude::*;
+use leptos_router::hooks::use_navigate;
 
 #[component]
 pub fn PemakaianBmnForm() -> impl IntoView {
@@ -62,6 +63,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     let (error, set_error) = signal(None::<String>);
     let (success, set_success) = signal(false);
     let (loading, set_loading) = signal(false);
+    let navigate = use_navigate();
 
     // Check BMN availability when NUP changes
     let check_availability = move |_| {
@@ -199,18 +201,22 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             additional_bmn_items: additional_bmn_items.get(),
         };
 
+        let navigate = navigate.clone();
         leptos::task::spawn_local(async move {
             match create_pemakaian_bmn(request).await {
                 Ok(_response) => {
                     set_success.set(true);
                     set_loading.set(false);
 
-                    // Redirect after success
-                    gloo_timers::future::TimeoutFuture::new(1500).await;
-                    leptos_router::hooks::use_navigate()(
-                        "/perlengkapan/pemakaian-bmn",
-                        Default::default(),
-                    );
+                    // Redirect after success — `navigate` captured at component
+                    // level to stay within the reactive scope.
+                    gloo_timers::callback::Timeout::new(1500, move || {
+                        navigate(
+                            "/perlengkapan/pemakaian-bmn",
+                            Default::default(),
+                        );
+                    })
+                    .forget();
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal mengajukan permohonan: {}", e)));

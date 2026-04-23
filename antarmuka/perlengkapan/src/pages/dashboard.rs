@@ -7,6 +7,7 @@ use crate::api::dashboard::fetch_dashboard_stats;
 use crate::components::role_switcher::get_active_role;
 use crate::routes;
 use leptos::prelude::*;
+use leptos_meta::Title;
 
 #[component]
 fn SectionHeader(title: &'static str, tone: &'static str) -> impl IntoView {
@@ -192,6 +193,7 @@ pub fn DashboardHome() -> impl IntoView {
     let is_admin = active_role == "admin";
 
     view! {
+        <Title text="Dashboard — SIMPEL Perlengkapan" />
         <div class="mx-auto max-w-7xl space-y-8 px-1 sm:px-2">
             <section class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-navy-900 via-navy-800 to-slate-950 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.45)] sm:p-8 lg:p-10">
                 <div class="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gold-400/10 blur-3xl"></div>

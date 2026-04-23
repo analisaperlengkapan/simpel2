@@ -44,7 +44,7 @@ x509-parser = { workspace = true }  # For xmldsig certificate parsing
 reqwest = { workspace = true }  # For xmldsig OCSP/CRL fetching
 
 # Shared library dependencies
-lib-common = { path = "../../../../lib/common", features = ["crypto"] }
+lib-crypto = { workspace = true }
 
 [features]
 default = []

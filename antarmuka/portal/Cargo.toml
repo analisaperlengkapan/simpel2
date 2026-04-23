@@ -27,7 +27,7 @@ leptos_router = { workspace = true }
 
 # Shared Components Library - Government compliant UI
 lib-ui = { workspace = true }
-lib-common = { workspace = true }
+lib-core = { workspace = true }
 
 # Web Assembly bindings - Performance optimized
 wasm-bindgen = { workspace = true }

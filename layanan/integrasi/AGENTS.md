@@ -2,6 +2,12 @@
 
 > **AI Agent Guide** for working with the Integration Service (MonSAKTI, MySIMKARI, SIMAN)
 
+## Inherited Global Rules
+
+- This file extends the global rules in `AGENTS.md`.
+- Use this document only for **local deltas** specific to `layanan/integrasi`.
+- If guidance here conflicts with root policy, root policy takes precedence unless an explicit local override is documented.
+
 ## 🌍 Service Context
 
 **Layanan Integrasi** adalah microservice Rust yang mengintegrasikan 3 API eksternal pemerintah Indonesia:
@@ -23,8 +29,52 @@
 
 ## 🏗️ Architecture
 
+### Communication Flow
+
+```mermaid
+flowchart TB
+    subgraph External["🌐 External Government APIs"]
+        MON["MonSAKTI v1.4\n(8 modules)"]
+        MYS["MySIMKARI\n(Kepegawaian)"]
+        SIM["SIMAN v2.0\n(Aset Negara)"]
+    end
+
+    subgraph Integrasi["⚙️ Layanan Integrasi"]
+        CLIENT["HTTP Client\n+ Token Mgmt"]
+        GRPC_SRV["gRPC Server\n:50051"]
+        DB_OPS["DB Operations\n(bulk insert)"]
+        SCHED["K8s CronJob\n(batch sync)"]
+    end
+
+    subgraph Internal["🔐 Internal Services"]
+        LP["Layanan\nPerlengkapan"]
+        AUTH["Authenc\n(gRPC)"]
+    end
+
+    subgraph Data["💾 Data Layer"]
+        PG[(PostgreSQL\nschema: integrasi)]
+    end
+
+    SCHED -->|"REST/OAuth2"| CLIENT
+    CLIENT -->|"Bearer Token"| MON
+    CLIENT -->|"Bearer Token"| MYS
+    CLIENT -->|"OAuth2"| SIM
+    CLIENT --> DB_OPS
+    DB_OPS --> PG
+    LP -->|"gRPC"| GRPC_SRV
+    GRPC_SRV --> PG
+    GRPC_SRV -->|"gRPC"| AUTH
+
+    style External fill:#e1f5fe
+    style Integrasi fill:#fff3e0
+    style Internal fill:#fce4ec
+    style Data fill:#e8f5e9
 ```
-layanan/daskrimti/integrasi/
+
+### Directory Structure
+
+```
+layanan/integrasi/
 ├── proto/
 │   └── integrasi.proto     # gRPC service definition
 ├── src/
@@ -176,9 +226,9 @@ MYSIMKARI_TOKEN=eyJhbGciOiJIUzI1NiJ9...          # Token untuk endpoint get-satk
 MYSIMKARI_TOKEN_PEGAWAI=eyJhbGciOiJIUzI1NiJ9...   # Token untuk endpoint pegawai-satker, pegawai/{nip}, pegawai-aktif, pegawai-mutasi
 
 # SIMAN OAuth2
-SIMAN_CLIENT_ID=simanv2.kejagung
-SIMAN_CLIENT_SECRET=e5f60b3c...
-SIMAN_BA_KEY=05EACC64AEBB01F84C495198C5F9056C
+SIMAN_CLIENT_ID=CHANGEME
+SIMAN_CLIENT_SECRET=CHANGEME
+SIMAN_BA_KEY=CHANGEME
 SIMAN_BASE_URL=https://apigateway.kemenkeu.go.id
 
 # Scheduler
@@ -484,71 +534,19 @@ LIMIT 10;
 ## ⚠️ Common Pitfalls
 
 ### ❌ DON'T
-
-1. **Hard-code API tokens in code**
-   ```rust
-   // ❌ BAD
-   let token = "eyJ0eXAiOiJKV1QiLCJhbGci...";
-
-   // ✅ GOOD
-   let token = config.tokens.get("ADM")?;
-   ```
-
-2. **Call APIs without audit logging**
-   ```rust
-   // ❌ BAD
-   let response = reqwest::get(url).await?;
-
-   // ✅ GOOD
-   let response = client.fetch("ADM", "refAdmin", vars).await?;
-   // Auto-logs to api_call_log
-   ```
-
-3. **Forget to handle token expiry**
-   ```rust
-   // ❌ BAD - Will fail on 403
-   let response = client.http_client.get(url).send().await?;
-
-   // ✅ GOOD - Auto-retries with token reset
-   let response = client.fetch(module, endpoint, vars).await?;
-   ```
-
-4. **Create rigid table schemas**
-   ```sql
-   -- ❌ BAD - Breaks on API changes
-   CREATE TABLE adm_data (
-       kode TEXT,
-       nama TEXT,
-       alamat TEXT  -- API removes this field = migration needed
-   );
-
-   -- ✅ GOOD - Flexible with JSONB
-   CREATE TABLE adm_data (
-       id BIGSERIAL PRIMARY KEY,
-       api_id BIGINT UNIQUE,
-       raw_data JSONB  -- Stores full API response
-   );
-   ```
-
-5. **Run scheduler without error handling**
-   ```rust
-   // ❌ BAD - One failure stops all
-   fetch_all_data().await?;
-
-   // ✅ GOOD - Continue on individual failures
-   match fetch_monsakti_data(config).await {
-       Ok(_) => info!("✅ MonSAKTI fetch completed"),
-       Err(e) => error!("❌ MonSAKTI fetch failed: {}", e),
-   }
-   ```
+1. Hard-code API tokens → use `config.tokens.get("ADM")?`
+2. Call APIs tanpa audit logging → gunakan `client.fetch()` (auto-logs)
+3. Lupa handle token expiry → `client.fetch()` auto-retry pada 403
+4. Buat rigid table schema → gunakan JSONB `raw_data` (fleksibel saat API berubah)
+5. Jalankan scheduler tanpa error handling → `match` per-job, jangan `?` langsung
 
 ### ✅ DO
-
 1. **Use Config::from_env()** for all configuration
 2. **Use MonsaktiClient methods** for API calls (auto-logging, retry)
 3. **Store full responses in JSONB** `raw_data`
 4. **Check audit logs** before debugging
 5. **Test with FETCH_MODE=single** before production runs
+6. **For production secrets, use Secreton-managed sources**
 
 ## 🔍 Troubleshooting
 
@@ -571,7 +569,7 @@ LIMIT 10;
 # Test OAuth2 manually
 curl -X POST https://sso.kemenkeu.go.id/connect/token \
   -d "grant_type=client_credentials" \
-  -d "client_id=simanv2.kejagung" \
+  -d "client_id=YOUR_CLIENT_ID" \
   -d "client_secret=YOUR_SECRET"
 
 # Verify BA_KEY
@@ -627,18 +625,8 @@ MONSAKTI_SCHEDULE=0 25 * * * # ❌ Invalid (hour > 23)
 | `src/bin/scheduler.rs` | Daemon | `main()` - runs as service |
 | `examples/fetch_to_database.rs` | Integration test | All APIs example |
 
-## 🎓 Best Practices
-
-1. **Always use environment variables** for configuration
-2. **Log all API calls** to `api_call_log`
-3. **Store full responses** in JSONB `raw_data`
-4. **Use cron expressions** for scheduling (flexible)
-5. **Test with single satker** before bulk operations
-6. **Monitor token health** daily
-7. **Archive old logs** monthly (90 days retention)
-
 ---
 
-**Last Updated:** February 2, 2026
+**Last Updated:** April 23, 2026
 **Maintainer:** SIMPEL Team
-**Documentation:** See `MIGRATION_OPTIMIZATION_REPORT.md`, `SCHEDULER.md`
+**Related:** `/AGENTS.md`, `layanan/AGENTS.md`

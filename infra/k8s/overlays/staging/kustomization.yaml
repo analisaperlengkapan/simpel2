@@ -175,33 +175,45 @@ configMapGenerator:
       - MONSAKTI_SCHEDULE="0 */15 * * * *"
 
 # Secret patches for staging
+# ⛔ DO NOT commit real secrets to this file!
+# The secretGenerator below produces placeholder secrets (CHANGEME).
+# ⚠️  WARNING: Every `kubectl apply -k overlays/staging` OVERWRITES cluster secrets
+#     with these CHANGEME placeholders. You MUST re-apply real secrets afterward.
+#
+# Deployment workflow (order matters!):
+#   1. kubectl apply -k overlays/staging          # deploys everything with CHANGEME
+#   2. cp staging-secrets.example.yaml staging-secrets.yaml   # one-time setup (gitignored)
+#   3. $EDITOR staging-secrets.yaml               # fill in real credentials
+#   4. kubectl apply -f staging-secrets.yaml -n simpelv2-staging  # overwrite placeholders
+#
+# For production, use Secreton (see root AGENTS.md and layanan/secreton/).
 secretGenerator:
   - name: postgres-credentials
     behavior: merge
     literals:
-      - url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/simpelv2
-      - authenc-url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/authenc
-      - secreton-url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/secreton
-      - perlengkapan-url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/perlengkapan
-      - integrasi-url=postgres://simpelv2:simpelv2_staging_password@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/integrasi
-      - password=simpelv2_staging_password
+      - url=postgres://simpelv2:CHANGEME@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/simpelv2
+      - authenc-url=postgres://simpelv2:CHANGEME@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/authenc
+      - secreton-url=postgres://simpelv2:CHANGEME@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/secreton
+      - perlengkapan-url=postgres://simpelv2:CHANGEME@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/perlengkapan
+      - integrasi-url=postgres://simpelv2:CHANGEME@postgres-0.postgres.simpelv2-staging.svc.cluster.local:5432/integrasi
+      - password=CHANGEME
       - username=simpelv2
   - name: integration-secrets
     behavior: merge
     literals:
-      - SIMAN_CLIENT_ID=simanv2.kejagung
-      - SIMAN_CLIENT_SECRET=e5f60b3c9b8d49a2b84032b5f994d242
-      - SIMAN_BA_KEY=05EACC64AEBB01F84C495198C5F9056C
-      - MONSAKTI_TOKEN_ADM=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c3IiOiJLRUpBS1NBQU4gUkVQVUJMSUsgSU5ET05FU0lBIiwidWlkIjoiS0FHIiwicm9sIjoid2Vic2VydmljZSIsImtkcyI6IktMMDA2Iiwia2RiIjoiQURNIiwia2R0IjoiMjAyNSIsImNyZSI6MTc0NTQ2ODk2MCwia2lkIjoiS0FHIiwiY291IjoiMCIsImFwaSI6IjcxMjkifQ.tlouRtvCJoBav6Rih_6uK8wVcARcPNNTmO3bxmPXQoA
-      - MONSAKTI_TOKEN_ANG=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c3IiOiJLRUpBS1NBQU4gUkVQVUJMSUsgSU5ET05FU0lBIiwidWlkIjoiS0FHIiwicm9sIjoid2Vic2VydmljZSIsImtkcyI6IktMMDA2Iiwia2RiIjoiQU5HIiwia2R0IjoiMjAyNSIsImNyZSI6MTc0NTQ2ODk2MCwia2lkIjoiS0FHIiwiY291IjoiMCIsImFwaSI6IjcxMjkifQ.4CLy5_Dk9hEn0J95tcSV4LwjoXoajxUZxV8GxIc-ulY
-      - MONSAKTI_TOKEN_AST=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c3IiOiJLRUpBS1NBQU4gUkVQVUJMSUsgSU5ET05FU0lBIiwidWlkIjoiS0FHIiwicm9sIjoid2Vic2VydmljZSIsImtkcyI6IktMMDA2Iiwia2RiIjoiQVNUIiwia2R0IjoiMjAyNSIsImNyZSI6MTc0NTQ2ODk2MCwia2lkIjoiS0FHIiwiY291IjoiMCIsImFwaSI6IjcxMjkifQ.wmvhpFLfci4vmtvpCtp3PBcReIM4CHYOvQLeGAgYyrI
-      - MONSAKTI_TOKEN_BEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c3IiOiJLRUpBS1NBQU4gUkVQVUJMSUsgSU5ET05FU0lBIiwidWlkIjoiS0FHIiwicm9sIjoid2Vic2VydmljZSIsImtkcyI6IktMMDA2Iiwia2RiIjoiQkVOIiwia2R0IjoiMjAyNSIsImNyZSI6MTc0NTQ2ODk2MCwia2lkIjoiS0FHIiwiY291IjoiMCIsImFwaSI6IjcxMjkifQ.B5FbPhopKw2hvEly5zzyfym8HRNdgAPppp4u1dGp6Js
-      - MONSAKTI_TOKEN_GLP=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c3IiOiJLRUpBS1NBQU4gUkVQVUJMSUsgSU5ET05FU0lBIiwidWlkIjoiS0FHIiwicm9sIjoid2Vic2VydmljZSIsImtkcyI6IktMMDA2Iiwia2RiIjoiR0xQIiwia2R0IjoiMjAyNSIsImNyZSI6MTc0NTQ2ODk2MCwia2lkIjoiS0FHIiwiY291IjoiMCIsImFwaSI6IjcxMjkifQ.6tTfIqVGMQ_PVFAav20VLxKzGljtC3sxvJIYNAX8Rj0
-      - MONSAKTI_TOKEN_KOM=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c3IiOiJLRUpBS1NBQU4gUkVQVUJMSUsgSU5ET05FU0lBIiwidWlkIjoiS0FHIiwicm9sIjoid2Vic2VydmljZSIsImtkcyI6IktMMDA2Iiwia2RiIjoiS09NIiwia2R0IjoiMjAyNSIsImNyZSI6MTc0NTQ2ODk2MCwia2lkIjoiS0FHIiwiY291IjoiMCIsImFwaSI6IjcxMjkifQ.BdgyU_AYtG8VPlWKjJpBuFzRrP7wIE8B3fxtFf2c4ms
-      - MONSAKTI_TOKEN_PEM=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c3IiOiJLRUpBS1NBQU4gUkVQVUJMSUsgSU5ET05FU0lBIiwidWlkIjoiS0FHIiwicm9sIjoid2Vic2VydmljZSIsImtkcyI6IktMMDA2Iiwia2RiIjoiUEVNIiwia2R0IjoiMjAyNSIsImNyZSI6MTc0NTQ2ODk2MCwia2lkIjoiS0FHIiwiY291IjoiMCIsImFwaSI6IjcxMjkifQ.XIsz1FUyY032zhkn-3AdfX_azYvULMU-vzIkK68XTZo
-      - MONSAKTI_TOKEN_PER=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c3IiOiJLRUpBS1NBQU4gUkVQVUJMSUsgSU5ET05FU0lBIiwidWlkIjoiS0FHIiwicm9sIjoid2Vic2VydmljZSIsImtkcyI6IktMMDA2Iiwia2RiIjoiUEVSIiwia2R0IjoiMjAyNSIsImNyZSI6MTc0NTQ2ODk2MCwia2lkIjoiS0FHIiwiY291IjoiMCIsImFwaSI6IjcxMjkifQ.7yXgrbAUaQJGoSbM5KI551muDD3P2ZQefGjDVUpTJjI
-      - MYSIMKARI_TOKEN=eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoia2FtZGFsIiwiSXNzdWVyIjoibXlzaW1rYXJpIiwiVXNlcm5hbWUiOiJtYWxpZmNoYSIsImV4cCI6MTY5Mjc4Mzk5NywiaWF0IjoxNjkyNzgzOTk3fQ.fS7sAGH5yVsAAVTBhPoarA5us_Stut72vTCAggA6oNY
-      - MYSIMKARI_TOKEN_PEGAWAI=eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoia2FtZGFsIiwiSXNzdWVyIjoibXlzaW1rYXJpIiwiVXNlcm5hbWUiOiJtYWxpZmNoYSIsImV4cCI6MTY5Mjc4Mzk5NywiaWF0IjoxNjkyNzgzOTk3fQ.fS7sAGH5yVsAAVTBhPoarA5us_Stut72vTCAggA6oNYanbut
+      - SIMAN_CLIENT_ID=CHANGEME
+      - SIMAN_CLIENT_SECRET=CHANGEME
+      - SIMAN_BA_KEY=CHANGEME
+      - MONSAKTI_TOKEN_ADM=CHANGEME
+      - MONSAKTI_TOKEN_ANG=CHANGEME
+      - MONSAKTI_TOKEN_AST=CHANGEME
+      - MONSAKTI_TOKEN_BEN=CHANGEME
+      - MONSAKTI_TOKEN_GLP=CHANGEME
+      - MONSAKTI_TOKEN_KOM=CHANGEME
+      - MONSAKTI_TOKEN_PEM=CHANGEME
+      - MONSAKTI_TOKEN_PER=CHANGEME
+      - MYSIMKARI_TOKEN=CHANGEME
+      - MYSIMKARI_TOKEN_PEGAWAI=CHANGEME
 
 # Image tags for staging (use dev/latest tags available in registry)
 images:

@@ -1,14 +1,87 @@
 //! Route guards that reflect the JWT-backed session.
 //!
-//! The old guards read `user_session` as a prop. That prop is still accepted
-//! for backwards-compat with call sites in `lib.rs`, but the source of truth
-//! is now `AuthService::load_session()` which re-decodes the JWT each call —
-//! so guards stay honest even if a tab went stale in the background.
+//! ## Layout Guards (recommended)
+//!
+//! Use `AuthenticatedLayout` and `AdminLayout` as parent route views to
+//! protect all nested children automatically — similar to Next.js `layout.tsx`
+//! or Laravel `Route::middleware('auth')->group(...)`.
+//!
+//! ```rust,ignore
+//! <ParentRoute path=path!("/") view=AuthenticatedLayout>
+//!     <Route path=path!("/dashboard") view=DashboardHome />
+//!     <Route path=path!("/bank-aset/daftar") view=BankAsetListPage />
+//! </ParentRoute>
+//! <ParentRoute path=path!("/admin") view=AdminLayout>
+//!     <Route path=path!("/users") view=AdminUsersPage />
+//! </ParentRoute>
+//! ```
+//!
+//! ## Inline Guards (legacy)
+//!
+//! `SessionAuthGuard` and `SessionAdminGuard` wrap individual route views.
+//! Prefer the layout approach for new routes.
 
 use crate::features::auth::{AuthService, UserSession};
 use crate::routes;
 use leptos::prelude::*;
 use leptos_router::components::A;
+
+// ============================================================================
+// LAYOUT GUARDS — wrap all child routes automatically (Next.js / Laravel style)
+// ============================================================================
+
+/// Authenticated layout guard. Use as a `ParentRoute` view to protect all
+/// nested children. Unauthenticated visitors are redirected to login.
+///
+/// Reads the global `user_session` signal from context so logout / cross-tab
+/// storage events re-evaluate this guard reactively. Falls back to
+/// `AuthService::load_session()` if the context is missing (e.g. in tests).
+///
+/// This replaces wrapping every `<Route>` with `<SessionAuthGuard>`.
+#[component]
+pub fn AuthenticatedLayout() -> impl IntoView {
+    let session_ctx = use_context::<ReadSignal<Option<UserSession>>>();
+
+    move || {
+        let session = match session_ctx {
+            Some(sig) => sig.get(),
+            None => AuthService::load_session(),
+        };
+        match session {
+            Some(_) => view! { <leptos_router::components::Outlet /> }.into_any(),
+            None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
+        }
+    }
+}
+
+/// Admin layout guard. Use as a `ParentRoute` view to protect all nested
+/// children. Non-admin users see a forbidden page; unauthenticated visitors
+/// are redirected to login.
+///
+/// Reads the global `user_session` signal from context so logout / cross-tab
+/// storage events re-evaluate this guard reactively.
+#[component]
+pub fn AdminLayout() -> impl IntoView {
+    let session_ctx = use_context::<ReadSignal<Option<UserSession>>>();
+
+    move || {
+        let session = match session_ctx {
+            Some(sig) => sig.get(),
+            None => AuthService::load_session(),
+        };
+        match session {
+            Some(s) if s.is_admin() => {
+                view! { <leptos_router::components::Outlet /> }.into_any()
+            }
+            Some(_) => view! { <ForbiddenPage /> }.into_any(),
+            None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
+        }
+    }
+}
+
+// ============================================================================
+// INLINE GUARDS — legacy per-route wrappers (kept for backward compat)
+// ============================================================================
 
 #[component]
 pub fn SessionAuthGuard(
@@ -92,6 +165,10 @@ pub fn SatkerGuard(#[prop(into)] satker_code: String, children: ChildrenFn) -> i
         None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
     }
 }
+
+// ============================================================================
+// SHARED UI — redirect & forbidden pages
+// ============================================================================
 
 #[component]
 fn RedirectToPerlengkapanLogin() -> impl IntoView {

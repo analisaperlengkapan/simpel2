@@ -11,6 +11,8 @@ use crate::components::batch_operations_toolbar::{
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
+use leptos_meta::Title;
+use lib_ui::components::DarkPagination;
 use uuid::Uuid;
 
 #[component]
@@ -74,6 +76,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
     let years: Vec<i32> = (2020..=current_year + 1).rev().collect();
 
     view! {
+        <Title text="Kebutuhan BMN — SIMPEL Perlengkapan" />
         <PageLayout
             title="Analisis Kebutuhan BMN"
             icon="fas fa-clipboard-list"
@@ -293,36 +296,14 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                         </div>
 
                                         // Pagination
-                                        <div class="flex items-center justify-between border-t border-white/[0.04] px-5 py-3">
-                                            <p class="text-xs text-slate-400">
-                                                "Menampilkan "
-                                                <span class="font-medium text-slate-200">{response.data.len()}</span>
-                                                " dari "
-                                                <span class="font-medium text-slate-200">{total}</span>
-                                                " pengajuan"
-                                            </p>
-                                            <div class="flex items-center gap-2">
-                                                <button
-                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                                                    prop:disabled=move || page.get() <= 1
-                                                    on:click=move |_| set_page.update(|p| *p -= 1)
-                                                >
-                                                    <i class="fas fa-chevron-left text-2xs"></i>
-                                                    "Sebelumnya"
-                                                </button>
-                                                <span class="text-xs text-slate-400">
-                                                    {move || page.get()} " / " {total_pages}
-                                                </span>
-                                                <button
-                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                                                    prop:disabled=move || page.get() >= total_pages
-                                                    on:click=move |_| set_page.update(|p| *p += 1)
-                                                >
-                                                    "Selanjutnya"
-                                                    <i class="fas fa-chevron-right text-2xs"></i>
-                                                </button>
-                                            </div>
-                                        </div>
+                                        <DarkPagination
+                                            current_page=Signal::derive(move || page.get() as i64)
+                                            total_pages=total_pages as i64
+                                            total_items=total
+                                            items_shown=response.data.len()
+                                            on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
+                                            on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
+                                        />
                                     </div>
                                 }.into_any()
                             }

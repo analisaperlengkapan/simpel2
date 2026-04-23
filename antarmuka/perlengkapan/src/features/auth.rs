@@ -8,8 +8,8 @@
 //! produced the "ghost session" class of bugs. If the JWT is missing or
 //! expired, the user is simply logged out.
 
-use lib_common::encoding::base64_decode_url;
-use lib_common::jwt_claims::Claims;
+use lib_core::encoding::base64_decode_url;
+use lib_core::jwt_claims::Claims;
 use serde::{Deserialize, Serialize};
 
 pub const AUTH_TOKEN_KEY: &str = "auth_token";

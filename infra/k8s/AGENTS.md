@@ -2,36 +2,55 @@
 
 > **For AI Agents**: This file is the primary reference for understanding and managing the Kubernetes infrastructure of SIMPEL.
 
+## Inherited Global Rules
+
+- This file extends the global rules in `AGENTS.md`.
+- Keep this document focused on infrastructure-specific constraints and operations.
+- Root governance rules remain authoritative for cross-domain architecture and security policies.
+
 ## 📋 Overview
 
 This directory contains **Kustomize-based** Kubernetes manifests for deploying SIMPEL across multiple environments. The structure follows GitOps best practices with base/overlay pattern.
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    MicroK8s Cluster                             │
-│  ┌──────────────────┐  ┌──────────────────┐                     │
-│  │ simpel.kejaksaan │  │    simple02      │                     │
-│  │    .go.id        │  │    (worker)      │                     │
-│  │  172.15.10.254   │  │  172.15.10.252   │                     │
-│  └──────────────────┘  └──────────────────┘                     │
-├─────────────────────────────────────────────────────────────────┤
-│                    Infrastructure Layer                         │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────────┐ │
-│  │   Istio     │ │   MetalLB   │ │  Longhorn   │ │ Registry  │ │
-│  │  (mesh)     │ │ (172.15.10. │ │  (storage)  │ │ :32000    │ │
-│  │             │ │  200-220)   │ │             │ │           │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └───────────┘ │
-├─────────────────────────────────────────────────────────────────┤
-│                    Application Namespaces                       │
-│  ┌─────────────────────┐  ┌─────────────────────┐              │
-│  │ simpelv2-staging    │  │ simpelv2-production │              │
-│  │ • 1 replica         │  │ • 3 replicas (HA)   │              │
-│  │ • PERMISSIVE mTLS   │  │ • STRICT mTLS       │              │
-│  │ • Debug logging     │  │ • Info logging      │              │
-│  └─────────────────────┘  └─────────────────────┘              │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Cluster["☸️ MicroK8s Cluster"]
+        direction TB
+        subgraph Nodes["🖥️ Nodes"]
+            Master["simpel.kejaksaan.go.id\n172.15.10.254"]
+            Worker["simple02 (worker)\n172.15.10.252"]
+        end
+
+        subgraph Infra["🔧 Infrastructure Layer"]
+            Istio["Istio\n(mesh)"]
+            MetalLB["MetalLB\n(172.15.10.200-250)"]
+            Longhorn["Longhorn\n(storage)"]
+            Registry["Registry\n:32000"]
+        end
+
+        subgraph Staging["simpelv2-staging"]
+            S1["• 1 replica"]
+            S2["• PERMISSIVE mTLS"]
+            S3["• Debug logging"]
+        end
+
+        subgraph Production["simpelv2-production"]
+            P1["• 3 replicas (HA)"]
+            P2["• STRICT mTLS"]
+            P3["• Info logging"]
+        end
+    end
+
+    Nodes --> Infra
+    Infra --> Staging
+    Infra --> Production
+
+    style Cluster fill:#e3f2fd
+    style Infra fill:#fff3e0
+    style Staging fill:#fff9c4
+    style Production fill:#c8e6c9
 ```
 
 ## 📁 Directory Structure
@@ -44,7 +63,7 @@ infra/k8s/
 │   │   ├── layanan-perlengkapan.yaml
 │   │   └── kustomization.yaml
 │   ├── frontend/                   # Frontend microfrontends (Leptos WASM)
-│   │   ├── portal.yaml
+│   │   ├── portal-nginx-config.yaml
 │   │   ├── portal.yaml
 │   │   ├── perlengkapan.yaml
 │   │   └── kustomization.yaml
@@ -84,7 +103,7 @@ infra/k8s/
 │   │   ├── namespace.yaml          # simpelv2-staging
 │   │   ├── hpa.yaml                # Min 1, Max 2 replicas
 │   │   ├── pdb.yaml                # maxUnavailable: 1
-│   │   ├── mtls.yaml               # STRICT mTLS for staging
+│   │   ├── mtls.yaml               # PERMISSIVE mTLS for staging
 │   │   └── kustomization.yaml
 │   └── production/                 # Production environment
 │       ├── namespace.yaml          # simpelv2-production
@@ -137,7 +156,7 @@ infra/k8s/
 | **MetalLB Pool** | `staging-addresspool` | `prod-addresspool` |
 | **Replicas** | 1 | 3 (HA) |
 | **HPA Min/Max** | 1/2 | 3/10 |
-| **mTLS Mode** | STRICT | STRICT |
+| **mTLS Mode** | PERMISSIVE | STRICT |
 | **PodSecurity** | - | restricted |
 | **ResourceQuota** | - | CPU: 20/40, Mem: 40Gi/80Gi |
 | **PDB** | maxUnavailable: 1 | minAvailable: 2 |
@@ -248,7 +267,7 @@ labels:
 
 | Environment | Mode | Note |
 |-------------|------|------|
-| Staging | STRICT | mTLS enforced for production parity |
+| Staging | PERMISSIVE | Some services (e.g. authenc) run without sidecar |
 | Production | STRICT | Enforces mutual TLS only |
 
 ### PodSecurity Standards (Production)
@@ -275,7 +294,7 @@ localhost:32000/simpelv2/<image-name>:<tag>
 | `layanan-integrasi` | 50051 | Deployment | External API integration (gRPC: MonSAKTI/MySIMKARI/SIMAN) |
 | `layanan-perlengkapan` | 3020 | Deployment | Perlengkapan backend API |
 | `authenc` | 8088/9088/9090 | Deployment | Identity Provider |
-| `secreton` | 8200/9000/9090 | StatefulSet | Secrets Vault |
+| `secreton` | 8200/9000/9090 | StatefulSet | Secrets Vault (kustomize path: gRPC on 9000; standalone path: gRPC on 8201) |
 
 ## 📝 Common Tasks
 
@@ -306,14 +325,57 @@ kubectl scale deployment/<name> --replicas=5 -n simpelv2-production
 
 ### Updating Secrets
 
-```bash
-# Generate base64
-echo -n "new-password" | base64
+> ⛔ **NEVER commit real secrets to git.** The `kustomization.yaml` files contain only
+> `CHANGEME` placeholders. Real values must be supplied out-of-band.
+>
+> ⚠️ **Every `kubectl apply -k` OVERWRITES cluster secrets with CHANGEME placeholders.**
+> You MUST re-apply real secrets after every kustomize deployment.
 
-# Update base/secrets/secrets.yaml
-# Then apply:
-kubectl apply -k overlays/production
+**Staging (order matters!):**
+```bash
+# 1. Deploy with kustomize (this resets secrets to CHANGEME)
+kubectl apply -k overlays/staging
+
+# 2. Copy the example file (one-time setup)
+cp overlays/staging/staging-secrets.example.yaml overlays/staging/staging-secrets.yaml
+# staging-secrets.yaml is gitignored
+
+# 3. Edit with real credentials
+$EDITOR overlays/staging/staging-secrets.yaml
+
+# 4. Apply real secrets (MUST be done AFTER step 1)
+kubectl apply -f overlays/staging/staging-secrets.yaml -n simpelv2-staging
 ```
+
+**Secreton standalone deploy** (`layanan/secreton/deploy/staging/`):
+
+> The standalone secreton path creates a **separate** Secret named `secreton-postgres-credentials`
+> (not `postgres-credentials`), so there is no collision with the kustomize path.
+> You may use both paths safely. The standalone path is intended for independent secreton
+> deployments outside the main kustomize stack.
+
+```bash
+# Standalone path (can be used independently or alongside the kustomize path):
+# See layanan/secreton/deploy/staging/01-secrets.yaml for the template.
+# Copy to 01-secrets.local.yaml, fill real values, then:
+kubectl apply -f layanan/secreton/deploy/staging/01-secrets.local.yaml -n simpelv2-staging
+```
+
+**Production:**
+```bash
+# Production secrets MUST be managed via Secreton SecretSync CRDs.
+# See layanan/secreton/crates/k8s-operator/README.md for details.
+# Manual Secret objects are only for initial bootstrap.
+```
+
+> 🔄 **Credential Rotation Required:** Real credentials were previously committed to
+> this repository's git history (database passwords, per-service DB passwords
+> `authenc_staging_pass`/`secreton_staging_pass`/`perlengkapan_staging_pass`/`integrasi_staging_pass`,
+> SIMAN client secrets, MonSAKTI/MySIMKARI JWT tokens). Even though they have been replaced
+> with `CHANGEME` placeholders, the old values remain in `git log`. **All previously exposed
+> credentials MUST be rotated.**
+> Priority: SIMAN client secret and BA key (no built-in expiration), then database passwords
+> (including per-service passwords in `postgres-init-config.yaml` and `secreton.yaml`).
 
 ## ⚠️ Important Notes
 
@@ -322,6 +384,8 @@ kubectl apply -k overlays/production
 3. **simpelv2** namespace (old) still exists for development - migrate gradually
 4. **MetalLB** config is separate - apply with `kubectl apply -k base/metallb/`
 5. **Monitoring** requires prometheus-operator CRDs - uncomment in base when ready
+6. **🔄 CREDENTIAL ROTATION REQUIRED** — Real credentials (database passwords, per-service DB passwords `authenc_staging_pass`/`secreton_staging_pass`/`perlengkapan_staging_pass`/`integrasi_staging_pass`, SIMAN client secret `e5f60b3c...`, SIMAN BA key, MonSAKTI/MySIMKARI JWT tokens) were previously committed in plaintext and remain in `git log`. **All exposed credentials MUST be rotated immediately.** Priority: SIMAN client secret and BA key (no built-in expiration), then all database passwords. See the rotation notice above under "Updating Secrets".
+7. **CHANGEME secrets** — Every `kubectl apply -k` and `deploy.sh apply` deploys CHANGEME placeholders. You **MUST** re-apply real secrets afterward or pods will CrashLoopBackOff. See "Updating Secrets" above.
 
 ## 🔗 Related Documentation
 
@@ -445,7 +509,7 @@ kubectl delete pod <pod-name> -n <namespace> --force --grace-period=0
 
 # 2. Apply them separately (not via Kustomize)
 kubectl apply -f infra/k8s/overlays/production/production-istio.yaml
-kubectl apply -f infra/k8s/overlays/staging/overlays/staging/staging-istio.yaml
+kubectl apply -f infra/k8s/overlays/staging/staging-istio.yaml
 ```
 
 ### 🟡 Multiple Gateways Competing for Same Port
@@ -539,7 +603,7 @@ kubectl get networkpolicies -n <namespace>
 | **Root Project** | [`/AGENTS.md`](../../AGENTS.md) | Main codebase conventions, Rust patterns |
 | **Authenc** | [`/layanan/authenc/AGENTS.md`](../authenc/AGENTS.md) | Identity Provider service |
 | **Secreton** | [`/layanan/secreton/AGENTS.md`](../secreton/AGENTS.md) | Secrets Management service |
-| **Layanan Integrasi** | [`/layanan/daskrimti/integrasi/AGENTS.md`](../../layanan/daskrimti/integrasi/AGENTS.md) | Government API integration |
+| **Layanan Integrasi** | [`/layanan/integrasi/AGENTS.md`](../../layanan/integrasi/AGENTS.md) | Government API integration |
 
 ---
 
@@ -551,78 +615,31 @@ kubectl get networkpolicies -n <namespace>
 |--------|---------|------------|
 | **Namespace** | `simpelv2-staging` | `simpelv2-production` |
 | **Host/Domain** | `10.1.7.121` | `simpel.kejaksaan.go.id` |
-| **VirtualService** | `simpelv2-staging-routes` | `simpelv2-prod-routes` |
 | **Replicas** | 1 | 3 (HA) |
 | **Image Tags** | `:stag` | `:prod` |
 | **Logging** | `debug` | `info` |
 | **mTLS** | PERMISSIVE | STRICT |
 
-### Promotion Workflow
+### Quick Commands
 
 ```bash
-# 1. Build and tag images for production
-docker tag localhost:32000/simpelv2/<image>:stag localhost:32000/simpelv2/<image>:prod
-docker push localhost:32000/simpelv2/<image>:prod
-
-# 2. Export image and import to worker node (if not using registry)
-docker save localhost:32000/simpelv2/<image>:prod | microk8s ctr --address /var/snap/microk8s/common/run/containerd.sock images import -
-
-# 3. Apply production overlay
-kubectl apply -k overlays/production
-
-# 4. Apply Istio routing (separate from Kustomize)
-kubectl apply -f infra/k8s/overlays/production/production-istio.yaml
-
-# 5. Verify deployment
-kubectl get pods -n simpelv2-production
-curl -s http://172.15.10.200/ -H "Host: simpel.kejaksaan.go.id"
-```
-
-### Istio Routing Configuration
-
-```yaml
-# Routing is managed SEPARATELY from Kustomize (to avoid namespace transformation issues)
-# Files:
-#   - overlays/production/production-istio.yaml  -> Routes to simpelv2-production services
-#   - overlays/staging/staging-istio.yaml       -> Routes to simpelv2-staging services
-
-# Both use the same Gateway: simpelv2-dev-gateway (in istio-system)
-# Differentiated by hosts:
-#   - Production: ["*"]  (matches simpel.kejaksaan.go.id and all other hosts)
-#   - Staging: ["10.1.7.121"]  (matches only staging IP)
-```
-
-### Quick Promotion Commands
-
-```bash
-# Promote a specific image from staging to production
+# Promote image: tag staging → production, push, restart
 IMAGE=layanan-perlengkapan
-
-# Tag staging as production
-docker pull localhost:32000/simpelv2/${IMAGE}:stag
 docker tag localhost:32000/simpelv2/${IMAGE}:stag localhost:32000/simpelv2/${IMAGE}:prod
 docker push localhost:32000/simpelv2/${IMAGE}:prod
-
-# Import to containerd on worker node
-docker save localhost:32000/simpelv2/${IMAGE}:prod | \
-  ssh simple02 "microk8s ctr --address /var/snap/microk8s/common/run/containerd.sock images import -"
-
-# Rolling restart in production
 kubectl rollout restart deployment/${IMAGE} -n simpelv2-production
-kubectl rollout status deployment/${IMAGE} -n simpelv2-production
-```
 
-### Rollback
+# Apply production overlay + Istio routing (SEPARATE from Kustomize)
+kubectl apply -k overlays/production
+kubectl apply -f overlays/production/production-istio.yaml
 
-```bash
-# If production deployment fails, rollback
+# Rollback
 kubectl rollout undo deployment/<name> -n simpelv2-production
-
-# Or redeploy staging image to production
-kubectl set image deployment/<name> <container>=localhost:32000/simpelv2/<image>:stag -n simpelv2-production
 ```
+
+> ⚠️ Istio VirtualService files are **not managed by Kustomize** (to avoid namespace transformation issues). Apply them with `kubectl apply -f` directly.
 
 ---
 
-*Last Updated: 2026-02-03*
+*Last Updated: 2026-04-23*
 *Maintained by: SIMPEL DevOps Team*

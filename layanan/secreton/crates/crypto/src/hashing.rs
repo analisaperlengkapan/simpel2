@@ -186,7 +186,7 @@ pub mod password {
 
     /// Hash password with Argon2id using lib-common
     pub fn hash_password_argon2(password: &str) -> CryptoResult<PasswordHashResult> {
-        let hash = lib_common::crypto::password::hash_password(password).map_err(|e| {
+        let hash = lib_crypto::password::hash_password(password).map_err(|e| {
             CryptoError::HashFailed(format!("Argon2 password hashing failed: {}", e))
         })?;
 
@@ -203,13 +203,13 @@ pub mod password {
             algorithm: AlgorithmId::Argon2id,
             hash,
             salt: salt_vec,
-            iterations: 10, // Default t_cost from lib_common::crypto::password
+            iterations: 10, // Default t_cost from lib_crypto::password
         })
     }
 
     /// Verify password with Argon2id using lib-common
     pub fn verify_password_argon2(password: &str, hash: &str) -> CryptoResult<bool> {
-        lib_common::crypto::password::verify_password(hash, password)
+        lib_crypto::password::verify_password(hash, password)
             .map_err(|e| CryptoError::HashFailed(format!("Password verification failed: {}", e)))
     }
 

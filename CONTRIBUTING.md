@@ -26,6 +26,7 @@ Mulai langkah kecil Anda hari ini — dari:
 
 * [🧭 Alur Kontribusi](#-alur-kontribusi)
 * [🌿 Struktur Branch](#-struktur-branch)
+* [📝 Konvensi Penamaan](#-konvensi-penamaan-naming-conventions)
 * [📛 Format Commit](#-format-commit)
 * [📋 Template Merge Request](#-template-merge-request)
 * [🤖 Bentuk Kontribusi yang Didukung](#-bentuk-kontribusi-yang-didukung)
@@ -79,6 +80,10 @@ Mulai langkah kecil Anda hari ini — dari:
    cd antarmuka/portal && trunk serve --port 8080 --open
    ```
 
+### ⚠️ Batasan Arsitektural Penting (Wajib Dibaca)
+1. **Dilarang menggunakan SQLx**: Ekosistem SIMPEL mewajibkan penggunaan `tokio-postgres`, `deadpool-postgres`, dan `refinery` murni untuk operasi *database*. 
+2. **Batas Shared Libraries**: `lib/common/` telah dipecah menjadi `lib/core/` (tipe WASM-safe), `lib/backend/` (infrastruktur backend: DB, middleware, gRPC), dan `lib/crypto/` (primitif kripto). DILARANG menambahkan dependensi async/backend ke `lib-core` untuk menjaga kompatibilitas WASM. Jika butuh shared logic baru yang tidak cocok di tiga crate tersebut, buat *shared crate* terpisah di folder `lib/` (misalnya `lib-telemetry` atau `lib-auth-client`) dan daftarkan pada root `Cargo.toml`.
+
 #### **🪟 Windows Setup (WSL2)**
 1. **Install WSL2**: Windows Subsystem for Linux
 2. **Install VS Code**: Dengan WSL extension
@@ -95,6 +100,9 @@ Mulai langkah kecil Anda hari ini — dari:
    - Backend: Develop microservice dengan Rust
    - Documentation: Update README, API docs
 4. **🧪 Testing & Validation**:
+   - **Unit Tests**: Wajib ditambahkan secara *inline* (`#[cfg(test)]`) pada file yang sama dengan logika yang dibuat.
+   - **Integration Tests**: Tambahkan pengujian yang lebih kompleks (seperti API endpoints & DB) di folder `tests/`.
+   - **E2E Tests**: Khusus kontribusi UI (Microfrontend), buat skenario tes menggunakan Playwright bila memungkinkan.
    ```bash
    cargo test --workspace                                    # Semua tes
    cargo clippy --workspace --all-targets -- -D warnings     # Linter
@@ -117,6 +125,14 @@ main ← production (stable releases)
 ├── infra/kubernetes-deployment
 └── hotfix/critical-security-patch
 ```
+
+---
+
+## 📝 Konvensi Penamaan (Naming Conventions)
+Untuk menghindari *warning* dari *linter* dan mematuhi idiom Rust, gunakan standar berikut:
+- `snake_case` untuk nama variabel, fungsi, atribut objek, nama modul, dan nama *file*.
+- `PascalCase` untuk nama `struct`, `enum`, `trait`, dan *type alias*.
+- `SCREAMING_SNAKE_CASE` untuk penamaan variabel konstanta dan *static global*.
 
 ---
 
@@ -314,6 +330,8 @@ stages:
 **📚 Documentation:**
 - [🏗️ Architecture Guide](docs/README.md)
 - [🤖 AI Agent Guide](AGENTS.md)
+- [📦 Perlengkapan Service](layanan/perlengkapan/AGENTS.md)
+- [🔗 Integrasi Service](layanan/integrasi/AGENTS.md)
 - [🔐 Authenc Details](layanan/authenc/AGENTS.md)
 - [🔒 Secreton Details](layanan/secreton/AGENTS.md)
 

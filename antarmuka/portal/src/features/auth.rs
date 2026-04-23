@@ -59,7 +59,7 @@ pub struct UserSession {
     pub permissions: Vec<String>,
 }
 
-pub use lib_common::auth::UserRole;
+pub use lib_core::auth::UserRole;
 
 /// Login credentials
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -368,14 +368,14 @@ impl AuthService {
         }
 
         // JWT uses URL-safe Base64 encoding without padding
-        use lib_common::encoding::base64_decode_url;
+        use lib_core::encoding::base64_decode_url;
         let payload_bytes =
             base64_decode_url(parts[1]).map_err(|e| format!("Base64 decode error: {}", e))?;
 
         let payload_str =
             String::from_utf8(payload_bytes).map_err(|e| format!("UTF-8 decode error: {}", e))?;
 
-        use lib_common::jwt_claims::Claims;
+        use lib_core::jwt_claims::Claims;
         let claims: Claims =
             serde_json::from_str(&payload_str).map_err(|e| format!("JSON parse error: {}", e))?;
 
@@ -1116,4 +1116,4 @@ pub struct MfaStatus {
     pub last_used: Option<String>,
 }
 
-// Internal structures for JWT parsing removed - using lib_common::jwt::Claims
+// Internal structures for JWT parsing removed - using lib_core::jwt::Claims

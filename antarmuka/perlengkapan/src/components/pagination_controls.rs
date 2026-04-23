@@ -2,20 +2,17 @@ use leptos::prelude::*;
 
 #[component]
 pub fn PaginationControls(
-    current_page: i32,
-    total_pages: i32,
+    #[prop(into)] current_page: Signal<i32>,
+    #[prop(into)] total_pages: Signal<i32>,
     total_items: Option<i64>,
     on_prev: Callback<()>,
     on_next: Callback<()>,
 ) -> impl IntoView {
-    let prev_disabled = current_page <= 1;
-    let next_disabled = current_page >= total_pages;
-
     view! {
         <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
             <div class="text-sm text-gray-500">
-                "Menampilkan halaman " <span class="font-medium">{current_page}</span>
-                " dari " <span class="font-medium">{total_pages}</span>
+                "Menampilkan halaman " <span class="font-medium">{move || current_page.get()}</span>
+                " dari " <span class="font-medium">{move || total_pages.get()}</span>
                 {total_items.map(|total| {
                     view! {
                         <>
@@ -27,14 +24,14 @@ pub fn PaginationControls(
             <div class="flex gap-2">
                 <button
                     class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled=prev_disabled
+                    prop:disabled=move || current_page.get() <= 1
                     on:click=move |_| on_prev.run(())
                 >
                     "Sebelumnya"
                 </button>
                 <button
                     class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled=next_disabled
+                    prop:disabled=move || current_page.get() >= total_pages.get()
                     on:click=move |_| on_next.run(())
                 >
                     "Selanjutnya"

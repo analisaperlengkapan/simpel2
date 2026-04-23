@@ -67,57 +67,9 @@ k8s-operator ─→ (gRPC client to grpc)
 
 The central state is `ServiceContainer` (in `crates/api/src/services/mod.rs`), wrapped in `Arc` as `AppState`.
 
-```rust
-pub struct ServiceContainer {
-    pub config: ApiConfig,
-    pub storage: Arc<dyn StorageBackend + Send + Sync>,
-    pub pool: deadpool_postgres::Pool,
-    pub crypto: Arc<CryptoEngine>,
-    pub auth: Arc<AuthService>,
-    pub engine: Arc<SecretService>,
-    pub admin: Arc<AdminService>,
-    pub audit: Arc<AuditLogger>,
-    pub seal: Arc<SealService>,
-    pub namespace: Arc<NamespaceService>,
-    pub database_engine: Arc<DatabaseSecretsEngine>,
-    pub totp_engine: Arc<TotpEngine>,
-    pub transform_engine: Arc<TransformEngine>,
-    pub transit_engine: Arc<TransitEngine>,
-    pub ssh_engine: Arc<SshEngine>,
-    pub pki_engine: Arc<PkiEngine>,
-    pub aws_engine: Arc<AwsEngine>,
-    pub gcp_engine: Arc<GcpEngine>,
-    pub azure_engine: Arc<AzureEngine>,
-    pub identity_service: Arc<IdentityService>,
-    pub identity_engine: Arc<IdentityEngine>,
-    pub kmip_engine: Arc<KmipEngine>,
-    pub ldap_engine: Arc<LdapEngine>,
-    pub rabbitmq_engine: Arc<RabbitMqEngine>,
-    pub kafka_engine: Arc<KafkaEngine>,
-    pub rotation_engine: Arc<AutoRotationEngine>,
-    pub lease_manager: Arc<LeaseManager>,
-    pub policy_service: Arc<PolicyService>,
-    pub wrapping_service: Arc<WrappingService>,
-    pub hsm: Option<Arc<HsmBackend>>,
-    pub mfa: Arc<MfaService>,
-    pub http_client: reqwest::Client,
-}
-```
+Key fields: `config`, `storage`, `pool` (deadpool-postgres), `crypto`, `auth`, `engine` (SecretService), `admin`, `audit`, `seal`, `namespace`, `transit_engine`, `pki_engine`, `lease_manager`, `policy_service`, `hsm` (optional), and various dynamic secret engines (AWS, GCP, Azure, LDAP, RabbitMQ, Kafka, KMIP).
 
-This is wrapped in `ApiState`:
-
-```rust
-pub struct ApiState {
-    pub transit: TransitApiState,
-    pub kv: KVApiState,
-    pub pki: PkiApiState,
-    pub services: Arc<ServiceContainer>,
-    pub prometheus_handle: Option<PrometheusHandle>,
-    pub metrics: Arc<GlobalMetrics>,
-}
-```
-
-`ApiState` is the Axum router state passed via `.with_state(state)`.
+`AppState` = `ApiState { services: Arc<ServiceContainer>, transit, kv, pki, prometheus_handle, metrics }` — passed to Axum via `.with_state(state)`.
 
 ## Router & Middleware
 
@@ -351,53 +303,27 @@ Initialize: `psql -f scripts/init-db.sql`
 ## Build & Run
 
 ```bash
-# Build the API server
+# Build API server / CLI
 cargo build -p secreton-api --bin api_server
-
-# Build with Raft support
-cargo build -p secreton-api --bin api_server --features raft-consensus
-
-# Build CLI
 cargo build -p secreton-cli --bin secreton-cli
+
+# With Raft support
+cargo build -p secreton-api --bin api_server --features raft-consensus
 
 # Run (dev, in-memory storage)
 cargo run -p secreton-api --bin api_server
-
-# Run (with config file)
-SECRETON_CONFIG_PATH=secreton.toml cargo run -p secreton-api --bin api_server
-
-# Release build
-cargo build --release -p secreton-api --bin api_server --features raft-consensus
 
 # Test
 cargo test -p secreton-core
 cargo test -p secreton-crypto
 cargo test -p secreton-api
-cargo test -p secreton-storage
 
 # Format & lint
-cargo fmt --all
-cargo clippy --workspace
+cargo fmt --all && cargo clippy --workspace
 ```
 
-### Build profiles (defined in root `Cargo.toml`):
-
-| Profile | LTO | Strip | Overflow Checks |
-|---------|-----|-------|-----------------|
-| `dev` | off | no | yes |
-| `release` | thin | yes | no |
-| `security` | fat | yes | yes |
-
 ### Docker
-
-4-stage Dockerfile using cargo-chef for layer caching:
-
-1. `chef` — Install cargo-chef
-2. `planner` — `cargo chef prepare`
-3. `builder` — `cargo chef cook` + `cargo build --release`
-4. `runtime` — `debian:bookworm-slim`, non-root user `secreton:1000`, tini entrypoint
-
-Ports exposed: 8200, 8201, 8300
+4-stage Dockerfile using cargo-chef. Ports: 8200, 8201, 8300
 
 ## Deployment
 

@@ -81,15 +81,40 @@ case "$ACTION" in
             kubectl apply -k "${OVERLAY_DIR}"
         fi
 
-        echo -e "\n${GREEN}✓ Deployment applied successfully${NC}"
+        if [[ -n "$DRY_RUN" && "$DRY_RUN" == "--dry-run" ]]; then
+            echo -e "\n${YELLOW}Dry-run completed. No resources were actually deployed.${NC}"
+        else
+            echo -e "\n${GREEN}✓ Deployment applied successfully${NC}"
 
-        # Wait for rollout
-        echo -e "\n${YELLOW}Waiting for rollouts to complete...${NC}"
-        kubectl rollout status deployment --timeout=300s -n "${NAMESPACE}" 2>/dev/null || true
+            # Warn about CHANGEME secrets
+            SECRETS_FILE="${OVERLAY_DIR}/${ENVIRONMENT}-secrets.yaml"
+            echo ""
+            echo -e "${RED}========================================================================${NC}"
+            echo -e "${RED}  WARNING: kustomize deployed CHANGEME placeholder secrets.${NC}"
+            echo -e "${RED}  Pods WILL CrashLoopBackOff until you apply real secrets:${NC}"
+            echo ""
+            if [[ "$ENVIRONMENT" == "production" ]]; then
+                echo -e "${YELLOW}  Production secrets MUST be managed via Secreton SecretSync CRDs.${NC}"
+                echo -e "${YELLOW}  See layanan/secreton/crates/k8s-operator/README.md for details.${NC}"
+                echo -e "${YELLOW}  For initial bootstrap only:${NC}"
+                echo -e "${YELLOW}    kubectl apply -f ${SECRETS_FILE} -n ${NAMESPACE}${NC}"
+            else
+                echo -e "${YELLOW}    kubectl apply -f ${SECRETS_FILE} -n ${NAMESPACE}${NC}"
+                echo ""
+                echo -e "${YELLOW}  If you haven't created the secrets file yet:${NC}"
+                echo -e "${YELLOW}    cp ${OVERLAY_DIR}/${ENVIRONMENT}-secrets.example.yaml ${SECRETS_FILE}${NC}"
+                echo -e "${YELLOW}    \$EDITOR ${SECRETS_FILE}${NC}"
+            fi
+            echo -e "${RED}========================================================================${NC}"
 
-        # Show status
-        echo -e "\n${BLUE}Deployment Status:${NC}"
-        kubectl get deployments,statefulsets,pods -n "${NAMESPACE}" --no-headers 2>/dev/null | head -20
+            # Wait for rollout
+            echo -e "\n${YELLOW}Waiting for rollouts to complete...${NC}"
+            kubectl rollout status deployment --timeout=300s -n "${NAMESPACE}" 2>/dev/null || true
+
+            # Show status
+            echo -e "\n${BLUE}Deployment Status:${NC}"
+            kubectl get deployments,statefulsets,pods -n "${NAMESPACE}" --no-headers 2>/dev/null | head -20
+        fi
         ;;
 
     delete)

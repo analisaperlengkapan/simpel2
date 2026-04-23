@@ -1,7 +1,7 @@
 //! Profile page - User profile with data from /api/v1/auth/me
 
+use crate::components::layout::main_layout::MainLayout;
 use crate::features::auth::AuthService;
-use crate::utils::app_state::use_app_state;
 use leptos::prelude::*;
 use serde::Deserialize;
 
@@ -69,10 +69,10 @@ async fn fetch_profile() -> Result<ProfileData, String> {
 
 #[component]
 pub fn ProfilePage() -> impl IntoView {
-    let _state = use_app_state();
     let profile = LocalResource::new(move || async move { fetch_profile().await });
 
     view! {
+        <MainLayout>
         <div class="max-w-3xl mx-auto px-4 py-8">
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">"Profil Pengguna"</h1>
@@ -157,6 +157,7 @@ pub fn ProfilePage() -> impl IntoView {
                 }}
             </Suspense>
         </div>
+        </MainLayout>
     }
 }
 

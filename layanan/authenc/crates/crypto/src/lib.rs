@@ -276,4 +276,4 @@ pub use xmldsig::{CanonicalizationMethod, DigestMethod, SignatureMethod};
 // ============================================================================
 
 /// Shamir Secret Sharing for key splitting and reconstruction
-pub use lib_common::crypto::shamir;
+pub use lib_crypto::shamir;

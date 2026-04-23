@@ -1,5 +1,5 @@
 use anyhow::Result;
-use lib_common::config::BaseServiceConfig;
+use lib_core::config::BaseServiceConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -136,7 +136,7 @@ impl Config {
         let _ = dotenvy::dotenv();
 
         // Load base config
-        let base = BaseServiceConfig::from_env();
+        let base = lib_backend::config::load_base_config();
 
         // Load specific config
         let base_url =

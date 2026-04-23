@@ -596,7 +596,7 @@ pub async fn rate_limit(
     next: Next,
 ) -> Result<Response, impl IntoResponse> {
     // Get client identifier (IP address or user ID)
-    let ctx = lib_common::context::RequestContext::from_headers(&headers);
+    let ctx = lib_backend::context::request_context_from_headers(&headers);
     let client_ip = ctx.ip_address.as_deref().unwrap_or("unknown");
 
     // Check rate limit

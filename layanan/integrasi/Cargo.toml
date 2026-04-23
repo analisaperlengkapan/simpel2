@@ -38,7 +38,8 @@ tokio-cron-scheduler = { workspace = true }
 futures = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
-lib-common = { workspace = true, features = ["telemetry", "db"] }
+lib-core = { workspace = true }
+lib-backend = { workspace = true, features = ["telemetry", "db", "env-config"] }
 lib-perlengkapan = { workspace = true, features = ["backend"] }
 prometheus = { workspace = true }
 

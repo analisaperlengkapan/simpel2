@@ -58,7 +58,7 @@ pub struct UserSession {
     pub permissions: Vec<String>,
 }
 
-pub use lib_common::auth::UserRole;
+pub use lib_core::auth::UserRole;
 
 impl UserSession {
     /// Check if session is valid (not expired)

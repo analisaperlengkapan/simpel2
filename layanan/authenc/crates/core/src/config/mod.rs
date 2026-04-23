@@ -606,13 +606,13 @@ fn default_integrasi_request_timeout() -> u64 {
 }
 
 // Re-export common config types
-pub use lib_common::config::{DatabaseConfig, ServerConfig};
+pub use lib_core::config::{DatabaseConfig, ServerConfig};
 
 // Shim functions for defaults if they are still needed by other modules,
-// though lib_common::config types implement Default.
+// though lib_core::config types implement Default.
 //
-// Note: We might need to keep specific default functions if they differ from lib_common,
-// but for migration we will try to rely on lib_common.
+// Note: We might need to keep specific default functions if they differ from lib_core,
+// but for migration we will try to rely on lib_core.
 
 // Removed: local ServerConfig and DatabaseConfig definitions.
 

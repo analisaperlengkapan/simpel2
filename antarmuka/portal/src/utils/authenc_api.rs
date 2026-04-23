@@ -448,14 +448,17 @@ impl AuthencApiClient {
         }
     }
 
-    /// Get the stored JWT token from localStorage
+    /// Get the stored JWT token from localStorage.
+    ///
+    /// Uses the canonical `auth_token` key shared across all microfrontends
+    /// (Portal `AuthService`, Perlengkapan `api/client.rs`, `lib_ui` hooks).
     #[allow(dead_code)]
     fn get_token() -> Option<String> {
         #[cfg(target_arch = "wasm32")]
         {
             web_sys::window()
                 .and_then(|w| w.local_storage().ok().flatten())
-                .and_then(|s| s.get_item("simpel_access_token").ok().flatten())
+                .and_then(|s| s.get_item("auth_token").ok().flatten())
         }
         #[cfg(not(target_arch = "wasm32"))]
         {

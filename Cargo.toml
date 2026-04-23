@@ -7,7 +7,9 @@ resolver = "2"
 members = [
     # Shared Libraries
     "lib/ui",
-    "lib/common",
+    "lib/core",
+    "lib/backend",
+    "lib/crypto",
     "lib/perlengkapan",
 
     # Production Microfrontends (Leptos WASM)
@@ -153,7 +155,9 @@ webauthn-rs-proto = "0.5.4"
 
 # Frontend Shared Dependencies
 lib-ui = { path = "lib/ui" }
-lib-common = { path = "lib/common" }
+lib-core = { path = "lib/core" }
+lib-backend = { path = "lib/backend" }
+lib-crypto = { path = "lib/crypto" }
 lib-perlengkapan = { path = "lib/perlengkapan" }
 regex = "1.12.3"
 urlencoding = "2.1.3"

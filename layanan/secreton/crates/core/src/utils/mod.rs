@@ -311,7 +311,7 @@ pub mod cache;
 
 /// Encoding utilities
 pub mod encoding {
-    pub use lib_common::encoding::*;
+    pub use lib_core::encoding::*;
 }
 
 /// Memory optimization utilities and secure memory management for secrets

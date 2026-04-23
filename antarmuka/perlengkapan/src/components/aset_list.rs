@@ -1,4 +1,5 @@
 use crate::api::{Asset, fetch_assets};
+use crate::components::pagination_controls::PaginationControls;
 use leptos::prelude::*;
 
 #[component]
@@ -137,28 +138,23 @@ pub fn AsetList() -> impl IntoView {
                                     </tbody>
                                 </table>
 
-                                // Pagination
-                                <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                                    <div class="text-sm text-gray-500">
-                                        "Menampilkan halaman " <span class="font-medium">{response.page}</span> " dari " <span class="font-medium">{response.total_pages}</span>
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <button
-                                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            prop:disabled=move || page.get() <= 1
-                                            on:click=move |_| set_page.update(|p| *p -= 1)
-                                        >
-                                            "Sebelumnya"
-                                        </button>
-                                        <button
-                                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            prop:disabled=move || page.get() >= response.total_pages
-                                            on:click=move |_| set_page.update(|p| *p += 1)
-                                        >
-                                            "Selanjutnya"
-                                        </button>
-                                    </div>
-                                </div>
+                                // Pagination — pass `page` signal (reactive) so the
+                                // prev/next button disabled state updates on click.
+                                // `total_pages` is captured from the response snapshot;
+                                // the component re-renders on each fetch so this stays
+                                // in sync with the current data.
+                                {
+                                    let total_pages = response.total_pages;
+                                    view! {
+                                        <PaginationControls
+                                            current_page=page
+                                            total_pages=Signal::derive(move || total_pages)
+                                            total_items=None
+                                            on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
+                                            on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
+                                        />
+                                    }
+                                }
                             </div>
                             }.into_any()
                         }

@@ -56,7 +56,7 @@ async fn test_parallel_fetching_performance() {
 
     // 3. Configure Client
     let config = Config {
-        base: lib_common::config::BaseServiceConfig::default(),
+        base: lib_core::config::BaseServiceConfig::default(),
         base_url: "http://mock".to_string(),
         mysimkari_base_url: "http://mock".to_string(),
         siman_base_url: mock_server.uri(),

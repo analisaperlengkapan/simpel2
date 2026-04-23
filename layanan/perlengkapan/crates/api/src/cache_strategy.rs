@@ -6,8 +6,8 @@
 // Requirements: NFR-P006
 // ============================================================================
 
-use lib_common::cache::{AsyncLruCache, SensitivityLevel};
-use lib_common::error::Result;
+use lib_backend::cache::{AsyncLruCache, SensitivityLevel};
+use lib_core::error::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
@@ -245,7 +245,7 @@ impl CacheManager {
         let (ttl, sensitivity) = self.get_ttl_and_sensitivity(key);
 
         let bytes = serde_json::to_vec(value).map_err(|e| {
-            lib_common::error::CommonError::Cache(format!("Failed to serialize value: {}", e))
+            lib_core::error::CommonError::Cache(format!("Failed to serialize value: {}", e))
         })?;
 
         self.cache
@@ -346,7 +346,7 @@ impl CacheManager {
     }
 
     /// Get cache statistics
-    pub async fn stats(&self) -> lib_common::cache::CacheStats {
+    pub async fn stats(&self) -> lib_backend::cache::CacheStats {
         self.cache.stats().await
     }
 

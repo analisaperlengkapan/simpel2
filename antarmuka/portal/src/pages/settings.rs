@@ -52,9 +52,13 @@ async fn fetch_satuan_kerja(fallback: String) -> String {
     }
 }
 
-/// Settings page component
+/// Settings page component — reads session from context
 #[component]
-pub fn SettingsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn SettingsPage() -> impl IntoView {
+    let user_session = use_context::<ReadSignal<Option<UserSession>>>()
+        .and_then(|sig| sig.get_untracked())
+        .unwrap_or_else(|| UserSession::default());
+
     let (show_theme_editor, set_show_theme_editor) = signal(false);
     let (show_branding_editor, set_show_branding_editor) = signal(false);
 
@@ -82,7 +86,7 @@ pub fn SettingsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl
     }
 
     view! {
-        <MainLayout user_session=user_session.clone() on_logout=on_logout>
+        <MainLayout>
             <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
                 <div class="mb-6">
                     <h1 class="text-2xl font-bold text-gray-900 dark:text-white">"Pengaturan"</h1>

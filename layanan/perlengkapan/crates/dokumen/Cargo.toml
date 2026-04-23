@@ -49,7 +49,8 @@ anyhow = { workspace = true }
 futures = { workspace = true }
 tokio-stream = { workspace = true }
 clamav-client = { workspace = true, optional = true }
-lib-common = { workspace = true, features = ["telemetry", "db"] }
+lib-core = { workspace = true }
+lib-backend = { workspace = true, features = ["telemetry", "db"] }
 lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
 
 [dev-dependencies]

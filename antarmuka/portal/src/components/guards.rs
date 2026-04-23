@@ -1,13 +1,114 @@
 //! Route Guard Components
 //!
-//! ProtectedRoute and AdminRoute wrappers for authenticated/admin-only pages.
-//! These guards use the global AppState to check authentication status.
+//! ## Layout Guards (recommended for new routes)
+//!
+//! Use `PortalAuthLayout` and `PortalAdminLayout` as `ParentRoute` views
+//! to protect all nested children automatically — like Next.js `layout.tsx`
+//! or Laravel `Route::middleware('auth')->group(...)`.
+//!
+//! ## Inline Guards (legacy)
+//!
+//! `SessionAuthGuard` and `SessionAdminGuard` wrap individual route views.
+//! Prefer the layout approach for new routes.
 
 use crate::features::auth::UserSession;
 use crate::pages::LoginPage;
 use crate::routes;
 use crate::utils::app_state::use_app_state;
 use leptos::prelude::*;
+
+// ============================================================================
+// LAYOUT GUARDS — wrap all child routes automatically (Next.js / Laravel style)
+// ============================================================================
+
+/// Authenticated layout guard for portal. Reads `user_session` from context
+/// (provided in App root). Unauthenticated visitors see the login page
+/// rendered inline at the originally-requested URL — this is intentional so
+/// that after a successful login the reactive signal update re-renders the
+/// guard into the protected `<Outlet />` at the same URL, preserving the
+/// user's intended destination without needing return-URL plumbing.
+/// Password-change redirect is enforced automatically.
+#[component]
+pub fn PortalAuthLayout(
+    /// Current user session signal
+    user_session: ReadSignal<Option<UserSession>>,
+    /// Login success writer for fallback login page
+    on_login_success: WriteSignal<Option<UserSession>>,
+) -> impl IntoView {
+    // Capture router hooks at component render time (inside a reactive Owner
+    // scope). Reading them inside the lazy guard closure would be fragile if
+    // the Owner has been disposed.
+    let location = leptos_router::hooks::use_location();
+    let navigate = leptos_router::hooks::use_navigate();
+
+    move || match user_session.get() {
+        Some(session) => {
+            if session.require_password_change {
+                // Allow the password-change page itself through to avoid an
+                // infinite redirect loop (the password route is a child of
+                // this same layout guard). Use the router's reactive
+                // `use_location()` rather than `window.location.pathname` —
+                // the former is updated synchronously during SPA navigation
+                // and is less fragile to path-structure changes.
+                let is_password_page = location.pathname.with(|p| {
+                    let normalized = p.trim_end_matches('/');
+                    normalized.ends_with(&format!("/{}", routes::segment::PASSWORD))
+                });
+
+                if !is_password_page {
+                    navigate(
+                        &format!("/{}", routes::segment::PASSWORD),
+                        Default::default(),
+                    );
+                    return view! { <div /> }.into_any();
+                }
+            }
+            view! { <leptos_router::components::Outlet /> }.into_any()
+        }
+        None => view! {
+            <LoginPage on_login_success=on_login_success />
+        }
+        .into_any(),
+    }
+}
+
+/// Admin layout guard for portal. Enforces admin role + password-change policy.
+#[component]
+pub fn PortalAdminLayout(
+    /// Current user session signal
+    user_session: ReadSignal<Option<UserSession>>,
+    /// Login success writer for fallback login page
+    on_login_success: WriteSignal<Option<UserSession>>,
+) -> impl IntoView {
+    // Capture navigate at render time so the closure below doesn't depend on
+    // a reactive Owner scope that may be disposed during rapid navigation.
+    let navigate = leptos_router::hooks::use_navigate();
+
+    move || match user_session.get() {
+        Some(session) => {
+            if session.require_password_change {
+                navigate(
+                    &format!("/{}", routes::segment::PASSWORD),
+                    Default::default(),
+                );
+                return view! { <div /> }.into_any();
+            }
+            if session.role.is_admin() {
+                view! { <leptos_router::components::Outlet /> }.into_any()
+            } else {
+                view! { <ForbiddenPage /> }.into_any()
+            }
+        }
+        None => view! {
+            <LoginPage on_login_success=on_login_success />
+        }
+        .into_any(),
+    }
+}
+
+// ============================================================================
+// INLINE GUARDS — legacy per-route wrappers (kept for backward compat)
+// ============================================================================
 
 /// A route wrapper that redirects to login if the user is not authenticated.
 ///
@@ -44,15 +145,11 @@ pub fn AdminRoute(children: Children) -> impl IntoView {
     }
 }
 
-/// Redirect to login page with loading spinner
+/// Redirect to login page with loading spinner (SPA navigation)
 #[component]
 fn RedirectToLogin() -> impl IntoView {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            let _ = window.location().set_href("/portal/login");
-        }
-    }
+    let nav = leptos_router::hooks::use_navigate();
+    nav("/portal/login", Default::default());
 
     view! {
         <div class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -67,6 +164,12 @@ fn RedirectToLogin() -> impl IntoView {
 /// Forbidden page for non-admin users trying to access admin routes
 #[component]
 pub fn ForbiddenPage() -> impl IntoView {
+    // Capture `use_navigate()` at component render time (inside a reactive
+    // Owner scope). Calling it inside the `on:click` closure directly would
+    // be fragile — if the reactive Owner has been disposed (e.g. during
+    // rapid navigation), `use_context` inside `use_navigate` would panic.
+    let nav = leptos_router::hooks::use_navigate();
+
     view! {
         <div class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
             <div class="text-center max-w-md px-4">
@@ -82,6 +185,10 @@ pub fn ForbiddenPage() -> impl IntoView {
                 </p>
                 <a
                     href="/portal/dashboard"
+                    on:click=move |ev| {
+                        ev.prevent_default();
+                        nav("/portal/dashboard", Default::default());
+                    }
                     class="inline-flex items-center gap-2 px-5 py-2.5 bg-navy-700 hover:bg-navy-800 dark:bg-gold-500 dark:hover:bg-gold-600 text-white dark:text-navy-900 rounded-xl font-medium transition-colors shadow-sm"
                 >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,12 +215,13 @@ pub fn SessionAuthGuard(
     allow_password_change: bool,
 ) -> impl IntoView {
     let children = StoredValue::new_local(children);
+    // Capture navigate at render time (see PortalAdminLayout note).
+    let navigate = leptos_router::hooks::use_navigate();
 
     move || match user_session.get() {
         Some(session) => {
             if !allow_password_change && session.require_password_change {
-                let nav = leptos_router::hooks::use_navigate();
-                nav(
+                navigate(
                     &format!("/{}", routes::segment::PASSWORD),
                     Default::default(),
                 );
@@ -140,12 +248,13 @@ pub fn SessionAdminGuard(
     children: ChildrenFn,
 ) -> impl IntoView {
     let children = StoredValue::new_local(children);
+    // Capture navigate at render time (see PortalAdminLayout note).
+    let navigate = leptos_router::hooks::use_navigate();
 
     move || match user_session.get() {
         Some(session) => {
             if session.require_password_change {
-                let nav = leptos_router::hooks::use_navigate();
-                nav(
+                navigate(
                     &format!("/{}", routes::segment::PASSWORD),
                     Default::default(),
                 );

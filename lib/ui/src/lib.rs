@@ -88,8 +88,8 @@ pub use core::{constants, theme, types as core_types};
 
 // Component exports
 pub use components::{
-    accessibility, auth, captcha, display, feedback, forms, layout, monitoring_dashboard,
-    navigation, security_meta,
+    accessibility, auth, captcha, display, error_boundary, feedback, forms, layout,
+    monitoring_dashboard, navigation, security_meta,
 };
 
 // Hook exports

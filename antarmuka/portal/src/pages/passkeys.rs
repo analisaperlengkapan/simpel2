@@ -4,7 +4,7 @@
 //! This is a PRIMARY authentication method per REQ-PORTAL-009 / REQ-WEBAUTHN-003.
 
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::{use_api_client, use_app_state};
+use crate::utils::app_state::use_api_client;
 use crate::utils::authenc_api::{PasskeyInfo, UpdatePasskeyRequest};
 use crate::utils::webauthn;
 use leptos::prelude::*;
@@ -13,7 +13,6 @@ use leptos::task::spawn_local;
 /// Passkeys management page
 #[component]
 pub fn PasskeysPage() -> impl IntoView {
-    let state = use_app_state();
     let api = use_api_client();
 
     let (passkeys, set_passkeys) = signal(Vec::<PasskeyInfo>::new());
@@ -162,17 +161,8 @@ pub fn PasskeysPage() -> impl IntoView {
         });
     }
 
-    let on_logout = {
-        Box::new(move || {
-            crate::features::auth::AuthService::logout();
-            state.set(crate::utils::app_state::AppState::default());
-        }) as Box<dyn Fn()>
-    };
-
-    let session = state.get().user.unwrap_or_default();
-
     view! {
-        <MainLayout user_session=session.clone() on_logout=on_logout>
+        <MainLayout>
             <div class="max-w-4xl mx-auto px-4 py-8">
                 // Header
                 <div class="flex items-center justify-between mb-6">
