@@ -28,7 +28,7 @@ rand = { workspace = true }
 # Additional dependencies needed by core services
 anyhow = { workspace = true }
 deadpool-postgres = { workspace = true }
-lib-common = { workspace = true }
+lib-core = { workspace = true }
 regex = { workspace = true }
 axum = { workspace = true }
 config = { workspace = true }

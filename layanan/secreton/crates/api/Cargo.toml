@@ -79,7 +79,8 @@ secreton-crypto.workspace = true
 secreton-hsm.workspace = true
 secreton-grpc.workspace = true
 totp-rs.workspace = true
-lib-common = { workspace = true, features = ["axum", "telemetry", "db"] }
+lib-core = { workspace = true }
+lib-backend = { workspace = true, features = ["axum", "telemetry", "db"] }
 
 [features]
 default = []

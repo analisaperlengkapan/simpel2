@@ -101,7 +101,8 @@ secreton-crypto.workspace = true
 secreton-storage.workspace = true
 
 # Common library
-lib-common = { path = "../../../../lib/common", features = ["validation", "redis-cache", "telemetry", "db"] }
+lib-core = { path = "../../../../lib/core", features = ["validation"] }
+lib-backend = { path = "../../../../lib/backend", features = ["redis-cache", "telemetry", "db"] }
 
 [dev-dependencies]
 tempfile.workspace = true

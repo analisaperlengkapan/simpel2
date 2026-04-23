@@ -3,13 +3,13 @@
 //! Provides utilities for managing correlation IDs across service boundaries
 //! to enable end-to-end request tracing.
 
-use lib_common::correlation::{CORRELATION_ID_HEADER, CorrelationId, REQUEST_ID_HEADER};
+use lib_core::correlation::{CORRELATION_ID_HEADER, CorrelationId, REQUEST_ID_HEADER};
 
 /// HTTP header name for correlation ID
-// pub const CORRELATION_ID_HEADER: &str = "X-Correlation-ID"; // Imported from lib_common
+// pub const CORRELATION_ID_HEADER: &str = "X-Correlation-ID"; // Imported from lib_core
 
 /// HTTP header name for request ID
-// pub const REQUEST_ID_HEADER: &str = "X-Request-ID"; // Imported from lib_common
+// pub const REQUEST_ID_HEADER: &str = "X-Request-ID"; // Imported from lib_core
 
 /// gRPC metadata key for correlation ID
 pub const GRPC_CORRELATION_ID_KEY: &str = "x-correlation-id";

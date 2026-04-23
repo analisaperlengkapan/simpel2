@@ -7,7 +7,7 @@ use authenc_core::error::{AuthencError, Result};
 use authenc_core::services::events::EventBuilder;
 use authenc_types::domain::events::EventType;
 use chrono::Utc;
-use lib_common::correlation::CorrelationId;
+use lib_core::correlation::CorrelationId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

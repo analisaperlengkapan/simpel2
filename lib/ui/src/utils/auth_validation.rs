@@ -6,7 +6,7 @@
 //! Prinsip: Frontend validation untuk UX, Backend validation untuk security
 
 use crate::core::types::*;
-// usage of regex::Regex removed as we delegate to lib_common
+// usage of regex::Regex removed as we delegate to lib_core
 
 // ============================================================================
 // CONSTANTS (Sinkron dengan backend)
@@ -57,7 +57,7 @@ pub fn validate_username(username: &str) -> ValidationResult {
         )]);
     }
 
-    if !lib_common::validation::validate_username(username) {
+    if !lib_core::validation::validate_username(username) {
         return ValidationResult::invalid(vec![ValidationError::new(
             "username",
             "Username hanya boleh mengandung huruf, angka, underscore (_), atau hyphen (-)",
@@ -156,7 +156,7 @@ pub fn validate_satker_code(code: &str) -> ValidationResult {
         )]);
     }
 
-    if !lib_common::validation::validate_satker_code(code) {
+    if !lib_core::validation::validate_satker_code(code) {
         return ValidationResult::invalid(vec![ValidationError::new(
             "satker_code",
             "Kode satker harus huruf besar dan angka saja (contoh: KEJARI, KEJATI01)",
@@ -181,7 +181,7 @@ pub fn validate_mfa_code(code: &str) -> ValidationResult {
         )]);
     }
 
-    if !lib_common::validation::validate_mfa_code(code) {
+    if !lib_core::validation::validate_mfa_code(code) {
         return ValidationResult::invalid(vec![ValidationError::new(
             "mfa_code",
             "Kode MFA harus 6 digit angka",

@@ -174,7 +174,7 @@ async fn main() -> Result<()> {
 
     // Initialize logging
     let level = if cli.verbose { "debug" } else { "info" };
-    lib_common::telemetry::init_subscriber(level);
+    lib_backend::telemetry::init_subscriber(level);
 
     // Load configuration with precedence: flag > env > config file > default
     let mut config = if let Some(config_path) = &cli.config {

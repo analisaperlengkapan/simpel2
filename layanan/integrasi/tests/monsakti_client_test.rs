@@ -24,7 +24,7 @@ async fn test_monsakti_fetch_parsing_logic() {
 
     // 2. Configure Client
     let mut config = Config::from_env().unwrap_or_else(|_| Config {
-        base: lib_common::config::BaseServiceConfig::default(),
+        base: lib_core::config::BaseServiceConfig::default(),
         base_url: mock_server.uri(), // Point to mock server
         mysimkari_base_url: "".to_string(),
         siman_base_url: "".to_string(),

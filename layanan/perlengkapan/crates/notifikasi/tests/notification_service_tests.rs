@@ -19,7 +19,7 @@ async fn create_test_pool() -> deadpool_postgres::Pool {
 /// Helper function to create test config
 fn create_test_config() -> AppConfig {
     AppConfig {
-        base: lib_common::config::BaseServiceConfig {
+        base: lib_core::config::BaseServiceConfig {
             server_host: "127.0.0.1".to_string(),
             server_port: 8080,
             database_url: "postgres://postgres:postgres@localhost:5432/notifikasi_test".to_string(),

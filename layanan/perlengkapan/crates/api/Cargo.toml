@@ -61,7 +61,8 @@ reqwest = { workspace = true }
 bigdecimal = { workspace = true }
 
 # Shared libraries
-lib-common = { workspace = true, features = ["backend", "jwt", "telemetry", "db"] }
+lib-core = { workspace = true }
+lib-backend = { workspace = true, features = ["jwt", "telemetry", "db", "axum"] }
 lib-perlengkapan = { workspace = true, features = ["backend"] }
 
 # Internal perlengkapan crates

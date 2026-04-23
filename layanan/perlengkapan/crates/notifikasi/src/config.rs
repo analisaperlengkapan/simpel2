@@ -1,4 +1,4 @@
-use lib_common::config::BaseServiceConfig;
+use lib_core::config::BaseServiceConfig;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
@@ -87,7 +87,7 @@ impl AppConfig {
     pub fn from_env() -> Self {
         let _ = dotenvy::dotenv();
 
-        let base = BaseServiceConfig::from_env();
+        let base = lib_backend::config::load_base_config();
 
         Self {
             base,

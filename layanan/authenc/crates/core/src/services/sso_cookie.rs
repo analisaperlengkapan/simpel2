@@ -2,7 +2,7 @@ use authenc_types::config::SsoCookieConfig;
 use authenc_types::{AuthencError, Result};
 use axum::http::{HeaderMap, HeaderValue, header};
 
-pub use lib_common::auth::SsoSession;
+pub use lib_core::auth::SsoSession;
 
 /// SSO Cookie Manager for secure cookie operations
 pub struct SsoCookieManager {
@@ -22,7 +22,7 @@ impl SsoCookieManager {
             .map_err(|e| AuthencError::internal(e.to_string()))?;
 
         // Base64 encode the session data for cookie storage
-        let encoded_session = lib_common::encoding::base64_encode(&session_json);
+        let encoded_session = lib_core::encoding::base64_encode(&session_json);
 
         // Build cookie string with all security attributes
         let mut cookie_parts = vec![
@@ -94,7 +94,7 @@ impl SsoCookieManager {
             let cookie = cookie.trim();
             if let Some(value) = cookie.strip_prefix(&format!("{}=", self.config.name)) {
                 // Decode base64
-                let decoded = lib_common::encoding::base64_decode(value).map_err(|e| {
+                let decoded = lib_core::encoding::base64_decode(value).map_err(|e| {
                     AuthencError::internal(format!("Failed to decode cookie: {}", e))
                 })?;
 

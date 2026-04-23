@@ -8,7 +8,7 @@ use std::time::Instant;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup config
     let config = Config {
-        base: lib_common::config::BaseServiceConfig::default(),
+        base: lib_core::config::BaseServiceConfig::default(),
         base_url: "http://localhost".to_string(),
         mysimkari_base_url: "http://localhost".to_string(),
         siman_base_url: "http://localhost".to_string(),

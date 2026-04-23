@@ -2,4 +2,4 @@
 //!
 //! this module re-exports validation functions from the common library.
 
-pub use lib_common::validation::*;
+pub use lib_core::validation::*;

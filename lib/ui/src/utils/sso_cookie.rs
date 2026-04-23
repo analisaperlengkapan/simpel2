@@ -7,7 +7,7 @@ use leptos::prelude::Set;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlDocument, window};
 
-pub use lib_common::auth::{SsoSession, UserRole};
+pub use lib_core::auth::{SsoSession, UserRole};
 
 /// SSO Cookie Reader for frontend
 ///
@@ -79,7 +79,7 @@ impl SsoCookieReader {
 
     /// Decode base64 string
     fn decode_base64(&self, encoded: &str) -> Result<String, String> {
-        let decoded_bytes = lib_common::encoding::base64_decode(encoded)
+        let decoded_bytes = lib_core::encoding::base64_decode(encoded)
             .map_err(|e| format!("Base64 decode error: {}", e))?;
 
         String::from_utf8(decoded_bytes).map_err(|e| format!("UTF-8 decode error: {}", e))

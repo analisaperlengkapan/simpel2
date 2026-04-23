@@ -22,14 +22,14 @@ pub struct Database {
 impl Database {
     pub async fn new(database_url: &str) -> Result<Self> {
         // Use optimized configuration from lib-common
-        let db_config = lib_common::db::DbConfig::new(database_url.to_string())
+        let db_config = lib_backend::db::DbConfig::new(database_url.to_string())
             .with_max_size(50) // Max 50 connections (NFR-SC001)
             .with_min_idle(10) // Min 10 idle connections
             .with_connection_timeout(std::time::Duration::from_secs(30))
             .with_idle_timeout(std::time::Duration::from_secs(600)) // 10 minutes
             .with_max_lifetime(std::time::Duration::from_secs(1800)); // 30 minutes
 
-        let pool = lib_common::db::create_postgres_pool(db_config)?;
+        let pool = lib_backend::db::create_postgres_pool(db_config)?;
 
         // Test the connection
         let client = pool.get().await?;

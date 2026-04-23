@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize logging
-    lib_common::telemetry::init_subscriber(&cli.log_level);
+    lib_backend::telemetry::init_subscriber(&cli.log_level);
 
     // Load configuration
     let config = AgentConfig::load_from_file(&cli.config)?;

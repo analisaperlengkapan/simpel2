@@ -5,10 +5,10 @@
 
 use crate::CoreError;
 use crate::storage::CacheBackend;
-use lib_common::cache::{CacheStats, RedisCache};
+use lib_backend::cache::{CacheStats, RedisCache};
 
 // Re-export common cache types
-pub use lib_common::cache::{
+pub use lib_backend::cache::{
     AsyncLruCache as AsyncSecretCache, LruCache as SecretLruCache, SensitivityLevel,
     ThreadSafeLruCache as ThreadSafeSecretCache,
 };

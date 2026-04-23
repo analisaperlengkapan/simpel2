@@ -139,13 +139,13 @@ pub fn create_api_router(state: ApiState) -> Router {
         ))
         // Common infrastructure layers
         .layer(axum::middleware::from_fn(
-            lib_common::middleware::security::security_headers_middleware,
+            lib_backend::middleware::security::security_headers_middleware,
         ))
-        .layer(lib_common::middleware::logging::RequestLogger)
+        .layer(lib_backend::middleware::logging::RequestLogger)
         .layer(axum::middleware::from_fn(
-            lib_common::correlation::correlation_id_middleware,
+            lib_backend::correlation::correlation_id_middleware,
         ))
-        .layer(lib_common::middleware::cors::standard_cors(vec![
+        .layer(lib_backend::middleware::cors::standard_cors(vec![
             "*".to_string(),
         ]))
         .with_state(state)
