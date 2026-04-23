@@ -26,6 +26,7 @@ Mulai langkah kecil Anda hari ini — dari:
 
 * [🧭 Alur Kontribusi](#-alur-kontribusi)
 * [🌿 Struktur Branch](#-struktur-branch)
+* [📝 Konvensi Penamaan](#-konvensi-penamaan-naming-conventions)
 * [📛 Format Commit](#-format-commit)
 * [📋 Template Merge Request](#-template-merge-request)
 * [🤖 Bentuk Kontribusi yang Didukung](#-bentuk-kontribusi-yang-didukung)
@@ -329,6 +330,8 @@ stages:
 **📚 Documentation:**
 - [🏗️ Architecture Guide](docs/README.md)
 - [🤖 AI Agent Guide](AGENTS.md)
+- [📦 Perlengkapan Service](layanan/perlengkapan/AGENTS.md)
+- [🔗 Integrasi Service](layanan/integrasi/AGENTS.md)
 - [🔐 Authenc Details](layanan/authenc/AGENTS.md)
 - [🔒 Secreton Details](layanan/secreton/AGENTS.md)
 
