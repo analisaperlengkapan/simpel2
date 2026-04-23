@@ -134,7 +134,7 @@
   // ========================================
   // WORKSPACE & PROJECT TOOLS
   // ========================================
-  "workbench.colorTheme": "Default Dark+",
+  "workbench.colorTheme": "Dark+",
   "workbench.startupEditor": "readme",
   // Docker Integration
   "docker.composeCommand": "docker compose",

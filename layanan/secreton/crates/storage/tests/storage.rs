@@ -6,6 +6,7 @@
 //! TODO: Update all SecretEntry::new() calls with correct argument count
 
 // DISABLED: SecretEntry::new() signature mismatch
+#![allow(unexpected_cfgs)]
 #![cfg(feature = "storage-comprehensive-tests")]
 
 use anyhow::Result;

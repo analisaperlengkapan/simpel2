@@ -201,16 +201,26 @@ pub struct RoleResponse {
     pub max_ttl: u32,
 }
 
-/// Internal helper to create/update database role
-async fn create_role_internal(
-    state: &AppState,
-    role_name: String,
-    request: CreateRoleRequest,
-) -> ApiResult<RoleResponse> {
+/// Validate a role request's fields (shared by create and update handlers)
+fn validate_role_request(role_name: &str, request: &CreateRoleRequest) -> ApiResult<()> {
     // Validate role name
     if role_name.is_empty() {
         return Err(ApiError::BadRequest {
             message: "Role name cannot be empty".to_string(),
+        });
+    }
+
+    // Validate creation statements are not empty
+    if request.creation_statements.is_empty() {
+        return Err(ApiError::BadRequest {
+            message: "Creation statements are required".to_string(),
+        });
+    }
+
+    // Validate revocation statements are not empty
+    if request.revocation_statements.is_empty() {
+        return Err(ApiError::BadRequest {
+            message: "Revocation statements are required".to_string(),
         });
     }
 
@@ -246,6 +256,24 @@ async fn create_role_internal(
         }
     }
 
+    // Validate rotation statements for SQL injection (if provided)
+    for stmt in &request.rotation_statements {
+        if contains_dangerous_sql(stmt) {
+            return Err(ApiError::BadRequest {
+                message: "Rotation statements contain potentially dangerous SQL".to_string(),
+            });
+        }
+    }
+
+    // Validate renew statements for SQL injection (if provided)
+    for stmt in &request.renew_statements {
+        if contains_dangerous_sql(stmt) {
+            return Err(ApiError::BadRequest {
+                message: "Renew statements contain potentially dangerous SQL".to_string(),
+            });
+        }
+    }
+
     // Validate TTL values
     if request.default_ttl == 0 || request.default_ttl > request.max_ttl {
         return Err(ApiError::BadRequest {
@@ -255,6 +283,17 @@ async fn create_role_internal(
             ),
         });
     }
+
+    Ok(())
+}
+
+/// Internal helper to create database role
+async fn create_role_internal(
+    state: &AppState,
+    role_name: String,
+    request: CreateRoleRequest,
+) -> ApiResult<RoleResponse> {
+    validate_role_request(&role_name, &request)?;
 
     // Create role
     let role = DatabaseRole {
@@ -272,8 +311,18 @@ async fn create_role_internal(
         .database_engine
         .create_role(role)
         .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to create role: {}", e),
+        .map_err(|e| match e {
+            secreton_core::services::secrets::database::DatabaseError::RoleAlreadyExists(name) => {
+                ApiError::Conflict {
+                    resource: format!("Role {}", name),
+                }
+            }
+            secreton_core::services::secrets::database::DatabaseError::InvalidConfig(msg) => {
+                ApiError::BadRequest { message: msg }
+            }
+            other => ApiError::Internal {
+                message: format!("Failed to create role: {}", other),
+            },
         })?;
 
     Ok(RoleResponse {
@@ -316,12 +365,30 @@ pub async fn list_database_roles(
 
 /// Get database role details
 pub async fn get_database_role(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(role_name): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
-    Err(ApiError::NotFound {
-        resource: format!("Role {} not found", role_name),
-    })
+    let role = state
+        .database_engine
+        .get_role(&role_name)
+        .await
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Role {}", role_name),
+        })?;
+
+    // Log audit event
+    let audit_entry = create_audit_log("role_read", &user.username, "dynamic_role", &role_name);
+    let _ = state.audit.log(audit_entry).await;
+
+    let response = RoleResponse {
+        name: role.name,
+        db_name: role.db_name,
+        default_ttl: role.default_ttl,
+        max_ttl: role.max_ttl,
+    };
+
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// Update database role
@@ -331,13 +398,53 @@ pub async fn update_database_role(
     user: AuthenticatedUser,
     Json(request): Json<CreateRoleRequest>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
-    let response = create_role_internal(&state, role_name.clone(), request).await?;
+    validate_role_request(&role_name, &request)?;
+
+    // Capture response values before moving fields into the role struct
+    let response_db_name = request.db_name.clone();
+    let response_default_ttl = request.default_ttl;
+    let response_max_ttl = request.max_ttl;
+
+    // Build role and use atomic update_role (checks existence + writes under one lock)
+    let role = DatabaseRole {
+        name: role_name.clone(),
+        db_name: request.db_name,
+        default_ttl: request.default_ttl,
+        max_ttl: request.max_ttl,
+        creation_statements: request.creation_statements,
+        revocation_statements: request.revocation_statements,
+        rotation_statements: request.rotation_statements,
+        renew_statements: request.renew_statements,
+    };
+
+    state
+        .database_engine
+        .update_role(role)
+        .await
+        .map_err(|e| match e {
+            secreton_core::services::secrets::database::DatabaseError::RoleNotFound(_) => {
+                ApiError::NotFound {
+                    resource: format!("Role {}", role_name),
+                }
+            }
+            secreton_core::services::secrets::database::DatabaseError::InvalidConfig(msg) => {
+                ApiError::BadRequest { message: msg }
+            }
+            other => ApiError::Internal {
+                message: format!("Failed to update role: {}", other),
+            },
+        })?;
 
     // Log audit event
     let audit_entry = create_audit_log("role_updated", &user.username, "dynamic_role", &role_name);
     let _ = state.audit.log(audit_entry).await;
 
-    Ok(Json(ApiResponse::success(response)))
+    Ok(Json(ApiResponse::success(RoleResponse {
+        name: role_name,
+        db_name: response_db_name,
+        default_ttl: response_default_ttl,
+        max_ttl: response_max_ttl,
+    })))
 }
 
 /// Delete database role
@@ -346,8 +453,19 @@ pub async fn delete_database_role(
     Path(role_name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement role deletion in database engine
-    // Should also revoke all active credentials for this role
+    let deleted = state
+        .database_engine
+        .delete_role(&role_name)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to delete role: {}", e),
+        })?;
+
+    if !deleted {
+        return Err(ApiError::NotFound {
+            resource: format!("Role {}", role_name),
+        });
+    }
 
     // Log audit event
     let audit_entry = create_audit_log("role_deleted", &user.username, "dynamic_role", &role_name);
@@ -480,7 +598,7 @@ pub async fn configure_database_connection(
 
     let response = ConnectionResponse {
         name,
-        db_type: request.db_type,
+        db_type: db_type.as_str().to_string(),
         verified: request.verify_connection,
     };
 
@@ -489,12 +607,34 @@ pub async fn configure_database_connection(
 
 /// Get database connection details
 pub async fn get_database_connection(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(name): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
-    Err(ApiError::NotFound {
-        resource: format!("Connection {} not found", name),
-    })
+    let conn = state
+        .database_engine
+        .get_connection(&name)
+        .await
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Connection {}", name),
+        })?;
+
+    // Log audit event
+    let audit_entry = create_audit_log(
+        "connection_read",
+        &user.username,
+        "dynamic_connection",
+        &name,
+    );
+    let _ = state.audit.log(audit_entry).await;
+
+    let response = ConnectionResponse {
+        name: conn.name,
+        db_type: conn.db_type.as_str().to_string(),
+        verified: conn.verify_connection,
+    };
+
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// Delete database connection
@@ -503,8 +643,27 @@ pub async fn delete_database_connection(
     Path(name): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement connection deletion in database engine
-    // Should also delete all roles using this connection
+    let result = state
+        .database_engine
+        .delete_connection(&name)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to delete connection: {}", e),
+        })?
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Connection {}", name),
+        })?;
+
+    // Log cascade audit entries for the roles the engine actually deleted
+    for role_name in &result.deleted_roles {
+        let audit_entry = create_audit_log(
+            "role_deleted_cascade",
+            &user.username,
+            "dynamic_role",
+            role_name,
+        );
+        let _ = state.audit.log(audit_entry).await;
+    }
 
     // Log audit event
     let audit_entry = create_audit_log(
@@ -515,32 +674,114 @@ pub async fn delete_database_connection(
     );
     let _ = state.audit.log(audit_entry).await;
 
-    Ok(Json(ApiResponse::success(serde_json::json!({
+    let mut response = serde_json::json!({
         "deleted": true,
         "connection": name,
-    }))))
+    });
+
+    // Surface revocation warnings so callers can detect partial failures
+    // and operators can manually clean up orphaned database users.
+    if !result.revocation_warnings.is_empty() {
+        response["warnings"] = serde_json::json!(result.revocation_warnings);
+    }
+
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// Basic SQL injection prevention
 fn contains_dangerous_sql(sql: &str) -> bool {
-    let dangerous_patterns = [
+    let sql_lower = sql.to_lowercase();
+
+    // Reject multiple statements: a semicolon followed by any non-whitespace
+    // content indicates statement chaining which is never legitimate in a
+    // single creation/revocation/rotation/renew statement template.
+    if let Some(semi_pos) = sql_lower.find(';') {
+        let after_semi = sql_lower[semi_pos + 1..].trim();
+        if !after_semi.is_empty() {
+            return true;
+        }
+    }
+
+    // Patterns that are dangerous as substrings anywhere
+    let substring_patterns = [
         ";--",
         "/*",
         "*/",
-        "xp_",
-        "sp_",
-        "exec",
-        "execute",
         "drop database",
         "drop table",
         "truncate",
         "delete from",
     ];
 
-    let sql_lower = sql.to_lowercase();
-    dangerous_patterns
+    if substring_patterns
         .iter()
         .any(|pattern| sql_lower.contains(pattern))
+    {
+        return true;
+    }
+
+    // Patterns that are dangerous only when they appear at a word boundary
+    // (not inside other identifiers like table names starting with "sp_reports").
+    // We check that the character before "sp_"/"xp_" is not alphanumeric or '_',
+    // which would indicate it's part of a larger identifier.
+    let prefix_patterns = ["sp_", "xp_"];
+    for pattern in &prefix_patterns {
+        for (idx, _) in sql_lower.match_indices(pattern) {
+            let before_ok = idx == 0
+                || (!sql_lower.as_bytes()[idx - 1].is_ascii_alphanumeric()
+                    && sql_lower.as_bytes()[idx - 1] != b'_');
+            if before_ok {
+                return true;
+            }
+        }
+    }
+
+    // Patterns that must appear as standalone words (not inside other words
+    // like "execute" inside "GRANT EXECUTE ON …")
+    let word_boundary_patterns = ["exec", "execute"];
+    for pattern in &word_boundary_patterns {
+        for (idx, _) in sql_lower.match_indices(pattern) {
+            let before_ok = idx == 0
+                || (!sql_lower.as_bytes()[idx - 1].is_ascii_alphanumeric()
+                    && sql_lower.as_bytes()[idx - 1] != b'_');
+            let end = idx + pattern.len();
+            let after_ok = end >= sql_lower.len()
+                || (!sql_lower.as_bytes()[end].is_ascii_alphanumeric()
+                    && sql_lower.as_bytes()[end] != b'_');
+
+            // Only flag if the word stands alone AND is followed by something
+            // that looks like a procedure call or dynamic SQL (not a privilege grant)
+            if before_ok && after_ok {
+                // Allow "GRANT EXECUTE" / "REVOKE EXECUTE" which are legitimate DDL
+                let raw = idx.saturating_sub(20);
+                // Avoid slicing in the middle of a multi-byte UTF-8 character
+                let mut prefix_start = raw;
+                while prefix_start < idx && !sql_lower.is_char_boundary(prefix_start) {
+                    prefix_start += 1;
+                }
+                let prefix_text = &sql_lower[prefix_start..idx].trim_end();
+                let is_grant_or_revoke = ["grant", "revoke"].iter().any(|keyword| {
+                    if let Some(stripped) = prefix_text.strip_suffix(keyword) {
+                        // keyword must also be at a word boundary
+                        stripped.is_empty()
+                            || stripped
+                                .as_bytes()
+                                .last()
+                                .map(|&b| !b.is_ascii_alphanumeric() && b != b'_')
+                                .unwrap_or(true)
+                    } else {
+                        false
+                    }
+                });
+                if is_grant_or_revoke {
+                    continue;
+                }
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
@@ -554,11 +795,52 @@ mod tests {
             "SELECT * FROM users; DROP TABLE users;"
         ));
         assert!(contains_dangerous_sql("/* comment */ DROP DATABASE"));
+        assert!(contains_dangerous_sql("EXEC sp_executesql"));
         assert!(!contains_dangerous_sql(
             "CREATE USER {{username}} WITH PASSWORD '{{password}}'"
         ));
         assert!(!contains_dangerous_sql(
             "GRANT SELECT ON database.* TO {{username}}"
+        ));
+        // GRANT EXECUTE is legitimate DDL, not injection
+        assert!(!contains_dangerous_sql(
+            "GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO {{username}}"
+        ));
+        assert!(!contains_dangerous_sql(
+            "REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM {{username}}"
+        ));
+        // Partial-word "grant"/"revoke" must NOT bypass detection
+        assert!(contains_dangerous_sql("FOREGRANT EXECUTE dangerous_call"));
+        assert!(contains_dangerous_sql("SOMEREVOKE EXECUTE dangerous_call"));
+        // Non-ASCII input must not panic (multi-byte UTF-8 chars near exec)
+        assert!(contains_dangerous_sql("ñañañañañañañañaña exec something"));
+        assert!(!contains_dangerous_sql(
+            "GRANT EXECUTE ON schéma.función TO {{username}}"
+        ));
+        // Statement chaining via semicolons must be detected
+        assert!(contains_dangerous_sql(
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}'; SELECT * FROM pg_shadow"
+        ));
+        assert!(contains_dangerous_sql(
+            "CREATE USER {{username}}; DROP TABLE users"
+        ));
+        // Trailing semicolons (no content after) are acceptable
+        assert!(!contains_dangerous_sql(
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}';"
+        ));
+        // Trailing semicolons with only whitespace are acceptable
+        assert!(!contains_dangerous_sql(
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}';   "
+        ));
+        // sp_ and xp_ at word boundaries are dangerous
+        assert!(contains_dangerous_sql("EXEC sp_executesql @sql"));
+        assert!(contains_dangerous_sql("xp_cmdshell 'dir'"));
+        // sp_ and xp_ inside identifiers are NOT dangerous (legitimate table names)
+        assert!(!contains_dangerous_sql(
+            "GRANT SELECT ON mysp_reports TO {{username}}"
+        ));
+        assert!(!contains_dangerous_sql(
+            "GRANT SELECT ON schema.table_xp_data TO {{username}}"
         ));
     }
 

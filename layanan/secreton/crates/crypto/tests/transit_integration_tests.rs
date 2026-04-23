@@ -4,6 +4,7 @@
 //! TODO: Review and update for current implementation
 
 // DISABLED: Pending API review
+#![allow(unexpected_cfgs)]
 #![cfg(feature = "transit-integration-tests")]
 
 use secreton_crypto::transit::{KeyOptions, KeyType, TransitEngine};

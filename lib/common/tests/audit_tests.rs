@@ -1,5 +1,6 @@
 //! Unit tests for audit logging module
 
+#[allow(unused_imports)]
 use lib_common::audit::{AuditEvent, AuditLogger};
 use uuid::Uuid;
 
@@ -12,6 +13,7 @@ mod audit_tests {
         let event = AuditEvent::UserCreated {
             user_id: Uuid::new_v4(),
             username: "test_user".to_string(),
+            created_by: Uuid::new_v4(),
         };
 
         let serialized = serde_json::to_string(&event).unwrap();
@@ -21,20 +23,26 @@ mod audit_tests {
     #[test]
     fn test_audit_event_types() {
         let user_id = Uuid::new_v4();
+        let actor_id = Uuid::new_v4();
 
         let events = vec![
             AuditEvent::UserCreated {
                 user_id,
                 username: "test".to_string(),
+                created_by: actor_id,
             },
             AuditEvent::UserUpdated {
                 user_id,
+                username: "test".to_string(),
+                updated_by: actor_id,
                 changes: vec!["email".to_string()],
             },
             AuditEvent::WorkflowTransition {
                 entity_id: Uuid::new_v4(),
+                entity_type: "document".to_string(),
                 from_state: "DRAFT".to_string(),
                 to_state: "SUBMITTED".to_string(),
+                user_id,
             },
         ];
 
@@ -50,6 +58,9 @@ mod audit_tests {
             batch_id: Uuid::new_v4(),
             operation: "bulk_approve".to_string(),
             count: 50,
+            success_count: 48,
+            failure_count: 2,
+            user_id: Uuid::new_v4(),
         };
 
         let serialized = serde_json::to_string(&event).unwrap();

@@ -264,8 +264,6 @@ impl NotificationService for NotificationServiceImpl {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_notification_service_creation() {
         // This is a placeholder test

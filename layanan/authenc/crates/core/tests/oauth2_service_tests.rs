@@ -17,8 +17,8 @@
 use async_trait::async_trait;
 use authenc_core::services::oauth2_service::OAuth2ServiceImpl;
 use authenc_types::{
-    AuthorizationResponse, ClientId, RealmId, TokenClaims, UserId, domain::*, domain_types::*,
-    error::AuthencError, result::Result, traits::*,
+    ClientId, RealmId, TokenClaims, UserId, domain_types::*, error::AuthencError, result::Result,
+    traits::*,
 };
 use chrono::{Duration, Utc};
 use std::collections::HashMap;
@@ -332,10 +332,13 @@ async fn test_authorization_code_flow_with_pkce_s256() {
 
 #[tokio::test]
 async fn test_authorization_code_flow_invalid_pkce() {
-    let (service, client_store, code_store, _) = create_oauth2_service();
+    let (service, client_store, _code_store, _) = create_oauth2_service();
 
     let client = create_test_client("test-client", None, true);
     client_store.add_client(client.clone()).await;
+
+    // Use a shared realm_id so the test actually reaches PKCE validation
+    let shared_realm_id = RealmId::new();
 
     // Step 1: Authorization with PKCE
     let code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
@@ -349,7 +352,7 @@ async fn test_authorization_code_flow_invalid_pkce() {
         code_challenge_method: "S256".to_string(),
         user_id: UserId::new(),
         response_type: "code".to_string(),
-        realm_id: RealmId::new(),
+        realm_id: shared_realm_id,
         nonce: None,
     };
 
@@ -365,7 +368,7 @@ async fn test_authorization_code_flow_invalid_pkce() {
         code_verifier: Some("wrong-verifier".to_string()),
         refresh_token: None,
         scope: None,
-        realm_id: RealmId::new(),
+        realm_id: shared_realm_id,
     };
 
     let result = service.token(token_request).await;

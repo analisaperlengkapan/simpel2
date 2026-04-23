@@ -109,6 +109,7 @@ pub struct InjectionSession {
 pub async fn inject_env(
     State(state): State<Arc<crate::services::ServiceContainer>>,
     Extension(ctx): Extension<RequestContext>,
+    user: crate::extractors::AuthenticatedUser,
     Json(request): Json<InjectEnvRequest>,
 ) -> Result<Json<ApiResponse<InjectEnvResponse>>, ApiError> {
     info!(
@@ -135,14 +136,27 @@ pub async fn inject_env(
     // Get format
     let format = request.format.unwrap_or_default();
 
+    // Reject nil-UUID users: sessions created by a nil-UUID user can never
+    // be cleaned up by the owner (cleanup_session guards against nil-UUID
+    // ownership). Failing early here prevents orphaned sessions.
+    if user.id.is_nil() {
+        return Err(ApiError::Authentication {
+            message: "Valid authenticated user identity required to create injection sessions"
+                .to_string(),
+        });
+    }
+
     // Fetch secrets and build environment variables
     let mut env_vars = HashMap::new();
     let mut secret_paths = Vec::new();
 
     // Build policy context for authorization
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    // Use the same user_id source (AuthenticatedUser) for both the policy
+    // context and the evaluate() call to avoid identifier mismatches when
+    // ctx.user_id is not a valid UUID (falls back to Uuid::nil()).
+    let user_id = user.id.to_string();
     let policy_context = serde_json::json!({
-        "user_id": ctx.user_id,
+        "user_id": &user_id,
         "user_email": ctx.user_email,
         "user_roles": ctx.user_roles,
         "client_ip": ctx.client_ip.clone().unwrap_or_else(|| "unknown".to_string()),
@@ -171,12 +185,12 @@ pub async fn inject_env(
         secret_paths.push(secret_config.path.clone());
 
         // Authorization check
-        if !policy_set.evaluate(user_id, &secret_config.path, "read", Some(&policy_context)) {
+        if !policy_set.evaluate(&user_id, &secret_config.path, "read", Some(&policy_context)) {
             return Err(ApiError::Forbidden);
         }
 
         // Fetch secret from Secreton
-        let secret_data = fetch_secret(&state, &secret_config.path, user_id).await?;
+        let secret_data = fetch_secret(&state, &secret_config.path, &user_id).await?;
 
         // Process based on configuration
         if let Some(key) = &secret_config.key {
@@ -221,11 +235,20 @@ pub async fn inject_env(
         expires_at,
         secret_paths,
         active: true,
-        created_by: user_id.to_string(),
+        created_by: user_id.clone(),
     };
 
     // Store session for tracking
     store_session(&state, &session).await?;
+
+    // Audit log session creation
+    let audit_entry = crate::helpers::create_audit_log(
+        "inject_session_created",
+        &user_id,
+        "inject_session",
+        &session_id,
+    );
+    let _ = state.audit.log(audit_entry).await;
 
     // Schedule automatic cleanup
     schedule_cleanup(state, &session_id, ttl).await;
@@ -246,6 +269,7 @@ pub async fn inject_env(
 pub async fn cleanup_session(
     State(state): State<Arc<crate::services::ServiceContainer>>,
     Extension(ctx): Extension<RequestContext>,
+    user: crate::extractors::AuthenticatedUser,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     info!("Cleaning up injection session {}", session_id);
@@ -254,9 +278,13 @@ pub async fn cleanup_session(
     let session = get_session(&state, &session_id).await?;
 
     // Authorization check: Allow if owner OR if has delete permission
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
-    // Prevent "anonymous" users from claiming ownership
-    let is_owner = session.created_by == user_id && user_id != "anonymous";
+    let user_id = user.id.to_string();
+    // Prevent nil-UUID users from claiming ownership.
+    // Also match against the username for backward compatibility with
+    // sessions created before the switch from ctx.user_id to
+    // AuthenticatedUser (where created_by may be a non-UUID string).
+    let is_owner =
+        !user.id.is_nil() && (session.created_by == user_id || session.created_by == user.username);
 
     if !is_owner {
         let namespace = ctx.derive_namespace();
@@ -268,7 +296,7 @@ pub async fn cleanup_session(
                 message: e.to_string(),
             })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
-        if !policy_set.evaluate(user_id, "sys/inject/sessions", "delete", None) {
+        if !policy_set.evaluate(&user_id, "sys/inject/sessions", "delete", None) {
             return Err(ApiError::Forbidden);
         }
     }
@@ -282,8 +310,14 @@ pub async fn cleanup_session(
     // Mark session as inactive
     deactivate_session(&state, &session_id).await?;
 
-    // Audit log the cleanup
-    audit_cleanup(&session).await;
+    // Audit log the manual cleanup
+    let audit_entry = crate::helpers::create_audit_log(
+        "inject_session_cleaned_up",
+        &user_id,
+        "inject_session",
+        &session_id,
+    );
+    let _ = state.audit.log(audit_entry).await;
 
     info!("Successfully cleaned up session {}", session_id);
 
@@ -296,9 +330,10 @@ pub async fn cleanup_session(
 pub async fn list_sessions(
     State(state): State<Arc<crate::services::ServiceContainer>>,
     Extension(ctx): Extension<RequestContext>,
+    user: crate::extractors::AuthenticatedUser,
 ) -> Result<Json<ApiResponse<Vec<InjectionSession>>>, ApiError> {
     // Authorization check
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let user_id = user.id.to_string();
     {
         let namespace = ctx.derive_namespace();
         let rules = state
@@ -309,7 +344,7 @@ pub async fn list_sessions(
                 message: e.to_string(),
             })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
-        if !policy_set.evaluate(user_id, "sys/inject/sessions", "list", None) {
+        if !policy_set.evaluate(&user_id, "sys/inject/sessions", "list", None) {
             return Err(ApiError::Forbidden);
         }
     }
@@ -325,10 +360,11 @@ pub async fn list_sessions(
 pub async fn get_session_details(
     State(state): State<Arc<crate::services::ServiceContainer>>,
     Extension(ctx): Extension<RequestContext>,
+    user: crate::extractors::AuthenticatedUser,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<InjectionSession>>, ApiError> {
     // Authorization check
-    let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+    let user_id = user.id.to_string();
     {
         let namespace = ctx.derive_namespace();
         let rules = state
@@ -339,7 +375,7 @@ pub async fn get_session_details(
                 message: e.to_string(),
             })?;
         let policy_set = secreton_core::services::policy::PolicySet::new(rules);
-        if !policy_set.evaluate(user_id, "sys/inject/sessions", "read", None) {
+        if !policy_set.evaluate(&user_id, "sys/inject/sessions", "read", None) {
             return Err(ApiError::Forbidden);
         }
     }
@@ -506,16 +542,17 @@ async fn schedule_cleanup(
 
         if let Err(e) = deactivate_session(&state, &session_id).await {
             error!("Failed to auto-cleanup session {}: {}", session_id, e);
+        } else {
+            // Audit log the auto-cleanup
+            let audit_entry = crate::helpers::create_audit_log(
+                "inject_session_auto_cleaned_up",
+                "system",
+                "inject_session",
+                &session_id,
+            );
+            let _ = state.audit.log(audit_entry).await;
         }
     });
-}
-
-async fn audit_cleanup(session: &InjectionSession) {
-    info!(
-        "Audit: Session {} for job {} cleaned up",
-        session.id, session.job_id
-    );
-    // TODO: Write to audit log
 }
 
 /// Create routes for CI/CD injection endpoints

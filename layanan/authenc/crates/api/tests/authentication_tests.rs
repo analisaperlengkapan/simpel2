@@ -73,33 +73,33 @@ mod auth_helpers_tests {
 #[cfg(test)]
 mod handler_verification {
     #[test]
+    #[allow(unused_imports)]
     fn test_session_handlers_exist() {
         // Verify session handlers are accessible
         use authenc_api::handlers::session::{list_sessions_handler, logout_handler};
-        assert!(true);
     }
 
     #[test]
+    #[allow(unused_imports)]
     fn test_totp_handlers_exist() {
         // Verify TOTP handlers are accessible
         use authenc_api::handlers::totp::{
             disable_totp_handler, enable_totp_handler, verify_totp_handler,
         };
-        assert!(true);
     }
 
     #[test]
+    #[allow(unused_imports)]
     fn test_auth_helpers_exist() {
         // Verify auth helpers are accessible
         use authenc_api::handlers::auth_helpers::extract_bearer_token;
-        assert!(true);
     }
 
     #[test]
+    #[allow(unused_imports)]
     fn test_state_exists() {
         // Verify ApiState is accessible
         use authenc_api::state::ApiState;
-        assert!(true);
     }
 }
 

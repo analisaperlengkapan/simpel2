@@ -383,8 +383,6 @@ pub struct QueueStats {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_backoff_calculation() {
         // Test exponential backoff

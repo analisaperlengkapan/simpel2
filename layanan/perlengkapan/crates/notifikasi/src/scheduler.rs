@@ -319,8 +319,6 @@ impl NotificationScheduler {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_scheduler_creation() {
         // This is a placeholder test

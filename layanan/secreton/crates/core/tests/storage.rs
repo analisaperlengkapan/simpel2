@@ -4,6 +4,7 @@
 //! NOTE: This test references MockStorageBackend which doesn't exist.
 //! TODO: Implement MockStorageBackend or rewrite tests
 
+#![allow(unexpected_cfgs)]
 // DISABLED: Missing MockStorageBackend
 #![cfg(feature = "storage-comprehensive-tests")]
 

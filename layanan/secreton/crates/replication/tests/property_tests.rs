@@ -2190,7 +2190,7 @@ mod failover_tests {
         #[test]
         fn prop_metrics_reset_after_promotion(
             initial_lag_bytes in 1u64..1000u64,
-            initial_lag_ms in 1u64..1000u64,
+            _initial_lag_ms in 1u64..1000u64,
         ) {
             tokio::runtime::Runtime::new().unwrap().block_on(async {
                 let config = ReplicationConfig {

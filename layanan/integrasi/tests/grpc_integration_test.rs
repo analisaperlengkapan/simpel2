@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 mod integrasi_grpc_integration_test {
+
     #[tokio::test]
     async fn test_get_siman_assets_grpc() {
         // Mock gRPC client call

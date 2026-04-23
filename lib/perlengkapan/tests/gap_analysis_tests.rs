@@ -2,9 +2,8 @@
 
 #[cfg(test)]
 mod gap_analysis_tests {
-    use uuid::Uuid;
-
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct GapAnalysisResult {
         kode_barang: String,
         nama_barang: String,

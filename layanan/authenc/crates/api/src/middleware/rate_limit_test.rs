@@ -1,6 +1,5 @@
 use super::rate_limit::{RateLimitConfig, RateLimiterState};
 use axum::{Router, body::Body, http::Request, routing::get};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tower::ServiceExt;
 

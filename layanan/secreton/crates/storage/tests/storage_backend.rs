@@ -11,6 +11,7 @@
 //! TODO: Implement remaining storage backends or remove these tests
 
 // DISABLED: Tests for unimplemented storage backends
+#![allow(unexpected_cfgs)]
 #![cfg(feature = "unimplemented-storage-backends")]
 
 use secreton_storage::StorageBackend;

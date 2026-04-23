@@ -3,7 +3,7 @@
 //! Provides REST endpoints for engine seal/unseal operations,
 //! initialization, and rekey functionality.
 
-use axum::{extract::State, http::StatusCode, response::Json};
+use axum::{extract::State, http::HeaderMap, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -289,16 +289,21 @@ pub async fn seal_engine(
 /// This endpoint is whitelisted and accessible even when engine is sealed.
 /// Operators provide Shamir shares one at a time until threshold is reached.
 /// SECURITY: Rate limited to prevent brute force attacks (max 10 attempts per 60 seconds per IP)
-#[instrument(skip(state, request))]
+#[instrument(skip(state, headers, request))]
 pub async fn unseal_engine(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(request): Json<UnsealRequest>,
 ) -> Result<Json<crate::ApiResponse<SealStatusResponse>>, (StatusCode, String)> {
     info!("🔓 Processing unseal request");
 
-    // Get client IP for rate limiting (default to "unknown" if not available)
-    // TODO: Implement middleware to extract client IP from request headers
-    let client_ip = "unknown".to_string();
+    // Extract client IP from request headers for rate limiting and forensic auditing
+    let client_ip =
+        crate::helpers::extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
     // SECURITY: Rate limiting to prevent brute force attacks
     // In production, this should be a shared state across instances
@@ -324,7 +329,7 @@ pub async fn unseal_engine(
             resource_id: "system".to_string(),
             status: AuditStatus::Failure,
             ip: Some(client_ip.clone()),
-            user_agent: None,
+            user_agent: user_agent.clone(),
             namespace: None,
             metadata,
         };
@@ -347,7 +352,7 @@ pub async fn unseal_engine(
         resource_id: "system".to_string(),
         status: AuditStatus::Success, // Will update based on result
         ip: Some(client_ip.clone()),
-        user_agent: None,
+        user_agent: user_agent.clone(),
         namespace: None,
         metadata,
     };

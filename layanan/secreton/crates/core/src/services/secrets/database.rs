@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_postgres::{Client as PgClient, NoTls};
 use tokio_postgres_rustls::MakeRustlsConnect;
+use tracing::warn;
 use uuid::Uuid;
 
 /// Error types for database secrets engine
@@ -36,6 +37,9 @@ pub enum DatabaseError {
 
     #[error("Revocation failed: {0}")]
     RevocationFailed(String),
+
+    #[error("Role already exists: {0}")]
+    RoleAlreadyExists(String),
 
     #[error("Unsupported database type: {0}")]
     UnsupportedDatabase(String),
@@ -185,6 +189,18 @@ pub struct DatabaseCredentials {
     pub db_name: String,
 }
 
+/// Result of a `delete_connection` cascade operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteConnectionResult {
+    /// Names of roles that were cascade-deleted.
+    pub deleted_roles: Vec<String>,
+
+    /// Human-readable warnings for credentials whose database users could not
+    /// be revoked. Empty when all revocations succeeded. Callers should surface
+    /// these to operators so orphaned database users can be cleaned up manually.
+    pub revocation_warnings: Vec<String>,
+}
+
 /// Database connection pool wrapper
 enum DbPool {
     PostgreSQL(Arc<RwLock<Option<PgClient>>>),
@@ -192,6 +208,26 @@ enum DbPool {
 }
 
 /// Database secrets engine
+///
+/// # Lock ordering invariant
+///
+/// To prevent deadlocks, when **multiple locks are held simultaneously**,
+/// they must be acquired in this order:
+///   1. `connections` (read or write)
+///   2. `roles` (read or write)
+///   3. `active_credentials` (read or write)
+///   4. `db_pools` (read or write)
+///
+/// A method may skip levels (e.g. acquire only `roles` then `active_credentials`)
+/// but must never acquire a lock that precedes one it already holds.
+///
+/// Methods that acquire and **release** a lock before acquiring the next one
+/// (sequential, never held simultaneously) are not constrained by this ordering.
+/// For example, `generate_credentials` acquires `roles.read()` then drops it
+/// before acquiring `connections.read()`.
+///
+/// `delete_connection` intentionally releases `connections` before acquiring
+/// `roles` to avoid inverting this ordering.
 pub struct DatabaseSecretsEngine {
     connections: Arc<RwLock<HashMap<String, DatabaseConnection>>>,
     roles: Arc<RwLock<HashMap<String, DatabaseRole>>>,
@@ -330,8 +366,15 @@ impl DatabaseSecretsEngine {
                 "Creation statements required".to_string(),
             ));
         }
+        if role.revocation_statements.is_empty() {
+            return Err(DatabaseError::InvalidConfig(
+                "Revocation statements required".to_string(),
+            ));
+        }
 
-        // Verify database connection exists
+        // Acquire both locks to prevent TOCTOU between connection check and role insert.
+        // Hold the connections read lock while writing the role so a concurrent
+        // delete_connection cannot remove the connection between the two checks.
         let connections = self.connections.read().await;
         if !connections.contains_key(&role.db_name) {
             return Err(DatabaseError::InvalidConfig(format!(
@@ -339,10 +382,78 @@ impl DatabaseSecretsEngine {
                 role.db_name
             )));
         }
-        drop(connections);
 
-        // Store role
         let mut roles = self.roles.write().await;
+        if roles.contains_key(&role.name) {
+            return Err(DatabaseError::RoleAlreadyExists(role.name.clone()));
+        }
+        roles.insert(role.name.clone(), role);
+
+        Ok(())
+    }
+
+    /// Get database connection configuration
+    pub async fn get_connection(&self, name: &str) -> Option<DatabaseConnection> {
+        let connections = self.connections.read().await;
+        connections.get(name).cloned()
+    }
+
+    /// Update an existing database role atomically (check + write under one lock)
+    pub async fn update_role(&self, role: DatabaseRole) -> Result<(), DatabaseError> {
+        // Validate role
+        if role.name.is_empty() {
+            return Err(DatabaseError::InvalidConfig(
+                "Role name cannot be empty".to_string(),
+            ));
+        }
+        if role.creation_statements.is_empty() {
+            return Err(DatabaseError::InvalidConfig(
+                "Creation statements required".to_string(),
+            ));
+        }
+        if role.revocation_statements.is_empty() {
+            return Err(DatabaseError::InvalidConfig(
+                "Revocation statements required".to_string(),
+            ));
+        }
+
+        // Hold the connections read lock while writing the role to prevent a
+        // concurrent delete_connection from removing the connection between the
+        // existence check and the role update.
+        let connections = self.connections.read().await;
+        if !connections.contains_key(&role.db_name) {
+            return Err(DatabaseError::InvalidConfig(format!(
+                "Database connection '{}' not found",
+                role.db_name
+            )));
+        }
+
+        // Atomically check existence and update under a single write lock
+        let mut roles = self.roles.write().await;
+        let existing = roles
+            .get(&role.name)
+            .ok_or_else(|| DatabaseError::RoleNotFound(role.name.clone()))?;
+
+        // Reject db_name changes when active credentials exist for this role.
+        // Although revoke_credentials now uses credentials.db_name (captured at
+        // generation time), rotate_credentials and renew_lease also look up the
+        // connection. Changing db_name mid-flight could cause confusion and
+        // inconsistent behavior across operations on existing credentials.
+        if existing.db_name != role.db_name {
+            let active = self.active_credentials.read().await;
+            let has_active = active.values().any(|c| c.role_name == role.name);
+            if has_active {
+                return Err(DatabaseError::InvalidConfig(
+                    "Cannot change db_name while active credentials exist for this role. \
+                     Revoke all credentials first."
+                        .to_string(),
+                ));
+            }
+        }
+
+        // NLL: the borrow from `roles.get()` above ends at its last use
+        // (`existing.db_name` on line above), so `roles.insert()` compiles
+        // without any explicit drop.
         roles.insert(role.name.clone(), role);
 
         Ok(())
@@ -360,10 +471,191 @@ impl DatabaseSecretsEngine {
         roles.keys().cloned().collect()
     }
 
-    /// Delete database role
+    /// Delete database role and revoke all active credentials for it
     pub async fn delete_role(&self, name: &str) -> Result<bool, DatabaseError> {
-        let mut roles = self.roles.write().await;
-        Ok(roles.remove(name).is_some())
+        // Remove the role first under a write lock to prevent new credentials
+        // from being generated for a role that is being deleted.
+        let removed_role = {
+            let mut roles = self.roles.write().await;
+            roles.remove(name)
+        };
+
+        let role = match removed_role {
+            Some(r) => r,
+            None => return Ok(false),
+        };
+
+        // Collect credentials for this role (role is already removed so no
+        // new credentials can be generated for it).
+        let creds: Vec<DatabaseCredentials> = {
+            let active = self.active_credentials.read().await;
+            active
+                .values()
+                .filter(|c| c.role_name == name)
+                .cloned()
+                .collect()
+        };
+
+        // Look up the connection for revocation SQL (best-effort)
+        let connection = {
+            let connections = self.connections.read().await;
+            connections.get(&role.db_name).cloned()
+        };
+
+        // Revoke each credential's database user, then remove from tracking.
+        // We use the role data we already have instead of calling
+        // revoke_credentials() (which would fail with RoleNotFound).
+        for cred in &creds {
+            if let Some(ref conn) = connection {
+                // Best-effort: execute revocation SQL.
+                // Log failures so operators can manually clean up orphaned DB users.
+                if let Err(e) = self
+                    .execute_revocation_statements(
+                        conn,
+                        &role.revocation_statements,
+                        &cred.username,
+                    )
+                    .await
+                {
+                    warn!(
+                        credential_id = %cred.id,
+                        username = %cred.username,
+                        role = %name,
+                        db_name = %role.db_name,
+                        error = %e,
+                        "Failed to revoke database user during role deletion; \
+                         manual cleanup may be required"
+                    );
+                }
+            } else {
+                warn!(
+                    credential_id = %cred.id,
+                    username = %cred.username,
+                    role = %name,
+                    db_name = %role.db_name,
+                    "Cannot revoke database user during role deletion: \
+                     connection not found; manual cleanup may be required"
+                );
+            }
+            let mut active = self.active_credentials.write().await;
+            active.remove(&cred.id);
+        }
+
+        Ok(true)
+    }
+
+    /// Delete database connection, cascading to all roles that reference it.
+    /// Returns `Ok(None)` if the connection did not exist, or
+    /// `Ok(Some(DeleteConnectionResult))` on success with the names of
+    /// cascade-deleted roles and any revocation warnings.
+    pub async fn delete_connection(
+        &self,
+        name: &str,
+    ) -> Result<Option<DeleteConnectionResult>, DatabaseError> {
+        // Remove the connection first. We must NOT hold the connections write
+        // lock while acquiring the roles lock, because create_role and
+        // update_role acquire connections.read() then roles.write(). Holding
+        // connections.write() here and then requesting roles.read() would
+        // invert that ordering and risk a deadlock.
+        let removed_conn = {
+            let mut connections = self.connections.write().await;
+            connections.remove(name)
+        };
+
+        if removed_conn.is_none() {
+            return Ok(None);
+        }
+
+        // Now snapshot the roles that reference this connection.
+        // The connection is already removed, so create_role / update_role
+        // will reject any new roles referencing it.
+        let role_names: Vec<String> = {
+            let roles = self.roles.read().await;
+            roles
+                .values()
+                .filter(|r| r.db_name == name)
+                .map(|r| r.name.clone())
+                .collect()
+        };
+
+        let conn = removed_conn.unwrap();
+
+        // Track which roles were actually cascade-deleted (not just
+        // snapshotted) and revocation warnings for partial failures.
+        let mut actually_deleted_roles: Vec<String> = Vec::new();
+        let mut revocation_warnings: Vec<String> = Vec::new();
+
+        // Delete each associated role and revoke their credentials.
+        // Since the connection is already removed from the map, delete_role
+        // won't find it for revocation SQL. We handle revocation directly.
+        for role_name in &role_names {
+            // Remove the role atomically, but only if it still references
+            // this connection. Between the snapshot above and this removal,
+            // a concurrent delete_role + create_role sequence could have
+            // re-created a role with the same name pointing to a different
+            // connection. Removing it here would incorrectly cascade-delete
+            // an unrelated role.
+            let removed_role = {
+                let mut roles = self.roles.write().await;
+                match roles.get(role_name) {
+                    Some(r) if r.db_name == name => roles.remove(role_name),
+                    _ => None,
+                }
+            };
+
+            if let Some(role) = removed_role {
+                actually_deleted_roles.push(role_name.clone());
+
+                // Collect and revoke credentials for this role
+                let creds: Vec<DatabaseCredentials> = {
+                    let active = self.active_credentials.read().await;
+                    active
+                        .values()
+                        .filter(|c| c.role_name == role_name.as_str())
+                        .cloned()
+                        .collect()
+                };
+
+                for cred in &creds {
+                    // Best-effort: execute revocation SQL using the removed connection data.
+                    // Log failures so operators can manually clean up orphaned DB users.
+                    if let Err(e) = self
+                        .execute_revocation_statements(
+                            &conn,
+                            &role.revocation_statements,
+                            &cred.username,
+                        )
+                        .await
+                    {
+                        let msg = format!(
+                            "Failed to revoke credential {} (user '{}', role '{}', connection '{}'): {}",
+                            cred.id, cred.username, role_name, name, e
+                        );
+                        warn!(
+                            credential_id = %cred.id,
+                            username = %cred.username,
+                            role = %role_name,
+                            connection = %name,
+                            error = %e,
+                            "Failed to revoke database user during connection deletion; \
+                             manual cleanup may be required"
+                        );
+                        revocation_warnings.push(msg);
+                    }
+                    let mut active = self.active_credentials.write().await;
+                    active.remove(&cred.id);
+                }
+            }
+        }
+
+        // Remove the connection pool
+        let mut pools = self.db_pools.write().await;
+        pools.remove(name);
+
+        Ok(Some(DeleteConnectionResult {
+            deleted_roles: actually_deleted_roles,
+            revocation_warnings,
+        }))
     }
 
     /// Generate credentials for a role
@@ -639,14 +931,17 @@ impl DatabaseSecretsEngine {
 
     /// Revoke credentials
     pub async fn revoke_credentials(&self, credential_id: &str) -> Result<(), DatabaseError> {
-        // Get credentials
-        let mut active = self.active_credentials.write().await;
-        let credentials = active.remove(credential_id).ok_or_else(|| {
-            DatabaseError::RevocationFailed(format!("Credentials {} not found", credential_id))
-        })?;
-        drop(active);
+        // Look up credentials without removing them yet — we only remove from
+        // tracking after the revocation SQL succeeds so that a failed revocation
+        // does not silently orphan a live database user.
+        let credentials = {
+            let active = self.active_credentials.read().await;
+            active.get(credential_id).cloned().ok_or_else(|| {
+                DatabaseError::RevocationFailed(format!("Credentials {} not found", credential_id))
+            })?
+        };
 
-        // Get role and connection
+        // Get role for revocation statements
         let roles = self.roles.read().await;
         let role = roles
             .get(&credentials.role_name)
@@ -654,13 +949,18 @@ impl DatabaseSecretsEngine {
             .clone();
         drop(roles);
 
+        // Use the db_name stored on the credential (captured at generation time)
+        // rather than the role's current db_name. If the role's db_name was
+        // changed after this credential was issued, the role's current value
+        // would point to the wrong database and revocation SQL would silently
+        // fail to remove the live database user.
         let connections = self.connections.read().await;
         let connection = connections
-            .get(&role.db_name)
+            .get(&credentials.db_name)
             .ok_or_else(|| {
                 DatabaseError::InvalidConfig(format!(
                     "Database connection '{}' not found",
-                    role.db_name
+                    credentials.db_name
                 ))
             })?
             .clone();
@@ -673,6 +973,10 @@ impl DatabaseSecretsEngine {
             &credentials.username,
         )
         .await?;
+
+        // Only remove from tracking after successful revocation
+        let mut active = self.active_credentials.write().await;
+        active.remove(credential_id);
 
         Ok(())
     }
@@ -729,8 +1033,23 @@ impl DatabaseSecretsEngine {
                 for stmt in statements {
                     let sql = stmt.replace("{{username}}", username);
 
-                    // Execute revocation, ignore errors if user doesn't exist
-                    let _ = pg_client.execute(&sql, &[]).await;
+                    // Execute revocation. Tolerate "role does not exist" errors
+                    // (PostgreSQL error code 42704) which are expected when the
+                    // database user was already dropped, but propagate all other
+                    // errors (connection failures, permission errors, syntax
+                    // errors) so callers can surface them as warnings.
+                    if let Err(e) = pg_client.execute(&sql, &[]).await {
+                        let is_role_not_found = e
+                            .code()
+                            .map(|c| c.code() == "42704")
+                            .unwrap_or(false);
+                        if !is_role_not_found {
+                            return Err(DatabaseError::RevocationFailed(format!(
+                                "Failed to execute revocation statement for user '{}': {}",
+                                username, e
+                            )));
+                        }
+                    }
                 }
             }
         }
@@ -755,20 +1074,20 @@ impl DatabaseSecretsEngine {
         // Generate credentials
         let credentials = self.generate_credentials(role_name, ttl).await?;
 
-        // Create lease
-        let ttl_secs = ttl.unwrap_or_else(|| {
-            // Get default TTL from role
-            let roles = futures::executor::block_on(self.roles.read());
-            roles.get(role_name).map(|r| r.default_ttl).unwrap_or(3600)
-        }) as i64;
-
-        let max_ttl = {
-            let roles = futures::executor::block_on(self.roles.read());
-            roles
-                .get(role_name)
-                .map(|r| r.max_ttl as i64)
-                .unwrap_or(86400)
+        // Read role defaults using async .await instead of block_on to avoid
+        // blocking the tokio worker thread (which can deadlock on a
+        // single-threaded runtime or degrade throughput under contention).
+        let (default_ttl, max_ttl) = {
+            let roles = self.roles.read().await;
+            let role = roles.get(role_name);
+            (
+                role.map(|r| r.default_ttl).unwrap_or(3600),
+                role.map(|r| r.max_ttl as i64).unwrap_or(86400),
+            )
         };
+
+        // Create lease
+        let ttl_secs = ttl.unwrap_or(default_ttl) as i64;
 
         let resource_path = format!("database/creds/{}", role_name);
         let lease = lease_manager
@@ -834,13 +1153,18 @@ impl DatabaseSecretsEngine {
             .clone();
         drop(roles);
 
+        // Use the db_name stored on the credential (captured at generation time)
+        // rather than the role's current db_name, for the same reason as in
+        // revoke_credentials: if the role's db_name was changed after this
+        // credential was issued, the role's current value would point to the
+        // wrong database.
         let connections = self.connections.read().await;
         let connection = connections
-            .get(&role.db_name)
+            .get(&old_credentials.db_name)
             .ok_or_else(|| {
                 DatabaseError::InvalidConfig(format!(
                     "Database connection '{}' not found",
-                    role.db_name
+                    old_credentials.db_name
                 ))
             })?
             .clone();
@@ -1005,23 +1329,48 @@ impl DatabaseSecretsEngine {
         credential_id: &str,
         increment: u32,
     ) -> Result<DatabaseCredentials, DatabaseError> {
-        // Get existing credentials
-        let mut active = self.active_credentials.write().await;
-        let credentials = active.get_mut(credential_id).ok_or_else(|| {
-            DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
-        })?;
+        // Read credentials and role info first (without holding a write lock)
+        // to avoid deadlock with delete_role which acquires roles.write() then
+        // active_credentials.write().
+        let (role_name, current_expires_at, username, cred_db_name) = {
+            let active = self.active_credentials.read().await;
+            let credentials = active.get(credential_id).ok_or_else(|| {
+                DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
+            })?;
+            (
+                credentials.role_name.clone(),
+                credentials.expires_at,
+                credentials.username.clone(),
+                credentials.db_name.clone(),
+            )
+        };
 
         // Get role to check max_ttl
-        let roles = self.roles.read().await;
-        let role = roles
-            .get(&credentials.role_name)
-            .ok_or_else(|| DatabaseError::RoleNotFound(credentials.role_name.clone()))?
-            .clone();
-        drop(roles);
+        let role = {
+            let roles = self.roles.read().await;
+            roles
+                .get(&role_name)
+                .ok_or_else(|| DatabaseError::RoleNotFound(role_name.clone()))?
+                .clone()
+        };
 
         // Calculate new expiration time
         let now = Utc::now();
-        let current_ttl = (credentials.expires_at - now).num_seconds();
+        let current_ttl = (current_expires_at - now).num_seconds();
+
+        // Reject if credentials have already expired.  Once expired, the
+        // database user may have been revoked by the lease cleanup loop, so
+        // "resurrecting" the credential would leave tracking data that no
+        // longer matches the database state.  This also prevents a negative
+        // new_ttl from wrapping to ~4.3 billion when cast to u32 for the
+        // {{ttl}} placeholder in renew SQL statements.
+        if current_ttl < 0 {
+            return Err(DatabaseError::InvalidConfig(format!(
+                "Credentials have expired (remaining TTL {}s); cannot renew",
+                current_ttl
+            )));
+        }
+
         let new_ttl = current_ttl + increment as i64;
 
         // Check against max_ttl
@@ -1032,18 +1381,18 @@ impl DatabaseSecretsEngine {
             )));
         }
 
-        // Update expiration time
-        credentials.expires_at = now + Duration::seconds(new_ttl);
-
-        // Execute renew statements if configured
+        // Execute renew statements if configured (before updating expiry)
+        // Use the db_name stored on the credential (captured at generation time)
+        // rather than the role's current db_name, for the same reason as in
+        // revoke_credentials.
         if !role.renew_statements.is_empty() {
             let connections = self.connections.read().await;
             let connection = connections
-                .get(&role.db_name)
+                .get(&cred_db_name)
                 .ok_or_else(|| {
                     DatabaseError::InvalidConfig(format!(
                         "Database connection '{}' not found",
-                        role.db_name
+                        cred_db_name
                     ))
                 })?
                 .clone();
@@ -1052,11 +1401,18 @@ impl DatabaseSecretsEngine {
             self.execute_renew_statements(
                 &connection,
                 &role.renew_statements,
-                &credentials.username,
+                &username,
                 new_ttl as u32,
             )
             .await?;
         }
+
+        // Now acquire write lock and update expiration time
+        let mut active = self.active_credentials.write().await;
+        let credentials = active.get_mut(credential_id).ok_or_else(|| {
+            DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
+        })?;
+        credentials.expires_at = now + Duration::seconds(new_ttl);
 
         Ok(credentials.clone())
     }
@@ -1458,11 +1814,12 @@ mod tests {
         };
         engine.configure_connection(config).await.unwrap();
 
-        // Test that statements without placeholders are rejected
+        // Test that statements without placeholders are rejected at execution time
         let role = DatabaseRole {
             name: "test-role".to_string(),
             db_name: "test-db".to_string(),
             creation_statements: vec!["CREATE USER testuser WITH PASSWORD 'testpass'".to_string()],
+            revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
             ..Default::default()
         };
         engine.create_role(role).await.unwrap();

@@ -71,6 +71,7 @@ fn MenuItemNode(item: PortalMenuItem, depth: usize) -> impl IntoView {
                     </ul>
                 }.into_any()
             } else {
+
                 ().into_any()
             }}
         </div>

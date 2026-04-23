@@ -5,6 +5,7 @@ mod prioritization_tests {
     use uuid::Uuid;
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct PriorityScore {
         kebutuhan_id: Uuid,
         score: f64,

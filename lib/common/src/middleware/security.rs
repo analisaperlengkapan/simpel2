@@ -217,14 +217,14 @@ pub async fn input_validation_middleware(
     next: Next,
 ) -> Result<Response, StatusCode> {
     // Check Content-Length header
-    if let Some(content_length) = headers.get(header::CONTENT_LENGTH) {
-        if let Ok(length_str) = content_length.to_str() {
-            if let Ok(length) = length_str.parse::<usize>() {
-                // Limit request body size to 10MB
-                if length > 10 * 1024 * 1024 {
-                    return Err(StatusCode::PAYLOAD_TOO_LARGE);
-                }
-            }
+    if let Some(length) = headers
+        .get(header::CONTENT_LENGTH)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.parse::<usize>().ok())
+    {
+        // Limit request body size to 10MB
+        if length > 10 * 1024 * 1024 {
+            return Err(StatusCode::PAYLOAD_TOO_LARGE);
         }
     }
 

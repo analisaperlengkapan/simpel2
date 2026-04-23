@@ -131,8 +131,6 @@ async fn health_check() -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[tokio::test]
     async fn test_router_creation() {
         // This is a smoke test to ensure router compiles

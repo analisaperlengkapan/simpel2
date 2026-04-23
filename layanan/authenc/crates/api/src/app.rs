@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_app_config_default() {
-        let config = AppConfig::default();
+        let _config = AppConfig::default();
         // Verify default configuration is created
         assert_eq!(2 + 2, 4);
     }
