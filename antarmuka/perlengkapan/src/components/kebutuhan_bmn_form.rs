@@ -110,7 +110,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
         ev.prevent_default();
 
         if !is_valid.get() {
-            form.set_error("Mohon lengkapi semua field yang wajib diisi");
+            let msg = "Mohon lengkapi semua field yang wajib diisi";
+            form.set_error(msg);
+            toast.error(msg);
             return;
         }
 
