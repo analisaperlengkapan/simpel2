@@ -10,7 +10,7 @@ license.workspace = true
 authenc-types = { path = "../types" }
 authenc-crypto = { path = "../crypto" }
 authenc-core = { path = "../core" }
-lib-core = { path = "../../../../lib/core" }
+lib-core = { workspace = true }
 
 # External dependencies (from workspace)
 tokio = { workspace = true, features = ["full"] }
