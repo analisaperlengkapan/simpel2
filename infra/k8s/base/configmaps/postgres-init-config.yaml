@@ -28,16 +28,16 @@ data:
       DO \$\$
       BEGIN
         IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenc') THEN
-          CREATE USER authenc WITH PASSWORD 'authenc_staging_pass';
+          CREATE USER authenc WITH PASSWORD 'CHANGEME';
         END IF;
         IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'secreton') THEN
-          CREATE USER secreton WITH PASSWORD 'secreton_staging_pass';
+          CREATE USER secreton WITH PASSWORD 'CHANGEME';
         END IF;
         IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'perlengkapan') THEN
-          CREATE USER perlengkapan WITH PASSWORD 'perlengkapan_staging_pass';
+          CREATE USER perlengkapan WITH PASSWORD 'CHANGEME';
         END IF;
         IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'integrasi') THEN
-          CREATE USER integrasi WITH PASSWORD 'integrasi_staging_pass';
+          CREATE USER integrasi WITH PASSWORD 'CHANGEME';
         END IF;
       END
       \$\$;

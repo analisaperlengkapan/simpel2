@@ -81,11 +81,11 @@ case "$ACTION" in
             kubectl apply -k "${OVERLAY_DIR}"
         fi
 
-        echo -e "\n${GREEN}✓ Deployment applied successfully${NC}"
-
         if [[ -n "$DRY_RUN" && "$DRY_RUN" == "--dry-run" ]]; then
             echo -e "\n${YELLOW}Dry-run completed. No resources were actually deployed.${NC}"
         else
+            echo -e "\n${GREEN}✓ Deployment applied successfully${NC}"
+
             # Warn about CHANGEME secrets
             SECRETS_FILE="${OVERLAY_DIR}/${ENVIRONMENT}-secrets.yaml"
             echo ""

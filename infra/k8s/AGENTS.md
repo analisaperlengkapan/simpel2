@@ -347,42 +347,19 @@ $EDITOR overlays/staging/staging-secrets.yaml
 kubectl apply -f overlays/staging/staging-secrets.yaml -n simpelv2-staging
 ```
 
-**Secreton standalone deploy** (`layanan/secreton/deploy/staging/`) — **choose ONE path, not both:**
+**Secreton standalone deploy** (`layanan/secreton/deploy/staging/`):
 
-> ⛔ **The kustomize path (steps 1-4 above) and the secreton standalone path BOTH create a
-> `postgres-credentials` Secret with DIFFERENT key sets. Applying both will clobber keys
-> from the first apply, causing CrashLoopBackOff. You MUST choose one approach.**
->
-> - **Kustomize path (recommended for main cluster):** Use steps 1-4 above only.
->   The `staging-secrets.yaml` already includes all keys needed by every service.
-> - **Standalone secreton path:** ONLY for independent secreton deployments outside
->   the main kustomize stack. Do NOT also apply `staging-secrets.yaml`.
+> The standalone secreton path creates a **separate** Secret named `secreton-postgres-credentials`
+> (not `postgres-credentials`), so there is no collision with the kustomize path.
+> You may use both paths safely. The standalone path is intended for independent secreton
+> deployments outside the main kustomize stack.
 
 ```bash
-# Standalone path (ONLY if NOT using the kustomize path above):
+# Standalone path (can be used independently or alongside the kustomize path):
 # See layanan/secreton/deploy/staging/01-secrets.yaml for the template.
 # Copy to 01-secrets.local.yaml, fill real values, then:
 kubectl apply -f layanan/secreton/deploy/staging/01-secrets.local.yaml -n simpelv2-staging
 ```
-
-> ⚠️ **Secret Name Collision Warning:** The secreton standalone deploy
-> (`layanan/secreton/deploy/staging/01-secrets.yaml`) creates a `postgres-credentials`
-> Secret with keys `postgres-password`, `secreton-storage-url`, and `authenc-url`.
-> The main kustomize path (`staging-secrets.yaml`) creates a `postgres-credentials`
-> Secret with different keys (`url`, `secreton-url`, `perlengkapan-url`, `integrasi-url`,
-> `password`, `username`).
->
-> **Applying both files with `kubectl apply -f` will clobber keys from the first apply.**
-> The second `kubectl apply` uses three-way merge and removes keys not present in its
-> manifest, causing pods that depend on the missing keys to CrashLoopBackOff.
->
-> **Choose ONE approach:**
-> - **Kustomize path (recommended):** Use `staging-secrets.yaml` only (it includes all
->   keys needed by the main cluster). Do NOT also apply the secreton standalone secrets.
-> - **Standalone secreton path:** Only if deploying secreton independently outside the
->   main kustomize stack. Do NOT mix with the kustomize `staging-secrets.yaml`.
-> - **If you must use both:** Use `kubectl apply --server-side --force-conflicts` or
->   `kubectl patch` to avoid key deletion, or consolidate all keys into a single file.
 
 **Production:**
 ```bash
@@ -392,10 +369,13 @@ kubectl apply -f layanan/secreton/deploy/staging/01-secrets.local.yaml -n simpel
 ```
 
 > 🔄 **Credential Rotation Required:** Real credentials were previously committed to
-> this repository's git history (database passwords, SIMAN client secrets, MonSAKTI/MySIMKARI
-> JWT tokens). Even though they have been replaced with `CHANGEME` placeholders, the old
-> values remain in `git log`. **All previously exposed credentials MUST be rotated.**
-> Priority: SIMAN client secret and BA key (no built-in expiration), then database passwords.
+> this repository's git history (database passwords, per-service DB passwords
+> `authenc_staging_pass`/`secreton_staging_pass`/`perlengkapan_staging_pass`/`integrasi_staging_pass`,
+> SIMAN client secrets, MonSAKTI/MySIMKARI JWT tokens). Even though they have been replaced
+> with `CHANGEME` placeholders, the old values remain in `git log`. **All previously exposed
+> credentials MUST be rotated.**
+> Priority: SIMAN client secret and BA key (no built-in expiration), then database passwords
+> (including per-service passwords in `postgres-init-config.yaml` and `secreton.yaml`).
 
 ## ⚠️ Important Notes
 
@@ -404,7 +384,7 @@ kubectl apply -f layanan/secreton/deploy/staging/01-secrets.local.yaml -n simpel
 3. **simpelv2** namespace (old) still exists for development - migrate gradually
 4. **MetalLB** config is separate - apply with `kubectl apply -k base/metallb/`
 5. **Monitoring** requires prometheus-operator CRDs - uncomment in base when ready
-6. **🔄 CREDENTIAL ROTATION REQUIRED** — Real credentials (database passwords, SIMAN client secret `e5f60b3c...`, SIMAN BA key, MonSAKTI/MySIMKARI JWT tokens) were previously committed in plaintext and remain in `git log`. **All exposed credentials MUST be rotated immediately.** Priority: SIMAN client secret and BA key (no built-in expiration), then database passwords. See the rotation notice below under "Updating Secrets".
+6. **🔄 CREDENTIAL ROTATION REQUIRED** — Real credentials (database passwords, per-service DB passwords `authenc_staging_pass`/`secreton_staging_pass`/`perlengkapan_staging_pass`/`integrasi_staging_pass`, SIMAN client secret `e5f60b3c...`, SIMAN BA key, MonSAKTI/MySIMKARI JWT tokens) were previously committed in plaintext and remain in `git log`. **All exposed credentials MUST be rotated immediately.** Priority: SIMAN client secret and BA key (no built-in expiration), then all database passwords. See the rotation notice above under "Updating Secrets".
 7. **CHANGEME secrets** — Every `kubectl apply -k` and `deploy.sh apply` deploys CHANGEME placeholders. You **MUST** re-apply real secrets afterward or pods will CrashLoopBackOff. See "Updating Secrets" above.
 
 ## 🔗 Related Documentation
