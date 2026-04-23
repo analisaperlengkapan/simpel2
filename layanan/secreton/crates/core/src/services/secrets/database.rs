@@ -199,7 +199,8 @@ enum DbPool {
 ///
 /// # Lock ordering invariant
 ///
-/// To prevent deadlocks, locks must always be acquired in this order:
+/// To prevent deadlocks, when **multiple locks are held simultaneously**,
+/// they must be acquired in this order:
 ///   1. `connections` (read or write)
 ///   2. `roles` (read or write)
 ///   3. `active_credentials` (read or write)
@@ -207,6 +208,12 @@ enum DbPool {
 ///
 /// A method may skip levels (e.g. acquire only `roles` then `active_credentials`)
 /// but must never acquire a lock that precedes one it already holds.
+///
+/// Methods that acquire and **release** a lock before acquiring the next one
+/// (sequential, never held simultaneously) are not constrained by this ordering.
+/// For example, `generate_credentials` acquires `roles.read()` then drops it
+/// before acquiring `connections.read()`.
+///
 /// `delete_connection` intentionally releases `connections` before acquiring
 /// `roles` to avoid inverting this ordering.
 pub struct DatabaseSecretsEngine {
@@ -406,10 +413,10 @@ impl DatabaseSecretsEngine {
             .ok_or_else(|| DatabaseError::RoleNotFound(role.name.clone()))?;
 
         // Reject db_name changes when active credentials exist for this role.
-        // Credentials store the db_name at generation time, but revoke_credentials
-        // looks up the role's *current* db_name to find the connection. Allowing
-        // the change would cause revocation SQL to target the wrong database,
-        // silently orphaning live database users on the original connection.
+        // Although revoke_credentials now uses credentials.db_name (captured at
+        // generation time), rotate_credentials and renew_lease also look up the
+        // connection. Changing db_name mid-flight could cause confusion and
+        // inconsistent behavior across operations on existing credentials.
         if existing.db_name != role.db_name {
             let active = self.active_credentials.read().await;
             let has_active = active.values().any(|c| c.role_name == role.name);
@@ -422,9 +429,9 @@ impl DatabaseSecretsEngine {
             }
         }
 
-        // Drop the immutable borrow so we can mutably insert below.
-        // `existing` is a reference into `roles`, so we must let it go.
-        let _ = existing;
+        // NLL: the borrow from `roles.get()` above ends at its last use
+        // (`existing.db_name` on line above), so `roles.insert()` compiles
+        // without any explicit drop.
         roles.insert(role.name.clone(), role);
 
         Ok(())
@@ -1085,13 +1092,18 @@ impl DatabaseSecretsEngine {
             .clone();
         drop(roles);
 
+        // Use the db_name stored on the credential (captured at generation time)
+        // rather than the role's current db_name, for the same reason as in
+        // revoke_credentials: if the role's db_name was changed after this
+        // credential was issued, the role's current value would point to the
+        // wrong database.
         let connections = self.connections.read().await;
         let connection = connections
-            .get(&role.db_name)
+            .get(&old_credentials.db_name)
             .ok_or_else(|| {
                 DatabaseError::InvalidConfig(format!(
                     "Database connection '{}' not found",
-                    role.db_name
+                    old_credentials.db_name
                 ))
             })?
             .clone();
@@ -1259,7 +1271,7 @@ impl DatabaseSecretsEngine {
         // Read credentials and role info first (without holding a write lock)
         // to avoid deadlock with delete_role which acquires roles.write() then
         // active_credentials.write().
-        let (role_name, current_expires_at, username) = {
+        let (role_name, current_expires_at, username, cred_db_name) = {
             let active = self.active_credentials.read().await;
             let credentials = active.get(credential_id).ok_or_else(|| {
                 DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
@@ -1268,6 +1280,7 @@ impl DatabaseSecretsEngine {
                 credentials.role_name.clone(),
                 credentials.expires_at,
                 credentials.username.clone(),
+                credentials.db_name.clone(),
             )
         };
 
@@ -1305,14 +1318,17 @@ impl DatabaseSecretsEngine {
         }
 
         // Execute renew statements if configured (before updating expiry)
+        // Use the db_name stored on the credential (captured at generation time)
+        // rather than the role's current db_name, for the same reason as in
+        // revoke_credentials.
         if !role.renew_statements.is_empty() {
             let connections = self.connections.read().await;
             let connection = connections
-                .get(&role.db_name)
+                .get(&cred_db_name)
                 .ok_or_else(|| {
                     DatabaseError::InvalidConfig(format!(
                         "Database connection '{}' not found",
-                        role.db_name
+                        cred_db_name
                     ))
                 })?
                 .clone();
