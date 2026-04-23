@@ -1,4 +1,5 @@
 use crate::api::{AnalisisKebutuhan, fetch_analisis};
+use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
 
@@ -112,27 +113,13 @@ pub fn AnalisisList() -> impl IntoView {
                                 </table>
 
                                 // Pagination
-                                <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                                    <div class="text-sm text-gray-500">
-                                        "Menampilkan halaman " <span class="font-medium">{response.page}</span> " dari " <span class="font-medium">{response.total_pages}</span>
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <button
-                                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            prop:disabled=move || page.get() <= 1
-                                            on:click=move |_| set_page.update(|p| *p -= 1)
-                                        >
-                                            "Sebelumnya"
-                                        </button>
-                                        <button
-                                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            prop:disabled=move || page.get() >= response.total_pages
-                                            on:click=move |_| set_page.update(|p| *p += 1)
-                                        >
-                                            "Selanjutnya"
-                                        </button>
-                                    </div>
-                                </div>
+                                <PaginationControls
+                                    current_page=response.page
+                                    total_pages=response.total_pages
+                                    total_items=None
+                                    on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
+                                    on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
+                                />
                             </div>
                             }.into_any()
                         }
