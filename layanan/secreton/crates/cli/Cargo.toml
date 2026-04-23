@@ -33,7 +33,7 @@ aes-gcm.workspace = true
 argon2.workspace = true
 urlencoding.workspace = true
 rand.workspace = true
-lib-backend = { path = "../../../../lib/backend", features = ["telemetry"] }
+lib-backend = { workspace = true, features = ["telemetry"] }
 
 [dev-dependencies]
 tempfile.workspace = true

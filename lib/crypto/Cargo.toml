@@ -6,7 +6,7 @@ license.workspace = true
 description = "Cryptographic primitives for SIMPEL (Shamir, password hashing, AES-GCM, KDF)"
 
 [dependencies]
-lib-core = { path = "../core" }
+lib-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }

@@ -68,7 +68,7 @@ num-traits.workspace = true
 async-trait.workspace = true
 
 # Shared library
-lib-crypto = { path = "../../../../lib/crypto", features = ["encryption"] }
+lib-crypto = { workspace = true, features = ["encryption"] }
 
 # Compression
 flate2.workspace = true

@@ -51,8 +51,8 @@ rand = { workspace = true }
 getrandom = { workspace = true }
 # Enable wasm_js for getrandom 0.4 pulled transitively by updated deps (e.g. uuid 1.23+)
 getrandom_04 = { workspace = true }
-lib-core = { path = "../core", default-features = false, features = ["validation"] }
-lib-crypto = { path = "../crypto" }
+lib-core = { workspace = true, features = ["validation"] }
+lib-crypto = { workspace = true }
 
 [build-dependencies]
 # Build-time optimizations
