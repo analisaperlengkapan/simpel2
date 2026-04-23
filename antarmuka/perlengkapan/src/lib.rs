@@ -26,9 +26,10 @@ use leptos_meta::*;
 use leptos_router::{components::*, path};
 
 use components::app_chrome::{AppFooter, AppHeader};
-use components::guards::{AdminLayout, AuthenticatedLayout, SessionAdminGuard, SessionAuthGuard};
+use components::guards::{AdminLayout, AuthenticatedLayout};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
+use lib_ui::hooks::use_toast::ToastProvider;
 use pages::admin::{AdminAuditPage, AdminMasterDataPage};
 use pages::bank_aset::{
     BankAsetDashboardPage, BankAsetDetailPage, BankAsetListPage, BankAsetQrCodePage,
@@ -75,7 +76,8 @@ use components::qrcode_generator::QrCodeGenerator;
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // ═════════════════════════════════════════════════════════════════════════
-// Root App — all routes are FLAT inside the layout shell
+// Root App — routes grouped by auth level using ParentRoute layout guards
+// (similar to Next.js layout.tsx / Laravel Route::middleware()->group())
 // ═════════════════════════════════════════════════════════════════════════
 
 #[component]
@@ -84,6 +86,12 @@ pub fn App() -> impl IntoView {
 
     let sidebar_open = RwSignal::new(false);
     let (user_session, set_user_session) = signal(AuthService::load_session());
+
+    // Global session context — any child can access via use_context()
+    // (like Laravel Auth::user() or Next.js useSession())
+    provide_context(user_session);
+    provide_context(set_user_session);
+
     let is_login_page = move || {
         web_sys::window()
             .and_then(|w| w.location().pathname().ok())
@@ -117,6 +125,7 @@ pub fn App() -> impl IntoView {
         <Meta charset="utf-8" />
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
 
+        <ToastProvider>
         <Router base="/perlengkapan">
             <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
                 // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
@@ -141,22 +150,20 @@ pub fn App() -> impl IntoView {
                             // ══════════════════════════════════════════
                             <Route path=path!("/login") view=move || {
                                 if AuthService::load_session().is_some() {
-                                    if let Some(window) = web_sys::window() {
-                                        let _ = window.location().set_href(routes::path::DASHBOARD);
-                                    }
+                                    let nav = leptos_router::hooks::use_navigate();
+                                    nav(routes::path::DASHBOARD, Default::default());
                                     view! { <div></div> }.into_any()
                                 } else {
                                     view! { <LoginPage /> }.into_any()
                                 }
                             } />
                             <Route path=path!("/") view=move || {
-                                // Redirect root based on authentication status.
+                                // SPA redirect based on authentication status.
+                                let nav = leptos_router::hooks::use_navigate();
                                 if AuthService::load_session().is_some() {
-                                    if let Some(window) = web_sys::window() {
-                                        let _ = window.location().set_href(routes::path::DASHBOARD);
-                                    }
-                                } else if let Some(window) = web_sys::window() {
-                                    let _ = window.location().set_href(routes::path::LOGIN);
+                                    nav(routes::path::DASHBOARD, Default::default());
+                                } else {
+                                    nav(routes::path::LOGIN, Default::default());
                                 }
                                 view! { <div></div> }
                             } />
@@ -246,5 +253,6 @@ pub fn App() -> impl IntoView {
                 {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
             </div>
         </Router>
+        </ToastProvider>
     }
 }

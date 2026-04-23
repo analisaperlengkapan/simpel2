@@ -11,6 +11,7 @@ use crate::components::batch_operations_toolbar::{
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
+use leptos_meta::Title;
 use uuid::Uuid;
 
 #[component]
@@ -74,6 +75,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
     let years: Vec<i32> = (2020..=current_year + 1).rev().collect();
 
     view! {
+        <Title text="Kebutuhan BMN — SIMPEL Perlengkapan" />
         <PageLayout
             title="Analisis Kebutuhan BMN"
             icon="fas fa-clipboard-list"

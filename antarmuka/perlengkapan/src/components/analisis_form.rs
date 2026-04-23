@@ -2,6 +2,7 @@ use crate::api::{CreateAnalisisRequest, create_analisis};
 use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
 
 #[component]
@@ -48,6 +49,7 @@ pub fn AnalisisForm() -> impl IntoView {
     };
 
     view! {
+        <Title text="Buat Analisis — SIMPEL Perlengkapan" />
         <div class="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
             <h2 class="text-xl font-bold text-gray-800 mb-6">"Buat Analisis Kebutuhan"</h2>
 

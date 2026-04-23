@@ -2,6 +2,7 @@ use crate::api::{CreatePenghapusanBmnWorkflowRequest, create_penghapusan_bmn_wor
 use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
 
 #[component]
@@ -66,6 +67,7 @@ pub fn PenghapusanForm() -> impl IntoView {
     };
 
     view! {
+        <Title text="Usulan Penghapusan BMN — SIMPEL" />
         <div class="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
             <h2 class="text-xl font-bold text-gray-800 mb-6">"Usulan SK Penghapusan BMN"</h2>
 

@@ -10,6 +10,7 @@ use crate::components::layout::{FormField, LoadingState, PageLayout, SectionCard
 use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_meta::Title;
 use leptos_router::hooks::use_params_map;
 
 #[derive(Clone, PartialEq, Default)]
@@ -146,12 +147,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
             match result {
                 Ok(_) => {
                     set_success.set(true);
-                    gloo_timers::callback::Timeout::new(1500, || {
-                        if let Some(window) = web_sys::window() {
-                            let _ = window
-                                .location()
-                                .set_href(routes::path::KEBUTUHAN_DAFTAR_LEGACY);
-                        }
+                    let nav = leptos_router::hooks::use_navigate();
+                    gloo_timers::callback::Timeout::new(1500, move || {
+                        nav(routes::path::KEBUTUHAN_DAFTAR, Default::default());
                     })
                     .forget();
                 }
@@ -173,6 +171,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
     };
 
     view! {
+        <Title text=format!("{} — SIMPEL", page_title) />
         <PageLayout
             title=page_title
             icon="fas fa-clipboard-list"

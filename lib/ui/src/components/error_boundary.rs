@@ -113,7 +113,7 @@ pub fn ErrorPanel(
 
 /// A page-level loading skeleton with spinner and message.
 ///
-/// Use inside `ResourceView` or `Suspense` as the fallback.
+/// Use inside `Suspense` as the fallback or standalone.
 #[component]
 pub fn LoadingPanel(
     /// Loading message shown below the spinner.
@@ -133,5 +133,153 @@ pub fn LoadingPanel(
             </svg>
             <p class="text-sm text-slate-400">{message}</p>
         </div>
+    }
+}
+
+// ============================================================================
+// DARK PAGINATION — dark-theme pagination for list pages
+// ============================================================================
+
+/// Dark-themed pagination bar for list pages.
+///
+/// Replaces the ~30 lines of copy-pasted pagination HTML in each list component.
+/// Equivalent to Laravel's `{{ $items->links() }}`.
+///
+/// ```rust,ignore
+/// <DarkPagination
+///     current_page=page
+///     total_pages=10
+///     total_items=200
+///     items_shown=20
+///     on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
+///     on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
+/// />
+/// ```
+#[component]
+pub fn DarkPagination(
+    /// Current page number (1-based).
+    #[prop(into)]
+    current_page: Signal<i64>,
+    /// Total number of pages.
+    total_pages: i64,
+    /// Total number of items across all pages.
+    total_items: i64,
+    /// Number of items shown on the current page.
+    items_shown: usize,
+    /// Callback when "Previous" is clicked.
+    on_prev: Callback<()>,
+    /// Callback when "Next" is clicked.
+    on_next: Callback<()>,
+) -> impl IntoView {
+    view! {
+        <div class="flex items-center justify-between border-t border-white/[0.04] px-5 py-3">
+            <p class="text-xs text-slate-400">
+                "Menampilkan "
+                <span class="font-medium text-slate-200">{items_shown}</span>
+                " dari "
+                <span class="font-medium text-slate-200">{total_items}</span>
+                " data"
+            </p>
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
+                    prop:disabled=move || current_page.get() <= 1
+                    on:click=move |_| on_prev.run(())
+                >
+                    <i class="fas fa-chevron-left text-[0.6rem]"></i>
+                    "Sebelumnya"
+                </button>
+                <span class="text-xs text-slate-400">
+                    {move || current_page.get()} " / " {total_pages}
+                </span>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
+                    prop:disabled=move || current_page.get() >= total_pages
+                    on:click=move |_| on_next.run(())
+                >
+                    "Selanjutnya"
+                    <i class="fas fa-chevron-right text-[0.6rem]"></i>
+                </button>
+            </div>
+        </div>
+    }
+}
+
+// ============================================================================
+// RESOURCE VIEW — declarative data fetching (like React Query / SWR)
+// ============================================================================
+
+/// Declarative data-fetching component with built-in loading/error states.
+///
+/// Combines Leptos `Resource` + `Suspense` + `ErrorPanel` + `LoadingPanel`
+/// into a single component — similar to React Query's `useQuery` or SWR.
+///
+/// # Usage
+///
+/// ```rust,ignore
+/// use leptos::prelude::*;
+/// use lib_ui::components::{ResourceView, LoadingPanel, ErrorPanel};
+///
+/// #[component]
+/// fn ItemListPage() -> impl IntoView {
+///     let items = Resource::new(
+///         || (),
+///         |_| async move { api::fetch_items().await },
+///     );
+///
+///     view! {
+///         <ResourceView
+///             resource=items
+///             loading_message="Memuat daftar barang..."
+///             error_title="Gagal Memuat Data"
+///         >
+///             {move |data: Vec<Item>| view! { <ItemTable items=data /> }}
+///         </ResourceView>
+///     }
+/// }
+/// ```
+#[component]
+pub fn ResourceView<T, V>(
+    /// The Leptos `Resource` to observe.
+    resource: Resource<Result<T, String>>,
+    /// Render function called with the successful data.
+    children: Box<dyn Fn(T) -> V>,
+    /// Loading message shown while the resource is pending.
+    #[prop(default = "Memuat data...".to_string(), into)]
+    loading_message: String,
+    /// Error title shown when the resource fails.
+    #[prop(default = "Gagal Memuat Data".to_string(), into)]
+    error_title: String,
+) -> impl IntoView
+where
+    T: Clone + 'static,
+    V: IntoView + 'static,
+{
+    let loading_msg = loading_message.clone();
+    let err_title = error_title.clone();
+
+    move || {
+        match resource.get() {
+            None => {
+                // Still loading
+                view! { <LoadingPanel message=loading_msg.clone() /> }.into_any()
+            }
+            Some(Ok(data)) => {
+                // Success — render children with data
+                (children)(data).into_any()
+            }
+            Some(Err(err)) => {
+                // Error — show error panel
+                view! {
+                    <ErrorPanel
+                        title=err_title.clone()
+                        message=err
+                    />
+                }
+                .into_any()
+            }
+        }
     }
 }

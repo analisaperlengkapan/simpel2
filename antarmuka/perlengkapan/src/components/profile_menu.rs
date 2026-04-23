@@ -63,9 +63,8 @@ pub fn ProfileMenu() -> impl IntoView {
                             #[cfg(not(target_arch = "wasm32"))]
                             AuthService::clear_session();
 
-                            if let Some(window) = web_sys::window() {
-                                let _ = window.location().set_href(routes::path::LOGIN);
-                            }
+                            let nav = leptos_router::hooks::use_navigate();
+                            nav(routes::path::LOGIN, Default::default());
                         }
                     >
                         <i class="fas fa-sign-out-alt" style="width: 18px; text-align: center; font-size: 0.8rem;"></i>

@@ -5,10 +5,12 @@
 
 use crate::routes;
 use leptos::prelude::*;
+use leptos_meta::Title;
 
 #[component]
 pub fn LoginPage() -> impl IntoView {
     view! {
+        <Title text="Login — SIMPEL Perlengkapan" />
         <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2.5rem 1rem; background: radial-gradient(circle at 18% 20%, rgba(30,64,175,0.34), transparent 42%), radial-gradient(circle at 84% 14%, rgba(15,23,42,0.58), transparent 48%), linear-gradient(180deg, #081229 0%, #091833 55%, #071229 100%);">
             <div style="width: 100%; max-width: 760px; border-radius: 24px; border: 1px solid rgba(51,65,85,0.72); border-top: 3px solid #d4a843; background: linear-gradient(180deg, rgba(4,14,38,0.97) 0%, rgba(3,12,34,0.97) 100%); padding: clamp(1.6rem, 2vw, 2.25rem) clamp(1.25rem, 3vw, 2.25rem) clamp(1.35rem, 2vw, 1.9rem) clamp(1.25rem, 3vw, 2.25rem); box-shadow: 0 22px 70px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.04);">
                 <div style="display: flex; justify-content: center; margin-bottom: 0.8rem;">

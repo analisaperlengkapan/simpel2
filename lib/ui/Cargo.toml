@@ -41,6 +41,7 @@ js-sys = { workspace = true }
 
 # Utilities
 gloo = { workspace = true, features = ["timers", "net", "storage"] }
+gloo-net = { workspace = true, features = ["http"] }
 gloo-timers = { workspace = true }
 gloo-storage = { workspace = true }
 send_wrapper = "0.6"
