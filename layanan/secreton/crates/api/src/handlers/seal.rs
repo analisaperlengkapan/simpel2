@@ -3,7 +3,7 @@
 //! Provides REST endpoints for engine seal/unseal operations,
 //! initialization, and rekey functionality.
 
-use axum::{extract::State, http::StatusCode, http::HeaderMap, response::Json};
+use axum::{extract::State, http::HeaderMap, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -298,8 +298,8 @@ pub async fn unseal_engine(
     info!("🔓 Processing unseal request");
 
     // Extract client IP from request headers for rate limiting and forensic auditing
-    let client_ip = crate::helpers::extract_client_ip(&headers)
-        .unwrap_or_else(|| "unknown".to_string());
+    let client_ip =
+        crate::helpers::extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
     let user_agent = headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
