@@ -347,11 +347,19 @@ $EDITOR overlays/staging/staging-secrets.yaml
 kubectl apply -f overlays/staging/staging-secrets.yaml -n simpelv2-staging
 ```
 
-**Secreton staging** has its own standalone deploy path (`layanan/secreton/deploy/staging/`).
-**⛔ Do NOT use this if you already applied the kustomize path secrets above** — they share
-the same `postgres-credentials` Secret name with different keys and will clobber each other.
-This path is ONLY for independent secreton deployments outside the main kustomize stack.
+**Secreton standalone deploy** (`layanan/secreton/deploy/staging/`) — **choose ONE path, not both:**
+
+> ⛔ **The kustomize path (steps 1-4 above) and the secreton standalone path BOTH create a
+> `postgres-credentials` Secret with DIFFERENT key sets. Applying both will clobber keys
+> from the first apply, causing CrashLoopBackOff. You MUST choose one approach.**
+>
+> - **Kustomize path (recommended for main cluster):** Use steps 1-4 above only.
+>   The `staging-secrets.yaml` already includes all keys needed by every service.
+> - **Standalone secreton path:** ONLY for independent secreton deployments outside
+>   the main kustomize stack. Do NOT also apply `staging-secrets.yaml`.
+
 ```bash
+# Standalone path (ONLY if NOT using the kustomize path above):
 # See layanan/secreton/deploy/staging/01-secrets.yaml for the template.
 # Copy to 01-secrets.local.yaml, fill real values, then:
 kubectl apply -f layanan/secreton/deploy/staging/01-secrets.local.yaml -n simpelv2-staging
