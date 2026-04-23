@@ -200,13 +200,14 @@ use leptos::prelude::*;
 
 #[component]
 pub fn PerformanceMonitoredComponent() -> impl IntoView {
-    let perf = web_sys::window().unwrap().performance().unwrap();
-    let start_time = perf.now();
+    if let Some(perf) = web_sys::window().and_then(|w| w.performance()) {
+        let start_time = perf.now();
 
-    on_cleanup(move || {
-        let duration = perf.now() - start_time;
-        tracing::info!(duration_ms = duration, "Component render time");
-    });
+        on_cleanup(move || {
+            let duration = perf.now() - start_time;
+            tracing::info!(duration_ms = duration, "Component render time");
+        });
+    }
 
     view! {
         // Component content

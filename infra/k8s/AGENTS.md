@@ -325,13 +325,27 @@ kubectl scale deployment/<name> --replicas=5 -n simpelv2-production
 
 ### Updating Secrets
 
-```bash
-# Generate base64
-echo -n "new-password" | base64
+> ⛔ **NEVER commit real secrets to git.** The `kustomization.yaml` files contain only
+> `CHANGEME` placeholders. Real values must be supplied out-of-band.
 
-# Update base/secrets/secrets.yaml
-# Then apply:
-kubectl apply -k overlays/production
+**Staging:**
+```bash
+# 1. Copy the example file (one-time setup)
+cp overlays/staging/staging-secrets.example.yaml overlays/staging/staging-secrets.yaml
+# staging-secrets.yaml is gitignored
+
+# 2. Edit with real credentials
+$EDITOR overlays/staging/staging-secrets.yaml
+
+# 3. Apply the secrets directly (before or after kustomize apply)
+kubectl apply -f overlays/staging/staging-secrets.yaml -n simpelv2-staging
+```
+
+**Production:**
+```bash
+# Production secrets MUST be managed via Secreton SecretSync CRDs.
+# See layanan/secreton/crates/k8s-operator/README.md for details.
+# Manual Secret objects are only for initial bootstrap.
 ```
 
 ## ⚠️ Important Notes

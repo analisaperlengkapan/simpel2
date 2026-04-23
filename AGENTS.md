@@ -481,11 +481,11 @@ lazy_static! {
     static ref REQUESTS_TOTAL: IntCounter = register_int_counter!(
         "api_requests_total",
         "Total number of API requests"
-    ).unwrap();
+    ).unwrap(); // Exception: lazy_static! init cannot propagate errors
     static ref REQUEST_DURATION: Histogram = register_histogram!(
         "api_request_duration_seconds",
         "API request duration in seconds"
-    ).unwrap();
+    ).unwrap(); // Exception: lazy_static! init cannot propagate errors
 }
 ```
 

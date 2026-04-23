@@ -40,6 +40,9 @@ k8s/secrets/sealed/
 k8s/generated/
 k8s/**/*.autogen.yaml
 *.sealed.yaml
+# Local staging/production secrets (real values, never commit)
+infra/k8s/overlays/staging/staging-secrets.yaml
+infra/k8s/overlays/production/production-secrets.yaml
 
 # ================================
 # 🔐 Vault & Encrypted Artifacts
