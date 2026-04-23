@@ -5,9 +5,9 @@ use crate::features::auth::UserSession;
 use crate::features::microfrontends::{AppCategory, MicrofrontendRegistry};
 use leptos::prelude::*;
 
-/// Applications page
+/// Applications page — reads session from context
 #[component]
-pub fn AppsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn AppsPage() -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
     let (selected_category, set_selected_category) = signal(None::<AppCategory>);
 
@@ -15,7 +15,7 @@ pub fn AppsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl Int
     let categories = MicrofrontendRegistry::get_all_categories();
 
     view! {
-        <MainLayout user_session=user_session on_logout=on_logout>
+        <MainLayout>
             <div class="p-6 lg:p-8">
                 // Header
                 <div class="mb-8">

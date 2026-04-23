@@ -32,14 +32,9 @@ pub struct BackupCodeStatusResponse {
     pub last_generated: Option<String>,
 }
 
-/// MFA Backup Codes Management Page Component
+/// MFA Backup Codes Management Page Component — reads session from context
 #[component]
-pub fn MfaBackupCodesPage(
-    /// Current user session data
-    user_session: UserSession,
-    /// Callback function to handle user logout
-    on_logout: Box<dyn Fn()>,
-) -> impl IntoView {
+pub fn MfaBackupCodesPage() -> impl IntoView {
     let (backup_codes, set_backup_codes) = signal(None::<BackupCodesResponse>);
     let (status, set_status) = signal(None::<BackupCodeStatusResponse>);
     let (loading, set_loading) = signal(false);
@@ -140,7 +135,7 @@ pub fn MfaBackupCodesPage(
     };
 
     view! {
-        <MainLayout user_session=user_session on_logout=on_logout>
+        <MainLayout>
             <div class="container mx-auto px-4 py-8">
                 <div class="max-w-4xl mx-auto">
                     <div class="bg-white dark:bg-gray-800 shadow-lg rounded-2xl overflow-hidden">

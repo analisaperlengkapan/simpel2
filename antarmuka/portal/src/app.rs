@@ -6,10 +6,7 @@
 //! - **Accessibility**: WCAG 2.1 AA compliance
 //! - **Government Branding**: Konsisten dengan identitas Kejaksaan RI
 
-use crate::app_page_views;
-use crate::app_routes::{
-    render_session_admin_page, render_session_auth_page, render_session_layout_page,
-};
+use crate::components::guards::{PortalAdminLayout, PortalAuthLayout};
 use crate::components::session_timeout_modal::SessionTimeoutModal;
 use crate::features::auth::AuthService;
 use crate::features::session_monitor::{
@@ -23,7 +20,7 @@ use lib_ui::components::BrandingProvider;
 
 use leptos_router::{
     ParamSegment, StaticSegment,
-    components::{Route, Router, Routes},
+    components::{ParentRoute, Route, Router, Routes},
 };
 
 /// Main application component with session management
@@ -47,8 +44,9 @@ pub fn App() -> impl IntoView {
     // Global auth state - load from localStorage on mount
     let (user_session, set_user_session) = signal(AuthService::load_session());
 
-    // Provide the writer as context so child components (e.g. PasswordChangePage)
-    // can update the reactive session signal without prop-drilling.
+    // Global session context — any child can access via use_context()
+    // (like Laravel Auth::user() or Next.js useSession())
+    provide_context(user_session);
     provide_context(set_user_session);
 
     // Session timeout countdown (in seconds)
@@ -68,19 +66,6 @@ pub fn App() -> impl IntoView {
         set_show_timeout_warning,
         set_timeout_countdown,
     );
-
-    // Logout handler with broadcast — produces Box<dyn Fn()> for each route
-    let make_logout = move || -> Box<dyn Fn()> {
-        Box::new(move || {
-            #[cfg(target_arch = "wasm32")]
-            AuthService::broadcast_logout();
-
-            AuthService::logout();
-            set_user_session.set(None);
-            set_show_timeout_warning.set(false);
-            set_timeout_countdown.set(0);
-        })
-    };
 
     view! {
         <BrandingProvider unit="portal".to_string()>
@@ -102,215 +87,49 @@ pub fn App() -> impl IntoView {
                 <Route path=StaticSegment(routes::segment::MFA_BACKUP_VERIFY) view=MfaBackupVerificationPage />
 
                 // ══════════════════════════════════════════════
-                // PROTECTED ROUTES (with MainLayout wrapper)
+                // AUTHENTICATED ROUTES — PortalAuthLayout guards
+                // ALL children (like Next.js layout.tsx / Laravel
+                // Route::middleware('auth')->group())
                 // ══════════════════════════════════════════════
-                <Route path=StaticSegment(routes::segment::MFA_BACKUP_CODES) view=move || {
-                    render_session_layout_page(
-                        user_session,
-                        set_user_session,
-                        &make_logout,
-                        |session, on_logout| {
-                            view! {
-                                <MfaBackupCodesPage user_session=session on_logout=on_logout />
-                            }
-                            .into_any()
-                        },
-                    )
-                } />
+                <ParentRoute path=StaticSegment("") view=move || view! {
+                    <PortalAuthLayout user_session=user_session on_login_success=set_user_session />
+                }>
+                    // Layout pages (now read session from context)
+                    <Route path=StaticSegment(routes::segment::DASHBOARD) view=PortalDashboardPage />
+                    <Route path=StaticSegment(routes::segment::APPS) view=AppsPage />
+                    <Route path=StaticSegment(routes::segment::NOTIFICATIONS) view=NotificationsPage />
+                    <Route path=StaticSegment(routes::segment::SETTINGS) view=SettingsPage />
+                    <Route path=StaticSegment(routes::segment::MFA_BACKUP_CODES) view=MfaBackupCodesPage />
 
-                <Route path=StaticSegment(routes::segment::DASHBOARD) view=move || {
-                    render_session_layout_page(
-                        user_session,
-                        set_user_session,
-                        &make_logout,
-                        |session, on_logout| {
-                            view! {
-                                <PortalDashboardPage user_session=session on_logout=on_logout />
-                            }
-                            .into_any()
-                        },
-                    )
-                } />
-
-                <Route path=StaticSegment(routes::segment::APPS) view=move || {
-                    render_session_layout_page(
-                        user_session,
-                        set_user_session,
-                        &make_logout,
-                        |session, on_logout| {
-                            view! {
-                                <AppsPage user_session=session on_logout=on_logout />
-                            }
-                            .into_any()
-                        },
-                    )
-                } />
-
-                <Route path=StaticSegment(routes::segment::NOTIFICATIONS) view=move || {
-                    render_session_layout_page(
-                        user_session,
-                        set_user_session,
-                        &make_logout,
-                        |session, on_logout| {
-                            view! {
-                                <NotificationsPage user_session=session on_logout=on_logout />
-                            }
-                            .into_any()
-                        },
-                    )
-                } />
-
-                <Route path=StaticSegment(routes::segment::SETTINGS) view=move || {
-                    render_session_layout_page(
-                        user_session,
-                        set_user_session,
-                        &make_logout,
-                        |session, on_logout| {
-                            view! {
-                                <SettingsPage user_session=session on_logout=on_logout />
-                            }
-                            .into_any()
-                        },
-                    )
-                } />
+                    // Self-service account management
+                    <Route path=StaticSegment(routes::segment::PROFILE) view=ProfilePage />
+                    <Route path=StaticSegment(routes::segment::PASSKEYS) view=PasskeysPage />
+                    <Route path=StaticSegment(routes::segment::PASSWORD) view=PasswordChangePage />
+                    <Route path=StaticSegment(routes::segment::SESSIONS) view=SessionsPage />
+                </ParentRoute>
 
                 // ══════════════════════════════════════════════
-                // SELF-SERVICE ACCOUNT MANAGEMENT (WithAuth guard)
+                // ADMIN ROUTES — PortalAdminLayout guards all
+                // children (admin role required)
                 // ══════════════════════════════════════════════
-                <Route path=StaticSegment(routes::segment::PROFILE) view=move || {
-                    render_session_auth_page(
-                        user_session,
-                        set_user_session,
-                        false,
-                        app_page_views::profile_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::PASSKEYS) view=move || {
-                    render_session_auth_page(
-                        user_session,
-                        set_user_session,
-                        false,
-                        app_page_views::passkeys_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::PASSWORD) view=move || {
-                    render_session_auth_page(
-                        user_session,
-                        set_user_session,
-                        true,
-                        app_page_views::password_change_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::SESSIONS) view=move || {
-                    render_session_auth_page(
-                        user_session,
-                        set_user_session,
-                        false,
-                        app_page_views::sessions_page,
-                    )
-                } />
-
-                // ══════════════════════════════════════════════
-                // ADMIN IAM ROUTES (WithAdminAuth guard)
-                // ══════════════════════════════════════════════
-                <Route path=StaticSegment(routes::segment::ADMIN) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_overview_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_USERS) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_users_page,
-                    )
-                } />
-                <Route path=(StaticSegment(routes::segment::ADMIN_USERS), ParamSegment("id")) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_user_detail_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_REALMS) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_realms_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_CLIENTS) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_clients_page,
-                    )
-                } />
-                <Route path=(StaticSegment(routes::segment::ADMIN_CLIENTS), ParamSegment("id")) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_client_detail_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_ROLES) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_roles_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_FEDERATION) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_federation_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_PERMISSIONS) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_permissions_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_AUDIT) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_audit_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_GROUPS) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_groups_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_REALM_SETTINGS) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_realm_settings_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_AUTH_FLOWS) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_auth_flows_page,
-                    )
-                } />
-                <Route path=StaticSegment(routes::segment::ADMIN_LINKED_ACCOUNTS) view=move || {
-                    render_session_admin_page(
-                        user_session,
-                        set_user_session,
-                        app_page_views::admin_linked_accounts_page,
-                    )
-                } />
+                <ParentRoute path=StaticSegment(routes::segment::ADMIN) view=move || view! {
+                    <PortalAdminLayout user_session=user_session on_login_success=set_user_session />
+                }>
+                    <Route path=StaticSegment("") view=AdminOverviewPage />
+                    <Route path=StaticSegment("users") view=UsersManagementPage />
+                    <Route path=(StaticSegment("users"), ParamSegment("id")) view=UserDetailPage />
+                    <Route path=StaticSegment("realms") view=RealmsManagementPage />
+                    <Route path=StaticSegment("clients") view=ClientsManagementPage />
+                    <Route path=(StaticSegment("clients"), ParamSegment("id")) view=ClientDetailPage />
+                    <Route path=StaticSegment("roles") view=RolesManagementPage />
+                    <Route path=StaticSegment("federation") view=FederationManagementPage />
+                    <Route path=StaticSegment("permissions") view=PermissionsManagementPage />
+                    <Route path=StaticSegment("audit") view=AuditLogsPage />
+                    <Route path=StaticSegment("groups") view=GroupsManagementPage />
+                    <Route path=StaticSegment("realm-settings") view=RealmSettingsPage />
+                    <Route path=StaticSegment("auth-flows") view=AuthFlowsPage />
+                    <Route path=StaticSegment("linked-accounts") view=LinkedAccountsPage />
+                </ParentRoute>
             </Routes>
         </Router>
 

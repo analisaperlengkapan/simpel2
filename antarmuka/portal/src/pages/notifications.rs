@@ -7,16 +7,11 @@ use crate::features::auth::UserSession;
 use leptos::prelude::*;
 use lib_ui::components::NotificationList;
 
-/// Notifications history page component - displays all user notifications
+/// Notifications history page component — reads session from context
 #[component]
-pub fn NotificationsPage(
-    /// Current user session data
-    user_session: UserSession,
-    /// Callback function to handle user logout
-    on_logout: Box<dyn Fn()>,
-) -> impl IntoView {
+pub fn NotificationsPage() -> impl IntoView {
     view! {
-        <MainLayout user_session=user_session on_logout=on_logout>
+        <MainLayout>
             <div class="container mx-auto px-4 py-8">
                 // Page Header
                 <div class="mb-8">

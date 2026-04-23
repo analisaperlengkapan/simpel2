@@ -75,9 +75,12 @@ async fn fetch_me() -> Result<MeResponse, String> {
     resp.json::<MeResponse>().await.map_err(|e| e.to_string())
 }
 
-/// Dashboard page component
+/// Dashboard page component — reads session from context
 #[component]
-pub fn DashboardPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn DashboardPage() -> impl IntoView {
+    let user_session = use_context::<ReadSignal<Option<UserSession>>>()
+        .and_then(|sig| sig.get_untracked())
+        .unwrap_or_else(|| UserSession::default());
     let is_admin = user_session.role.is_admin();
     let admin_stats = LocalResource::new(move || async move {
         if is_admin {
@@ -106,7 +109,7 @@ pub fn DashboardPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> imp
     };
 
     view! {
-        <MainLayout user_session=user_session.clone() on_logout=on_logout>
+        <MainLayout>
             <div class="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
                 <section class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-navy-900 via-navy-800 to-slate-950 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.45)] sm:p-8">
                     <div class="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gold-400/10 blur-3xl"></div>

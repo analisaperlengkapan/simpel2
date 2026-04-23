@@ -2,32 +2,50 @@
 //!
 //! Layout wrapper for authenticated pages with navbar and footer.
 //! Uses navy/gold government branding consistent with Kejaksaan RI design system.
+//!
+//! Reads `UserSession` from context (provided by App root) instead of props,
+//! enabling use with `ParentRoute` layout guards.
 
 use crate::components::navigation::Navbar;
 use crate::components::navigation::SidebarNavigation;
-use crate::features::auth::UserSession;
+use crate::features::auth::{AuthService, UserSession};
 use leptos::prelude::*;
 
-/// Main layout for authenticated pages
+/// Main layout for authenticated pages.
 ///
-/// Provides:
-/// - Responsive navbar with user session
-/// - Consistent footer with correct year and branding
+/// Reads session from `use_context()` — no props needed.
+/// Provides navbar, sidebar, footer with Kejaksaan RI branding.
 #[component]
 pub fn MainLayout(
-    /// User session data
-    user_session: UserSession,
-    /// On logout callback
-    on_logout: Box<dyn Fn()>,
     /// Page content
     children: Children,
 ) -> impl IntoView {
+    // Read session from context (provided by App root)
+    let session = use_context::<ReadSignal<Option<UserSession>>>()
+        .and_then(|sig| sig.get_untracked());
+
+    // Build logout handler that broadcasts + clears
+    let on_logout: Option<Box<dyn Fn()>> = Some(Box::new(move || {
+        #[cfg(target_arch = "wasm32")]
+        AuthService::broadcast_logout();
+
+        AuthService::logout();
+
+        // Update session signal if available
+        if let Some(set_session) = use_context::<WriteSignal<Option<UserSession>>>() {
+            set_session.set(None);
+        }
+
+        let nav = leptos_router::hooks::use_navigate();
+        nav("/portal/login", Default::default());
+    }));
+
     view! {
         <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-            <Navbar user_session=user_session.clone() on_logout=on_logout />
+            <Navbar user_session=session.clone() on_logout=on_logout />
 
             <div class="flex flex-1 min-h-0">
-                <SidebarNavigation user_session=user_session.clone() />
+                <SidebarNavigation user_session=session.clone() />
 
                 <main id="main-content" class="flex-1 min-w-0" role="main">
                     {children()}

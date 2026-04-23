@@ -90,7 +90,7 @@ async fn fetch_portal_dashboard() -> Result<PortalDashboardMetrics, String> {
 // ============================================================================
 
 #[component]
-pub fn PortalDashboardPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn PortalDashboardPage() -> impl IntoView {
     let metrics = LocalResource::new(|| async move { fetch_portal_dashboard().await });
 
     // Auto-refresh every 30 seconds
@@ -114,7 +114,7 @@ pub fn PortalDashboardPage(user_session: UserSession, on_logout: Box<dyn Fn()>) 
     }
 
     view! {
-        <MainLayout user_session=user_session.clone() on_logout=on_logout>
+        <MainLayout>
             <div class="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
                 // Header
                 <div class="flex items-center justify-between">

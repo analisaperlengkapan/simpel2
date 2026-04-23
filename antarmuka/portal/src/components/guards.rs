@@ -1,13 +1,90 @@
 //! Route Guard Components
 //!
-//! ProtectedRoute and AdminRoute wrappers for authenticated/admin-only pages.
-//! These guards use the global AppState to check authentication status.
+//! ## Layout Guards (recommended for new routes)
+//!
+//! Use `PortalAuthLayout` and `PortalAdminLayout` as `ParentRoute` views
+//! to protect all nested children automatically — like Next.js `layout.tsx`
+//! or Laravel `Route::middleware('auth')->group(...)`.
+//!
+//! ## Inline Guards (legacy)
+//!
+//! `SessionAuthGuard` and `SessionAdminGuard` wrap individual route views.
+//! Prefer the layout approach for new routes.
 
 use crate::features::auth::UserSession;
 use crate::pages::LoginPage;
 use crate::routes;
 use crate::utils::app_state::use_app_state;
 use leptos::prelude::*;
+
+// ============================================================================
+// LAYOUT GUARDS — wrap all child routes automatically (Next.js / Laravel style)
+// ============================================================================
+
+/// Authenticated layout guard for portal. Reads `user_session` from context
+/// (provided in App root). Unauthenticated visitors see the login page.
+/// Password-change redirect is enforced automatically.
+#[component]
+pub fn PortalAuthLayout(
+    /// Current user session signal
+    user_session: ReadSignal<Option<UserSession>>,
+    /// Login success writer for fallback login page
+    on_login_success: WriteSignal<Option<UserSession>>,
+) -> impl IntoView {
+    move || match user_session.get() {
+        Some(session) => {
+            if session.require_password_change {
+                let nav = leptos_router::hooks::use_navigate();
+                nav(
+                    &format!("/{}", routes::segment::PASSWORD),
+                    Default::default(),
+                );
+                view! { <div /> }.into_any()
+            } else {
+                view! { <leptos_router::components::Outlet /> }.into_any()
+            }
+        }
+        None => view! {
+            <LoginPage on_login_success=on_login_success />
+        }
+        .into_any(),
+    }
+}
+
+/// Admin layout guard for portal. Enforces admin role + password-change policy.
+#[component]
+pub fn PortalAdminLayout(
+    /// Current user session signal
+    user_session: ReadSignal<Option<UserSession>>,
+    /// Login success writer for fallback login page
+    on_login_success: WriteSignal<Option<UserSession>>,
+) -> impl IntoView {
+    move || match user_session.get() {
+        Some(session) => {
+            if session.require_password_change {
+                let nav = leptos_router::hooks::use_navigate();
+                nav(
+                    &format!("/{}", routes::segment::PASSWORD),
+                    Default::default(),
+                );
+                return view! { <div /> }.into_any();
+            }
+            if session.role.is_admin() {
+                view! { <leptos_router::components::Outlet /> }.into_any()
+            } else {
+                view! { <ForbiddenPage /> }.into_any()
+            }
+        }
+        None => view! {
+            <LoginPage on_login_success=on_login_success />
+        }
+        .into_any(),
+    }
+}
+
+// ============================================================================
+// INLINE GUARDS — legacy per-route wrappers (kept for backward compat)
+// ============================================================================
 
 /// A route wrapper that redirects to login if the user is not authenticated.
 ///
@@ -44,15 +121,11 @@ pub fn AdminRoute(children: Children) -> impl IntoView {
     }
 }
 
-/// Redirect to login page with loading spinner
+/// Redirect to login page with loading spinner (SPA navigation)
 #[component]
 fn RedirectToLogin() -> impl IntoView {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            let _ = window.location().set_href("/portal/login");
-        }
-    }
+    let nav = leptos_router::hooks::use_navigate();
+    nav("/portal/login", Default::default());
 
     view! {
         <div class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -82,6 +155,11 @@ pub fn ForbiddenPage() -> impl IntoView {
                 </p>
                 <a
                     href="/portal/dashboard"
+                    on:click=move |ev| {
+                        ev.prevent_default();
+                        let nav = leptos_router::hooks::use_navigate();
+                        nav("/portal/dashboard", Default::default());
+                    }
                     class="inline-flex items-center gap-2 px-5 py-2.5 bg-navy-700 hover:bg-navy-800 dark:bg-gold-500 dark:hover:bg-gold-600 text-white dark:text-navy-900 rounded-xl font-medium transition-colors shadow-sm"
                 >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
