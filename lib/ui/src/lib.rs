@@ -13,9 +13,12 @@
 //! shared/
 //! |-- core/          # Types, constants, theme
 //! |-- components/    # UI components (layout, forms, feedback, navigation, display)
-//! |-- hooks/         # Reusable hooks (storage, media query, debounce)
-//! `-- utils/         # Utilities (validation, formatters, helpers)
+//! |-- hooks/         # Domain hooks (auth, toast, form, search, announcer)
+//! `-- utils/         # Utilities (validation, formatters, helpers, storage)
 //! ```
+//!
+//! Generic primitives (debounce, throttle, storage, media query, keyboard events)
+//! come from `leptos_use` — re-exported via `lib_ui::prelude`.
 
 // Allow clippy warnings for common patterns in this crate
 #![allow(clippy::collapsible_if)]
@@ -58,8 +61,15 @@ pub mod prelude {
     pub use crate::components::layout::*;
     pub use crate::components::navigation::*;
 
-    // Hooks
+    // Hooks (domain-specific)
     pub use crate::hooks::*;
+
+    // Generic reactive primitives from leptos-use
+    pub use leptos_use::{
+        on_click_outside, use_debounce_fn, use_event_listener, use_interval_fn, use_media_query,
+        use_throttle_fn, use_window_focus,
+    };
+    pub use leptos_use::storage::{use_local_storage, use_session_storage};
 
     // Utils
     pub use crate::utils::*;

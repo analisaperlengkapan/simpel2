@@ -2,12 +2,13 @@
 //!
 //! Advanced UI untuk customizing theme colors, preview real-time, dan save preferences.
 
+use codee::string::JsonSerdeCodec;
 use leptos::prelude::*;
+use leptos_use::storage::use_local_storage;
 use serde::{Deserialize, Serialize};
 use web_sys::window;
 
 use crate::core::theme::{ThemeMode, apply_theme};
-use crate::hooks::use_storage;
 
 // ============================================================================
 // THEME CONFIGURATION
@@ -144,7 +145,8 @@ fn calculate_relative_luminance(hex: &str) -> f64 {
 #[component]
 pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl IntoView {
     // Load saved theme config or use default
-    let (config, set_config) = use_storage("simpelv2_theme_config", ThemeConfig::default());
+    let (config, set_config, _) =
+        use_local_storage::<ThemeConfig, JsonSerdeCodec>("simpelv2_theme_config");
 
     // Preview mode - apply changes temporarily
     let (preview_mode, set_preview_mode) = signal(false);

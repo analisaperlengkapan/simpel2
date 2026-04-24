@@ -231,7 +231,7 @@ pub fn use_auth() -> AuthContext {
 
 /// Load session from localStorage
 fn load_session_from_storage() -> Option<UserSession> {
-    use crate::hooks::load_from_storage;
+    use crate::utils::storage::load_from_storage;
     load_from_storage("user_session")
 }
 

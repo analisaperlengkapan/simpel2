@@ -347,6 +347,7 @@ leptos_dom = { version = "0.8.8" }
 # Leptos Ecosystem (awesome-leptos) - pinned for workspace consistency
 # See plan: /home/anbud02/.claude/plans/coba-kritisi-uraian-berikut-pure-rossum.md
 leptos-use = "0.18"
+codee = { version = "0.3", features = ["json_serde"] }
 leptos-fetch = "0.4"
 leptos-struct-table = "0.18"
 leptos-chartistry = "0.2.3"

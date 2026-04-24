@@ -2,11 +2,11 @@
 //!
 //! Support untuk custom logos dan color schemes per unit kerja dengan accessibility validation.
 
+use codee::string::JsonSerdeCodec;
 use leptos::prelude::*;
+use leptos_use::storage::{UseStorageOptions, use_local_storage_with_options};
 use serde::{Deserialize, Serialize};
 use web_sys::window;
-
-use crate::hooks::use_storage;
 
 // ============================================================================
 // BRANDING CONFIGURATION
@@ -218,9 +218,9 @@ pub fn BrandingProvider(
         .map(|u| BrandingConfig::for_unit(u))
         .unwrap_or_default();
 
-    let (branding, set_branding) = use_storage(
-        &format!("simpelv2_branding_{}", unit.as_deref().unwrap_or("default")),
-        default_config,
+    let (branding, set_branding, _) = use_local_storage_with_options::<BrandingConfig, JsonSerdeCodec>(
+        format!("simpelv2_branding_{}", unit.as_deref().unwrap_or("default")),
+        UseStorageOptions::default().initial_value(default_config),
     );
 
     // Apply branding on mount and when it changes
