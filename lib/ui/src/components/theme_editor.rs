@@ -148,6 +148,12 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
     let (config, set_config, _) =
         use_local_storage::<ThemeConfig, JsonSerdeCodec>("simpelv2_theme_config");
 
+    // Snapshot of the persisted config at editor open time, used by `cancel`
+    // to restore user-visible state. We can't rely on `config.get()` in cancel
+    // because `set_config.update(...)` from the preview handlers persists to
+    // localStorage immediately, overwriting the "saved" value.
+    let original_config = StoredValue::new(config.get_untracked());
+
     // Preview mode - apply changes temporarily
     let (preview_mode, set_preview_mode) = signal(false);
 
@@ -181,10 +187,11 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
         set_preview_mode.set(false);
     };
 
-    // Cancel and revert changes
+    // Cancel and revert changes to the snapshot captured on editor open.
     let cancel = move |_| {
-        // Reapply saved config
-        config.get().apply();
+        let saved = original_config.get_value();
+        set_config.set(saved.clone());
+        saved.apply();
         set_preview_mode.set(false);
 
         if let Some(on_close) = on_close {
