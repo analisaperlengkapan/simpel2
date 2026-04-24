@@ -25,6 +25,7 @@ leptos_router = { workspace = true }
 # Leptos ecosystem (Phase 1 foundation)
 leptos-use = { workspace = true }
 codee = { workspace = true }
+phosphor-leptos = { workspace = true }
 
 # Serialization
 serde = { workspace = true, features = ["derive"] }

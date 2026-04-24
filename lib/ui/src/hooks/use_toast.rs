@@ -27,7 +27,9 @@
 //! toast.error("Gagal menyimpan data.");
 //! ```
 
+use crate::components::icon::AppIcon;
 use leptos::prelude::*;
+use phosphor_leptos::{CHECK_CIRCLE, INFO, WARNING, WARNING_CIRCLE, X};
 
 // ============================================================================
 // TYPES
@@ -147,30 +149,30 @@ fn ToastOverlay(ctx: ToastContext) -> impl IntoView {
                 key=|item| item.id
                 children=move |item| {
                     let id = item.id;
-                    let (border, bg, icon_color, icon) = match item.variant {
+                    let (border, bg, icon_color, icon_data) = match item.variant {
                         ToastVariant::Success => (
                             "border-emerald-500/40",
                             "bg-emerald-950/90",
                             "text-emerald-400",
-                            "fas fa-check-circle",
+                            CHECK_CIRCLE,
                         ),
                         ToastVariant::Error => (
                             "border-red-500/40",
                             "bg-red-950/90",
                             "text-red-400",
-                            "fas fa-exclamation-circle",
+                            WARNING_CIRCLE,
                         ),
                         ToastVariant::Warning => (
                             "border-yellow-500/40",
                             "bg-yellow-950/90",
                             "text-yellow-400",
-                            "fas fa-exclamation-triangle",
+                            WARNING,
                         ),
                         ToastVariant::Info => (
                             "border-blue-500/40",
                             "bg-blue-950/90",
                             "text-blue-400",
-                            "fas fa-info-circle",
+                            INFO,
                         ),
                     };
 
@@ -179,14 +181,16 @@ fn ToastOverlay(ctx: ToastContext) -> impl IntoView {
                             "pointer-events-auto flex items-start gap-3 rounded-xl border {} {} px-4 py-3 shadow-lg backdrop-blur-sm min-w-[280px] max-w-sm animate-slide-in-right",
                             border, bg
                         )>
-                            <i class=format!("{} {} mt-0.5", icon, icon_color)></i>
+                            <span class=format!("{} mt-0.5", icon_color)>
+                                <AppIcon icon=icon_data size=18 />
+                            </span>
                             <p class="flex-1 text-sm text-slate-100">{item.message.clone()}</p>
                             <button
                                 type="button"
                                 class="text-slate-500 hover:text-slate-300 transition-colors"
                                 on:click=move |_| ctx.dismiss(id)
                             >
-                                <i class="fas fa-times text-xs"></i>
+                                <AppIcon icon=X size=12 />
                             </button>
                         </div>
                     }

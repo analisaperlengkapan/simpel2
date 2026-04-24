@@ -58,8 +58,12 @@ pub mod prelude {
     pub use crate::components::display::*;
     pub use crate::components::feedback::*;
     pub use crate::components::forms::*;
+    pub use crate::components::icon::*;
     pub use crate::components::layout::*;
     pub use crate::components::navigation::*;
+
+    // Icon catalogue — typed phosphor constants + weight enum
+    pub use phosphor_leptos;
 
     // Hooks (domain-specific)
     pub use crate::hooks::*;

@@ -5,6 +5,8 @@ use crate::features::auth::{AuthService, UserSession};
 use crate::routes;
 use leptos::prelude::*;
 use leptos_router::components::A;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{GEAR, SIGN_OUT, USER};
 
 /// Profile avatar button + dropdown with role switcher and logout.
 #[component]
@@ -35,7 +37,9 @@ pub fn ProfileMenu() -> impl IntoView {
                 class="hover:border-gold-400"
                 title="Profil"
             >
-                <i class="fas fa-user" style="font-size: 0.85rem; color: #d4a843;"></i>
+                <span style="color: #d4a843; display: inline-flex;">
+                    <AppIcon icon=USER size=14 />
+                </span>
             </button>
 
             // ── Dropdown panel ────────────────────────────────────
@@ -47,7 +51,9 @@ pub fn ProfileMenu() -> impl IntoView {
                 <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.06);">
                     <div style="display: flex; align-items: center; gap: 14px;">
                         <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #d4a843, #facc15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <i class="fas fa-user" style="font-size: 1.2rem; color: #0f172a;"></i>
+                            <span style="color: #0f172a; display: inline-flex;">
+                                <AppIcon icon=USER size=20 />
+                            </span>
                         </div>
                         <div>
                             <div style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">{display_name}</div>
@@ -65,7 +71,9 @@ pub fn ProfileMenu() -> impl IntoView {
                 // ── Actions ──────────────────────────────────────
                 <div style="padding: 8px;">
                     <A href=routes::path::ADMIN_MASTER attr:style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: #94a3b8; font-size: 0.82rem; transition: all 0.15s;" attr:class="hover:bg-white/[0.04] hover:text-white">
-                        <i class="fas fa-cog" style="width: 18px; text-align: center; font-size: 0.8rem;"></i>
+                        <span style="width: 18px; display: inline-flex; justify-content: center;">
+                            <AppIcon icon=GEAR size=14 />
+                        </span>
                         <span>"Pengaturan"</span>
                     </A>
                     <button
@@ -94,7 +102,9 @@ pub fn ProfileMenu() -> impl IntoView {
                             AuthService::clear_session();
                         }
                     >
-                        <i class="fas fa-sign-out-alt" style="width: 18px; text-align: center; font-size: 0.8rem;"></i>
+                        <span style="width: 18px; display: inline-flex; justify-content: center;">
+                            <AppIcon icon=SIGN_OUT size=14 />
+                        </span>
                         <span>"Keluar"</span>
                     </button>
                 </div>

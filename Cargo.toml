@@ -352,7 +352,7 @@ leptos-fetch = "0.4"
 leptos-struct-table = "0.18"
 leptos-chartistry = "0.2.3"
 floating-ui-leptos = "0.6.0"
-phosphor-leptos = "0.8.0"
+phosphor-leptos = { version = "0.8.0", features = ["all"] }
 leptos_animate = "0.1"
 tracing-subscriber-wasm = "0.1.0"
 
