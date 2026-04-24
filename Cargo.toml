@@ -91,6 +91,8 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = [
     "fmt",
     "std",
+    "tracing-log",
+    "ansi",
 ] }
 # Backend-only features for `tracing-subscriber`. Member crates that need
 # env-filter / JSON output (i.e. non-WASM services) MUST opt in explicitly
