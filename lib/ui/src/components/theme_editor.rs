@@ -167,11 +167,14 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
         }
     });
 
-    // Save theme configuration
+    // Save theme configuration. The signal value is already persisted to
+    // localStorage by `use_local_storage` on every preview update, so here we
+    // only need to apply visually and close. We also refresh the snapshot so a
+    // subsequent cancel wouldn't revert past this save point.
     let save_theme = move |_| {
         let current_config = config.get();
         current_config.apply();
-        set_config.set(current_config);
+        original_config.set_value(current_config);
         set_preview_mode.set(false);
 
         if let Some(on_close) = on_close {
@@ -208,11 +211,7 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
                         "Theme Editor"
                     </h2>
                     <button
-                        on:click=move |_| {
-                            if let Some(on_close) = on_close {
-                                on_close.run(());
-                            }
-                        }
+                        on:click=cancel
                         class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                         aria-label="Close"
                     >
