@@ -238,9 +238,9 @@ pub fn BrandingProvider(
 }
 
 /// Hook to access branding configuration
-pub fn use_branding() -> (ReadSignal<BrandingConfig>, WriteSignal<BrandingConfig>) {
+pub fn use_branding() -> (Signal<BrandingConfig>, WriteSignal<BrandingConfig>) {
     let branding =
-        use_context::<ReadSignal<BrandingConfig>>().expect("BrandingProvider not found in context");
+        use_context::<Signal<BrandingConfig>>().expect("BrandingProvider not found in context");
     let set_branding = use_context::<WriteSignal<BrandingConfig>>()
         .expect("BrandingProvider not found in context");
 
