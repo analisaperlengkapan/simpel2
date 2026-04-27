@@ -4,6 +4,7 @@
 
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{ARROW_CLOCKWISE, WARNING};
 use leptos_router::hooks::use_query_map;
@@ -153,6 +154,17 @@ async fn fetch_perlengkapan_dashboard(
         .json::<PerlengkapanDashboardMetrics>()
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("JSON parse error: {}", e)))
+}
+
+/// leptos-fetch query wrappers — keyed cache + dedup.
+async fn query_wilayah_options(_: ()) -> Result<Vec<WilayahOption>, crate::api::AppError> {
+    fetch_wilayah_options().await
+}
+
+async fn query_satker_options(
+    wilayah: Option<String>,
+) -> Result<Vec<SatkerOption>, crate::api::AppError> {
+    fetch_satker_options(wilayah).await
 }
 
 async fn fetch_wilayah_options() -> Result<Vec<WilayahOption>, crate::api::AppError> {
@@ -411,13 +423,15 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
         fetch_perlengkapan_dashboard(tahun_anggaran, wilayah_code(), satker_id()).await
     });
 
-    // Fetch wilayah options
+    // Fetch wilayah + satker options through the leptos-fetch cache
+    // — the same wilayah list is shared with any other component
+    // that asks for it, and per-wilayah satker lists each get their
+    // own cache slot keyed by `Option<String>`.
+    let client: QueryClient = expect_context();
     let wilayah_options_resource =
-        LocalResource::new(|| async move { fetch_wilayah_options().await });
-
-    // Fetch satker options (filtered by wilayah if applicable)
+        client.local_resource(query_wilayah_options, || ());
     let satker_options_resource =
-        LocalResource::new(move || async move { fetch_satker_options(wilayah_code()).await });
+        client.local_resource(query_satker_options, move || wilayah_code());
 
     // Build breadcrumb items based on drill-down level
     let breadcrumb_items = move || {

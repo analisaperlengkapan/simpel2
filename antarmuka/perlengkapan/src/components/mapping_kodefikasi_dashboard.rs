@@ -4,6 +4,7 @@
 //! with export capabilities (PDF/XLSX). No proposal/verification.
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -26,6 +27,18 @@ pub struct NonStandardCodeWithStatus {
     pub status_mapping: Option<String>,
     pub kode_baru: Option<String>,
     pub nama_baru: Option<String>,
+}
+
+/// leptos-fetch query — `()` key, returns `Option<MappingProgress>`
+/// (None on transport/HTTP error so the component can render a
+/// dedicated empty/error state without bubbling a `Result`).
+async fn query_mapping_progress(_: ()) -> Option<MappingProgress> {
+    fetch_mapping_progress()
+        .await
+        .map_err(|e| {
+            leptos::logging::error!("Failed to fetch mapping progress: {}", e);
+        })
+        .ok()
 }
 
 async fn fetch_mapping_progress() -> Result<MappingProgress, String> {
@@ -56,15 +69,10 @@ fn download_export(format: &str) {
 
 #[component]
 pub fn MappingKodefikasiDashboard() -> impl IntoView {
-    let progress = LocalResource::new(|| async move {
-        match fetch_mapping_progress().await {
-            Ok(data) => Some(data),
-            Err(e) => {
-                leptos::logging::error!("Failed to fetch mapping progress: {}", e);
-                None
-            }
-        }
-    });
+    // leptos-fetch — same shape as before, but the value is now
+    // de-duped + cached across mounts of this dashboard.
+    let client: QueryClient = expect_context();
+    let progress = client.local_resource(query_mapping_progress, || ());
 
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
