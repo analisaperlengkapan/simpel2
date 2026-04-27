@@ -1,4 +1,6 @@
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_CLOCKWISE, WARNING};
 
 use crate::api::AppError;
 
@@ -31,7 +33,7 @@ pub fn ErrorState(
              role="alert">
             <div class="flex items-start gap-3">
                 <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-danger-500/15 text-danger-400 ring-1 ring-danger-500/25">
-                    <i class="fas fa-triangle-exclamation text-sm"></i>
+                    <span class="text-sm"><AppIcon icon=WARNING /></span>
                 </span>
                 <div>
                     <h3 class="text-sm font-semibold text-white">{headline}</h3>
@@ -44,7 +46,7 @@ pub fn ErrorState(
                     on:click=handler
                     class="focus-ring inline-flex items-center gap-2 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs font-medium text-danger-100 transition hover:bg-danger-500/20"
                 >
-                    <i class="fas fa-rotate-right text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_CLOCKWISE /></span>
                     "Coba lagi"
                 </button>
             })}

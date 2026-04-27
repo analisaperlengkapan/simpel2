@@ -10,6 +10,8 @@ use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{LIST, PLUS, TRASH, WARNING_CIRCLE};
 use leptos::task::spawn_local;
 
 #[component]
@@ -73,7 +75,7 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     on:click=move |_| set_show_form.update(|v| *v = !*v)
                 >
-                    <i class="fas fa-plus text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=PLUS /></span>
                     "Tambah Jenis"
                 </button>
             </div>
@@ -83,7 +85,7 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                 <SectionCard title="Tambah Jenis Pakaian Dinas Baru">
                     <Show when=move || error_message.get().is_some()>
                         <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                            <i class="fas fa-exclamation-circle"></i>
+                            <AppIcon icon=WARNING_CIRCLE />
                             {move || error_message.get()}
                         </div>
                     </Show>
@@ -199,7 +201,7 @@ fn render_jenis_table(
                                                     class="text-success-400 transition hover:text-success-300"
                                                     title="Lihat Spesifikasi"
                                                 >
-                                                    <i class="fas fa-list text-xs"></i>
+                                                    <span class="text-xs"><AppIcon icon=LIST /></span>
                                                 </a>
                                                 <button
                                                     class="text-danger-400 transition hover:text-danger-300"
@@ -219,7 +221,7 @@ fn render_jenis_table(
                                                         }
                                                     }
                                                 >
-                                                    <i class="fas fa-trash text-xs"></i>
+                                                    <span class="text-xs"><AppIcon icon=TRASH /></span>
                                                 </button>
                                             </div>
                                         </td>

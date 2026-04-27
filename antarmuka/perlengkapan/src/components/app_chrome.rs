@@ -6,6 +6,8 @@
 //! `tailwind.config.js`.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{LIST};
 use leptos_router::components::A;
 
 use crate::APP_VERSION;
@@ -24,7 +26,7 @@ pub fn AppHeader(#[prop(into)] on_toggle_sidebar: Callback<()>) -> impl IntoView
                         class="focus-ring rounded-md p-1 text-slate-400 hover:text-slate-100 lg:hidden"
                         aria-label="Buka menu"
                     >
-                        <i class="fas fa-bars text-lg"></i>
+                        <span class="text-lg"><AppIcon icon=LIST /></span>
                     </button>
                     <A
                         href=routes::path::DASHBOARD

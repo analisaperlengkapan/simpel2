@@ -1,6 +1,8 @@
 use crate::api::{CreatePenghapusanBmnWorkflowRequest, create_penghapusan_bmn_workflow};
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{FLOPPY_DISK, SPINNER};
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
@@ -249,8 +251,8 @@ pub fn PenghapusanForm() -> impl IntoView {
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                         prop:disabled=move || form.submitting.get()
                     >
-                        <Show when=move || form.submitting.get() fallback=|| view! { <i class="fas fa-save"></i> }>
-                            <i class="fas fa-spinner fa-spin"></i>
+                        <Show when=move || form.submitting.get() fallback=|| view! { <AppIcon icon=FLOPPY_DISK /> }>
+                            <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                         </Show>
                         "Simpan Draft"
                     </button>

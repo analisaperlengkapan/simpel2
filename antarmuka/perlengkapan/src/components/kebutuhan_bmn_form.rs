@@ -9,6 +9,8 @@ use crate::api::{
 use crate::components::layout::{FormField, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_LEFT};
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::{use_navigate, use_params_map};
@@ -206,7 +208,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                 href=routes::path::KEBUTUHAN_DAFTAR
                 class="mb-4 inline-flex items-center gap-2 text-sm text-gold-400 transition hover:text-gold-300"
             >
-                <i class="fas fa-arrow-left text-xs"></i>
+                <span class="text-xs"><AppIcon icon=ARROW_LEFT /></span>
                 "Kembali ke Daftar"
             </a>
 

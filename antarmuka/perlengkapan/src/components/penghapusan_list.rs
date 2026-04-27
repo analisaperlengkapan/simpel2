@@ -4,6 +4,8 @@ use crate::components::page_header::PageHeader;
 use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{EYE};
 
 /// Returns (bg_class, text_class, label) for a given status_kode
 fn status_badge(kode: i32) -> (&'static str, &'static str, &'static str) {
@@ -131,7 +133,7 @@ pub fn PenghapusanList() -> impl IntoView {
                                                                 class="text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
                                                                 title="Lihat Detail"
                                                             >
-                                                                <i class="fas fa-eye"></i>
+                                                                <AppIcon icon=EYE />
                                                                 <span class="text-xs">"Detail"</span>
                                                             </a>
                                                         </td>

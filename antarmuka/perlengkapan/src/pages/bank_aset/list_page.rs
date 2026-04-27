@@ -1,6 +1,8 @@
 //! Bank Aset unified list — filter + search + pagination over SIMAN data.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, CHART_LINE, EYE, MAGNIFYING_GLASS, QR_CODE};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use web_sys::{Event, HtmlInputElement, HtmlSelectElement, SubmitEvent};
@@ -153,14 +155,14 @@ pub fn BankAsetListPage() -> impl IntoView {
                     href=path::BANK_ASET_DASHBOARD
                     attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
                 >
-                    <i class="fas fa-chart-line text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=CHART_LINE /></span>
                     "Dashboard"
                 </A>
                 <A
                     href=path::BANK_ASET_QRCODE
                     attr:class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                 >
-                    <i class="fas fa-qrcode text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=QR_CODE /></span>
                     "QR Code"
                 </A>
             }.into_any())
@@ -217,7 +219,7 @@ pub fn BankAsetListPage() -> impl IntoView {
                             type="submit"
                             class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                         >
-                            <i class="fas fa-magnifying-glass text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=MAGNIFYING_GLASS /></span>
                             "Terapkan"
                         </button>
                         <button
@@ -225,7 +227,7 @@ pub fn BankAsetListPage() -> impl IntoView {
                             on:click=reset_filters
                             class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
                         >
-                            <i class="fas fa-rotate-left text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=ARROW_COUNTER_CLOCKWISE /></span>
                             "Reset"
                         </button>
                     </div>
@@ -281,7 +283,7 @@ pub fn BankAsetListPage() -> impl IntoView {
                             disabled=move || page.get() <= 1 || loading.get()
                             class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
                         >
-                            <i class="fas fa-chevron-left text-[0.6rem]"></i>
+                            <span class="text-[0.6rem]"><AppIcon icon=CARET_LEFT /></span>
                             "Sebelumnya"
                         </button>
                         <button
@@ -291,7 +293,7 @@ pub fn BankAsetListPage() -> impl IntoView {
                             class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
                         >
                             "Selanjutnya"
-                            <i class="fas fa-chevron-right text-[0.6rem]"></i>
+                            <span class="text-[0.6rem]"><AppIcon icon=CARET_RIGHT /></span>
                         </button>
                     </div>
                 </div>
@@ -333,7 +335,7 @@ fn render_table(items: Vec<BankAsetItem>) -> impl IntoView {
                 <td class="py-3 text-right">
                     <A href=url::bank_aset_detail(&id)
                        attr:class="focus-ring inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[0.7rem] text-slate-200 transition hover:bg-white/[0.08]">
-                        <i class="fas fa-eye text-[0.6rem]"></i>
+                        <span class="text-[0.6rem]"><AppIcon icon=EYE /></span>
                         "Detail"
                     </A>
                 </td>

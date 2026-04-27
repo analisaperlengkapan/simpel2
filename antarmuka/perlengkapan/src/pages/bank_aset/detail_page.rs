@@ -1,6 +1,8 @@
 //! Bank Aset detail page — shows SIMAN record + riwayat tabs.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::ARROW_LEFT;
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
@@ -73,7 +75,7 @@ pub fn BankAsetDetailPage() -> impl IntoView {
                     href=path::BANK_ASET_DAFTAR
                     attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
                 >
-                    <i class="fas fa-arrow-left text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_LEFT /></span>
                     "Kembali ke Daftar"
                 </A>
             }.into_any())
@@ -194,7 +196,7 @@ fn TabButton(
                 }
             }
         >
-            <i class=format!("{} text-[0.65rem]", icon)></i>
+            <AppIcon icon=icon_from_fa_class(icon) size=10 />
             {label}
         </button>
     }

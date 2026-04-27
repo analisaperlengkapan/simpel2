@@ -4,6 +4,8 @@
 //! Requirements: REQ-K004
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHECK, CHECK_CIRCLE, CHECK_SQUARE, DOTS_THREE, SPINNER, WARNING, X};
 use uuid::Uuid;
 
 use crate::api::{batch_approve_kebutuhan, batch_reject_kebutuhan};
@@ -100,7 +102,7 @@ pub fn BatchOperationsToolbar(
                 <div class="bg-white rounded-lg shadow-2xl border border-gray-200 p-4 flex items-center gap-4">
                     // Selection count
                     <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
-                        <i class="fas fa-check-square text-blue-600"></i>
+                        <span class="text-blue-600"><AppIcon icon=CHECK_SQUARE /></span>
                         <span class="font-semibold text-blue-900">
                             {move || selected_count.get()}
                             " item dipilih"
@@ -115,7 +117,7 @@ pub fn BatchOperationsToolbar(
                             on:click=move |_| set_show_approve_dialog.set(true)
                             disabled=move || is_processing.get()
                         >
-                            <i class="fas fa-check mr-2"></i>
+                            <span class="mr-2"><AppIcon icon=CHECK /></span>
                             "Setujui"
                         </button>
 
@@ -125,7 +127,7 @@ pub fn BatchOperationsToolbar(
                             on:click=move |_| set_show_reject_dialog.set(true)
                             disabled=move || is_processing.get()
                         >
-                            <i class="fas fa-times mr-2"></i>
+                            <span class="mr-2"><AppIcon icon=X /></span>
                             "Tolak"
                         </button>
 
@@ -135,7 +137,7 @@ pub fn BatchOperationsToolbar(
                             on:click=move |_| set_show_status_dialog.set(true)
                             disabled=move || is_processing.get()
                         >
-                            <i class="fas fa-ellipsis-h mr-2"></i>
+                            <span class="mr-2"><AppIcon icon=DOTS_THREE /></span>
                             "Lainnya"
                         </button>
                     </div>
@@ -185,7 +187,7 @@ fn BatchApproveDialog(
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-check text-green-600 text-xl"></i>
+                        <span class="text-green-600 text-xl"><AppIcon icon=CHECK /></span>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">"Konfirmasi Approval"</h3>
@@ -221,7 +223,7 @@ fn BatchApproveDialog(
                         disabled=move || is_processing.get()
                     >
                         <Show when=move || is_processing.get()>
-                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            <span class="fa-spin mr-2"><AppIcon icon=SPINNER /></span>
                         </Show>
                         "Ya, Setujui"
                     </button>
@@ -246,7 +248,7 @@ fn BatchRejectDialog(
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-times text-red-600 text-xl"></i>
+                        <span class="text-red-600 text-xl"><AppIcon icon=X /></span>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">"Konfirmasi Penolakan"</h3>
@@ -300,7 +302,7 @@ fn BatchRejectDialog(
                         disabled=move || is_processing.get() || reject_reason.get().len() < 10
                     >
                         <Show when=move || is_processing.get()>
-                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            <span class="fa-spin mr-2"><AppIcon icon=SPINNER /></span>
                         </Show>
                         "Ya, Tolak"
                     </button>
@@ -323,13 +325,15 @@ pub fn BatchResultSummary(
                 let bg_color = if is_success { "bg-green-50" } else { "bg-yellow-50" };
                 let border_color = if is_success { "border-green-200" } else { "border-yellow-200" };
                 let icon_color = if is_success { "text-green-600" } else { "text-yellow-600" };
-                let icon = if is_success { "fa-check-circle" } else { "fa-exclamation-triangle" };
+                let icon = if is_success { CHECK_CIRCLE } else { WARNING };
 
                 view! {
                     <div class=format!("mb-6 p-4 {} border {} rounded-lg", bg_color, border_color)>
                         <div class="flex items-start justify-between">
                             <div class="flex items-start gap-3">
-                                <i class=format!("fas {} {} text-xl mt-1", icon, icon_color)></i>
+                                <span class=format!("mt-1 inline-flex {}", icon_color)>
+                                    <AppIcon icon=icon size=20 />
+                                </span>
                                 <div>
                                     <h4 class="font-semibold text-gray-900 mb-1">
                                         {if is_success {
@@ -364,7 +368,7 @@ pub fn BatchResultSummary(
                                 class="text-gray-400 hover:text-gray-600"
                                 on:click=move |_| on_close.run(())
                             >
-                                <i class="fas fa-times"></i>
+                                <AppIcon icon=X />
                             </button>
                         </div>
                     </div>

@@ -12,6 +12,8 @@ use crate::components::layout::{
 };
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{CHECK_CIRCLE, FLOPPY_DISK, INFO, WARNING_CIRCLE};
 use leptos::task::spawn_local;
 
 #[component]
@@ -91,13 +93,13 @@ pub fn UkuranPegawai(
             // Messages
             <Show when=move || success_message.get().is_some()>
                 <div class="mt-4 flex items-center gap-2 rounded-xl border border-success-500/30 bg-success-500/[0.08] px-4 py-3 text-sm text-success-300">
-                    <i class="fas fa-check-circle"></i>
+                    <AppIcon icon=CHECK_CIRCLE />
                     {move || success_message.get()}
                 </div>
             </Show>
             <Show when=move || error_message.get().is_some()>
                 <div class="mt-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     {move || error_message.get()}
                 </div>
             </Show>
@@ -149,7 +151,7 @@ pub fn UkuranPegawai(
                                                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                                                     prop:disabled=move || is_saving.get()
                                                 >
-                                                    <i class="fas fa-save text-xs"></i>
+                                                    <span class="text-xs"><AppIcon icon=FLOPPY_DISK /></span>
                                                     {move || if is_saving.get() { "Menyimpan..." } else { "Simpan Ukuran" }}
                                                 </button>
                                             </div>
@@ -166,15 +168,15 @@ pub fn UkuranPegawai(
             <SectionCard title="Panduan Pengukuran">
                 <ul class="flex flex-col gap-2 text-sm text-slate-300">
                     <li class="flex items-start gap-2">
-                        <i class="fas fa-info-circle mt-0.5 text-xs text-gold-400 shrink-0"></i>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
                         <span><strong class="text-slate-100">"Baju:"</strong>" Ukur lingkar dada pada bagian terlebar, pilih ukuran yang sesuai."</span>
                     </li>
                     <li class="flex items-start gap-2">
-                        <i class="fas fa-info-circle mt-0.5 text-xs text-gold-400 shrink-0"></i>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
                         <span><strong class="text-slate-100">"Celana:"</strong>" Ukur lingkar pinggang pada posisi normal."</span>
                     </li>
                     <li class="flex items-start gap-2">
-                        <i class="fas fa-info-circle mt-0.5 text-xs text-gold-400 shrink-0"></i>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
                         <span><strong class="text-slate-100">"Sepatu:"</strong>" Ukur panjang kaki dari tumit ke ujung jari terpanjang."</span>
                     </li>
                 </ul>
@@ -195,7 +197,7 @@ fn render_size_select(
     view! {
         <div class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
             <label class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-200">
-                <i class=icon_class></i>
+                <AppIcon icon=icon_from_fa_class(icon_class) size=14 />
                 {label}
             </label>
             <select

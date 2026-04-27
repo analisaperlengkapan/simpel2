@@ -9,6 +9,8 @@ use crate::components::layout::{
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, CHECK_CIRCLE, CLOCK, FILE_ARROW_DOWN, PAPER_PLANE_TILT, WARNING_CIRCLE, X};
 use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -196,14 +198,14 @@ pub fn ReviewPage() -> impl IntoView {
         >
             <Show when=move || success_message.get().is_some()>
                 <div class="flex items-center gap-2 rounded-xl border border-success-500/30 bg-success-500/[0.08] px-4 py-3 text-sm text-success-300">
-                    <i class="fas fa-check-circle"></i>
+                    <AppIcon icon=CHECK_CIRCLE />
                     <span>{move || success_message.get().unwrap_or_default()}</span>
                 </div>
             </Show>
 
             <Show when=move || action_error.get().is_some() && !show_action_modal.get()>
                 <div class="flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     <span>{move || action_error.get().unwrap_or_default()}</span>
                 </div>
             </Show>
@@ -276,7 +278,7 @@ pub fn ReviewPage() -> impl IntoView {
                                                             <span class="font-medium text-info-300">{status_label}</span>
                                                         </div>
                                                         <div class="mt-1 text-xs text-slate-500">
-                                                            <i class="far fa-clock mr-1"></i>
+                                                            <span class="mr-1"><AppIcon icon=CLOCK /></span>
                                                             {created_label}
                                                         </div>
                                                     </button>
@@ -426,7 +428,7 @@ fn DetailPanel(
                                                         rel="noopener"
                                                         class="inline-flex items-center gap-2 text-xs font-medium text-gold-300 transition hover:text-gold-200"
                                                     >
-                                                        <i class="fas fa-file-arrow-down"></i>
+                                                        <AppIcon icon=FILE_ARROW_DOWN />
                                                         <span>"Unduh dokumen"</span>
                                                     </a>
                                                 }).collect_view()}
@@ -505,7 +507,7 @@ fn DetailPanel(
                         on:click=move |_| on_return.run(())
                         disabled=move || action_loading.get()
                     >
-                        <i class="fas fa-rotate-left"></i>
+                        <AppIcon icon=ARROW_COUNTER_CLOCKWISE />
                         "Kembalikan untuk Revisi"
                     </button>
                     <button
@@ -514,7 +516,7 @@ fn DetailPanel(
                         on:click=move |_| on_forward.run(())
                         disabled=move || action_loading.get()
                     >
-                        <i class="fas fa-paper-plane"></i>
+                        <AppIcon icon=PAPER_PLANE_TILT />
                         "Teruskan ke Validator Pusat"
                     </button>
                 </div>
@@ -626,14 +628,14 @@ fn ActionModal(
                         on:click=move |_| on_close.run(())
                         aria-label="Tutup"
                     >
-                        <i class="fas fa-xmark"></i>
+                        <AppIcon icon=X />
                     </button>
                 </div>
                 <p class="mt-2 text-sm leading-relaxed text-slate-400">{description}</p>
 
                 <Show when=move || action_error.get().is_some()>
                     <div class="mt-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                        <i class="fas fa-exclamation-circle"></i>
+                        <AppIcon icon=WARNING_CIRCLE />
                         <span>{move || action_error.get().unwrap_or_default()}</span>
                     </div>
                 </Show>

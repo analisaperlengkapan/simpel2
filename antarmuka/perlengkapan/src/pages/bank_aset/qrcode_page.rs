@@ -1,6 +1,8 @@
 //! Bank Aset QR code generator — batch-ready label printer.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_LEFT, CHECKS, ERASER, MAGNIFYING_GLASS, PRINTER, X};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use std::collections::HashSet;
@@ -178,7 +180,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                     href=path::BANK_ASET_DAFTAR
                     attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
                 >
-                    <i class="fas fa-arrow-left text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_LEFT /></span>
                     "Kembali"
                 </A>
             }.into_any())
@@ -221,7 +223,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                         type="submit"
                         class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     >
-                        <i class="fas fa-magnifying-glass text-xs"></i>
+                        <span class="text-xs"><AppIcon icon=MAGNIFYING_GLASS /></span>
                         "Cari"
                     </button>
                 </form>
@@ -240,7 +242,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                         on:click=select_all
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
                     >
-                        <i class="fas fa-check-double text-[0.6rem]"></i>
+                        <span class="text-[0.6rem]"><AppIcon icon=CHECKS /></span>
                         "Pilih semua"
                     </button>
                     <button
@@ -248,7 +250,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                         on:click=clear_all
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
                     >
-                        <i class="fas fa-eraser text-[0.6rem]"></i>
+                        <span class="text-[0.6rem]"><AppIcon icon=ERASER /></span>
                         "Bersihkan"
                     </button>
                     <button
@@ -257,7 +259,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                         disabled=move || selected.get().is_empty()
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
                     >
-                        <i class="fas fa-print text-[0.6rem]"></i>
+                        <span class="text-[0.6rem]"><AppIcon icon=PRINTER /></span>
                         "Pratinjau & Cetak"
                     </button>
                 }.into_any())
@@ -302,7 +304,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                                     on:click=print_labels
                                     class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                                 >
-                                    <i class="fas fa-print text-[0.7rem]"></i>
+                                    <span class="text-[0.7rem]"><AppIcon icon=PRINTER /></span>
                                     "Cetak"
                                 </button>
                                 <button
@@ -310,7 +312,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                                     on:click=close_preview
                                     class="focus-ring inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
                                 >
-                                    <i class="fas fa-xmark text-[0.7rem]"></i>
+                                    <span class="text-[0.7rem]"><AppIcon icon=X /></span>
                                     "Tutup"
                                 </button>
                             </div>

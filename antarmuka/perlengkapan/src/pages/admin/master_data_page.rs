@@ -6,6 +6,11 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{
+    ARROW_LEFT, ARROW_RIGHT, CARET_LEFT, CARET_RIGHT, CHECK, CLOCK, MAGNIFYING_GLASS, MINUS, PENCIL,
+    PLUS, TRASH, WARNING, X,
+};
 use leptos::task::spawn_local;
 use web_sys::SubmitEvent;
 
@@ -107,7 +112,7 @@ fn SourceGrid(
                     >
                         <div class="flex w-full items-start justify-between gap-3">
                             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
-                                <i class=icon_class></i>
+                                <AppIcon icon=icon_from_fa_class(&icon_class) size=18 />
                             </span>
                             <span class="rounded-lg border border-info-500/30 bg-info-500/10 px-2 py-0.5 text-[0.7rem] font-semibold text-info-300">
                                 {format!("{} record", source.record_count)}
@@ -123,13 +128,13 @@ fn SourceGrid(
                         </div>
                         <div class="mt-auto flex w-full items-center justify-between gap-2 text-[0.7rem] text-slate-500">
                             <span>
-                                <i class="fas fa-clock mr-1 text-[0.65rem]"></i>
+                                <span class="mr-1 text-[0.65rem]"><AppIcon icon=CLOCK /></span>
                                 "Diperbarui: "
                                 {updated}
                             </span>
                             <span class="font-semibold text-gold-400">
                                 "Kelola"
-                                <i class="fas fa-arrow-right ml-1 text-[0.65rem]"></i>
+                                <span class="ml-1 text-[0.65rem]"><AppIcon icon=ARROW_RIGHT /></span>
                             </span>
                         </div>
                     </button>
@@ -229,7 +234,7 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
                     class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/[0.08]"
                     on:click=move |_| on_back.run(())
                 >
-                    <i class="fas fa-arrow-left mr-1.5"></i>
+                    <span class="mr-1.5"><AppIcon icon=ARROW_LEFT /></span>
                     "Kembali"
                 </button>
                 <button
@@ -237,7 +242,7 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
                     class="focus-ring rounded-lg bg-gold-gradient px-3 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
                     on:click=move |_| set_show_create.set(true)
                 >
-                    <i class="fas fa-plus mr-1.5"></i>
+                    <span class="mr-1.5"><AppIcon icon=PLUS /></span>
                     "Tambah"
                 </button>
             }.into_any())
@@ -254,7 +259,7 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
                     type="submit"
                     class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/[0.08]"
                 >
-                    <i class="fas fa-magnifying-glass"></i>
+                    <AppIcon icon=MAGNIFYING_GLASS />
                 </button>
             </form>
 
@@ -383,13 +388,13 @@ fn RecordTable(
                                     {if active {
                                         view! {
                                             <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-success-500/30 bg-success-500/15 text-success-400">
-                                                <i class="fas fa-check text-[0.65rem]"></i>
+                                                <span class="text-[0.65rem]"><AppIcon icon=CHECK /></span>
                                             </span>
                                         }.into_any()
                                     } else {
                                         view! {
                                             <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.06] bg-white/[0.02] text-slate-500">
-                                                <i class="fas fa-minus text-[0.65rem]"></i>
+                                                <span class="text-[0.65rem]"><AppIcon icon=MINUS /></span>
                                             </span>
                                         }.into_any()
                                     }}
@@ -402,7 +407,7 @@ fn RecordTable(
                                             title="Edit"
                                             on:click=move |_| set_editing.set(Some(rec_edit.clone()))
                                         >
-                                            <i class="fas fa-pen"></i>
+                                            <AppIcon icon=PENCIL />
                                         </button>
                                         <button
                                             type="button"
@@ -410,7 +415,7 @@ fn RecordTable(
                                             title="Hapus"
                                             on:click=move |_| set_deleting.set(Some(rec_del.clone()))
                                         >
-                                            <i class="fas fa-trash"></i>
+                                            <AppIcon icon=TRASH />
                                         </button>
                                     </div>
                                 </td>
@@ -466,7 +471,7 @@ fn PaginationRow(
                     prop:disabled=move || page.get() <= 1
                     on:click=prev_handler
                 >
-                    <i class="fas fa-chevron-left mr-1"></i>
+                    <span class="mr-1"><AppIcon icon=CARET_LEFT /></span>
                     "Sebelumnya"
                 </button>
                 <button
@@ -476,7 +481,7 @@ fn PaginationRow(
                     on:click=next_handler
                 >
                     "Berikutnya"
-                    <i class="fas fa-chevron-right ml-1"></i>
+                    <span class="ml-1"><AppIcon icon=CARET_RIGHT /></span>
                 </button>
             </div>
         </div>
@@ -568,14 +573,14 @@ fn RecordEditorModal(
                         class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] p-2 text-slate-300 transition hover:bg-white/[0.08]"
                         on:click=move |_| on_close.run(())
                     >
-                        <i class="fas fa-times"></i>
+                        <AppIcon icon=X />
                     </button>
                 </header>
 
                 <div class="flex-1 overflow-y-auto p-6">
                     {move || error.get().map(|msg| view! {
                         <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
-                            <i class="fas fa-exclamation-triangle mt-0.5 text-danger-400"></i>
+                            <span class="mt-0.5 text-danger-400"><AppIcon icon=WARNING /></span>
                             <div class="text-xs text-danger-100">{msg}</div>
                         </div>
                     })}
@@ -674,7 +679,7 @@ fn ConfirmDeleteModal(
             <div class="w-full max-w-md rounded-2xl border border-white/[0.08] bg-surface-panel p-6 shadow-panel">
                 <div class="mb-5 flex flex-col items-center text-center">
                     <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-danger-500/30 bg-danger-500/10 text-danger-400">
-                        <i class="fas fa-exclamation-triangle text-xl"></i>
+                        <span class="text-xl"><AppIcon icon=WARNING /></span>
                     </div>
                     <h2 class="text-lg font-bold text-white">"Hapus Record?"</h2>
                     <p class="mt-2 text-sm text-slate-400">

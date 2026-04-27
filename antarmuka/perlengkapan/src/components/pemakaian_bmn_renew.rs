@@ -5,6 +5,8 @@
 
 use crate::api::{RenewPermitRequest, fetch_pemakaian_bmn_detail, renew_pemakaian_bmn};
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_CLOCKWISE, CHECK_CIRCLE, SPINNER, WARNING_CIRCLE};
 use leptos_router::hooks::{use_navigate, use_params_map};
 
 #[component]
@@ -77,7 +79,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
         <div class="max-w-4xl mx-auto p-6">
             <Suspense fallback=move || view! {
                 <div class="p-8 text-center">
-                    <i class="fas fa-spinner fa-spin text-2xl text-gray-400 mb-2"></i>
+                    <span class="fa-spin text-2xl text-gray-400 mb-2"><AppIcon icon=SPINNER /></span>
                     <p class="text-gray-600">"Memuat data..."</p>
                 </div>
             }>
@@ -108,14 +110,14 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
 
                                 <Show when=move || success.get()>
                                     <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
-                                        <i class="fas fa-check-circle"></i>
+                                        <AppIcon icon=CHECK_CIRCLE />
                                         "Izin berhasil diperpanjang!"
                                     </div>
                                 </Show>
 
                                 <Show when=move || error.get().is_some()>
                                     <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2">
-                                        <i class="fas fa-exclamation-circle"></i>
+                                        <AppIcon icon=WARNING_CIRCLE />
                                         {error.get()}
                                     </div>
                                 </Show>
@@ -168,8 +170,8 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
                                             class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                                             prop:disabled=move || loading.get()
                                         >
-                                            <Show when=move || loading.get() fallback=|| view! { <i class="fas fa-redo"></i> }>
-                                                <i class="fas fa-spinner fa-spin"></i>
+                                            <Show when=move || loading.get() fallback=|| view! { <AppIcon icon=ARROW_CLOCKWISE /> }>
+                                                <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                                             </Show>
                                             "Perpanjang Izin"
                                         </button>
@@ -179,7 +181,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
                         }.into_any()
                     }).unwrap_or_else(|| view! {
                         <div class="p-12 text-center">
-                            <i class="fas fa-exclamation-circle text-5xl text-red-300 mb-4"></i>
+                            <span class="text-5xl text-red-300 mb-4"><AppIcon icon=WARNING_CIRCLE /></span>
                             <p class="text-gray-600 text-lg">"Data tidak ditemukan"</p>
                         </div>
                     }.into_any())

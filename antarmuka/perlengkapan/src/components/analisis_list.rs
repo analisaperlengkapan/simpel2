@@ -2,6 +2,8 @@ use crate::api::{AnalisisKebutuhan, fetch_analisis};
 use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHART_PIE, EYE, PLUS};
 
 #[component]
 pub fn AnalisisList() -> impl IntoView {
@@ -29,7 +31,7 @@ pub fn AnalisisList() -> impl IntoView {
                     href=routes::path::ANALISIS_BUAT_LEGACY
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
                 >
-                    <i class="fas fa-plus mr-2"></i>
+                    <span class="mr-2"><AppIcon icon=PLUS /></span>
                     "Buat Analisis Baru"
                 </a>
             </div>
@@ -40,7 +42,7 @@ pub fn AnalisisList() -> impl IntoView {
                         if response.data.is_empty() {
                             view! {
                                 <div class="text-center py-12 text-gray-500">
-                                    <i class="fas fa-chart-pie text-4xl mb-3 text-gray-300"></i>
+                                    <span class="text-4xl mb-3 text-gray-300"><AppIcon icon=CHART_PIE /></span>
                                     <p>"Belum ada data analisis kebutuhan."</p>
                                 </div>
                             }.into_any()
@@ -101,7 +103,7 @@ pub fn AnalisisList() -> impl IntoView {
                                                         <td class="p-3">
                                                             <div class="flex gap-2">
                                                                 <button class="text-blue-600 hover:text-blue-800" title="Detail">
-                                                                    <i class="fas fa-eye"></i>
+                                                                    <AppIcon icon=EYE />
                                                                 </button>
                                                             </div>
                                                         </td>

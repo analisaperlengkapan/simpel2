@@ -1,6 +1,8 @@
 //! Bank Aset sebaran — per-satker distribution.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{LIST};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 
@@ -49,7 +51,7 @@ pub fn BankAsetSebaranPage() -> impl IntoView {
                     href=path::BANK_ASET_DAFTAR
                     attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
                 >
-                    <i class="fas fa-list text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=LIST /></span>
                     "Daftar Aset"
                 </A>
             }.into_any())

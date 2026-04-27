@@ -1,6 +1,8 @@
 //! Laporan Kebutuhan BMN — report page with filters and export.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{FILE_PDF, FILE_XLS};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct KebutuhanBmnItem {
@@ -42,10 +44,10 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                 </div>
                 <div style="display: flex; gap: 8px;">
                     <button style="padding: 8px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #94a3b8; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
-                        <i class="fas fa-file-excel" style="margin-right: 6px; color: #34d399;"></i> "Export XLSX"
+                        <span style="margin-right: 6px; color: #34d399;"><AppIcon icon=FILE_XLS /></span> "Export XLSX"
                     </button>
                     <button style="padding: 8px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #94a3b8; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
-                        <i class="fas fa-file-pdf" style="margin-right: 6px; color: #f87171;"></i> "Export PDF"
+                        <span style="margin-right: 6px; color: #f87171;"><AppIcon icon=FILE_PDF /></span> "Export PDF"
                     </button>
                 </div>
             </div>

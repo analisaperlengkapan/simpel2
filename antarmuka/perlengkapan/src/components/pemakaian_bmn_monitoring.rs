@@ -8,6 +8,8 @@ use crate::api::{
     fetch_expiring_permits, fetch_pegawai_usage_history,
 };
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{MAGNIFYING_GLASS, SPINNER, WARNING};
 
 #[component]
 pub fn PemakaianBmnMonitoring() -> impl IntoView {
@@ -75,12 +77,12 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             // Expiring Permits Alert
             <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <i class="fas fa-exclamation-triangle text-yellow-500"></i>
+                    <span class="text-yellow-500"><AppIcon icon=WARNING /></span>
                     "Izin yang Akan Berakhir (30 Hari)"
                 </h3>
                 <Suspense fallback=move || view! {
                     <div class="text-center py-4">
-                        <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                        <span class="fa-spin text-gray-400"><AppIcon icon=SPINNER /></span>
                     </div>
                 }>
                     {move || {
@@ -161,8 +163,8 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         on:click=handle_search
                         prop:disabled=move || searching.get() || search_query.get().is_empty()
                     >
-                        <Show when=move || searching.get() fallback=|| view! { <i class="fas fa-search"></i> }>
-                            <i class="fas fa-spinner fa-spin"></i>
+                        <Show when=move || searching.get() fallback=|| view! { <AppIcon icon=MAGNIFYING_GLASS /> }>
+                            <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                         </Show>
                     </button>
                 </div>

@@ -13,6 +13,8 @@
 use crate::{navigation, routes};
 use leptos::prelude::*;
 use leptos_router::components::A;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::CARET_RIGHT;
 
 // ══════════════════════════════════════════════════════════════════════
 // Helper: section header
@@ -47,7 +49,9 @@ fn NavLink(
             )
             attr:class="hover:bg-white/[0.04] hover:text-white hover:border-l-gold-400"
         >
-            <i class=icon style=format!("font-size: 0.7rem; color: {}; width: 18px; text-align: center;", icon_color)></i>
+            <span style=format!("color: {}; width: 18px; display: inline-flex; justify-content: center;", icon_color)>
+                <AppIcon icon=icon_from_fa_class(icon) size=12 />
+            </span>
             <span>{label}</span>
         </A>
     }
@@ -68,12 +72,16 @@ fn NavSection(group: navigation::NavGroup) -> impl IntoView {
                 style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 18px; border: none; background: none; color: #94a3b8; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; text-align: left;"
                 class="hover:bg-white/[0.04] hover:text-white"
             >
-                <i class=group.icon style=format!("font-size: 0.72rem; color: {}; width: 18px; text-align: center;", group.accent)></i>
+                <span style=format!("color: {}; width: 18px; display: inline-flex; justify-content: center;", group.accent)>
+                    <AppIcon icon=icon_from_fa_class(group.icon) size=12 />
+                </span>
                 <span style="flex: 1;">{group.label}</span>
-                <i class="fas fa-chevron-right" style=move || format!(
-                    "font-size: 0.55rem; color: #475569; transition: transform 0.2s; transform: rotate({}deg);",
+                <span style=move || format!(
+                    "color: #475569; transition: transform 0.2s; transform: rotate({}deg); display: inline-flex;",
                     if is_open.get() { 90 } else { 0 }
-                )></i>
+                )>
+                    <AppIcon icon=CARET_RIGHT size=10 />
+                </span>
             </button>
             <div style=move || format!(
                 "overflow: hidden; transition: max-height 0.25s ease; max-height: {};",

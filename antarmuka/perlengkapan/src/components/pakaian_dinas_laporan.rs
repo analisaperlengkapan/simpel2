@@ -10,6 +10,8 @@ use crate::api::{
 };
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{CHART_PIE, FILE_PDF, FILE_XLS, USERS};
 
 // ── Helper: build export URL from current filter state ────────────────────
 fn build_export_url(
@@ -114,11 +116,11 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
             // Tabs
             <div class="mb-5 flex border-b border-white/[0.06]">
                 <button class=move || tab_class("rekap") on:click=move |_| set_active_tab.set("rekap")>
-                    <i class="fas fa-chart-pie text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=CHART_PIE /></span>
                     "Rekap Ukuran"
                 </button>
                 <button class=move || tab_class("pegawai") on:click=move |_| set_active_tab.set("pegawai")>
-                    <i class="fas fa-users text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=USERS /></span>
                     "Daftar Pegawai"
                 </button>
             </div>
@@ -239,7 +241,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         open_url(&url);
                     }
                 >
-                    <i class="fas fa-file-excel text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=FILE_XLS /></span>
                     "Cetak Excel"
                 </button>
                 <button
@@ -249,7 +251,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         open_url(&url);
                     }
                 >
-                    <i class="fas fa-file-pdf text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=FILE_PDF /></span>
                     "Cetak PDF"
                 </button>
             </div>
@@ -380,7 +382,9 @@ fn render_rekap_table(group_name: String, items: Vec<LaporanRekapUkuran>) -> imp
         <div class=format!("overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel ring-1 {}", ring)>
             // Group header
             <div class=format!("flex items-center gap-3 px-5 py-3 {}", header_bg)>
-                <i class=format!("{} text-sm {}", icon, header_text)></i>
+                <span class=format!("inline-flex {}", header_text)>
+                    <AppIcon icon=icon_from_fa_class(icon) size=14 />
+                </span>
                 <h4 class=format!("text-sm font-semibold {}", header_text)>
                     {format!("{} ({})", group_name, ukuran_group)}
                 </h4>

@@ -72,6 +72,8 @@
 //! ```
 
 use leptos::prelude::*;
+use crate::components::icon::AppIcon;
+use phosphor_leptos::{WARNING_CIRCLE};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -357,7 +359,7 @@ where
     view! {
         <Show when=move || message().is_some()>
             <p class="mt-1 flex items-center gap-1.5 text-xs text-red-400">
-                <i class="fas fa-exclamation-circle text-[0.7rem]"></i>
+                <span class="text-[0.7rem]"><AppIcon icon=WARNING_CIRCLE /></span>
                 {move || message().unwrap_or_default()}
             </p>
         </Show>

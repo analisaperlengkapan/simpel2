@@ -1,6 +1,8 @@
 //! Simple delete-confirmation modal used by the workflow admin page.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{WARNING};
 use leptos::task::spawn_local;
 
 use crate::api::workflow::delete_workflow_definition;
@@ -43,7 +45,7 @@ pub fn DeleteConfigModal(
             <div class="w-full max-w-md rounded-2xl border border-white/[0.08] bg-surface-panel p-6 shadow-panel">
                 <div class="mb-5 flex flex-col items-center text-center">
                     <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-danger-500/30 bg-danger-500/10 text-danger-400">
-                        <i class="fas fa-exclamation-triangle text-xl"></i>
+                        <span class="text-xl"><AppIcon icon=WARNING /></span>
                     </div>
                     <h2 class="text-lg font-bold text-white">"Hapus Workflow?"</h2>
                     <p class="mt-2 text-sm text-slate-400">
@@ -55,7 +57,7 @@ pub fn DeleteConfigModal(
 
                 {move || error.get().map(|msg| view! {
                     <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
-                        <i class="fas fa-exclamation-triangle mt-0.5 text-danger-400"></i>
+                        <span class="mt-0.5 text-danger-400"><AppIcon icon=WARNING /></span>
                         <div class="text-xs text-danger-100">{msg}</div>
                     </div>
                 })}

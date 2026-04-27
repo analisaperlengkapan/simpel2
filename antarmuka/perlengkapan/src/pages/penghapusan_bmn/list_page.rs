@@ -1,6 +1,8 @@
 //! Penghapusan BMN list — workflow-aware deletion browser with SK flag.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, EYE, FILE_ARROW_UP, MAGNIFYING_GLASS, PLUS, SIGNATURE};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use wasm_bindgen::JsCast;
@@ -199,7 +201,7 @@ pub fn PenghapusanBmnListPage() -> impl IntoView {
                     href=path::PENGELOLAAN_PENGHAPUSAN_BUAT
                     attr:class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                 >
-                    <i class="fas fa-plus text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=PLUS /></span>
                     "Usulan Baru"
                 </A>
             }.into_any())
@@ -254,7 +256,7 @@ pub fn PenghapusanBmnListPage() -> impl IntoView {
                             type="submit"
                             class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                         >
-                            <i class="fas fa-magnifying-glass text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=MAGNIFYING_GLASS /></span>
                             "Cari"
                         </button>
                         <button
@@ -262,7 +264,7 @@ pub fn PenghapusanBmnListPage() -> impl IntoView {
                             on:click=reset_filters
                             class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
                         >
-                            <i class="fas fa-rotate-left text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=ARROW_COUNTER_CLOCKWISE /></span>
                             "Reset"
                         </button>
                     </div>
@@ -312,7 +314,7 @@ pub fn PenghapusanBmnListPage() -> impl IntoView {
                             disabled=move || page.get() <= 1
                             class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
                         >
-                            <i class="fas fa-chevron-left text-[0.6rem]"></i>
+                            <span class="text-[0.6rem]"><AppIcon icon=CARET_LEFT /></span>
                             "Sebelumnya"
                         </button>
                         <button
@@ -322,7 +324,7 @@ pub fn PenghapusanBmnListPage() -> impl IntoView {
                             class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
                         >
                             "Berikutnya"
-                            <i class="fas fa-chevron-right text-[0.6rem]"></i>
+                            <span class="text-[0.6rem]"><AppIcon icon=CARET_RIGHT /></span>
                         </button>
                     </div>
                 </div>
@@ -369,13 +371,13 @@ fn render_table(items: Vec<PenghapusanBmnWorkflow>) -> impl IntoView + use<> {
                         {if needs_upload {
                             Some(view! {
                                 <p class="mt-1 text-[0.65rem] font-semibold text-warning-300">
-                                    <i class="fas fa-file-arrow-up mr-1"></i>"Perlu unggah SK"
+                                    <span class="mr-1"><AppIcon icon=FILE_ARROW_UP /></span>"Perlu unggah SK"
                                 </p>
                             })
                         } else if sk_generated && p.signed_sk_pdf_url.is_some() {
                             Some(view! {
                                 <p class="mt-1 text-[0.65rem] font-medium text-success-300">
-                                    <i class="fas fa-file-signature mr-1"></i>"SK tersedia"
+                                    <span class="mr-1"><AppIcon icon=SIGNATURE /></span>"SK tersedia"
                                 </p>
                             })
                         } else {
@@ -387,7 +389,7 @@ fn render_table(items: Vec<PenghapusanBmnWorkflow>) -> impl IntoView + use<> {
                             href=id_href
                             attr:class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-slate-100 transition hover:bg-white/[0.08]"
                         >
-                            <i class="fas fa-eye text-[0.6rem]"></i>
+                            <span class="text-[0.6rem]"><AppIcon icon=EYE /></span>
                             "Detail"
                         </A>
                     </td>

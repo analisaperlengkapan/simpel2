@@ -9,6 +9,8 @@ use crate::components::page_header::PageHeader;
 use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_CLOCKWISE, EYE};
 
 #[component]
 pub fn PemakaianBmnList() -> impl IntoView {
@@ -145,7 +147,7 @@ pub fn PemakaianBmnList() -> impl IntoView {
                                 set_page.set(1);
                             }
                         >
-                            <i class="fas fa-redo mr-2"></i>
+                            <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
                             "Reset Filter"
                         </button>
                     </div>
@@ -224,14 +226,14 @@ pub fn PemakaianBmnList() -> impl IntoView {
                                                                                 class="text-blue-600 hover:text-blue-800"
                                                                                 title="Detail"
                                                                             >
-                                                                                <i class="fas fa-eye"></i>
+                                                                                <AppIcon icon=EYE />
                                                                             </a>
                                                                             <Show when=move || permit.status == "ACTIVE">
                                                                                 <button
                                                                                     class="text-green-600 hover:text-green-800"
                                                                                     title="Perpanjang"
                                                                                 >
-                                                                                    <i class="fas fa-redo"></i>
+                                                                                    <AppIcon icon=ARROW_CLOCKWISE />
                                                                                 </button>
                                                                             </Show>
                                                                         </div>

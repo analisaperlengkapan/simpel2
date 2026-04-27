@@ -15,6 +15,8 @@ use crate::api::{
 use crate::components::layout::{ErrorState, FormField, LoadingState, PageLayout, SectionCard};
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, ARROW_LEFT, ARROW_RIGHT, CHECK, CHECK_CIRCLE, DATABASE, FAST_FORWARD, INFO, LIST, PACKAGE, PAPER_PLANE_TILT, PLUS, TRASH, WARNING_CIRCLE, X, X_CIRCLE};
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
 
@@ -378,14 +380,14 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                 onclick="history.back()"
                 class="mb-4 inline-flex items-center gap-2 text-sm text-gold-400 transition hover:text-gold-300"
             >
-                <i class="fas fa-arrow-left text-xs"></i>
+                <span class="text-xs"><AppIcon icon=ARROW_LEFT /></span>
                 "Kembali"
             </button>
 
             // Error banner
             <Show when=move || error.get().is_some()>
                 <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
@@ -458,7 +460,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                     on:click=handle_submit_to_wilayah
                                     prop:disabled=move || action_loading.get()
                                 >
-                                    <i class="fas fa-paper-plane text-xs"></i>
+                                    <span class="text-xs"><AppIcon icon=PAPER_PLANE_TILT /></span>
                                     "Submit ke Wilayah"
                                 </button>
                             </div>
@@ -473,7 +475,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         on:click=handle_forward_to_pusat
                                         prop:disabled=move || action_loading.get()
                                     >
-                                        <i class="fas fa-forward text-xs"></i>
+                                        <span class="text-xs"><AppIcon icon=FAST_FORWARD /></span>
                                         "Teruskan ke Pusat"
                                     </button>
                                     <button
@@ -481,7 +483,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         on:click=move |_| set_show_return_modal.set(true)
                                         prop:disabled=move || action_loading.get()
                                     >
-                                        <i class="fas fa-undo text-xs"></i>
+                                        <span class="text-xs"><AppIcon icon=ARROW_COUNTER_CLOCKWISE /></span>
                                         "Kembalikan ke Operator"
                                     </button>
                                 </div>
@@ -553,7 +555,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         on:click=handle_approve
                                         prop:disabled=move || action_loading.get() || !can_validator_decide()
                                     >
-                                        <i class="fas fa-check text-xs"></i>
+                                        <span class="text-xs"><AppIcon icon=CHECK /></span>
                                         "Setujui"
                                     </button>
                                     <button
@@ -561,7 +563,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         on:click=move |_| set_show_reject_modal.set(true)
                                         prop:disabled=move || action_loading.get() || !can_validator_decide()
                                     >
-                                        <i class="fas fa-times text-xs"></i>
+                                        <span class="text-xs"><AppIcon icon=X /></span>
                                         "Tolak"
                                     </button>
                                 </div>
@@ -571,7 +573,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                         // Completed / Rejected banners
                         <Show when=move || sk == 2006>
                             <div class="flex items-center gap-3 rounded-xl border border-success-500/30 bg-success-500/[0.08] p-4">
-                                <i class="fas fa-check-circle text-xl text-success-400"></i>
+                                <span class="text-xl text-success-400"><AppIcon icon=CHECK_CIRCLE /></span>
                                 <div>
                                     <p class="text-sm font-medium text-success-300">"Pengajuan Disetujui"</p>
                                     <p class="text-xs text-success-400/70">"Pengajuan kebutuhan BMN telah disetujui oleh Validator Pusat."</p>
@@ -580,7 +582,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                         </Show>
                         <Show when=move || sk == 2007>
                             <div class="flex items-center gap-3 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] p-4">
-                                <i class="fas fa-times-circle text-xl text-danger-400"></i>
+                                <span class="text-xl text-danger-400"><AppIcon icon=X_CIRCLE /></span>
                                 <div>
                                     <p class="text-sm font-medium text-danger-300">"Pengajuan Ditolak"</p>
                                     <p class="text-xs text-danger-400/70">"Pengajuan kebutuhan BMN ditolak oleh Validator Pusat."</p>
@@ -614,7 +616,9 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                             )
                                             on:click=move |_| set_active_tab.set(tab)
                                         >
-                                            <i class=format!("{} mr-1.5 text-xs", icon)></i>
+                                            <span class="mr-1.5 inline-flex">
+                                                <AppIcon icon=icon_from_fa_class(icon) size=10 />
+                                            </span>
                                             {label}
                                         </button>
                                     }
@@ -631,7 +635,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                         class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                                         on:click=move |_| set_show_add_barang.set(true)
                                     >
-                                        <i class="fas fa-plus text-xs"></i>
+                                        <span class="text-xs"><AppIcon icon=PLUS /></span>
                                         "Tambah Barang"
                                     </button>
                                 </div>
@@ -640,7 +644,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                     when=move || has_barang
                                     fallback=|| view! {
                                         <div class="py-8 text-center">
-                                            <i class="fas fa-box-open mb-2 text-2xl text-slate-600"></i>
+                                            <span class="mb-2 text-2xl text-slate-600"><AppIcon icon=PACKAGE /></span>
                                             <p class="text-sm text-slate-500">"Belum ada barang yang ditambahkan"</p>
                                         </div>
                                     }
@@ -682,7 +686,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                             class="text-danger-400 transition hover:text-danger-300"
                                                                             on:click=move |_| handle_delete_barang(barang_id.clone())
                                                                         >
-                                                                            <i class="fas fa-trash text-xs"></i>
+                                                                            <span class="text-xs"><AppIcon icon=TRASH /></span>
                                                                         </button>
                                                                     </td>
                                                                 </tr>
@@ -824,7 +828,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                         <div class="text-sm font-medium text-slate-200">{item.barang.nama.clone()}</div>
                                                                                         <Show when=move || has_existing>
                                                                                             <div class="mt-0.5 text-xs text-slate-500">
-                                                                                                <i class="fas fa-database mr-1"></i>
+                                                                                                <span class="mr-1"><AppIcon icon=DATABASE /></span>
                                                                                                 {format!("{} aset ditemukan di SIMAN", existing_count)}
                                                                                             </div>
                                                                                         </Show>
@@ -842,7 +846,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                                         <td colspan="5" class="p-2">
                                                                                             <details class="cursor-pointer">
                                                                                                 <summary class="text-xs font-medium text-info-400">
-                                                                                                    <i class="fas fa-list-ul mr-1"></i>
+                                                                                                    <span class="mr-1"><AppIcon icon=LIST /></span>
                                                                                                     "Lihat aset existing dari SIMAN"
                                                                                                 </summary>
                                                                                                 <div class="mt-2 max-h-40 space-y-1 overflow-y-auto">
@@ -880,7 +884,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
 
                                                     // SIMAN note
                                                     <div class="mt-4 rounded-lg border border-info-500/20 bg-info-500/[0.06] p-3 text-xs text-info-300">
-                                                        <i class="fas fa-info-circle mr-1.5"></i>
+                                                        <span class="mr-1.5"><AppIcon icon=INFO /></span>
                                                         "Data aset existing diambil dari SIMAN. Gap dihitung berdasarkan jumlah diminta dikurangi aset sejenis."
                                                     </div>
                                                 </SectionCard>
@@ -994,7 +998,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                 view! {
                                                     <div class="flex items-start gap-4 rounded-xl border border-white/[0.06] bg-surface-panel p-4">
                                                         <div class="flex h-10 w-10 items-center justify-center rounded-full bg-info-500/15">
-                                                            <i class="fas fa-arrow-right text-info-400"></i>
+                                                            <span class="text-info-400"><AppIcon icon=ARROW_RIGHT /></span>
                                                         </div>
                                                         <div class="flex-1">
                                                             <div class="text-sm font-medium text-slate-200">{akt.aksi.clone()}</div>

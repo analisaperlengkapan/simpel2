@@ -6,6 +6,8 @@
 //! feeds the list and the detail drawer, and the modal-visibility signals.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHECK, CIRCLE, CLOCK, FLAG_CHECKERED, GEAR, MINUS, PLUS, USER_LIST, X};
 
 use super::config::{
     ConfigEditorPanel, ConfigJsonPreview, ConfigListPanel, DeleteConfigModal, RoleMatrix,
@@ -59,7 +61,7 @@ pub fn WorkflowConfigManagement() -> impl IntoView {
                         class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
                         on:click=move |_| set_show_create.set(true)
                     >
-                        <i class="fas fa-plus mr-2"></i>
+                        <span class="mr-2"><AppIcon icon=PLUS /></span>
                         "Workflow Baru"
                     </button>
                 }
@@ -169,7 +171,7 @@ fn WorkflowDetailDrawer(
                         class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] p-2 text-slate-300 transition hover:bg-white/[0.08]"
                         on:click=move |_| on_close.run(())
                     >
-                        <i class="fas fa-times"></i>
+                        <AppIcon icon=X />
                     </button>
                 </header>
 
@@ -206,11 +208,9 @@ fn WorkflowDetailDrawer(
                                         <tr class="border-b border-white/[0.04]">
                                             <td class="px-3 py-3">
                                                 <div class="flex items-center gap-2">
-                                                    <i class=if is_terminal {
-                                                        "fas fa-flag-checkered text-[0.75rem] text-danger-400"
-                                                    } else {
-                                                        "fas fa-circle text-[0.55rem] text-info-400"
-                                                    }></i>
+                                                    <span class=if is_terminal { "inline-flex text-danger-400" } else { "inline-flex text-info-400" }>
+                                                        <AppIcon icon=if is_terminal { FLAG_CHECKERED } else { CIRCLE } size=10 />
+                                                    </span>
                                                     <span class="text-sm font-semibold text-white">
                                                         {step.state_name.clone()}
                                                     </span>
@@ -222,7 +222,7 @@ fn WorkflowDetailDrawer(
                                                 } else {
                                                     "inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-[0.7rem] font-semibold text-slate-500"
                                                 }>
-                                                    <i class="fas fa-user-tag text-[0.6rem]"></i>
+                                                    <span class="text-[0.6rem]"><AppIcon icon=USER_LIST /></span>
                                                     {role_label}
                                                 </span>
                                             </td>
@@ -232,7 +232,7 @@ fn WorkflowDetailDrawer(
                                                 } else {
                                                     "inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-[0.7rem] font-semibold text-slate-500"
                                                 }>
-                                                    <i class="fas fa-clock text-[0.6rem]"></i>
+                                                    <span class="text-[0.6rem]"><AppIcon icon=CLOCK /></span>
                                                     {sla_label}
                                                 </span>
                                             </td>
@@ -243,13 +243,13 @@ fn WorkflowDetailDrawer(
                                                 {if escalation_on {
                                                     view! {
                                                         <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-success-500/30 bg-success-500/15 text-success-400">
-                                                            <i class="fas fa-check text-[0.65rem]"></i>
+                                                            <span class="text-[0.65rem]"><AppIcon icon=CHECK /></span>
                                                         </span>
                                                     }.into_any()
                                                 } else {
                                                     view! {
                                                         <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.06] bg-white/[0.02] text-slate-500">
-                                                            <i class="fas fa-minus text-[0.65rem]"></i>
+                                                            <span class="text-[0.65rem]"><AppIcon icon=MINUS /></span>
                                                         </span>
                                                     }.into_any()
                                                 }}
@@ -261,7 +261,7 @@ fn WorkflowDetailDrawer(
                                                     title="Edit langkah"
                                                     on:click=move |_| set_edit_step.set(Some(step_for_edit.clone()))
                                                 >
-                                                    <i class="fas fa-cog"></i>
+                                                    <AppIcon icon=GEAR />
                                                 </button>
                                             </td>
                                         </tr>

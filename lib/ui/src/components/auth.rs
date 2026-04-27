@@ -4,6 +4,8 @@
 
 use crate::hooks::use_auth::use_auth;
 use leptos::prelude::*;
+use crate::components::icon::AppIcon;
+use phosphor_leptos::{SIGN_IN, SIGN_OUT};
 
 /// Login redirect page component
 #[component]
@@ -91,7 +93,7 @@ pub fn LoginRedirectPage(
                     on:click=move |_| handle_login()
                     style="display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 16px 24px; font-size: 1.1rem; font-weight: 700; color: #0f172a; background: linear-gradient(135deg, #facc15, #d4a843); border: none; border-radius: 14px; cursor: pointer; box-shadow: 0 0 25px rgba(212,168,67,0.35), 0 4px 15px rgba(0,0,0,0.2); transition: all 0.3s ease; letter-spacing: 0.02em;"
                 >
-                    <i class="fas fa-sign-in-alt" style="font-size: 1.2rem;"></i>
+                    <span style="font-size: 1.2rem;"><AppIcon icon=SIGN_IN /></span>
                     <span>"Masuk"</span>
                 </button>
 
@@ -211,7 +213,7 @@ pub fn LogoutButton(
             class=format!("inline-flex items-center justify-center font-medium transition-colors focus:outline-none hover:bg-gray-100 text-gray-700 px-4 py-2 text-base rounded-md {}", class)
             on:click=move |_| handle_logout()
         >
-            <i class="fas fa-sign-out-alt"></i>
+            <AppIcon icon=SIGN_OUT />
             <Show when=move || !icon_only>
                 <span class="ml-2">"Logout"</span>
             </Show>

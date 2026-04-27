@@ -10,6 +10,8 @@ use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{BUILDING, CALENDAR_CHECK, CALENDAR_X, PLUS, TRASH, WARNING_CIRCLE};
 use leptos::task::spawn_local;
 
 #[component]
@@ -92,7 +94,7 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     on:click=move |_| set_show_form.update(|v| *v = !*v)
                 >
-                    <i class="fas fa-plus text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=PLUS /></span>
                     "Buat Pengajuan"
                 </button>
             </div>
@@ -102,7 +104,7 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                 <SectionCard title="Buat Periode Pengajuan Baru">
                     <Show when=move || error_message.get().is_some()>
                         <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                            <i class="fas fa-exclamation-circle"></i>
+                            <AppIcon icon=WARNING_CIRCLE />
                             {move || error_message.get()}
                         </div>
                     </Show>
@@ -278,11 +280,11 @@ fn render_pengajuan_cards(
 
                             <div class="space-y-1 text-xs text-slate-400">
                                 <p>
-                                    <i class="fas fa-calendar-check mr-1.5 text-success-400 w-3.5"></i>
+                                    <span class="mr-1.5 text-success-400 w-3.5"><AppIcon icon=CALENDAR_CHECK /></span>
                                     "Buka: " {item.tgl_open.unwrap_or_else(|| "-".to_string())}
                                 </p>
                                 <p>
-                                    <i class="fas fa-calendar-times mr-1.5 text-danger-400 w-3.5"></i>
+                                    <span class="mr-1.5 text-danger-400 w-3.5"><AppIcon icon=CALENDAR_X /></span>
                                     "Tutup: " {item.tgl_close.unwrap_or_else(|| "-".to_string())}
                                 </p>
                             </div>
@@ -296,14 +298,14 @@ fn render_pengajuan_cards(
                                     href=format!("/perlengkapan/pakaian-dinas/pengajuan/{}/satker", item_id)
                                     class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-medium text-info-300 transition hover:bg-info-500/20"
                                 >
-                                    <i class="fas fa-building text-2xs"></i>
+                                    <span class="text-2xs"><AppIcon icon=BUILDING /></span>
                                     "Satker"
                                 </a>
                                 <button
                                     class="inline-flex items-center justify-center rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs text-danger-300 transition hover:bg-danger-500/20"
                                     on:click=move |_| on_delete(item_id_for_delete.clone())
                                 >
-                                    <i class="fas fa-trash text-2xs"></i>
+                                    <span class="text-2xs"><AppIcon icon=TRASH /></span>
                                 </button>
                             </div>
                         </div>

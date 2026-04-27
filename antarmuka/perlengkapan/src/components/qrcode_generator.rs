@@ -2,6 +2,8 @@
 
 use crate::api::{Asset, fetch_assets};
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{MAGNIFYING_GLASS, PRINTER, QR_CODE};
 
 #[component]
 pub fn QrCodeGenerator() -> impl IntoView {
@@ -33,7 +35,7 @@ pub fn QrCodeGenerator() -> impl IntoView {
                         }
                     }
                 >
-                    <i class="fas fa-print" style="margin-right: 6px;"></i>
+                    <span style="margin-right: 6px;"><AppIcon icon=PRINTER /></span>
                     {move || format!("Cetak ({})", selected.get().len())}
                 </button>
             </div>
@@ -41,7 +43,7 @@ pub fn QrCodeGenerator() -> impl IntoView {
             // Search + select all
             <div style="display: flex; gap: 12px; margin-bottom: 20px;">
                 <div style="flex: 1; position: relative;">
-                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #475569; font-size: 0.8rem;"></i>
+                    <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #475569; font-size: 0.8rem;"><AppIcon icon=MAGNIFYING_GLASS /></span>
                     <input
                         type="text"
                         placeholder="Cari aset berdasarkan kode atau nama..."
@@ -98,7 +100,7 @@ pub fn QrCodeGenerator() -> impl IntoView {
                                                 <td style="padding: 10px 8px; font-size: 0.8rem; color: #e2e8f0;">{nama}</td>
                                                 <td style="padding: 10px 8px; font-size: 0.78rem; color: #64748b;">{satker}</td>
                                                 <td style="padding: 10px 8px; text-align: center;">
-                                                    <i class="fas fa-qrcode" style="color: #d4a843; font-size: 1rem;"></i>
+                                                    <span style="color: #d4a843; font-size: 1rem;"><AppIcon icon=QR_CODE /></span>
                                                 </td>
                                             </tr>
                                         }

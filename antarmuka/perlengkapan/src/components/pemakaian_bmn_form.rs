@@ -16,6 +16,8 @@ use crate::api::{
 };
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHECK_CIRCLE, PAPER_PLANE_TILT, PLUS, SPINNER, WARNING_CIRCLE, X};
 use leptos_router::hooks::use_navigate;
 
 #[component]
@@ -232,14 +234,14 @@ pub fn PemakaianBmnForm() -> impl IntoView {
 
             <Show when=move || success.get()>
                 <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
-                    <i class="fas fa-check-circle"></i>
+                    <AppIcon icon=CHECK_CIRCLE />
                     "Permohonan izin berhasil diajukan!"
                 </div>
             </Show>
 
             <Show when=move || error.get().is_some()>
                 <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     {error.get()}
                 </div>
             </Show>
@@ -357,7 +359,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 prop:disabled=move || checking_availability.get() || bmn_nup.get().is_empty()
                             >
                                 <Show when=move || checking_availability.get() fallback=|| view! { "Cek Ketersediaan" }>
-                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                                 </Show>
                             </button>
                         </div>
@@ -370,7 +372,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             if availability.is_available {
                                 view! {
                                     <div class="mt-2 p-3 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
-                                        <i class="fas fa-check-circle"></i>
+                                        <AppIcon icon=CHECK_CIRCLE />
                                         "BMN tersedia untuk digunakan"
                                     </div>
                                 }.into_any()
@@ -378,7 +380,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 view! {
                                     <div class="mt-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-100">
                                         <div class="flex items-center gap-2 mb-1">
-                                            <i class="fas fa-exclamation-circle"></i>
+                                            <AppIcon icon=WARNING_CIRCLE />
                                             <span class="font-semibold">"BMN sedang digunakan"</span>
                                         </div>
                                         <p class="text-sm">
@@ -583,7 +585,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 set_additional_bmn_items.set(items);
                             }
                         >
-                            <i class="fas fa-plus"></i>
+                            <AppIcon icon=PLUS />
                             "Tambah BMN"
                         </button>
                     </div>
@@ -609,7 +611,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                                         }
                                                     }
                                                 >
-                                                    <i class="fas fa-times"></i>
+                                                    <AppIcon icon=X />
                                                 </button>
                                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                                     <div>
@@ -680,8 +682,8 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                         class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                         prop:disabled=move || loading.get() || bmn_availability.get().map(|a| !a.is_available).unwrap_or(true)
                     >
-                        <Show when=move || loading.get() fallback=|| view! { <i class="fas fa-paper-plane"></i> }>
-                            <i class="fas fa-spinner fa-spin"></i>
+                        <Show when=move || loading.get() fallback=|| view! { <AppIcon icon=PAPER_PLANE_TILT /> }>
+                            <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                         </Show>
                         "Ajukan Permohonan"
                     </button>

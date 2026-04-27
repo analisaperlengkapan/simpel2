@@ -1,6 +1,8 @@
 use crate::api::{Asset, fetch_assets};
 use crate::components::pagination_controls::PaginationControls;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{EYE, PACKAGE};
 
 #[component]
 pub fn AsetList() -> impl IntoView {
@@ -65,7 +67,7 @@ pub fn AsetList() -> impl IntoView {
                         if response.data.is_empty() {
                             view! {
                                 <div class="text-center py-12 text-gray-500">
-                                    <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
+                                    <span class="text-4xl mb-3 text-gray-300"><AppIcon icon=PACKAGE /></span>
                                     <p>"Belum ada data aset."</p>
                                 </div>
                             }.into_any()
@@ -127,7 +129,7 @@ pub fn AsetList() -> impl IntoView {
                                                         <td class="p-3">
                                                             <div class="flex gap-2">
                                                                 <button class="text-blue-600 hover:text-blue-800" title="Detail">
-                                                                    <i class="fas fa-eye"></i>
+                                                                    <AppIcon icon=EYE />
                                                                 </button>
                                                             </div>
                                                         </td>

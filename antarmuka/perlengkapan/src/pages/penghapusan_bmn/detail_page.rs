@@ -1,6 +1,8 @@
 //! Penghapusan BMN detail — review, konsep SK, unggah SK tertandatangan.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_LEFT, CLOCK, FILE_ARROW_UP, FILE_TEXT, MAGIC_WAND, WARNING, X};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
@@ -126,7 +128,7 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
                     href=path::PENGELOLAAN_PENGHAPUSAN
                     attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
                 >
-                    <i class="fas fa-arrow-left text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_LEFT /></span>
                     "Kembali"
                 </A>
             }.into_any())
@@ -312,14 +314,14 @@ fn ValidatorPanel(p: PenghapusanBmnWorkflow) -> impl IntoView {
                     <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Validator Wilayah"</p>
                     <p class="mt-1 text-sm text-slate-100">{wilayah_catatan}</p>
                     <p class="mt-2 text-[0.65rem] text-slate-500">
-                        <i class="fas fa-clock mr-1"></i>{wilayah_tgl}
+                        <span class="mr-1"><AppIcon icon=CLOCK /></span>{wilayah_tgl}
                     </p>
                 </div>
                 <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
                     <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Validator Pusat"</p>
                     <p class="mt-1 text-sm text-slate-100">{pusat_catatan}</p>
                     <p class="mt-2 text-[0.65rem] text-slate-500">
-                        <i class="fas fa-clock mr-1"></i>{pusat_tgl}
+                        <span class="mr-1"><AppIcon icon=CLOCK /></span>{pusat_tgl}
                     </p>
                 </div>
             </div>
@@ -361,7 +363,7 @@ fn SkPanel(
                     disabled=move || !can_generate_sk || submitting.get()
                     class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-white/[0.08] disabled:opacity-40"
                 >
-                    <i class="fas fa-wand-magic-sparkles text-[0.6rem]"></i>
+                    <span class="text-[0.6rem]"><AppIcon icon=MAGIC_WAND /></span>
                     {move || if submitting.get() { "Memproses..." } else { "Generate Konsep SK" }}
                 </button>
                 <button
@@ -370,7 +372,7 @@ fn SkPanel(
                     disabled=!can_upload_signed_sk
                     class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
                 >
-                    <i class="fas fa-file-arrow-up text-[0.6rem]"></i>
+                    <span class="text-[0.6rem]"><AppIcon icon=FILE_ARROW_UP /></span>
                     "Unggah SK Tertandatangan"
                 </button>
             }.into_any())
@@ -378,7 +380,7 @@ fn SkPanel(
             {if needs_upload {
                 Some(view! {
                     <div class="mb-3 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-200">
-                        <i class="fas fa-triangle-exclamation mt-0.5 text-warning-300"></i>
+                        <span class="mt-0.5 text-warning-300"><AppIcon icon=WARNING /></span>
                         <span>"Konsep SK sudah digenerate. Silakan cetak, tandatangani, lalu unggah SK yang telah ditandatangani untuk melanjutkan ke fase penyelesaian."</span>
                     </div>
                 })
@@ -397,12 +399,12 @@ fn SkPanel(
                                     target="_blank"
                                     class="inline-flex items-center gap-1.5 text-sm font-medium text-gold-300 hover:underline"
                                 >
-                                    <i class="fas fa-file-lines text-[0.6rem]"></i>
+                                    <span class="text-[0.6rem]"><AppIcon icon=FILE_TEXT /></span>
                                     "Lihat dokumen konsep"
                                 </a>
                             </p>
                             <p class="mt-2 text-[0.65rem] text-slate-500">
-                                <i class="fas fa-clock mr-1"></i>
+                                <span class="mr-1"><AppIcon icon=CLOCK /></span>
                                 "Digenerate: " {konsep_generated_at.clone()}
                             </p>
                         }.into_any(),
@@ -421,12 +423,12 @@ fn SkPanel(
                                     target="_blank"
                                     class="inline-flex items-center gap-1.5 text-sm font-medium text-success-300 hover:underline"
                                 >
-                                    <i class="fas fa-file-circle-check text-[0.6rem]"></i>
+                                    <span class="text-[0.6rem]"><AppIcon icon=FILE_TEXT /></span>
                                     "Lihat dokumen tertandatangan"
                                 </a>
                             </p>
                             <p class="mt-2 text-[0.65rem] text-slate-500">
-                                <i class="fas fa-clock mr-1"></i>
+                                <span class="mr-1"><AppIcon icon=CLOCK /></span>
                                 "Diunggah: " {signed_uploaded_at.clone()}
                             </p>
                         }.into_any(),
@@ -481,7 +483,7 @@ fn UploadSignedSKModal(
                         on:click=on_close
                         class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-slate-300 transition hover:bg-white/[0.08]"
                     >
-                        <i class="fas fa-xmark"></i>
+                        <AppIcon icon=X />
                     </button>
                 </header>
                 <label class="mt-4 flex flex-col gap-1">
@@ -508,7 +510,7 @@ fn UploadSignedSKModal(
                         disabled=move || submitting.get()
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                     >
-                        <i class="fas fa-file-arrow-up text-[0.6rem]"></i>
+                        <span class="text-[0.6rem]"><AppIcon icon=FILE_ARROW_UP /></span>
                         {move || if submitting.get() { "Mengunggah..." } else { "Unggah" }}
                     </button>
                 </div>

@@ -11,6 +11,8 @@ use crate::components::batch_operations_toolbar::{
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{EYE, PENCIL_SIMPLE, PLUS, X};
 use leptos_meta::Title;
 use lib_ui::components::DarkPagination;
 use uuid::Uuid;
@@ -95,7 +97,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                     href=routes::path::KEBUTUHAN_BUAT
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                 >
-                    <i class="fas fa-plus text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=PLUS /></span>
                     "Buat Pengajuan"
                 </a>
             </div>
@@ -153,7 +155,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                             class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-300 transition hover:bg-white/[0.08]"
                             on:click=move |_| set_selected_ids.set(Vec::new())
                         >
-                            <i class="fas fa-times text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=X /></span>
                             "Batal Pilih"
                         </button>
                     </Show>
@@ -277,14 +279,14 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                                                             class="text-info-400 transition hover:text-info-300"
                                                                             title="Detail"
                                                                         >
-                                                                            <i class="fas fa-eye text-xs"></i>
+                                                                            <span class="text-xs"><AppIcon icon=EYE /></span>
                                                                         </a>
                                                                         <a
                                                                             href=routes::url::kebutuhan_edit(&item.id)
                                                                             class="text-slate-400 transition hover:text-slate-200"
                                                                             title="Edit"
                                                                         >
-                                                                            <i class="fas fa-edit text-xs"></i>
+                                                                            <span class="text-xs"><AppIcon icon=PENCIL_SIMPLE /></span>
                                                                         </a>
                                                                     </div>
                                                                 </td>

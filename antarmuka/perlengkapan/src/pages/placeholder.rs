@@ -2,6 +2,8 @@
 
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::ARROW_LEFT;
 
 #[component]
 pub fn PlaceholderPage(
@@ -14,7 +16,9 @@ pub fn PlaceholderPage(
             <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 48px 32px;">
                 // Icon
                 <div style="width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; background: rgba(212,168,67,0.1); border-radius: 20px; border: 1px solid rgba(212,168,67,0.15);">
-                    <i class=icon style="font-size: 1.8rem; color: #d4a843;"></i>
+                    <span style="color: #d4a843; display: inline-flex;">
+                        <AppIcon icon=icon_from_fa_class(icon) size=28 />
+                    </span>
                 </div>
 
                 // Title
@@ -37,7 +41,7 @@ pub fn PlaceholderPage(
                         href=routes::path::DASHBOARD
                         style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #d4a843; text-decoration: none; font-weight: 600;"
                     >
-                        <i class="fas fa-arrow-left" style="font-size: 0.75rem;"></i>
+                        <span style="font-size: 0.75rem;"><AppIcon icon=ARROW_LEFT /></span>
                         "Kembali ke Dashboard"
                     </a>
                 </div>

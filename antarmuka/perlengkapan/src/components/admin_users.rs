@@ -5,6 +5,8 @@
 //! through the perlengkapan backend REST API.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{CHECK, LOCK, MAGNIFYING_GLASS, PENCIL_SIMPLE, SPINNER, USERS, USER_CHECK, USER_PLUS, X};
 
 use crate::api;
 use crate::components::role_switcher::{PerlengkapanRole, get_active_role};
@@ -32,7 +34,7 @@ pub fn AdminUsersPage() -> impl IntoView {
     if !is_admin {
         return view! {
             <div class="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
-                <i class="fas fa-lock text-4xl text-red-400 mb-4"></i>
+                <span class="text-4xl text-red-400 mb-4"><AppIcon icon=LOCK /></span>
                 <h2 class="text-xl font-bold text-red-700 mb-2">"Akses Ditolak"</h2>
                 <p class="text-red-600">"Anda tidak memiliki akses Admin."</p>
             </div>
@@ -79,7 +81,7 @@ pub fn AdminUsersPage() -> impl IntoView {
                 <div>
                     <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
                         <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
-                            <i class="fas fa-users-cog text-white"></i>
+                            <span class="text-white"><AppIcon icon=USERS /></span>
                         </div>
                         "Manajemen Pengguna"
                     </h1>
@@ -92,7 +94,7 @@ pub fn AdminUsersPage() -> impl IntoView {
                         set_show_assign_modal.set(true);
                     }
                 >
-                    <i class="fas fa-user-plus"></i>
+                    <AppIcon icon=USER_PLUS />
                     "Tambah Pengguna"
                 </button>
             </div>
@@ -102,7 +104,7 @@ pub fn AdminUsersPage() -> impl IntoView {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     // Search by NIP/Nama
                     <div class="relative">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><AppIcon icon=MAGNIFYING_GLASS /></span>
                         <input
                             type="text"
                             placeholder="Cari NIP atau Nama..."
@@ -131,7 +133,7 @@ pub fn AdminUsersPage() -> impl IntoView {
                     // Stats
                     <div class="flex items-center gap-4 text-sm text-gray-600">
                         <span class="flex items-center gap-1">
-                            <i class="fas fa-users text-blue-500"></i>
+                            <span class="text-blue-500"><AppIcon icon=USERS /></span>
                             "Total: 1 pengguna"
                         </span>
                     </div>
@@ -156,7 +158,7 @@ pub fn AdminUsersPage() -> impl IntoView {
                         <tbody class="divide-y divide-gray-100">
                             <Suspense fallback=move || view! {
                                 <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">
-                                    <i class="fas fa-spinner fa-spin mr-2"></i>"Memuat data..."
+                                    <span class="fa-spin mr-2"><AppIcon icon=SPINNER /></span>"Memuat data..."
                                 </td></tr>
                             }>
                                 {move || users_resource.get().map(|users| {
@@ -212,7 +214,7 @@ pub fn AdminUsersPage() -> impl IntoView {
                                                             set_show_assign_modal.set(true);
                                                         }
                                                     >
-                                                        <i class="fas fa-edit mr-1"></i>"Edit Role"
+                                                        <span class="mr-1"><AppIcon icon=PENCIL_SIMPLE /></span>"Edit Role"
                                                     </button>
                                                 </td>
                                             </tr>
@@ -235,7 +237,7 @@ pub fn AdminUsersPage() -> impl IntoView {
                                 class="p-2 hover:bg-gray-100 rounded-lg"
                                 on:click=move |_| set_show_assign_modal.set(false)
                             >
-                                <i class="fas fa-times text-gray-500"></i>
+                                <span class="text-gray-500"><AppIcon icon=X /></span>
                             </button>
                         </div>
                         <div class="p-6 space-y-4">
@@ -283,7 +285,7 @@ pub fn AdminRolesPage() -> impl IntoView {
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
                     <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                        <i class="fas fa-user-shield text-white"></i>
+                        <span class="text-white"><AppIcon icon=USER_CHECK /></span>
                     </div>
                     "Pengaturan Role"
                 </h1>
@@ -304,7 +306,7 @@ pub fn AdminRolesPage() -> impl IntoView {
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-shadow">
                             <div class=format!("bg-gradient-to-r {} px-6 py-4 text-white", bg_gradient)>
                                 <div class="flex items-center gap-3">
-                                    <i class=format!("{} text-xl", role.icon)></i>
+                                    <AppIcon icon=icon_from_fa_class(role.icon) size=20 />
                                     <div>
                                         <h3 class="font-bold">{role.label}</h3>
                                         <p class="text-sm opacity-90">{role.description}</p>
@@ -316,29 +318,29 @@ pub fn AdminRolesPage() -> impl IntoView {
                                 <div class="space-y-1 text-xs text-gray-600">
                                     {match role.key.as_str() {
                                         "operator_satker" => view! {
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Kebutuhan BMN: Buat, Edit, Hapus, Submit"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Pemakaian BMN: Buat, Edit, Submit"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Penghapusan BMN: Buat, Submit"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Pakaian Dinas: Input Ukuran"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Pemeliharaan: Buat, Edit"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Kebutuhan BMN: Buat, Edit, Hapus, Submit"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Pemakaian BMN: Buat, Edit, Submit"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Penghapusan BMN: Buat, Submit"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Pakaian Dinas: Input Ukuran"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Pemeliharaan: Buat, Edit"</div>
                                         }.into_any(),
                                         "validator_wilayah" => view! {
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Kebutuhan BMN: Validasi, Kembalikan, Teruskan"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Pemakaian BMN: Setujui, Tolak"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Penghapusan BMN: Validasi, Teruskan"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Laporan: Baca, Ekspor"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Kebutuhan BMN: Validasi, Kembalikan, Teruskan"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Pemakaian BMN: Setujui, Tolak"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Penghapusan BMN: Validasi, Teruskan"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Laporan: Baca, Ekspor"</div>
                                         }.into_any(),
                                         "validator_pusat" => view! {
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Kebutuhan BMN: Persetujuan Akhir"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Penghapusan BMN: SK, Persetujuan"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Mapping Kodefikasi: Approve/Reject"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Roadmap Sarpras: Approve"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Kebutuhan BMN: Persetujuan Akhir"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Penghapusan BMN: SK, Persetujuan"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Mapping Kodefikasi: Approve/Reject"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Roadmap Sarpras: Approve"</div>
                                         }.into_any(),
                                         "admin" => view! {
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Semua akses Operator, Validator Wilayah, Validator Pusat"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Manajemen Pengguna & Role"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Konfigurasi Sistem"</div>
-                                            <div><i class="fas fa-check text-green-500 mr-2"></i>"Master Data & Audit Log"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Semua akses Operator, Validator Wilayah, Validator Pusat"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Manajemen Pengguna & Role"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Konfigurasi Sistem"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Master Data & Audit Log"</div>
                                         }.into_any(),
                                         _ => view! { <div>"N/A"</div> }.into_any(),
                                     }}

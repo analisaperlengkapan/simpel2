@@ -5,6 +5,8 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_CLOCKWISE, CHECK_CIRCLE, CLOCK_COUNTER_CLOCKWISE};
 use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 
@@ -304,11 +306,11 @@ pub fn WorkflowMonitoring() -> impl IntoView {
                     on:click=trigger_refresh
                     class="focus-ring inline-flex items-center gap-2 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-semibold text-info-300 transition hover:bg-info-500/20"
                 >
-                    <i class="fas fa-sync-alt text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_CLOCKWISE /></span>
                     "Refresh"
                 </button>
                 <span class="inline-flex items-center gap-1.5 text-[0.7rem] text-slate-500">
-                    <i class="fas fa-clock-rotate-left"></i>
+                    <AppIcon icon=CLOCK_COUNTER_CLOCKWISE />
                     "Auto-refresh 30 detik"
                 </span>
             }.into_any())
@@ -398,7 +400,7 @@ fn MonitoringContent(metrics: WorkflowMetrics, workflows: Vec<WorkflowSummary>) 
                 view! {
                     <div class="flex items-center gap-3 rounded-xl border border-success-500/30 bg-success-500/[0.08] p-4">
                         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-500/15 text-success-400 ring-1 ring-success-500/25">
-                            <i class="fas fa-check-circle"></i>
+                            <AppIcon icon=CHECK_CIRCLE />
                         </span>
                         <div>
                             <div class="text-sm font-semibold text-success-300">

@@ -5,6 +5,8 @@
 
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{SIGN_IN};
 use leptos_meta::Title;
 
 #[component]
@@ -51,7 +53,7 @@ pub fn LoginPage() -> impl IntoView {
                             let _ = target.style().set_property("filter", "brightness(1)");
                         }
                     >
-                        <i class="fas fa-right-to-bracket" style="font-size: 0.95rem;"></i>
+                        <span style="font-size: 0.95rem;"><AppIcon icon=SIGN_IN /></span>
                         "Masuk via Portal"
                     </a>
                 </div>

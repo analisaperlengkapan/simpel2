@@ -4,6 +4,8 @@
 
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_CLOCKWISE, WARNING};
 use leptos_router::hooks::use_query_map;
 use lib_ui::components::dashboard::{BarChart, GapAnalysisTable, MetricCard, PieChart};
 use lib_ui::components::forms::Select;
@@ -221,7 +223,7 @@ fn ErrorState(message: String) -> impl IntoView {
         <div class="flex items-center justify-center min-h-screen">
             <div class="text-center max-w-md">
                 <div class="text-red-500 text-5xl mb-4">
-                    <i class="fas fa-exclamation-triangle"></i>
+                    <AppIcon icon=WARNING />
                 </div>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                     "Gagal Memuat Dashboard"
@@ -475,7 +477,7 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
                     }
                     class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
                 >
-                    <i class="fas fa-sync-alt mr-2"></i>
+                    <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
                     "Refresh"
                 </button>
             </div>
