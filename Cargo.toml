@@ -362,7 +362,9 @@ leptos-struct-table = "0.18"
 leptos-chartistry = "0.2.3"
 floating-ui-leptos = "0.6.0"
 phosphor-leptos = { version = "0.8.0", features = ["all"] }
-leptos_animate = "0.1"
+# leptos_animate intentionally not pinned at workspace level — see
+# `.claude/plans/coba-kritisi-uraian-berikut-pure-rossum.md` Phase 5c.
+# 0.1.x requires `--cfg=web_sys_unstable_apis`; revisit at 0.2+.
 tracing-subscriber-wasm = "0.1.0"
 
 # WASM specific - Latest Stable Versions (Updated)
