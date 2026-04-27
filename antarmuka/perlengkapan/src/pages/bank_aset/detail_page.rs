@@ -196,7 +196,7 @@ fn TabButton(
                 }
             }
         >
-            <AppIcon icon=icon_from_fa_class(icon) size=10 />
+            <AppIcon icon=icon_from_fa_class(&icon) size=10 />
             {label}
         </button>
     }

@@ -131,8 +131,12 @@ type ValidatorFn<T> = Arc<dyn Fn(&T) -> FieldErrors + Send + Sync + 'static>;
 /// Manages form data, submission state, error state, dirty tracking, and
 /// per-field validation errors in a single struct — replacing 5-15
 /// individual `signal()` calls.
-#[derive(Clone, Copy)]
-pub struct FormState<T: Clone + 'static> {
+// Clone + Copy are implemented manually so the bounds don't pick up
+// `T: Copy`. `RwSignal<T>` and `StoredValue<T>` are already `Copy`
+// regardless of `T` (they hold `Arc`'d state internally), so a typical
+// form with `String` / `Vec<...>` fields can still keep `FormState`
+// trivially copyable into closures.
+pub struct FormState<T: Clone + Send + Sync + 'static> {
     /// The reactive form data. Read with `.get()`, write with `.update()`.
     pub data: RwSignal<T>,
     /// Whether a submission is in progress.
@@ -152,7 +156,15 @@ pub struct FormState<T: Clone + 'static> {
     validator: StoredValue<Option<ValidatorFn<T>>>,
 }
 
-impl<T: Clone + 'static> FormState<T> {
+impl<T: Clone + Send + Sync + 'static> Clone for FormState<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Clone + Send + Sync + 'static> Copy for FormState<T> {}
+
+impl<T: Clone + Send + Sync + 'static> FormState<T> {
     /// Get the current form data snapshot.
     pub fn get(&self) -> T {
         self.data.get()
@@ -312,7 +324,7 @@ impl<T: Clone + 'static> FormState<T> {
 ///     kategori: String::new(),
 /// });
 /// ```
-pub fn use_form<T: Clone + 'static>(initial: T) -> FormState<T> {
+pub fn use_form<T: Clone + Send + Sync + 'static>(initial: T) -> FormState<T> {
     FormState {
         data: RwSignal::new(initial.clone()),
         initial: StoredValue::new(initial),
@@ -347,7 +359,7 @@ pub fn FieldError<T>(
     field: String,
 ) -> impl IntoView
 where
-    T: Clone + 'static,
+    T: Clone + Send + Sync + 'static,
 {
     let field = StoredValue::new(field);
     let message = move || {

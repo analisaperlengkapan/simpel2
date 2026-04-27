@@ -255,7 +255,7 @@ pub fn ResourceView<T, V>(
     /// The Leptos `Resource` to observe.
     resource: Resource<Result<T, String>>,
     /// Render function called with the successful data.
-    children: Box<dyn Fn(T) -> V>,
+    children: Box<dyn Fn(T) -> V + Send + Sync>,
     /// Loading message shown while the resource is pending.
     #[prop(default = "Memuat data...".to_string(), into)]
     loading_message: String,
@@ -264,7 +264,7 @@ pub fn ResourceView<T, V>(
     error_title: String,
 ) -> impl IntoView
 where
-    T: Clone + 'static,
+    T: Clone + Send + Sync + 'static,
     V: IntoView + 'static,
 {
     let loading_msg = loading_message.clone();

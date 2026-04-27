@@ -306,7 +306,7 @@ pub fn AdminRolesPage() -> impl IntoView {
                         <div class="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-shadow">
                             <div class=format!("bg-gradient-to-r {} px-6 py-4 text-white", bg_gradient)>
                                 <div class="flex items-center gap-3">
-                                    <AppIcon icon=icon_from_fa_class(role.icon) size=20 />
+                                    <AppIcon icon=icon_from_fa_class(&role.icon) size=20 />
                                     <div>
                                         <h3 class="font-bold">{role.label}</h3>
                                         <p class="text-sm opacity-90">{role.description}</p>

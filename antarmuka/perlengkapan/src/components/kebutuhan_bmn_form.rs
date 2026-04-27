@@ -113,8 +113,10 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
         !d.nama.is_empty() && d.nama.len() >= 3 && !d.tgl_mulai.is_empty() && !d.tgl_selesai.is_empty()
     });
 
-    // Submit handler
-    let on_submit = move |ev: leptos::ev::SubmitEvent| {
+    // Submit handler — wrapped in Callback so the surrounding PageLayout
+    // children render closure (required to be `Fn`) can copy this handler
+    // on each re-render without consuming it.
+    let on_submit = Callback::new(move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
 
         if !is_valid.get() {
@@ -185,7 +187,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                 }
             }
         });
-    };
+    });
 
     let current_year = 2026;
     let years: Vec<i32> = (2020..=current_year + 2).rev().collect();
@@ -220,7 +222,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
             // Form
             <Show when=move || !loading.get()>
                 <SectionCard title="Detail Pengajuan">
-                    <form on:submit=on_submit class="flex flex-col gap-5">
+                    <form on:submit=move |ev| on_submit.run(ev) class="flex flex-col gap-5">
                         // Nama pengajuan
                         <FormField label="Nama Pengajuan" required=true full_width=true>
                             <input

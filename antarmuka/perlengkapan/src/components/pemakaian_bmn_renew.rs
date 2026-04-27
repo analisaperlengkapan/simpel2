@@ -36,7 +36,9 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
     let (success, set_success) = signal(false);
     let navigate = use_navigate();
 
-    let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
+    // Wrap in Callback so the surrounding render closure (which has to be
+    // `Fn`) can copy this handler on each re-render without consuming it.
+    let on_submit = Callback::new(move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
 
         set_loading.set(true);
@@ -73,7 +75,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
                 }
             }
         });
-    };
+    });
 
     view! {
         <div class="max-w-4xl mx-auto p-6">
@@ -122,7 +124,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
                                     </div>
                                 </Show>
 
-                                <form on:submit=on_submit class="space-y-6">
+                                <form on:submit=move |ev| on_submit.run(ev) class="space-y-6">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Mulai Baru"</label>

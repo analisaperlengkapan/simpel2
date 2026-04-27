@@ -12,11 +12,15 @@ use lib_ui::prelude::*;
 /// Main navigation bar with navy/gold Kejaksaan RI branding
 #[component]
 pub fn Navbar(
-    /// Optional user session
-    #[prop(optional)]
+    /// Optional user session.
+    ///
+    /// Accepts a raw `Option<UserSession>` because legacy call-sites
+    /// pass through a context-derived `Option`. Defaults to `None`
+    /// when omitted thanks to the explicit `default` attribute.
+    #[prop(default = None)]
     user_session: Option<UserSession>,
-    /// Logout callback
-    #[prop(optional)]
+    /// Logout callback. Same `Option` rationale as `user_session`.
+    #[prop(default = None)]
     on_logout: Option<Box<dyn Fn()>>,
 ) -> impl IntoView {
     use std::rc::Rc;
