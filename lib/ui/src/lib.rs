@@ -34,6 +34,7 @@
 pub mod components;
 pub mod core;
 pub mod hooks;
+pub mod routes;
 pub mod utils;
 
 // ============================================================================
@@ -67,6 +68,9 @@ pub mod prelude {
 
     // Hooks (domain-specific)
     pub use crate::hooks::*;
+
+    // Typed routes (Phase 8a — pure-data layer)
+    pub use crate::routes::{PerlengkapanRoute, PortalRoute, ToPath};
 
     // Generic reactive primitives from leptos-use
     pub use leptos_use::{

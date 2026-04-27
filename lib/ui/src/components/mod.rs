@@ -5,6 +5,7 @@
 pub mod accessibility;
 pub mod accessibility_controls;
 pub mod advanced;
+pub mod app_shell;
 pub mod auth;
 pub mod captcha;
 pub mod charts;
@@ -23,6 +24,7 @@ pub mod monitoring_dashboard;
 pub mod navigation;
 pub mod notifications;
 pub mod optimized_image;
+pub mod route_suspense;
 pub mod search;
 pub mod security_meta;
 pub mod theme_editor;
