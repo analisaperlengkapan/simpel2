@@ -56,3 +56,17 @@
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950;
   }
 }
+
+/* Toast countdown progress bar — driven by inline style="animation-duration"
+ * and "animation-play-state" set per-toast in `lib_ui::hooks::use_toast`.
+ * Pause/resume is handled by mouseenter/leave + focusin/out on the toast. */
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+.animate-toast-progress {
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  width: 100%;
+}
