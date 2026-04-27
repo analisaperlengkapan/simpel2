@@ -182,11 +182,13 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
         }
     };
 
-    // Reset to default
+    // Reset to default. Update the snapshot too so a subsequent cancel won't
+    // revert past the reset (mirrors `save_theme`).
     let reset_theme = move |_| {
         let default_config = ThemeConfig::default();
         set_config.set(default_config.clone());
         default_config.apply();
+        original_config.set_value(default_config);
         set_preview_mode.set(false);
     };
 
