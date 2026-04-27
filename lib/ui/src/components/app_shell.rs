@@ -1,19 +1,16 @@
-//! Future home of `<AppShell>` — phase 8e.
+//! `<AppShell>` — consolidates per-app provider plumbing.
 //!
-//! When the workspace build is healthy enough to verify it, this
-//! module will export a single component that consolidates every
-//! provider each app currently mounts by hand at the top of its
-//! `App()` function:
+//! Mounts the providers every microfrontend would otherwise have to
+//! repeat at the top of `App()`:
 //!
-//! - [`tracing_subscriber_wasm`] init (phase 1)
-//! - [`leptos_fetch::QueryClient::new().provide()`] (phase 6)
-//! - [`crate::hooks::use_toast::ToastProvider`] (phase 7, upgraded
-//!   with aria-live + pause-on-hover + optional progress bar)
-//! - [`crate::components::custom_branding::BrandingProvider`]
-//! - Session monitor + cross-tab sync (app-specific, opt-in)
-//! - `config.json` runtime loader (app-specific, opt-in)
+//! - [`leptos_fetch::QueryClient`] — phase 6 cache layer.
+//! - [`crate::hooks::use_toast::ToastProvider`] — upgraded toast system
+//!   from phase 7 (aria-live, pause-on-hover, optional progress bar).
 //!
-//! Expected API:
+//! Tracing-subscriber init stays in each app's `main.rs` because it
+//! must run before any Leptos code, and `BrandingProvider` plus
+//! session-monitor wiring stay in the App because their config is
+//! per-app.
 //!
 //! ```ignore
 //! use lib_ui::prelude::*;
@@ -21,22 +18,30 @@
 //! #[component]
 //! pub fn App() -> impl IntoView {
 //!     view! {
-//!         <AppShell unit="portal">
+//!         <AppShell>
 //!             <Router base="/portal">
 //!                 <Routes fallback=|| view! { <NotFoundPage /> }>
-//!                     // route registration only — no provider plumbing
+//!                     /* route registration only */
 //!                 </Routes>
 //!             </Router>
 //!         </AppShell>
 //!     }
 //! }
 //! ```
-//!
-//! Once landed, [`antarmuka/portal/src/app.rs`] and
-//! [`antarmuka/perlengkapan/src/lib.rs`] both shrink to under
-//! ~60 LoC, with route registration as the bulk of the remaining
-//! code.
-//!
-//! Implementation is deferred until the 62 pre-existing errors in
-//! `use_form.rs`, `error_boundary.rs`, and `shamir.rs` clear — see
-//! `.claude/plans/coba-kritisi-uraian-berikut-pure-rossum.md`.
+
+use crate::hooks::use_toast::ToastProvider;
+use leptos::prelude::*;
+use leptos_fetch::QueryClient;
+
+#[component]
+pub fn AppShell(children: Children) -> impl IntoView {
+    // Mount the leptos-fetch cache so descendants can opt into
+    // `use_query` / `client.local_resource` / `client.resource`.
+    QueryClient::new().provide();
+
+    view! {
+        <ToastProvider>
+            {children()}
+        </ToastProvider>
+    }
+}

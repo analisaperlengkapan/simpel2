@@ -8,8 +8,24 @@ use crate::api::{
     fetch_expiring_permits, fetch_pegawai_usage_history,
 };
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{MAGNIFYING_GLASS, SPINNER, WARNING};
+
+/// Phase 6 pilot — leptos-fetch query for the expiring-permits widget.
+///
+/// Defined as a free `async fn` (instead of an inline closure inside
+/// `LocalResource::new`) so the `QueryClient` can build a `QueryScope`
+/// from it. The single tunable is the lookahead window in days,
+/// which doubles as the cache key — switching to 60 days here will
+/// dedupe with any other call that asks for 60 days while leaving
+/// the 30-day cache entry untouched.
+async fn query_expiring_permits(days: i32) -> Option<Vec<IzinPemakaianBmn>> {
+    fetch_expiring_permits(days)
+        .await
+        .ok()
+        .map(|response| response.data)
+}
 
 #[component]
 pub fn PemakaianBmnMonitoring() -> impl IntoView {
@@ -19,13 +35,12 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
     let (search_result, set_search_result) = signal(None::<SearchResult>);
     let (searching, set_searching) = signal(false);
 
-    // Resource for expiring permits
-    let expiring_permits = LocalResource::new(|| async move {
-        match fetch_expiring_permits(30).await {
-            Ok(response) => Some(response.data),
-            Err(_) => None,
-        }
-    });
+    // Phase 6 pilot — keyed cache + dedup for expiring permits via
+    // leptos-fetch. The keyer signal returns the lookahead window
+    // (30 days). Multiple components asking for the same window
+    // share a single in-flight request and a single cached result.
+    let client: QueryClient = expect_context();
+    let expiring_permits = client.local_resource(query_expiring_permits, || 30);
 
     // Handle search
     let handle_search = move |_| {
