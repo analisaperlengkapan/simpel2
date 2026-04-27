@@ -1,27 +1,19 @@
-//! Floating UI primitives — placeholder module.
+//! Floating UI primitives backed by `floating-ui-leptos`.
 //!
-//! `floating-ui-leptos` (`use_floating`, `Offset`, `Flip`, `Shift`,
-//! `Arrow`) is wired up as a `lib-ui` dependency so positioning logic
-//! is one `use` away when we need it. Pre-built `Tooltip`, `Popover`,
-//! and `Dropdown` components are intentionally **deferred** until the
-//! workspace build is healthy enough to verify them — see the 62
-//! pre-existing errors in `lib/ui/src/hooks/use_form.rs`,
-//! `lib/ui/src/components/error_boundary.rs`, and
-//! `lib/crypto/src/shamir.rs` (Send + Sync bound regression).
+//! Project defaults: 8px offset, flip when clipped, shift to stay in
+//! viewport, z-index from the `z-popover` Tailwind token.
+//! Outside-click and Escape-key dismiss are wired automatically.
 //!
-//! Until then, simple dropdowns can use Tailwind absolute positioning
-//! with the centralized z-index tokens (`z-dropdown`, `z-popover`,
-//! `z-tooltip`, `z-modal`, `z-toast`) defined in
-//! `tailwind.config.js`. Combine with `leptos_use::on_click_outside`
-//! (re-exported from `lib_ui::prelude`) for outside-click dismiss.
+//! Currently exports:
+//! - [`Popover`] — controlled floating panel anchored to a trigger.
 //!
-//! When primitives land, this module will export at minimum:
-//! - `Tooltip` — hover / focus, positioned via `use_floating`.
-//! - `Popover` — controlled panel with click-outside + Escape dismiss.
+//! Planned (will land alongside concrete usage demand):
+//! - `Tooltip` — hover / focus styled wrapper around `Popover`.
 //! - `Dropdown` — `Popover` + menu role + keyboard navigation.
-//!
-//! Tracked: phase 4 in
-//! `.claude/plans/coba-kritisi-uraian-berikut-pure-rossum.md`.
+
+pub mod popover;
+
+pub use popover::Popover;
 
 #[doc(hidden)]
 pub use floating_ui_leptos;
