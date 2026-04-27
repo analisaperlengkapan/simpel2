@@ -17,6 +17,9 @@ leptos_router = { workspace = true }
 lib-ui = { workspace = true }
 lib-core = { workspace = true }
 lib-perlengkapan = { workspace = true, features = ["frontend", "wasm"] }
+
+# Reactive query/cache layer (Phase 6 of awesome-leptos integration)
+leptos-fetch = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }

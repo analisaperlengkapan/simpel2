@@ -22,6 +22,7 @@ mod pages;
 mod routes;
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
 
@@ -83,6 +84,11 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
+
+    // Mount the leptos-fetch QueryClient so descendants can opt into
+    // `use_query` / `use_mutation` for cached, deduped data fetching.
+    // LocalResource call-sites stay valid; migration is incremental.
+    QueryClient::new().provide();
 
     let sidebar_open = RwSignal::new(false);
     let (user_session, set_user_session) = signal(AuthService::load_session());

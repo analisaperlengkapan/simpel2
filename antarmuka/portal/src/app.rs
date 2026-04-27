@@ -16,6 +16,7 @@ use crate::routes;
 
 use crate::pages::*;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::BrandingProvider;
 use lib_ui::hooks::use_toast::ToastProvider;
 
@@ -27,6 +28,11 @@ use leptos_router::{
 /// Main application component with session management
 #[component]
 pub fn App() -> impl IntoView {
+    // Mount the leptos-fetch QueryClient so descendants can opt into
+    // `use_query` / `use_mutation` for cached, deduped data fetching.
+    // LocalResource call-sites stay valid; migration is incremental.
+    QueryClient::new().provide();
+
     // Load runtime configuration (authenc URL etc.) from config.json
     #[cfg(target_arch = "wasm32")]
     {
