@@ -26,6 +26,7 @@ leptos_router = { workspace = true }
 leptos-use = { workspace = true }
 codee = { workspace = true }
 phosphor-leptos = { workspace = true }
+floating-ui-leptos = { workspace = true }
 
 # Serialization
 serde = { workspace = true, features = ["derive"] }

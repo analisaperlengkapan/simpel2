@@ -109,6 +109,17 @@ module.exports = {
         'app-gradient': 'linear-gradient(180deg, #0f172a 0%, #111c36 50%, #0a1020 100%)',
         'gold-gradient': 'linear-gradient(135deg, #d4a843 0%, #facc15 100%)',
       },
+      // Centralized z-index layers — every overlay (dropdown, popover,
+      // tooltip, modal, toast) picks one of these instead of hardcoding
+      // numeric values. Each layer leaves room above/below for ad-hoc
+      // adjustments without colliding with the next named layer.
+      zIndex: {
+        'dropdown': '40',
+        'popover':  '60',
+        'tooltip':  '70',
+        'modal':    '80',
+        'toast':    '90',
+      },
     },
   },
   plugins: [],

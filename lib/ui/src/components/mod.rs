@@ -12,6 +12,7 @@ pub mod dashboard;
 pub mod display;
 pub mod error_boundary;
 pub mod feedback;
+pub mod floating;
 pub mod forms;
 pub mod icon;
 pub mod layout;

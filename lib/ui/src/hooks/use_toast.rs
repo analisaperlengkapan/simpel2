@@ -143,7 +143,7 @@ pub fn ToastProvider(children: Children) -> impl IntoView {
 #[component]
 fn ToastOverlay(ctx: ToastContext) -> impl IntoView {
     view! {
-        <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+        <div class="fixed top-4 right-4 z-toast flex flex-col gap-2 pointer-events-none">
             <For
                 each=move || ctx.toasts.get()
                 key=|item| item.id

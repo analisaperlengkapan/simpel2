@@ -35,6 +35,16 @@ module.exports = {
           950: '#201605',
         },
       },
+      // Centralized z-index layers — every overlay (dropdown, popover,
+      // tooltip, modal, toast) picks one of these instead of hardcoding
+      // numeric values. Mirrored in antarmuka/perlengkapan/tailwind.config.js.
+      zIndex: {
+        'dropdown': '40',
+        'popover':  '60',
+        'tooltip':  '70',
+        'modal':    '80',
+        'toast':    '90',
+      },
     },
   },
   plugins: [],

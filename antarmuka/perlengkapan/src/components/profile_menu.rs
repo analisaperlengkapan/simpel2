@@ -43,10 +43,14 @@ pub fn ProfileMenu() -> impl IntoView {
             </button>
 
             // ── Dropdown panel ────────────────────────────────────
-            <div style=move || format!(
-                "position: absolute; right: 0; top: 100%; margin-top: 10px; width: 300px; background: #0c1425; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; z-index: 70; overflow: hidden; {} box-shadow: 0 24px 64px rgba(0,0,0,0.6);",
-                if is_open.get() { "opacity: 1; transform: translateY(0); pointer-events: auto;" } else { "opacity: 0; transform: translateY(-8px); pointer-events: none;" }
-            )>
+            <div
+                class="absolute right-0 top-full mt-2.5 w-[300px] rounded-[18px] border border-white/10 bg-surface-panel overflow-hidden shadow-panel z-popover"
+                style=move || if is_open.get() {
+                    "opacity: 1; transform: translateY(0); pointer-events: auto;"
+                } else {
+                    "opacity: 0; transform: translateY(-8px); pointer-events: none;"
+                }
+            >
                 // ── User info header ─────────────────────────────
                 <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.06);">
                     <div style="display: flex; align-items: center; gap: 14px;">
@@ -113,7 +117,7 @@ pub fn ProfileMenu() -> impl IntoView {
             // ── Backdrop ─────────────────────────────────────────
             {move || is_open.get().then(|| view! {
                 <div
-                    style="position: fixed; inset: 0; z-index: 60;"
+                    class="fixed inset-0 z-dropdown"
                     on:click=move |_| is_open.set(false)
                 ></div>
             })}
