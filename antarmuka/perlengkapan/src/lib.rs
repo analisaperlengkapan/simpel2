@@ -22,7 +22,6 @@ mod pages;
 mod routes;
 
 use leptos::prelude::*;
-use leptos_fetch::QueryClient;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
 
@@ -30,7 +29,7 @@ use components::app_chrome::{AppFooter, AppHeader};
 use components::guards::{AdminLayout, AuthenticatedLayout};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
-use lib_ui::hooks::use_toast::ToastProvider;
+use lib_ui::components::app_shell::AppShell;
 use pages::admin::{AdminAuditPage, AdminMasterDataPage};
 use pages::bank_aset::{
     BankAsetDashboardPage, BankAsetDetailPage, BankAsetListPage, BankAsetQrCodePage,
@@ -85,11 +84,6 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    // Mount the leptos-fetch QueryClient so descendants can opt into
-    // `use_query` / `use_mutation` for cached, deduped data fetching.
-    // LocalResource call-sites stay valid; migration is incremental.
-    QueryClient::new().provide();
-
     let sidebar_open = RwSignal::new(false);
     let (user_session, set_user_session) = signal(AuthService::load_session());
 
@@ -131,7 +125,7 @@ pub fn App() -> impl IntoView {
         <Meta charset="utf-8" />
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <ToastProvider>
+        <AppShell>
         <Router base="/perlengkapan">
             <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
                 // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
@@ -259,6 +253,6 @@ pub fn App() -> impl IntoView {
                 {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
             </div>
         </Router>
-        </ToastProvider>
+        </AppShell>
     }
 }
