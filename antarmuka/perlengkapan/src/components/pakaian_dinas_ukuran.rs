@@ -12,9 +12,34 @@ use crate::components::layout::{
 };
 use crate::routes;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{CHECK_CIRCLE, FLOPPY_DISK, INFO, WARNING_CIRCLE};
-use leptos::task::spawn_local;
+
+/// `()`-keyed master ukuran query — same baju/celana/sepatu fetch
+/// for every consumer, so a single cache slot suffices.
+async fn query_master_ukuran(_: ()) -> Result<(Vec<Ukuran>, Vec<Ukuran>, Vec<Ukuran>), AppError> {
+    let baju = fetch_master_ukuran(Some("BAJU".to_string())).await?.data;
+    let celana = fetch_master_ukuran(Some("CELANA".to_string())).await?.data;
+    let sepatu = fetch_master_ukuran(Some("SEPATU".to_string())).await?.data;
+    Ok((baju, celana, sepatu))
+}
+
+/// Per-pegawai ukuran query — keyed by pegawai id (`String`).
+async fn query_pegawai_ukuran(
+    pegawai_id: String,
+) -> Result<Option<PegawaiPakaianDinas>, AppError> {
+    fetch_pegawai_ukuran(pegawai_id).await.map(|r| r.data)
+}
+
+/// Pegawai-with-sizes paginated list — keyed by `(satker_id, page)`.
+async fn query_pegawai_with_sizes(
+    key: (String, i32),
+) -> Result<crate::api::PaginatedResponse<PegawaiWithSizes>, AppError> {
+    let (satker_id, page) = key;
+    fetch_pegawai_with_sizes(satker_id, page, 20).await
+}
 
 #[component]
 pub fn UkuranPegawai(
@@ -33,24 +58,16 @@ pub fn UkuranPegawai(
     let (error_message, set_error_message) = signal(Option::<String>::None);
 
     let pegawai_id_clone = pegawai_id.clone();
+    let client: QueryClient = expect_context();
 
-    // Fetch master ukuran data
-    let master_ukuran = LocalResource::new(|| async move {
-        let baju = fetch_master_ukuran(Some("BAJU".to_string())).await;
-        let celana = fetch_master_ukuran(Some("CELANA".to_string())).await;
-        let sepatu = fetch_master_ukuran(Some("SEPATU".to_string())).await;
-        // Return first error if any, otherwise combine
-        let baju = baju.map(|r| r.data)?;
-        let celana = celana.map(|r| r.data)?;
-        let sepatu = sepatu.map(|r| r.data)?;
-        Ok::<_, AppError>((baju, celana, sepatu))
-    });
+    // Master ukuran shared across the app — single `()` cache slot.
+    let master_ukuran = client.local_resource(query_master_ukuran, || ());
 
-    // Fetch existing ukuran for pegawai
+    // Existing ukuran for this pegawai — keyed cache so multiple
+    // pegawai pages each cache under their own id.
     let pegawai_id_for_fetch = pegawai_id.clone();
-    let existing_ukuran = LocalResource::new(move || {
-        let pid = pegawai_id_for_fetch.clone();
-        async move { fetch_pegawai_ukuran(pid).await.map(|r| r.data) }
+    let existing_ukuran = client.local_resource(query_pegawai_ukuran, move || {
+        pegawai_id_for_fetch.clone()
     });
 
     // Effect to populate form when existing data loads
@@ -231,11 +248,10 @@ pub fn UkuranPegawaiSatker(
 ) -> impl IntoView {
     let (page, set_page) = signal(1);
     let satker_id_clone = satker_id.clone();
+    let client: QueryClient = expect_context();
 
-    let data_resource = LocalResource::new(move || {
-        let sid = satker_id_clone.clone();
-        let p = page.get();
-        async move { fetch_pegawai_with_sizes(sid, p, 20).await }
+    let data_resource = client.local_resource(query_pegawai_with_sizes, move || {
+        (satker_id_clone.clone(), page.get())
     });
 
     view! {

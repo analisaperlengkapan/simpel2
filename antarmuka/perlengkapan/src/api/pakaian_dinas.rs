@@ -286,7 +286,7 @@ pub struct LaporanDaftarPegawai {
     pub with_hijab: Option<bool>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct LaporanQuery {
     pub pengajuan_id: Option<String>,
     pub satker_id: Option<String>,

@@ -6,6 +6,7 @@
 //! feeds the list and the detail drawer, and the modal-visibility signals.
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{CHECK, CIRCLE, CLOCK, FLAG_CHECKERED, GEAR, MINUS, PLUS, USER_LIST, X};
 
@@ -14,14 +15,32 @@ use super::config::{
     StepEditorModal, TransitionMatrix,
 };
 use crate::api::workflow::{
-    WorkflowDefinition, WorkflowStep, fetch_workflow_definition_detail, fetch_workflow_definitions,
-    format_sla,
+    WorkflowDefinition, WorkflowDefinitionDetail, WorkflowStep, fetch_workflow_definition_detail,
+    fetch_workflow_definitions, format_sla,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 
+/// `()`-keyed query for the workflow definitions list. Unwraps
+/// `ApiResponse.data` because the wrapper isn't `Clone` (and the
+/// success/message fields aren't observed by the renderer
+/// anyway).
+async fn query_workflow_definitions(
+    _: (),
+) -> Result<Vec<WorkflowDefinition>, crate::api::AppError> {
+    fetch_workflow_definitions().await.map(|r| r.data)
+}
+
+/// Per-workflow detail query keyed by workflow name (`String`).
+async fn query_workflow_definition_detail(
+    name: String,
+) -> Result<WorkflowDefinitionDetail, crate::api::AppError> {
+    fetch_workflow_definition_detail(&name).await.map(|r| r.data)
+}
+
 #[component]
 pub fn WorkflowConfigManagement() -> impl IntoView {
-    let list_resource = LocalResource::new(fetch_workflow_definitions);
+    let client: QueryClient = expect_context();
+    let list_resource = client.local_resource(query_workflow_definitions, || ());
 
     let (selected, set_selected) = signal::<Option<String>>(None);
     let (editing, set_editing) = signal::<Option<WorkflowDefinition>>(None);
@@ -71,9 +90,9 @@ pub fn WorkflowConfigManagement() -> impl IntoView {
             <SectionCard title="Definisi Workflow" icon="fas fa-list">
                 <Suspense fallback=move || view! { <LoadingState message="Memuat daftar workflow..." /> }>
                     {move || list_resource.get().map(|result| match result {
-                        Ok(response) => view! {
+                        Ok(workflows) => view! {
                             <ConfigListPanel
-                                workflows=response.data
+                                workflows=workflows
                                 on_view=on_view
                                 on_edit=on_edit
                                 on_delete=on_delete
@@ -135,9 +154,9 @@ fn WorkflowDetailDrawer(
     #[prop(into)] on_close: Callback<()>,
 ) -> impl IntoView {
     let name_for_resource = workflow_name.clone();
-    let detail_resource = LocalResource::new(move || {
-        let name = name_for_resource.clone();
-        async move { fetch_workflow_definition_detail(&name).await }
+    let client: QueryClient = expect_context();
+    let detail_resource = client.local_resource(query_workflow_definition_detail, move || {
+        name_for_resource.clone()
     });
 
     let (edit_step, set_edit_step) = signal::<Option<WorkflowStep>>(None);
@@ -177,8 +196,7 @@ fn WorkflowDetailDrawer(
 
                 <Suspense fallback=move || view! { <LoadingState message="Memuat detail workflow..." /> }>
                     {move || detail_resource.get().map(|result| match result {
-                        Ok(response) => {
-                            let detail = response.data;
+                        Ok(detail) => {
                             let steps = detail.steps.clone();
                             let detail_for_json = detail.clone();
                             let steps_for_matrix = steps.clone();
@@ -318,10 +336,9 @@ fn WorkflowDetailDrawer(
             </div>
 
             {move || {
-                detail_resource.get().and_then(|r| r.ok()).and_then(|resp| {
+                detail_resource.get().and_then(|r| r.ok()).and_then(|detail| {
                     edit_step.get().map(|step| {
-                        let all_states: Vec<String> = resp
-                            .data
+                        let all_states: Vec<String> = detail
                             .steps
                             .iter()
                             .map(|s| s.state_name.clone())

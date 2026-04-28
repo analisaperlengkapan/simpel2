@@ -3,16 +3,28 @@
 //! Displays list of uniform request periods with workflow management.
 
 use crate::api::{
-    AppError, CreatePengajuanPakaianDinasRequest, PengajuanPakaianDinas,
+    AppError, CreatePengajuanPakaianDinasRequest, PaginatedResponse, PengajuanPakaianDinas,
     create_pengajuan_pakaian_dinas, delete_pengajuan_pakaian_dinas, fetch_pengajuan_pakaian_dinas,
 };
 use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{BUILDING, CALENDAR_CHECK, CALENDAR_X, PLUS, TRASH, WARNING_CIRCLE};
-use leptos::task::spawn_local;
+
+/// leptos-fetch query keyed by `(page, refresh_trigger)`. Same
+/// pattern as `pakaian_dinas_jenis_list`: trigger folds into the
+/// key so post-CRUD refetch keeps working without a separate
+/// invalidate path.
+async fn query_pengajuan_pakaian_dinas_page(
+    key: (i32, i32),
+) -> Result<PaginatedResponse<PengajuanPakaianDinas>, AppError> {
+    let (page, _trigger) = key;
+    fetch_pengajuan_pakaian_dinas(page, 20, None).await
+}
 
 #[component]
 pub fn PakaianDinasPengajuanList() -> impl IntoView {
@@ -27,10 +39,9 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
     let (error_message, set_error_message) = signal(Option::<String>::None);
     let refresh_trigger = RwSignal::new(0);
 
-    let data_resource = LocalResource::new(move || {
-        let p = page.get();
-        let _trigger = refresh_trigger.get();
-        async move { fetch_pengajuan_pakaian_dinas(p, 20, None).await }
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_pengajuan_pakaian_dinas_page, move || {
+        (page.get(), refresh_trigger.get())
     });
 
     let on_submit = move |ev: leptos::ev::SubmitEvent| {

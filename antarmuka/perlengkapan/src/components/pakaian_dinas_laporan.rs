@@ -5,13 +5,40 @@
 
 use crate::api::{
     AppError, JenisPakaianDinas, LaporanDaftarPegawai, LaporanQuery, LaporanRekapUkuran,
-    PengajuanPakaianDinas, fetch_jenis_pakaian_dinas, fetch_laporan_daftar_pegawai,
-    fetch_laporan_rekap_ukuran, fetch_pengajuan_pakaian_dinas,
+    PaginatedResponse, PengajuanPakaianDinas, fetch_jenis_pakaian_dinas,
+    fetch_laporan_daftar_pegawai, fetch_laporan_rekap_ukuran, fetch_pengajuan_pakaian_dinas,
 };
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{CHART_PIE, FILE_PDF, FILE_XLS, USERS};
+
+/// Filter-option queries — both keyed `()` because the dropdowns
+/// always show "first 100 active items" regardless of context.
+async fn query_pengajuan_options(_: ()) -> Result<Vec<PengajuanPakaianDinas>, AppError> {
+    fetch_pengajuan_pakaian_dinas(1, 100, None)
+        .await
+        .map(|r| r.data)
+}
+
+async fn query_jenis_options(_: ()) -> Result<Vec<JenisPakaianDinas>, AppError> {
+    fetch_jenis_pakaian_dinas(1, 100).await.map(|r| r.data)
+}
+
+/// Rekap query keyed by the entire filter struct — so toggling
+/// back to a previously seen filter combination is instant.
+async fn query_laporan_rekap(query: LaporanQuery) -> Result<Vec<LaporanRekapUkuran>, AppError> {
+    fetch_laporan_rekap_ukuran(query).await.map(|r| r.data)
+}
+
+/// Daftar pegawai query keyed by `(filter, page)`.
+async fn query_laporan_daftar(
+    key: (LaporanQuery, i32),
+) -> Result<PaginatedResponse<LaporanDaftarPegawai>, AppError> {
+    let (query, page) = key;
+    fetch_laporan_daftar_pegawai(query, page, 20).await
+}
 
 // ── Helper: build export URL from current filter state ────────────────────
 fn build_export_url(
@@ -86,17 +113,11 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
     let (selected_jenis_pegawai, set_selected_jenis_pegawai) = signal(Option::<String>::None);
     let (selected_eselon, set_selected_eselon) = signal(Option::<String>::None);
 
-    // Fetch filter options
-    let pengajuan_options = LocalResource::new(|| async move {
-        fetch_pengajuan_pakaian_dinas(1, 100, None)
-            .await
-            .map(|r| r.data)
-    });
-
-    let jenis_options =
-        LocalResource::new(
-            || async move { fetch_jenis_pakaian_dinas(1, 100).await.map(|r| r.data) },
-        );
+    // Fetch filter options through the leptos-fetch cache so other
+    // pages that reuse the same dropdowns share the result.
+    let client: QueryClient = expect_context();
+    let pengajuan_options = client.local_resource(query_pengajuan_options, || ());
+    let jenis_options = client.local_resource(query_jenis_options, || ());
 
     let tab_class = move |tab: &'static str| {
         let active = active_tab.get() == tab;
@@ -304,16 +325,14 @@ fn RekapUkuranTab(
     jenis: Option<String>,
     eselon: Option<String>,
 ) -> impl IntoView {
-    let data = LocalResource::new(move || {
-        let query = LaporanQuery {
-            pengajuan_id: pengajuan_id.clone(),
-            satker_id: satker_id.clone(),
-            jenis_pakaian_id: jenis_pakaian_id.clone(),
-            jenis_kelamin: jenis_kelamin.clone(),
-            eselon: eselon.clone(),
-            jenis: jenis.clone(),
-        };
-        async move { fetch_laporan_rekap_ukuran(query).await.map(|r| r.data) }
+    let client: QueryClient = expect_context();
+    let data = client.local_resource(query_laporan_rekap, move || LaporanQuery {
+        pengajuan_id: pengajuan_id.clone(),
+        satker_id: satker_id.clone(),
+        jenis_pakaian_id: jenis_pakaian_id.clone(),
+        jenis_kelamin: jenis_kelamin.clone(),
+        eselon: eselon.clone(),
+        jenis: jenis.clone(),
     });
 
     view! {
@@ -452,7 +471,8 @@ fn DaftarPegawaiTab(
 ) -> impl IntoView {
     let (page, set_page) = signal(1);
 
-    let data = LocalResource::new(move || {
+    let client: QueryClient = expect_context();
+    let data = client.local_resource(query_laporan_daftar, move || {
         let query = LaporanQuery {
             pengajuan_id: pengajuan_id.clone(),
             satker_id: satker_id.clone(),
@@ -461,8 +481,7 @@ fn DaftarPegawaiTab(
             eselon: eselon.clone(),
             jenis: jenis.clone(),
         };
-        let p = page.get();
-        async move { fetch_laporan_daftar_pegawai(query, p, 20).await }
+        (query, page.get())
     });
 
     view! {

@@ -1,8 +1,17 @@
 //! Laporan Kebutuhan BMN — report page with filters and export.
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{FILE_PDF, FILE_XLS};
+
+/// `()`-keyed query wrapper around the mock fetch — keeps the
+/// signature compatible with `client.local_resource` so swapping
+/// the mock for a real endpoint later doesn't ripple into render
+/// code.
+async fn query_kebutuhan_bmn_list(_: ()) -> Result<Vec<KebutuhanBmnItem>, String> {
+    mock_fetch_kebutuhan_bmn_list().await
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct KebutuhanBmnItem {
@@ -33,7 +42,8 @@ pub async fn mock_fetch_kebutuhan_bmn_list() -> Result<Vec<KebutuhanBmnItem>, St
 pub fn LaporanKebutuhanBmn() -> impl IntoView {
     let tahun = RwSignal::new("2025".to_string());
     let status_filter = RwSignal::new("semua".to_string());
-    let data = LocalResource::new(move || mock_fetch_kebutuhan_bmn_list());
+    let client: QueryClient = expect_context();
+    let data = client.local_resource(query_kebutuhan_bmn_list, || ());
 
     view! {
         <div style="max-width: 1100px; margin: 0 auto;">

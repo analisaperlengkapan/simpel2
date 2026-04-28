@@ -3,27 +3,34 @@
 //! Form for renewing BMN usage permits.
 //! Requirements: REQ-P008
 
-use crate::api::{RenewPermitRequest, fetch_pemakaian_bmn_detail, renew_pemakaian_bmn};
+use crate::api::{
+    IzinPemakaianBmn, RenewPermitRequest, fetch_pemakaian_bmn_detail, renew_pemakaian_bmn,
+};
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
+use leptos_router::hooks::{use_navigate, use_params_map};
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{ARROW_CLOCKWISE, CHECK_CIRCLE, SPINNER, WARNING_CIRCLE};
-use leptos_router::hooks::{use_navigate, use_params_map};
+
+/// leptos-fetch query — keyed by permit id (`String`). Returns
+/// just the inner `izin` field so the renderer doesn't have to
+/// crack open the wrapper response.
+async fn query_pemakaian_bmn_renew_target(permit_id: String) -> Option<IzinPemakaianBmn> {
+    fetch_pemakaian_bmn_detail(&permit_id)
+        .await
+        .ok()
+        .map(|response| response.data.izin)
+}
 
 #[component]
 pub fn PemakaianBmnRenew() -> impl IntoView {
     let params = use_params_map();
     let id = move || params.read().get("id").unwrap_or_default();
 
-    // Resource to fetch current permit
-    let permit_resource = LocalResource::new(move || {
-        let permit_id = id();
-        async move {
-            match fetch_pemakaian_bmn_detail(&permit_id).await {
-                Ok(response) => Some(response.data.izin),
-                Err(_) => None,
-            }
-        }
-    });
+    // Resource to fetch current permit through leptos-fetch cache.
+    let client: QueryClient = expect_context();
+    let permit_resource =
+        client.local_resource(query_pemakaian_bmn_renew_target, move || id());
 
     // Form state
     let (tanggal_mulai, set_tanggal_mulai) = signal("".to_string());
