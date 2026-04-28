@@ -1,27 +1,30 @@
-use crate::api::{Asset, fetch_assets};
+use crate::api::{Asset, PaginatedResponse, fetch_assets};
 use crate::components::pagination_controls::PaginationControls;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{EYE, PACKAGE};
+
+/// leptos-fetch query keyed by `(page, category)`.
+async fn query_aset_page(key: (i32, Option<String>)) -> Option<PaginatedResponse<Asset>> {
+    let (page, category) = key;
+    fetch_assets(page, 20, category)
+        .await
+        .map_err(|e| {
+            leptos::logging::error!("Failed to fetch assets: {:?}", e);
+        })
+        .ok()
+}
 
 #[component]
 pub fn AsetList() -> impl IntoView {
     let (page, set_page) = signal(1);
     let (category, set_category) = signal(None::<String>);
 
-    // Resource to fetch assets when page changes
-    let assets_resource = LocalResource::new(move || {
-        let p = page.get();
-        let c = category.get();
-        async move {
-            match fetch_assets(p, 20, c).await {
-                Ok(response) => Some(response),
-                Err(e) => {
-                    leptos::logging::error!("Failed to fetch assets: {:?}", e);
-                    None
-                }
-            }
-        }
+    // Per-(page, category) leptos-fetch cache.
+    let client: QueryClient = expect_context();
+    let assets_resource = client.local_resource(query_aset_page, move || {
+        (page.get(), category.get())
     });
 
     view! {

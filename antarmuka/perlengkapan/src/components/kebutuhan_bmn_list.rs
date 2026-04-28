@@ -3,7 +3,8 @@
 //! Displays paginated list of BMN needs analysis requests with filtering and batch operations.
 
 use crate::api::{
-    AppError, KebutuhanBmnQuery, KebutuhanBmnStatus, KebutuhanBmnSummary, fetch_kebutuhan_bmn_list,
+    AppError, KebutuhanBmnQuery, KebutuhanBmnStatus, KebutuhanBmnSummary, PaginatedResponse,
+    fetch_kebutuhan_bmn_list,
 };
 use crate::components::batch_operations_toolbar::{
     BatchOperationResult, BatchOperationsToolbar, BatchResultSummary,
@@ -11,8 +12,22 @@ use crate::components::batch_operations_toolbar::{
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{EYE, PENCIL_SIMPLE, PLUS, X};
+
+/// leptos-fetch query keyed by `(query, page, per_page, refresh)`.
+/// `KebutuhanBmnQuery` impls Hash + Eq + Clone so leptos-fetch can
+/// dedupe on it directly. The trailing `refresh` integer lets
+/// post-CRUD code force a refetch via
+/// `refresh_trigger.update(|v| *v += 1)` without invalidating the
+/// other cached pages.
+async fn query_kebutuhan_bmn_page(
+    key: (KebutuhanBmnQuery, i32, i32, i32),
+) -> Result<PaginatedResponse<KebutuhanBmnSummary>, AppError> {
+    let (query, page, per_page, _refresh) = key;
+    fetch_kebutuhan_bmn_list(query, page, per_page).await
+}
 use leptos_meta::Title;
 use lib_ui::components::DarkPagination;
 use uuid::Uuid;
@@ -40,12 +55,9 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         },
     });
 
-    let data_resource = LocalResource::new(move || {
-        let q = query.get();
-        let p = page.get();
-        let pp = per_page.get();
-        let _ = refresh_trigger.get();
-        async move { fetch_kebutuhan_bmn_list(q, p, pp).await }
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_kebutuhan_bmn_page, move || {
+        (query.get(), page.get(), per_page.get(), refresh_trigger.get())
     });
 
     // Reset page when filters change

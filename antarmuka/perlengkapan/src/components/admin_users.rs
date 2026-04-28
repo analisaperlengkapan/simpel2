@@ -5,11 +5,40 @@
 //! through the perlengkapan backend REST API.
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{CHECK, LOCK, MAGNIFYING_GLASS, PENCIL_SIMPLE, SPINNER, USERS, USER_CHECK, USER_PLUS, X};
 
 use crate::api;
 use crate::components::role_switcher::{PerlengkapanRole, get_active_role};
+
+/// leptos-fetch query keyed by `(search, role)`. The body still
+/// returns the static demo row until the backend endpoint lands;
+/// keying on the filter inputs means swapping back to a previous
+/// search/role combination is instant once that combination has
+/// been seen.
+async fn query_admin_users(
+    key: (String, Option<String>),
+) -> Vec<UserRoleAssignment> {
+    let (_search, _role) = key;
+    // In production: api::fetch_admin_users(search, role).await
+    vec![UserRoleAssignment {
+        nip: "199203142014031001".to_string(),
+        nama: "Admin".to_string(),
+        jabatan: "Kasubag Perlengkapan".to_string(),
+        golongan: "III/c".to_string(),
+        satker_code: "0100000".to_string(),
+        satker_name: "Kejaksaan Agung RI".to_string(),
+        assigned_roles: vec![
+            "operator_satker".to_string(),
+            "validator_wilayah".to_string(),
+            "validator_pusat".to_string(),
+            "admin".to_string(),
+        ],
+        active_role: Some("admin".to_string()),
+        status: "active".to_string(),
+    }]
+}
 
 /// User role assignment data
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -47,29 +76,12 @@ pub fn AdminUsersPage() -> impl IntoView {
     let (show_assign_modal, set_show_assign_modal) = signal(false);
     let (selected_user_nip, set_selected_user_nip) = signal::<Option<String>>(None);
 
-    // Simulated user data (in production, fetched from /api/pembinaan/perlengkapan/admin/users)
-    let users_resource = LocalResource::new(move || {
-        let _search = search.get();
-        let _role = selected_role_filter.get();
-        async move {
-            // In production: api::fetch_admin_users(search, role_filter).await
-            vec![UserRoleAssignment {
-                nip: "199203142014031001".to_string(),
-                nama: "Admin".to_string(),
-                jabatan: "Kasubag Perlengkapan".to_string(),
-                golongan: "III/c".to_string(),
-                satker_code: "0100000".to_string(),
-                satker_name: "Kejaksaan Agung RI".to_string(),
-                assigned_roles: vec![
-                    "operator_satker".to_string(),
-                    "validator_wilayah".to_string(),
-                    "validator_pusat".to_string(),
-                    "admin".to_string(),
-                ],
-                active_role: Some("admin".to_string()),
-                status: "active".to_string(),
-            }]
-        }
+    // Simulated user data — production fetch lives in `query_admin_users`
+    // above. Keyed by `(search, role_filter)` so the backend swap will
+    // automatically benefit from the cache + dedup once it lands.
+    let client: QueryClient = expect_context();
+    let users_resource = client.local_resource(query_admin_users, move || {
+        (search.get(), selected_role_filter.get())
     });
 
     let all_roles = PerlengkapanRole::all_roles();

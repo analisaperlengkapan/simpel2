@@ -494,7 +494,7 @@ pub struct ValidatorPusatKeputusanRequest {
     pub override_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct KebutuhanBmnQuery {
     pub tahun: Option<i32>,
     pub status_kode: Option<i32>,
