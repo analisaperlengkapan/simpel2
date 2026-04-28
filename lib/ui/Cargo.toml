@@ -29,7 +29,7 @@ phosphor-leptos = { workspace = true }
 floating-ui-leptos = { workspace = true }
 leptos-struct-table = { workspace = true, features = ["chrono", "uuid"] }
 leptos-chartistry = { workspace = true }
-leptos-node-ref = "0.2"
+leptos-node-ref = { workspace = true }
 leptos-fetch = { workspace = true }
 # leptos_animate 0.1.x requires `--cfg=web_sys_unstable_apis` to compile,
 # which is invasive at the workspace level. Defer until 0.2+ stabilizes

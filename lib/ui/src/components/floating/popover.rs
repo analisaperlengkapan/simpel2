@@ -35,9 +35,10 @@ use floating_ui_leptos::{
 };
 use leptos::{html, prelude::*};
 use leptos_node_ref::AnyNodeRef;
-use leptos_use::{on_click_outside, use_event_listener};
+use leptos_use::use_event_listener;
 use send_wrapper::SendWrapper;
-use web_sys::{Element, Window};
+use wasm_bindgen::JsCast;
+use web_sys::{Element, Node, Window};
 
 type FloatingMiddleware = Box<dyn Middleware<Element, Window>>;
 
@@ -86,12 +87,46 @@ pub fn Popover(
             .middleware(SendWrapper::new(middleware)),
     );
 
-    // Outside-click dismiss — leptos-use cleans up the listener on drop.
-    let _click_outside = on_click_outside(floating_ref, move |_| {
-        if open.get_untracked() {
+    // Outside-click dismiss. We can't use `leptos_use::on_click_outside`
+    // directly because it has no concept of the trigger element — the
+    // very click that opens the popover bubbles up to the document
+    // *after* the trigger's `on:click` has flipped `open` to `true`.
+    // `on_click_outside` would then see "click is outside the floating
+    // panel" (and at that moment the panel hasn't even rendered yet,
+    // so `floating_ref` is null), and immediately close the popover
+    // again — net effect: the popover never opens.
+    //
+    // Listen on `click` at the document level and bail out when the
+    // event target is inside either the trigger or the floating panel.
+    // `Element` inherits from `Node`, so we can pass it straight to
+    // `Node::contains`.
+    let _outside = use_event_listener(
+        document(),
+        leptos::ev::click,
+        move |ev: web_sys::MouseEvent| {
+            if !open.get_untracked() {
+                return;
+            }
+            let target = match ev.target().and_then(|t| t.dyn_into::<Node>().ok()) {
+                Some(node) => node,
+                None => return,
+            };
+            // Click inside the floating panel? Don't dismiss.
+            if let Some(panel) = floating_ref.get_untracked()
+                && panel.contains(Some(&target))
+            {
+                return;
+            }
+            // Click on (or inside) the trigger? Let the trigger's own
+            // handler manage open/close — don't double-dismiss.
+            if let Some(trigger) = trigger_ref.get()
+                && trigger.contains(Some(&target))
+            {
+                return;
+            }
             set_open.set(false);
-        }
-    });
+        },
+    );
 
     // Escape-key dismiss on the document root.
     let _esc = use_event_listener(

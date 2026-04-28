@@ -70,3 +70,26 @@
   animation-fill-mode: forwards;
   width: 100%;
 }
+
+/* Toast entry animation — used by `lib_ui::hooks::use_toast` overlay items. */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s ease-out;
+}
+
+/* FontAwesome `fa-spin` compatibility shim. The FA CDN was removed as part of
+ * the phosphor-leptos migration (Phase 3), but `fa-spin` is still used as the
+ * rotation utility on `<span>` wrappers around `<AppIcon icon=SPINNER />` in
+ * ~16 components. Provide the keyframe locally so spinners actually rotate.
+ * New code should prefer Tailwind's built-in `animate-spin`. */
+@keyframes fa-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.fa-spin {
+  animation: fa-spin 2s infinite linear;
+  display: inline-block;
+}

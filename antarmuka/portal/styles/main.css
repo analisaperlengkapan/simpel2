@@ -39,3 +39,23 @@
   animation-fill-mode: forwards;
   width: 100%;
 }
+
+/* Toast entry animation — used by `lib_ui::hooks::use_toast` overlay items. */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s ease-out;
+}
+
+/* FontAwesome `fa-spin` compatibility shim — see the matching block in
+ * antarmuka/perlengkapan/styles/tailwind.css for rationale. */
+@keyframes fa-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.fa-spin {
+  animation: fa-spin 2s infinite linear;
+  display: inline-block;
+}
