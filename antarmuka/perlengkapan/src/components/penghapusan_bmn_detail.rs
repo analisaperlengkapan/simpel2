@@ -4,6 +4,7 @@
 //! based on the current workflow status.
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::{
@@ -13,6 +14,23 @@ use crate::api::{
     upload_penghapusan_signed_sk,
 };
 use crate::routes;
+
+/// leptos-fetch query — keyed by usulan id (`String`). Returns
+/// `Result` so the existing render branches (Loading / Error /
+/// Detail) keep their three-arm shape.
+async fn query_penghapusan_bmn_detail(
+    id: String,
+) -> Result<PenghapusanBmnDetailResponse, crate::api::AppError> {
+    if id.is_empty() {
+        return Err(crate::api::AppError::Unknown(
+            "ID tidak ditemukan".to_string(),
+        ));
+    }
+    fetch_penghapusan_bmn_detail(&id)
+        .await
+        .map(|r| r.data)
+        .map_err(|e| crate::api::AppError::Unknown(format!("{:?}", e)))
+}
 
 /// Status badge color helper
 fn status_badge_class(status_kode: i32) -> &'static str {
@@ -56,19 +74,9 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     let (show_return_modal, set_show_return_modal) = signal(false);
     let (show_upload_modal, set_show_upload_modal) = signal(false);
 
-    let detail_resource = LocalResource::new(move || {
-        let id = params.get().get("id").unwrap_or_default();
-        async move {
-            if id.is_empty() {
-                return Err(crate::api::AppError::Unknown(
-                    "ID tidak ditemukan".to_string(),
-                ));
-            }
-            fetch_penghapusan_bmn_detail(&id)
-                .await
-                .map(|r| r.data)
-                .map_err(|e| crate::api::AppError::Unknown(format!("{:?}", e)))
-        }
+    let client: QueryClient = expect_context();
+    let detail_resource = client.local_resource(query_penghapusan_bmn_detail, move || {
+        params.get().get("id").unwrap_or_default()
     });
 
     // Action: Submit to Validator Wilayah (Draft → SubmitWilayah)

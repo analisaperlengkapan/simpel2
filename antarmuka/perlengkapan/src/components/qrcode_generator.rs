@@ -1,23 +1,30 @@
 //! QR Code Generator — batch QR code printing for BMN assets.
 
-use crate::api::{Asset, fetch_assets};
+use crate::api::{Asset, PaginatedResponse, fetch_assets};
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{MAGNIFYING_GLASS, PRINTER, QR_CODE};
+
+/// leptos-fetch query — fixed `(1, 100, None)` paginated payload
+/// for the QR generator (this screen always grabs the first 100
+/// assets). `()` key keeps the cache slot shared with any other
+/// component that asks for the same default page.
+async fn query_qr_assets(_: ()) -> Option<PaginatedResponse<Asset>> {
+    fetch_assets(1, 100, None)
+        .await
+        .map_err(|e| {
+            leptos::logging::error!("Failed to fetch assets for QR: {:?}", e);
+        })
+        .ok()
+}
 
 #[component]
 pub fn QrCodeGenerator() -> impl IntoView {
     let search = RwSignal::new(String::new());
     let selected = RwSignal::new(Vec::<String>::new());
-    let assets = LocalResource::new(move || async move {
-        match fetch_assets(1, 100, None).await {
-            Ok(res) => Some(res),
-            Err(e) => {
-                leptos::logging::error!("Failed to fetch assets for QR: {:?}", e);
-                None
-            }
-        }
-    });
+    let client: QueryClient = expect_context();
+    let assets = client.local_resource(query_qr_assets, || ());
 
     view! {
         <div style="max-width: 1100px; margin: 0 auto;">

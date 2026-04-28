@@ -1,27 +1,31 @@
-use crate::api::{AnalisisKebutuhan, fetch_analisis};
+use crate::api::{AnalisisKebutuhan, PaginatedResponse, fetch_analisis};
 use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{CHART_PIE, EYE, PLUS};
+
+/// leptos-fetch query — keyed by page number (`i32`). Pages 1, 2,
+/// 3 each cache independently, so flipping back and forth keeps
+/// already-loaded pages instantly visible.
+async fn query_analisis_page(page: i32) -> Option<PaginatedResponse<AnalisisKebutuhan>> {
+    fetch_analisis(page, 20)
+        .await
+        .map_err(|e| {
+            leptos::logging::error!("Failed to fetch analisis: {:?}", e);
+        })
+        .ok()
+}
 
 #[component]
 pub fn AnalisisList() -> impl IntoView {
     let (page, set_page) = signal(1);
 
-    // Resource to fetch items when page changes
-    let data_resource = LocalResource::new(move || {
-        let p = page.get();
-        async move {
-            match fetch_analisis(p, 20).await {
-                Ok(response) => Some(response),
-                Err(e) => {
-                    leptos::logging::error!("Failed to fetch analisis: {:?}", e);
-                    None
-                }
-            }
-        }
-    });
+    // Per-page leptos-fetch cache — switching pages re-uses cached
+    // pages without a network round-trip.
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_analisis_page, move || page.get());
 
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
