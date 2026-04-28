@@ -11,25 +11,28 @@ use crate::api::{
 };
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{ARROW_CLOCKWISE, ARROW_LEFT, CHECK_CIRCLE, DOWNLOAD_SIMPLE, FILE_DOC, FILE_PDF, GEAR, PROHIBIT, SPINNER, UPLOAD_SIMPLE, WARNING, WARNING_CIRCLE};
 use leptos_router::hooks::use_params_map;
+
+/// leptos-fetch query — keyed by permit id (`String`).
+async fn query_pemakaian_bmn_detail(permit_id: String) -> Option<IzinPemakaianDetailResponse> {
+    fetch_pemakaian_bmn_detail(&permit_id)
+        .await
+        .ok()
+        .map(|response| response.data)
+}
 
 #[component]
 pub fn PemakaianBmnDetail() -> impl IntoView {
     let params = use_params_map();
     let id = move || params.read().get("id").unwrap_or_default();
 
-    // Resource to fetch permit detail
-    let permit_resource = LocalResource::new(move || {
-        let permit_id = id();
-        async move {
-            match fetch_pemakaian_bmn_detail(&permit_id).await {
-                Ok(response) => Some(response.data),
-                Err(_) => None,
-            }
-        }
-    });
+    // Resource to fetch permit detail — keyed cache + dedup so
+    // navigating away and back to the same permit re-uses the load.
+    let client: QueryClient = expect_context();
+    let permit_resource = client.local_resource(query_pemakaian_bmn_detail, move || id());
 
     // UI state
     let (show_transition_modal, set_show_transition_modal) = signal(false);

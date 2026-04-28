@@ -4,9 +4,11 @@
 //! and maintainable utility-class styling.
 
 use crate::api::dashboard::fetch_dashboard_stats;
+use crate::api::types::DashboardStats;
 use crate::components::role_switcher::get_active_role;
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{CALENDAR, CARET_RIGHT, SHIELD};
 use leptos_meta::Title;
@@ -173,6 +175,11 @@ fn QuickNav(
     }
 }
 
+/// leptos-fetch query wrapper for the dashboard stats endpoint.
+async fn query_dashboard_stats(_: ()) -> Result<DashboardStats, crate::api::AppError> {
+    fetch_dashboard_stats().await
+}
+
 fn format_number(n: i64) -> String {
     let s = n.to_string();
     let mut result = String::new();
@@ -195,7 +202,10 @@ pub fn DashboardHome() -> impl IntoView {
         _ => "Operator Satker",
     };
 
-    let stats_resource = LocalResource::new(fetch_dashboard_stats);
+    // leptos-fetch — `()` keyed cache so a tab-switch back to the
+    // dashboard re-uses the previous load instantly.
+    let client: QueryClient = expect_context();
+    let stats_resource = client.local_resource(query_dashboard_stats, || ());
     let is_admin = active_role == "admin";
 
     view! {
