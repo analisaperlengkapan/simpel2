@@ -1,11 +1,37 @@
-use crate::api::{PenghapusanBmnFilters, PenghapusanBmnWorkflow, fetch_penghapusan_bmn_list};
+use crate::api::{
+    PaginatedResponse, PenghapusanBmnFilters, PenghapusanBmnWorkflow, fetch_penghapusan_bmn_list,
+};
 use crate::components::list_feedback::{EmptyState, LoadingState};
 use crate::components::page_header::PageHeader;
 use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{EYE};
+use phosphor_leptos::EYE;
+
+/// leptos-fetch query keyed by `(page, status_kode)`. Other filter
+/// dimensions (satker, status string, metode, tahun) are pinned to
+/// `None` for now; if the screen grows extra filter controls,
+/// extend the key tuple to match.
+async fn query_penghapusan_page(
+    key: (i32, Option<i32>),
+) -> Option<PaginatedResponse<PenghapusanBmnWorkflow>> {
+    let (page, status_kode) = key;
+    let filters = PenghapusanBmnFilters {
+        status_kode,
+        satker_id: None,
+        status: None,
+        metode_penghapusan: None,
+        tahun: None,
+    };
+    fetch_penghapusan_bmn_list(page, 20, filters)
+        .await
+        .map_err(|e| {
+            leptos::logging::error!("Failed to fetch penghapusan: {:?}", e);
+        })
+        .ok()
+}
 
 /// Returns (bg_class, text_class, label) for a given status_kode
 fn status_badge(kode: i32) -> (&'static str, &'static str, &'static str) {
@@ -28,26 +54,12 @@ pub fn PenghapusanList() -> impl IntoView {
     let (page, set_page) = signal(1);
     let (filter_status, set_filter_status) = signal(None::<i32>);
 
-    // Resource to fetch items when page or filter changes
-    let data_resource = LocalResource::new(move || {
-        let p = page.get();
-        let status = filter_status.get();
-        async move {
-            let filters = PenghapusanBmnFilters {
-                status_kode: status,
-                satker_id: None,
-                status: None,
-                metode_penghapusan: None,
-                tahun: None,
-            };
-            match fetch_penghapusan_bmn_list(p, 20, filters).await {
-                Ok(response) => Some(response),
-                Err(e) => {
-                    leptos::logging::error!("Failed to fetch penghapusan: {:?}", e);
-                    None
-                }
-            }
-        }
+    // Resource — keyed cache per (page, status). Each combination
+    // gets its own cache slot so toggling filters or paging back is
+    // instant after the first fetch.
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_penghapusan_page, move || {
+        (page.get(), filter_status.get())
     });
 
     view! {

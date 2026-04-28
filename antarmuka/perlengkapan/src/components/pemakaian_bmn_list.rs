@@ -3,14 +3,36 @@
 //! List view for BMN usage permits with filtering and history.
 //! Requirements: REQ-P001, REQ-P011, REQ-P012
 
-use crate::api::{IzinPemakaianBmn, fetch_pemakaian_bmn_list};
+use crate::api::{IzinPemakaianBmn, PaginatedResponse, fetch_pemakaian_bmn_list};
 use crate::components::list_feedback::{EmptyState, LoadingState};
 use crate::components::page_header::PageHeader;
 use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{ARROW_CLOCKWISE, EYE};
+
+/// leptos-fetch query keyed by `(page, status, jenis, search)` —
+/// each unique filter combination caches separately so toggling
+/// back to a previous filter is instant.
+async fn query_pemakaian_bmn_page(
+    key: (i32, String, String, String),
+) -> Option<PaginatedResponse<IzinPemakaianBmn>> {
+    let (page, status, jenis, search_term) = key;
+    let to_opt = |s: String| if s.is_empty() { None } else { Some(s) };
+    fetch_pemakaian_bmn_list(
+        page,
+        20,
+        to_opt(status),
+        to_opt(jenis),
+        None, // pegawai_nip
+        None, // satker_id
+        to_opt(search_term),
+    )
+    .await
+    .ok()
+}
 
 #[component]
 pub fn PemakaianBmnList() -> impl IntoView {
@@ -19,37 +41,15 @@ pub fn PemakaianBmnList() -> impl IntoView {
     let (jenis_bmn_filter, set_jenis_bmn_filter) = signal("".to_string());
     let (search, set_search) = signal("".to_string());
 
-    // Resource to fetch permits
-    let permits_resource = LocalResource::new(move || {
-        let p = page.get();
-        let status = status_filter.get();
-        let jenis = jenis_bmn_filter.get();
-        let search_term = search.get();
-
-        async move {
-            let status_opt = if status.is_empty() {
-                None
-            } else {
-                Some(status)
-            };
-            let jenis_opt = if jenis.is_empty() { None } else { Some(jenis) };
-            let search_opt = if search_term.is_empty() {
-                None
-            } else {
-                Some(search_term)
-            };
-
-            match fetch_pemakaian_bmn_list(
-                p as i32, 20, status_opt, jenis_opt, None, // pegawai_nip
-                None, // satker_id
-                search_opt,
-            )
-            .await
-            {
-                Ok(response) => Some(response),
-                Err(_) => None,
-            }
-        }
+    // Resource to fetch permits — keyed cache per filter combination.
+    let client: QueryClient = expect_context();
+    let permits_resource = client.local_resource(query_pemakaian_bmn_page, move || {
+        (
+            page.get(),
+            status_filter.get(),
+            jenis_bmn_filter.get(),
+            search.get(),
+        )
     });
 
     let get_status_badge_class = |status: &str| match status {

@@ -3,16 +3,28 @@
 //! Displays list of official uniform types with CRUD operations.
 
 use crate::api::{
-    AppError, CreateJenisPakaianDinasRequest, JenisPakaianDinas, create_jenis_pakaian_dinas,
-    delete_jenis_pakaian_dinas, fetch_jenis_pakaian_dinas,
+    AppError, CreateJenisPakaianDinasRequest, JenisPakaianDinas, PaginatedResponse,
+    create_jenis_pakaian_dinas, delete_jenis_pakaian_dinas, fetch_jenis_pakaian_dinas,
 };
 use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{LIST, PLUS, TRASH, WARNING_CIRCLE};
-use leptos::task::spawn_local;
+
+/// leptos-fetch query keyed by `(page, refresh_trigger)`. The
+/// trigger is folded into the cache key so post-CRUD code can
+/// force a refetch via `refresh_trigger.update(|v| *v += 1)`
+/// without learning a separate `client.invalidate(...)` API.
+async fn query_jenis_pakaian_dinas_page(
+    key: (i32, i32),
+) -> Result<PaginatedResponse<JenisPakaianDinas>, AppError> {
+    let (page, _trigger) = key;
+    fetch_jenis_pakaian_dinas(page, 20).await
+}
 
 #[component]
 pub fn PakaianDinasJenisList() -> impl IntoView {
@@ -24,10 +36,9 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
     let (error_message, set_error_message) = signal(Option::<String>::None);
     let refresh_trigger = RwSignal::new(0);
 
-    let data_resource = LocalResource::new(move || {
-        let p = page.get();
-        let _trigger = refresh_trigger.get();
-        async move { fetch_jenis_pakaian_dinas(p, 20).await }
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_jenis_pakaian_dinas_page, move || {
+        (page.get(), refresh_trigger.get())
     });
 
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
