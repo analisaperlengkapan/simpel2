@@ -172,7 +172,7 @@ fn WorkflowDetailDrawer(
 
     view! {
         <div
-            class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm sm:p-8"
+            class="fixed inset-0 z-modal flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm sm:p-8"
             on:click=move |e| {
                 if e.target() == e.current_target() {
                     on_close.run(());
