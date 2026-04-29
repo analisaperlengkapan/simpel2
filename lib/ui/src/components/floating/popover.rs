@@ -101,7 +101,10 @@ pub fn Popover(
     // Listen on `click` at the document level and bail out when the
     // event target is inside either the trigger or the floating panel.
     // `Element` inherits from `Node`, so we can pass it straight to
-    // `Node::contains`.
+    // `Node::contains`. The `open.get_untracked()` early-return keeps
+    // the per-click cost down to one signal read when the popover is
+    // closed (the common case), so wiring listener registration through
+    // a reactive Effect is unnecessary overhead and complicates cleanup.
     let _outside = use_event_listener(
         document(),
         leptos::ev::click,

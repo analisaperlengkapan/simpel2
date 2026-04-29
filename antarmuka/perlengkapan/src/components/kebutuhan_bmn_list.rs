@@ -12,6 +12,7 @@ use crate::components::batch_operations_toolbar::{
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{EYE, PENCIL_SIMPLE, PLUS, X};
@@ -38,6 +39,12 @@ pub fn KebutuhanBmnList() -> impl IntoView {
     let (per_page, _set_per_page) = signal(20);
     let (tahun_filter, set_tahun_filter) = signal::<Option<i32>>(None);
     let (status_filter, set_status_filter) = signal::<Option<i32>>(None);
+    // `search_input` mirrors the raw `<input>` value (so the field stays
+    // responsive while typing); `search_query` is the debounced value
+    // folded into the leptos-fetch cache key. Without the debounce, every
+    // keystroke would allocate a fresh cache slot and (once a real backend
+    // is wired) issue a network request per character.
+    let (search_input, set_search_input) = signal(String::new());
     let (search_query, set_search_query) = signal(String::new());
 
     // Batch operations state
@@ -65,13 +72,29 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         )
     });
 
-    // Page reset is handled atomically inside each filter `on:change`
-    // handler below (search input, year select, status select). Doing
-    // it in an `Effect` instead would cause leptos-fetch to evaluate
-    // its key tuple twice in quick succession — first with
-    // `(new_query, OLD_page)`, then with `(new_query, 1)` after the
-    // effect fires — allocating two cache slots and potentially
-    // issuing a duplicate network request on every filter change.
+    // Debounce `search_input` → `search_query` with a 300ms trailing edge.
+    // Pattern mirrors `lib_ui::hooks::use_search::use_debounced_search`:
+    // every input change spawns a delayed task; if the input value is the
+    // same after the delay (i.e. the user stopped typing), commit it as
+    // the actual query. Stale tasks bail out via the equality check.
+    Effect::new(move |_| {
+        let pending = search_input.get();
+        spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(300).await;
+            if search_input.get_untracked() == pending {
+                set_search_query.set(pending);
+                set_page.set(1);
+            }
+        });
+    });
+
+    // Page reset for the year/status filters is handled atomically inside
+    // each `on:change` handler below; search resets via the debounce effect.
+    // Doing it in a single `Effect` watching `query` would cause leptos-fetch
+    // to evaluate its key tuple twice in quick succession — first with
+    // `(new_query, OLD_page)`, then with `(new_query, 1)` after the effect
+    // fires — allocating two cache slots and potentially issuing a duplicate
+    // network request on every filter change.
 
     let handle_operation_complete = Callback::new(move |result: BatchOperationResult| {
         set_batch_result.set(Some(result));
@@ -130,11 +153,8 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                             type="text"
                             placeholder="Cari nama pengajuan..."
                             class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
-                            on:input=move |ev| {
-                                set_search_query.set(event_target_value(&ev));
-                                set_page.set(1);
-                            }
-                            prop:value=move || search_query.get()
+                            on:input=move |ev| set_search_input.set(event_target_value(&ev))
+                            prop:value=move || search_input.get()
                         />
                     </div>
 
