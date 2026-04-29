@@ -281,22 +281,22 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
             <div class="mt-4">
                 <Show when=move || active_tab.get() == "rekap">
                     <RekapUkuranTab
-                        pengajuan_id=selected_pengajuan.get()
-                        satker_id=selected_satker.get()
-                        jenis_pakaian_id=selected_jenis.get()
-                        jenis_kelamin=selected_jenis_kelamin.get()
-                        jenis=selected_jenis_pegawai.get()
-                        eselon=selected_eselon.get()
+                        pengajuan_id=selected_pengajuan
+                        satker_id=selected_satker
+                        jenis_pakaian_id=selected_jenis
+                        jenis_kelamin=selected_jenis_kelamin
+                        jenis=selected_jenis_pegawai
+                        eselon=selected_eselon
                     />
                 </Show>
                 <Show when=move || active_tab.get() == "pegawai">
                     <DaftarPegawaiTab
-                        pengajuan_id=selected_pengajuan.get()
-                        satker_id=selected_satker.get()
-                        jenis_pakaian_id=selected_jenis.get()
-                        jenis_kelamin=selected_jenis_kelamin.get()
-                        jenis=selected_jenis_pegawai.get()
-                        eselon=selected_eselon.get()
+                        pengajuan_id=selected_pengajuan
+                        satker_id=selected_satker
+                        jenis_pakaian_id=selected_jenis
+                        jenis_kelamin=selected_jenis_kelamin
+                        jenis=selected_jenis_pegawai
+                        eselon=selected_eselon
                     />
                 </Show>
             </div>
@@ -318,21 +318,25 @@ fn group_accent(ukuran_group: &str) -> (&'static str, &'static str) {
 
 #[component]
 fn RekapUkuranTab(
-    pengajuan_id: Option<String>,
-    satker_id: Option<String>,
-    jenis_pakaian_id: Option<String>,
-    jenis_kelamin: Option<String>,
-    jenis: Option<String>,
-    eselon: Option<String>,
+    pengajuan_id: ReadSignal<Option<String>>,
+    satker_id: ReadSignal<Option<String>>,
+    jenis_pakaian_id: ReadSignal<Option<String>>,
+    jenis_kelamin: ReadSignal<Option<String>>,
+    jenis: ReadSignal<Option<String>>,
+    eselon: ReadSignal<Option<String>>,
 ) -> impl IntoView {
     let client: QueryClient = expect_context();
+    // Read filter signals reactively inside the keyer — `<Show>` keeps this
+    // component mounted across filter dropdown changes, so a one-shot
+    // `.get().clone()` capture would freeze the cache key at the value the
+    // filters held when the tab was first activated.
     let data = client.local_resource(query_laporan_rekap, move || LaporanQuery {
-        pengajuan_id: pengajuan_id.clone(),
-        satker_id: satker_id.clone(),
-        jenis_pakaian_id: jenis_pakaian_id.clone(),
-        jenis_kelamin: jenis_kelamin.clone(),
-        eselon: eselon.clone(),
-        jenis: jenis.clone(),
+        pengajuan_id: pengajuan_id.get(),
+        satker_id: satker_id.get(),
+        jenis_pakaian_id: jenis_pakaian_id.get(),
+        jenis_kelamin: jenis_kelamin.get(),
+        eselon: eselon.get(),
+        jenis: jenis.get(),
     });
 
     view! {
@@ -462,24 +466,27 @@ fn render_rekap_table(group_name: String, items: Vec<LaporanRekapUkuran>) -> imp
 
 #[component]
 fn DaftarPegawaiTab(
-    pengajuan_id: Option<String>,
-    satker_id: Option<String>,
-    jenis_pakaian_id: Option<String>,
-    jenis_kelamin: Option<String>,
-    jenis: Option<String>,
-    eselon: Option<String>,
+    pengajuan_id: ReadSignal<Option<String>>,
+    satker_id: ReadSignal<Option<String>>,
+    jenis_pakaian_id: ReadSignal<Option<String>>,
+    jenis_kelamin: ReadSignal<Option<String>>,
+    jenis: ReadSignal<Option<String>>,
+    eselon: ReadSignal<Option<String>>,
 ) -> impl IntoView {
     let (page, set_page) = signal(1);
 
     let client: QueryClient = expect_context();
+    // Filter signals are read reactively inside the keyer so dropdown
+    // changes while the tab is mounted re-key the leptos-fetch resource.
+    // See the matching comment in `RekapUkuranTab` for the rationale.
     let data = client.local_resource(query_laporan_daftar, move || {
         let query = LaporanQuery {
-            pengajuan_id: pengajuan_id.clone(),
-            satker_id: satker_id.clone(),
-            jenis_pakaian_id: jenis_pakaian_id.clone(),
-            jenis_kelamin: jenis_kelamin.clone(),
-            eselon: eselon.clone(),
-            jenis: jenis.clone(),
+            pengajuan_id: pengajuan_id.get(),
+            satker_id: satker_id.get(),
+            jenis_pakaian_id: jenis_pakaian_id.get(),
+            jenis_kelamin: jenis_kelamin.get(),
+            eselon: eselon.get(),
+            jenis: jenis.get(),
         };
         (query, page.get())
     });
