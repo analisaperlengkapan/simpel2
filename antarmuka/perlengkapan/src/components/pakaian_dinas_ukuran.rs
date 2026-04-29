@@ -27,9 +27,7 @@ async fn query_master_ukuran(_: ()) -> Result<(Vec<Ukuran>, Vec<Ukuran>, Vec<Uku
 }
 
 /// Per-pegawai ukuran query — keyed by pegawai id (`String`).
-async fn query_pegawai_ukuran(
-    pegawai_id: String,
-) -> Result<Option<PegawaiPakaianDinas>, AppError> {
+async fn query_pegawai_ukuran(pegawai_id: String) -> Result<Option<PegawaiPakaianDinas>, AppError> {
     fetch_pegawai_ukuran(pegawai_id).await.map(|r| r.data)
 }
 
@@ -66,9 +64,8 @@ pub fn UkuranPegawai(
     // Existing ukuran for this pegawai — keyed cache so multiple
     // pegawai pages each cache under their own id.
     let pegawai_id_for_fetch = pegawai_id.clone();
-    let existing_ukuran = client.local_resource(query_pegawai_ukuran, move || {
-        pegawai_id_for_fetch.clone()
-    });
+    let existing_ukuran =
+        client.local_resource(query_pegawai_ukuran, move || pegawai_id_for_fetch.clone());
 
     // Effect to populate form when existing data loads
     Effect::new(move || {

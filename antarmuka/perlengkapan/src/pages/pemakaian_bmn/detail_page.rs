@@ -1,11 +1,11 @@
 //! Pemakaian BMN detail — permit lifecycle surface.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_LEFT, PROHIBIT, REPEAT, WARNING, X};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_LEFT, PROHIBIT, REPEAT, WARNING, X};
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlTextAreaElement};
 

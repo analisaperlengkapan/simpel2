@@ -3,9 +3,9 @@
 //! plan commit 19.
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{CARET_LEFT, CARET_RIGHT, MAGNIFYING_GLASS};
-use leptos::task::spawn_local;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, SubmitEvent};
 

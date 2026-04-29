@@ -71,9 +71,9 @@
 //! }
 //! ```
 
-use leptos::prelude::*;
 use crate::components::icon::AppIcon;
-use phosphor_leptos::{WARNING_CIRCLE};
+use leptos::prelude::*;
+use phosphor_leptos::WARNING_CIRCLE;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -93,7 +93,10 @@ impl FieldErrors {
 
     /// Add an error message for a field. Multiple errors per field are supported.
     pub fn add(&mut self, field: impl Into<String>, message: impl Into<String>) {
-        self.map.entry(field.into()).or_default().push(message.into());
+        self.map
+            .entry(field.into())
+            .or_default()
+            .push(message.into());
     }
 
     /// Check if any field has errors.
@@ -108,7 +111,10 @@ impl FieldErrors {
 
     /// Get the first error message for a field (most common display case).
     pub fn first(&self, field: &str) -> Option<&str> {
-        self.map.get(field).and_then(|v| v.first()).map(String::as_str)
+        self.map
+            .get(field)
+            .and_then(|v| v.first())
+            .map(String::as_str)
     }
 
     /// Get all error messages for a field.
@@ -363,9 +369,8 @@ where
 {
     let field = StoredValue::new(field);
     let message = move || {
-        form.field_errors.with(|errors| {
-            field.with_value(|f| errors.first(f).map(str::to_string))
-        })
+        form.field_errors
+            .with(|errors| field.with_value(|f| errors.first(f).map(str::to_string)))
     };
 
     view! {

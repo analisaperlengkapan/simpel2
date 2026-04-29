@@ -16,9 +16,9 @@ use crate::api::{
 };
 use crate::routes;
 use leptos::prelude::*;
+use leptos_router::hooks::use_navigate;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{CHECK_CIRCLE, PAPER_PLANE_TILT, PLUS, SPINNER, WARNING_CIRCLE, X};
-use leptos_router::hooks::use_navigate;
 
 #[component]
 pub fn PemakaianBmnForm() -> impl IntoView {
@@ -213,10 +213,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     // Redirect after success — `navigate` captured at component
                     // level to stay within the reactive scope.
                     gloo_timers::callback::Timeout::new(1500, move || {
-                        navigate(
-                            "/perlengkapan/pemakaian-bmn",
-                            Default::default(),
-                        );
+                        navigate("/perlengkapan/pemakaian-bmn", Default::default());
                     })
                     .forget();
                 }

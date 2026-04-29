@@ -6,12 +6,12 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{
-    ARROW_LEFT, ARROW_RIGHT, CARET_LEFT, CARET_RIGHT, CHECK, CLOCK, MAGNIFYING_GLASS, MINUS, PENCIL,
-    PLUS, TRASH, WARNING, X,
+    ARROW_LEFT, ARROW_RIGHT, CARET_LEFT, CARET_RIGHT, CHECK, CLOCK, MAGNIFYING_GLASS, MINUS,
+    PENCIL, PLUS, TRASH, WARNING, X,
 };
-use leptos::task::spawn_local;
 use web_sys::SubmitEvent;
 
 use crate::api::admin::{

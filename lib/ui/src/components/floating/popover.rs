@@ -79,7 +79,9 @@ pub fn Popover(
         Box::new(Flip::new(FlipOptions::default())),
         Box::new(Shift::new(ShiftOptions::default())),
     ];
-    let UseFloatingReturn { floating_styles, .. } = use_floating(
+    let UseFloatingReturn {
+        floating_styles, ..
+    } = use_floating(
         trigger_ref,
         floating_any,
         UseFloatingOptions::default()

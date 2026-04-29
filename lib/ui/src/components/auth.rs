@@ -2,9 +2,9 @@
 //!
 //! Provides reusable authentication UI components
 
+use crate::components::icon::AppIcon;
 use crate::hooks::use_auth::use_auth;
 use leptos::prelude::*;
-use crate::components::icon::AppIcon;
 use phosphor_leptos::{SIGN_IN, SIGN_OUT};
 
 /// Login redirect page component

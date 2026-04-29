@@ -1,10 +1,12 @@
 //! Bank Aset unified list — filter + search + pagination over SIMAN data.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, CHART_LINE, EYE, MAGNIFYING_GLASS, QR_CODE};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, CHART_LINE, EYE, MAGNIFYING_GLASS, QR_CODE,
+};
 use web_sys::{Event, HtmlInputElement, HtmlSelectElement, SubmitEvent};
 
 use super::dashboard_page::{format_rupiah, format_thousands};

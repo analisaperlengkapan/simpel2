@@ -73,11 +73,14 @@ pub mod prelude {
     pub use crate::routes::{PerlengkapanRoute, PortalRoute, ToPath};
 
     // Generic reactive primitives from leptos-use
+    pub use leptos_use::storage::{
+        UseStorageOptions, use_local_storage, use_local_storage_with_options, use_session_storage,
+        use_session_storage_with_options,
+    };
     pub use leptos_use::{
         on_click_outside, use_debounce_fn, use_event_listener, use_interval_fn, use_media_query,
         use_throttle_fn, use_window_focus,
     };
-    pub use leptos_use::storage::{UseStorageOptions, use_local_storage, use_local_storage_with_options, use_session_storage, use_session_storage_with_options};
 
     // Storage codec for use with `use_local_storage` / `use_session_storage`
     pub use codee::string::JsonSerdeCodec;

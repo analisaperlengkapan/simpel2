@@ -1,9 +1,9 @@
 //! Simple delete-confirmation modal used by the workflow admin page.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{WARNING};
 use leptos::task::spawn_local;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::WARNING;
 
 use crate::api::workflow::delete_workflow_definition;
 

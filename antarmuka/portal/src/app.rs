@@ -16,8 +16,8 @@ use crate::routes;
 
 use crate::pages::*;
 use leptos::prelude::*;
-use lib_ui::components::app_shell::AppShell;
 use lib_ui::components::BrandingProvider;
+use lib_ui::components::app_shell::AppShell;
 
 use leptos_router::{
     ParamSegment, StaticSegment,

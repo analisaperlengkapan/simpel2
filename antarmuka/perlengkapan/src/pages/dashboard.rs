@@ -9,9 +9,9 @@ use crate::components::role_switcher::get_active_role;
 use crate::routes;
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
+use leptos_meta::Title;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{CALENDAR, CARET_RIGHT, SHIELD};
-use leptos_meta::Title;
 
 #[component]
 fn SectionHeader(title: &'static str, tone: &'static str) -> impl IntoView {

@@ -5,9 +5,9 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{ARROW_CLOCKWISE, CHECK_CIRCLE, CLOCK_COUNTER_CLOCKWISE};
-use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 
 use crate::api::client::api_get;

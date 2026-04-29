@@ -6,9 +6,9 @@
 //! `tailwind.config.js`.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{LIST};
 use leptos_router::components::A;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::LIST;
 
 use crate::APP_VERSION;
 use crate::components::profile_menu::ProfileMenu;

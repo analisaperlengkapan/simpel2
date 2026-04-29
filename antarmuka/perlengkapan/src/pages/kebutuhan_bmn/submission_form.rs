@@ -11,9 +11,11 @@ use crate::components::layout::{
 use chrono::NaiveDate;
 use leptos::ev::SubmitEvent;
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{CHECK_CIRCLE, CLOUD_ARROW_UP, PAPER_PLANE_TILT, PLUS, WARNING, WARNING_CIRCLE};
 use leptos::task::spawn_local;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    CHECK_CIRCLE, CLOUD_ARROW_UP, PAPER_PLANE_TILT, PLUS, WARNING, WARNING_CIRCLE,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

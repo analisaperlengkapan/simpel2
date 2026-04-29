@@ -17,9 +17,11 @@ use crate::api::{
 use crate::components::layout::{FormField, LoadingState, PageLayout, SectionCard};
 use leptos::callback::Callback;
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_CLOCKWISE, BUILDING, CALENDAR, INFO, PACKAGE, PENCIL_SIMPLE, PLUS, TRAY, WARNING_CIRCLE};
 use leptos::task::spawn_local;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    ARROW_CLOCKWISE, BUILDING, CALENDAR, INFO, PACKAGE, PENCIL_SIMPLE, PLUS, TRAY, WARNING_CIRCLE,
+};
 
 #[derive(Clone, PartialEq)]
 enum ViewMode {

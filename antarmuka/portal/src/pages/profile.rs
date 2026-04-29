@@ -3,7 +3,15 @@
 use crate::components::layout::main_layout::MainLayout;
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use serde::Deserialize;
+
+/// `()`-keyed wrapper around `fetch_profile` so the profile page,
+/// the navbar header, and any future consumer of /me share a
+/// single in-flight request and a single cached payload.
+async fn query_profile(_: ()) -> Result<ProfileData, String> {
+    fetch_profile().await
+}
 
 /// Profile response from /api/v1/auth/me
 #[derive(Clone, Debug, Deserialize)]
@@ -69,7 +77,8 @@ async fn fetch_profile() -> Result<ProfileData, String> {
 
 #[component]
 pub fn ProfilePage() -> impl IntoView {
-    let profile = LocalResource::new(move || async move { fetch_profile().await });
+    let client: QueryClient = expect_context();
+    let profile = client.local_resource(query_profile, || ());
 
     view! {
         <MainLayout>

@@ -2,7 +2,7 @@
 
 use leptos::prelude::*;
 use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{USER_LIST};
+use phosphor_leptos::USER_LIST;
 use std::collections::BTreeMap;
 
 use crate::api::workflow::WorkflowStep;

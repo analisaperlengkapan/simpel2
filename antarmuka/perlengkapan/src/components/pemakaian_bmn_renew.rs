@@ -29,8 +29,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
 
     // Resource to fetch current permit through leptos-fetch cache.
     let client: QueryClient = expect_context();
-    let permit_resource =
-        client.local_resource(query_pemakaian_bmn_renew_target, move || id());
+    let permit_resource = client.local_resource(query_pemakaian_bmn_renew_target, move || id());
 
     // Form state
     let (tanggal_mulai, set_tanggal_mulai) = signal("".to_string());

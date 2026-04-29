@@ -12,9 +12,12 @@ use crate::api::{
 use crate::routes;
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_CLOCKWISE, ARROW_LEFT, CHECK_CIRCLE, DOWNLOAD_SIMPLE, FILE_DOC, FILE_PDF, GEAR, PROHIBIT, SPINNER, UPLOAD_SIMPLE, WARNING, WARNING_CIRCLE};
 use leptos_router::hooks::use_params_map;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    ARROW_CLOCKWISE, ARROW_LEFT, CHECK_CIRCLE, DOWNLOAD_SIMPLE, FILE_DOC, FILE_PDF, GEAR, PROHIBIT,
+    SPINNER, UPLOAD_SIMPLE, WARNING, WARNING_CIRCLE,
+};
 
 /// leptos-fetch query — keyed by permit id (`String`).
 async fn query_pemakaian_bmn_detail(permit_id: String) -> Option<IzinPemakaianDetailResponse> {

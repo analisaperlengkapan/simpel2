@@ -70,9 +70,7 @@ pub fn AdminLayout() -> impl IntoView {
             None => AuthService::load_session(),
         };
         match session {
-            Some(s) if s.is_admin() => {
-                view! { <leptos_router::components::Outlet /> }.into_any()
-            }
+            Some(s) if s.is_admin() => view! { <leptos_router::components::Outlet /> }.into_any(),
             Some(_) => view! { <ForbiddenPage /> }.into_any(),
             None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
         }

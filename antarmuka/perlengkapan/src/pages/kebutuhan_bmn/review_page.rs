@@ -9,9 +9,12 @@ use crate::components::layout::{
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, CHECK_CIRCLE, CLOCK, FILE_ARROW_DOWN, PAPER_PLANE_TILT, WARNING_CIRCLE, X};
 use leptos::task::spawn_local;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    ARROW_COUNTER_CLOCKWISE, CHECK_CIRCLE, CLOCK, FILE_ARROW_DOWN, PAPER_PLANE_TILT,
+    WARNING_CIRCLE, X,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

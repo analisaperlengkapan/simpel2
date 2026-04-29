@@ -9,12 +9,12 @@ use crate::api::{
 use crate::components::layout::{FormField, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_LEFT};
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::{use_navigate, use_params_map};
+use lib_ui::components::icon::AppIcon;
 use lib_ui::hooks::{use_form, use_toast::use_toast};
+use phosphor_leptos::ARROW_LEFT;
 
 #[derive(Clone, PartialEq, Default)]
 pub enum FormMode {
@@ -110,7 +110,10 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
     // Form validation
     let is_valid = Memo::new(move |_| {
         let d = form.get();
-        !d.nama.is_empty() && d.nama.len() >= 3 && !d.tgl_mulai.is_empty() && !d.tgl_selesai.is_empty()
+        !d.nama.is_empty()
+            && d.nama.len() >= 3
+            && !d.tgl_mulai.is_empty()
+            && !d.tgl_selesai.is_empty()
     });
 
     // Submit handler — wrapped in Callback so the surrounding PageLayout

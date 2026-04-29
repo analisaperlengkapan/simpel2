@@ -182,9 +182,7 @@ impl ToastContext {
                 }
                 // If the user dismissed the toast manually, the item is gone
                 // from the queue; bail out so we don't re-update the signal.
-                if !toasts
-                    .with_untracked(|list| list.iter().any(|t| t.id == id))
-                {
+                if !toasts.with_untracked(|list| list.iter().any(|t| t.id == id)) {
                     return;
                 }
             }

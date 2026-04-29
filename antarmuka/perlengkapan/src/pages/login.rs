@@ -5,9 +5,9 @@
 
 use crate::routes;
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{SIGN_IN};
 use leptos_meta::Title;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::SIGN_IN;
 
 #[component]
 pub fn LoginPage() -> impl IntoView {

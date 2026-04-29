@@ -34,7 +34,9 @@ async fn query_workflow_definitions(
 async fn query_workflow_definition_detail(
     name: String,
 ) -> Result<WorkflowDefinitionDetail, crate::api::AppError> {
-    fetch_workflow_definition_detail(&name).await.map(|r| r.data)
+    fetch_workflow_definition_detail(&name)
+        .await
+        .map(|r| r.data)
 }
 
 #[component]

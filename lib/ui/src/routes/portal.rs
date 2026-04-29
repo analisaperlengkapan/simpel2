@@ -100,7 +100,9 @@ impl ToPath for PortalRoute {
         match self {
             AdminUserDetail { id } => format!("/portal/admin/users/{id}"),
             AdminClientDetail { id } => format!("/portal/admin/clients/{id}"),
-            other => format!("/portal/{}", other.segment()).trim_end_matches('/').to_string(),
+            other => format!("/portal/{}", other.segment())
+                .trim_end_matches('/')
+                .to_string(),
         }
     }
 }

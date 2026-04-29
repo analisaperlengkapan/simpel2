@@ -1,10 +1,10 @@
 //! Bank Aset QR code generator — batch-ready label printer.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_LEFT, CHECKS, ERASER, MAGNIFYING_GLASS, PRINTER, X};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_LEFT, CHECKS, ERASER, MAGNIFYING_GLASS, PRINTER, X};
 use std::collections::HashSet;
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlSelectElement, SubmitEvent};

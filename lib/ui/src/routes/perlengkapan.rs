@@ -122,9 +122,7 @@ impl ToPath for PerlengkapanRoute {
             PakaianPengajuan => "/perlengkapan/pakaian-dinas/pengajuan".to_string(),
             PakaianUkuran => "/perlengkapan/pakaian-dinas/ukuran".to_string(),
             PakaianLaporan => "/perlengkapan/pakaian-dinas/laporan".to_string(),
-            PakaianLaporanRekapLegacy => {
-                "/perlengkapan/pakaian-dinas/laporan/rekap".to_string()
-            }
+            PakaianLaporanRekapLegacy => "/perlengkapan/pakaian-dinas/laporan/rekap".to_string(),
 
             PengelolaanPemakaian => "/perlengkapan/pengelolaan/pemakaian".to_string(),
             PengelolaanPenghapusan => "/perlengkapan/pengelolaan/penghapusan".to_string(),
@@ -162,7 +160,10 @@ mod tests {
 
     #[test]
     fn dashboard_resolves() {
-        assert_eq!(PerlengkapanRoute::Dashboard.to_path(), "/perlengkapan/dashboard");
+        assert_eq!(
+            PerlengkapanRoute::Dashboard.to_path(),
+            "/perlengkapan/dashboard"
+        );
     }
 
     #[test]

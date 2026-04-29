@@ -179,7 +179,7 @@ pub fn DarkPagination(
     /// Callback when "Previous" is clicked.
     on_prev: Callback<()>,
     /// Callback when "Next" is clicked.
-    on_next: Callback<()>,
+    _on_next: Callback<()>,
 ) -> impl IntoView {
     view! {
         <div class="flex items-center justify-between border-t border-white/[0.04] px-5 py-3">

@@ -5,7 +5,27 @@
 use crate::components::layout::MainLayout;
 use crate::features::auth::{AuthService, UserSession};
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use serde::{Deserialize, Serialize};
+
+/// Admin-stats query — keyed by `is_admin: bool` so the non-admin
+/// path resolves to `None` instantly without hitting the network,
+/// and a single cache slot serves any admin user that opens the
+/// dashboard.
+async fn query_admin_stats(is_admin: bool) -> Option<AdminStats> {
+    if is_admin {
+        fetch_admin_stats().await.ok()
+    } else {
+        None
+    }
+}
+
+/// `()`-keyed wrapper around `fetch_me()` so the dashboard, the
+/// profile page, and any future consumer of /me share a single
+/// in-flight request and a single cached payload.
+async fn query_me(_: ()) -> Option<MeResponse> {
+    fetch_me().await.ok()
+}
 
 // ============================================================================
 // API DATA STRUCTURES (matching real backend responses)
@@ -82,14 +102,9 @@ pub fn DashboardPage() -> impl IntoView {
         .and_then(|sig| sig.get_untracked())
         .unwrap_or_else(|| UserSession::default());
     let is_admin = user_session.role.is_admin();
-    let admin_stats = LocalResource::new(move || async move {
-        if is_admin {
-            fetch_admin_stats().await.ok()
-        } else {
-            None
-        }
-    });
-    let me_data = LocalResource::new(move || async move { fetch_me().await.ok() });
+    let client: QueryClient = expect_context();
+    let admin_stats = client.local_resource(query_admin_stats, move || is_admin);
+    let me_data = client.local_resource(query_me, || ());
 
     let greeting = {
         #[cfg(target_arch = "wasm32")]

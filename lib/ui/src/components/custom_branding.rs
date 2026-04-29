@@ -218,10 +218,11 @@ pub fn BrandingProvider(
         .map(|u| BrandingConfig::for_unit(u))
         .unwrap_or_default();
 
-    let (branding, set_branding, _) = use_local_storage_with_options::<BrandingConfig, JsonSerdeCodec>(
-        format!("simpelv2_branding_{}", unit.as_deref().unwrap_or("default")),
-        UseStorageOptions::default().initial_value(default_config),
-    );
+    let (branding, set_branding, _) =
+        use_local_storage_with_options::<BrandingConfig, JsonSerdeCodec>(
+            format!("simpelv2_branding_{}", unit.as_deref().unwrap_or("default")),
+            UseStorageOptions::default().initial_value(default_config),
+        );
 
     // Apply branding on mount and when it changes
     Effect::new(move || {

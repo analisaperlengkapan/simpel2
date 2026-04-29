@@ -1,10 +1,13 @@
 //! Penghapusan BMN list — workflow-aware deletion browser with SK flag.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, EYE, FILE_ARROW_UP, MAGNIFYING_GLASS, PLUS, SIGNATURE};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, EYE, FILE_ARROW_UP, MAGNIFYING_GLASS, PLUS,
+    SIGNATURE,
+};
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlSelectElement, SubmitEvent};
 

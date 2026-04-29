@@ -3,7 +3,7 @@
 use crate::routes;
 use leptos::prelude::*;
 use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{HOUSE};
+use phosphor_leptos::HOUSE;
 
 #[component]
 pub fn NotFound() -> impl IntoView {

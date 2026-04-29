@@ -1,10 +1,12 @@
 //! Pemakaian BMN list — lifecycle-aware permit browser.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, EYE, MAGNIFYING_GLASS, PLUS};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    ARROW_COUNTER_CLOCKWISE, CARET_LEFT, CARET_RIGHT, EYE, MAGNIFYING_GLASS, PLUS,
+};
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlSelectElement, SubmitEvent};
 

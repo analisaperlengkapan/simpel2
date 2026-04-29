@@ -7,7 +7,9 @@
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
-use phosphor_leptos::{CHECK, LOCK, MAGNIFYING_GLASS, PENCIL_SIMPLE, SPINNER, USERS, USER_CHECK, USER_PLUS, X};
+use phosphor_leptos::{
+    CHECK, LOCK, MAGNIFYING_GLASS, PENCIL_SIMPLE, SPINNER, USER_CHECK, USER_PLUS, USERS, X,
+};
 
 use crate::api;
 use crate::components::role_switcher::{PerlengkapanRole, get_active_role};
@@ -17,9 +19,7 @@ use crate::components::role_switcher::{PerlengkapanRole, get_active_role};
 /// keying on the filter inputs means swapping back to a previous
 /// search/role combination is instant once that combination has
 /// been seen.
-async fn query_admin_users(
-    key: (String, Option<String>),
-) -> Vec<UserRoleAssignment> {
+async fn query_admin_users(key: (String, Option<String>)) -> Vec<UserRoleAssignment> {
     let (_search, _role) = key;
     // In production: api::fetch_admin_users(search, role).await
     vec![UserRoleAssignment {

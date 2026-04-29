@@ -6,8 +6,8 @@
 // Re-export lib-core for convenience
 pub use lib_core;
 
-pub mod shamir;
 pub mod password;
+pub mod shamir;
 
 #[cfg(feature = "encryption")]
 pub mod aes;

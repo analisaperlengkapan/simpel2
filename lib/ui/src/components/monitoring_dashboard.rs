@@ -1,8 +1,8 @@
 // Monitoring dashboard component for visualizing metrics, errors, and analytics
 // Provides real-time alerts, log aggregation, and performance reports
 
-use leptos::prelude::*;
 use crate::components::icon::AppIcon;
+use leptos::prelude::*;
 use phosphor_leptos::{ARROW_CLOCKWISE, ARROW_DOWN, ARROW_UP};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen_futures::spawn_local;

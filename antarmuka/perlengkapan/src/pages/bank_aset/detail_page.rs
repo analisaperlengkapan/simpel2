@@ -1,11 +1,11 @@
 //! Bank Aset detail page — shows SIMAN record + riwayat tabs.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
-use phosphor_leptos::ARROW_LEFT;
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::ARROW_LEFT;
 
 use super::dashboard_page::format_rupiah;
 use crate::api::bank_aset::{self, BankAsetDetail, RiwayatEntry};

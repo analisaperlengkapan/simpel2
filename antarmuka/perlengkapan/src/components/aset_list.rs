@@ -23,9 +23,8 @@ pub fn AsetList() -> impl IntoView {
 
     // Per-(page, category) leptos-fetch cache.
     let client: QueryClient = expect_context();
-    let assets_resource = client.local_resource(query_aset_page, move || {
-        (page.get(), category.get())
-    });
+    let assets_resource =
+        client.local_resource(query_aset_page, move || (page.get(), category.get()));
 
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">

@@ -8,10 +8,10 @@
 
 use crate::components::layout::{LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{CHECK_CIRCLE, WARNING_CIRCLE};
 use leptos::task::spawn_local;
 use lib_ui::components::dashboard::MetricCard;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHECK_CIRCLE, WARNING_CIRCLE};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;

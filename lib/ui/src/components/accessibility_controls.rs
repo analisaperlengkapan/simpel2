@@ -224,13 +224,11 @@ pub fn HighContrastControl(#[prop(optional, into)] class: Option<String>) -> imp
 #[component]
 pub fn ReducedMotionControl(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let class = class.unwrap_or_default();
-    let (reduced_motion, set_reduced_motion, _) = use_local_storage_with_options::<
-        bool,
-        JsonSerdeCodec,
-    >(
-        "reduced-motion",
-        UseStorageOptions::default().initial_value(prefers_reduced_motion()),
-    );
+    let (reduced_motion, set_reduced_motion, _) =
+        use_local_storage_with_options::<bool, JsonSerdeCodec>(
+            "reduced-motion",
+            UseStorageOptions::default().initial_value(prefers_reduced_motion()),
+        );
 
     // Apply reduced motion preference to document
     Effect::new(move |_| {

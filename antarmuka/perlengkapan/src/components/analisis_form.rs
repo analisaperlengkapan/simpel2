@@ -1,12 +1,12 @@
 use crate::api::{CreateAnalisisRequest, create_analisis};
 use crate::routes;
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{FLOPPY_DISK, SPINNER};
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
+use lib_ui::components::icon::AppIcon;
 use lib_ui::hooks::{use_form, use_toast::use_toast};
+use phosphor_leptos::{FLOPPY_DISK, SPINNER};
 
 /// Form data for creating an analysis request.
 #[derive(Clone, Default)]

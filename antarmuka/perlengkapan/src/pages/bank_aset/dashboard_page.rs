@@ -1,10 +1,10 @@
 //! Bank Aset dashboard — KPI overview from SIMAN sync.
 
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{DATABASE, LIST, MAP_PIN_AREA};
 use leptos::task::spawn_local;
 use leptos_router::components::A;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{DATABASE, LIST, MAP_PIN_AREA};
 
 use crate::api::bank_aset::{self, BankAsetDashboard, LastSyncInfo};
 use crate::api::error::AppError;

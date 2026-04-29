@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{WARNING_CIRCLE};
+use phosphor_leptos::WARNING_CIRCLE;
 
 /// A two-column responsive form wrapper that owns spacing, section headers,
 /// and action bar positioning. Wraps `FormField` rows so individual forms

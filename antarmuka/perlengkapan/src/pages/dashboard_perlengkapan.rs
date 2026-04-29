@@ -5,13 +5,13 @@
 use crate::routes;
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_CLOCKWISE, WARNING};
 use leptos_router::hooks::use_query_map;
 use lib_ui::components::dashboard::{BarChart, GapAnalysisTable, MetricCard, PieChart};
 use lib_ui::components::forms::Select;
+use lib_ui::components::icon::AppIcon;
 use lib_ui::components::navigation::Breadcrumb;
 use lib_ui::core::types::{BreadcrumbItem, ChartDataPoint, GapAnalysisRow};
+use phosphor_leptos::{ARROW_CLOCKWISE, WARNING};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -428,8 +428,7 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
     // that asks for it, and per-wilayah satker lists each get their
     // own cache slot keyed by `Option<String>`.
     let client: QueryClient = expect_context();
-    let wilayah_options_resource =
-        client.local_resource(query_wilayah_options, || ());
+    let wilayah_options_resource = client.local_resource(query_wilayah_options, || ());
     let satker_options_resource =
         client.local_resource(query_satker_options, move || wilayah_code());
 

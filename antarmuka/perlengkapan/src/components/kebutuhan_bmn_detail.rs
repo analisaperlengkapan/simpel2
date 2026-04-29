@@ -11,10 +11,10 @@ use crate::api::{
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
-use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{ARROW_LEFT, BUILDING, EYE, PENCIL_SIMPLE, TRASH, WARNING_CIRCLE};
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_LEFT, BUILDING, EYE, PENCIL_SIMPLE, TRASH, WARNING_CIRCLE};
 
 #[component]
 pub fn KebutuhanBmnDetail() -> impl IntoView {

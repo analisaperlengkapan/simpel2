@@ -15,10 +15,13 @@ use crate::api::{
 use crate::components::layout::{ErrorState, FormField, LoadingState, PageLayout, SectionCard};
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
-use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
-use phosphor_leptos::{ARROW_COUNTER_CLOCKWISE, ARROW_LEFT, ARROW_RIGHT, CHECK, CHECK_CIRCLE, DATABASE, FAST_FORWARD, INFO, LIST, PACKAGE, PAPER_PLANE_TILT, PLUS, TRASH, WARNING_CIRCLE, X, X_CIRCLE};
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{
+    ARROW_COUNTER_CLOCKWISE, ARROW_LEFT, ARROW_RIGHT, CHECK, CHECK_CIRCLE, DATABASE, FAST_FORWARD,
+    INFO, LIST, PACKAGE, PAPER_PLANE_TILT, PLUS, TRASH, WARNING_CIRCLE, X, X_CIRCLE,
+};
 
 fn sync_state_badge_class(state: &str) -> &'static str {
     if state.contains("SUCCESS") {

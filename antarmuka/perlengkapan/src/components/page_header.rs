@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{PLUS};
+use phosphor_leptos::PLUS;
 
 #[component]
 pub fn PageHeader(

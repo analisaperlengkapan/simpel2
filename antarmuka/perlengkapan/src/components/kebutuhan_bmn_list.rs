@@ -57,7 +57,12 @@ pub fn KebutuhanBmnList() -> impl IntoView {
 
     let client: QueryClient = expect_context();
     let data_resource = client.local_resource(query_kebutuhan_bmn_page, move || {
-        (query.get(), page.get(), per_page.get(), refresh_trigger.get())
+        (
+            query.get(),
+            page.get(),
+            per_page.get(),
+            refresh_trigger.get(),
+        )
     });
 
     // Reset page when filters change
