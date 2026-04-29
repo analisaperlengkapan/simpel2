@@ -9,6 +9,7 @@ use crate::components::page_header::PageHeader;
 use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{ARROW_CLOCKWISE, EYE};
@@ -39,7 +40,14 @@ pub fn PemakaianBmnList() -> impl IntoView {
     let (page, set_page) = signal(1);
     let (status_filter, set_status_filter) = signal("".to_string());
     let (jenis_bmn_filter, set_jenis_bmn_filter) = signal("".to_string());
-    let (search, set_search) = signal("".to_string());
+    // `search_input` mirrors the raw `<input>` value so the field stays
+    // responsive while typing; `search_query` is the debounced value
+    // folded into the leptos-fetch cache key. Without the debounce, every
+    // keystroke would allocate a fresh cache slot and (once the backend
+    // is real) issue a network request per character. Mirrors
+    // `kebutuhan_bmn_list.rs`.
+    let (search_input, set_search_input) = signal("".to_string());
+    let (search_query, set_search_query) = signal("".to_string());
 
     // Resource to fetch permits — keyed cache per filter combination.
     let client: QueryClient = expect_context();
@@ -48,8 +56,21 @@ pub fn PemakaianBmnList() -> impl IntoView {
             page.get(),
             status_filter.get(),
             jenis_bmn_filter.get(),
-            search.get(),
+            search_query.get(),
         )
+    });
+
+    // Debounce `search_input` → `search_query` with a 300ms trailing edge.
+    // Stale tasks bail out via the equality check.
+    Effect::new(move |_| {
+        let pending = search_input.get();
+        spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(300).await;
+            if search_input.get_untracked() == pending {
+                set_search_query.set(pending);
+                set_page.set(1);
+            }
+        });
     });
 
     let get_status_badge_class = |status: &str| match status {
@@ -94,11 +115,8 @@ pub fn PemakaianBmnList() -> impl IntoView {
                             type="text"
                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             placeholder="Nama, NUP, Nomor Izin..."
-                            prop:value=move || search.get()
-                            on:input=move |ev| {
-                                set_search.set(event_target_value(&ev));
-                                set_page.set(1);
-                            }
+                            prop:value=move || search_input.get()
+                            on:input=move |ev| set_search_input.set(event_target_value(&ev))
                         />
                     </div>
                     <div>
@@ -141,7 +159,8 @@ pub fn PemakaianBmnList() -> impl IntoView {
                         <button
                             class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                             on:click=move |_| {
-                                set_search.set("".to_string());
+                                set_search_input.set("".to_string());
+                                set_search_query.set("".to_string());
                                 set_status_filter.set("".to_string());
                                 set_jenis_bmn_filter.set("".to_string());
                                 set_page.set(1);

@@ -14,8 +14,11 @@ use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
+use leptos_meta::Title;
+use lib_ui::components::DarkPagination;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{EYE, PENCIL_SIMPLE, PLUS, X};
+use uuid::Uuid;
 
 /// leptos-fetch query keyed by `(query, page, per_page, refresh)`.
 /// `KebutuhanBmnQuery` impls Hash + Eq + Clone so leptos-fetch can
@@ -29,9 +32,6 @@ async fn query_kebutuhan_bmn_page(
     let (query, page, per_page, _refresh) = key;
     fetch_kebutuhan_bmn_list(query, page, per_page).await
 }
-use leptos_meta::Title;
-use lib_ui::components::DarkPagination;
-use uuid::Uuid;
 
 #[component]
 pub fn KebutuhanBmnList() -> impl IntoView {
