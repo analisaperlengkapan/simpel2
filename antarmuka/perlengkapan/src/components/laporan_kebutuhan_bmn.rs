@@ -5,11 +5,15 @@ use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{FILE_PDF, FILE_XLS};
 
-/// `()`-keyed query wrapper around the mock fetch — keeps the
-/// signature compatible with `client.local_resource` so swapping
-/// the mock for a real endpoint later doesn't ripple into render
-/// code.
-async fn query_kebutuhan_bmn_list(_: ()) -> Result<Vec<KebutuhanBmnItem>, String> {
+/// Query wrapper around the mock fetch — keyed by `(tahun, status)`
+/// so flipping the filter dropdowns allocates a fresh cache slot
+/// and (once the mock is swapped for a real endpoint) issues the
+/// matching request. The mock currently ignores the filters; this
+/// keying nonetheless lets the call-site benefit from leptos-fetch
+/// caching the moment the backend lands.
+async fn query_kebutuhan_bmn_list(
+    _key: (String, String),
+) -> Result<Vec<KebutuhanBmnItem>, String> {
     mock_fetch_kebutuhan_bmn_list().await
 }
 
@@ -43,7 +47,10 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
     let tahun = RwSignal::new("2025".to_string());
     let status_filter = RwSignal::new("semua".to_string());
     let client: QueryClient = expect_context();
-    let data = client.local_resource(query_kebutuhan_bmn_list, || ());
+    let data = client.local_resource(
+        query_kebutuhan_bmn_list,
+        move || (tahun.get(), status_filter.get()),
+    );
 
     view! {
         <div style="max-width: 1100px; margin: 0 auto;">

@@ -158,7 +158,7 @@ async fn fetch_perlengkapan_dashboard(
 
 /// leptos-fetch query wrappers — keyed cache + dedup.
 ///
-/// Both queries fold a `refresh_trigger: i32` into the cache key so the
+/// Each query folds a `refresh_trigger: i32` into the cache key so the
 /// Refresh button can force a real re-fetch by bumping the trigger.
 /// `.refetch()` on a leptos-fetch resource re-evaluates the keyer and,
 /// for an unchanged key, serves the stale cached value — so we instead
@@ -172,6 +172,17 @@ async fn query_satker_options(
 ) -> Result<Vec<SatkerOption>, crate::api::AppError> {
     let (wilayah, _trigger) = key;
     fetch_satker_options(wilayah).await
+}
+
+/// Dashboard-metrics query — keyed by `(tahun, wilayah, satker, refresh_trigger)`.
+/// Each drill-down combination caches independently so navigating
+/// back to a previous level re-uses the prior payload, and the
+/// Refresh button bumps the trigger to force a real network round-trip.
+async fn query_perlengkapan_dashboard(
+    key: (i32, Option<String>, Option<String>, i32),
+) -> Result<PerlengkapanDashboardMetrics, crate::api::AppError> {
+    let (tahun_anggaran, wilayah_code, satker_id, _trigger) = key;
+    fetch_perlengkapan_dashboard(tahun_anggaran, wilayah_code, satker_id).await
 }
 
 async fn fetch_wilayah_options() -> Result<Vec<WilayahOption>, crate::api::AppError> {
@@ -425,11 +436,6 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
     // Drill-down level state
     let drill_down_level = move || DrillDownLevel::from_query_params(wilayah_code(), satker_id());
 
-    // Fetch dashboard data with drill-down filters
-    let dashboard_resource = LocalResource::new(move || async move {
-        fetch_perlengkapan_dashboard(tahun_anggaran, wilayah_code(), satker_id()).await
-    });
-
     // Refresh trigger folded into the leptos-fetch cache keys below so
     // the Refresh button can force a real re-fetch by bumping it.
     // Calling `.refetch()` directly on a leptos-fetch resource with an
@@ -437,11 +443,20 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
     // the network request.
     let refresh_trigger = RwSignal::new(0i32);
 
-    // Fetch wilayah + satker options through the leptos-fetch cache
-    // — the same wilayah list is shared with any other component
-    // that asks for it, and per-wilayah satker lists each get their
-    // own cache slot keyed by `(Option<String>, refresh_trigger)`.
+    // Fetch dashboard + wilayah + satker options through the leptos-fetch
+    // cache — each drill-down combination caches independently, the same
+    // wilayah list is shared with any other component that asks for it,
+    // and per-wilayah satker lists each get their own cache slot keyed
+    // by `(Option<String>, refresh_trigger)`.
     let client: QueryClient = expect_context();
+    let dashboard_resource = client.local_resource(query_perlengkapan_dashboard, move || {
+        (
+            tahun_anggaran,
+            wilayah_code(),
+            satker_id(),
+            refresh_trigger.get(),
+        )
+    });
     let wilayah_options_resource =
         client.local_resource(query_wilayah_options, move || refresh_trigger.get());
     let satker_options_resource = client.local_resource(query_satker_options, move || {
@@ -500,12 +515,11 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
                 </div>
                 <button
                     on:click=move |_| {
-                        // `dashboard_resource` is a raw `LocalResource`, so
-                        // `.refetch()` re-runs its async closure unconditionally.
-                        // The wilayah/satker resources go through the leptos-fetch
-                        // cache — bump `refresh_trigger` to allocate a new cache
-                        // slot and force a real network round-trip.
-                        dashboard_resource.refetch();
+                        // All three resources now route through the leptos-fetch
+                        // cache, which serves the stale cached value when
+                        // `.refetch()` re-evaluates the keyer with an unchanged
+                        // key. Bump `refresh_trigger` to allocate a fresh cache
+                        // slot for each and force a real network round-trip.
                         refresh_trigger.update(|v| *v += 1);
                     }
                     class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
