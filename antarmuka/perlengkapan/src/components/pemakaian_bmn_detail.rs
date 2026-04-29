@@ -19,8 +19,17 @@ use phosphor_leptos::{
     SPINNER, UPLOAD_SIMPLE, WARNING, WARNING_CIRCLE,
 };
 
-/// leptos-fetch query — keyed by permit id (`String`).
-async fn query_pemakaian_bmn_detail(permit_id: String) -> Option<IzinPemakaianDetailResponse> {
+/// leptos-fetch query — keyed by `(permit_id, refresh_trigger)`.
+///
+/// `refresh_trigger` is folded into the cache key so post-mutation
+/// code (workflow transition, revoke, generate konsep, upload signed
+/// PDF) can force a real network re-fetch by bumping the trigger.
+/// Calling `.refetch()` on a leptos-fetch resource with an unchanged
+/// keyer would just return the stale cached value.
+async fn query_pemakaian_bmn_detail(
+    key: (String, i32),
+) -> Option<IzinPemakaianDetailResponse> {
+    let (permit_id, _trigger) = key;
     fetch_pemakaian_bmn_detail(&permit_id)
         .await
         .ok()
@@ -32,10 +41,17 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
     let params = use_params_map();
     let id = move || params.read().get("id").unwrap_or_default();
 
+    // Bumped after every successful mutation so the keyer below
+    // emits a fresh cache slot and leptos-fetch issues a real
+    // network request instead of serving stale data.
+    let refresh_trigger = RwSignal::new(0i32);
+
     // Resource to fetch permit detail — keyed cache + dedup so
     // navigating away and back to the same permit re-uses the load.
     let client: QueryClient = expect_context();
-    let permit_resource = client.local_resource(query_pemakaian_bmn_detail, move || id());
+    let permit_resource = client.local_resource(query_pemakaian_bmn_detail, move || {
+        (id(), refresh_trigger.get())
+    });
 
     // UI state
     let (show_transition_modal, set_show_transition_modal) = signal(false);
@@ -69,7 +85,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                     Ok(_) => {
                         set_show_transition_modal.set(false);
                         set_transition_comment.set("".to_string());
-                        permit_resource.refetch();
+                        refresh_trigger.update(|v| *v += 1);
                     }
                     Err(e) => {
                         set_error.set(Some(format!("Gagal mengubah status: {}", e)));
@@ -100,7 +116,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                 Ok(_) => {
                     set_show_revoke_modal.set(false);
                     set_revoke_reason.set("".to_string());
-                    permit_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal mencabut izin: {}", e)));
@@ -126,7 +142,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
             let request = GenerateKonsepSuratRequest { format: None };
             match generate_pemakaian_konsep_surat(&permit_id, request).await {
                 Ok(_) => {
-                    permit_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal generate konsep surat: {}", e)));
@@ -156,7 +172,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                 Ok(_) => {
                     set_show_upload_modal.set(false);
                     set_signed_pdf_url.set(String::new());
-                    permit_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal upload PDF: {}", e)));
@@ -539,7 +555,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
 
                                 // Transition Modal
                                 <Show when=move || show_transition_modal.get()>
-                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
                                         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                                             <h3 class="text-lg font-semibold mb-4">"Konfirmasi Perubahan Status"</h3>
                                             <div class="mb-4">
@@ -575,7 +591,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
 
                                 // Revoke Modal
                                 <Show when=move || show_revoke_modal.get()>
-                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
                                         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                                             <h3 class="text-lg font-semibold mb-4">"Pencabutan Izin"</h3>
                                             <div class="mb-4">
@@ -613,7 +629,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
 
                                 // Upload Signed PDF Modal
                                 <Show when=move || show_upload_modal.get()>
-                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
                                         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                                             <h3 class="text-lg font-semibold mb-4">"Upload Surat Izin Bertandatangan"</h3>
                                             <div class="mb-4">

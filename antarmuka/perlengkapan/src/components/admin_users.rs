@@ -241,7 +241,7 @@ pub fn AdminUsersPage() -> impl IntoView {
 
             // Role assignment modal
             {move || show_assign_modal.get().then(|| view! {
-                <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div class="fixed inset-0 bg-black/50 z-modal flex items-center justify-center p-4">
                     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
                         <div class="px-6 py-4 border-b flex items-center justify-between">
                             <h3 class="text-lg font-bold text-gray-900">"Atur Role Pengguna"</h3>

@@ -157,13 +157,20 @@ async fn fetch_perlengkapan_dashboard(
 }
 
 /// leptos-fetch query wrappers — keyed cache + dedup.
-async fn query_wilayah_options(_: ()) -> Result<Vec<WilayahOption>, crate::api::AppError> {
+///
+/// Both queries fold a `refresh_trigger: i32` into the cache key so the
+/// Refresh button can force a real re-fetch by bumping the trigger.
+/// `.refetch()` on a leptos-fetch resource re-evaluates the keyer and,
+/// for an unchanged key, serves the stale cached value — so we instead
+/// rely on key change to allocate a new cache slot.
+async fn query_wilayah_options(_trigger: i32) -> Result<Vec<WilayahOption>, crate::api::AppError> {
     fetch_wilayah_options().await
 }
 
 async fn query_satker_options(
-    wilayah: Option<String>,
+    key: (Option<String>, i32),
 ) -> Result<Vec<SatkerOption>, crate::api::AppError> {
+    let (wilayah, _trigger) = key;
     fetch_satker_options(wilayah).await
 }
 
@@ -423,14 +430,23 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
         fetch_perlengkapan_dashboard(tahun_anggaran, wilayah_code(), satker_id()).await
     });
 
+    // Refresh trigger folded into the leptos-fetch cache keys below so
+    // the Refresh button can force a real re-fetch by bumping it.
+    // Calling `.refetch()` directly on a leptos-fetch resource with an
+    // unchanged key returns the stale cached value instead of re-issuing
+    // the network request.
+    let refresh_trigger = RwSignal::new(0i32);
+
     // Fetch wilayah + satker options through the leptos-fetch cache
     // — the same wilayah list is shared with any other component
     // that asks for it, and per-wilayah satker lists each get their
-    // own cache slot keyed by `Option<String>`.
+    // own cache slot keyed by `(Option<String>, refresh_trigger)`.
     let client: QueryClient = expect_context();
-    let wilayah_options_resource = client.local_resource(query_wilayah_options, || ());
-    let satker_options_resource =
-        client.local_resource(query_satker_options, move || wilayah_code());
+    let wilayah_options_resource =
+        client.local_resource(query_wilayah_options, move || refresh_trigger.get());
+    let satker_options_resource = client.local_resource(query_satker_options, move || {
+        (wilayah_code(), refresh_trigger.get())
+    });
 
     // Build breadcrumb items based on drill-down level
     let breadcrumb_items = move || {
@@ -484,9 +500,13 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
                 </div>
                 <button
                     on:click=move |_| {
+                        // `dashboard_resource` is a raw `LocalResource`, so
+                        // `.refetch()` re-runs its async closure unconditionally.
+                        // The wilayah/satker resources go through the leptos-fetch
+                        // cache — bump `refresh_trigger` to allocate a new cache
+                        // slot and force a real network round-trip.
                         dashboard_resource.refetch();
-                        wilayah_options_resource.refetch();
-                        satker_options_resource.refetch();
+                        refresh_trigger.update(|v| *v += 1);
                     }
                     class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
                 >

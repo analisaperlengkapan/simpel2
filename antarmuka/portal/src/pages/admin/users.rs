@@ -310,7 +310,7 @@ pub fn UsersManagementPage() -> impl IntoView {
 
                 // Create user modal
                 <Show when=move || show_create_modal.get()>
-                    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">"Tambah Pengguna Baru"</h2>
                             <form on:submit=move |ev: web_sys::SubmitEvent| { ev.prevent_default(); set_create_trigger.set(create_trigger.get() + 1); } class="space-y-4">

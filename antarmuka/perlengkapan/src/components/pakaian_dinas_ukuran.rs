@@ -208,10 +208,25 @@ fn render_size_select(
     set_value: WriteSignal<String>,
     hint: &'static str,
 ) -> impl IntoView {
+    // The legacy `icon_class` strings carry both an FA icon name and Tailwind
+    // color utilities (e.g. "fas fa-tshirt text-info-400"). `icon_from_fa_class`
+    // only consumes the icon name; the trailing color classes have to be
+    // re-applied on a wrapping span so per-icon coloring (info/success/gold)
+    // isn't silently flattened into `currentColor`.
+    let trailing_classes: String = icon_class
+        .split_whitespace()
+        .filter(|tok| {
+            !matches!(*tok, "fas" | "far" | "fab") && !tok.starts_with("fa-")
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let wrapper_class = format!("inline-flex {}", trailing_classes);
     view! {
         <div class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
             <label class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-200">
-                <AppIcon icon=icon_from_fa_class(icon_class) size=14 />
+                <span class=wrapper_class>
+                    <AppIcon icon=icon_from_fa_class(icon_class) size=14 />
+                </span>
                 {label}
             </label>
             <select

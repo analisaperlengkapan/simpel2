@@ -1033,7 +1033,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
 
             // Add barang modal
             <Show when=move || show_add_barang.get()>
-                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div class="mx-4 w-full max-w-lg rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
                         <h3 class="mb-4 text-lg font-bold text-slate-100">"Tambah Barang"</h3>
                         <form on:submit=handle_add_barang class="flex flex-col gap-4">
@@ -1113,7 +1113,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
 
             // Return to operator modal
             <Show when=move || show_return_modal.get()>
-                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div class="mx-4 w-full max-w-lg rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
                         <h3 class="mb-4 text-lg font-bold text-slate-100">"Kembalikan ke Operator"</h3>
                         <form on:submit=handle_return_to_operator class="flex flex-col gap-4">
@@ -1146,7 +1146,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
 
             // Reject modal
             <Show when=move || show_reject_modal.get()>
-                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div class="mx-4 w-full max-w-lg rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
                         <h3 class="mb-4 text-lg font-bold text-slate-100">"Tolak Pengajuan"</h3>
                         <form on:submit=handle_reject class="flex flex-col gap-4">

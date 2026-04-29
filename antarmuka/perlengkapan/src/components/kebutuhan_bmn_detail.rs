@@ -158,7 +158,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
 
             // Delete confirmation modal
             <Show when=move || show_delete_modal.get()>
-                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div class="mx-4 w-full max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
                         <h3 class="mb-4 text-lg font-bold text-slate-100">"Konfirmasi Hapus"</h3>
                         <p class="mb-6 text-sm text-slate-400">

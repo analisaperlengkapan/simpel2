@@ -65,11 +65,13 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         )
     });
 
-    // Reset page when filters change
-    Effect::new(move || {
-        let _ = query.get();
-        set_page.set(1);
-    });
+    // Page reset is handled atomically inside each filter `on:change`
+    // handler below (search input, year select, status select). Doing
+    // it in an `Effect` instead would cause leptos-fetch to evaluate
+    // its key tuple twice in quick succession — first with
+    // `(new_query, OLD_page)`, then with `(new_query, 1)` after the
+    // effect fires — allocating two cache slots and potentially
+    // issuing a duplicate network request on every filter change.
 
     let handle_operation_complete = Callback::new(move |result: BatchOperationResult| {
         set_batch_result.set(Some(result));
@@ -128,7 +130,10 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                             type="text"
                             placeholder="Cari nama pengajuan..."
                             class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
-                            on:input=move |ev| set_search_query.set(event_target_value(&ev))
+                            on:input=move |ev| {
+                                set_search_query.set(event_target_value(&ev));
+                                set_page.set(1);
+                            }
                             prop:value=move || search_query.get()
                         />
                     </div>
@@ -139,6 +144,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                         on:change=move |ev| {
                             let val = event_target_value(&ev);
                             set_tahun_filter.set(val.parse().ok());
+                            set_page.set(1);
                         }
                     >
                         <option value="">"Semua Tahun"</option>
@@ -151,6 +157,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                         on:change=move |ev| {
                             let val = event_target_value(&ev);
                             set_status_filter.set(val.parse().ok());
+                            set_page.set(1);
                         }
                     >
                         <option value="">"Semua Status"</option>

@@ -98,7 +98,7 @@ pub fn BatchOperationsToolbar(
 
     view! {
         <Show when=move || selected_count.get() != 0>
-            <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+            <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-popover">
                 <div class="bg-white rounded-lg shadow-2xl border border-gray-200 p-4 flex items-center gap-4">
                     // Selection count
                     <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
@@ -183,7 +183,7 @@ fn BatchApproveDialog(
     on_cancel: Callback<()>,
 ) -> impl IntoView {
     view! {
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -244,7 +244,7 @@ fn BatchRejectDialog(
     on_cancel: Callback<()>,
 ) -> impl IntoView {
     view! {
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">

@@ -621,7 +621,7 @@ fn ActionModal(
     };
 
     view! {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div class="mx-4 w-full max-w-lg rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
                 <div class="flex items-start justify-between gap-3">
                     <h3 class="text-lg font-bold text-slate-100">{title}</h3>

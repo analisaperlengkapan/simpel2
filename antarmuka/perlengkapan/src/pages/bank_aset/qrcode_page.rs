@@ -289,7 +289,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
             </SectionCard>
 
             <Show when=move || show_preview.get()>
-                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm print:static print:bg-transparent print:backdrop-blur-none">
+                <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/70 backdrop-blur-sm print:static print:bg-transparent print:backdrop-blur-none">
                     <div class="flex h-[90vh] w-[95vw] max-w-5xl flex-col rounded-2xl border border-white/[0.06] bg-surface-panel shadow-2xl print:h-auto print:w-full print:max-w-none print:rounded-none print:border-0 print:shadow-none">
                         <header class="flex items-center justify-between border-b border-white/[0.06] px-5 py-3 print:hidden">
                             <div>
