@@ -113,6 +113,17 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
     let (selected_jenis_pegawai, set_selected_jenis_pegawai) = signal(Option::<String>::None);
     let (selected_eselon, set_selected_eselon) = signal(Option::<String>::None);
 
+    // `daftar_page` lives in the parent so each filter's `on:change` handler
+    // can atomically reset it to 1 alongside the filter change. Keeping page
+    // local to `DaftarPegawaiTab` would force a separate `Effect` to watch
+    // the filter signals and reset page after the fact — which makes the
+    // leptos-fetch keyer evaluate twice in quick succession (first with
+    // `(new_query, OLD_page)`, then with `(new_query, 1)`), allocating two
+    // cache slots and issuing a wasted network request for a page the user
+    // never sees. Mirrors the pattern called out in
+    // `kebutuhan_bmn_list.rs:91-97`.
+    let (daftar_page, set_daftar_page) = signal(1i32);
+
     // Fetch filter options through the leptos-fetch cache so other
     // pages that reuse the same dropdowns share the result.
     let client: QueryClient = expect_context();
@@ -164,6 +175,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                         on:change=move |ev| {
                                             let val = event_target_value(&ev);
                                             set_selected_pengajuan.set(if val.is_empty() { None } else { Some(val) });
+                                            set_daftar_page.set(1);
                                         }
                                     >
                                         <option value="">"Semua Periode"</option>
@@ -197,6 +209,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                         on:change=move |ev| {
                                             let val = event_target_value(&ev);
                                             set_selected_jenis.set(if val.is_empty() { None } else { Some(val) });
+                                            set_daftar_page.set(1);
                                         }
                                     >
                                         <option value="">"Semua Jenis"</option>
@@ -224,26 +237,36 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                             on:change=move |ev| {
                                 let val = event_target_value(&ev);
                                 set_selected_satker.set(if val.is_empty() { None } else { Some(val) });
+                                set_daftar_page.set(1);
                             }
                         />
                     </div>
 
                     // Jenis Kelamin
-                    {filter_select("Jenis Kelamin", move |v| set_selected_jenis_kelamin.set(v), view! {
+                    {filter_select("Jenis Kelamin", move |v| {
+                        set_selected_jenis_kelamin.set(v);
+                        set_daftar_page.set(1);
+                    }, view! {
                         <option value="">"Semua"</option>
                         <option value="L">"Laki-laki"</option>
                         <option value="P">"Perempuan"</option>
                     })}
 
                     // Jenis Pegawai
-                    {filter_select("Jenis Pegawai", move |v| set_selected_jenis_pegawai.set(v), view! {
+                    {filter_select("Jenis Pegawai", move |v| {
+                        set_selected_jenis_pegawai.set(v);
+                        set_daftar_page.set(1);
+                    }, view! {
                         <option value="">"Semua"</option>
                         <option value="0">"Jaksa"</option>
                         <option value="1">"Tata Usaha"</option>
                     })}
 
                     // Eselon
-                    {filter_select("Eselon", move |v| set_selected_eselon.set(v), view! {
+                    {filter_select("Eselon", move |v| {
+                        set_selected_eselon.set(v);
+                        set_daftar_page.set(1);
+                    }, view! {
                         <option value="">"Semua Eselon"</option>
                         <option value="I">"Eselon I"</option>
                         <option value="II">"Eselon II"</option>
@@ -297,6 +320,8 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         jenis_kelamin=selected_jenis_kelamin
                         jenis=selected_jenis_pegawai
                         eselon=selected_eselon
+                        page=daftar_page
+                        set_page=set_daftar_page
                     />
                 </Show>
             </div>
@@ -472,27 +497,16 @@ fn DaftarPegawaiTab(
     jenis_kelamin: ReadSignal<Option<String>>,
     jenis: ReadSignal<Option<String>>,
     eselon: ReadSignal<Option<String>>,
+    /// Pagination state lifted into the parent so each filter's
+    /// `on:change` handler can reset page to 1 atomically with the
+    /// filter change. Doing the reset in a local `Effect` here would
+    /// cause the leptos-fetch keyer to evaluate twice on every filter
+    /// change — first with `(new_query, OLD_page)`, then with
+    /// `(new_query, 1)` — allocating two cache slots and issuing a
+    /// wasted network request for a page the user never sees.
+    page: ReadSignal<i32>,
+    set_page: WriteSignal<i32>,
 ) -> impl IntoView {
-    let (page, set_page) = signal(1);
-
-    // Reset to page 1 whenever any filter dropdown changes. Without this,
-    // changing a filter while on page 3 would request page 3 of the new
-    // (potentially smaller) result set, landing the user on an empty or
-    // out-of-range page. The `<Show>` parent keeps this component mounted
-    // across filter changes, so a one-shot mount-time reset wouldn't fire.
-    Effect::new(move |_| {
-        // Track all six filter signals so the effect re-runs on any change.
-        let _ = (
-            pengajuan_id.get(),
-            satker_id.get(),
-            jenis_pakaian_id.get(),
-            jenis_kelamin.get(),
-            jenis.get(),
-            eselon.get(),
-        );
-        set_page.set(1);
-    });
-
     let client: QueryClient = expect_context();
     // Filter signals are read reactively inside the keyer so dropdown
     // changes while the tab is mounted re-key the leptos-fetch resource.
