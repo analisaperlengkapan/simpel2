@@ -133,9 +133,12 @@ pub fn Popover(
         },
     );
 
-    // Escape-key dismiss on the document root.
+    // Escape-key dismiss on the document root. We attach to `document()`
+    // rather than `document().body()` because `keydown` bubbles to the
+    // document level regardless, and `document().body()` is `Option<_>` —
+    // attaching to a missing body would silently drop the listener.
     let _esc = use_event_listener(
-        document().body(),
+        document(),
         leptos::ev::keydown,
         move |ev: web_sys::KeyboardEvent| {
             if ev.key() == "Escape" && open.get_untracked() {

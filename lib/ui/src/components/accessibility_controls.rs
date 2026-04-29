@@ -3,7 +3,7 @@
 use crate::utils::accessibility::*;
 use codee::string::JsonSerdeCodec;
 use leptos::prelude::*;
-use leptos_use::storage::{UseStorageOptions, use_local_storage, use_local_storage_with_options};
+use leptos_use::storage::{UseStorageOptions, use_local_storage_with_options};
 use wasm_bindgen::JsCast;
 
 // ============================================================================
@@ -161,7 +161,10 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
 pub fn HighContrastControl(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let class = class.unwrap_or_default();
     let (high_contrast, set_high_contrast, _) =
-        use_local_storage::<bool, JsonSerdeCodec>("high-contrast");
+        use_local_storage_with_options::<bool, JsonSerdeCodec>(
+            "high-contrast",
+            UseStorageOptions::default().initial_value(false),
+        );
 
     // Apply high contrast mode to document
     Effect::new(move |_| {
@@ -292,7 +295,10 @@ pub fn ReducedMotionControl(#[prop(optional, into)] class: Option<String>) -> im
 pub fn FocusIndicatorsControl(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let class = class.unwrap_or_default();
     let (enhanced_focus, set_enhanced_focus, _) =
-        use_local_storage::<bool, JsonSerdeCodec>("enhanced-focus");
+        use_local_storage_with_options::<bool, JsonSerdeCodec>(
+            "enhanced-focus",
+            UseStorageOptions::default().initial_value(false),
+        );
 
     // Apply enhanced focus indicators to document
     Effect::new(move |_| {
