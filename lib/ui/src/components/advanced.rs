@@ -38,7 +38,7 @@ pub fn Tooltip(
 
             <div
                 class=format!(
-                    "absolute {} z-50 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm whitespace-nowrap transition-opacity duration-200 pointer-events-none {}",
+                    "absolute {} z-tooltip px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm whitespace-nowrap transition-opacity duration-200 pointer-events-none {}",
                     position_class,
                     if show.get() { "opacity-100" } else { "opacity-0" }
                 )
@@ -87,13 +87,13 @@ pub fn Popover(
             {show.then(|| view! {
                 <>
                     <div
-                        class="fixed inset-0 z-40"
+                        class="fixed inset-0 z-dropdown"
                         on:click=handle_close
                     ></div>
 
                     <div
                         class=format!(
-                            "absolute {} z-50 w-64 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
+                            "absolute {} z-popover w-64 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
                             position_class
                         )
                         role="dialog"
@@ -150,12 +150,12 @@ pub fn Dropdown(
             {show.then(|| view! {
                 <>
                     <div
-                        class="fixed inset-0 z-40"
+                        class="fixed inset-0 z-dropdown"
                         on:click=handle_close
                     ></div>
 
                     <div
-                        class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50"
+                        class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-popover"
                         role="menu"
                     >
                         <div class="py-1">
@@ -470,7 +470,7 @@ pub fn ContextMenu(
                 view! {
                     <>
                         <div
-                            class="fixed inset-0 z-40"
+                            class="fixed inset-0 z-dropdown"
                             on:click=handle_close
                             on:contextmenu=move |ev: web_sys::MouseEvent| {
                                 ev.prevent_default();
@@ -479,7 +479,7 @@ pub fn ContextMenu(
                         ></div>
 
                         <div
-                            class="fixed z-50 min-w-[200px] rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5"
+                            class="fixed z-popover min-w-[200px] rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5"
                             style=format!("left: {}px; top: {}px", x, y)
                             role="menu"
                         >

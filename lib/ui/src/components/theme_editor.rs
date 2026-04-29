@@ -205,7 +205,7 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
     };
 
     view! {
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal p-4">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 // Header
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">

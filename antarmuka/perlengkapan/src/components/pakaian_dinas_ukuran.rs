@@ -19,11 +19,17 @@ use phosphor_leptos::{CHECK_CIRCLE, FLOPPY_DISK, INFO, WARNING_CIRCLE};
 
 /// `()`-keyed master ukuran query — same baju/celana/sepatu fetch
 /// for every consumer, so a single cache slot suffices.
+///
+/// The three category fetches run in parallel via `try_join3`, so the
+/// total wait time is `max(latencies)` instead of `sum(latencies)`.
 async fn query_master_ukuran(_: ()) -> Result<(Vec<Ukuran>, Vec<Ukuran>, Vec<Ukuran>), AppError> {
-    let baju = fetch_master_ukuran(Some("BAJU".to_string())).await?.data;
-    let celana = fetch_master_ukuran(Some("CELANA".to_string())).await?.data;
-    let sepatu = fetch_master_ukuran(Some("SEPATU".to_string())).await?.data;
-    Ok((baju, celana, sepatu))
+    let (baju, celana, sepatu) = futures::future::try_join3(
+        fetch_master_ukuran(Some("BAJU".to_string())),
+        fetch_master_ukuran(Some("CELANA".to_string())),
+        fetch_master_ukuran(Some("SEPATU".to_string())),
+    )
+    .await?;
+    Ok((baju.data, celana.data, sepatu.data))
 }
 
 /// Per-pegawai ukuran query — keyed by pegawai id (`String`).

@@ -34,6 +34,7 @@ web-sys = { workspace = true }
 js-sys = { workspace = true }
 gloo = { workspace = true, features = ["futures", "timers", "events"] }
 gloo-timers = { workspace = true, features = ["futures"] }
+futures = { workspace = true }
 getrandom = { workspace = true }
 # Enable wasm_js for getrandom 0.4 pulled transitively by updated deps (e.g. uuid 1.23+)
 getrandom_04 = { workspace = true }

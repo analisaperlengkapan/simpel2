@@ -105,7 +105,7 @@ pub fn NotificationBell(
 
                 view! {
                     <div
-                        class="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50"
+                        class="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-popover"
                         on:click=move |e| {
                             e.stop_propagation();
                         }

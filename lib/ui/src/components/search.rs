@@ -147,7 +147,7 @@ pub fn GlobalSearchBar(
 
                 view! {
                     <div
-                        class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50"
+                        class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-popover"
                         on:click=move |e| {
                             e.stop_propagation();
                         }
@@ -252,7 +252,7 @@ pub fn GlobalSearchButton(
 
             // Search modal
             {move || is_modal_open.get().then(|| view! {
-                <div class="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/50 backdrop-blur-sm">
+                <div class="fixed inset-0 z-modal flex items-start justify-center pt-20 px-4 bg-black/50 backdrop-blur-sm">
                     <div class="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-2xl">
                         <div class="p-4">
                             <div class="flex items-center justify-between mb-4">

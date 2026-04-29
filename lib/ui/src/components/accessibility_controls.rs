@@ -400,7 +400,7 @@ pub fn AccessibilityMenuButton() -> impl IntoView {
     };
 
     view! {
-        <div class="fixed bottom-4 right-4 z-50">
+        <div class="fixed bottom-4 right-4 z-popover">
             <button
                 type="button"
                 class="p-3 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"

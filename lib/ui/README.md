@@ -102,8 +102,10 @@ use leptos_fetch::use_query;
 let data = use_query(...); // analog ke React Query / SWR
 ```
 
-**Jangan** menulis `LocalResource::new(...)` baru — pattern itu hanya
-ada di kode lama yang belum dimigrasi.
+**Untuk kode baru**, hindari `LocalResource::new(...)`. Kode lama masih
+banyak menggunakannya (migrasi bertahap per komponen); silakan ikuti
+pola `client.local_resource(query_fn, keyer)` saat menambah/menyentuh
+fetcher agar kita konvergen ke `leptos-fetch` tanpa flag-day.
 
 ### Hooks generik (phase 2)
 
