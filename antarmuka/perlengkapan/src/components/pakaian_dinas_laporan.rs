@@ -475,6 +475,24 @@ fn DaftarPegawaiTab(
 ) -> impl IntoView {
     let (page, set_page) = signal(1);
 
+    // Reset to page 1 whenever any filter dropdown changes. Without this,
+    // changing a filter while on page 3 would request page 3 of the new
+    // (potentially smaller) result set, landing the user on an empty or
+    // out-of-range page. The `<Show>` parent keeps this component mounted
+    // across filter changes, so a one-shot mount-time reset wouldn't fire.
+    Effect::new(move |_| {
+        // Track all six filter signals so the effect re-runs on any change.
+        let _ = (
+            pengajuan_id.get(),
+            satker_id.get(),
+            jenis_pakaian_id.get(),
+            jenis_kelamin.get(),
+            jenis.get(),
+            eselon.get(),
+        );
+        set_page.set(1);
+    });
+
     let client: QueryClient = expect_context();
     // Filter signals are read reactively inside the keyer so dropdown
     // changes while the tab is mounted re-key the leptos-fetch resource.
