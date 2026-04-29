@@ -2,6 +2,8 @@
 
 use crate::components::layout::{PageLayout, SectionCard};
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::CHECK;
 
 #[component]
 pub fn PanduanPengguna() -> impl IntoView {
@@ -70,13 +72,15 @@ pub fn PanduanPengguna() -> impl IntoView {
                     view! {
                         <SectionCard title=title.to_string()>
                             <div class="flex items-start gap-3 mb-3">
-                                <i class=format!("{} text-gold-400", icon)></i>
+                                <span class="text-gold-400 inline-flex">
+                                    <AppIcon icon=icon_from_fa_class(icon) size=14 />
+                                </span>
                                 <p class="text-sm leading-relaxed text-slate-400">{desc}</p>
                             </div>
                             <ul class="flex flex-col gap-1.5">
                                 {steps.into_iter().map(|step| view! {
                                     <li class="flex items-start gap-2 text-sm text-slate-200">
-                                        <i class="fas fa-check text-success-400 text-2xs mt-1 shrink-0"></i>
+                                        <span class="text-success-400 text-2xs mt-1 shrink-0"><AppIcon icon=CHECK /></span>
                                         <span>{step}</span>
                                     </li>
                                 }).collect_view()}

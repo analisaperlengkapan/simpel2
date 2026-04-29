@@ -13,9 +13,12 @@
 //! shared/
 //! |-- core/          # Types, constants, theme
 //! |-- components/    # UI components (layout, forms, feedback, navigation, display)
-//! |-- hooks/         # Reusable hooks (storage, media query, debounce)
-//! `-- utils/         # Utilities (validation, formatters, helpers)
+//! |-- hooks/         # Domain hooks (auth, toast, form, search, announcer)
+//! `-- utils/         # Utilities (validation, formatters, helpers, storage)
 //! ```
+//!
+//! Generic primitives (debounce, throttle, storage, media query, keyboard events)
+//! come from `leptos_use` — re-exported via `lib_ui::prelude`.
 
 // Allow clippy warnings for common patterns in this crate
 #![allow(clippy::collapsible_if)]
@@ -31,6 +34,7 @@
 pub mod components;
 pub mod core;
 pub mod hooks;
+pub mod routes;
 pub mod utils;
 
 // ============================================================================
@@ -55,11 +59,31 @@ pub mod prelude {
     pub use crate::components::display::*;
     pub use crate::components::feedback::*;
     pub use crate::components::forms::*;
+    pub use crate::components::icon::*;
     pub use crate::components::layout::*;
     pub use crate::components::navigation::*;
 
-    // Hooks
+    // Icon catalogue — typed phosphor constants + weight enum
+    pub use phosphor_leptos;
+
+    // Hooks (domain-specific)
     pub use crate::hooks::*;
+
+    // Typed routes (Phase 8a — pure-data layer)
+    pub use crate::routes::{PerlengkapanRoute, PortalRoute, ToPath};
+
+    // Generic reactive primitives from leptos-use
+    pub use leptos_use::storage::{
+        UseStorageOptions, use_local_storage, use_local_storage_with_options, use_session_storage,
+        use_session_storage_with_options,
+    };
+    pub use leptos_use::{
+        on_click_outside, use_debounce_fn, use_event_listener, use_interval_fn, use_media_query,
+        use_throttle_fn, use_window_focus,
+    };
+
+    // Storage codec for use with `use_local_storage` / `use_session_storage`
+    pub use codee::string::JsonSerdeCodec;
 
     // Utils
     pub use crate::utils::*;

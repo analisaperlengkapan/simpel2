@@ -4,6 +4,8 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CARET_LEFT, CARET_RIGHT, MAGNIFYING_GLASS};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, SubmitEvent};
 
@@ -203,7 +205,7 @@ pub fn AdminAuditPage() -> impl IntoView {
                             type="submit"
                             class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
                         >
-                            <i class="fas fa-magnifying-glass mr-1.5"></i>
+                            <span class="mr-1.5"><AppIcon icon=MAGNIFYING_GLASS /></span>
                             "Terapkan"
                         </button>
                     </div>
@@ -354,7 +356,7 @@ fn Pagination(
                     prop:disabled=move || page.get() <= 1
                     on:click=prev_handler
                 >
-                    <i class="fas fa-chevron-left mr-1"></i>
+                    <span class="mr-1"><AppIcon icon=CARET_LEFT /></span>
                     "Sebelumnya"
                 </button>
                 <button
@@ -364,7 +366,7 @@ fn Pagination(
                     on:click=next_handler
                 >
                     "Berikutnya"
-                    <i class="fas fa-chevron-right ml-1"></i>
+                    <span class="ml-1"><AppIcon icon=CARET_RIGHT /></span>
                 </button>
             </div>
         </div>

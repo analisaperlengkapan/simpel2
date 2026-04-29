@@ -1039,10 +1039,8 @@ impl DatabaseSecretsEngine {
                     // errors (connection failures, permission errors, syntax
                     // errors) so callers can surface them as warnings.
                     if let Err(e) = pg_client.execute(&sql, &[]).await {
-                        let is_role_not_found = e
-                            .code()
-                            .map(|c| c.code() == "42704")
-                            .unwrap_or(false);
+                        let is_role_not_found =
+                            e.code().map(|c| c.code() == "42704").unwrap_or(false);
                         if !is_role_not_found {
                             return Err(DatabaseError::RevocationFailed(format!(
                                 "Failed to execute revocation statement for user '{}': {}",

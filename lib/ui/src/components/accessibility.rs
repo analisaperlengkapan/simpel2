@@ -466,7 +466,7 @@ pub fn AccessibleTooltip(
                     id=tooltip_id_stored.get_value()
                     role="tooltip"
                     class=format!(
-                        "absolute z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-md shadow-lg whitespace-nowrap {}",
+                        "absolute z-tooltip px-3 py-2 text-sm text-white bg-gray-900 rounded-md shadow-lg whitespace-nowrap {}",
                         position_class
                     )
                 >

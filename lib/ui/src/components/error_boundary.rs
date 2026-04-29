@@ -19,7 +19,11 @@
 //! }
 //! ```
 
+use crate::components::icon::AppIcon;
 use leptos::prelude::*;
+use phosphor_leptos::{
+    ARROW_CLOCKWISE, CARET_LEFT, CARET_RIGHT, INFO, IconData, WARNING, WARNING_CIRCLE,
+};
 
 // ============================================================================
 // ERROR PANEL — user-friendly error display with retry
@@ -68,24 +72,24 @@ pub fn ErrorPanel(
     #[prop(optional)]
     on_retry: Option<Callback<()>>,
 ) -> impl IntoView {
-    let (border, bg, icon_color, icon) = match severity {
+    let (border, bg, icon_color, icon): (&str, &str, &str, IconData) = match severity {
         ErrorPanelSeverity::Info => (
             "border-blue-500/30",
             "bg-blue-950/30",
             "text-blue-400",
-            "fas fa-info-circle",
+            INFO,
         ),
         ErrorPanelSeverity::Warning => (
             "border-yellow-500/30",
             "bg-yellow-950/30",
             "text-yellow-400",
-            "fas fa-exclamation-triangle",
+            WARNING,
         ),
         ErrorPanelSeverity::Error => (
             "border-red-500/30",
             "bg-red-950/30",
             "text-red-400",
-            "fas fa-exclamation-circle",
+            WARNING_CIRCLE,
         ),
     };
 
@@ -94,7 +98,9 @@ pub fn ErrorPanel(
             "flex flex-col items-center justify-center rounded-xl border {} {} p-8 text-center",
             border, bg
         )>
-            <i class=format!("{} text-3xl {} mb-4", icon, icon_color)></i>
+            <span class=format!("mb-4 inline-flex {}", icon_color)>
+                <AppIcon icon=icon size=32 />
+            </span>
             <p class="text-lg font-semibold text-slate-100 mb-2">{title}</p>
             <p class="text-sm text-slate-400 max-w-md">{message}</p>
             {on_retry.map(|retry| view! {
@@ -103,7 +109,7 @@ pub fn ErrorPanel(
                     class="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600 transition-colors"
                     on:click=move |_| retry.run(())
                 >
-                    <i class="fas fa-redo text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=ARROW_CLOCKWISE /></span>
                     "Coba Lagi"
                 </button>
             })}
@@ -191,7 +197,7 @@ pub fn DarkPagination(
                     prop:disabled=move || current_page.get() <= 1
                     on:click=move |_| on_prev.run(())
                 >
-                    <i class="fas fa-chevron-left text-[0.6rem]"></i>
+                    <span class="text-[0.6rem]"><AppIcon icon=CARET_LEFT /></span>
                     "Sebelumnya"
                 </button>
                 <span class="text-xs text-slate-400">
@@ -204,7 +210,7 @@ pub fn DarkPagination(
                     on:click=move |_| on_next.run(())
                 >
                     "Selanjutnya"
-                    <i class="fas fa-chevron-right text-[0.6rem]"></i>
+                    <span class="text-[0.6rem]"><AppIcon icon=CARET_RIGHT /></span>
                 </button>
             </div>
         </div>
@@ -249,7 +255,7 @@ pub fn ResourceView<T, V>(
     /// The Leptos `Resource` to observe.
     resource: Resource<Result<T, String>>,
     /// Render function called with the successful data.
-    children: Box<dyn Fn(T) -> V>,
+    children: Box<dyn Fn(T) -> V + Send + Sync>,
     /// Loading message shown while the resource is pending.
     #[prop(default = "Memuat data...".to_string(), into)]
     loading_message: String,
@@ -258,7 +264,7 @@ pub fn ResourceView<T, V>(
     error_title: String,
 ) -> impl IntoView
 where
-    T: Clone + 'static,
+    T: Clone + Send + Sync + 'static,
     V: IntoView + 'static,
 {
     let loading_msg = loading_message.clone();

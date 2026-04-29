@@ -7,6 +7,8 @@
 
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::CHECK;
 
 const UI_ACTIVE_ROLE_KEY: &str = "ui_active_role";
 
@@ -140,10 +142,14 @@ pub fn RoleSwitcher() -> impl IntoView {
                         )
                         class="hover:bg-white/[0.04]"
                     >
-                        <i class=icon style=format!("font-size: 0.75rem; color: {}; width: 16px; text-align: center;", accent)></i>
+                        <span style=format!("color: {}; width: 16px; display: inline-flex; justify-content: center;", accent)>
+                            <AppIcon icon=icon_from_fa_class(icon) size=12 />
+                        </span>
                         <span style="font-size: 0.78rem; font-weight: 500; color: #cbd5e1;">{label}</span>
                         {move || (active_key.get() == key).then(|| view! {
-                            <i class="fas fa-check" style=format!("font-size: 0.6rem; color: {}; margin-left: auto;", accent)></i>
+                            <span style=format!("color: {}; margin-left: auto; display: inline-flex;", accent)>
+                                <AppIcon icon=CHECK size=10 />
+                            </span>
                         })}
                     </button>
                 }

@@ -35,8 +35,7 @@ pub fn MainLayout(
     // Prefer the prop when supplied (legacy call sites); otherwise read
     // from context (provided by App root).
     let session = user_session.or_else(|| {
-        use_context::<ReadSignal<Option<UserSession>>>()
-            .and_then(|sig| sig.get_untracked())
+        use_context::<ReadSignal<Option<UserSession>>>().and_then(|sig| sig.get_untracked())
     });
 
     // Capture the session-timeout writers (provided by App root) so we can
@@ -64,43 +63,45 @@ pub fn MainLayout(
     // Build logout handler that broadcasts + clears, then does a full page
     // reload to discard all WASM memory (session signals, provide_context).
     // If a legacy `on_logout` prop was passed, prefer that.
-    let on_logout: Option<Box<dyn Fn()>> = on_logout.or_else(|| Some(Box::new(move || {
-        // Clear the session-timeout warning first so it cannot flash on
-        // the login page after navigation.
-        if let Some(setter) = set_show_timeout_warning {
-            setter.set(false);
-        }
-        if let Some(setter) = set_timeout_countdown {
-            setter.set(0);
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            // Explicitly broadcast before `logout()` clears localStorage, to
-            // match the pattern used by Perlengkapan's `AuthService::logout()`
-            // (which calls `broadcast_logout()` internally). Portal's
-            // `AuthService::logout()` does NOT broadcast on its own, so we
-            // must do it here — otherwise peer tabs only learn about the
-            // logout via the `user_session` removal storage event, which is
-            // a weaker signal than the dedicated `logout_event` broadcast.
-            AuthService::broadcast_logout();
-            AuthService::logout();
-
-            // Full page reload to clear WASM memory — SPA navigation would
-            // leave reactive session state in the linear memory.
-            if let Some(window) = web_sys::window() {
-                let _ = window.location().set_href("/portal/login");
+    let on_logout: Option<Box<dyn Fn()>> = on_logout.or_else(|| {
+        Some(Box::new(move || {
+            // Clear the session-timeout warning first so it cannot flash on
+            // the login page after navigation.
+            if let Some(setter) = set_show_timeout_warning {
+                setter.set(false);
             }
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            AuthService::clear_session();
-            if let Some(set_session) = set_user_session {
-                set_session.set(None);
+            if let Some(setter) = set_timeout_countdown {
+                setter.set(0);
             }
-        }
-    })));
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                // Explicitly broadcast before `logout()` clears localStorage, to
+                // match the pattern used by Perlengkapan's `AuthService::logout()`
+                // (which calls `broadcast_logout()` internally). Portal's
+                // `AuthService::logout()` does NOT broadcast on its own, so we
+                // must do it here — otherwise peer tabs only learn about the
+                // logout via the `user_session` removal storage event, which is
+                // a weaker signal than the dedicated `logout_event` broadcast.
+                AuthService::broadcast_logout();
+                AuthService::logout();
+
+                // Full page reload to clear WASM memory — SPA navigation would
+                // leave reactive session state in the linear memory.
+                if let Some(window) = web_sys::window() {
+                    let _ = window.location().set_href("/portal/login");
+                }
+            }
+
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                AuthService::clear_session();
+                if let Some(set_session) = set_user_session {
+                    set_session.set(None);
+                }
+            }
+        }))
+    });
 
     view! {
         <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">

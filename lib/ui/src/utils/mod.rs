@@ -15,6 +15,7 @@ pub mod monitoring_init;
 pub mod secure_storage;
 pub mod security;
 pub mod sso_cookie;
+pub mod storage;
 pub mod validation;
 
 pub use accessibility::*;
@@ -32,4 +33,5 @@ pub use monitoring_init::*;
 pub use secure_storage::*;
 pub use security::*;
 pub use sso_cookie::*;
+pub use storage::*;
 pub use validation::*;

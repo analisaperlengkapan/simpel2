@@ -29,6 +29,9 @@ leptos_router = { workspace = true }
 lib-ui = { workspace = true }
 lib-core = { workspace = true }
 
+# Reactive query/cache layer (Phase 6 of awesome-leptos integration)
+leptos-fetch = { workspace = true }
+
 # Web Assembly bindings - Performance optimized
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
@@ -45,8 +48,11 @@ serde_json = { workspace = true }
 
 # Utilities & Error Handling - Production ready
 console_error_panic_hook = { workspace = true }
-console_log = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
+# WASM only needs the `fmt` layer. Skip `env-filter` (pulls regex) and `json`
+# (pulls tracing-serde) to keep the WASM bundle lean.
+tracing-subscriber = { workspace = true, default-features = false, features = ["fmt"] }
+tracing-subscriber-wasm = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }
 urlencoding = "2.1"

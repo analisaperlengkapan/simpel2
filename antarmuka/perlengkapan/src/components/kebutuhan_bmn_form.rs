@@ -12,7 +12,9 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::{use_navigate, use_params_map};
+use lib_ui::components::icon::AppIcon;
 use lib_ui::hooks::{use_form, use_toast::use_toast};
+use phosphor_leptos::ARROW_LEFT;
 
 #[derive(Clone, PartialEq, Default)]
 pub enum FormMode {
@@ -108,11 +110,16 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
     // Form validation
     let is_valid = Memo::new(move |_| {
         let d = form.get();
-        !d.nama.is_empty() && d.nama.len() >= 3 && !d.tgl_mulai.is_empty() && !d.tgl_selesai.is_empty()
+        !d.nama.is_empty()
+            && d.nama.len() >= 3
+            && !d.tgl_mulai.is_empty()
+            && !d.tgl_selesai.is_empty()
     });
 
-    // Submit handler
-    let on_submit = move |ev: leptos::ev::SubmitEvent| {
+    // Submit handler — wrapped in Callback so the surrounding PageLayout
+    // children render closure (required to be `Fn`) can copy this handler
+    // on each re-render without consuming it.
+    let on_submit = Callback::new(move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
 
         if !is_valid.get() {
@@ -183,7 +190,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                 }
             }
         });
-    };
+    });
 
     let current_year = 2026;
     let years: Vec<i32> = (2020..=current_year + 2).rev().collect();
@@ -206,7 +213,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                 href=routes::path::KEBUTUHAN_DAFTAR
                 class="mb-4 inline-flex items-center gap-2 text-sm text-gold-400 transition hover:text-gold-300"
             >
-                <i class="fas fa-arrow-left text-xs"></i>
+                <span class="text-xs"><AppIcon icon=ARROW_LEFT /></span>
                 "Kembali ke Daftar"
             </a>
 
@@ -218,7 +225,7 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
             // Form
             <Show when=move || !loading.get()>
                 <SectionCard title="Detail Pengajuan">
-                    <form on:submit=on_submit class="flex flex-col gap-5">
+                    <form on:submit=move |ev| on_submit.run(ev) class="flex flex-col gap-5">
                         // Nama pengajuan
                         <FormField label="Nama Pengajuan" required=true full_width=true>
                             <input

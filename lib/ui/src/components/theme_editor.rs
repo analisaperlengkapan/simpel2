@@ -2,12 +2,13 @@
 //!
 //! Advanced UI untuk customizing theme colors, preview real-time, dan save preferences.
 
+use codee::string::JsonSerdeCodec;
 use leptos::prelude::*;
+use leptos_use::storage::use_local_storage;
 use serde::{Deserialize, Serialize};
 use web_sys::window;
 
 use crate::core::theme::{ThemeMode, apply_theme};
-use crate::hooks::use_storage;
 
 // ============================================================================
 // THEME CONFIGURATION
@@ -144,7 +145,14 @@ fn calculate_relative_luminance(hex: &str) -> f64 {
 #[component]
 pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl IntoView {
     // Load saved theme config or use default
-    let (config, set_config) = use_storage("simpelv2_theme_config", ThemeConfig::default());
+    let (config, set_config, _) =
+        use_local_storage::<ThemeConfig, JsonSerdeCodec>("simpelv2_theme_config");
+
+    // Snapshot of the persisted config at editor open time, used by `cancel`
+    // to restore user-visible state. We can't rely on `config.get()` in cancel
+    // because `set_config.update(...)` from the preview handlers persists to
+    // localStorage immediately, overwriting the "saved" value.
+    let original_config = StoredValue::new(config.get_untracked());
 
     // Preview mode - apply changes temporarily
     let (preview_mode, set_preview_mode) = signal(false);
@@ -159,11 +167,14 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
         }
     });
 
-    // Save theme configuration
+    // Save theme configuration. The signal value is already persisted to
+    // localStorage by `use_local_storage` on every preview update, so here we
+    // only need to apply visually and close. We also refresh the snapshot so a
+    // subsequent cancel wouldn't revert past this save point.
     let save_theme = move |_| {
         let current_config = config.get();
         current_config.apply();
-        set_config.set(current_config);
+        original_config.set_value(current_config);
         set_preview_mode.set(false);
 
         if let Some(on_close) = on_close {
@@ -171,18 +182,21 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
         }
     };
 
-    // Reset to default
+    // Reset to default. Update the snapshot too so a subsequent cancel won't
+    // revert past the reset (mirrors `save_theme`).
     let reset_theme = move |_| {
         let default_config = ThemeConfig::default();
         set_config.set(default_config.clone());
         default_config.apply();
+        original_config.set_value(default_config);
         set_preview_mode.set(false);
     };
 
-    // Cancel and revert changes
+    // Cancel and revert changes to the snapshot captured on editor open.
     let cancel = move |_| {
-        // Reapply saved config
-        config.get().apply();
+        let saved = original_config.get_value();
+        set_config.set(saved.clone());
+        saved.apply();
         set_preview_mode.set(false);
 
         if let Some(on_close) = on_close {
@@ -191,7 +205,7 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
     };
 
     view! {
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal p-4">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 // Header
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -199,11 +213,7 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
                         "Theme Editor"
                     </h2>
                     <button
-                        on:click=move |_| {
-                            if let Some(on_close) = on_close {
-                                on_close.run(());
-                            }
-                        }
+                        on:click=cancel
                         class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                         aria-label="Close"
                     >

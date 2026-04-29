@@ -1,4 +1,6 @@
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::WARNING_CIRCLE;
 
 /// A two-column responsive form wrapper that owns spacing, section headers,
 /// and action bar positioning. Wraps `FormField` rows so individual forms
@@ -55,7 +57,7 @@ pub fn FormField(
             })}
             {error.map(|e| view! {
                 <p class="text-xs font-medium text-danger-300">
-                    <i class="fas fa-circle-exclamation mr-1 text-[0.65rem]"></i>
+                    <span class="mr-1 text-[0.65rem]"><AppIcon icon=WARNING_CIRCLE /></span>
                     {e}
                 </p>
             })}

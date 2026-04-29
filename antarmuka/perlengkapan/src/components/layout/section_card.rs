@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 
 /// A panel containing one logical group of content inside a page. Owns its
 /// own header row so callers can declare a title/description/actions tuple
@@ -27,7 +28,7 @@ pub fn SectionCard(
                     <div class="flex items-start gap-3">
                         {icon.map(|i| view! {
                             <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
-                                <i class=format!("{} text-sm", i)></i>
+                                <AppIcon icon=icon_from_fa_class(&i) size=14 />
                             </span>
                         })}
                         <div>

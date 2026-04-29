@@ -3,7 +3,8 @@
 //! Displays paginated list of BMN needs analysis requests with filtering and batch operations.
 
 use crate::api::{
-    AppError, KebutuhanBmnQuery, KebutuhanBmnStatus, KebutuhanBmnSummary, fetch_kebutuhan_bmn_list,
+    AppError, KebutuhanBmnQuery, KebutuhanBmnStatus, KebutuhanBmnSummary, PaginatedResponse,
+    fetch_kebutuhan_bmn_list,
 };
 use crate::components::batch_operations_toolbar::{
     BatchOperationResult, BatchOperationsToolbar, BatchResultSummary,
@@ -11,9 +12,26 @@ use crate::components::batch_operations_toolbar::{
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use crate::routes;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos_fetch::QueryClient;
 use leptos_meta::Title;
 use lib_ui::components::DarkPagination;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{EYE, PENCIL_SIMPLE, PLUS, X};
 use uuid::Uuid;
+
+/// leptos-fetch query keyed by `(query, page, per_page, refresh)`.
+/// `KebutuhanBmnQuery` impls Hash + Eq + Clone so leptos-fetch can
+/// dedupe on it directly. The trailing `refresh` integer lets
+/// post-CRUD code force a refetch via
+/// `refresh_trigger.update(|v| *v += 1)` without invalidating the
+/// other cached pages.
+async fn query_kebutuhan_bmn_page(
+    key: (KebutuhanBmnQuery, i32, i32, i32),
+) -> Result<PaginatedResponse<KebutuhanBmnSummary>, AppError> {
+    let (query, page, per_page, _refresh) = key;
+    fetch_kebutuhan_bmn_list(query, page, per_page).await
+}
 
 #[component]
 pub fn KebutuhanBmnList() -> impl IntoView {
@@ -21,6 +39,12 @@ pub fn KebutuhanBmnList() -> impl IntoView {
     let (per_page, _set_per_page) = signal(20);
     let (tahun_filter, set_tahun_filter) = signal::<Option<i32>>(None);
     let (status_filter, set_status_filter) = signal::<Option<i32>>(None);
+    // `search_input` mirrors the raw `<input>` value (so the field stays
+    // responsive while typing); `search_query` is the debounced value
+    // folded into the leptos-fetch cache key. Without the debounce, every
+    // keystroke would allocate a fresh cache slot and (once a real backend
+    // is wired) issue a network request per character.
+    let (search_input, set_search_input) = signal(String::new());
     let (search_query, set_search_query) = signal(String::new());
 
     // Batch operations state
@@ -38,19 +62,39 @@ pub fn KebutuhanBmnList() -> impl IntoView {
         },
     });
 
-    let data_resource = LocalResource::new(move || {
-        let q = query.get();
-        let p = page.get();
-        let pp = per_page.get();
-        let _ = refresh_trigger.get();
-        async move { fetch_kebutuhan_bmn_list(q, p, pp).await }
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_kebutuhan_bmn_page, move || {
+        (
+            query.get(),
+            page.get(),
+            per_page.get(),
+            refresh_trigger.get(),
+        )
     });
 
-    // Reset page when filters change
-    Effect::new(move || {
-        let _ = query.get();
-        set_page.set(1);
+    // Debounce `search_input` → `search_query` with a 300ms trailing edge.
+    // Pattern mirrors `lib_ui::hooks::use_search::use_debounced_search`:
+    // every input change spawns a delayed task; if the input value is the
+    // same after the delay (i.e. the user stopped typing), commit it as
+    // the actual query. Stale tasks bail out via the equality check.
+    Effect::new(move |_| {
+        let pending = search_input.get();
+        spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(300).await;
+            if search_input.get_untracked() == pending {
+                set_search_query.set(pending);
+                set_page.set(1);
+            }
+        });
     });
+
+    // Page reset for the year/status filters is handled atomically inside
+    // each `on:change` handler below; search resets via the debounce effect.
+    // Doing it in a single `Effect` watching `query` would cause leptos-fetch
+    // to evaluate its key tuple twice in quick succession — first with
+    // `(new_query, OLD_page)`, then with `(new_query, 1)` after the effect
+    // fires — allocating two cache slots and potentially issuing a duplicate
+    // network request on every filter change.
 
     let handle_operation_complete = Callback::new(move |result: BatchOperationResult| {
         set_batch_result.set(Some(result));
@@ -95,7 +139,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                     href=routes::path::KEBUTUHAN_BUAT
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                 >
-                    <i class="fas fa-plus text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=PLUS /></span>
                     "Buat Pengajuan"
                 </a>
             </div>
@@ -109,8 +153,8 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                             type="text"
                             placeholder="Cari nama pengajuan..."
                             class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
-                            on:input=move |ev| set_search_query.set(event_target_value(&ev))
-                            prop:value=move || search_query.get()
+                            on:input=move |ev| set_search_input.set(event_target_value(&ev))
+                            prop:value=move || search_input.get()
                         />
                     </div>
 
@@ -120,6 +164,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                         on:change=move |ev| {
                             let val = event_target_value(&ev);
                             set_tahun_filter.set(val.parse().ok());
+                            set_page.set(1);
                         }
                     >
                         <option value="">"Semua Tahun"</option>
@@ -132,6 +177,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                         on:change=move |ev| {
                             let val = event_target_value(&ev);
                             set_status_filter.set(val.parse().ok());
+                            set_page.set(1);
                         }
                     >
                         <option value="">"Semua Status"</option>
@@ -153,7 +199,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                             class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-300 transition hover:bg-white/[0.08]"
                             on:click=move |_| set_selected_ids.set(Vec::new())
                         >
-                            <i class="fas fa-times text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=X /></span>
                             "Batal Pilih"
                         </button>
                     </Show>
@@ -277,14 +323,14 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                                                             class="text-info-400 transition hover:text-info-300"
                                                                             title="Detail"
                                                                         >
-                                                                            <i class="fas fa-eye text-xs"></i>
+                                                                            <span class="text-xs"><AppIcon icon=EYE /></span>
                                                                         </a>
                                                                         <a
                                                                             href=routes::url::kebutuhan_edit(&item.id)
                                                                             class="text-slate-400 transition hover:text-slate-200"
                                                                             title="Edit"
                                                                         >
-                                                                            <i class="fas fa-edit text-xs"></i>
+                                                                            <span class="text-xs"><AppIcon icon=PENCIL_SIMPLE /></span>
                                                                         </a>
                                                                     </div>
                                                                 </td>

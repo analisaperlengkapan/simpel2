@@ -18,6 +18,10 @@ use crate::components::layout::{FormField, LoadingState, PageLayout, SectionCard
 use leptos::callback::Callback;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    ARROW_CLOCKWISE, BUILDING, CALENDAR, INFO, PACKAGE, PENCIL_SIMPLE, PLUS, TRAY, WARNING_CIRCLE,
+};
 
 #[derive(Clone, PartialEq)]
 enum ViewMode {
@@ -73,7 +77,7 @@ pub fn PeriodManagement() -> impl IntoView {
                         on:click=move |_| set_view_mode.set(ViewMode::Create)
                         class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     >
-                        <i class="fas fa-plus text-xs"></i>
+                        <span class="text-xs"><AppIcon icon=PLUS /></span>
                         "Buat Periode Baru"
                     </button>
                 </div>
@@ -82,7 +86,7 @@ pub fn PeriodManagement() -> impl IntoView {
             // Error message
             <Show when=move || error.get().is_some()>
                 <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
@@ -145,7 +149,7 @@ fn PeriodList(
                     on:click=move |_| on_refresh.run(())
                     class="rounded-lg border border-white/10 bg-slate-800/50 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-700/50"
                 >
-                    <i class="fas fa-sync-alt mr-2"></i>
+                    <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
                     "Refresh"
                 </button>
             </div>
@@ -157,7 +161,7 @@ fn PeriodList(
                         when=move || !periods.get().is_empty()
                         fallback=|| view! {
                             <div class="py-12 text-center">
-                                <i class="fas fa-inbox text-4xl text-slate-600 mb-3"></i>
+                                <span class="text-4xl text-slate-600 mb-3"><AppIcon icon=TRAY /></span>
                                 <p class="text-slate-400">"Belum ada periode yang dibuat"</p>
                             </div>
                         }
@@ -239,15 +243,15 @@ fn PeriodCard(period: KebutuhanBmnSummary, on_edit: Callback<()>) -> impl IntoVi
 
                     <div class="mb-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
                         <div class="flex items-center gap-2 text-slate-400">
-                            <i class="fas fa-calendar text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=CALENDAR /></span>
                             <span>"Tahun: " <span class="font-medium text-slate-300">{period.tahun}</span></span>
                         </div>
                         <div class="flex items-center gap-2 text-slate-400">
-                            <i class="fas fa-building text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=BUILDING /></span>
                             <span>"Satker: " <span class="font-medium text-slate-300">{period.total_satker}</span></span>
                         </div>
                         <div class="flex items-center gap-2 text-slate-400">
-                            <i class="fas fa-box text-xs"></i>
+                            <span class="text-xs"><AppIcon icon=PACKAGE /></span>
                             <span>"Barang: " <span class="font-medium text-slate-300">{period.total_barang}</span></span>
                         </div>
                     </div>
@@ -264,7 +268,7 @@ fn PeriodCard(period: KebutuhanBmnSummary, on_edit: Callback<()>) -> impl IntoVi
                         on:click=move |_| on_edit.run(())
                         class="rounded-lg border border-white/10 bg-slate-700/50 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-600/50"
                     >
-                        <i class="fas fa-edit mr-1"></i>
+                        <span class="mr-1"><AppIcon icon=PENCIL_SIMPLE /></span>
                         "Edit"
                     </button>
                 </div>
@@ -436,7 +440,7 @@ fn PeriodForm(mode: FormMode, on_cancel: Callback<()>, on_success: Callback<()>)
             // Error message
             <Show when=move || error.get().is_some()>
                 <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
@@ -569,7 +573,7 @@ fn PeriodForm(mode: FormMode, on_cancel: Callback<()>, on_success: Callback<()>)
                     // Info box for eligible BMN and satkers
                     <div class="rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
                         <div class="flex items-start gap-3">
-                            <i class="fas fa-info-circle text-blue-300 mt-0.5"></i>
+                            <span class="text-blue-300 mt-0.5"><AppIcon icon=INFO /></span>
                             <div class="text-sm text-blue-200">
                                 <p class="font-medium mb-1">"Konfigurasi Lanjutan"</p>
                                 <p class="text-blue-300/80">

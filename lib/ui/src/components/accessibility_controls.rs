@@ -1,8 +1,9 @@
 //! Accessibility control components for user preferences
 
-use crate::hooks::use_storage;
 use crate::utils::accessibility::*;
+use codee::string::JsonSerdeCodec;
 use leptos::prelude::*;
+use leptos_use::storage::{UseStorageOptions, use_local_storage_with_options};
 use wasm_bindgen::JsCast;
 
 // ============================================================================
@@ -52,7 +53,10 @@ impl FontSize {
 #[component]
 pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let class = class.unwrap_or_default();
-    let (font_size, set_font_size) = use_storage::<String>("font-size", "medium".to_string());
+    let (font_size, set_font_size, _) = use_local_storage_with_options::<String, JsonSerdeCodec>(
+        "font-size",
+        UseStorageOptions::default().initial_value("medium".to_string()),
+    );
 
     let current_size = move || FontSize::from_str(&font_size.get());
 
@@ -156,7 +160,11 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
 #[component]
 pub fn HighContrastControl(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let class = class.unwrap_or_default();
-    let (high_contrast, set_high_contrast) = use_storage::<bool>("high-contrast", false);
+    let (high_contrast, set_high_contrast, _) =
+        use_local_storage_with_options::<bool, JsonSerdeCodec>(
+            "high-contrast",
+            UseStorageOptions::default().initial_value(false),
+        );
 
     // Apply high contrast mode to document
     Effect::new(move |_| {
@@ -219,8 +227,11 @@ pub fn HighContrastControl(#[prop(optional, into)] class: Option<String>) -> imp
 #[component]
 pub fn ReducedMotionControl(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let class = class.unwrap_or_default();
-    let (reduced_motion, set_reduced_motion) =
-        use_storage::<bool>("reduced-motion", prefers_reduced_motion());
+    let (reduced_motion, set_reduced_motion, _) =
+        use_local_storage_with_options::<bool, JsonSerdeCodec>(
+            "reduced-motion",
+            UseStorageOptions::default().initial_value(prefers_reduced_motion()),
+        );
 
     // Apply reduced motion preference to document
     Effect::new(move |_| {
@@ -283,7 +294,11 @@ pub fn ReducedMotionControl(#[prop(optional, into)] class: Option<String>) -> im
 #[component]
 pub fn FocusIndicatorsControl(#[prop(optional, into)] class: Option<String>) -> impl IntoView {
     let class = class.unwrap_or_default();
-    let (enhanced_focus, set_enhanced_focus) = use_storage::<bool>("enhanced-focus", false);
+    let (enhanced_focus, set_enhanced_focus, _) =
+        use_local_storage_with_options::<bool, JsonSerdeCodec>(
+            "enhanced-focus",
+            UseStorageOptions::default().initial_value(false),
+        );
 
     // Apply enhanced focus indicators to document
     Effect::new(move |_| {
@@ -391,7 +406,7 @@ pub fn AccessibilityMenuButton() -> impl IntoView {
     };
 
     view! {
-        <div class="fixed bottom-4 right-4 z-50">
+        <div class="fixed bottom-4 right-4 z-popover">
             <button
                 type="button"
                 class="p-3 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"

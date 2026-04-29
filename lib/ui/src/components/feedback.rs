@@ -22,7 +22,7 @@ pub fn Toast(
 
     view! {
         <div class=format!(
-            "fixed top-4 right-4 max-w-sm w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border-l-4 {} p-4 transition-all duration-300 z-50 {}",
+            "fixed top-4 right-4 max-w-sm w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border-l-4 {} p-4 transition-all duration-300 z-toast {}",
             match toast_type {
                 ToastType::Success => "border-green-500",
                 ToastType::Error => "border-red-500",
@@ -105,7 +105,7 @@ pub fn Modal(
 
     view! {
         <div class=format!(
-            "fixed inset-0 z-50 overflow-y-auto transition-all duration-300 {}",
+            "fixed inset-0 z-modal overflow-y-auto transition-all duration-300 {}",
             if show { "opacity-100 pointer-events-auto" } else { "opacity-0 pointer-events-none" }
         )>
             // Backdrop
@@ -377,7 +377,7 @@ pub fn Notification(
     view! {
         <div
             class=format!(
-                "fixed {} max-w-sm w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border-l-4 {} p-4 transition-all duration-300 z-50 {}",
+                "fixed {} max-w-sm w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border-l-4 {} p-4 transition-all duration-300 z-toast {}",
                 position_class,
                 match notification_type {
                     ToastType::Success => "border-green-500",

@@ -2,6 +2,8 @@
 
 use crate::routes;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::HOUSE;
 
 #[component]
 pub fn NotFound() -> impl IntoView {
@@ -15,7 +17,7 @@ pub fn NotFound() -> impl IntoView {
                     href=routes::path::DASHBOARD
                     style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; background: linear-gradient(135deg, #d4a843, #facc15); color: #0f172a; font-weight: 700; font-size: 0.88rem; border-radius: 12px; text-decoration: none; transition: all 0.2s;"
                 >
-                    <i class="fas fa-home"></i>
+                    <AppIcon icon=HOUSE />
                     "Ke Dashboard"
                 </a>
             </div>

@@ -45,7 +45,7 @@ regex = { workspace = true }
 metrics-exporter-prometheus.workspace = true
 url = { workspace = true }
 hex = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 
 [[bin]]
 name = "authenc"

@@ -29,7 +29,7 @@ use components::app_chrome::{AppFooter, AppHeader};
 use components::guards::{AdminLayout, AuthenticatedLayout};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
-use lib_ui::hooks::use_toast::ToastProvider;
+use lib_ui::components::app_shell::AppShell;
 use pages::admin::{AdminAuditPage, AdminMasterDataPage};
 use pages::bank_aset::{
     BankAsetDashboardPage, BankAsetDetailPage, BankAsetListPage, BankAsetQrCodePage,
@@ -125,7 +125,7 @@ pub fn App() -> impl IntoView {
         <Meta charset="utf-8" />
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <ToastProvider>
+        <AppShell>
         <Router base="/perlengkapan">
             <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
                 // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
@@ -253,6 +253,6 @@ pub fn App() -> impl IntoView {
                 {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
             </div>
         </Router>
-        </ToastProvider>
+        </AppShell>
     }
 }

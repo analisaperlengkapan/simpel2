@@ -4,11 +4,14 @@
 
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_query_map;
 use lib_ui::components::dashboard::{BarChart, GapAnalysisTable, MetricCard, PieChart};
 use lib_ui::components::forms::Select;
+use lib_ui::components::icon::AppIcon;
 use lib_ui::components::navigation::Breadcrumb;
 use lib_ui::core::types::{BreadcrumbItem, ChartDataPoint, GapAnalysisRow};
+use phosphor_leptos::{ARROW_CLOCKWISE, WARNING};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -153,6 +156,35 @@ async fn fetch_perlengkapan_dashboard(
         .map_err(|e| crate::api::AppError::Unknown(format!("JSON parse error: {}", e)))
 }
 
+/// leptos-fetch query wrappers — keyed cache + dedup.
+///
+/// Each query folds a `refresh_trigger: i32` into the cache key so the
+/// Refresh button can force a real re-fetch by bumping the trigger.
+/// `.refetch()` on a leptos-fetch resource re-evaluates the keyer and,
+/// for an unchanged key, serves the stale cached value — so we instead
+/// rely on key change to allocate a new cache slot.
+async fn query_wilayah_options(_trigger: i32) -> Result<Vec<WilayahOption>, crate::api::AppError> {
+    fetch_wilayah_options().await
+}
+
+async fn query_satker_options(
+    key: (Option<String>, i32),
+) -> Result<Vec<SatkerOption>, crate::api::AppError> {
+    let (wilayah, _trigger) = key;
+    fetch_satker_options(wilayah).await
+}
+
+/// Dashboard-metrics query — keyed by `(tahun, wilayah, satker, refresh_trigger)`.
+/// Each drill-down combination caches independently so navigating
+/// back to a previous level re-uses the prior payload, and the
+/// Refresh button bumps the trigger to force a real network round-trip.
+async fn query_perlengkapan_dashboard(
+    key: (i32, Option<String>, Option<String>, i32),
+) -> Result<PerlengkapanDashboardMetrics, crate::api::AppError> {
+    let (tahun_anggaran, wilayah_code, satker_id, _trigger) = key;
+    fetch_perlengkapan_dashboard(tahun_anggaran, wilayah_code, satker_id).await
+}
+
 async fn fetch_wilayah_options() -> Result<Vec<WilayahOption>, crate::api::AppError> {
     let response = gloo_net::http::Request::get("/api/v1/wilayah")
         .send()
@@ -221,7 +253,7 @@ fn ErrorState(message: String) -> impl IntoView {
         <div class="flex items-center justify-center min-h-screen">
             <div class="text-center max-w-md">
                 <div class="text-red-500 text-5xl mb-4">
-                    <i class="fas fa-exclamation-triangle"></i>
+                    <AppIcon icon=WARNING />
                 </div>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                     "Gagal Memuat Dashboard"
@@ -404,18 +436,32 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
     // Drill-down level state
     let drill_down_level = move || DrillDownLevel::from_query_params(wilayah_code(), satker_id());
 
-    // Fetch dashboard data with drill-down filters
-    let dashboard_resource = LocalResource::new(move || async move {
-        fetch_perlengkapan_dashboard(tahun_anggaran, wilayah_code(), satker_id()).await
+    // Refresh trigger folded into the leptos-fetch cache keys below so
+    // the Refresh button can force a real re-fetch by bumping it.
+    // Calling `.refetch()` directly on a leptos-fetch resource with an
+    // unchanged key returns the stale cached value instead of re-issuing
+    // the network request.
+    let refresh_trigger = RwSignal::new(0i32);
+
+    // Fetch dashboard + wilayah + satker options through the leptos-fetch
+    // cache — each drill-down combination caches independently, the same
+    // wilayah list is shared with any other component that asks for it,
+    // and per-wilayah satker lists each get their own cache slot keyed
+    // by `(Option<String>, refresh_trigger)`.
+    let client: QueryClient = expect_context();
+    let dashboard_resource = client.local_resource(query_perlengkapan_dashboard, move || {
+        (
+            tahun_anggaran,
+            wilayah_code(),
+            satker_id(),
+            refresh_trigger.get(),
+        )
     });
-
-    // Fetch wilayah options
     let wilayah_options_resource =
-        LocalResource::new(|| async move { fetch_wilayah_options().await });
-
-    // Fetch satker options (filtered by wilayah if applicable)
-    let satker_options_resource =
-        LocalResource::new(move || async move { fetch_satker_options(wilayah_code()).await });
+        client.local_resource(query_wilayah_options, move || refresh_trigger.get());
+    let satker_options_resource = client.local_resource(query_satker_options, move || {
+        (wilayah_code(), refresh_trigger.get())
+    });
 
     // Build breadcrumb items based on drill-down level
     let breadcrumb_items = move || {
@@ -469,13 +515,16 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
                 </div>
                 <button
                     on:click=move |_| {
-                        dashboard_resource.refetch();
-                        wilayah_options_resource.refetch();
-                        satker_options_resource.refetch();
+                        // All three resources now route through the leptos-fetch
+                        // cache, which serves the stale cached value when
+                        // `.refetch()` re-evaluates the keyer with an unchanged
+                        // key. Bump `refresh_trigger` to allocate a fresh cache
+                        // slot for each and force a real network round-trip.
+                        refresh_trigger.update(|v| *v += 1);
                     }
                     class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
                 >
-                    <i class="fas fa-sync-alt mr-2"></i>
+                    <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
                     "Refresh"
                 </button>
             </div>

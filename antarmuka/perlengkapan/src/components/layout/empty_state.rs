@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 
 /// Empty state block with a big icon, headline, helper message, and an
 /// optional call-to-action. Every page that renders a list must mount this
@@ -14,7 +15,7 @@ pub fn EmptyState(
     view! {
         <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-14 text-center">
             <span class="flex h-14 w-14 items-center justify-center rounded-full bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
-                <i class=format!("{} text-xl", icon)></i>
+                <AppIcon icon=icon_from_fa_class(&icon) size=20 />
             </span>
             <h3 class="mt-4 text-base font-semibold text-white">{title}</h3>
             {description.map(|d| view! {

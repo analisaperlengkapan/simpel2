@@ -3,12 +3,23 @@
 //! Replaces the placeholder route `/pakaian-dinas/jenis/:id/spesifikasi`.
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
 
+use crate::api::PaginatedResponse;
 use crate::api::pakaian_dinas::{SpesifikasiPakaianDinas, fetch_spesifikasi_pakaian};
 use crate::components::layout::{
     DataTable, DataTableColumn, EmptyState, ErrorState, LoadingState, PageLayout, SectionCard,
 };
+
+/// Spesifikasi query keyed by jenis id (`String`). Each jenis
+/// caches independently so navigating between jenis pages keeps
+/// already-loaded specs warm.
+async fn query_spesifikasi(
+    jenis_id: String,
+) -> Result<PaginatedResponse<SpesifikasiPakaianDinas>, crate::api::AppError> {
+    fetch_spesifikasi_pakaian(1, 100, Some(jenis_id)).await
+}
 
 /// Render the list of spesifikasi for a single jenis pakaian dinas.
 fn render_spesifikasi_table(items: Vec<SpesifikasiPakaianDinas>) -> AnyView {
@@ -58,10 +69,8 @@ pub fn SpesifikasiPage() -> impl IntoView {
     let params = use_params_map();
     let jenis_id = move || params.with(|p| p.get("id").unwrap_or_default().to_string());
 
-    let data = LocalResource::new(move || {
-        let id = jenis_id();
-        async move { fetch_spesifikasi_pakaian(1, 100, Some(id)).await }
-    });
+    let client: QueryClient = expect_context();
+    let data = client.local_resource(query_spesifikasi, move || jenis_id());
 
     let content = move || -> AnyView {
         let result = data.get();

@@ -4,6 +4,7 @@
 //! based on the current workflow status.
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::{
@@ -13,6 +14,28 @@ use crate::api::{
     upload_penghapusan_signed_sk,
 };
 use crate::routes;
+
+/// leptos-fetch query — keyed by `(usulan_id, refresh_trigger)`.
+///
+/// `refresh_trigger` is folded into the cache key so post-mutation
+/// code (submit, forward, return, generate SK, upload signed SK)
+/// can force a real network re-fetch by bumping the trigger.
+/// Returns `Result` so the existing render branches (Loading /
+/// Error / Detail) keep their three-arm shape.
+async fn query_penghapusan_bmn_detail(
+    key: (String, i32),
+) -> Result<PenghapusanBmnDetailResponse, crate::api::AppError> {
+    let (id, _trigger) = key;
+    if id.is_empty() {
+        return Err(crate::api::AppError::Unknown(
+            "ID tidak ditemukan".to_string(),
+        ));
+    }
+    fetch_penghapusan_bmn_detail(&id)
+        .await
+        .map(|r| r.data)
+        .map_err(|e| crate::api::AppError::Unknown(format!("{:?}", e)))
+}
 
 /// Status badge color helper
 fn status_badge_class(status_kode: i32) -> &'static str {
@@ -56,19 +79,19 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     let (show_return_modal, set_show_return_modal) = signal(false);
     let (show_upload_modal, set_show_upload_modal) = signal(false);
 
-    let detail_resource = LocalResource::new(move || {
-        let id = params.get().get("id").unwrap_or_default();
-        async move {
-            if id.is_empty() {
-                return Err(crate::api::AppError::Unknown(
-                    "ID tidak ditemukan".to_string(),
-                ));
-            }
-            fetch_penghapusan_bmn_detail(&id)
-                .await
-                .map(|r| r.data)
-                .map_err(|e| crate::api::AppError::Unknown(format!("{:?}", e)))
-        }
+    // Bumped after every successful mutation so the keyer below
+    // emits a fresh cache slot and leptos-fetch issues a real
+    // network request instead of serving stale data. Calling
+    // `.refetch()` on a leptos-fetch resource with an unchanged
+    // key just returns the stale cached value.
+    let refresh_trigger = RwSignal::new(0i32);
+
+    let client: QueryClient = expect_context();
+    let detail_resource = client.local_resource(query_penghapusan_bmn_detail, move || {
+        (
+            params.get().get("id").unwrap_or_default(),
+            refresh_trigger.get(),
+        )
     });
 
     // Action: Submit to Validator Wilayah (Draft → SubmitWilayah)
@@ -80,7 +103,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             match submit_penghapusan_to_wilayah(&id).await {
                 Ok(_) => {
                     set_success_msg.set(Some("Berhasil diajukan ke Validator Wilayah".to_string()));
-                    detail_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
             }
@@ -107,7 +130,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                 Ok(_) => {
                     set_success_msg.set(Some("Berhasil diteruskan ke Validator Pusat".to_string()));
                     set_catatan_input.set(String::new());
-                    detail_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
             }
@@ -136,7 +159,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                         .set(Some("Berhasil dikembalikan ke Operator Satker".to_string()));
                     set_catatan_input.set(String::new());
                     set_show_return_modal.set(false);
-                    detail_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
             }
@@ -153,7 +176,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             match generate_penghapusan_konsep_sk(&id).await {
                 Ok(_) => {
                     set_success_msg.set(Some("Konsep SK berhasil digenerate".to_string()));
-                    detail_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
             }
@@ -184,7 +207,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                     ));
                     set_signed_sk_url.set(String::new());
                     set_show_upload_modal.set(false);
-                    detail_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
             }
@@ -459,7 +482,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
 
             // Return to Operator Modal
             {move || show_return_modal.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
                     <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                         <h3 class="text-lg font-semibold mb-4">"Kembalikan ke Operator Satker"</h3>
                         <div class="mb-4">
@@ -493,7 +516,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
 
             // Upload Signed SK Modal
             {move || show_upload_modal.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
                     <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                         <h3 class="text-lg font-semibold mb-4">"Upload SK Ditandatangani"</h3>
                         <div class="mb-4">

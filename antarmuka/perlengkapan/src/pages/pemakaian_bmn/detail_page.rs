@@ -4,6 +4,8 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_LEFT, PROHIBIT, REPEAT, WARNING, X};
 use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlInputElement, HtmlTextAreaElement};
 
@@ -148,7 +150,7 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
                     href=path::PENGELOLAAN_PEMAKAIAN
                     attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
                 >
-                    <i class="fas fa-arrow-left text-[0.7rem]"></i>
+                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_LEFT /></span>
                     "Kembali"
                 </A>
             }.into_any())
@@ -340,7 +342,7 @@ fn LifecycleSummary(
 
     let warning_banner = expiring_soon.then(|| view! {
         <div class="mt-3 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-200">
-            <i class="fas fa-triangle-exclamation mt-0.5 text-warning-300"></i>
+            <span class="mt-0.5 text-warning-300"><AppIcon icon=WARNING /></span>
             <span>"Izin akan berakhir dalam 7 hari. Pertimbangkan perpanjangan sebelum masa aktif habis."</span>
         </div>
     });
@@ -357,7 +359,7 @@ fn LifecycleSummary(
                     disabled=!can_renew
                     class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
                 >
-                    <i class="fas fa-repeat text-[0.6rem]"></i>
+                    <span class="text-[0.6rem]"><AppIcon icon=REPEAT /></span>
                     "Perpanjang"
                 </button>
                 <button
@@ -366,7 +368,7 @@ fn LifecycleSummary(
                     disabled=!can_revoke
                     class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs font-semibold text-danger-200 transition hover:bg-danger-500/20 disabled:opacity-40"
                 >
-                    <i class="fas fa-ban text-[0.6rem]"></i>
+                    <span class="text-[0.6rem]"><AppIcon icon=PROHIBIT /></span>
                     "Cabut Izin"
                 </button>
             }.into_any())
@@ -426,7 +428,7 @@ fn RevokeModal(
         }
     };
     view! {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div class="w-[95vw] max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-5 shadow-2xl">
                 <header class="flex items-start justify-between gap-3">
                     <div>
@@ -438,7 +440,7 @@ fn RevokeModal(
                         on:click=on_close
                         class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-slate-300 transition hover:bg-white/[0.08]"
                     >
-                        <i class="fas fa-xmark"></i>
+                        <AppIcon icon=X />
                     </button>
                 </header>
                 <textarea
@@ -462,7 +464,7 @@ fn RevokeModal(
                         disabled=move || submitting.get()
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-danger-500/80 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-danger-500 disabled:opacity-50"
                     >
-                        <i class="fas fa-ban text-[0.6rem]"></i>
+                        <span class="text-[0.6rem]"><AppIcon icon=PROHIBIT /></span>
                         {move || if submitting.get() { "Memproses..." } else { "Cabut" }}
                     </button>
                 </div>
@@ -508,7 +510,7 @@ fn RenewModal(
         }
     };
     view! {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div class="w-[95vw] max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-5 shadow-2xl">
                 <header class="flex items-start justify-between gap-3">
                     <div>
@@ -520,7 +522,7 @@ fn RenewModal(
                         on:click=on_close
                         class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-slate-300 transition hover:bg-white/[0.08]"
                     >
-                        <i class="fas fa-xmark"></i>
+                        <AppIcon icon=X />
                     </button>
                 </header>
                 <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -567,7 +569,7 @@ fn RenewModal(
                         disabled=move || submitting.get()
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                     >
-                        <i class="fas fa-repeat text-[0.6rem]"></i>
+                        <span class="text-[0.6rem]"><AppIcon icon=REPEAT /></span>
                         {move || if submitting.get() { "Memproses..." } else { "Perpanjang" }}
                     </button>
                 </div>

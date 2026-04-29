@@ -10,6 +10,8 @@ use crate::components::layout::{LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::dashboard::MetricCard;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHECK_CIRCLE, WARNING_CIRCLE};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -164,7 +166,7 @@ pub fn AnalysisPage() -> impl IntoView {
             // Error banner
             <Show when=move || error.get().is_some()>
                 <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
@@ -172,7 +174,7 @@ pub fn AnalysisPage() -> impl IntoView {
             // Success banner
             <Show when=move || success_message.get().is_some()>
                 <div class="mb-4 flex items-center gap-2 rounded-xl border border-success-500/30 bg-success-500/[0.08] px-4 py-3 text-sm text-success-300">
-                    <i class="fas fa-check-circle"></i>
+                    <AppIcon icon=CHECK_CIRCLE />
                     {move || success_message.get().unwrap_or_default()}
                 </div>
             </Show>

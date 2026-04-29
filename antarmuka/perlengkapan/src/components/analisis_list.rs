@@ -1,25 +1,31 @@
-use crate::api::{AnalisisKebutuhan, fetch_analisis};
+use crate::api::{AnalisisKebutuhan, PaginatedResponse, fetch_analisis};
 use crate::components::pagination_controls::PaginationControls;
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHART_PIE, EYE, PLUS};
+
+/// leptos-fetch query — keyed by page number (`i32`). Pages 1, 2,
+/// 3 each cache independently, so flipping back and forth keeps
+/// already-loaded pages instantly visible.
+async fn query_analisis_page(page: i32) -> Option<PaginatedResponse<AnalisisKebutuhan>> {
+    fetch_analisis(page, 20)
+        .await
+        .map_err(|e| {
+            leptos::logging::error!("Failed to fetch analisis: {:?}", e);
+        })
+        .ok()
+}
 
 #[component]
 pub fn AnalisisList() -> impl IntoView {
     let (page, set_page) = signal(1);
 
-    // Resource to fetch items when page changes
-    let data_resource = LocalResource::new(move || {
-        let p = page.get();
-        async move {
-            match fetch_analisis(p, 20).await {
-                Ok(response) => Some(response),
-                Err(e) => {
-                    leptos::logging::error!("Failed to fetch analisis: {:?}", e);
-                    None
-                }
-            }
-        }
-    });
+    // Per-page leptos-fetch cache — switching pages re-uses cached
+    // pages without a network round-trip.
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_analisis_page, move || page.get());
 
     view! {
         <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
@@ -29,7 +35,7 @@ pub fn AnalisisList() -> impl IntoView {
                     href=routes::path::ANALISIS_BUAT_LEGACY
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
                 >
-                    <i class="fas fa-plus mr-2"></i>
+                    <span class="mr-2"><AppIcon icon=PLUS /></span>
                     "Buat Analisis Baru"
                 </a>
             </div>
@@ -40,7 +46,7 @@ pub fn AnalisisList() -> impl IntoView {
                         if response.data.is_empty() {
                             view! {
                                 <div class="text-center py-12 text-gray-500">
-                                    <i class="fas fa-chart-pie text-4xl mb-3 text-gray-300"></i>
+                                    <span class="text-4xl mb-3 text-gray-300"><AppIcon icon=CHART_PIE /></span>
                                     <p>"Belum ada data analisis kebutuhan."</p>
                                 </div>
                             }.into_any()
@@ -101,7 +107,7 @@ pub fn AnalisisList() -> impl IntoView {
                                                         <td class="p-3">
                                                             <div class="flex gap-2">
                                                                 <button class="text-blue-600 hover:text-blue-800" title="Detail">
-                                                                    <i class="fas fa-eye"></i>
+                                                                    <AppIcon icon=EYE />
                                                                 </button>
                                                             </div>
                                                         </td>

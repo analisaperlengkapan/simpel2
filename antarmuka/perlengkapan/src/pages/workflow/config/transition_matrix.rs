@@ -1,6 +1,8 @@
 //! Transition matrix — visual grid of allowed transitions: from-state × to-state.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHECK, CIRCLE, FLAG_CHECKERED};
 
 use crate::api::workflow::WorkflowStep;
 
@@ -47,7 +49,7 @@ pub fn TransitionMatrix(steps: Vec<WorkflowStep>) -> impl IntoView {
                         view! {
                             <td class=cell_class>
                                 <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-success-500/15 text-[0.7rem] text-success-400">
-                                    <i class="fas fa-check"></i>
+                                    <AppIcon icon=CHECK />
                                 </span>
                             </td>
                         }
@@ -66,7 +68,9 @@ pub fn TransitionMatrix(steps: Vec<WorkflowStep>) -> impl IntoView {
                 <tr>
                     <th class="whitespace-nowrap border-b border-white/[0.04] bg-white/[0.02] px-3 py-2 text-left text-xs font-semibold text-slate-200">
                         <div class="flex items-center gap-2">
-                            <i class=if is_terminal { "fas fa-flag-checkered text-[0.7rem] text-danger-400" } else { "fas fa-circle text-[0.55rem] text-info-400" }></i>
+                            <span class=if is_terminal { "inline-flex text-danger-400" } else { "inline-flex text-info-400" }>
+                                <AppIcon icon=if is_terminal { FLAG_CHECKERED } else { CIRCLE } size=10 />
+                            </span>
                             {row_label}
                         </div>
                     </th>

@@ -2,6 +2,8 @@
 
 use crate::components::layout::PageLayout;
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::CARET_DOWN;
 
 #[component]
 pub fn FaqPage() -> impl IntoView {
@@ -58,9 +60,12 @@ pub fn FaqPage() -> impl IntoView {
                                 class="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-white/[0.02]"
                             >
                                 <span class="text-sm font-semibold text-slate-100">{question}</span>
-                                <i class="fas fa-chevron-down text-2xs text-slate-500 transition-transform"
-                                   class:rotate-180=move || open_idx.get() == Some(i)
-                                ></i>
+                                <span
+                                    class="inline-flex text-slate-500 transition-transform"
+                                    class:rotate-180=move || open_idx.get() == Some(i)
+                                >
+                                    <AppIcon icon=CARET_DOWN size=10 />
+                                </span>
                             </button>
                             <div
                                 class="overflow-hidden transition-all duration-200"

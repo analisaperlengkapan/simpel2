@@ -13,6 +13,8 @@ use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_LEFT, BUILDING, EYE, PENCIL_SIMPLE, TRASH, WARNING_CIRCLE};
 
 #[component]
 pub fn KebutuhanBmnDetail() -> impl IntoView {
@@ -121,14 +123,14 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                 href=routes::path::KEBUTUHAN_DAFTAR
                 class="mb-4 inline-flex items-center gap-2 text-sm text-gold-400 transition hover:text-gold-300"
             >
-                <i class="fas fa-arrow-left text-xs"></i>
+                <span class="text-xs"><AppIcon icon=ARROW_LEFT /></span>
                 "Kembali ke Daftar"
             </a>
 
             // Action error
             <Show when=move || action_error.get().is_some()>
                 <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     {move || action_error.get().unwrap_or_default()}
                 </div>
             </Show>
@@ -156,7 +158,7 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
 
             // Delete confirmation modal
             <Show when=move || show_delete_modal.get()>
-                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div class="mx-4 w-full max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
                         <h3 class="mb-4 text-lg font-bold text-slate-100">"Konfirmasi Hapus"</h3>
                         <p class="mb-6 text-sm text-slate-400">
@@ -225,14 +227,14 @@ fn render_detail(
                             href=routes::url::kebutuhan_edit(&pengajuan_id)
                             class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08]"
                         >
-                            <i class="fas fa-edit text-2xs"></i>
+                            <span class="text-2xs"><AppIcon icon=PENCIL_SIMPLE /></span>
                             "Edit"
                         </a>
                         <button
                             class="rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs text-danger-300 transition hover:bg-danger-500/20"
                             on:click=move |_| set_show_delete_modal.set(true)
                         >
-                            <i class="fas fa-trash text-2xs"></i>
+                            <span class="text-2xs"><AppIcon icon=TRASH /></span>
                         </button>
                     </div>
                 </div>
@@ -310,7 +312,7 @@ fn render_detail(
                     if s.is_empty() {
                         view! {
                             <div class="py-8 text-center text-sm text-slate-500">
-                                <i class="fas fa-building mb-2 text-2xl text-slate-600"></i>
+                                <span class="mb-2 text-2xl text-slate-600"><AppIcon icon=BUILDING /></span>
                                 <p>"Belum ada satker yang terdaftar"</p>
                             </div>
                         }.into_any()
@@ -368,7 +370,7 @@ fn render_satker_table(satkers: Vec<PengajuanKebutuhanBmnSatker>) -> impl IntoVi
                                             href=routes::url::kebutuhan_satker_detail(&satker_id)
                                             class="inline-flex items-center gap-1.5 text-xs text-info-400 transition hover:text-info-300"
                                         >
-                                            <i class="fas fa-eye text-2xs"></i>
+                                            <span class="text-2xs"><AppIcon icon=EYE /></span>
                                             "Detail"
                                         </a>
                                     </td>

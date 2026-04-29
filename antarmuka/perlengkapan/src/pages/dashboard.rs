@@ -4,10 +4,14 @@
 //! and maintainable utility-class styling.
 
 use crate::api::dashboard::fetch_dashboard_stats;
+use crate::api::types::DashboardStats;
 use crate::components::role_switcher::get_active_role;
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use leptos_meta::Title;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{CALENDAR, CARET_RIGHT, SHIELD};
 
 #[component]
 fn SectionHeader(title: &'static str, tone: &'static str) -> impl IntoView {
@@ -59,7 +63,9 @@ fn StatCard(
                         "flex h-11 w-11 items-center justify-center rounded-xl {} {} shadow-lg",
                         icon_bg, glow
                     )>
-                        <i class=format!("{} text-base {}", icon, icon_text)></i>
+                        <span class=format!("inline-flex {}", icon_text)>
+                            <AppIcon icon=icon_from_fa_class(icon) size=16 />
+                        </span>
                     </div>
                 </div>
                 <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{label}</p>
@@ -155,16 +161,23 @@ fn QuickNav(
                     "mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg {} {} ring-1 ring-transparent transition-all",
                     icon_bg, ring
                 )>
-                    <i class=format!("{} text-sm {}", icon, icon_text)></i>
+                    <span class=format!("inline-flex {}", icon_text)>
+                        <AppIcon icon=icon_from_fa_class(icon) size=14 />
+                    </span>
                 </div>
                 <div class="min-w-0 flex-1">
                     <h3 class="text-sm font-semibold text-slate-100 transition-colors group-hover:text-gold-300">{label}</h3>
                     <p class="mt-1 text-xs leading-relaxed text-slate-500">{description}</p>
                 </div>
-                <i class="fas fa-chevron-right pt-1 text-[10px] text-slate-600 transition-colors group-hover:text-slate-300"></i>
+                <span class="pt-1 text-[10px] text-slate-600 transition-colors group-hover:text-slate-300"><AppIcon icon=CARET_RIGHT /></span>
             </div>
         </a>
     }
+}
+
+/// leptos-fetch query wrapper for the dashboard stats endpoint.
+async fn query_dashboard_stats(_: ()) -> Result<DashboardStats, crate::api::AppError> {
+    fetch_dashboard_stats().await
 }
 
 fn format_number(n: i64) -> String {
@@ -189,7 +202,10 @@ pub fn DashboardHome() -> impl IntoView {
         _ => "Operator Satker",
     };
 
-    let stats_resource = LocalResource::new(fetch_dashboard_stats);
+    // leptos-fetch — `()` keyed cache so a tab-switch back to the
+    // dashboard re-uses the previous load instantly.
+    let client: QueryClient = expect_context();
+    let stats_resource = client.local_resource(query_dashboard_stats, || ());
     let is_admin = active_role == "admin";
 
     view! {
@@ -218,11 +234,11 @@ pub fn DashboardHome() -> impl IntoView {
 
                     <div class="mt-6 flex flex-wrap gap-3">
                         <div class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-navy-950/50 px-3 py-2 text-xs text-slate-300 sm:text-sm">
-                            <i class="fas fa-shield-alt text-emerald-300"></i>
+                            <span class="text-emerald-300"><AppIcon icon=SHIELD /></span>
                             <span>"Role: " <strong class="text-white">{role_label}</strong></span>
                         </div>
                         <div class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-navy-950/50 px-3 py-2 text-xs text-slate-300 sm:text-sm">
-                            <i class="fas fa-calendar text-blue-300"></i>
+                            <span class="text-blue-300"><AppIcon icon=CALENDAR /></span>
                             "Tahun Anggaran 2025"
                         </div>
                     </div>

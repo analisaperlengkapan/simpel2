@@ -1,7 +1,9 @@
 // Monitoring dashboard component for visualizing metrics, errors, and analytics
 // Provides real-time alerts, log aggregation, and performance reports
 
+use crate::components::icon::AppIcon;
 use leptos::prelude::*;
+use phosphor_leptos::{ARROW_CLOCKWISE, ARROW_DOWN, ARROW_UP};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen_futures::spawn_local;
 
@@ -112,7 +114,7 @@ pub fn MonitoringDashboard(
                         // Refresh data
                     }
                 >
-                    <i class="fas fa-sync-alt mr-2"></i>
+                    <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
                     "Refresh"
                 </button>
             </div>
@@ -177,12 +179,14 @@ fn MetricCardComponent(metric: MetricCard) -> impl IntoView {
             </div>
             {metric.change.map(|change| {
                 let is_positive = change > 0.0;
-                let icon = if is_positive { "fa-arrow-up" } else { "fa-arrow-down" };
+                let icon = if is_positive { ARROW_UP } else { ARROW_DOWN };
                 let color = if is_positive { "text-green-600" } else { "text-red-600" };
 
                 view! {
                     <div class=format!("text-sm mt-2 {}", color)>
-                        <i class=format!("fas {} mr-1", icon)></i>
+                        <span class="mr-1 inline-flex">
+                            <AppIcon icon=icon size=12 />
+                        </span>
                         {format!("{:.1}%", change.abs())}
                     </div>
                 }

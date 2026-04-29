@@ -9,11 +9,22 @@
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use lib_ui::components::dashboard::{
     BarChart, DashboardLoadingSkeleton, IntegrationStatusCard, MetricCard, PieChart,
 };
 use lib_ui::core::types::ChartDataPoint;
 use serde::{Deserialize, Serialize};
+
+/// Portal-dashboard query keyed by `refresh_trigger` (`i32`). The
+/// 30-second auto-refresh + manual refresh button both bump the
+/// trigger, which forces a fresh cache slot. Other portal
+/// components don't normally fetch this endpoint, so the cache
+/// hit benefit is mostly within the page (e.g. tab away and back
+/// reuses the most-recent payload).
+async fn query_portal_dashboard(_refresh_trigger: i32) -> Result<PortalDashboardMetrics, String> {
+    fetch_portal_dashboard().await
+}
 
 // ============================================================================
 // API DATA STRUCTURES
@@ -91,10 +102,12 @@ async fn fetch_portal_dashboard() -> Result<PortalDashboardMetrics, String> {
 
 #[component]
 pub fn PortalDashboardPage() -> impl IntoView {
-    let metrics = LocalResource::new(|| async move { fetch_portal_dashboard().await });
-
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 30 seconds — the trigger doubles as the
+    // cache key so each refresh produces a fresh leptos-fetch slot.
     let (refresh_trigger, set_refresh_trigger) = signal(0);
+
+    let client: QueryClient = expect_context();
+    let metrics = client.local_resource(query_portal_dashboard, move || refresh_trigger.get());
 
     #[cfg(target_arch = "wasm32")]
     {

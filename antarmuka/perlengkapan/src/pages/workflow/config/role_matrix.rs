@@ -1,6 +1,8 @@
 //! Role matrix — which role owns each state, with quick summary by role.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::USER_LIST;
 use std::collections::BTreeMap;
 
 use crate::api::workflow::WorkflowStep;
@@ -46,7 +48,7 @@ pub fn RoleMatrix(steps: Vec<WorkflowStep>) -> impl IntoView {
                         } else {
                             "inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-[0.7rem] font-semibold text-slate-500"
                         }>
-                            <i class="fas fa-user-tag text-[0.6rem]"></i>
+                            <span class="text-[0.6rem]"><AppIcon icon=USER_LIST /></span>
                             {role}
                         </span>
                     </td>

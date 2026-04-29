@@ -3,14 +3,28 @@
 //! Displays list of official uniform types with CRUD operations.
 
 use crate::api::{
-    AppError, CreateJenisPakaianDinasRequest, JenisPakaianDinas, create_jenis_pakaian_dinas,
-    delete_jenis_pakaian_dinas, fetch_jenis_pakaian_dinas,
+    AppError, CreateJenisPakaianDinasRequest, JenisPakaianDinas, PaginatedResponse,
+    create_jenis_pakaian_dinas, delete_jenis_pakaian_dinas, fetch_jenis_pakaian_dinas,
 };
 use crate::components::layout::{
     EmptyState, ErrorState, FormField, LoadingState, PageLayout, SectionCard,
 };
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_fetch::QueryClient;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{LIST, PLUS, TRASH, WARNING_CIRCLE};
+
+/// leptos-fetch query keyed by `(page, refresh_trigger)`. The
+/// trigger is folded into the cache key so post-CRUD code can
+/// force a refetch via `refresh_trigger.update(|v| *v += 1)`
+/// without learning a separate `client.invalidate(...)` API.
+async fn query_jenis_pakaian_dinas_page(
+    key: (i32, i32),
+) -> Result<PaginatedResponse<JenisPakaianDinas>, AppError> {
+    let (page, _trigger) = key;
+    fetch_jenis_pakaian_dinas(page, 20).await
+}
 
 #[component]
 pub fn PakaianDinasJenisList() -> impl IntoView {
@@ -22,10 +36,9 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
     let (error_message, set_error_message) = signal(Option::<String>::None);
     let refresh_trigger = RwSignal::new(0);
 
-    let data_resource = LocalResource::new(move || {
-        let p = page.get();
-        let _trigger = refresh_trigger.get();
-        async move { fetch_jenis_pakaian_dinas(p, 20).await }
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_jenis_pakaian_dinas_page, move || {
+        (page.get(), refresh_trigger.get())
     });
 
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
@@ -73,7 +86,7 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     on:click=move |_| set_show_form.update(|v| *v = !*v)
                 >
-                    <i class="fas fa-plus text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=PLUS /></span>
                     "Tambah Jenis"
                 </button>
             </div>
@@ -83,7 +96,7 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                 <SectionCard title="Tambah Jenis Pakaian Dinas Baru">
                     <Show when=move || error_message.get().is_some()>
                         <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                            <i class="fas fa-exclamation-circle"></i>
+                            <AppIcon icon=WARNING_CIRCLE />
                             {move || error_message.get()}
                         </div>
                     </Show>
@@ -199,7 +212,7 @@ fn render_jenis_table(
                                                     class="text-success-400 transition hover:text-success-300"
                                                     title="Lihat Spesifikasi"
                                                 >
-                                                    <i class="fas fa-list text-xs"></i>
+                                                    <span class="text-xs"><AppIcon icon=LIST /></span>
                                                 </a>
                                                 <button
                                                     class="text-danger-400 transition hover:text-danger-300"
@@ -219,7 +232,7 @@ fn render_jenis_table(
                                                         }
                                                     }
                                                 >
-                                                    <i class="fas fa-trash text-xs"></i>
+                                                    <span class="text-xs"><AppIcon icon=TRASH /></span>
                                                 </button>
                                             </div>
                                         </td>

@@ -2,6 +2,8 @@
 
 use crate::components::layout::{FormField, PageLayout, SectionCard};
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{CHECK_CIRCLE, CLOCK, ENVELOPE, PAPER_PLANE_TILT, PHONE};
 
 #[component]
 pub fn HelpdeskPage() -> impl IntoView {
@@ -19,19 +21,19 @@ pub fn HelpdeskPage() -> impl IntoView {
             <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SectionCard title="Email" dense=true>
                     <div class="flex items-start gap-3">
-                        <i class="fas fa-envelope text-info-400 text-lg"></i>
+                        <span class="text-info-400 text-lg"><AppIcon icon=ENVELOPE /></span>
                         <span class="text-sm text-slate-300">"helpdesk-simpel@kejaksaan.go.id"</span>
                     </div>
                 </SectionCard>
                 <SectionCard title="Telepon" dense=true>
                     <div class="flex items-start gap-3">
-                        <i class="fas fa-phone text-success-400 text-lg"></i>
+                        <span class="text-success-400 text-lg"><AppIcon icon=PHONE /></span>
                         <span class="text-sm text-slate-300">"(021) 123-4567 ext. 890"</span>
                     </div>
                 </SectionCard>
                 <SectionCard title="Jam Kerja" dense=true>
                     <div class="flex items-start gap-3">
-                        <i class="fas fa-clock text-gold-400 text-lg"></i>
+                        <span class="text-gold-400 text-lg"><AppIcon icon=CLOCK /></span>
                         <span class="text-sm text-slate-300">"Senin - Jumat, 08:00 - 16:00"</span>
                     </div>
                 </SectionCard>
@@ -42,7 +44,7 @@ pub fn HelpdeskPage() -> impl IntoView {
                 {move || if submitted.get() {
                     view! {
                         <div class="flex flex-col items-center py-6 text-center">
-                            <i class="fas fa-check-circle text-3xl text-success-400 mb-3"></i>
+                            <span class="text-3xl text-success-400 mb-3"><AppIcon icon=CHECK_CIRCLE /></span>
                             <p class="text-sm font-semibold text-white">"Pesan Terkirim"</p>
                             <p class="mt-1 text-sm text-slate-400">"Tim helpdesk akan merespons dalam 1×24 jam kerja."</p>
                         </div>
@@ -71,7 +73,7 @@ pub fn HelpdeskPage() -> impl IntoView {
                                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                                     on:click=move |_| submitted.set(true)
                                 >
-                                    <i class="fas fa-paper-plane text-xs"></i>
+                                    <span class="text-xs"><AppIcon icon=PAPER_PLANE_TILT /></span>
                                     "Kirim Pesan"
                                 </button>
                             </div>

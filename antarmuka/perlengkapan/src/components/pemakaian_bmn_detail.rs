@@ -11,22 +11,46 @@ use crate::api::{
 };
 use crate::routes;
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    ARROW_CLOCKWISE, ARROW_LEFT, CHECK_CIRCLE, DOWNLOAD_SIMPLE, FILE_DOC, FILE_PDF, GEAR, PROHIBIT,
+    SPINNER, UPLOAD_SIMPLE, WARNING, WARNING_CIRCLE,
+};
+
+/// leptos-fetch query — keyed by `(permit_id, refresh_trigger)`.
+///
+/// `refresh_trigger` is folded into the cache key so post-mutation
+/// code (workflow transition, revoke, generate konsep, upload signed
+/// PDF) can force a real network re-fetch by bumping the trigger.
+/// Calling `.refetch()` on a leptos-fetch resource with an unchanged
+/// keyer would just return the stale cached value.
+async fn query_pemakaian_bmn_detail(
+    key: (String, i32),
+) -> Option<IzinPemakaianDetailResponse> {
+    let (permit_id, _trigger) = key;
+    fetch_pemakaian_bmn_detail(&permit_id)
+        .await
+        .ok()
+        .map(|response| response.data)
+}
 
 #[component]
 pub fn PemakaianBmnDetail() -> impl IntoView {
     let params = use_params_map();
     let id = move || params.read().get("id").unwrap_or_default();
 
-    // Resource to fetch permit detail
-    let permit_resource = LocalResource::new(move || {
-        let permit_id = id();
-        async move {
-            match fetch_pemakaian_bmn_detail(&permit_id).await {
-                Ok(response) => Some(response.data),
-                Err(_) => None,
-            }
-        }
+    // Bumped after every successful mutation so the keyer below
+    // emits a fresh cache slot and leptos-fetch issues a real
+    // network request instead of serving stale data.
+    let refresh_trigger = RwSignal::new(0i32);
+
+    // Resource to fetch permit detail — keyed cache + dedup so
+    // navigating away and back to the same permit re-uses the load.
+    let client: QueryClient = expect_context();
+    let permit_resource = client.local_resource(query_pemakaian_bmn_detail, move || {
+        (id(), refresh_trigger.get())
     });
 
     // UI state
@@ -61,7 +85,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                     Ok(_) => {
                         set_show_transition_modal.set(false);
                         set_transition_comment.set("".to_string());
-                        permit_resource.refetch();
+                        refresh_trigger.update(|v| *v += 1);
                     }
                     Err(e) => {
                         set_error.set(Some(format!("Gagal mengubah status: {}", e)));
@@ -92,7 +116,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                 Ok(_) => {
                     set_show_revoke_modal.set(false);
                     set_revoke_reason.set("".to_string());
-                    permit_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal mencabut izin: {}", e)));
@@ -118,7 +142,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
             let request = GenerateKonsepSuratRequest { format: None };
             match generate_pemakaian_konsep_surat(&permit_id, request).await {
                 Ok(_) => {
-                    permit_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal generate konsep surat: {}", e)));
@@ -148,7 +172,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                 Ok(_) => {
                     set_show_upload_modal.set(false);
                     set_signed_pdf_url.set(String::new());
-                    permit_resource.refetch();
+                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
                     set_error.set(Some(format!("Gagal upload PDF: {}", e)));
@@ -162,7 +186,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
         <div class="p-6 space-y-6">
             <Suspense fallback=move || view! {
                 <div class="p-8 text-center">
-                    <i class="fas fa-spinner fa-spin text-2xl text-gray-400 mb-2"></i>
+                    <span class="fa-spin text-2xl text-gray-400 mb-2"><AppIcon icon=SPINNER /></span>
                     <p class="text-gray-600">"Memuat data..."</p>
                 </div>
             }>
@@ -193,7 +217,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                         href=routes::path::PEMAKAIAN_DAFTAR_LEGACY
                                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                                     >
-                                        <i class="fas fa-arrow-left mr-2"></i>
+                                        <span class="mr-2"><AppIcon icon=ARROW_LEFT /></span>
                                         "Kembali"
                                     </a>
                                 </div>
@@ -208,7 +232,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                 // Expiry warning
                                 <Show when=move || detail.is_expiring_soon>
                                     <div class="mb-4 p-4 bg-yellow-50 text-yellow-700 rounded-lg border border-yellow-100 flex items-center gap-2">
-                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <AppIcon icon=WARNING />
                                         <span>
                                             "Izin akan berakhir dalam "
                                             {detail.days_until_expiry.unwrap_or(0)}
@@ -384,7 +408,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                 // Konsep surat
                                                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                                     <div class="flex items-center gap-3">
-                                                        <i class="fas fa-file-word text-blue-500 text-lg"></i>
+                                                        <span class="text-blue-500 text-lg"><AppIcon icon=FILE_DOC /></span>
                                                         <div>
                                                             <p class="font-medium text-sm">"Konsep Surat Izin"</p>
                                                             <p class="text-xs text-gray-500">
@@ -398,7 +422,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                         if let Some(url) = izin.konsep_surat_url.clone() {
                                                             view! {
                                                                 <a href=url target="_blank" class="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1">
-                                                                    <i class="fas fa-download"></i> "Download"
+                                                                    <AppIcon icon=DOWNLOAD_SIMPLE /> "Download"
                                                                 </a>
                                                             }.into_any()
                                                         } else if detail.can_generate_konsep.unwrap_or(false) {
@@ -408,8 +432,8 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                                     on:click=handle_generate_konsep
                                                                     prop:disabled=move || generating_konsep.get()
                                                                 >
-                                                                    <Show when=move || generating_konsep.get() fallback=|| view! { <i class="fas fa-cog"></i> }>
-                                                                        <i class="fas fa-spinner fa-spin"></i>
+                                                                    <Show when=move || generating_konsep.get() fallback=|| view! { <AppIcon icon=GEAR /> }>
+                                                                        <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                                                                     </Show>
                                                                     "Generate"
                                                                 </button>
@@ -423,7 +447,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                 // Signed PDF
                                                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                                     <div class="flex items-center gap-3">
-                                                        <i class="fas fa-file-pdf text-red-500 text-lg"></i>
+                                                        <span class="text-red-500 text-lg"><AppIcon icon=FILE_PDF /></span>
                                                         <div>
                                                             <p class="font-medium text-sm">"Surat Izin Bertandatangan"</p>
                                                             <p class="text-xs text-gray-500">
@@ -437,7 +461,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                         if let Some(url) = izin.signed_pdf_url.clone() {
                                                             view! {
                                                                 <a href=url target="_blank" class="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1">
-                                                                    <i class="fas fa-download"></i> "Download"
+                                                                    <AppIcon icon=DOWNLOAD_SIMPLE /> "Download"
                                                                 </a>
                                                             }.into_any()
                                                         } else if detail.can_upload_signed_pdf.unwrap_or(false) {
@@ -446,7 +470,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                                     class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 flex items-center gap-1"
                                                                     on:click=move |_| set_show_upload_modal.set(true)
                                                                 >
-                                                                    <i class="fas fa-upload"></i>
+                                                                    <AppIcon icon=UPLOAD_SIMPLE />
                                                                     "Upload"
                                                                 </button>
                                                             }.into_any()
@@ -459,7 +483,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                 // Completed indicator
                                                 <Show when=move || izin.is_completed.unwrap_or(false)>
                                                     <div class="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700">
-                                                        <i class="fas fa-check-circle"></i>
+                                                        <AppIcon icon=CHECK_CIRCLE />
                                                         <span class="text-sm font-medium">"Proses pemakaian BMN telah selesai"</span>
                                                     </div>
                                                 </Show>
@@ -508,7 +532,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                             class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                                                             on:click=move |_| set_show_revoke_modal.set(true)
                                                         >
-                                                            <i class="fas fa-ban mr-2"></i>
+                                                            <span class="mr-2"><AppIcon icon=PROHIBIT /></span>
                                                             "Cabut Izin"
                                                         </button>
                                                     </Show>
@@ -519,7 +543,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                             href={format!("/perlengkapan/pemakaian-bmn/{}/renew", izin_id_for_renew.get_value())}
                                                             class="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-center"
                                                         >
-                                                            <i class="fas fa-redo mr-2"></i>
+                                                            <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
                                                             "Perpanjang Izin"
                                                         </a>
                                                     </Show>
@@ -531,7 +555,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
 
                                 // Transition Modal
                                 <Show when=move || show_transition_modal.get()>
-                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
                                         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                                             <h3 class="text-lg font-semibold mb-4">"Konfirmasi Perubahan Status"</h3>
                                             <div class="mb-4">
@@ -557,7 +581,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     prop:disabled=move || loading.get()
                                                 >
                                                     <Show when=move || loading.get() fallback=|| view! { "Konfirmasi" }>
-                                                        <i class="fas fa-spinner fa-spin"></i>
+                                                        <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                                                     </Show>
                                                 </button>
                                             </div>
@@ -567,7 +591,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
 
                                 // Revoke Modal
                                 <Show when=move || show_revoke_modal.get()>
-                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
                                         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                                             <h3 class="text-lg font-semibold mb-4">"Pencabutan Izin"</h3>
                                             <div class="mb-4">
@@ -595,7 +619,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     prop:disabled=move || loading.get() || revoke_reason.get().len() < 10
                                                 >
                                                     <Show when=move || loading.get() fallback=|| view! { "Cabut Izin" }>
-                                                        <i class="fas fa-spinner fa-spin"></i>
+                                                        <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                                                     </Show>
                                                 </button>
                                             </div>
@@ -605,7 +629,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
 
                                 // Upload Signed PDF Modal
                                 <Show when=move || show_upload_modal.get()>
-                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
                                         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                                             <h3 class="text-lg font-semibold mb-4">"Upload Surat Izin Bertandatangan"</h3>
                                             <div class="mb-4">
@@ -635,7 +659,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                     prop:disabled=move || uploading_pdf.get() || signed_pdf_url.get().is_empty()
                                                 >
                                                     <Show when=move || uploading_pdf.get() fallback=|| view! { "Upload" }>
-                                                        <i class="fas fa-spinner fa-spin"></i>
+                                                        <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                                                     </Show>
                                                 </button>
                                             </div>
@@ -646,7 +670,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                         }.into_any()
                     }).unwrap_or_else(|| view! {
                         <div class="p-12 text-center">
-                            <i class="fas fa-exclamation-circle text-5xl text-red-300 mb-4"></i>
+                            <span class="text-5xl text-red-300 mb-4"><AppIcon icon=WARNING_CIRCLE /></span>
                             <p class="text-gray-600 text-lg">"Data tidak ditemukan"</p>
                         </div>
                     }.into_any())

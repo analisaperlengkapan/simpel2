@@ -1,21 +1,30 @@
 //! QR Code Generator — batch QR code printing for BMN assets.
 
-use crate::api::{Asset, fetch_assets};
+use crate::api::{Asset, PaginatedResponse, fetch_assets};
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{MAGNIFYING_GLASS, PRINTER, QR_CODE};
+
+/// leptos-fetch query — fixed `(1, 100, None)` paginated payload
+/// for the QR generator (this screen always grabs the first 100
+/// assets). `()` key keeps the cache slot shared with any other
+/// component that asks for the same default page.
+async fn query_qr_assets(_: ()) -> Option<PaginatedResponse<Asset>> {
+    fetch_assets(1, 100, None)
+        .await
+        .map_err(|e| {
+            leptos::logging::error!("Failed to fetch assets for QR: {:?}", e);
+        })
+        .ok()
+}
 
 #[component]
 pub fn QrCodeGenerator() -> impl IntoView {
     let search = RwSignal::new(String::new());
     let selected = RwSignal::new(Vec::<String>::new());
-    let assets = LocalResource::new(move || async move {
-        match fetch_assets(1, 100, None).await {
-            Ok(res) => Some(res),
-            Err(e) => {
-                leptos::logging::error!("Failed to fetch assets for QR: {:?}", e);
-                None
-            }
-        }
-    });
+    let client: QueryClient = expect_context();
+    let assets = client.local_resource(query_qr_assets, || ());
 
     view! {
         <div style="max-width: 1100px; margin: 0 auto;">
@@ -33,7 +42,7 @@ pub fn QrCodeGenerator() -> impl IntoView {
                         }
                     }
                 >
-                    <i class="fas fa-print" style="margin-right: 6px;"></i>
+                    <span style="margin-right: 6px;"><AppIcon icon=PRINTER /></span>
                     {move || format!("Cetak ({})", selected.get().len())}
                 </button>
             </div>
@@ -41,7 +50,7 @@ pub fn QrCodeGenerator() -> impl IntoView {
             // Search + select all
             <div style="display: flex; gap: 12px; margin-bottom: 20px;">
                 <div style="flex: 1; position: relative;">
-                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #475569; font-size: 0.8rem;"></i>
+                    <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #475569; font-size: 0.8rem;"><AppIcon icon=MAGNIFYING_GLASS /></span>
                     <input
                         type="text"
                         placeholder="Cari aset berdasarkan kode atau nama..."
@@ -98,7 +107,7 @@ pub fn QrCodeGenerator() -> impl IntoView {
                                                 <td style="padding: 10px 8px; font-size: 0.8rem; color: #e2e8f0;">{nama}</td>
                                                 <td style="padding: 10px 8px; font-size: 0.78rem; color: #64748b;">{satker}</td>
                                                 <td style="padding: 10px 8px; text-align: center;">
-                                                    <i class="fas fa-qrcode" style="color: #d4a843; font-size: 1rem;"></i>
+                                                    <span style="color: #d4a843; font-size: 1rem;"><AppIcon icon=QR_CODE /></span>
                                                 </td>
                                             </tr>
                                         }

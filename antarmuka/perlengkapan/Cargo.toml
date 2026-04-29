@@ -17,12 +17,24 @@ leptos_router = { workspace = true }
 lib-ui = { workspace = true }
 lib-core = { workspace = true }
 lib-perlengkapan = { workspace = true, features = ["frontend", "wasm"] }
+
+# Reactive query/cache layer (Phase 6 of awesome-leptos integration)
+leptos-fetch = { workspace = true }
+
+# Direct icon-data access (Phase 3 migration — many components import
+# typed phosphor constants alongside `lib_ui::AppIcon`).
+phosphor-leptos = { workspace = true }
+
+# Trigger-element refs for `lib_ui::components::floating::Popover`
+# (Phase 4 — same crate that backs `floating-ui-leptos` internally).
+leptos-node-ref = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }
 js-sys = { workspace = true }
 gloo = { workspace = true, features = ["futures", "timers", "events"] }
 gloo-timers = { workspace = true, features = ["futures"] }
+futures = { workspace = true }
 getrandom = { workspace = true }
 # Enable wasm_js for getrandom 0.4 pulled transitively by updated deps (e.g. uuid 1.23+)
 getrandom_04 = { workspace = true }
@@ -32,8 +44,11 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 chrono = { workspace = true, features = ["wasm-bindgen"] }
 console_error_panic_hook = { workspace = true }
-console_log = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
+# WASM only needs the `fmt` layer. Skip `env-filter` (pulls regex) and `json`
+# (pulls tracing-serde) to keep the WASM bundle lean.
+tracing-subscriber = { workspace = true, default-features = false, features = ["fmt"] }
+tracing-subscriber-wasm = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }
 urlencoding = { workspace = true }

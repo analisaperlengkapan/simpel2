@@ -3,6 +3,8 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{WARNING, X};
 
 use super::sla_editor::SlaEditor;
 use super::time_unit::{TimeUnit, best_time_unit};
@@ -90,7 +92,7 @@ pub fn StepEditorModal(
 
     view! {
         <div
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            class="fixed inset-0 z-modal flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             on:click=move |e| {
                 if e.target() == e.current_target() {
                     on_close.run(());
@@ -111,14 +113,14 @@ pub fn StepEditorModal(
                         class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] p-2 text-slate-300 transition hover:bg-white/[0.08]"
                         on:click=move |_| on_close.run(())
                     >
-                        <i class="fas fa-times"></i>
+                        <AppIcon icon=X />
                     </button>
                 </header>
 
                 <div class="flex-1 overflow-y-auto p-6">
                     {move || error.get().map(|msg| view! {
                         <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
-                            <i class="fas fa-exclamation-triangle mt-0.5 text-danger-400"></i>
+                            <span class="mt-0.5 text-danger-400"><AppIcon icon=WARNING /></span>
                             <div class="text-xs text-danger-100">{msg}</div>
                         </div>
                     })}

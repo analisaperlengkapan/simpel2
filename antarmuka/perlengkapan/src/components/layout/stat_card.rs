@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StatTone {
@@ -55,7 +56,7 @@ pub fn StatCard(
                     "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 {}",
                     tone.badge_classes()
                 )>
-                    <i class=i></i>
+                    <AppIcon icon=icon_from_fa_class(&i) size=18 />
                 </span>
             })}
             <div class="min-w-0 flex-1">

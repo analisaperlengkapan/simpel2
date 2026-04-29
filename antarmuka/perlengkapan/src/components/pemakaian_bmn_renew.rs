@@ -3,25 +3,33 @@
 //! Form for renewing BMN usage permits.
 //! Requirements: REQ-P008
 
-use crate::api::{RenewPermitRequest, fetch_pemakaian_bmn_detail, renew_pemakaian_bmn};
+use crate::api::{
+    IzinPemakaianBmn, RenewPermitRequest, fetch_pemakaian_bmn_detail, renew_pemakaian_bmn,
+};
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
 use leptos_router::hooks::{use_navigate, use_params_map};
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{ARROW_CLOCKWISE, CHECK_CIRCLE, SPINNER, WARNING_CIRCLE};
+
+/// leptos-fetch query — keyed by permit id (`String`). Returns
+/// just the inner `izin` field so the renderer doesn't have to
+/// crack open the wrapper response.
+async fn query_pemakaian_bmn_renew_target(permit_id: String) -> Option<IzinPemakaianBmn> {
+    fetch_pemakaian_bmn_detail(&permit_id)
+        .await
+        .ok()
+        .map(|response| response.data.izin)
+}
 
 #[component]
 pub fn PemakaianBmnRenew() -> impl IntoView {
     let params = use_params_map();
     let id = move || params.read().get("id").unwrap_or_default();
 
-    // Resource to fetch current permit
-    let permit_resource = LocalResource::new(move || {
-        let permit_id = id();
-        async move {
-            match fetch_pemakaian_bmn_detail(&permit_id).await {
-                Ok(response) => Some(response.data.izin),
-                Err(_) => None,
-            }
-        }
-    });
+    // Resource to fetch current permit through leptos-fetch cache.
+    let client: QueryClient = expect_context();
+    let permit_resource = client.local_resource(query_pemakaian_bmn_renew_target, move || id());
 
     // Form state
     let (tanggal_mulai, set_tanggal_mulai) = signal("".to_string());
@@ -34,7 +42,9 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
     let (success, set_success) = signal(false);
     let navigate = use_navigate();
 
-    let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
+    // Wrap in Callback so the surrounding render closure (which has to be
+    // `Fn`) can copy this handler on each re-render without consuming it.
+    let on_submit = Callback::new(move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
 
         set_loading.set(true);
@@ -71,13 +81,13 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
                 }
             }
         });
-    };
+    });
 
     view! {
         <div class="max-w-4xl mx-auto p-6">
             <Suspense fallback=move || view! {
                 <div class="p-8 text-center">
-                    <i class="fas fa-spinner fa-spin text-2xl text-gray-400 mb-2"></i>
+                    <span class="fa-spin text-2xl text-gray-400 mb-2"><AppIcon icon=SPINNER /></span>
                     <p class="text-gray-600">"Memuat data..."</p>
                 </div>
             }>
@@ -108,19 +118,19 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
 
                                 <Show when=move || success.get()>
                                     <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
-                                        <i class="fas fa-check-circle"></i>
+                                        <AppIcon icon=CHECK_CIRCLE />
                                         "Izin berhasil diperpanjang!"
                                     </div>
                                 </Show>
 
                                 <Show when=move || error.get().is_some()>
                                     <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2">
-                                        <i class="fas fa-exclamation-circle"></i>
+                                        <AppIcon icon=WARNING_CIRCLE />
                                         {error.get()}
                                     </div>
                                 </Show>
 
-                                <form on:submit=on_submit class="space-y-6">
+                                <form on:submit=move |ev| on_submit.run(ev) class="space-y-6">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Mulai Baru"</label>
@@ -168,8 +178,8 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
                                             class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                                             prop:disabled=move || loading.get()
                                         >
-                                            <Show when=move || loading.get() fallback=|| view! { <i class="fas fa-redo"></i> }>
-                                                <i class="fas fa-spinner fa-spin"></i>
+                                            <Show when=move || loading.get() fallback=|| view! { <AppIcon icon=ARROW_CLOCKWISE /> }>
+                                                <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                                             </Show>
                                             "Perpanjang Izin"
                                         </button>
@@ -179,7 +189,7 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
                         }.into_any()
                     }).unwrap_or_else(|| view! {
                         <div class="p-12 text-center">
-                            <i class="fas fa-exclamation-circle text-5xl text-red-300 mb-4"></i>
+                            <span class="text-5xl text-red-300 mb-4"><AppIcon icon=WARNING_CIRCLE /></span>
                             <p class="text-gray-600 text-lg">"Data tidak ditemukan"</p>
                         </div>
                     }.into_any())

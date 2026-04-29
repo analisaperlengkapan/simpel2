@@ -88,11 +88,20 @@ tower-http = { version = "0.6.8", features = [
     "timeout",
 ] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = [
-    "env-filter",
+tracing-subscriber = { version = "0.3.23", default-features = false, features = [
     "fmt",
-    "json",
+    "std",
+    "tracing-log",
+    "ansi",
 ] }
+# Backend-only features for `tracing-subscriber`. Member crates that need
+# env-filter / JSON output (i.e. non-WASM services) MUST opt in explicitly
+# via `features = ["env-filter", "json"]` in their own Cargo.toml.
+# Rationale: Cargo unions features from `[workspace.dependencies]` with
+# member-level features; a member crate cannot *remove* a feature set at
+# the workspace level. Keeping the workspace entry minimal lets WASM crates
+# (`antarmuka/portal`, `antarmuka/perlengkapan`) avoid pulling `regex`
+# (from `env-filter`) and `tracing-serde` (from `json`) into the bundle.
 uuid = { version = "1.23.1", features = ["v4", "serde", "js"] }
 time = { version = "0.3.47", features = ["serde", "macros"] }
 chrono = { version = "0.4.44", features = ["serde"] }
@@ -343,6 +352,21 @@ leptos = { version = "0.8.19" }
 leptos_meta = { version = "0.8.6" }
 leptos_router = { version = "0.8.13" }
 leptos_dom = { version = "0.8.8" }
+
+# Leptos Ecosystem (awesome-leptos) - pinned for workspace consistency
+# Phase 1 foundation deps for the leptos ecosystem integration plan.
+leptos-use = "0.18"
+codee = { version = "0.3", features = ["json_serde"] }
+leptos-fetch = "0.4"
+leptos-struct-table = "0.18"
+leptos-chartistry = "0.2.3"
+floating-ui-leptos = "0.6.0"
+phosphor-leptos = { version = "0.8.0", features = ["all"] }
+leptos-node-ref = "0.2"
+# leptos_animate intentionally not pinned at workspace level — see
+# `.claude/plans/coba-kritisi-uraian-berikut-pure-rossum.md` Phase 5c.
+# 0.1.x requires `--cfg=web_sys_unstable_apis`; revisit at 0.2+.
+tracing-subscriber-wasm = "0.1.0"
 
 # WASM specific - Latest Stable Versions (Updated)
 wasm-bindgen = "0.2.118"

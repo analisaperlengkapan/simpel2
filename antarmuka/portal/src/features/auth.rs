@@ -626,7 +626,7 @@ impl AuthService {
     pub fn load_session() -> Option<UserSession> {
         #[cfg(target_arch = "wasm32")]
         {
-            use lib_ui::hooks::load_from_storage;
+            use lib_ui::utils::storage::load_from_storage;
             load_from_storage("user_session")
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -639,7 +639,7 @@ impl AuthService {
     pub fn save_session(session: &UserSession) {
         #[cfg(target_arch = "wasm32")]
         {
-            use lib_ui::hooks::save_to_storage;
+            use lib_ui::utils::storage::save_to_storage;
             let _ = save_to_storage("user_session", session);
         }
         #[cfg(not(target_arch = "wasm32"))]

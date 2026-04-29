@@ -2,16 +2,19 @@
 //! # Perlengkapan Microfrontend — Entry Point
 
 use perlengkapan_microfrontend::App;
+use tracing_subscriber::fmt;
+use tracing_subscriber_wasm::MakeConsoleWriter;
 
 fn main() {
-    // Set up panic hook for better error messages in WASM
     console_error_panic_hook::set_once();
 
-    // Initialize logging
-    let _ = console_log::init_with_level(log::Level::Debug);
+    fmt()
+        .with_writer(MakeConsoleWriter::default())
+        .with_ansi(false)
+        .without_time()
+        .init();
 
-    log::info!("🚀 Perlengkapan Microfrontend starting...");
+    tracing::info!("🚀 Perlengkapan Microfrontend starting...");
 
-    // Mount the app to the body
     leptos::mount::mount_to_body(App);
 }

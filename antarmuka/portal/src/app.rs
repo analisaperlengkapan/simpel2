@@ -17,7 +17,7 @@ use crate::routes;
 use crate::pages::*;
 use leptos::prelude::*;
 use lib_ui::components::BrandingProvider;
-use lib_ui::hooks::use_toast::ToastProvider;
+use lib_ui::components::app_shell::AppShell;
 
 use leptos_router::{
     ParamSegment, StaticSegment,
@@ -76,7 +76,7 @@ pub fn App() -> impl IntoView {
     );
 
     view! {
-        <ToastProvider>
+        <AppShell>
         <BrandingProvider unit="portal".to_string()>
             <Router base="/portal">
                 <Routes fallback=|| view! { <NotFoundPage /> }>
@@ -152,6 +152,6 @@ pub fn App() -> impl IntoView {
             set_countdown=set_timeout_countdown
         />
         </BrandingProvider>
-        </ToastProvider>
+        </AppShell>
     }
 }

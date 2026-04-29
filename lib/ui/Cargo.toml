@@ -22,6 +22,19 @@ leptos = { workspace = true }
 leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
 
+# Leptos ecosystem (Phase 1 foundation)
+leptos-use = { workspace = true }
+codee = { workspace = true }
+phosphor-leptos = { workspace = true }
+floating-ui-leptos = { workspace = true }
+leptos-struct-table = { workspace = true, features = ["chrono", "uuid"] }
+leptos-chartistry = { workspace = true }
+leptos-node-ref = { workspace = true }
+leptos-fetch = { workspace = true }
+# leptos_animate 0.1.x requires `--cfg=web_sys_unstable_apis` to compile,
+# which is invasive at the workspace level. Defer until 0.2+ stabilizes
+# the API or until we're willing to set the unstable flag.
+
 # Serialization
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

@@ -2,11 +2,11 @@
 //!
 //! Support untuk custom logos dan color schemes per unit kerja dengan accessibility validation.
 
+use codee::string::JsonSerdeCodec;
 use leptos::prelude::*;
+use leptos_use::storage::{UseStorageOptions, use_local_storage_with_options};
 use serde::{Deserialize, Serialize};
 use web_sys::window;
-
-use crate::hooks::use_storage;
 
 // ============================================================================
 // BRANDING CONFIGURATION
@@ -218,10 +218,11 @@ pub fn BrandingProvider(
         .map(|u| BrandingConfig::for_unit(u))
         .unwrap_or_default();
 
-    let (branding, set_branding) = use_storage(
-        &format!("simpelv2_branding_{}", unit.as_deref().unwrap_or("default")),
-        default_config,
-    );
+    let (branding, set_branding, _) =
+        use_local_storage_with_options::<BrandingConfig, JsonSerdeCodec>(
+            format!("simpelv2_branding_{}", unit.as_deref().unwrap_or("default")),
+            UseStorageOptions::default().initial_value(default_config),
+        );
 
     // Apply branding on mount and when it changes
     Effect::new(move || {
@@ -238,9 +239,9 @@ pub fn BrandingProvider(
 }
 
 /// Hook to access branding configuration
-pub fn use_branding() -> (ReadSignal<BrandingConfig>, WriteSignal<BrandingConfig>) {
+pub fn use_branding() -> (Signal<BrandingConfig>, WriteSignal<BrandingConfig>) {
     let branding =
-        use_context::<ReadSignal<BrandingConfig>>().expect("BrandingProvider not found in context");
+        use_context::<Signal<BrandingConfig>>().expect("BrandingProvider not found in context");
     let set_branding = use_context::<WriteSignal<BrandingConfig>>()
         .expect("BrandingProvider not found in context");
 
@@ -358,7 +359,7 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
     };
 
     view! {
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal p-4">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 // Header
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">

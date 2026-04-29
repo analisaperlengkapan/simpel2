@@ -1,7 +1,7 @@
 //! Axum-dependent extensions for CorrelationId
 
-use lib_core::correlation::{CorrelationId, REQUEST_ID_HEADER};
 use lib_core::context::RequestContext;
+use lib_core::correlation::{CorrelationId, REQUEST_ID_HEADER};
 
 /// Try to extract CorrelationId from HTTP headers
 pub fn correlation_from_headers(headers: &axum::http::HeaderMap) -> Option<CorrelationId> {

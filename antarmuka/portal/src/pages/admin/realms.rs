@@ -301,7 +301,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
 
                 // Create realm modal
                 <Show when=move || show_create_modal.get()>
-                    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">"Buat Realm Baru"</h2>
                             {move || create_error.get().map(|msg| view! {
@@ -366,7 +366,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
 
                 // Delete confirmation modal
                 <Show when=move || realm_to_delete.get().is_some()>
-                    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <div class="flex items-center gap-3 text-red-600 mb-4">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -400,7 +400,7 @@ pub fn RealmsManagementPage() -> impl IntoView {
 
                 // Edit realm modal
                 <Show when=move || realm_to_edit.get().is_some()>
-                    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">"Edit Realm"</h2>
                             {move || edit_error.get().map(|msg| view! {

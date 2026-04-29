@@ -1,6 +1,21 @@
 //! Laporan Kebutuhan BMN — report page with filters and export.
 
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{FILE_PDF, FILE_XLS};
+
+/// Query wrapper around the mock fetch — keyed by `(tahun, status)`
+/// so flipping the filter dropdowns allocates a fresh cache slot
+/// and (once the mock is swapped for a real endpoint) issues the
+/// matching request. The mock currently ignores the filters; this
+/// keying nonetheless lets the call-site benefit from leptos-fetch
+/// caching the moment the backend lands.
+async fn query_kebutuhan_bmn_list(
+    _key: (String, String),
+) -> Result<Vec<KebutuhanBmnItem>, String> {
+    mock_fetch_kebutuhan_bmn_list().await
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct KebutuhanBmnItem {
@@ -31,7 +46,11 @@ pub async fn mock_fetch_kebutuhan_bmn_list() -> Result<Vec<KebutuhanBmnItem>, St
 pub fn LaporanKebutuhanBmn() -> impl IntoView {
     let tahun = RwSignal::new("2025".to_string());
     let status_filter = RwSignal::new("semua".to_string());
-    let data = LocalResource::new(move || mock_fetch_kebutuhan_bmn_list());
+    let client: QueryClient = expect_context();
+    let data = client.local_resource(
+        query_kebutuhan_bmn_list,
+        move || (tahun.get(), status_filter.get()),
+    );
 
     view! {
         <div style="max-width: 1100px; margin: 0 auto;">
@@ -42,10 +61,10 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                 </div>
                 <div style="display: flex; gap: 8px;">
                     <button style="padding: 8px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #94a3b8; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
-                        <i class="fas fa-file-excel" style="margin-right: 6px; color: #34d399;"></i> "Export XLSX"
+                        <span style="margin-right: 6px; color: #34d399;"><AppIcon icon=FILE_XLS /></span> "Export XLSX"
                     </button>
                     <button style="padding: 8px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #94a3b8; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
-                        <i class="fas fa-file-pdf" style="margin-right: 6px; color: #f87171;"></i> "Export PDF"
+                        <span style="margin-right: 6px; color: #f87171;"><AppIcon icon=FILE_PDF /></span> "Export PDF"
                     </button>
                 </div>
             </div>

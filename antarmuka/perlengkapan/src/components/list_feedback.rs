@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 
 #[component]
 pub fn LoadingState(#[prop(optional)] message: &'static str) -> impl IntoView {
@@ -30,7 +31,9 @@ pub fn EmptyState(
 
     view! {
         <div class="text-center py-12 text-gray-500">
-            <i class=format!("{} text-4xl mb-3 text-gray-300", icon)></i>
+            <span class="mb-3 inline-flex text-gray-300">
+                <AppIcon icon=icon_from_fa_class(icon) size=40 />
+            </span>
             <p class="font-medium">{title}</p>
             <Show when=move || !description.is_empty()>
                 <p class="text-sm mt-1">{description}</p>

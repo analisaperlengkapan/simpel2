@@ -71,7 +71,9 @@
 //! }
 //! ```
 
+use crate::components::icon::AppIcon;
 use leptos::prelude::*;
+use phosphor_leptos::WARNING_CIRCLE;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -91,7 +93,10 @@ impl FieldErrors {
 
     /// Add an error message for a field. Multiple errors per field are supported.
     pub fn add(&mut self, field: impl Into<String>, message: impl Into<String>) {
-        self.map.entry(field.into()).or_default().push(message.into());
+        self.map
+            .entry(field.into())
+            .or_default()
+            .push(message.into());
     }
 
     /// Check if any field has errors.
@@ -106,7 +111,10 @@ impl FieldErrors {
 
     /// Get the first error message for a field (most common display case).
     pub fn first(&self, field: &str) -> Option<&str> {
-        self.map.get(field).and_then(|v| v.first()).map(String::as_str)
+        self.map
+            .get(field)
+            .and_then(|v| v.first())
+            .map(String::as_str)
     }
 
     /// Get all error messages for a field.
@@ -129,8 +137,12 @@ type ValidatorFn<T> = Arc<dyn Fn(&T) -> FieldErrors + Send + Sync + 'static>;
 /// Manages form data, submission state, error state, dirty tracking, and
 /// per-field validation errors in a single struct — replacing 5-15
 /// individual `signal()` calls.
-#[derive(Clone, Copy)]
-pub struct FormState<T: Clone + 'static> {
+// Clone + Copy are implemented manually so the bounds don't pick up
+// `T: Copy`. `RwSignal<T>` and `StoredValue<T>` are already `Copy`
+// regardless of `T` (they hold `Arc`'d state internally), so a typical
+// form with `String` / `Vec<...>` fields can still keep `FormState`
+// trivially copyable into closures.
+pub struct FormState<T: Clone + Send + Sync + 'static> {
     /// The reactive form data. Read with `.get()`, write with `.update()`.
     pub data: RwSignal<T>,
     /// Whether a submission is in progress.
@@ -150,7 +162,15 @@ pub struct FormState<T: Clone + 'static> {
     validator: StoredValue<Option<ValidatorFn<T>>>,
 }
 
-impl<T: Clone + 'static> FormState<T> {
+impl<T: Clone + Send + Sync + 'static> Clone for FormState<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Clone + Send + Sync + 'static> Copy for FormState<T> {}
+
+impl<T: Clone + Send + Sync + 'static> FormState<T> {
     /// Get the current form data snapshot.
     pub fn get(&self) -> T {
         self.data.get()
@@ -310,7 +330,7 @@ impl<T: Clone + 'static> FormState<T> {
 ///     kategori: String::new(),
 /// });
 /// ```
-pub fn use_form<T: Clone + 'static>(initial: T) -> FormState<T> {
+pub fn use_form<T: Clone + Send + Sync + 'static>(initial: T) -> FormState<T> {
     FormState {
         data: RwSignal::new(initial.clone()),
         initial: StoredValue::new(initial),
@@ -345,19 +365,18 @@ pub fn FieldError<T>(
     field: String,
 ) -> impl IntoView
 where
-    T: Clone + 'static,
+    T: Clone + Send + Sync + 'static,
 {
     let field = StoredValue::new(field);
     let message = move || {
-        form.field_errors.with(|errors| {
-            field.with_value(|f| errors.first(f).map(str::to_string))
-        })
+        form.field_errors
+            .with(|errors| field.with_value(|f| errors.first(f).map(str::to_string)))
     };
 
     view! {
         <Show when=move || message().is_some()>
             <p class="mt-1 flex items-center gap-1.5 text-xs text-red-400">
-                <i class="fas fa-exclamation-circle text-[0.7rem]"></i>
+                <span class="text-[0.7rem]"><AppIcon icon=WARNING_CIRCLE /></span>
                 {move || message().unwrap_or_default()}
             </p>
         </Show>

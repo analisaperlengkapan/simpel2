@@ -5,11 +5,40 @@
 
 use crate::api::{
     AppError, JenisPakaianDinas, LaporanDaftarPegawai, LaporanQuery, LaporanRekapUkuran,
-    PengajuanPakaianDinas, fetch_jenis_pakaian_dinas, fetch_laporan_daftar_pegawai,
-    fetch_laporan_rekap_ukuran, fetch_pengajuan_pakaian_dinas,
+    PaginatedResponse, PengajuanPakaianDinas, fetch_jenis_pakaian_dinas,
+    fetch_laporan_daftar_pegawai, fetch_laporan_rekap_ukuran, fetch_pengajuan_pakaian_dinas,
 };
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{CHART_PIE, FILE_PDF, FILE_XLS, USERS};
+
+/// Filter-option queries — both keyed `()` because the dropdowns
+/// always show "first 100 active items" regardless of context.
+async fn query_pengajuan_options(_: ()) -> Result<Vec<PengajuanPakaianDinas>, AppError> {
+    fetch_pengajuan_pakaian_dinas(1, 100, None)
+        .await
+        .map(|r| r.data)
+}
+
+async fn query_jenis_options(_: ()) -> Result<Vec<JenisPakaianDinas>, AppError> {
+    fetch_jenis_pakaian_dinas(1, 100).await.map(|r| r.data)
+}
+
+/// Rekap query keyed by the entire filter struct — so toggling
+/// back to a previously seen filter combination is instant.
+async fn query_laporan_rekap(query: LaporanQuery) -> Result<Vec<LaporanRekapUkuran>, AppError> {
+    fetch_laporan_rekap_ukuran(query).await.map(|r| r.data)
+}
+
+/// Daftar pegawai query keyed by `(filter, page)`.
+async fn query_laporan_daftar(
+    key: (LaporanQuery, i32),
+) -> Result<PaginatedResponse<LaporanDaftarPegawai>, AppError> {
+    let (query, page) = key;
+    fetch_laporan_daftar_pegawai(query, page, 20).await
+}
 
 // ── Helper: build export URL from current filter state ────────────────────
 fn build_export_url(
@@ -84,17 +113,22 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
     let (selected_jenis_pegawai, set_selected_jenis_pegawai) = signal(Option::<String>::None);
     let (selected_eselon, set_selected_eselon) = signal(Option::<String>::None);
 
-    // Fetch filter options
-    let pengajuan_options = LocalResource::new(|| async move {
-        fetch_pengajuan_pakaian_dinas(1, 100, None)
-            .await
-            .map(|r| r.data)
-    });
+    // `daftar_page` lives in the parent so each filter's `on:change` handler
+    // can atomically reset it to 1 alongside the filter change. Keeping page
+    // local to `DaftarPegawaiTab` would force a separate `Effect` to watch
+    // the filter signals and reset page after the fact — which makes the
+    // leptos-fetch keyer evaluate twice in quick succession (first with
+    // `(new_query, OLD_page)`, then with `(new_query, 1)`), allocating two
+    // cache slots and issuing a wasted network request for a page the user
+    // never sees. Mirrors the pattern called out in
+    // `kebutuhan_bmn_list.rs:91-97`.
+    let (daftar_page, set_daftar_page) = signal(1i32);
 
-    let jenis_options =
-        LocalResource::new(
-            || async move { fetch_jenis_pakaian_dinas(1, 100).await.map(|r| r.data) },
-        );
+    // Fetch filter options through the leptos-fetch cache so other
+    // pages that reuse the same dropdowns share the result.
+    let client: QueryClient = expect_context();
+    let pengajuan_options = client.local_resource(query_pengajuan_options, || ());
+    let jenis_options = client.local_resource(query_jenis_options, || ());
 
     let tab_class = move |tab: &'static str| {
         let active = active_tab.get() == tab;
@@ -114,11 +148,11 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
             // Tabs
             <div class="mb-5 flex border-b border-white/[0.06]">
                 <button class=move || tab_class("rekap") on:click=move |_| set_active_tab.set("rekap")>
-                    <i class="fas fa-chart-pie text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=CHART_PIE /></span>
                     "Rekap Ukuran"
                 </button>
                 <button class=move || tab_class("pegawai") on:click=move |_| set_active_tab.set("pegawai")>
-                    <i class="fas fa-users text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=USERS /></span>
                     "Daftar Pegawai"
                 </button>
             </div>
@@ -141,6 +175,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                         on:change=move |ev| {
                                             let val = event_target_value(&ev);
                                             set_selected_pengajuan.set(if val.is_empty() { None } else { Some(val) });
+                                            set_daftar_page.set(1);
                                         }
                                     >
                                         <option value="">"Semua Periode"</option>
@@ -174,6 +209,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                         on:change=move |ev| {
                                             let val = event_target_value(&ev);
                                             set_selected_jenis.set(if val.is_empty() { None } else { Some(val) });
+                                            set_daftar_page.set(1);
                                         }
                                     >
                                         <option value="">"Semua Jenis"</option>
@@ -201,26 +237,36 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                             on:change=move |ev| {
                                 let val = event_target_value(&ev);
                                 set_selected_satker.set(if val.is_empty() { None } else { Some(val) });
+                                set_daftar_page.set(1);
                             }
                         />
                     </div>
 
                     // Jenis Kelamin
-                    {filter_select("Jenis Kelamin", move |v| set_selected_jenis_kelamin.set(v), view! {
+                    {filter_select("Jenis Kelamin", move |v| {
+                        set_selected_jenis_kelamin.set(v);
+                        set_daftar_page.set(1);
+                    }, view! {
                         <option value="">"Semua"</option>
                         <option value="L">"Laki-laki"</option>
                         <option value="P">"Perempuan"</option>
                     })}
 
                     // Jenis Pegawai
-                    {filter_select("Jenis Pegawai", move |v| set_selected_jenis_pegawai.set(v), view! {
+                    {filter_select("Jenis Pegawai", move |v| {
+                        set_selected_jenis_pegawai.set(v);
+                        set_daftar_page.set(1);
+                    }, view! {
                         <option value="">"Semua"</option>
                         <option value="0">"Jaksa"</option>
                         <option value="1">"Tata Usaha"</option>
                     })}
 
                     // Eselon
-                    {filter_select("Eselon", move |v| set_selected_eselon.set(v), view! {
+                    {filter_select("Eselon", move |v| {
+                        set_selected_eselon.set(v);
+                        set_daftar_page.set(1);
+                    }, view! {
                         <option value="">"Semua Eselon"</option>
                         <option value="I">"Eselon I"</option>
                         <option value="II">"Eselon II"</option>
@@ -239,7 +285,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         open_url(&url);
                     }
                 >
-                    <i class="fas fa-file-excel text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=FILE_XLS /></span>
                     "Cetak Excel"
                 </button>
                 <button
@@ -249,7 +295,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         open_url(&url);
                     }
                 >
-                    <i class="fas fa-file-pdf text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=FILE_PDF /></span>
                     "Cetak PDF"
                 </button>
             </div>
@@ -258,22 +304,24 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
             <div class="mt-4">
                 <Show when=move || active_tab.get() == "rekap">
                     <RekapUkuranTab
-                        pengajuan_id=selected_pengajuan.get()
-                        satker_id=selected_satker.get()
-                        jenis_pakaian_id=selected_jenis.get()
-                        jenis_kelamin=selected_jenis_kelamin.get()
-                        jenis=selected_jenis_pegawai.get()
-                        eselon=selected_eselon.get()
+                        pengajuan_id=selected_pengajuan
+                        satker_id=selected_satker
+                        jenis_pakaian_id=selected_jenis
+                        jenis_kelamin=selected_jenis_kelamin
+                        jenis=selected_jenis_pegawai
+                        eselon=selected_eselon
                     />
                 </Show>
                 <Show when=move || active_tab.get() == "pegawai">
                     <DaftarPegawaiTab
-                        pengajuan_id=selected_pengajuan.get()
-                        satker_id=selected_satker.get()
-                        jenis_pakaian_id=selected_jenis.get()
-                        jenis_kelamin=selected_jenis_kelamin.get()
-                        jenis=selected_jenis_pegawai.get()
-                        eselon=selected_eselon.get()
+                        pengajuan_id=selected_pengajuan
+                        satker_id=selected_satker
+                        jenis_pakaian_id=selected_jenis
+                        jenis_kelamin=selected_jenis_kelamin
+                        jenis=selected_jenis_pegawai
+                        eselon=selected_eselon
+                        page=daftar_page
+                        set_page=set_daftar_page
                     />
                 </Show>
             </div>
@@ -295,23 +343,25 @@ fn group_accent(ukuran_group: &str) -> (&'static str, &'static str) {
 
 #[component]
 fn RekapUkuranTab(
-    pengajuan_id: Option<String>,
-    satker_id: Option<String>,
-    jenis_pakaian_id: Option<String>,
-    jenis_kelamin: Option<String>,
-    jenis: Option<String>,
-    eselon: Option<String>,
+    pengajuan_id: ReadSignal<Option<String>>,
+    satker_id: ReadSignal<Option<String>>,
+    jenis_pakaian_id: ReadSignal<Option<String>>,
+    jenis_kelamin: ReadSignal<Option<String>>,
+    jenis: ReadSignal<Option<String>>,
+    eselon: ReadSignal<Option<String>>,
 ) -> impl IntoView {
-    let data = LocalResource::new(move || {
-        let query = LaporanQuery {
-            pengajuan_id: pengajuan_id.clone(),
-            satker_id: satker_id.clone(),
-            jenis_pakaian_id: jenis_pakaian_id.clone(),
-            jenis_kelamin: jenis_kelamin.clone(),
-            eselon: eselon.clone(),
-            jenis: jenis.clone(),
-        };
-        async move { fetch_laporan_rekap_ukuran(query).await.map(|r| r.data) }
+    let client: QueryClient = expect_context();
+    // Read filter signals reactively inside the keyer — `<Show>` keeps this
+    // component mounted across filter dropdown changes, so a one-shot
+    // `.get().clone()` capture would freeze the cache key at the value the
+    // filters held when the tab was first activated.
+    let data = client.local_resource(query_laporan_rekap, move || LaporanQuery {
+        pengajuan_id: pengajuan_id.get(),
+        satker_id: satker_id.get(),
+        jenis_pakaian_id: jenis_pakaian_id.get(),
+        jenis_kelamin: jenis_kelamin.get(),
+        eselon: eselon.get(),
+        jenis: jenis.get(),
     });
 
     view! {
@@ -380,7 +430,9 @@ fn render_rekap_table(group_name: String, items: Vec<LaporanRekapUkuran>) -> imp
         <div class=format!("overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel ring-1 {}", ring)>
             // Group header
             <div class=format!("flex items-center gap-3 px-5 py-3 {}", header_bg)>
-                <i class=format!("{} text-sm {}", icon, header_text)></i>
+                <span class=format!("inline-flex {}", header_text)>
+                    <AppIcon icon=icon_from_fa_class(icon) size=14 />
+                </span>
                 <h4 class=format!("text-sm font-semibold {}", header_text)>
                     {format!("{} ({})", group_name, ukuran_group)}
                 </h4>
@@ -439,26 +491,36 @@ fn render_rekap_table(group_name: String, items: Vec<LaporanRekapUkuran>) -> imp
 
 #[component]
 fn DaftarPegawaiTab(
-    pengajuan_id: Option<String>,
-    satker_id: Option<String>,
-    jenis_pakaian_id: Option<String>,
-    jenis_kelamin: Option<String>,
-    jenis: Option<String>,
-    eselon: Option<String>,
+    pengajuan_id: ReadSignal<Option<String>>,
+    satker_id: ReadSignal<Option<String>>,
+    jenis_pakaian_id: ReadSignal<Option<String>>,
+    jenis_kelamin: ReadSignal<Option<String>>,
+    jenis: ReadSignal<Option<String>>,
+    eselon: ReadSignal<Option<String>>,
+    /// Pagination state lifted into the parent so each filter's
+    /// `on:change` handler can reset page to 1 atomically with the
+    /// filter change. Doing the reset in a local `Effect` here would
+    /// cause the leptos-fetch keyer to evaluate twice on every filter
+    /// change — first with `(new_query, OLD_page)`, then with
+    /// `(new_query, 1)` — allocating two cache slots and issuing a
+    /// wasted network request for a page the user never sees.
+    page: ReadSignal<i32>,
+    set_page: WriteSignal<i32>,
 ) -> impl IntoView {
-    let (page, set_page) = signal(1);
-
-    let data = LocalResource::new(move || {
+    let client: QueryClient = expect_context();
+    // Filter signals are read reactively inside the keyer so dropdown
+    // changes while the tab is mounted re-key the leptos-fetch resource.
+    // See the matching comment in `RekapUkuranTab` for the rationale.
+    let data = client.local_resource(query_laporan_daftar, move || {
         let query = LaporanQuery {
-            pengajuan_id: pengajuan_id.clone(),
-            satker_id: satker_id.clone(),
-            jenis_pakaian_id: jenis_pakaian_id.clone(),
-            jenis_kelamin: jenis_kelamin.clone(),
-            eselon: eselon.clone(),
-            jenis: jenis.clone(),
+            pengajuan_id: pengajuan_id.get(),
+            satker_id: satker_id.get(),
+            jenis_pakaian_id: jenis_pakaian_id.get(),
+            jenis_kelamin: jenis_kelamin.get(),
+            eselon: eselon.get(),
+            jenis: jenis.get(),
         };
-        let p = page.get();
-        async move { fetch_laporan_daftar_pegawai(query, p, 20).await }
+        (query, page.get())
     });
 
     view! {

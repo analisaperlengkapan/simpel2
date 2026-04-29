@@ -7,11 +7,12 @@ use crate::features::auth::UserSession;
 use leptos::prelude::*;
 
 #[component]
-pub fn SidebarNavigation(#[prop(optional)] user_session: Option<UserSession>) -> impl IntoView {
+pub fn SidebarNavigation(
+    #[prop(default = None)] user_session: Option<UserSession>,
+) -> impl IntoView {
     // Fall back to context if no prop provided
     let user_session = user_session.or_else(|| {
-        use_context::<ReadSignal<Option<UserSession>>>()
-            .and_then(|sig| sig.get_untracked())
+        use_context::<ReadSignal<Option<UserSession>>>().and_then(|sig| sig.get_untracked())
     });
     let sections = resolve_menu_sections(user_session.as_ref());
 

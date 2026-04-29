@@ -3,7 +3,7 @@
 //! Displays list of uniform request periods with workflow management.
 
 use crate::api::{
-    AppError, CreatePengajuanPakaianDinasRequest, PengajuanPakaianDinas,
+    AppError, CreatePengajuanPakaianDinasRequest, PaginatedResponse, PengajuanPakaianDinas,
     create_pengajuan_pakaian_dinas, delete_pengajuan_pakaian_dinas, fetch_pengajuan_pakaian_dinas,
 };
 use crate::components::layout::{
@@ -11,6 +11,20 @@ use crate::components::layout::{
 };
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_fetch::QueryClient;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{BUILDING, CALENDAR_CHECK, CALENDAR_X, PLUS, TRASH, WARNING_CIRCLE};
+
+/// leptos-fetch query keyed by `(page, refresh_trigger)`. Same
+/// pattern as `pakaian_dinas_jenis_list`: trigger folds into the
+/// key so post-CRUD refetch keeps working without a separate
+/// invalidate path.
+async fn query_pengajuan_pakaian_dinas_page(
+    key: (i32, i32),
+) -> Result<PaginatedResponse<PengajuanPakaianDinas>, AppError> {
+    let (page, _trigger) = key;
+    fetch_pengajuan_pakaian_dinas(page, 20, None).await
+}
 
 #[component]
 pub fn PakaianDinasPengajuanList() -> impl IntoView {
@@ -25,10 +39,9 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
     let (error_message, set_error_message) = signal(Option::<String>::None);
     let refresh_trigger = RwSignal::new(0);
 
-    let data_resource = LocalResource::new(move || {
-        let p = page.get();
-        let _trigger = refresh_trigger.get();
-        async move { fetch_pengajuan_pakaian_dinas(p, 20, None).await }
+    let client: QueryClient = expect_context();
+    let data_resource = client.local_resource(query_pengajuan_pakaian_dinas_page, move || {
+        (page.get(), refresh_trigger.get())
     });
 
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
@@ -92,7 +105,7 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     on:click=move |_| set_show_form.update(|v| *v = !*v)
                 >
-                    <i class="fas fa-plus text-xs"></i>
+                    <span class="text-xs"><AppIcon icon=PLUS /></span>
                     "Buat Pengajuan"
                 </button>
             </div>
@@ -102,7 +115,7 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                 <SectionCard title="Buat Periode Pengajuan Baru">
                     <Show when=move || error_message.get().is_some()>
                         <div class="mb-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                            <i class="fas fa-exclamation-circle"></i>
+                            <AppIcon icon=WARNING_CIRCLE />
                             {move || error_message.get()}
                         </div>
                     </Show>
@@ -278,11 +291,11 @@ fn render_pengajuan_cards(
 
                             <div class="space-y-1 text-xs text-slate-400">
                                 <p>
-                                    <i class="fas fa-calendar-check mr-1.5 text-success-400 w-3.5"></i>
+                                    <span class="mr-1.5 text-success-400 w-3.5"><AppIcon icon=CALENDAR_CHECK /></span>
                                     "Buka: " {item.tgl_open.unwrap_or_else(|| "-".to_string())}
                                 </p>
                                 <p>
-                                    <i class="fas fa-calendar-times mr-1.5 text-danger-400 w-3.5"></i>
+                                    <span class="mr-1.5 text-danger-400 w-3.5"><AppIcon icon=CALENDAR_X /></span>
                                     "Tutup: " {item.tgl_close.unwrap_or_else(|| "-".to_string())}
                                 </p>
                             </div>
@@ -296,14 +309,14 @@ fn render_pengajuan_cards(
                                     href=format!("/perlengkapan/pakaian-dinas/pengajuan/{}/satker", item_id)
                                     class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-medium text-info-300 transition hover:bg-info-500/20"
                                 >
-                                    <i class="fas fa-building text-2xs"></i>
+                                    <span class="text-2xs"><AppIcon icon=BUILDING /></span>
                                     "Satker"
                                 </a>
                                 <button
                                     class="inline-flex items-center justify-center rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs text-danger-300 transition hover:bg-danger-500/20"
                                     on:click=move |_| on_delete(item_id_for_delete.clone())
                                 >
-                                    <i class="fas fa-trash text-2xs"></i>
+                                    <span class="text-2xs"><AppIcon icon=TRASH /></span>
                                 </button>
                             </div>
                         </div>

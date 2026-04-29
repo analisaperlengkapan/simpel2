@@ -8,6 +8,24 @@ use crate::api::{
     fetch_expiring_permits, fetch_pegawai_usage_history,
 };
 use leptos::prelude::*;
+use leptos_fetch::QueryClient;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{MAGNIFYING_GLASS, SPINNER, WARNING};
+
+/// Phase 6 pilot — leptos-fetch query for the expiring-permits widget.
+///
+/// Defined as a free `async fn` (instead of an inline closure inside
+/// `LocalResource::new`) so the `QueryClient` can build a `QueryScope`
+/// from it. The single tunable is the lookahead window in days,
+/// which doubles as the cache key — switching to 60 days here will
+/// dedupe with any other call that asks for 60 days while leaving
+/// the 30-day cache entry untouched.
+async fn query_expiring_permits(days: i32) -> Option<Vec<IzinPemakaianBmn>> {
+    fetch_expiring_permits(days)
+        .await
+        .ok()
+        .map(|response| response.data)
+}
 
 #[component]
 pub fn PemakaianBmnMonitoring() -> impl IntoView {
@@ -17,13 +35,12 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
     let (search_result, set_search_result) = signal(None::<SearchResult>);
     let (searching, set_searching) = signal(false);
 
-    // Resource for expiring permits
-    let expiring_permits = LocalResource::new(|| async move {
-        match fetch_expiring_permits(30).await {
-            Ok(response) => Some(response.data),
-            Err(_) => None,
-        }
-    });
+    // Phase 6 pilot — keyed cache + dedup for expiring permits via
+    // leptos-fetch. The keyer signal returns the lookahead window
+    // (30 days). Multiple components asking for the same window
+    // share a single in-flight request and a single cached result.
+    let client: QueryClient = expect_context();
+    let expiring_permits = client.local_resource(query_expiring_permits, || 30);
 
     // Handle search
     let handle_search = move |_| {
@@ -75,12 +92,12 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             // Expiring Permits Alert
             <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <i class="fas fa-exclamation-triangle text-yellow-500"></i>
+                    <span class="text-yellow-500"><AppIcon icon=WARNING /></span>
                     "Izin yang Akan Berakhir (30 Hari)"
                 </h3>
                 <Suspense fallback=move || view! {
                     <div class="text-center py-4">
-                        <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                        <span class="fa-spin text-gray-400"><AppIcon icon=SPINNER /></span>
                     </div>
                 }>
                     {move || {
@@ -161,8 +178,8 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         on:click=handle_search
                         prop:disabled=move || searching.get() || search_query.get().is_empty()
                     >
-                        <Show when=move || searching.get() fallback=|| view! { <i class="fas fa-search"></i> }>
-                            <i class="fas fa-spinner fa-spin"></i>
+                        <Show when=move || searching.get() fallback=|| view! { <AppIcon icon=MAGNIFYING_GLASS /> }>
+                            <span class="fa-spin"><AppIcon icon=SPINNER /></span>
                         </Show>
                     </button>
                 </div>

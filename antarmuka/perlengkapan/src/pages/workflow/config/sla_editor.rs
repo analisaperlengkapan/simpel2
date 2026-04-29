@@ -4,6 +4,8 @@
 //! reads the signals and calls `upsert_workflow_step` when the user saves.
 
 use leptos::prelude::*;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{INFO, WARNING};
 
 use super::time_unit::TimeUnit;
 use crate::api::workflow::format_sla;
@@ -92,7 +94,7 @@ pub fn SlaEditor(
 
                     <div class="rounded-xl border border-info-500/30 bg-info-500/10 p-4">
                         <div class="mb-2 flex items-center gap-2 text-sm font-semibold text-info-400">
-                            <i class="fas fa-info-circle"></i>
+                            <AppIcon icon=INFO />
                             "Preview SLA"
                         </div>
                         <div class="text-xs leading-relaxed text-info-100">
@@ -128,7 +130,7 @@ pub fn SlaEditor(
 
                     {move || warning().map(|msg| view! {
                         <div class="flex items-start gap-3 rounded-xl border border-warning-500/30 bg-warning-500/10 p-3">
-                            <i class="fas fa-exclamation-triangle mt-0.5 text-warning-400"></i>
+                            <span class="mt-0.5 text-warning-400"><AppIcon icon=WARNING /></span>
                             <div class="text-xs text-warning-100">{msg}</div>
                         </div>
                     })}

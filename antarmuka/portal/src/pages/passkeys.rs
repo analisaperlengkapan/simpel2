@@ -391,7 +391,7 @@ pub fn PasskeysPage() -> impl IntoView {
                 {move || confirm_delete.get().map(|id| {
                     let id_for_delete = id.clone();
                     view! {
-                        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                        <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                             <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4">
                                 <div class="text-center">
                                     <div class="text-4xl mb-3">"⚠️"</div>

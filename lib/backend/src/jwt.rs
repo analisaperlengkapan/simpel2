@@ -38,7 +38,10 @@ where
 {
     type Rejection = (axum::http::StatusCode, String);
 
-    async fn from_request_parts(parts: &mut axum::http::request::Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
         let auth_header = parts.headers.get(axum::http::header::AUTHORIZATION);
 
         let auth_str = auth_header.and_then(|h| h.to_str().ok()).ok_or_else(|| {
@@ -58,13 +61,11 @@ where
         let token = &auth_str[7..];
         let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
 
-        decode_jwt(token, &jwt_secret)
-            .map(AuthClaims)
-            .map_err(|e| {
-                (
-                    axum::http::StatusCode::UNAUTHORIZED,
-                    format!("Invalid token: {}", e),
-                )
-            })
+        decode_jwt(token, &jwt_secret).map(AuthClaims).map_err(|e| {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                format!("Invalid token: {}", e),
+            )
+        })
     }
 }

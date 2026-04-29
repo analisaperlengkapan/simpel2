@@ -13,6 +13,37 @@ use crate::components::layout::{
 use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_fetch::QueryClient;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::{CHECK_CIRCLE, FLOPPY_DISK, INFO, WARNING_CIRCLE};
+
+/// `()`-keyed master ukuran query — same baju/celana/sepatu fetch
+/// for every consumer, so a single cache slot suffices.
+///
+/// The three category fetches run in parallel via `try_join3`, so the
+/// total wait time is `max(latencies)` instead of `sum(latencies)`.
+async fn query_master_ukuran(_: ()) -> Result<(Vec<Ukuran>, Vec<Ukuran>, Vec<Ukuran>), AppError> {
+    let (baju, celana, sepatu) = futures::future::try_join3(
+        fetch_master_ukuran(Some("BAJU".to_string())),
+        fetch_master_ukuran(Some("CELANA".to_string())),
+        fetch_master_ukuran(Some("SEPATU".to_string())),
+    )
+    .await?;
+    Ok((baju.data, celana.data, sepatu.data))
+}
+
+/// Per-pegawai ukuran query — keyed by pegawai id (`String`).
+async fn query_pegawai_ukuran(pegawai_id: String) -> Result<Option<PegawaiPakaianDinas>, AppError> {
+    fetch_pegawai_ukuran(pegawai_id).await.map(|r| r.data)
+}
+
+/// Pegawai-with-sizes paginated list — keyed by `(satker_id, page)`.
+async fn query_pegawai_with_sizes(
+    key: (String, i32),
+) -> Result<crate::api::PaginatedResponse<PegawaiWithSizes>, AppError> {
+    let (satker_id, page) = key;
+    fetch_pegawai_with_sizes(satker_id, page, 20).await
+}
 
 #[component]
 pub fn UkuranPegawai(
@@ -31,25 +62,16 @@ pub fn UkuranPegawai(
     let (error_message, set_error_message) = signal(Option::<String>::None);
 
     let pegawai_id_clone = pegawai_id.clone();
+    let client: QueryClient = expect_context();
 
-    // Fetch master ukuran data
-    let master_ukuran = LocalResource::new(|| async move {
-        let baju = fetch_master_ukuran(Some("BAJU".to_string())).await;
-        let celana = fetch_master_ukuran(Some("CELANA".to_string())).await;
-        let sepatu = fetch_master_ukuran(Some("SEPATU".to_string())).await;
-        // Return first error if any, otherwise combine
-        let baju = baju.map(|r| r.data)?;
-        let celana = celana.map(|r| r.data)?;
-        let sepatu = sepatu.map(|r| r.data)?;
-        Ok::<_, AppError>((baju, celana, sepatu))
-    });
+    // Master ukuran shared across the app — single `()` cache slot.
+    let master_ukuran = client.local_resource(query_master_ukuran, || ());
 
-    // Fetch existing ukuran for pegawai
+    // Existing ukuran for this pegawai — keyed cache so multiple
+    // pegawai pages each cache under their own id.
     let pegawai_id_for_fetch = pegawai_id.clone();
-    let existing_ukuran = LocalResource::new(move || {
-        let pid = pegawai_id_for_fetch.clone();
-        async move { fetch_pegawai_ukuran(pid).await.map(|r| r.data) }
-    });
+    let existing_ukuran =
+        client.local_resource(query_pegawai_ukuran, move || pegawai_id_for_fetch.clone());
 
     // Effect to populate form when existing data loads
     Effect::new(move || {
@@ -91,13 +113,13 @@ pub fn UkuranPegawai(
             // Messages
             <Show when=move || success_message.get().is_some()>
                 <div class="mt-4 flex items-center gap-2 rounded-xl border border-success-500/30 bg-success-500/[0.08] px-4 py-3 text-sm text-success-300">
-                    <i class="fas fa-check-circle"></i>
+                    <AppIcon icon=CHECK_CIRCLE />
                     {move || success_message.get()}
                 </div>
             </Show>
             <Show when=move || error_message.get().is_some()>
                 <div class="mt-4 flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     {move || error_message.get()}
                 </div>
             </Show>
@@ -149,7 +171,7 @@ pub fn UkuranPegawai(
                                                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                                                     prop:disabled=move || is_saving.get()
                                                 >
-                                                    <i class="fas fa-save text-xs"></i>
+                                                    <span class="text-xs"><AppIcon icon=FLOPPY_DISK /></span>
                                                     {move || if is_saving.get() { "Menyimpan..." } else { "Simpan Ukuran" }}
                                                 </button>
                                             </div>
@@ -166,15 +188,15 @@ pub fn UkuranPegawai(
             <SectionCard title="Panduan Pengukuran">
                 <ul class="flex flex-col gap-2 text-sm text-slate-300">
                     <li class="flex items-start gap-2">
-                        <i class="fas fa-info-circle mt-0.5 text-xs text-gold-400 shrink-0"></i>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
                         <span><strong class="text-slate-100">"Baju:"</strong>" Ukur lingkar dada pada bagian terlebar, pilih ukuran yang sesuai."</span>
                     </li>
                     <li class="flex items-start gap-2">
-                        <i class="fas fa-info-circle mt-0.5 text-xs text-gold-400 shrink-0"></i>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
                         <span><strong class="text-slate-100">"Celana:"</strong>" Ukur lingkar pinggang pada posisi normal."</span>
                     </li>
                     <li class="flex items-start gap-2">
-                        <i class="fas fa-info-circle mt-0.5 text-xs text-gold-400 shrink-0"></i>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
                         <span><strong class="text-slate-100">"Sepatu:"</strong>" Ukur panjang kaki dari tumit ke ujung jari terpanjang."</span>
                     </li>
                 </ul>
@@ -192,10 +214,25 @@ fn render_size_select(
     set_value: WriteSignal<String>,
     hint: &'static str,
 ) -> impl IntoView {
+    // The legacy `icon_class` strings carry both an FA icon name and Tailwind
+    // color utilities (e.g. "fas fa-tshirt text-info-400"). `icon_from_fa_class`
+    // only consumes the icon name; the trailing color classes have to be
+    // re-applied on a wrapping span so per-icon coloring (info/success/gold)
+    // isn't silently flattened into `currentColor`.
+    let trailing_classes: String = icon_class
+        .split_whitespace()
+        .filter(|tok| {
+            !matches!(*tok, "fas" | "far" | "fab") && !tok.starts_with("fa-")
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let wrapper_class = format!("inline-flex {}", trailing_classes);
     view! {
         <div class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
             <label class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-200">
-                <i class=icon_class></i>
+                <span class=wrapper_class>
+                    <AppIcon icon=icon_from_fa_class(icon_class) size=14 />
+                </span>
                 {label}
             </label>
             <select
@@ -229,11 +266,10 @@ pub fn UkuranPegawaiSatker(
 ) -> impl IntoView {
     let (page, set_page) = signal(1);
     let satker_id_clone = satker_id.clone();
+    let client: QueryClient = expect_context();
 
-    let data_resource = LocalResource::new(move || {
-        let sid = satker_id_clone.clone();
-        let p = page.get();
-        async move { fetch_pegawai_with_sizes(sid, p, 20).await }
+    let data_resource = client.local_resource(query_pegawai_with_sizes, move || {
+        (satker_id_clone.clone(), page.get())
     });
 
     view! {

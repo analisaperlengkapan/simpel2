@@ -1,5 +1,7 @@
 use leptos::prelude::*;
 use leptos_router::components::A;
+use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use phosphor_leptos::CARET_RIGHT;
 
 #[derive(Clone, Debug)]
 pub struct PageBreadcrumb {
@@ -50,7 +52,7 @@ pub fn PageLayout(
                         >
                             {label.clone()}
                         </A>
-                        <i class="fas fa-chevron-right text-[0.55rem] text-slate-600"></i>
+                        <span class="text-[0.55rem] text-slate-600"><AppIcon icon=CARET_RIGHT /></span>
                     </li>
                 }
                 .into_any(),
@@ -76,7 +78,7 @@ pub fn PageLayout(
                 <div class="flex items-start gap-4">
                     {icon.map(|i| view! {
                         <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
-                            <i class=i></i>
+                            <AppIcon icon=icon_from_fa_class(&i) size=18 />
                         </span>
                     })}
                     <div>

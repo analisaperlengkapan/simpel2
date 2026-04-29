@@ -12,6 +12,10 @@ use chrono::NaiveDate;
 use leptos::ev::SubmitEvent;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use lib_ui::components::icon::AppIcon;
+use phosphor_leptos::{
+    CHECK_CIRCLE, CLOUD_ARROW_UP, PAPER_PLANE_TILT, PLUS, WARNING, WARNING_CIRCLE,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -215,14 +219,14 @@ pub fn SubmissionFormPage() -> impl IntoView {
         >
             <Show when=move || success_message.get().is_some()>
                 <div class="flex items-center gap-2 rounded-xl border border-success-500/30 bg-success-500/[0.08] px-4 py-3 text-sm text-success-300">
-                    <i class="fas fa-check-circle"></i>
+                    <AppIcon icon=CHECK_CIRCLE />
                     <span>{move || success_message.get().unwrap_or_default()}</span>
                 </div>
             </Show>
 
             <Show when=move || action_error.get().is_some()>
                 <div class="flex items-center gap-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <AppIcon icon=WARNING_CIRCLE />
                     <span>{move || action_error.get().unwrap_or_default()}</span>
                 </div>
             </Show>
@@ -300,7 +304,7 @@ fn SubmissionContent(
 
             <Show when=move || period_expired>
                 <div class="mt-4 flex items-start gap-2 rounded-xl border border-warning-500/30 bg-warning-500/[0.08] px-4 py-3 text-sm text-warning-300">
-                    <i class="fas fa-triangle-exclamation mt-0.5"></i>
+                    <span class="mt-0.5"><AppIcon icon=WARNING /></span>
                     <span>"Periode pengajuan telah berakhir. Anda tidak dapat menambah atau mengubah data."</span>
                 </div>
             </Show>
@@ -363,7 +367,7 @@ fn SubmissionContent(
                         class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                         disabled=move || submitting.get() || period_expired
                     >
-                        <i class="fas fa-plus"></i>
+                        <AppIcon icon=PLUS />
                         {move || if submitting.get() { "Menyimpan..." } else { "Tambah Barang" }}
                     </button>
                 </div>
@@ -426,7 +430,7 @@ fn SubmissionContent(
         <SectionCard title="Dokumen Pendukung" icon="fas fa-paperclip">
             <div class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-10 text-center">
                 <span class="flex h-12 w-12 items-center justify-center rounded-full bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
-                    <i class="fas fa-cloud-arrow-up"></i>
+                    <AppIcon icon=CLOUD_ARROW_UP />
                 </span>
                 <div>
                     <h3 class="text-sm font-semibold text-slate-100">"Upload surat permohonan dan lampiran"</h3>
@@ -458,7 +462,7 @@ fn SubmissionContent(
                     on:click=submit_to_wilayah
                     disabled=move || submitting.get() || barang_items.get().is_empty() || period_expired
                 >
-                    <i class="fas fa-paper-plane"></i>
+                    <AppIcon icon=PAPER_PLANE_TILT />
                     {move || if submitting.get() { "Mengirim..." } else { "Submit ke Validator Wilayah" }}
                 </button>
             </div>
