@@ -202,9 +202,26 @@ services:
     ports:
       - "3000:8080"
     environment:
-      RUST_LOG: debug
-      SERVER_PORT: "3000"
-      AUTHENC_GRPC_URL: authenc:50051
+      # The portal is an nginx container serving a WASM bundle. At
+      # container start `antarmuka/portal/entrypoint.sh` writes
+      # `config.json` from `PORTAL_URL` / `AUTHENC_URL`, which the WASM
+      # app reads via `antarmuka/portal/src/utils/config.rs` to know
+      # where to send auth requests (`features/auth.rs`).
+      #
+      # Since `config.json` is unconditionally generated, omitting these
+      # vars does NOT fall back to origin-relative URLs — instead the
+      # entrypoint bakes in the staging defaults (`http://10.1.7.121/...`)
+      # which are unreachable from a developer's browser, silently
+      # breaking the local auth flow. Set them explicitly to host-reachable
+      # values for docker-compose. Both URLs must be reachable from the
+      # browser running on the host, not from inside the container.
+      PORTAL_URL: http://localhost:3000/portal
+      # No authenc HTTP gateway is exposed in this compose file (authenc
+      # speaks gRPC on :50051). Point at an origin-relative path so the
+      # WASM client at least surfaces a clear 404 against the portal's
+      # own nginx instead of silently hitting a staging IP. Replace with
+      # a real gateway URL once a sidecar/proxy is added to compose.
+      AUTHENC_URL: /api/v1/auth
     depends_on:
       authenc:
         condition: service_started
