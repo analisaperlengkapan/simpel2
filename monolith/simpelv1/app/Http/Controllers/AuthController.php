@@ -382,11 +382,40 @@ class AuthController extends Controller
     public function oauthCallback(Request $request)
     {
         try {
-            $token = $request->query('token') ?? $request->bearerToken();
+            // Prefer POST body / Authorization header over the query
+            // string for the JWT itself: query parameters get persisted
+            // in nginx access logs, browser history, and Referer headers.
+            // We still fall back to `?token=` for backwards compatibility
+            // with the existing Portal redirect flow, but new integrations
+            // should POST the token.
+            $token = $request->input('token')
+                ?? $request->bearerToken()
+                ?? $request->query('token');
 
             if (!$token) {
                 return redirect()->route('login')
                     ->with('error', 'Token tidak ditemukan');
+            }
+
+            // Verify the OAuth `state` parameter against the value
+            // stashed in session by TokenToOAuthMiddleware. This blocks
+            // login-CSRF / session-fixation attacks where an attacker
+            // crafts `/auth/oauth-callback?token={attacker_jwt}` and
+            // tricks a victim into clicking it: the victim's session
+            // either has no `oauth_state` (they never started a flow)
+            // or has a different one (they started a different flow),
+            // so the callback refuses to log them in.
+            $expectedState = $request->session()->pull('oauth_state');
+            $providedState = $request->input('state') ?? $request->query('state');
+            if (!$expectedState || !$providedState || !hash_equals((string) $expectedState, (string) $providedState)) {
+                Log::warning('OAuth callback rejected: invalid state', [
+                    'ip'        => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'has_expected' => (bool) $expectedState,
+                    'has_provided' => (bool) $providedState,
+                ]);
+                return redirect()->route('login')
+                    ->with('error', 'Sesi OAuth tidak valid, silakan login ulang');
             }
 
             // Validasi JWT token via Authenc gRPC

@@ -133,7 +133,16 @@ Route::get('/health', function () {
 Route::get('/auth/login', [AuthController::class, 'index'])->name('login');
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::get('/auth/logout', [AuthController::class, 'logout']);
+// OAuth callback. The GET variant is kept for backwards compatibility
+// with the existing Portal redirect flow (Portal does a 302 with
+// `?token=...&state=...`). New integrations should prefer the POST
+// variant — putting the JWT in a request body keeps it out of nginx
+// access logs, browser history, and Referer headers. Both variants
+// require a matching `state` (set by TokenToOAuthMiddleware) so
+// login-CSRF attempts that supply a token without a session-bound
+// state are rejected.
 Route::get('/auth/oauth-callback', [AuthController::class, 'oauthCallback'])->name('auth.oauth-callback');
+Route::post('/auth/oauth-callback', [AuthController::class, 'oauthCallback'])->name('auth.oauth-callback.post');
 
 // Rute verifikasi OTP 2FA (boleh tanpa Auth guard, cukup session 2fa:user:id)
 Route::get('/2fa', [TwoFAController::class,'showVerifyForm'])->name('2fa.index');
