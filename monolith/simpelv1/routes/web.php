@@ -128,6 +128,7 @@ use App\Http\Controllers\AIController;
 Route::get('/auth/login', [AuthController::class, 'index'])->name('login');
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::get('/auth/logout', [AuthController::class, 'logout']);
+Route::get('/auth/oauth-callback', [AuthController::class, 'oauthCallback'])->name('auth.oauth-callback');
 
 // Rute verifikasi OTP 2FA (boleh tanpa Auth guard, cukup session 2fa:user:id)
 Route::get('/2fa', [TwoFAController::class,'showVerifyForm'])->name('2fa.index');

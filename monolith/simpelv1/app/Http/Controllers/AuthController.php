@@ -367,4 +367,123 @@ class AuthController extends Controller
         $request->session()->put('userData', $userInfo);
         return $this->resSuccess();
     }
+
+    /**
+     * OAuth Callback Handler dari Portal
+     * 
+     * Menerima JWT token dari Portal, validate via Authenc gRPC,
+     * kemudian create Laravel session
+     */
+    public function oauthCallback(Request $request)
+    {
+        try {
+            $token = $request->query('token') ?? $request->bearerToken();
+
+            if (!$token) {
+                return redirect('/perlengkapan/simpel/v1/auth/login')
+                    ->with('error', 'Token tidak ditemukan');
+            }
+
+            // Validasi JWT token via Authenc gRPC
+            // TODO: Implement gRPC call ke Authenc::verify($token)
+            // Untuk sekarang, decode JWT secara manual (production harus via gRPC)
+            $claims = $this->verifyJwtToken($token);
+
+            if (!$claims) {
+                return redirect('/perlengkapan/simpel/v1/auth/login')
+                    ->with('error', 'Token tidak valid');
+            }
+
+            // Cari atau buat user di database
+            $username = $claims['sub'] ?? null;
+            if (!$username) {
+                return redirect('/perlengkapan/simpel/v1/auth/login')
+                    ->with('error', 'Username tidak ditemukan di token');
+            }
+
+            $user = Pengguna::where('username', $username)->first();
+
+            if (!$user) {
+                // Auto-create user dari token jika belum ada
+                $pegawai = Master::getPegawaiByNip($username);
+                if (!$pegawai) {
+                    return redirect('/perlengkapan/simpel/v1/auth/login')
+                        ->with('error', 'User tidak ditemukan di sistem');
+                }
+
+                $data = [
+                    'username' => $username,
+                    'name' => $claims['name'] ?? $pegawai->nama,
+                    'email' => $pegawai->pns_mail,
+                    'pangkat' => $pegawai->pangkat ?? 'N/A',
+                    'jabatan' => $pegawai->jabatan ?? 'N/A',
+                    'ms_satker_id' => $pegawai->inst_satkerkd,
+                    'satker' => $pegawai->satker,
+                    'ms_satker_pusat_id' => $pegawai->mapped_unit_kerja,
+                    'foto' => MyHelper::getFotoMysimkari($pegawai->foto),
+                    'password' => Hash::make(Str::random(32)),
+                ];
+
+                $user = Pengguna::create($data);
+
+                // Assign default role
+                $satker = ModelsMsSatker::where('inst_satkerkd', $pegawai->inst_satkerkd)->first();
+                (new Level())->delInsertUserRole($user->id, [
+                    'ms_role_id' => config('constants.pelaksana_satker_role_id'),
+                    'ms_satker_id' => $pegawai->inst_satkerkd,
+                    'ms_satker_pusat_id' => $pegawai->mapped_unit_kerja,
+                    'ms_satker_id_keu' => $satker->kdsatker_keu ?? null,
+                    'user_id' => $user->id,
+                ]);
+            }
+
+            // Buat session
+            $userInfo = Pengguna::setUserdata($user);
+            $request->session()->regenerate();
+            $request->session()->put('userData', $userInfo);
+            $request->session()->put('auth_token', $token);
+
+            // Log activity
+            Aktifitas::create([
+                'username' => $user->username,
+                'operation' => 'LOGIN_OAUTH',
+                'table' => 'users',
+                'ms_satker_id' => $user->ms_satker_id ?? null,
+                'ms_satker_pusat_id' => $user->ms_satker_pusat_id ?? null,
+                'pkey' => $user->id,
+                'keterangan' => 'Login via Portal OAuth',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            return redirect('/perlengkapan/simpel/v1/dashboard');
+
+        } catch (\Throwable $th) {
+            Log::error('OAuth callback error', [
+                'error' => $th->getMessage(),
+                'trace' => $th->getTraceAsString(),
+            ]);
+
+            return redirect('/perlengkapan/simpel/v1/auth/login')
+                ->with('error', 'Terjadi kesalahan saat processing token');
+        }
+    }
+
+    /**
+     * Temporary JWT verification (should be replaced with gRPC call to Authenc)
+     */
+    private function verifyJwtToken(string $token): ?array
+    {
+        try {
+            // In production, this should call Authenc gRPC service
+            // For now, using JWT facade for basic verification
+            $claims = JWTAuth::getPayload($token);
+            return $claims ? $claims->toArray() : null;
+        } catch (\Throwable $th) {
+            Log::warning('JWT token verification failed', [
+                'error' => $th->getMessage(),
+            ]);
+            return null;
+        }
+    }
 }
