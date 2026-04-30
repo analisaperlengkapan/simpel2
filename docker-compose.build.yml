@@ -38,6 +38,16 @@ services:
     image: localhost:32000/simpelv2/layanan-perlengkapan:latest
 
   # =====================================================
+  # Legacy Applications
+  # =====================================================
+
+  simpelv1:
+    build:
+      context: .
+      dockerfile: monolith/simpelv1/Dockerfile
+    image: localhost:32000/simpelv2/simpelv1:latest
+
+  # =====================================================
   # Frontend Microfrontends (Antarmuka)
   # =====================================================
 

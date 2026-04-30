@@ -1,0 +1,199 @@
+version: "3.9"
+
+services:
+  # =====================================================
+  # Database
+  # =====================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: xXMr2#)C-Uk
+      POSTGRES_INITDB_ARGS: --encoding=UTF8
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =====================================================
+  # Cache & Message Queue
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =====================================================
+  # Core gRPC Services
+  # =====================================================
+  authenc:
+    build:
+      context: .
+      dockerfile: layanan/authenc/Dockerfile
+    container_name: authenc
+    ports:
+      - "50051:50051"
+    environment:
+      RUST_LOG: debug
+      GRPC_PORT: "50051"
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: xXMr2#)C-Uk
+      DB_NAME: dbsimpelv2
+      DATABASE_URL: postgresql://postgres:xXMr2#)C-Uk@postgres:5432/dbsimpelv2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - simpel-network
+
+  secreton:
+    build:
+      context: .
+      dockerfile: layasan/secreton/Dockerfile
+    container_name: secreton
+    ports:
+      - "50053:50053"
+    environment:
+      RUST_LOG: debug
+      GRPC_PORT: "50053"
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: xXMr2#)C-Uk
+      DB_NAME: dbsecretion
+      DATABASE_URL: postgresql://postgres:xXMr2#)C-Uk@postgres:5432/dbsecretion
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - simpel-network
+
+  layanan-integrasi:
+    build:
+      context: .
+      dockerfile: layanan/integrasi/Dockerfile
+    container_name: layanan-integrasi
+    ports:
+      - "50052:50052"
+    environment:
+      RUST_LOG: debug
+      GRPC_PORT: "50052"
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: xXMr2#)C-Uk
+      DB_NAME: dbintegration
+      AUTHENC_GRPC_URL: authenc:50051
+      SECRETON_GRPC_URL: secreton:50053
+    depends_on:
+      postgres:
+        condition: service_healthy
+      authenc:
+        condition: service_started
+      secreton:
+        condition: service_started
+    networks:
+      - simpel-network
+
+  # =====================================================
+  # Backend Services (Layanan)
+  # =====================================================
+  layanan-perlengkapan:
+    build:
+      context: .
+      dockerfile: layanan/perlengkapan/Dockerfile
+    container_name: layanan-perlengkapan
+    ports:
+      - "3020:3020"
+    environment:
+      RUST_LOG: debug
+      SERVER_PORT: "3020"
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: xXMr2#)C-Uk
+      DB_NAME: dbsimpelv2
+      DATABASE_URL: postgresql://postgres:xXMr2#)C-Uk@postgres:5432/dbsimpelv2
+      AUTHENC_GRPC_URL: authenc:50051
+      SECRETON_GRPC_URL: secreton:50053
+      INTEGRASI_GRPC_URL: layanan-integrasi:50052
+    depends_on:
+      postgres:
+        condition: service_healthy
+      authenc:
+        condition: service_started
+    ports:
+      - "3020:3020"
+    networks:
+      - simpel-network
+
+  # =====================================================
+  # Legacy Application (SIMPEL v1)
+  # =====================================================
+  simpelv1:
+    build:
+      context: .
+      dockerfile: monolith/simpelv1/Dockerfile
+    container_name: simpelv1
+    ports:
+      - "8000:8080"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: dbsimpelv1
+      DB_USERNAME: postgres
+      DB_PASSWORD: xXMr2#)C-Uk
+      PORTAL_URL: http://localhost:3000/portal
+      AUTHENC_GRPC_URL: authenc:50051
+      INTEGRASI_GRPC_URL: layanan-integrasi:50052
+      SECRETON_GRPC_URL: secreton:50053
+      GRPC_SSL_MODE: insecure
+      SESSION_DRIVER: file
+      CACHE_DRIVER: file
+    depends_on:
+      postgres:
+        condition: service_healthy
+      authenc:
+        condition: service_started
+    networks:
+      - simpel-network
+
+  # =====================================================
+  # Frontend Services (Antarmuka)
+  # =====================================================
+  portal:
+    build:
+      context: .
+      dockerfile: antarmuka/portal/Dockerfile
+    container_name: portal
+    ports:
+      - "3000:3000"
+    environment:
+      RUST_LOG: debug
+      SERVER_PORT: "3000"
+      AUTHENC_GRPC_URL: authenc:50051
+    depends_on:
+      authenc:
+        condition: service_started
+    networks:
+      - simpel-network
+
+volumes:
+  postgres_data:
+
+networks:
+  simpel-network:
+    driver: bridge
