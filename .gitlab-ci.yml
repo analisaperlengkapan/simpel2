@@ -1145,6 +1145,70 @@ security:summary:
 # ========================================
 # PIPELINE SUCCESS NOTIFICATION
 # ========================================
+  when: on_success
+  allow_failure: true
+
+# =====================================================
+# SIMPEL v1 (Legacy PHP) Build Pipeline
+# =====================================================
+
+build:simpelv1:
+  stage: build
+  image: docker:24
+  services:
+    - name: docker:dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - echo "🐳 Building SIMPEL v1 (PHP Laravel) Docker image..."
+    - |
+      docker build \
+        -f monolith/simpelv1/Dockerfile \
+        -t "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA" \
+        -t "$CI_REGISTRY_IMAGE/simpelv1:latest" \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        .
+    - echo "📤 Pushing SIMPEL v1 image to registry..."
+    - docker push "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/simpelv1:latest"
+    - echo "✅ SIMPEL v1 image built and pushed successfully"
+  only:
+    - main
+    - staging
+    - /^feat\/.*$/
+  except:
+    - tags
+  cache: {}
+  timeout: 30 minutes
+
+# =====================================================
+# SIMPEL v1 Security Scan
+# =====================================================
+
+security:simpelv1:
+  stage: security-scan
+  image: docker:24
+  services:
+    - name: docker:dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  script:
+    - echo "🔍 Running security scan on SIMPEL v1 image..."
+    - docker pull "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA"
+    - echo "✅ Image security validation completed"
+  dependencies:
+    - build:simpelv1
+  only:
+    - main
+    - staging
+    - /^feat\/.*$/
+  allow_failure: true
+
 notify:success:
   stage: .post
   image: alpine:latest
