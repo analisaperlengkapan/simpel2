@@ -15,6 +15,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Auto-create per-service databases (dbsimpelv1, dbsimpelv2,
+      # dbsecretion, dbintegration) on first startup. Without this, every
+      # dependent service crashes with "database does not exist" because
+      # the postgres image only creates the default `postgres` database.
+      - ./scripts/init-postgres-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -170,12 +175,12 @@ services:
       # *_GRPC_URL. Per `monolith/simpelv1/AGENTS.md`, Laravel talks to
       # the Rust services through an HTTP/REST gateway sidecar, not
       # direct gRPC. Until a sidecar is added to this compose file,
-      # leaving these unset falls back to the localhost defaults baked
-      # into the clients (which will fail loudly), but at least the
-      # values are no longer silently ignored under the wrong name.
-      AUTHENC_GATEWAY_URL: http://authenc-gateway:8081
-      INTEGRASI_GATEWAY_URL: http://integrasi-gateway:8082
-      SECRETON_GATEWAY_URL: http://secreton-gateway:8083
+      # these env vars are deliberately left unset so the PHP clients
+      # fall back to their `http://127.0.0.1:808[1-3]` defaults — any
+      # code path that actually invokes the gateway will then fail fast
+      # with a connection refused, rather than silently hanging on DNS
+      # resolution for a hostname (e.g. `authenc-gateway`) that isn't a
+      # service in this compose file.
       SESSION_DRIVER: file
       CACHE_DRIVER: file
     depends_on:
