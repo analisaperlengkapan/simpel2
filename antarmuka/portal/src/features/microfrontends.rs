@@ -4,6 +4,19 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Sub-application variant (e.g., v1, v2)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SubApp {
+    /// Version identifier
+    pub id: String,
+    /// Display name
+    pub name: String,
+    /// Description
+    pub description: String,
+    /// URL path
+    pub url: String,
+}
+
 /// Microfrontend application definition
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MicrofrontendApp {
@@ -25,6 +38,8 @@ pub struct MicrofrontendApp {
     pub required_role: Option<String>,
     /// Status
     pub status: AppStatus,
+    /// Optional submenu for app variants (e.g., v1/v2 choices)
+    pub submenu: Option<Vec<SubApp>>,
 }
 
 /// Application color theme
@@ -142,7 +157,7 @@ impl MicrofrontendRegistry {
     /// Get all registered applications
     pub fn get_all_apps() -> Vec<MicrofrontendApp> {
         vec![
-            // Asset management — Perlengkapan (the only currently integrated microfrontend)
+            // Asset management — Perlengkapan with v1/v2 submenu
             MicrofrontendApp {
                 id: "perlengkapan".to_string(),
                 name: "Perlengkapan".to_string(),
@@ -153,6 +168,20 @@ impl MicrofrontendRegistry {
                 category: AppCategory::Asset,
                 required_role: None,
                 status: AppStatus::Active,
+                submenu: Some(vec![
+                    SubApp {
+                        id: "perlengkapan-v2".to_string(),
+                        name: "SIMPEL v2 (Modern)".to_string(),
+                        description: "Versi terbaru berbasis Rust & WebAssembly".to_string(),
+                        url: "/perlengkapan/simpel/v2".to_string(),
+                    },
+                    SubApp {
+                        id: "perlengkapan-v1".to_string(),
+                        name: "SIMPEL v1 (Legacy)".to_string(),
+                        description: "Versi sebelumnya berbasis Laravel".to_string(),
+                        url: "/perlengkapan/simpel/v1".to_string(),
+                    },
+                ]),
             },
         ]
     }
