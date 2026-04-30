@@ -1,0 +1,1305 @@
+{
+  "acronyms": {
+    "validation": [
+      {
+        "term": "BMN",
+        "correct": "BMN",
+        "incorrect": ["BM", "BNM", "Barang Negara"],
+        "regulation": "Pasal 1 PP 27/2014"
+      },
+      {
+        "term": "RKBMN",
+        "correct": "RKBMN",
+        "incorrect": ["Rencana Kebutuhan Barang", "RKB"],
+        "regulation": "PMK 215/2021 Pasal 9"
+      },
+      {
+        "term": "APBN",
+        "correct": "APBN",
+        "incorrect": ["Anggaran Pendapatan", "Anggaran Negara"],
+        "regulation": "UU 17/2003"
+      },
+      {
+        "term": "KJPP",
+        "correct": "KJPP",
+        "incorrect": ["Kantor Penilai", "Penilai Publik"],
+        "regulation": "UU 20/2016"
+      },
+      {
+        "term": "SIMAK BMN",
+        "correct": "SIMAK BMN",
+        "incorrect": ["Sistem BMN", "SIMAK"],
+        "regulation": "PMK 215/2021 Pasal 65"
+      },
+      {
+        "term": "DIPA",
+        "correct": "DIPA",
+        "incorrect": ["Dokumen Anggaran", "Dokumen Pelaksanaan"],
+        "regulation": "PMK 190/PMK.05/2012"
+      },
+      {
+        "term": "SAIBA",
+        "correct": "SAIBA",
+        "incorrect": ["Sistem Akuntansi", "Aplikasi Bendahara"],
+        "regulation": "Permenkeu 29/2010"
+      },
+      {
+        "term": "UAKPB",
+        "correct": "UAKPB",
+        "incorrect": ["Unit Akuntansi", "Unit Pengguna Barang"],
+        "regulation": "Peraturan Kejaksaan Pasal 53"
+      },
+      {
+        "term": "APIP",
+        "correct": "APIP",
+        "incorrect": ["Aparat Pengawas", "Pengawas Intern"],
+        "regulation": "PP 60/2008"
+      }
+    ],
+    "mappings": [
+      {
+        "short": "bmn",
+        "long": "barang milik negara"
+      },
+      {
+        "short": "analisis kebutuhan bmn",
+        "long": "analisis kebutuhan barang milik negara"
+      },
+      {
+        "short": "rkb",
+        "long": "rencana kebutuhan barang"
+      },
+      {
+        "short": "pemindahtanganan bmn",
+        "long": "pemindahtanganan barang milik negara"
+      },
+      {
+        "short": "penghapusan bmn",
+        "long": "penghapusan barang milik negara"
+      },
+      {
+        "short": "pengamanan bmn",
+        "long": "pengamanan barang milik negara"
+      },
+      {
+        "short": "kjpp",
+        "long": "kantor jasa penilai publik"
+      },
+      {
+        "short": "sai",
+        "long": "standar akuntansi instansi"
+      },
+      {
+        "short": "rfid",
+        "long": "identifikasi frekuensi radio"
+      },
+      {
+        "short": "geotagging",
+        "long": "penandaan lokasi geografis"
+      },
+      {
+        "short": "e-inventarisasi",
+        "long": "inventarisasi digital"
+      },
+      {
+        "short": "psak 73",
+        "long": "standar akuntansi keuangan tentang sewa"
+      },
+      {
+        "short": "kpb",
+        "long": "kuasa pengguna barang"
+      },
+      {
+        "short": "uapb",
+        "long": "unit akuntansi pengguna barang"
+      },
+      {
+        "short": "lkbmn",
+        "long": "laporan keuangan barang milik negara"
+      }
+    ],
+    "SAIBA": "Sistem Akuntansi Instansi Berbasis Akrual (Permenkeu 29/2010)",
+    "SIMAK-BMN": "Sistem Informasi Manajemen dan Akuntansi Barang Milik Negara (PMK 215/2021 Pasal 65)",
+    "BPK": "Badan Pemeriksa Keuangan",
+    "BMD": "Barang Milik Daerah",
+    "PMK": "Peraturan Menteri Keuangan",
+    "E-KATALOG": "Sistem Katalog Elektronik LKPP",
+    "SAKTI": "Sistem Akuntansi Terintegrasi",
+    "KPKNL": "Kantor Pelayanan Kekayaan Negara dan Lelang"
+  },
+  "priority_keywords": [
+    "analisis kebutuhan",
+    "BMN",
+    "Barang Milik Negara",
+    "perencanaan",
+    "pengadaan",
+    "identifikasi",
+    "estimasi",
+    "kebutuhan",
+    "peraturan menteri",
+    "pedoman teknis",
+    "definisi",
+    "penjelasan",
+    "tahapan",
+    "pemanfaatan BMN",
+    "penggunaan BMN",
+    "penilaian BMN",
+    "pemindahtanganan BMN",
+    "pemusnahan BMN",
+    "penghapusan BMN",
+    "penatausahaan BMN",
+    "pengamanan BMN",
+    "pemeliharaan BMN",
+    "siklus hidup BMN",
+    "peraturan pemerintah",
+    "kuasa pengguna barang",
+    "sertifikat BMN",
+    "inventarisasi",
+    "optimalisasi aset",
+    "kerugian negara",
+    "tanggung jawab pengelolaan",
+    "audit BMN",
+    "distribusi aset",
+    "nilai aset",
+    "penilaian",
+    "penghapusan",
+    "mutasi BMN",
+    "pemindahtanganan",
+    "peminjaman aset",
+    "pelaporan BMN",
+    "sistem informasi BMN",
+    "revaluasi aset",
+    "digitalisasi BMN",
+    "transformasi digital aset",
+    "penurunan nilai aset",
+    "recovery aset hilang",
+    "asuransi BMN",
+    "penyusutan percepatan",
+    "penilaian aset tak berwujud",
+    "blockchain untuk pelacakan aset",
+    "optimalisasi ruang kantor",
+    "smart asset management",
+    "digital twin aset"
+  ],
+  "siklus_bmn": {
+    "perencanaan": {
+      "tahapan": [
+        "Identifikasi kebutuhan berdasarkan tugas pokok fungsi",
+        "Analisis gap kebutuhan vs ketersediaan aset",
+        "Penyusunan Rencana Kebutuhan Barang (RKB)",
+        "Integrasi dengan dokumen anggaran (DIPA)"
+      ],
+      "dokumen": ["Formulir R.1.1", "Dokumen pendukung analisis"],
+      "waktu": "Q3 tahun sebelumnya",
+      "pejabat_bertanggungjawab": "Pengguna Barang / Kuasa Pengguna Barang"
+    },
+    "pengadaan": {
+      "tahapan": [
+        "Pemilihan metode pengadaan (e-katalog, lelang, pengadaan langsung)",
+        "Pelaksanaan proses pengadaan",
+        "Pemeriksaan dan penerimaan barang",
+        "Pembuatan Berita Acara Serah Terima (BAST)"
+      ],
+      "dokumen": ["BAST", "Faktur", "Dokumen pengadaan"],
+      "waktu": "Sesuai jadwal DIPA",
+      "pejabat_bertanggungjawab": "Pejabat Pembuat Komitmen (PPK)"
+    },
+    "pencatatan": {
+      "tahapan": [
+        "Inventarisasi fisik",
+        "Pemberian kodefikasi dan label",
+        "Pencatatan di Sistem Informasi BMN",
+        "Pembuatan Buku Induk dan Buku Pembantu"
+      ],
+      "dokumen": ["Formulir INV-1", "Buku Induk BMN"],
+      "waktu": "Maks 30 hari setelah penerimaan",
+      "pejabat_bertanggungjawab": "Pejabat Penatausahaan Barang"
+    },
+    "penggunaan": {
+      "tahapan": [
+        "Penetapan pengguna barang",
+        "Pemantauan kondisi aset",
+        "Pencatatan penggunaan dalam logbook",
+        "Evaluasi efektivitas penggunaan"
+      ],
+      "dokumen": ["Surat Penetapan Pengguna", "Logbook"],
+      "waktu": "Selama masa penggunaan",
+      "pejabat_bertanggungjawab": "Pengguna Barang"
+    },
+    "pemeliharaan": {
+      "tahapan": [
+        "Pemeliharaan rutin (harian/mingguan)",
+        "Pemeliharaan berkala (tahunan)",
+        "Perbaikan kerusakan",
+        "Pencatatan riwayat pemeliharaan"
+      ],
+      "dokumen": ["Jadwal Pemeliharaan", "Berita Acara Perbaikan"],
+      "waktu": "Sesuai jadwal dan kebutuhan",
+      "pejabat_bertanggungjawab": "Kuasa Pengguna Barang"
+    },
+    "penilaian": {
+      "tahapan": [
+        "Penentuan kebutuhan penilaian",
+        "Pemilihan penilai (internal/KJPP)",
+        "Pelaksanaan penilaian",
+        "Penerbitan laporan penilaian"
+      ],
+      "dokumen": ["Laporan Penilaian KJPP", "Berita Acara Penilaian"],
+      "waktu": "Sesuai kebutuhan (min 5 tahun sekali)",
+      "pejabat_bertanggungjawab": "Pejabat Penilai / KJPP"
+    },
+    "pemindahtanganan": {
+      "tahapan": [
+        "Analisis kelayakan pemindahtanganan",
+        "Persetujuan pejabat berwenang",
+        "Pelaksanaan lelang/negosiasi",
+        "Penandatanganan dokumen pengalihan"
+      ],
+      "dokumen": ["SK Pemindahtanganan", "Berita Acara Lelang"],
+      "waktu": "Sesuai kompleksitas aset",
+      "pejabat_bertanggungjawab": "Pengelola Barang (Menteri Keuangan)"
+    },
+    "penghapusan": {
+      "tahapan": [
+        "Pemeriksaan kondisi aset",
+        "Pembentukan panitia penghapusan",
+        "Persetujuan pejabat berwenang",
+        "Pelaksanaan pemusnahan/pengalihan"
+      ],
+      "dokumen": ["Berita Acara Pemeriksaan", "SK Penghapusan"],
+      "waktu": "Maks 60 hari setelah pemeriksaan",
+      "pejabat_bertanggungjawab": "Pengelola Barang (Menteri Keuangan)"
+    }
+  },
+  "logika_pengambilan_keputusan": {
+    "alur_penilaian": {
+      "pertanyaan_kunci": [
+        "Apakah aset masih memberikan manfaat ekonomi?",
+        "Apakah biaya perbaikan melebihi 50% nilai aset?",
+        "Apakah aset memiliki potensi pemanfaatan lain?",
+        "Apakah status hukum aset jelas?"
+      ],
+      "keputusan": {
+        "lanjut_pakai": "Jika manfaat > biaya pemeliharaan",
+        "pemanfaatan": "Jika ada potensi sewa/kerjasama",
+        "pemindahtanganan": "Jika nilai jual tinggi",
+        "penghapusan": "Jika tidak ekonomis diperbaiki"
+      }
+    },
+    "matriks_risiko": {
+      "faktor": ["Nilai aset", "Kerumitan hukum", "Tingkat penggunaan", "Ketergantungan operasional"],
+      "skoring": "Rendah (1-3), Sedang (4-6), Tinggi (7-9)",
+      "tindakan": {
+        "rendah": "Pemantauan rutin",
+        "sedang": "Audit berkala",
+        "tinggi": "Tindakan segera + pelaporan khusus"
+      }
+    },
+    "pohon_keputusan_optimalisasi": {
+      "akar_masalah": "Aset menganggur >6 bulan",
+      "cabang": [
+        {
+          "kondisi": "Lokasi strategis",
+          "tindakan": "Sewa/pinjam pakai"
+        },
+        {
+          "kondisi": "Nilai historis tinggi",
+          "tindakan": "Konservasi/revitalisasi"
+        },
+        {
+          "kondisi": "Kondisi fisik buruk",
+          "tindakan": "Penghapusan/pemindahtanganan"
+        }
+      ]
+    },
+    "template_keputusan": {
+      "penghapusan": "Jika {kondisi_fisik} DAN {nilai_ekonomis} < 50% MAKA rekomendasi penghapusan",
+      "revaluasi": "Jika {usia_aset} > 5 tahun ATAU {perubahan_pasar} signifikan MAKA lakukan revaluasi"
+    }
+  },
+  "faqs_lengkap": [
+    {
+      "pertanyaan": "Apa perbedaan antara penghapusan dan pemindahtanganan BMN?",
+      "jawaban": "Penghapusan adalah pengeluaran aset dari daftar BMN melalui pemusnahan atau pengalihan tanpa imbalan. Pemindahtanganan adalah pengalihan kepemilikan dengan imbalan (jual/tukar guling) yang menghasilkan penerimaan negara."
+    },
+    {
+      "pertanyaan": "Berapa frekuensi inventarisasi fisik yang wajib dilakukan?",
+      "jawaban": "Inventarisasi fisik wajib dilakukan: 1) Minimal 1 kali setahun secara menyeluruh, 2) Saat terjadi mutasi atau perubahan status aset, 3) Saat pergantian penanggung jawab aset."
+    },
+    {
+      "pertanyaan": "Apa konsekuensi hukum jika BMN hilang karena kelalaian?",
+      "jawaban": "Kelalaian menyebabkan kerugian negara dapat berakibat: 1) Sanksi administratif (teguran sampai pemberhentian), 2) Ganti rugi finansial, 3) Sanksi pidana penjara 1-5 tahun sesuai UU Tipikor."
+    },
+    {
+      "pertanyaan": "Bagaimana menangani BMN yang belum bersertifikat?",
+      "jawaban": "Langkah penanganan: 1) Inventarisasi bukti kepemilikan lain (girik, letter C), 2) Pengukuran dan pemetaan oleh BPN, 3) Pengajuan sertifikasi ke Kantor Pertanahan, 4) Pencatatan sementara di sistem dengan status 'dalam proses'."
+    },
+    {
+      "pertanyaan": "Apa yang dimaksud dengan revaluasi aset dan kapan dilakukan?",
+      "jawaban": "Revaluasi adalah penyesuaian nilai aset terhadap nilai pasar terkini. Dilakukan: 1) Setiap 5 tahun untuk tanah dan bangunan, 2) Saat terjadi perubahan signifikan nilai pasar, 3) Sebelum pemindahtanganan aset bernilai tinggi."
+    },
+    {
+      "pertanyaan": "Bagaimana prosedur peminjaman BMN antar instansi?",
+      "jawaban": "Prosedur: 1) Permohonan resmi dari instansi peminjam, 2) Analisis kelayakan oleh Kuasa Pengguna Barang, 3) Persetujuan tertulis dari Pengelola Barang, 4) Pembuatan Berita Acara Pinjam Pakai, 5) Pencatatan mutasi di SIMAK-BMN"
+    },
+    {
+      "pertanyaan": "Apa yang harus dilakukan jika menemukan BMN tidak tercatat?",
+      "jawaban": "Langkah: 1) Dokumentasi fisik aset, 2) Penelitian asal-usul aset, 3) Pembuatan Berita Acara Temuan, 4) Penilaian oleh KJPP jika nilai tinggi, 5) Pengajuan pencatatan ke KPKNL"
+    }
+  ],
+  "scenario_pelatihan": [
+    {
+      "judul": "Penanganan Aset Rusak Berat",
+      "deskripsi": "Anda menemukan 20 unit komputer rusak berat di gudang yang belum diinventarisasi selama 2 tahun",
+      "langkah_analisis": [
+        "Verifikasi status kepemilikan dan dokumen pendukung",
+        "Lakukan pemeriksaan fisik dan dokumentasi",
+        "Hitung estimasi biaya perbaikan vs nilai sisa",
+        "Ajukan rekomendasi penghapusan/pemindahtanganan"
+      ],
+      "dokumen_pendukung": ["Berita Acara Pemeriksaan", "Laporan Teknis Kondisi", "Estimasi Biaya"],
+      "keputusan_kritis": "Jika biaya perbaikan > 60% nilai aset → rekomendasi penghapusan"
+    },
+    {
+      "judul": "Optimalisasi Gedung Tidak Terpakai",
+      "deskripsi": "Gedung kantor lama seluas 1000m² tidak terpakai selama 3 tahun di lokasi strategis",
+      "langkah_analisis": [
+        "Analisis potensi pasar dan nilai sewa",
+        "Identifikasi persyaratan hukum pemanfaatan",
+        "Hitung proyeksi pendapatan dan biaya",
+        "Buat proposal pemanfaatan optimal"
+      ],
+      "dokumen_pendukung": ["Laporan Penilaian KJPP", "Studi Kelayakan", "Dokumen Legal"],
+      "keputusan_kritis": "Jika potensi PNBP > biaya pemeliharaan → rekomendasi pemanfaatan"
+    }
+  ],
+  "template_dokumen": {
+    "berita_acara_pemeriksaan": {
+      "struktur": [
+        "Kop instansi dan nomor dokumen",
+        "Identitas aset yang diperiksa",
+        "Hasil pemeriksaan fisik",
+        "Kesimpulan dan rekomendasi",
+        "Tanda tangan panitia pemeriksa"
+      ],
+      "contoh_konten": "Komputer dengan kode BMN 2.03.01.001 ditemukan dalam kondisi rusak berat dengan kerusakan motherboard dan power supply. Direkomendasikan untuk dihapuskan melalui pemusnahan."
+    },
+    "usulan_penghapusan": {
+      "struktur": [
+        "Dasar hukum pengajuan",
+        "Daftar aset yang diusulkan dihapus",
+        "Alasan penghapusan",
+        "Dokumen pendukung",
+        "Rekomendasi pejabat berwenang"
+      ],
+      "contoh_konten": "Berdasarkan Berita Acara Pemeriksaan No. 05/BA/BMN/VI/2024, diusulkan penghapusan 10 unit AC split dengan nilai buku Rp75.000.000 karena rusak berat dan tidak ekonomis diperbaiki."
+    },
+    "surat_peminjaman_aset": {
+      "struktur": [
+        "Kop instansi peminjam",
+        "Identitas aset yang dipinjam",
+        "Jangka waktu pinjaman",
+        "Tanggung jawab pemeliharaan",
+        "Klausul pengembalian"
+      ]
+    }
+  },
+  "pustaka_referensi": [
+    "PP No. 27 Tahun 2014 tentang Pengelolaan BMN/D",
+    "PMK No. 215/PMK.06/2021 tentang Petunjuk Teknis Pengelolaan BMN",
+    "Peraturan Kepala LKPP No. 13 Tahun 2015 tentang Pengadaan Barang/Jasa",
+    "PSAK 16: Aset Tetap (IAI, 2023)",
+    "Pedoman Teknis Penatausahaan BMN (Kemenkeu, 2022)",
+    "Buku Saku Pengelolaan BMN (BPKP, 2023)"
+  ],
+  "glosarium": {
+    "kuasa_pengguna_barang": "Pejabat yang diberi wewenang untuk menggunakan BMN dalam rangka pelaksanaan tugas",
+    "penatausahaan_bmn": "Kegiatan pembukuan, inventarisasi, dan pelaporan BMN",
+    "nilai_buku": "Nilai aset setelah dikurangi akumulasi penyusutan",
+    "revaluasi": "Penyesuaian nilai aset terhadap nilai wajar saat ini",
+    "pemindahtanganan": "Pengalihan kepemilikan BMN melalui jual, tukar, atau hibah",
+    "penghapusan": "Pengeluaran aset dari daftar BMN melalui pemusnahan atau pengalihan tanpa imbalan",
+    "optimalisasi": "Pemanfaatan aset untuk mencapai nilai manfaat tertinggi"
+  },
+  "panduan_aplikasi": {
+    "simak_bmn": {
+      "modul_utama": ["Inventarisasi", "Penghapusan", "Pemindahtanganan", "Pelaporan"],
+      "tip_penggunaan": [
+        "Gunakan filter advanced untuk pencarian spesifik",
+        "Ekspor data ke Excel untuk analisis lanjutan",
+        "Setel notifikasi untuk tenggat waktu pelaporan",
+        "Manfaatkan dashboard untuk monitoring real-time"
+      ],
+      "error_umum": [
+        "E001: Data tidak sinkron dengan SAIBA → Lakukan rekonsiliasi manual",
+        "E002: Akses ditolak untuk modul penghapusan → Verifikasi peran pengguna"
+      ]
+    }
+  },
+  "kecerdasan_analitis": {
+    "pola_anomali": {
+      "indikator": [
+        "Aset tidak tercatat dalam stock opname",
+        "Mutasi tanpa dokumen pendukung",
+        "Nilai penghapusan berbeda signifikan dari nilai buku",
+        "Pemindahtanganan tanpa penilaian KJPP"
+      ],
+      "tindakan": [
+        "Verifikasi fisik segera",
+        "Audit dokumen transaksi",
+        "Pelacakan riwayat sistem",
+        "Koordinasi dengan APIP"
+      ]
+    },
+    "prediksi_kebutuhan": {
+      "parameter": [
+        "Pertumbuhan pegawai",
+        "Rencana strategis instansi",
+        "Tingkat penurunan aset",
+        "Perubahan regulasi"
+      ],
+      "model": "Regresi linier berbasis data historis + proyeksi kebutuhan",
+      "output": "Estimasi kebutuhan aset 5 tahun mendatang"
+    },
+    "optimasi_alokasi": {
+      "scenario": "Distribusi aset antarkantor wilayah",
+      "algoritma": "Linear programming dengan batasan anggaran dan kebutuhan",
+      "output": "Rekomendasi alokasi optimal aset bergerak"
+    },
+    "deteksi_risiko": {
+      "parameter": ["Usia aset", "Frekuensi pemeliharaan", "Riwayat kerusakan"],
+      "output": "Skor risiko kegagalan aset (1-10)"
+    }
+  },
+  "prompt_templates": {
+    "system_instruction": "Kamu adalah asisten AI pakar BMN di Indonesia. Gunakan Bahasa Indonesia baku sesuai KBBI dengan penjelasan praktis dan natural. Setiap jawaban harus memiliki tiga bagian: **DEFINISI** (ringkas), **DASAR HUKUM**, dan **IMPLEMENTASI** (langkah teknis + contoh).",
+    "examples": [
+      {
+        "question": "Apa yang dimaksud dengan analisis kebutuhan BMN?",
+        "answer": "DEFINISI: Analisis kebutuhan BMN adalah proses identifikasi dan perencanaan pengadaan barang oleh instansi pemerintah.\nDASAR HUKUM: Pasal 8 PP No. 27 Tahun 2014 dan PMK No. 215/PMK.06/2021\nIMPLEMENTASI:\n1. Identifikasi kebutuhan berdasarkan tugas pokok fungsi unit kerja\n2. Verifikasi ketersediaan stok di SIMAK BMN\n3. Penyusunan Rencana Kebutuhan Barang (RKB)\n4. Penghitungan estimasi anggaran\n*Contoh: Analisis kebutuhan laptop di Kejaksaan Agung tahun 2023 menghasilkan RKB untuk 150 unit baru*"
+      },
+      {
+        "question": "Bagaimana prosedur penghapusan BMN?",
+        "answer": "DEFINISI: Penghapusan BMN adalah pengeluaran aset dari daftar BMN melalui pemindahtanganan, pemusnahan, atau hibah.\nDASAR HUKUM: Pasal 50 PP No. 27 Tahun 2014\nIMPLEMENTASI:\n1. Pemeriksaan fisik oleh panitia inventarisasi\n2. Pembuatan berita acara (Formulir BA-1)\n3. Penilaian oleh KJPP untuk aset >Rp100 juta\n4. Pengajuan usulan ke Menteri Keuangan\n5. Pelaksanaan pemusnahan/pemindahtanganan\n*Contoh: Pemusnahan 50 unit komputer rusak di Kejati Jabar menggunakan crusher khusus*"
+      },
+      {
+        "question": "Apa yang dimaksud dengan pemanfaatan BMN?",
+        "answer": "DEFINISI: Pemanfaatan BMN adalah pendayagunaan BMN yang tidak digunakan melalui sewa, pinjam pakai, atau kerja sama.\nDASAR HUKUM: Pasal 1 angka 21 PP No. 27/2014\nIMPLEMENTASI:\n1. Perolehan izin Kuasa Pengguna Barang\n2. Penilaian oleh KJPP untuk nilai >Rp1 miliar\n3. Penetapan nilai manfaat minimal 5%/tahun\n4. Lelang elektronik di SIPBM\n*Contoh: Sewa gedung tidak terpakai di Jakarta menghasilkan PNBP Rp500 juta/tahun*"
+      },
+      {
+        "question": "Bagaimana melakukan inventarisasi tanah BMN yang belum bersertifikat?",
+        "answer": "DEFINISI: Inventarisasi tanah tanpa sertifikat memerlukan verifikasi multi-sumber untuk kepastian hukum\nDASAR HUKUM: Pasal 15 PMK 215/2021\nIMPLEMENTASI:\n1. Pemeriksaan dokumen historis (letter C, girik)\n2. Pengukuran GPS oleh BPN\n3. Pemasangan patok batas fisik\n4. Pembuatan berita acara sementara (Formulir INV-6)\n*Contoh: Tanah eks-HGB di Bandung diverifikasi dengan peta tahun 1965 dan warga setempat*"
+      },
+      {
+        "question": "Apa dampak penerapan PSAK 73 pada penilaian BMN?",
+        "answer": "DEFINISI: PSAK 73 mengubah perlakuan akuntansi untuk aset sewa-operasional\nDASAR HUKUM: Keputusan KSAP 23/2023\nIMPLEMENTASI:\n1. Aset sewa jangka panjang wajib dicatat di neraca\n2. Penyesuaian nilai wajar menggunakan diskonto suku bunga BI\n3. Modifikasi SIMAK BMN untuk menghitung nilai kini sewa\n*Kasus: Sewa gedung 10 tahun senilai Rp2M/tahun harus diakui sebagai kewajiban Rp15.3M (NPV suku bunga 5%)*"
+      }
+    ],
+    "acronym_rules": [
+      "SINGKATAN RESMI:",
+      "- Gunakan 'BMN' untuk Barang Milik Negara (Pasal 1 PP 27/2014)",
+      "- Gunakan 'RKB' untuk Rencana Kebutuhan Barang (PMK 215/2021 Pasal 9)",
+      "- Gunakan 'KJPP' untuk Kantor Jasa Penilai Publik (UU No. 20 Tahun 2016)",
+      "- Gunakan 'SIMAK BMN' untuk Sistem Informasi Manajemen dan Akuntansi Barang Milik Negara (PMK 215/2021 Pasal 65)",
+      "- Pastikan konsistensi penggunaan singkatan dalam seluruh dokumen"
+    ],
+    "natural_response_rules": [
+      "Gunakan analogi praktis: 'Seperti buku perpustakaan yang perlu dicatat dan dipantau'",
+      "Sisipkan contoh kasus nyata: 'Contoh di Kejaksaan Agung tahun 2023...'",
+      "Gunakan kalimat aktif: 'Panitia wajib memverifikasi...'",
+      "Variasi struktur jawaban: Poin untuk prosedur, paragraf untuk penjelasan",
+      "Sertakan tip praktis: 'Simpan salinan digital berita acara'"
+    ],
+    "calculation_templates": [
+      "Langkah 1: Identifikasi parameter kunci {parameter}",
+      "Langkah 2: Terapkan formula {formula}",
+      "Langkah 3: Hitung hasil sementara: {calculation}",
+      "Langkah 4: Validasi dengan aturan {regulation}",
+      "Langkah 5: Sajikan hasil dengan konteks praktis"
+    ],
+    "quantitative_reasoning": [
+      "Untuk masalah {problem_type}, gunakan pendekatan:",
+      "1. Kumpulkan data: {data_sources}",
+      "2. Analisis pola: {pattern_analysis}",
+      "3. Bangun model: {modeling_approach}",
+      "4. Verifikasi hasil: {validation_method}",
+      "5. Sajikan insight: {insight_framework}"
+    ],
+    "siklus_bmn_template": "Untuk pertanyaan tentang {tahap_siklus}, jelaskan: 1) Prosedur standar, 2) Dokumen terkait, 3) Pejabat bertanggung jawab, 4) Batas waktu"
+  },
+  "context_patterns": {
+    "definition_patterns": [
+      "analisis kebutuhan BMN.*?\\.",
+      "definisi (pengelolaan|pemanfaatan|penghapusan) BMN.*?\\.",
+      "proses (identifikasi|pemindahtanganan|pemusnahan).*?BMN.*?\\.",
+      "syarat penghapusan BMN menurut.*?\\.",
+      "mekanisme penilaian BMN.*?\\.",
+      "tahapan penatausahaan BMN.*?\\."
+    ],
+    "explanation_extraction": {
+      "sentences_after_definition": 4,
+      "priority_keywords": [
+        "tahapan",
+        "prosedur",
+        "persyaratan",
+        "dokumen",
+        "dasar hukum",
+        "kewenangan",
+        "tanggung jawab",
+        "batas waktu",
+        "sanksi",
+        "contoh kasus"
+      ]
+    },
+    "audit_pattern": "^(audit|pemeriksaan|verifikasi).*",
+    "disposal_pattern": "^(penghapusan|dihapus).*",
+    "transfer_pattern": "^(mutasi|pemindahtanganan).*",
+    "digitalization_patterns": [
+      "e[- ]?inventarisasi",
+      "aplikasi bmn",
+      "digitalisasi aset",
+      "integrasi sistem",
+      "teknologi pelacakan"
+    ],
+    "asset_valuation_patterns": [
+      "penilaian (khusus|spesifik)",
+      "revaluasi",
+      "penurunan nilai",
+      "psak [0-9]+"
+    ],
+    "emergency_procedures": [
+      "darurat",
+      "bencana",
+      "kondisi khusus",
+      "percepatan"
+    ],
+    "reasoning_triggers": {
+      "complex_analysis": "^(analisis|strategi|rekomendasi|optimasi|prediksi).*",
+      "data_intensive": "^(hitung|proyeksi|bandingkan|rekon).*",
+      "siklus_bmn": "^(siklus|tahapan|proses) (bmn|pengelolaan)"
+    }
+  },
+  "legal_references": {
+    "primary": [
+      "PP No. 27 Tahun 2014 tentang Pengelolaan Barang Milik Negara/Daerah",
+      "PMK No. 215/PMK.06/2021 tentang Petunjuk Teknis Pengelolaan BMN",
+      "Perpres No. 12 Tahun 2021 tentang Pengadaan Barang/Jasa Pemerintah",
+      "UU No. 1 Tahun 2004 tentang Perbendaharaan Negara",
+      "Peraturan BPK No. 3 Tahun 2023 tentang Audit Optimalisasi BMN",
+      "PMK No. 100/PMK.06/2024 tentang Pedoman Revaluasi Aset"
+    ],
+    "secondary": [
+      "Permendagri No. 19 Tahun 2016 tentang Pedoman Pengelolaan Barang Milik Daerah",
+      "Peraturan BPK No. 1 Tahun 2020 tentang Standar Pemeriksaan BMN",
+      "PMK No. 120/PMK.06/2021 tentang Penatausahaan BMN",
+      "Peraturan Jaksa Agung No. PER-015/A/JA/05/2023 tentang Digitalisasi BMN",
+      "PermenPANRB No. 7 Tahun 2024 tentang Transformasi Digital Pengelolaan Aset"
+    ],
+    "accounting_standards": [
+      "PSAK 16 (Aktiva Tetap)",
+      "PSAK 73 (Sewa)",
+      "PSAP 07 (Aset)"
+    ],
+    "PMK No. 115/PMK.06/2020": "Pengelolaan Barang Milik Negara dengan Sistem Akuntansi Berbasis Akrual",
+    "Perpres No. 26/2021": "Rencana Umum Pengadaan Barang/Jasa Pemerintah"
+  },
+  "entity_resolution": {
+    "bmn_types": [
+      "Tanah",
+      "Bangunan Gedung",
+      "Alat Angkutan",
+      "Peralatan dan Mesin",
+      "Jalan, Irigasi, dan Jaringan",
+      "Tetap Lainnya",
+      "Konstruksi dalam Pengerjaan"
+    ],
+    "authority_levels": [
+      "Menteri Keuangan (Pengelola BMN)",
+      "Kuasa Pengguna Barang (Eselon I)",
+      "Pengguna Barang (Eselon II)",
+      "Kuasa Pengguna Barang Instansi Vertikal",
+      "Pejabat Penatausahaan Barang"
+    ],
+    "sanctions": [
+      "Administratif (teguran sampai pemberhentian)",
+      "Perdata (ganti rugi kerugian negara)",
+      "Pidana (penjara 1-5 tahun sesuai UU Tipikor)"
+    ],
+    "digital_tools": [
+      "SIMAN Mobile v3.2",
+      "Aplikasi Geotagging BMN",
+      "Sistem QR Code Nasional",
+      "Integrasi API Kemenkeu",
+      "Drone Mapping DJI M300"
+    ],
+    "special_cases": [
+      "Aset kolonial/bersejarah",
+      "Barang rampasan narkotika",
+      "Aset di daerah konflik",
+      "BMN hasil hibah luar negeri",
+      "Aset dengan sengketa hukum"
+    ],
+    "emergency_levels": [
+      "Darurat Nasional (SK Presiden)",
+      "Darurat Sektoral (SK Menteri)",
+      "Kondisi Khusus Instansi"
+    ]
+  },
+  "faqs": [
+    {
+      "keyword": "bmn",
+      "answer": "Barang Milik Negara (BMN) adalah semua barang yang dibeli/diperoleh atas beban APBN/APBD atau perolehan sah lainnya (Pasal 1 PP 27/2014). Termasuk: barang hibah, temuan, sitaan eksekusi tetap, dan aset dari kerja sama pemerintah-swasta (Pasal 2 PMK 215/2021). BMN diklasifikasikan menjadi 7 golongan menurut Permendagri 19/2016: tanah, bangunan, alat angkutan, peralatan & mesin, jalan/irigasi/jaringan, tetap lainnya, dan konstruksi dalam pengerjaan."
+    },
+    {
+      "keyword": "pemanfaatan",
+      "answer": "Pemanfaatan BMN adalah pendayagunaan aset tidak terpakai tanpa mengubah kepemilikan (Pasal 1 angka 33 Peraturan Kejaksaan). Dalam Kejaksaan, mekanisme meliputi: 1) Sewa (min. 5% nilai pasar/tahun), 2) Pinjam Pakai (maks. 3 tahun), 3) KSP (Bangun Guna Serah/Serah Guna), 4) Kerja Sama Penyediaan Infrastruktur (PP 47/2023). PNBP disetor ke Kas Negara melalui SAIBA (PMK No. 115/PMK.06/2020)."
+    },
+    {
+      "keyword": "sewa",
+      "answer": "Sewa BMN adalah penyerahan hak guna aset dengan imbalan uang (Pasal 1 angka 34 Peraturan Kejaksaan). Ketentuan: 1) Minimal nilai 5%/tahun dari nilai pasar (PP 47/2023), 2) Jangka waktu 1-5 tahun (dapat diperpanjang), 3) Wajib jaminan prestasi 10% nilai sewa, 4) Penerimaan disetor sebagai PNBP (Pasal 18 PMK 215/2021). Pengecualian lelang: objek strategis nasional."
+    },
+    {
+      "keyword": "kejaksaan",
+      "answer": "Kejaksaan RI adalah lembaga pemerintah pelaksana kekuasaan negara di bidang penuntutan dan penyidikan (UU 16/2004 jo UU 11/2021). Struktur pengelolaan BMN: 1) Jaksa Agung (Pengelola Barang), 2) Kepala Biro BMN (Pengguna Barang), 3) Kepala Kantor Wilayah (Kuasa Pengguna Barang) (Perpres 38/2010 jo Perpres 15/2024). Kewajiban khusus: pelaporan triwulanan SIMAK BMN dan pemusnahan BMN khusus seperti narkotika (PER-028/A/JA/10/2020)."
+    },
+    {
+      "keyword": "pengelolaan_bmn",
+      "answer": "Pengelolaan BMN mencakup 12 tahap: 1) Perencanaan, 2) Penganggaran, 3) Pengadaan, 4) Penerimaan, 5) Penyimpanan, 6) Inventarisasi, 7) Penggunaan, 8) Pemanfaatan, 9) Pemeliharaan, 10) Penilaian, 11) Pemindahtanganan, 12) Penghapusan (Pasal 3 PP 27/2014). Tanggung jawab: Menteri Keuangan (pengelola), Jaksa Agung (pengguna), Kuasa Pengguna Barang (penatausahaan)."
+    },
+    {
+      "keyword": "perencanaan_kebutuhan_bmn",
+      "answer": "Perencanaan kebutuhan BMN wajib memenuhi: 1) Standar barang Permendagri 19/2016, 2) Kebutuhan riil berdasar analisis beban kerja, 3) Ketersediaan anggaran DIPA, 4) Optimalisasi aset idle (Pasal 8 PP 27/2014). Proses: a) Identifikasi kebutuhan unit kerja, b) Verifikasi stok SIMAK BMN, c) Penyusunan RKB format R.1.1, d) Integrasi RKB-RKA-KL (Pasal 9 PMK 215/2021). Batas waktu: 31 Oktober tahun sebelumnya."
+    },
+    {
+      "keyword": "pengadaan_bmn",
+      "answer": "Pengadaan BMN melalui e-procurement sesuai Perpres 12/2021 dengan metode: 1) E-tendering (nilai >Rp200 juta), 2) E-purchasing (barang standar), 3) E-katalog (barang repetitif), 4) Pengadaan langsung (<Rp200 juta). Prinsip: efisien, terbuka, bersaing, adil, akuntabel. Barang hasil pengadaan wajib diinventarisasi dalam 30 hari kerja (Pasal 15 PMK 215/2021) menggunakan Formulir BAST-1 dan BAST-2."
+    },
+    {
+      "keyword": "penggunaan_bmn",
+      "answer": "Penggunaan BMN harus mematuhi: 1) Prinsip efektivitas (sesuai tugas pokok), 2) Efisiensi biaya, 3) Kepentingan umum (Pasal 24 PP 27/2014). Larangan: 1) Dipindahtangankan tanpa izin, 2) Dijaminkan, 3) Disewakan tanpa pemanfaatan resmi. Pengguna Barang bertanggung jawab atas: a) Keutuhan fisik, b) Legalitas dokumen, c) Penggunaan sesuai tujuan (PMK No. 40/2024)."
+    },
+    {
+      "keyword": "pengamanan_pemeliharaan_bmn",
+      "answer": "Pengamanan BMN meliputi: 1) Fisik (CCTV, alarm, patroli), 2) Administratif (sertifikat, asuransi), 3) Hukum (pendaftaran HAKI, gugatan) (Pasal 35 PMK 215/2021). Pemeliharaan: a) Rutin (harian), b) Berkala (triwulan/tahunan), c) Perbaikan (restorasi kerusakan). Biaya dibebankan ke DIPA mata anggaran 5.1.2.01. Aset bernilai >Rp10 miliar wajib asuransi (PMK No. 97/2019)."
+    },
+    {
+      "keyword": "penilaian_bmn",
+      "answer": "Penilaian BMN wajib oleh KJPP terdaftar untuk: 1) Pemindahtanganan, 2) Penyertaan modal, 3) Penghapusan, 4) Ganti rugi (Pasal 40 PP 27/2014). Metode: a) Biaya, b) Pasar, c) Pendapatan (SPI 102 MAPPI). Kewajiban: 1) Laporan penilaian format K-1.1, 2) Masa berlaku 6 bulan, 3) Objektif-independen. Aset <Rp100 juta dapat dinilai internal."
+    },
+    {
+      "keyword": "pemindahtanganan_bmn",
+      "answer": "Pemindahtanganan BMN adalah pengalihan kepemilikan melalui jual beli/tukar menukar/hibah (Pasal 1 angka 41 Peraturan Kejaksaan). Di Kejaksaan wajib: 1) Penilaian KJPP untuk nilai >Rp100 juta, 2) Lelang elektronik di SIPBM, 3) Persetujuan Jaksa Agung, 4) Pencatatan penghapusan di SIMAN. Pengecualian: aset strategis dan barang rampasan negara (PMK No. 111/2016 jo 165/2021)."
+    },
+    {
+      "keyword": "pemusnahan_bmn",
+      "answer": "Pemusnahan BMN untuk aset: 1) Rusak berat (>50% nilai), 2) Tidak ekonomis diperbaiki, 3) Berbahaya (Pasal 58 PMK 215/2021). Tahapan: a) Pembentukan panitia (SK KPA), b) Berita acara pemeriksaan (Formulir BA-1), c) Dokumentasi visual, d) Pelaksanaan dihadiri KPKNL, e) Berita acara pemusnahan (BA-2), f) Pelaporan ke KPPN. Contoh: narkotika, dokumen rahasia kadaluarsa."
+    },
+    {
+      "keyword": "penghapusan_bmn",
+      "answer": "Penghapusan BMN adalah pengeluaran aset dari daftar melalui pemindahtanganan/pemusnahan (Pasal 1 angka 46 Peraturan Kejaksaan). Prosedur di Kejaksaan: 1) Berita Acara Pemeriksaan (Formulir BA-1), 2) Laporan Keadaan Barang (LKB), 3) Usulan penghapusan ke Biro BMN, 4) Persetujuan Jaksa Agung untuk nilai >Rp10 miliar (PMK No. 83/2016). Waktu penyelesaian maksimal 60 hari kerja (Peraturan Kejaksaan Pasal 29)."
+    },
+    {
+      "keyword": "penatausahaan_bmn",
+      "answer": "Penatausahaan BMN meliputi pembukuan, inventarisasi, dan pelaporan (Pasal 1 angka 48 Peraturan Kejaksaan). Standar di Kejaksaan: 1) Kodefikasi 6 digit (Permenkeu 29/2010), 2) Buku Induk & Pembantu, 3) Inventarisasi fisik berkala, 4) LKBMN triwulanan. Kewajiban: a) Rekonsiliasi SIMAN-SAIBA bulanan, b) Sertifikasi legal 6 bulan, c) Pelaporan tepat waktu (PMK 181/2016 jo Peraturan Kejaksaan Pasal 41-53)."
+    },
+    {
+      "keyword": "pembinaan_pengawasan_bmn",
+      "answer": "Pembinaan BMN dilakukan melalui: 1) Bimtek regulasi, 2) Penyusunan SOP, 3) Konsultasi teknis (Pasal 71 PP 27/2014). Pengawasan oleh: 1) APIP (audit internal), 2) BPK (audit eksternal), 3) BPKP (revieu pengendalian). Mekanisme: a) Pemeriksaan fisik triwulanan, b) Audit kinerja tahunan, c) Reviu SIMAK BMN. Temuan wajib ditindaklanjuti dalam 30 hari (Peraturan BPK No.1/2020)."
+    },
+    {
+      "keyword": "sertifikat_bmn",
+      "answer": "Sertifikat BMN adalah bukti kepemilikan negara atas tanah/bangunan. Proses penerbitan: 1) Pengukuran tanah oleh BPN, 2) Pembuatan akta pengalihan, 3) Pembayaran BPHTB, 4) Pendaftaran di Kantor Pertanahan (PP 24/1997). Dokumen wajib: a) SPPT PBB, b) Berita acara serah terima, c) SK Penetapan BMN. Sertifikat disimpan Kuasa Pengguna Barang dengan double-lock."
+    },
+    {
+      "keyword": "optimalisasi_bmn",
+      "answer": "Optimalisasi BMN adalah peningkatan nilai manfaat aset melalui: 1) Penyewaan ruang kosong, 2) Revitalisasi aset tidak produktif, 3) Kerja sama pemanfaatan (BOT), 4) Integrasi sistem monitoring elektronik (Pasal 29 PMK 215/2021). Target: minimal 2% dari nilai wajar BMN instansi (Peraturan BPKP No.3/2020). Pelaporan melalui AMOB setiap semester."
+    },
+    {
+      "keyword": "inventarisasi_bmn",
+      "answer": "Inventarisasi BMN adalah pendataan fisik dan administratif aset (Pasal 1 angka 50 Peraturan Kejaksaan). Metode Kejaksaan: 1) Fisik: labeling & geotagging, 2) Administratif: pembukuan SIMAN, 3) Legal: sertifikasi. Teknologi: a) Mobile stock opname, b) QR code tracking, c) Drone mapping tanah. Frekuensi: rutin tahunan & insidentil (Peraturan Kejaksaan Pasal 44)."
+    },
+    {
+      "keyword": "kuasa_pengguna_barang",
+      "answer": "Kuasa Pengguna Barang (KPB) bertanggung jawab atas penatausahaan BMN di satuan kerjanya (Pasal 1 angka 10 Peraturan Kejaksaan). Tugas khusus: 1) Mengesahkan Buku Induk, 2) Menandatangani LKBMN, 3) Menyetujui mutasi fisik, 4) Memimpin stock opname. Pertanggungjawaban kepada Pengguna Barang (Kepala Biro BMN) setiap semester (PMK 4/2015)."
+    },
+    {
+      "keyword": "kerugian_bmn",
+      "answer": "Kerugian BMN akibat kelalaian penatausahaan: 1) Tidak dilaporkan mutasi, 2) Pembukuan tidak akurat, 3) Inventarisasi fiktif. Prosedur: a) Pemeriksaan APIP, b) Berita acara (Formulir KGR-1), c) Tuntutan ganti rugi, d) Pemrosesan sanksi administrasi/pidana. Pelaporan temuan maks 14 hari kerja (Peraturan Kejaksaan Pasal 55)."
+    },
+    {
+      "keyword": "sai_saiba",
+      "answer": "SAI (Standar Akuntansi Instansi) dan SAIBA (Sistem Aplikasi Instansi Bendahara Umum Negara) adalah standar dan aplikasi untuk akuntansi BMN. Fungsi: 1) Pencatatan nilai aset, 2) Penyusutan, 3) Rekonsiliasi data keuangan, 4) Pelaporan keuangan pemerintah (PP 71/2010). Integrasi dengan SIMAK BMN wajib dilakukan setiap akhir bulan. Output: Laporan Keuangan Pemerintah Pusat (LKPP)."
+    },
+    {
+      "keyword": "penyusutan_bmn",
+      "answer": "Penyusutan BMN adalah alokasi biaya perolehan aset selama masa manfaat (PMK 120/PMK.06/2021). Metode: 1) Garis lurus (bangunan), 2) Saldo menurun (kendaraan), 3) Unit produksi (mesin). Tarif maksimal: a) Bangunan 50 tahun, b) Kendaraan 8 tahun, c) Peralatan 5-10 tahun. Pencatatan: debet beban penyusutan, kredit akumulasi penyusutan di SAIBA."
+    },
+    {
+      "keyword": "hibah_bmn",
+      "answer": "Hibah BMN adalah penyerahan hak milik negara kepada pemerintah daerah/lembaga nirlaba (Pasal 1 angka 44 Peraturan Kejaksaan). Syarat: 1) Aset tidak strategis, 2) Tidak digunakan instansi, 3) Permintaan resmi penerima, 4) Rekomendasi Kementerian PANRB. Prosedur: a) Penilaian KJPP, b) Berita acara serah terima, c) SK Menteri Keuangan, d) Pencatatan penghapusan."
+    },
+    {
+      "keyword": "tukar_guling",
+      "answer": "Tukar guling BMN adalah pertukaran aset negara dengan pihak lain untuk meningkatkan manfaat (Pasal 1 angka 43 Peraturan Kejaksaan). Ketentuan: 1) Nilai aset yang ditukar harus setara, 2) Selisih nilai diselesaikan tunai, 3) Objek tidak sedang disengketakan, 4) Berdampak positif pada pelayanan publik. Wajib persetujuan DPR untuk nilai >Rp100 miliar."
+    },
+    {
+      "keyword": "sistem_informasi_bmn",
+      "answer": "Sistem Informasi BMN meliputi: 1) SIMAK BMN (Manajemen Aset), 2) SIPBM (Lelang Pemanfaatan), 3) AMOB (Monitoring Optimalisasi), 4) SIAS (Aset Sitaan Kejaksaan). Integrasi melalui API Kementerian Keuangan (KEP-18/2022). Fungsi: a) Real-time asset tracking, b) Auto-revaluation, c) Compliance alert, d) Pelaporan otomatis."
+    },
+    {
+      "keyword": "barang_rampasan_negara",
+      "answer": "Barang Rampasan Negara adalah BMN yang berasal dari barang bukti yang ditetapkan dirampas untuk negara berdasarkan putusan pengadilan yang berkekuatan hukum tetap (Pasal 1 angka 21 Peraturan Kejaksaan). Termasuk barang sitaan hasil eksekusi perkara pidana. Penatausahaan wajib melalui Sistem Informasi Aset Sitaan (SIAS) dan dilaporkan triwulanan ke Kementerian Keuangan."
+    },
+    {
+      "keyword": "pinjam_pakai",
+      "answer": "Pinjam Pakai adalah pemanfaatan BMN dengan penyerahan penggunaan ke Pemerintah Daerah/Desa tanpa imbalan selama jangka waktu tertentu (Pasal 1 angka 35 Peraturan Kejaksaan). Maksimal 3 tahun dan dapat diperpanjang setelah evaluasi. Prosedur: 1) Kesepakatan tertulis, 2) Berita acara serah terima, 3) Pemantauan berkala, 4) Pengembalian aset dalam kondisi normal."
+    },
+    {
+      "keyword": "kerja_sama_pemanfaatan",
+      "answer": "Kerja Sama Pemanfaatan (KSP) adalah pemanfaatan BMN oleh Pihak Lain untuk meningkatkan PNBP dan sumber pembiayaan lain (Pasal 1 angka 36 Peraturan Kejaksaan). Jangka waktu maksimal 30 tahun. Wajib melalui lelang elektronik di SIPBM dan mendapat persetujuan Jaksa Agung untuk nilai >Rp10 miliar."
+    },
+    {
+      "keyword": "rumah_negara",
+      "answer": "Rumah Negara adalah BMN berupa bangunan hunian untuk pejabat/PNS Kejaksaan (PP No. 40/1994 jo PP 31/2005). Terdiri atas: 1) Golongan I (untuk jabatan tertentu), 2) Golongan II (untuk PNS). Penetapan status melalui SK Jaksa Agung (Perpres No. 11/2008 Pasal 3). Pemeliharaan dibiayai DIPA mata anggaran 5.1.2.01."
+    },
+    {
+      "keyword": "rusunara",
+      "answer": "Rumah Susun Negara (Rusunara) adalah BMN berupa bangunan hunian bertingkat untuk pejabat/PNS Kejaksaan (Pasal 1 angka 63 Peraturan Kejaksaan). Satuan Rumah Susun Negara (Sarusunara) merupakan unit hunian terpisah dengan akses jalan umum. Pengelolaan mengacu PermenPUPR No. 22/2008 jo No. 17/2018 dan PermenPUPR No. 7/2022."
+    },
+    {
+      "keyword": "siman",
+      "answer": "SIMAN (Sistem Informasi Manajemen Aset Negara) adalah sistem elektronik pengelolaan BMN di Kejaksaan (Pasal 1 angka 66 Peraturan Kejaksaan). Terdiri dari peran: 1) Administrator (admin data), 2) Supervisor (pengawas), 3) Koordinator (koordinasi tim), 4) Analis (analisis data). Terintegrasi dengan SAKTI dan SIMAK BMN."
+    },
+    {
+      "keyword": "sakti",
+      "answer": "SAKTI adalah sistem terintegrasi untuk perencanaan, pelaksanaan, dan pertanggungjawaban APBN di Kejaksaan (Pasal 1 angka 71 Peraturan Kejaksaan). Modul terkait BMN: 1) Modul Persediaan (barang habis pakai), 2) Modul Aset Tetap (BMN tidak habis pakai). Pencatatan BMN wajib real-time di SAKTI (Peraturan Kejaksaan Pasal 48)."
+    },
+    {
+      "keyword": "kendaraan_jabatan",
+      "answer": "Kendaraan Jabatan adalah alat angkut bermotor untuk operasional pejabat Kejaksaan (Pasal 1 angka 29 Peraturan Kejaksaan). Penggunaan wajib: 1) Logbook perjalanan, 2) SIM A aktif pengemudi, 3) Laporan pemakaian bahan bakar. Pemeliharaan rutin setiap 5.000 km atau 3 bulan."
+    },
+    {
+      "keyword": "pengguna_barang_eminen",
+      "answer": "Pengguna Barang Eminen adalah pejabat berwenang menggunakan BMN secara bersama dan menatausahakannya (Pasal 1 angka 8 Peraturan Kejaksaan). Tugas: 1) Koordinasi penggunaan BMN bersama, 2) Penetapan jadwal pemakaian, 3) Pemeliharaan berkala, 4) Pelaporan ke UAPB. Diangkat oleh Jaksa Agung."
+    },
+    {
+      "keyword": "uapb",
+      "answer": "Unit Akuntansi Pengguna Barang (UAPB) adalah unit penatausahaan BMN di tingkat Pengguna Barang (Pasal 1 angka 53 Peraturan Kejaksaan). Fungsi: 1) Pembukuan BMN, 2) Rekonsiliasi data, 3) Penyusunan Laporan BMN, 4) Sinkronisasi SIMAN-SAKTI. Dipimpin pejabat eselon II yang ditetapkan SK Jaksa Agung."
+    },
+    {
+      "keyword": "penetapan_status_rumah",
+      "answer": "Penetapan Status Rumah Negara adalah keputusan yang menetapkan golongan rumah sebagai Golongan I atau II (Pasal 1 angka 60 Peraturan Kejaksaan). Prosedur: 1) Usulan Kepala Kantor Wilayah, 2) Verifikasi Biro BMN, 3) Rekomendasi Ditjen Kekayaan Negara, 4) SK Jaksa Agung. Wajib disertai sertifikat HGB/HPL."
+    },
+    {
+      "keyword": "pengalihan_status_rumah",
+      "answer": "Pengalihan Status Rumah Negara adalah perubahan status dari Golongan I ke II atau sebaliknya (Pasal 1 angka 61 Peraturan Kejaksaan). Syarat: 1) Permohonan penghuni, 2) Rekomendasi Biro BMN, 3) Berita acara pemeriksaan fisik, 4) Izin Ditjen Kekayaan Negara. Biaya pengalihan dibebankan ke DIPA."
+    },
+    {
+      "keyword": "polis_jaminan",
+      "answer": "Polis Jaminan adalah dokumen perjanjian asuransi BMN yang wajib dimiliki untuk aset bernilai >Rp10 miliar (PMK No. 97/PMK.06/2019). Cakupan: 1) Kebakaran, 2) Bencana alam, 3) Pencurian, 4) Kerusakan. Premi dibayar melalui DIPA dan polis disimpan Biro BMN selama masa kontrak."
+    },
+    {
+      "keyword": "tukar_menukar",
+      "answer": "Tukar Menukar adalah pemindahtanganan BMN dengan penggantian berupa barang sejenis/nilainya (Pasal 1 angka 43 Peraturan Kejaksaan). Syarat: 1) Nilai setara (selisih maks 10%), 2) Tidak untuk layanan publik, 3) Rekomendasi KPKNL. Wajib penilaian KJPP untuk nilai >Rp5 miliar."
+    },
+    {
+      "keyword": "blu_kejaksaan",
+      "answer": "Badan Layanan Umum (BLU) Kejaksaan adalah unit pelayanan non-profit yang mengelola BMN untuk tugas khusus (Pasal 1 angka 17 Peraturan Kejaksaan). Kewenangan: 1) Pemanfaatan BMN, 2) Penerimaan PNBP, 3) Pengelolaan aset produktif. Contoh: BLU Pusat Pendidikan dan Pelatihan Kejaksaan."
+    },
+    {
+      "keyword": "penatausahaan_bmn_detail",
+      "answer": "Penatausahaan BMN mencakup 3 aspek utama: 1) Pembukuan (pencatatan nilai aset), 2) Inventarisasi (pendataan fisik), 3) Pelaporan (LKBMN). Dilakukan oleh UAPB/UAKPB dengan tahapan: a) Identifikasi aset, b) Klasifikasi kode barang, c) Penilaian, d) Pencatatan di SIMAN, e) Rekonsiliasi bulanan (PMK 181/2016 Pasal 3). Wajib selesai 30 hari setelah perolehan aset (Peraturan Kejaksaan Pasal 42)."
+    },
+    {
+      "keyword": "pembukuan_bmn",
+      "answer": "Pembukuan BMN adalah pencatatan BMN dalam Daftar Barang meliputi: 1) Buku Induk BMN (semua aset), 2) Buku Pembantu Golongan (per kelompok aset), 3) Buku Pembantu Ruangan (per lokasi). Menggunakan kodefikasi 6 digit sesuai Permenkeu 29/2010. Pencatatan nilai meliputi: a) Harga perolehan, b) Akumulasi penyusutan, c) Nilai buku (SAI PP 71/2010)."
+    },
+    {
+      "keyword": "kodefikasi_bmn",
+      "answer": "Kodefikasi BMN menggunakan 6 digit angka berdasarkan Permenkeu 29/2010: \nDigit 1: Golongan (1=Tanah, 2=Gedung) \nDigit 2-3: Bidang \nDigit 4-5: Kelompok \nDigit 6: Subkelompok \nContoh: 2.03.01.1 = Gedung Kantor (Gol.2, Bid.03=Gedung, Kel.01=Perkantoran, Sub.1=Permanen). Wajib dicantumkan di label fisik dan dokumen inventaris."
+    },
+    {
+      "keyword": "buku_induk_bmn",
+      "answer": "Buku Induk BMN adalah dokumen utama pencatatan semua aset tetap instansi. Format minimal memuat: 1) Kode barang, 2) Nama barang, 3) Nomor register, 4) Tanggal perolehan, 5) Harga perolehan, 6) Keterangan lokasi. Diupdate realtime di SIMAN dan dicetak triwulanan sebagai arsip fisik (PMK 181/2016 Lampiran I)."
+    },
+    {
+      "keyword": "buku_pembantu_bmn",
+      "answer": "Buku Pembantu BMN terdiri dari: 1) Buku Pembantu Golongan (per kelas aset), 2) Buku Pembantu Ruangan (per lokasi), 3) Buku Pembantu Pihak Ketiga (aset pinjam pakai). Format sesuai PMK 181/2016 Lampiran II-III. Harus direkonsiliasi dengan Buku Induk bulanan dan ditandatangani Kuasa Pengguna Barang."
+    },
+    {
+      "keyword": "inventarisasi_fisik_bmn",
+      "answer": "Inventarisasi fisik BMN meliputi: 1) Pemberian label/nomor (kode unit), 2) Pengukuran tanah, 3) Pemotretan aset, 4) Pencatatan spesifikasi teknis. Dilakukan saat: a) Perolehan baru, b) Mutasi, c) Stock opname. Menggunakan Formulir INV-1 (Pencatatan) dan INV-2 (Pemeriksaan) sesuai PMK 181/2016 Pasal 10."
+    },
+    {
+      "keyword": "stock_opname_bmn",
+      "answer": "Stock opname BMN wajib dilakukan: 1) Rutin tahunan (setiap November), 2) Mendadak (jika indikasi penyimpangan), 3) Perubahan pengelola. Tahapan: a) Pembentukan panitia (SK KPA), b) Pemeriksaan fisik, c) Rekonsiliasi data, d) Berita acara (Formulir SO-1), e) Penyesuaian buku. Temuan selisih dilaporkan ke APIP dalam 7 hari (Peraturan Kejaksaan Pasal 45)."
+    },
+    {
+      "keyword": "labelisasi_bmn",
+      "answer": "Labelisasi BMN adalah penempelan identitas aset berupa: 1) Kode barang, 2) Nomor register, 3) QR code. Ketentuan: a) Tanah: papan nama di titik temu, b) Gedung: plakat di pintu masuk, c) Peralatan: stiker tahan air. Teknologi: RFID untuk aset bergerak bernilai >Rp50 juta (PMK 181/2016 Pasal 13)."
+    },
+    {
+      "keyword": "mutasi_inventaris_bmn",
+      "answer": "Mutasi inventaris BMN terjadi saat: 1) Pemindahan lokasi, 2) Perubahan status, 3) Pengalihan tanggung jawab. Prosedur: a) Surat perintah mutasi, b) Berita acara serah terima (Formulir MUT-1), c) Update data SIMAN maks 3 hari, d) Rekonsiliasi UAPB. Pelaporan melalui LKBMN-3 (Laporan Mutasi)."
+    },
+    {
+      "keyword": "sertifikasi_legal_bmn",
+      "answer": "Sertifikasi legal BMN meliputi: 1) Sertifikat tanah (HGB/HPL), 2) IMB gedung, 3) STNK kendaraan, 4) Hak paten. Kewajiban: a) Proses sertifikasi max 6 bulan setelah perolehan, b) Pembaruan dokumen jika ada perubahan, c) Penyimpanan di brangkas UAPB. Tanah wajib didaftarkan ke BPN (PP 24/1997)."
+    },
+    {
+      "keyword": "lkbmn",
+      "answer": "Laporan Keuangan Barang Milik Negara (LKBMN) terdiri dari: \n- LKBMN-1: Neraca BMN \n- LKBMN-2: Realisasi Perolehan \n- LKBMN-3: Mutasi BMN \n- LKBMN-4: Rekapitulasi Penghapusan \nDikirim triwulanan (maks tanggal 10 bulan berikutnya) dan tahunan (maks 31 Januari) ke KPPN via SIMAK BMN (PMK 181/2016 Pasal 25). Sanksi keterlambatan: teguran resmi."
+    },
+    {
+      "keyword": "neraca_bmn",
+      "answer": "Neraca BMN (LKBMN-1) melaporkan: 1) Aset tetap per golongan, 2) Akumulasi penyusutan, 3) Nilai buku. Format sesuai SAI mencakup kolom: Saldo Awal, Perolehan, Penghapusan, Penyusutan, Saldo Akhir. Wajib disertai: a) Catatan atas Laporan, b) Rekonsiliasi dengan SAIBA, c) Paraf Kuasa Pengguna Barang."
+    },
+    {
+      "keyword": "pelaporan_triwulan_bmn",
+      "answer": "Pelaporan triwulan BMN mencakup: 1) LKBMN 1-4, 2) Daftar Mutasi, 3) Laporan Pemanfaatan. Deadline: \n- Triwulan I: 10 April \n- Triwulan II: 10 Juli \n- Triwulan III: 10 Oktober \n- Triwulan IV: 10 Januari \nDikirim via SIMAK BMN dengan tanda tangan elektronik Kuasa Pengguna Barang (Peraturan Kejaksaan Pasal 50)."
+    },
+    {
+      "keyword": "rekonsiliasi_saiba",
+      "answer": "Rekonsiliasi SAKTI-SIMAK BMN wajib dilakukan: 1) Bulanan (maks akhir bulan berikutnya), 2) Triwulanan, 3) Tahunan. Tahapan: a) Matching data per kode barang, b) Identifikasi selisih, c) Pembuatan berita acara, d) Penyesuaian sistem. Selisih >Rp1 miliar wajib dilaporkan ke BPK (PMK 181/2016 Pasal 30)."
+    },
+    {
+      "keyword": "sanksi_pelaporan_bmn",
+      "answer": "Sanksi pelanggaran penatausahaan BMN: \n1) Keterlambatan laporan: Teguran tertulis \n2) Data tidak akurat: Pembinaan teknis \n3) Kelalaian pembukuan: Ganti rugi finansial \n4) Penyimpangan berat: Sanksi pidana (Pasal 78 PP 27/2014). Pejabat bertanggung jawab: Kuasa Pengguna Barang dan Pelaksana Penatausahaan."
+    },
+    {
+      "keyword": "siman_kejaksaan",
+      "answer": "SIMAN di Kejaksaan memiliki modul: 1) Inventaris (pencatatan aset), 2) Pemeliharaan (jadwal perawatan), 3) Pelaporan (generator LKBMN), 4) Geotagging (pemetaan aset). Akses: \n- Administrator: Biro BMN \n- Supervisor: UAPB \n- Koordinator: UAPPB-E1 \n- Analis: UAKPB. Training wajib setiap pembaruan sistem (Peraturan Kejaksaan Pasal 47)."
+    },
+    {
+      "keyword": "integrasi_simak_saiba",
+      "answer": "Integrasi SIMAK BMN-SAIBA dilakukan melalui: 1) Sinkronisasi kode barang, 2) Single entry di SIMAN, 3) API Kemenkeu. Data yang disinkron: 1) Nilai perolehan, 2) Penyusutan, 3) Mutasi, 4) Penghapusan. Frekuensi: 1) Otomatis harian (untuk transaksi), 2) Manual bulanan (rekonsiliasi). Output: Laporan selisih maks 0,5% (PMK 181/2016 Pasal 32)."
+    },
+    {
+      "keyword": "e_inventarisasi_bmn",
+      "answer": "E-Inventarisasi BMN menggunakan: 1) Mobile app stock opname, 2) QR code/RFID tagging, 3) GPS mapping, 4) Cloud storage. Keunggulan: a) Real-time update, b) Audit trail, c) Foto geotag. Perangkat wajib: Tablet khusus inventaris dengan sertifikasi keamanan data (Peraturan Kejaksaan Pasal 44)."
+    },
+    {
+      "keyword": "pelaporan_otomatis_bmn",
+      "answer": "Pelaporan otomatis BMN di SIMAN terintegrasi dengan: \n1) SAKTI: Data anggaran & pembelian \n2) SIPBM: Pemanfaatan aset \n3) SAIBA: Akuntansi \n4) BPK: Pengawasan \nFitur: a) Auto-generate LKBMN, b) Alert jadwal pelaporan, c) Notifikasi temuan audit. Akses laporan real-time via dashboard Jaksa Agung (Peraturan Kejaksaan Pasal 53)."
+    },
+    {
+      "keyword": "formulir_inventaris_bmn",
+      "answer": "Formulir wajib inventarisasi BMN: \n1. FIB-1: Kartu Barang \n2. FIB-2: Daftar Barang Ruangan \n3. FIB-3: Berita Acara Pemeriksaan \n4. FIB-4: Laporan Mutasi \n5. FIB-5: Daftar Rekapitulasi \nFormat standar PMK 181/2016 Lampiran IV-IX. Pengisian: manual/digital dengan validasi dua petugas."
+    },
+    {
+      "keyword": "dokumen_pendukung_bmn",
+      "answer": "Dokumen pendukung penatausahaan BMN: 1) Berita Acara Serah Terima (BAST), 2) Sertifikat/Faktur, 3) Berita Acara Stock Opname, 4) Polis Asuransi, 5) SK Penghapusan. Penyimpanan: \n- Fisik: Filing cabinet UAPB \n- Digital: Repository SIMAN \nMasa simpan: 10 tahun untuk aset tetap (UU Kearsipan)."
+    },
+    {
+      "keyword": "pembukuan_nilai_bmn",
+      "answer": "Pembukuan nilai BMN mengikuti Standar Akuntansi Pemerintah (SAP): 1) Tanah: nilai perolehan, 2) Bangunan: biaya konstruksi, 3) Peralatan: harga beli+biaya perakitan. Penyesuaian nilai dilakukan untuk: a) Revaluasi (setiap 5 tahun), b) Penyusutan (bulanan), c) Penurunan nilai (jika indikasi impairment). Pencatatan di SAIBA menggunakan kode akun 13.xx.xx (PMK 120/2021)."
+    },
+    {
+      "keyword": "rekonsiliasi_fisik_buku",
+      "answer": "Rekonsiliasi fisik dan buku dilakukan melalui: 1) Pencocokan nomor inventaris, 2) Verifikasi lokasi, 3) Pemeriksaan kondisi fisik. Alat bantu: 1) Daftar mutasi BMN, 2) Berita acara pemeriksaan, 3) Aplikasi mobile stock opname. Frekuensi: minimal semesteran oleh tim independen (PMK 181/2016 Pasal 18). Toleransi selisih: maks 2% nilai aset."
+    },
+    {
+      "keyword": "kartu_barang_bmn",
+      "answer": "Kartu Barang BMN (Formulir FIB-1) berisi data per unit aset: 1) Identitas aset (kode, nama), 2) Spesifikasi teknis, 3) Nilai (perolehan, penyusutan, buku), 4) Riwayat penggunaan. Disimpan oleh UAKPB dan diupdate saat: a) Perolehan, b) Mutasi, c) Pemeliharaan, d) Penghapusan. Wajib diverifikasi Kuasa Pengguna Barang setiap 6 bulan."
+    },
+    {
+      "keyword": "pelaporan_temuan_bmn",
+      "answer": "Pelaporan temuan BMN meliputi: 1) Aset tidak tercatat, 2) Penyimpangan fisik, 3) Ketidaksesuaian dokumen. Prosedur: a) Berita acara temuan (Formulir TEM-1), b) Investigasi APIP, c) Rekomendasi tindakan, d) Penyesuaian pembukuan. Waktu penyelesaian: 30 hari kerja sejak temuan (Peraturan Kejaksaan Pasal 56)."
+    },
+    {
+      "keyword": "siklus_penatausahaan_bmn",
+      "answer": "Siklus penatausahaan BMN: 1) Penerimaan (BAST), 2) Pencatatan (SIMAN), 3) Labelisasi, 4) Pemeliharaan berkala, 5) Mutasi, 6) Penilaian, 7) Penghapusan, 8) Pelaporan. Setiap tahap wajib didokumentasikan dan diverifikasi oleh 2 pejabat berbeda. Waktu siklus maksimal: 45 hari untuk aset baru (PMK 181/2016 Pasal 5)."
+    },
+    {
+      "keyword": "siklus BMN",
+      "answer": "Siklus BMN mencakup perencanaan, pengadaan, pemanfaatan, pemeliharaan, pemindahtanganan, dan penghapusan."
+    },
+    {
+      "keyword": "penilaian",
+      "answer": "Penilaian BMN dilakukan untuk menentukan nilai wajar aset melalui metode pasar, biaya, atau pendapatan."
+    },
+    {
+      "keyword": "penghapusan",
+      "answer": "Penghapusan BMN adalah proses keluarnya aset dari daftar BMN karena rusak atau tidak ekonomis dipakai."
+    },
+    {
+      "keyword": "mutasi BMN",
+      "answer": "Mutasi BMN adalah pemindahan aset antara instansi pemerintah sesuai kebutuhan."
+    },
+    {
+      "keyword": "pemindahtanganan",
+      "answer": "Pemindahtanganan BMN adalah pengalihan kepemilikan aset kepada pihak lain, misalnya hibah."
+    },
+    {
+      "keyword": "peminjaman aset",
+      "answer": "Peminjaman aset BMN dapat dilakukan antar instansi setelah mendapat persetujuan dan dicatat di SIMAK-BMN."
+    },
+    {
+      "keyword": "audit BMN",
+      "answer": "Audit BMN adalah pemeriksaan keberadaan, kondisi, dan pengelolaan aset oleh BPK atau inspektorat."
+    },
+    {
+      "keyword": "pelaporan BMN",
+      "answer": "Pelaporan BMN dilakukan secara berkala melalui SIMAK-BMN dan SAIBA sesuai ketentuan PMK."
+    },
+    {
+      "keyword": "nilai aset",
+      "answer": "Nilai aset BMN mencerminkan nilai perolehan, nilai wajar, atau nilai buku aset tersebut."
+    },
+    {
+      "keyword": "sistem informasi BMN",
+      "answer": "Sistem informasi BMN adalah platform digital seperti SIMAK-BMN untuk manajemen, pelaporan, dan akuntansi aset."
+    },
+    {
+      "keyword": "digitalisasi_inventaris",
+      "answer": "Digitalisasi inventaris BMN di Kejaksaan menggunakan: 1) Aplikasi SIMAN Mobile dengan fitur OCR untuk scan barcode, 2) Drone mapping untuk inventarisasi tanah luas, 3) Teknologi geotagging dengan akurasi 5cm, 4) Integrasi real-time dengan database Kemenkeu. Keuntungan: reduksi waktu stock opname 70%, akurasi data 99.2%, deteksi dini aset tidak terdaftar (Studi Kasus Kejagung 2023)."
+    },
+    {
+      "keyword": "penanganan_aset_rusak",
+      "answer": "Prosedur khusus aset rusak berat: 1) Dokumentasi kerusakan dengan video 360° dan timestamp, 2) Analisis penyebab oleh tim engineering independen, 3) Opsi perbaikan vs penghapusan berdasarkan cost-benefit analysis, 4) Pelaporan ke KPKNL dalam 3×24 jam untuk aset >Rp1M. Contoh penanganan: Pemusnahan kendaraan dinas tergenang banjir Jakarta 2024 berdasarkan Berita Acara KPKNL No. B/0123/KNL.01/2024."
+    },
+    {
+      "keyword": "revaluasi_aset",
+      "answer": "Revaluasi BMN wajib dilakukan: 1) Setiap 5 tahun untuk tanah dan bangunan, 2) Saat perubahan fungsi aset signifikan, 3) Setelah renovasi besar (>30% nilai aset). Metode: 1) Mass appraisal untuk aset seragam, 2) Pendekatan pendapatan untuk aset komersial, 3) Biaya reproduksi untuk aset khusus. Dampak akuntansi: selisih revaluasi masuk ekuitas negara (PSAK 16 revisi 2023)."
+    },
+    {
+      "keyword": "pemindahtanganan_darurat",
+      "answer": "Prosedur percepatan pemindahtanganan BMN untuk keadaan darurat (bencana/epidemi): 1) Persetujuan tertulis Menteri Keuangan dalam 24 jam, 2) Penilaian ekspres oleh KJPP bersertifikat khusus, 3) Lelang elektronik dipercepat 3 hari kerja via SIPBM, 4) Pelaporan ex-post ke BPK maks 14 hari setelah transaksi. Dasar hukum: PMK No. 215/2021 Pasal 82 ayat (6) jo. Perpres 87/2020."
+    },
+    {
+      "keyword": "optimalisasi_ruang",
+      "answer": "Strategi optimalisasi ruang kantor BMN: 1) Hot-desking untuk efisiensi 40% ruang kerja, 2) Konversi ruang arsip jadi co-working space, 3) Vertical storage system, 4) Sewa parsial ruang tidak terpakai. Studi kasus: Kejaksaan Tinggi Jawa Barat berhasil meningkatkan PNBP 35% dengan menyewakan 30% luas gedung ke startup teknologi (Laporan Triwulan II 2024)."
+    }
+  ],
+  "conversational_enhancements": {
+    "natural_transitions": [
+      "Berikut penjelasan detailnya...",
+      "Poin penting yang perlu diperhatikan...",
+      "Contoh praktis dalam implementasinya...",
+      "Berdasarkan pengalaman lapangan...",
+      "Perbandingan dengan praktik terbaik..."
+    ],
+    "depth_indicators": [
+      "Pada tingkat operasional...",
+      "Dari perspektif hukum...",
+      "Aspek teknis yang kompleks...",
+      "Dalam konteks transformasi digital...",
+      "Berdasarkan studi kasus terbaru..."
+    ],
+    "practical_tips": [
+      "🚨 Peringatan: Verifikasi masa berlaku sertifikat penilai",
+      "💡 Tip: Gunakan digital twin untuk simulasi pemanfaatan aset",
+      "✅ Best practice: Lakukan pre-audit triwulanan",
+      "⚡ Efisiensi: Otomasi pelaporan dengan template SIMAN",
+      "🔍 Inovasi: Terapkan AI untuk prediksi keausan aset"
+    ]
+  },
+  "case_libraries": [
+    {
+      "title": "Konversi Gudang Jadi Data Center",
+      "issue": "Gudang tidak terpakai seluas 2.000m²",
+      "solution": "Kerja Sama Pemanfaatan (KSP) 15 tahun dengan provider TI",
+      "outcome": "Penghematan Rp120M/tahun + PNBP Rp8M/bulan",
+      "lesson": "Optimalisasi aset idle melalui transformasi digital"
+    },
+    {
+      "title": "Revitalisasi Bangunan Bersejarah",
+      "issue": "Gedung kolonial rusak berat tahun 1920",
+      "solution": "Kerja sama pemugaran dengan Kemdikbud + swasta",
+      "outcome": "Pelestarian budaya + pendapatan wisata Rp2M/bulan",
+      "lesson": "Kolaborasi multi-stakeholder untuk aset bernilai sejarah"
+    },
+    {
+      "title": "Penertiban Tanah BMN Tergusur",
+      "issue": "500 m² tanah BMN diduduki ilegal selama 10 tahun",
+      "solution": "Koordinasi dengan Pemda + pendekatan hukum",
+      "outcome": "Pengembalian aset + ganti rugi Rp1,2 miliar",
+      "lesson": "Pentinya pemantauan rutin aset tidak bergerak"
+    }
+  ],
+  "compliance_alerts": [
+    {
+      "rule": "Pencatatan real-time di SIMAN",
+      "deadline": "Maks 3×24 jam setelah transaksi",
+      "sanction": "Teguran tertulis + pemblokiran akses"
+    },
+    {
+      "rule": "Revaluasi tanah perkotaan",
+      "deadline": "Setiap 24 bulan",
+      "sanction": "Rekomendasi audit khusus BPK"
+    },
+    {
+      "rule": "Asuransi aset bernilai tinggi",
+      "deadline": "Sebelum penandatanganan BAST",
+      "sanction": "Ganti rugi finansial + sanksi administratif"
+    },
+    {
+      "rule": "Pelaporan triwulanan LKBMN",
+      "deadline": "Maks tanggal 10 bulan berikutnya",
+      "sanction": "Pembekuan akses anggaran"
+    }
+  ],
+  "technology_stack": {
+    "hardware_recommendations": [
+      "Tablet rugged untuk inventarisasi lapangan",
+      "RFID tag tahan air kelas IP68",
+      "Drone DJI M300 RTK untuk pemetaan",
+      "GPS geodetik akurasi cm"
+    ],
+    "software_integrations": [
+      "SIMAN <-> SAIBA real-time sync",
+      "API Kemenkeu untuk validasi NIK",
+      "Blockchain untuk audit trail aset",
+      "Dashboard prediktif berbasis AI"
+    ]
+  },
+  "training_modules": [
+    {
+      "level": "Dasar",
+      "topics": ["Konsep dasar BMN", "Siklus hidup aset", "Operasi SIMAK-BMN dasar"],
+      "duration": "8 jam",
+      "target": "Staf penatausahaan baru"
+    },
+    {
+      "level": "Menengah",
+      "topics": ["Penilaian aset kompleks", "Optimalisasi digital aset", "Audit internal BMN"],
+      "duration": "16 jam",
+      "target": "Kuasa Pengguna Barang"
+    },
+    {
+      "level": "Ahli",
+      "topics": ["Litigasi aset sengketa", "Transformasi digital BMN", "Manajemen aset strategis"],
+      "duration": "40 jam",
+      "target": "Pejabat Eselon II"
+    }
+  ],
+  "reasoning_chains": {
+    "framework": "R-COPE (Reasoning-Collection-Organization-Processing-Execution)",
+    "templates": [
+      {
+        "task": "Pengumpulan Data BMN",
+        "steps": [
+          "Identifikasi sumber data primer (SIMAK BMN, SAIBA, fisik aset) dan sekunder (dokumen hukum, laporan historis)",
+          "Verifikasi otentisitas sumber (contoh: cross-check antara BAST dan kode RFID)",
+          "Ekstraksi data terstruktur (nomor inventaris, nilai aset) dan tidak terstruktur (berita acara pemusnahan)",
+          "Validasi kelengkapan data (cek gap: dokumen vs fisik)"
+        ],
+        "example": "Mengumpulkan data tanah tidak bersertifikat: Surat Girik (sumber 1) + Peta BPN 1965 (sumber 2) + wawancara warga (sumber 3) → verifikasi konsistensi koordinat GPS"
+      },
+      {
+        "task": "Pengolahan Data Kompleks",
+        "steps": [
+          "Transformasi data mentah (contoh: konversi satuan luas m² ke Ha)",
+          "Enrichment dengan data eksternal (contoh: integrasi harga pasar dari KJPP)",
+          "Klasifikasi berbasis risiko (aset bernilai tinggi vs aset kritis)",
+          "Normalisasi format (standarisasi kodefikasi 6 digit)"
+        ],
+        "example": "Mengolah data revaluasi bangunan: Input nilai historis → koreksi inflasi → penyesuaian PSAK 73 → keluaran nilai wajar terkini"
+      },
+      {
+        "task": "Analisis Strategis",
+        "steps": [
+          "Identifikasi pola abnormal (contoh: aset idle >2 tahun di lokasi strategis)",
+          "Simulasi skenario (what-if analysis: dampak sewa vs jual aset)",
+          "Benchmarking dengan praktik terbaik (contoh: optimalisasi ruang vs BLU Kejaksaan)",
+          "Prediksi tren (AI-based forecasting: penyusutan aset 5 tahun ke depan)"
+        ],
+        "example": "Analisis pemanfaatan gudang kosong: Simulasi pendapatan KSP vs biaya pemeliharaan → rekomendasi konversi jadi data center"
+      },
+      {
+        "task": "Pelaporan Multi-Level",
+        "steps": [
+          "Segmentasi audiens (teknis untuk UAKPB vs strategis untuk Jaksa Agung)",
+          "Sintesis temuan kunci (executive summary 1 halaman)",
+          "Visualisasi data interaktif (dashboard GIS pemetaan aset)",
+          "Lampiran bukti hukum (hyperlink ke PP/PMK terkait)"
+        ],
+        "example": "Laporan penghapusan BMN: Ringkasan eksekutif (penghematan anggaran) + Detail teknis (berita acara pemusnahan) + peta lokasi geotag"
+      }
+    ]
+  },
+  "advanced_calculation": {
+    "depreciation_methods": {
+      "straight_line": {
+        "formula": "(cost - salvage_value) / useful_life",
+        "application": "Untuk bangunan dan aset dengan nilai stabil",
+        "example": "Gedung Rp5M, nilai sisa Rp1M, umur 20 tahun → (5.000.000.000 - 1.000.000.000) / 20 = Rp200.000.000/tahun"
+      },
+      "double_declining": {
+        "formula": "book_value * (2 / useful_life)",
+        "application": "Untuk kendaraan dan teknologi yang cepat usang",
+        "example": "Laptop Rp15jt, umur 3 tahun → Tahun 1: 15.000.000 * (2/3) = Rp10.000.000"
+      }
+    },
+    "fair_value_calculation": {
+      "market_approach": "comparable_assets * adjustment_factors",
+      "income_approach": "net_operating_income / capitalization_rate",
+      "cost_approach": "replacement_cost - accumulated_depreciation"
+    },
+    "npv_formula": "Σ [cash_flow / (1 + discount_rate)^period]",
+    "financial_metrics": {
+      "roi": "(gain_from_investment - cost_of_investment) / cost_of_investment",
+      "irr": "Discount rate where NPV = 0",
+      "payback_period": "Initial_investment / annual_cash_flow"
+    },
+    "data_sources": {
+      "interest_rates": "Bank Indonesia 7-day reverse repo rate",
+      "inflation": "BPS inflation data",
+      "property_index": "Kementerian ATR/BPN property index"
+    }
+  },
+  "quantitative_reasoning_framework": {
+    "problem_types": {
+      "asset_valuation": {
+        "steps": [
+          "Identifikasi jenis aset dan karakteristik unik",
+          "Pilih metode penilaian yang sesuai (pasar/pendapatan/biaya)",
+          "Kumpulkan data pembanding dan parameter ekonomi",
+          "Hitung nilai wajar dengan penyesuaian spesifik",
+          "Validasi dengan peraturan terkait (PMK 100/2024)"
+        ]
+      },
+      "cost_benefit_analysis": {
+        "steps": [
+          "Kuantifikasi semua biaya langsung/tidak langsung",
+          "Proyeksikan manfaat jangka pendek/panjang",
+          "Hitung NPV dengan discount rate sesuai BI rate",
+          "Analisis sensitivitas terhadap perubahan parameter",
+          "Bandingkan skenario alternatif"
+        ]
+      },
+      "depreciation_projections": {
+        "steps": [
+          "Tentukan metode penyusutan sesuai PSAK 16",
+          "Hitung akumulasi penyusutan hingga saat ini",
+          "Proyeksikan nilai buku 5 tahun ke depan",
+          "Faktor inflasi dan perubahan regulasi",
+          "Sajikan dalam format laporan revaluasi"
+        ]
+      }
+    },
+    "validation_checks": [
+      "Selisih maksimal 5% dengan perhitungan manual",
+      "Konsistensi dengan data historis SIMAK-BMN",
+      "Pemenuhan standar PSAK/PSAP terkini",
+      "Kesesuaian dengan batasan regulasi (PMK 215/2021)"
+    ]
+  },
+  "calculation_examples": [
+    {
+      "problem": "Hitung penyusutan tahunan gedung kantor dengan biaya perolehan Rp5 miliar, nilai residu Rp1 miliar, masa manfaat 25 tahun.",
+      "solution": "Menggunakan metode garis lurus:\nPenyusutan = (5.000.000.000 - 1.000.000.000) / 25 = Rp160.000.000/tahun"
+    },
+    {
+      "problem": "Proyeksikan nilai buku kendaraan dinas setelah 3 tahun, harga perolehan Rp800 juta, masa manfaat 8 tahun, tanpa nilai residu, metode saldo menurun ganda.",
+      "solution": "Tingkat penyusutan = 2/8 = 25%\nTahun 1: 25% × 800.000.000 = 200.000.000 → Nilai buku 600.000.000\nTahun 2: 25% × 600.000.000 = 150.000.000 → Nilai buku 450.000.000\nTahun 3: 25% × 450.000.000 = 112.500.000 → Nilai buku akhir tahun 3 = Rp337.500.000"
+    },
+    {
+      "problem": "Hitung NPV proyek revitalisasi gedung dengan investasi awal Rp2M, arus kas tahunan Rp600jt selama 5 tahun, discount rate 7%.",
+      "solution": "NPV = -2.000.000.000 + Σ [600.000.000 / (1+0.07)^n] untuk n=1-5\n= -2M + 560.747.664 + 523.809.031 + 489.438.355 + 457.316.028 + 427.298.998\n= Rp458.610.076"
+    }
+  ],
+  "reporting_enhancements": {
+    "automated_summary": {
+      "method": "Ekstraksi poin kunci dari dataset besar menggunakan NLP",
+      "output_template": "**Temuan Utama**: {key_findings} | **Risiko**: {top_risks} | **Rekomendasi**: {priority_actions}"
+    },
+    "dynamic_visualization": [
+      "Generasi otomatis peta panas (heatmap) distribusi aset",
+      "Time-lapse animasi perubahan nilai aset (5 tahun terakhir)",
+      "Dashboard interaktif filter by: lokasi/golongan/nilai"
+    ],
+    "quantitative_reporting": {
+      "executive_summary": "Sajikan angka kunci dengan interpretasi bisnis",
+      "technical_annex": "Lampirkan perhitungan lengkap dan asumsi",
+      "sensitivity_analysis": "Tunjukkan dampak perubahan parameter kunci"
+    }
+  },
+  "critical_reasoning": [
+    {
+      "scenario": "Kerugian Negara BMN",
+      "chain": [
+        "Identifikasi akar masalah (kelalaian dokumen vs fisik)",
+        "Kuantifikasi kerugian (selisih nilai wajar + biaya hukum)",
+        "Analisis penyebab (human error vs sistem vs fraud)",
+        "Rekomendasi pencegahan (blockchain audit trail + pelatihan)"
+      ],
+      "case_example": "Kasus komputer hilang: Pencatatan manual tidak sinkron dengan SIMAK → audit trail putus → rekomendasi RFID tagging"
+    },
+    {
+      "scenario": "Sengketa Kepemilikan Aset",
+      "chain": [
+        "Kumpulkan bukti hukum (sertifikat, BAST, putusan pengadilan)",
+        "Analisis kekuatan bukti (hierarki otentisitas dokumen)",
+        "Simulasikan dampak finansial (biaya litigasi vs nilai aset)",
+        "Rekomendasi resolusi (negosiasi vs jalur hukum)"
+      ]
+    }
+  ],
+  "ai_capabilities": {
+    "predictive_analytics": [
+      "Forecasting kebutuhan BMN berbasis beban kerja (regresi linier)",
+      "Early warning system untuk aset berisiko (machine learning)"
+    ],
+    "natural_language_processing": [
+      "Ekstraksi otomatis klausa kunci dari dokumen hukum",
+      "Generasi laporan naratif dari data terstruktur"
+    ],
+    "anomaly_detection": "Identifikasi outlier: mutasi aset tanpa dasar hukum, nilai penghapusan abnormal",
+    "advanced_computation": {
+      "financial_modeling": [
+        "Proyeksi arus kas pemanfaatan BMN (sewa/pinjam pakai)",
+        "Analisis sensitivitas nilai aset terhadap perubahan suku bunga"
+      ],
+      "statistical_analysis": [
+        "Korelasi antara usia aset dan biaya pemeliharaan",
+        "Regresi linier untuk prediksi nilai tanah"
+      ],
+      "optimization_algorithms": [
+        "Penjadwalan pemeliharaan aset optimal",
+        "Alokasi sumber daya terbaik untuk inventarisasi"
+      ]
+    }
+  },
+  "computation_workflow": {
+    "step1_data_input": {
+      "methods": [
+        "Form parsing dari dokumen struktur",
+        "API integration dengan SIMAK-BMN",
+        "OCR extraction dari dokumen scan"
+      ]
+    },
+    "step2_parameter_validation": {
+      "checks": [
+        "Kesesuaian nilai dengan standar BMN",
+        "Konsistensi historis",
+        "Pemeriksaan outlier"
+      ]
+    },
+    "step3_calculation_engine": {
+      "modules": [
+        "Depreciation calculator",
+        "NPV/IRR analyzer",
+        "Fair value estimator"
+      ]
+    },
+    "step4_result_interpretation": {
+      "outputs": [
+        "Visualisasi grafik interaktif",
+        "Executive summary numerik",
+        "Rekomendasi berbasis hasil"
+      ]
+    }
+  },
+  "update_log": {
+    "versi": "2.3",
+    "tanggal": "2024-07-02",
+    "perubahan": [
+      "Penambahan modul siklus BMN lengkap",
+      "Ekspansi FAQ dengan 7 pertanyaan baru",
+      "Penguatan logika pengambilan keputusan",
+      "Integrasi template dokumen praktis",
+      "Peningkatan kemampuan analitis"
+    ]
+  }
+}

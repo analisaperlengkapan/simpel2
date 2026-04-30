@@ -5,6 +5,7 @@
 //! through the perlengkapan backend REST API.
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{
@@ -71,17 +72,36 @@ pub fn AdminUsersPage() -> impl IntoView {
         .into_any();
     }
 
-    let (search, set_search) = signal(String::new());
+    // `search_input` mirrors the raw `<input>` value (so the field stays
+    // responsive while typing); `search_query` is the debounced value
+    // folded into the leptos-fetch cache key. Without the debounce, every
+    // keystroke would allocate a fresh cache slot and (once the production
+    // backend lands) issue a network request per character. Mirrors
+    // `kebutuhan_bmn_list.rs` and `pemakaian_bmn_list.rs`.
+    let (search_input, set_search_input) = signal(String::new());
+    let (search_query, set_search_query) = signal(String::new());
     let (selected_role_filter, set_role_filter) = signal::<Option<String>>(None);
     let (show_assign_modal, set_show_assign_modal) = signal(false);
     let (selected_user_nip, set_selected_user_nip) = signal::<Option<String>>(None);
 
+    // Debounce `search_input` → `search_query` with a 300ms trailing edge.
+    // Stale tasks bail out via the equality check.
+    Effect::new(move |_| {
+        let pending = search_input.get();
+        spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(300).await;
+            if search_input.get_untracked() == pending {
+                set_search_query.set(pending);
+            }
+        });
+    });
+
     // Simulated user data — production fetch lives in `query_admin_users`
-    // above. Keyed by `(search, role_filter)` so the backend swap will
-    // automatically benefit from the cache + dedup once it lands.
+    // above. Keyed by `(search_query, role_filter)` so the backend swap
+    // will automatically benefit from the cache + dedup once it lands.
     let client: QueryClient = expect_context();
     let users_resource = client.local_resource(query_admin_users, move || {
-        (search.get(), selected_role_filter.get())
+        (search_query.get(), selected_role_filter.get())
     });
 
     let all_roles = PerlengkapanRole::all_roles();
@@ -121,8 +141,8 @@ pub fn AdminUsersPage() -> impl IntoView {
                             type="text"
                             placeholder="Cari NIP atau Nama..."
                             class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            prop:value=search
-                            on:input=move |ev| set_search.set(event_target_value(&ev))
+                            prop:value=move || search_input.get()
+                            on:input=move |ev| set_search_input.set(event_target_value(&ev))
                         />
                     </div>
 

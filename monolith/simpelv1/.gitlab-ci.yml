@@ -1,0 +1,128 @@
+stages:
+  - setup
+  - test
+  - build
+  - deploy
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^feature\/.*/'
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  COMPOSER_CACHE_DIR: .composer-cache
+  NODE_ENV: development
+  APP_ENV: testing
+  DB_CONNECTION: mysql
+  DB_HOST: mysql
+  DB_PORT: 3306
+  DB_DATABASE: $CI_PROJECT_NAME
+  DB_USERNAME: root
+  DB_PASSWORD: $CI_DB_PASSWORD
+  REDIS_HOST: redis
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/
+    - node_modules/
+    - .composer-cache/
+  policy: pull-push
+
+services:
+  - docker:20.10.16-dind
+  - mysql:8.0
+  - redis:alpine
+
+.default_template:
+  before_script:
+    - docker info
+    - docker-compose --version
+    - docker-compose pull || true
+    - docker-compose build --pull
+    - docker-compose up -d
+    - until docker-compose exec -T mysql mysql -uroot -p"$DB_PASSWORD" -e "SELECT 1"; do echo "⏳ Waiting for MySQL..."; sleep 3; done
+    - docker-compose exec -T app php --version
+    - docker-compose exec -T app composer --version
+  after_script:
+    - docker-compose down -v
+
+setup:
+  stage: setup
+  extends: .default_template
+  script:
+    - docker-compose exec -T app cp .env.example .env
+    - docker-compose exec -T app composer install --prefer-dist --no-progress --no-suggest
+    - docker-compose exec -T app php artisan key:generate
+    - docker-compose exec -T app php artisan migrate --seed --force
+    - docker-compose exec -T app php artisan storage:link
+    - docker-compose exec -T app php artisan optimize
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+test:
+  stage: test
+  extends: .default_template
+  script:
+    - docker-compose exec -T app php artisan config:clear
+    - docker-compose exec -T app php artisan migrate:fresh --env=testing --force
+    - docker-compose exec -T app php artisan db:seed --class=TestDatabaseSeeder --force
+    - docker-compose exec -T app ./vendor/bin/phpunit --coverage-text --colors=never
+  artifacts:
+    when: always
+    paths:
+      - storage/logs/
+    reports:
+      junit: tests/report.xml
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^(main|develop|feature\/.*)$/'
+
+build:
+  stage: build
+  extends: .default_template
+  script:
+    - docker-compose exec -T app composer install --prefer-dist --no-dev --optimize-autoloader
+    - docker-compose exec -T app php artisan config:cache
+    - docker-compose exec -T app php artisan route:cache
+    - docker-compose exec -T app php artisan view:cache
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG .
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  artifacts:
+    paths:
+      - vendor/
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^(main|develop)$/'
+
+deploy_staging:
+  stage: deploy
+  extends: .default_template
+  environment:
+    name: staging
+    url: https://staging.example.com
+  script:
+    - echo "Deploying to staging..."
+    - docker-compose -f docker-compose.staging.yml up -d --build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: manual
+
+deploy_production:
+  stage: deploy
+  extends: .default_template
+  environment:
+    name: production
+    url: https://simpel.kejaksaan.go.id
+  script:
+    - echo "Deploying to production..."
+    - docker-compose -f docker-compose.prod.yml up -d --build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
