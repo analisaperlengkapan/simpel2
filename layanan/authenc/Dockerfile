@@ -26,10 +26,12 @@ COPY Cargo.toml Cargo.lock ./
 # Patch Cargo.toml: delete old members list and add minimal set for authenc build
 # Note: layanan/authenc itself is excluded (legacy shell, no src/) - binary is in crates/api
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/authenc/crates/types", "layanan/authenc/crates/crypto", "layanan/authenc/crates/storage", "layanan/authenc/crates/core", "layanan/authenc/crates/api", "layanan/authenc/crates/webauthn", "layanan/authenc/crates/federation", "layanan/authenc/crates/iam-api"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/core", "lib/backend", "lib/crypto", "layanan/authenc/crates/types", "layanan/authenc/crates/crypto", "layanan/authenc/crates/storage", "layanan/authenc/crates/core", "layanan/authenc/crates/api", "layanan/authenc/crates/webauthn", "layanan/authenc/crates/federation", "layanan/authenc/crates/iam-api"]' Cargo.toml || true
 
 # Copy lib-common (workspace dependency)
-COPY lib/common ./lib/common
+COPY lib/core ./lib/core
+COPY lib/backend ./lib/backend
+COPY lib/crypto ./lib/crypto
 
 # Copy authenc crate
 COPY layanan/authenc ./layanan/authenc
