@@ -124,6 +124,11 @@ use App\Http\Controllers\AIController;
 |
 */
 
+// Health check (no auth required)
+Route::get('/health', function () {
+    return response('healthy', 200);
+});
+
 // Login / Logout
 Route::get('/auth/login', [AuthController::class, 'index'])->name('login');
 Route::post('/auth/login', [AuthController::class, 'login']);
