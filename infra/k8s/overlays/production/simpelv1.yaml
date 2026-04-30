@@ -115,8 +115,17 @@ spec:
 
       containers:
       - name: simpelv1
-        image: simpelv2/simpelv1:latest
-        imagePullPolicy: IfNotPresent
+        # Pin to a versioned tag in production. Per `infra/k8s/AGENTS.md`,
+        # production manifests must use immutable tags (e.g. `:v0.1.0`)
+        # rather than `:latest`. Combined with `IfNotPresent`, a `:latest`
+        # tag would let nodes silently keep stale cached images even after
+        # a new image is pushed under the same tag, leading to drift
+        # between replicas.
+        image: simpelv2/simpelv1:v0.1.0
+        # `Always` ensures every pod start re-pulls the image, so a tag
+        # bump (e.g. via `kubectl set image ... =simpelv2/simpelv1:v0.2.0`)
+        # is picked up consistently across all nodes.
+        imagePullPolicy: Always
         ports:
         - name: http
           containerPort: 8080

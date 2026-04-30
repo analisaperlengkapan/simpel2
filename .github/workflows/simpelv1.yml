@@ -71,7 +71,12 @@ jobs:
         with:
           context: .
           file: ./monolith/simpelv1/Dockerfile
+          # On `push` events the image is pushed to the registry; on
+          # `pull_request` events we instead `load` it into the local
+          # Docker daemon so the SBOM and security-scan steps below can
+          # reference it without it existing in the registry.
           push: ${{ github.event_name == 'push' }}
+          load: ${{ github.event_name != 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -96,6 +101,11 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: build
+    # Only run on push events. On `pull_request` the image is built with
+    # `load:` rather than `push:`, so it only exists on the build job's
+    # runner — a separate runner for the scan job can't pull it from the
+    # registry. PR scans are picked up by the post-merge run on `main`.
+    if: github.event_name == 'push'
     permissions:
       contents: read
       security-events: write
