@@ -70,6 +70,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Portal URL
+    |--------------------------------------------------------------------------
+    |
+    | URL of the SIMPEL Portal used for OAuth redirects. Read by
+    | TokenToOAuthMiddleware via config('app.portal_url') so the
+    | PORTAL_URL env var (set in .env, docker-compose, and K8s
+    | ConfigMaps) actually takes effect.
+    |
+    */
+
+    'portal_url' => env('PORTAL_URL', 'http://localhost:3000/portal'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
