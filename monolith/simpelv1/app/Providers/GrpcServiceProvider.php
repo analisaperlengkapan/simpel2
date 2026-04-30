@@ -29,10 +29,12 @@ class GrpcServiceProvider extends ServiceProvider
             return new SecrethonGrpcClient();
         });
 
-        // Alias for easy access
-        $this->app->alias('authenc.grpc', AuthencGrpcClient::class);
-        $this->app->alias('integrasi.grpc', IntegrasiGrpcClient::class);
-        $this->app->alias('secreton.grpc', SecrethonGrpcClient::class);
+        // Alias for easy access. Laravel's alias() signature is
+        // alias($abstract, $alias) — the first argument is the existing
+        // binding (the class), the second is the short alias name.
+        $this->app->alias(AuthencGrpcClient::class, 'authenc.grpc');
+        $this->app->alias(IntegrasiGrpcClient::class, 'integrasi.grpc');
+        $this->app->alias(SecrethonGrpcClient::class, 'secreton.grpc');
     }
 
     public function boot()

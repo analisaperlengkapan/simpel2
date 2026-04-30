@@ -1145,8 +1145,6 @@ security:summary:
 # ========================================
 # PIPELINE SUCCESS NOTIFICATION
 # ========================================
-  when: on_success
-  allow_failure: true
 
 # =====================================================
 # SIMPEL v1 (Legacy PHP) Build Pipeline

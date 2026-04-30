@@ -207,15 +207,13 @@ class AuthController extends Controller
                 'user_agent'  => $request->userAgent(),
             ]);
         }
-        
-        // Broadcast logout event for cross-tab sync
-        $request->session()->put('logout_event', now()->toIso8601String());
-        
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        
-        // Return logout response with event marker
+
+        // Return logout response with event marker so client-side
+        // listeners can broadcast the logout to other tabs via localStorage.
         return response()->redirectTo('/auth/login')
             ->header('X-Logout-Event', '1');
     }
@@ -445,6 +443,7 @@ class AuthController extends Controller
             }
 
             // Buat session
+            Auth::login($user);
             $userInfo = Pengguna::setUserdata($user);
             $request->session()->regenerate();
             $request->session()->put('userData', $userInfo);

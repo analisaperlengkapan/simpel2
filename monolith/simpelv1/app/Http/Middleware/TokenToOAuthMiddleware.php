@@ -35,10 +35,13 @@ class TokenToOAuthMiddleware
             return redirect()->route('auth.oauth-callback', ['token' => $token]);
         }
 
-        // Jika tidak ada token dan user belum login, redirect ke Portal login
+        // Jika tidak ada token dan user belum login, redirect ke Portal login.
+        // Preserve the originally requested URL so the user lands back where they
+        // tried to go, not just at the v1 root.
         $portalUrl = config('app.portal_url', 'http://localhost:3000/portal');
-        $return_to = urlencode($request->url());
-        
-        return redirect("{$portalUrl}/login?return_to=/perlengkapan/simpel/v1&callback=" . urlencode(route('auth.oauth-callback')));
+        $returnTo = urlencode($request->fullUrl());
+        $callback = urlencode(route('auth.oauth-callback'));
+
+        return redirect("{$portalUrl}/login?return_to={$returnTo}&callback={$callback}");
     }
 }

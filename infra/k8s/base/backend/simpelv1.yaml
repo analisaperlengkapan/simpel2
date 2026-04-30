@@ -20,6 +20,11 @@ data:
   GRPC_SSL_MODE: "insecure"
 
 ---
+# NOTE: Do not commit real credentials. Populate this Secret out-of-band
+# (sealed-secrets, External Secrets Operator, kubectl create secret, etc.).
+# The placeholders below are base64 of "CHANGEME" so the manifest remains
+# valid for `kubectl apply`/CI dry-runs while making it obvious that the
+# values must be overridden before deployment.
 apiVersion: v1
 kind: Secret
 metadata:
@@ -27,9 +32,9 @@ metadata:
   namespace: simpelv2-staging
 type: Opaque
 data:
-  DB_USERNAME: cG9zdGdyZXM=
-  DB_PASSWORD: eFlFZkxiVFJmSzQ1ZTdQSg==
-  APP_KEY: YmFzZTY0OllNcGhuMzY2NG5WN2JSZ1JHS3IxektxTkp1SWFVVTBIdTF4VWx5bnBGbDQ=
+  DB_USERNAME: Q0hBTkdFTUU=
+  DB_PASSWORD: Q0hBTkdFTUU=
+  APP_KEY: Q0hBTkdFTUU=
 
 ---
 apiVersion: apps/v1

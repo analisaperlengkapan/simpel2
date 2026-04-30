@@ -24,6 +24,9 @@ data:
   GRPC_SSL_MODE: "require"
 
 ---
+# NOTE: Do not commit real production credentials. Populate this Secret
+# via sealed-secrets / External Secrets Operator / Secreton before applying.
+# Placeholders below are base64 of "CHANGEME".
 apiVersion: v1
 kind: Secret
 metadata:
@@ -31,9 +34,9 @@ metadata:
   namespace: simpelv2-production
 type: Opaque
 data:
-  DB_USERNAME: cG9zdGdyZXM=
-  DB_PASSWORD: TXVzdF9CZV9DaGFuZ2VkX0lzTXVzdF9CZV9DaGFuZ2VkX0lz
-  APP_KEY: YmFzZTY0OllNcGhuMzY2NG5WN2JSZ1JHS3IxektxTkp1SWFVVTBIdTF4VWx5bnBGbDQ=
+  DB_USERNAME: Q0hBTkdFTUU=
+  DB_PASSWORD: Q0hBTkdFTUU=
+  APP_KEY: Q0hBTkdFTUU=
 
 ---
 apiVersion: apps/v1

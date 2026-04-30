@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Services;
+
 /**
  * Session Management Service
  * 
@@ -28,7 +30,7 @@ class SessionService {
     {
         if (auth()->check()) {
             // Log activity
-            \App\Models\Aktifitas::create([
+            \App\Models\Pengguna\Aktifitas::create([
                 'username' => auth()->user()->username,
                 'operation' => 'LOGOUT_REMOTE',
                 'table' => 'sessions',

@@ -59,5 +59,7 @@ EXPOSE 8080
 ENV APP_DEBUG=false
 ENV APP_ENV=production
 
-# Run nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Run both PHP-FPM (background) and nginx (foreground).
+# nginx.conf proxies PHP requests to upstream php_fpm at 127.0.0.1:9000,
+# so PHP-FPM must be running for the app to serve any .php route.
+CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
