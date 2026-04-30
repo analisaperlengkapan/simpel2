@@ -182,7 +182,7 @@ services:
       dockerfile: antarmuka/portal/Dockerfile
     container_name: portal
     ports:
-      - "3000:3000"
+      - "3000:8080"
     environment:
       RUST_LOG: debug
       SERVER_PORT: "3000"
@@ -190,6 +190,18 @@ services:
     depends_on:
       authenc:
         condition: service_started
+    networks:
+      - simpel-network
+
+  perlengkapan:
+    build:
+      context: .
+      dockerfile: antarmuka/perlengkapan/Dockerfile
+    container_name: perlengkapan
+    ports:
+      - "3001:8080"
+    environment:
+      - SIMPEL_KEAMANAN_URL=http://keamanan:8090
     networks:
       - simpel-network
 
