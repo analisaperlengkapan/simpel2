@@ -1,0 +1,128 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: simpel-perlengkapan
+  namespace: simpelv2-production
+spec:
+  hosts:
+  - "simpel.kejaksaan.go.id"
+  http:
+  # v1 Legacy path
+  - match:
+    - uri:
+        prefix: "/perlengkapan/simpel/v1"
+    route:
+    - destination:
+        host: simpelv1
+        port:
+          number: 80
+      weight: 100
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+    corsPolicy:
+      allowOrigins:
+      - exact: "https://simpel.kejaksaan.go.id"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - authorization
+      - content-type
+  
+  # v2 Modern path
+  - match:
+    - uri:
+        prefix: "/perlengkapan/simpel/v2"
+    route:
+    - destination:
+        host: layanan-perlengkapan
+        port:
+          number: 3020
+      weight: 100
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+    corsPolicy:
+      allowOrigins:
+      - exact: "https://simpel.kejaksaan.go.id"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - authorization
+      - content-type
+  
+  # Default perlengkapan (redirect to v2)
+  - match:
+    - uri:
+        prefix: "/perlengkapan"
+    route:
+    - destination:
+        host: layanan-perlengkapan
+        port:
+          number: 3020
+      weight: 100
+    timeout: 30s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: simpelv1
+  namespace: simpelv2-production
+spec:
+  host: simpelv1
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+      http:
+        http1MaxPendingRequests: 500
+        http2MaxRequests: 1000
+        h2UpgradePolicy: UPGRADE
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50
+      minRequestVolume: 10
+      splitExternalLocalOriginErrors: true
+    loadBalancer:
+      simple: LEAST_REQUEST
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: layanan-perlengkapan
+  namespace: simpelv2-production
+spec:
+  host: layanan-perlengkapan
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+      http:
+        http1MaxPendingRequests: 500
+        http2MaxRequests: 1000
+        h2UpgradePolicy: UPGRADE
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50
+      minRequestVolume: 10
+      splitExternalLocalOriginErrors: true
+    loadBalancer:
+      simple: LEAST_REQUEST

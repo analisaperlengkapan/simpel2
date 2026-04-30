@@ -1,0 +1,91 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: simpel-perlengkapan
+  namespace: simpelv2-staging
+spec:
+  hosts:
+  - "simpel.kejaksaan.go.id"
+  http:
+  # v1 Legacy path
+  - match:
+    - uri:
+        prefix: "/perlengkapan/simpel/v1"
+    route:
+    - destination:
+        host: simpelv1
+        port:
+          number: 80
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+  
+  # v2 Modern path
+  - match:
+    - uri:
+        prefix: "/perlengkapan/simpel/v2"
+    route:
+    - destination:
+        host: layanan-perlengkapan
+        port:
+          number: 3020
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+  
+  # Default perlengkapan (redirect to v2)
+  - match:
+    - uri:
+        prefix: "/perlengkapan"
+    route:
+    - destination:
+        host: layanan-perlengkapan
+        port:
+          number: 3020
+    timeout: 30s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: simpelv1
+  namespace: simpelv2-staging
+spec:
+  host: simpelv1
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 100
+        h2UpgradePolicy: UPGRADE
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minRequestVolume: 5
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: layanan-perlengkapan
+  namespace: simpelv2-staging
+spec:
+  host: layanan-perlengkapan
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 100
+        h2UpgradePolicy: UPGRADE
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minRequestVolume: 5
