@@ -22,4 +22,8 @@ yarn-error.log
 *.log
 test-results/
 frontend/test-results/
-frontend/playwright-report/\nfrontend/test-results/\n
+frontend/playwright-report/
+frontend/test-results/
+
+database/*.sql.gz
+
