@@ -158,9 +158,17 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // Semua route setelah Login + 2FA berhasil wajib verified.
+// `token2oauth` runs before `auth`: when the user is unauthenticated it
+// short-circuits the request and redirects to the Portal OAuth flow
+// (stashing a single-use `state` in session) instead of letting `auth`
+// 302 to the local /auth/login form. When the user is already
+// authenticated it falls through to `auth`/`2fa`/`cross-tab-session`.
+// Without this, the v1↔Portal OAuth flow is non-functional because the
+// middleware that issues the OAuth `state` never runs and the callback
+// at AuthController::oauthCallback always rejects the request.
 // `cross-tab-session` invalidates the session if a logout was broadcast
 // from another tab (via the X-Logout-Event header).
-Route::middleware(['auth', '2fa', 'cross-tab-session'])->group(function () {
+Route::middleware(['token2oauth', 'auth', '2fa', 'cross-tab-session'])->group(function () {
     Route::post('/auth/changePassword', [AuthController::class, 'changePassword']);
     Route::post('/auth/changeUser', [AuthController::class, 'changeUser']);
     Route::post('/auth/resetPassword', [AuthController::class, 'resetPassword']);

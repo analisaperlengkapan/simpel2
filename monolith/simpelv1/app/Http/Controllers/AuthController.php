@@ -385,17 +385,37 @@ class AuthController extends Controller
         try {
             // Prefer POST body / Authorization header over the query
             // string for the JWT itself: query parameters get persisted
-            // in nginx access logs, browser history, and Referer headers.
-            // We still fall back to `?token=` for backwards compatibility
-            // with the existing Portal redirect flow, but new integrations
-            // should POST the token.
-            $token = $request->input('token')
-                ?? $request->bearerToken()
-                ?? $request->query('token');
+            // in browser history and (absent the nginx mitigations in
+            // `monolith/simpelv1/nginx.conf` for this exact path) in
+            // access logs and Referer headers. We still fall back to
+            // `?token=` for backwards compatibility with the existing
+            // Portal redirect flow, but new integrations should POST
+            // the token (or move to a short-lived auth-code exchange).
+            //
+            // For GET requests, `$request->input('token')` reads the
+            // query string, which would mask the deprecation warning
+            // below. Read body / header / query independently so we can
+            // tell the source apart and audit query-string usage.
+            $bodyToken   = $request->isMethod('post') ? $request->post('token') : null;
+            $headerToken = $request->bearerToken();
+            $queryToken  = $request->query('token');
+            $token       = $bodyToken ?? $headerToken ?? $queryToken;
 
             if (!$token) {
                 return redirect()->route('login')
                     ->with('error', 'Token tidak ditemukan');
+            }
+
+            if (!$bodyToken && !$headerToken && $queryToken) {
+                // Audit so operators can track Portal migrations off the
+                // legacy `?token=` redirect to POST/auth-code. This is a
+                // tracking signal, not a hard rejection — breaking the
+                // existing Portal flow before it migrates would lock
+                // every user out of v1.
+                Log::notice('OAuth callback received token via query string (deprecated, migrate Portal to POST)', [
+                    'ip'         => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
             }
 
             // Verify the OAuth `state` parameter against the value

@@ -2,7 +2,13 @@
 # Database restoration script for SIMPEL v1
 # Usage: ./restore-db.sh [backup-file] [db-name] [db-user] [db-host]
 
-set -e
+# `pipefail` is required so `gunzip < backup | psql` fails the pipeline
+# when `gunzip` exits non-zero (corrupted backup) — otherwise the script
+# would only see psql's exit status, which is 0 when it receives empty
+# input from a failed gunzip. Combined with `set -e`, that previously
+# caused the script to report "Database restoration completed
+# successfully" against an empty database (silent data loss).
+set -eo pipefail
 
 # Default values
 BACKUP_FILE="${1:-dbsimpelv1.sql.gz}"
@@ -73,26 +79,32 @@ if [[ "$TABLES" -gt 0 ]]; then
     fi
 fi
 
-# Restore database
+# Restore database. With `set -eo pipefail`, the script aborts
+# immediately on any non-zero exit (including gunzip on a corrupt
+# backup), so the post-pipeline `if [[ $? -eq 0 ]]` branch that used
+# to live here was dead code — the else branch was unreachable.
 log_info "Starting database restoration from $BACKUP_FILE..."
 gunzip < "$BACKUP_FILE" | psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" --quiet
 
-if [[ $? -eq 0 ]]; then
-    log_info "Database restoration completed successfully"
-    
-    # Verify restoration
-    FINAL_TABLES=$(psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -tc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null)
-    log_info "Database now contains $FINAL_TABLES tables"
-    
-    # Check for migration marker
-    MIGRATED=$(psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -tc "SELECT 1 FROM information_schema.tables WHERE table_name = 'migrations';" 2>/dev/null || echo "")
-    if [[ -n "$MIGRATED" ]]; then
-        log_info "Migrations table found - database schema validated"
-    fi
-    
-    log_info "✓ Database restoration completed"
-    exit 0
-else
-    log_error "Database restoration failed"
+log_info "Database restoration completed successfully"
+
+# Verify restoration
+FINAL_TABLES=$(psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -tc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null)
+log_info "Database now contains $FINAL_TABLES tables"
+
+# Sanity-check: a successful restore must produce at least one table.
+# If gunzip silently fed empty input to psql in a future regression
+# (e.g. pipefail accidentally disabled), this catches it.
+if [[ -z "$FINAL_TABLES" || "$FINAL_TABLES" -eq 0 ]]; then
+    log_error "Restoration produced 0 tables — backup may be corrupted or empty"
     exit 1
 fi
+
+# Check for migration marker
+MIGRATED=$(psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -tc "SELECT 1 FROM information_schema.tables WHERE table_name = 'migrations';" 2>/dev/null || echo "")
+if [[ -n "$MIGRATED" ]]; then
+    log_info "Migrations table found - database schema validated"
+fi
+
+log_info "✓ Database restoration completed"
+exit 0
