@@ -18,7 +18,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 # Copy source and build
 COPY . .
 # Patch Cargo.toml
-RUN sed -i '/^members = \[/,/^\]/c\members = [\n    "lib/common",\n    "lib/perlengkapan",\n    "layanan/integrasi",\n]' Cargo.toml && \
+RUN sed -i '/^members = \[/,/^\]/c\members = [\n    "lib/core", "lib/backend", "lib/crypto",\n    "lib/perlengkapan",\n    "layanan/integrasi",\n]' Cargo.toml && \
     sed -i '/^default-members = \[/,/^\]/c\default-members = [\n    "layanan/integrasi",\n]' Cargo.toml
 
 RUN cargo build --release -p layanan-integrasi --features grpc --bin layanan-integrasi-server

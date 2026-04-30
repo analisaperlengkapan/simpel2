@@ -22,7 +22,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 # Patch Cargo.toml
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "lib/perlengkapan", "layanan/integrasi", "layanan/perlengkapan/crates/api"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/core", "lib/backend", "lib/crypto", "lib/perlengkapan", "layanan/integrasi", "layanan/perlengkapan/crates/api"]' Cargo.toml || true
 
 # Build release
 RUN cargo build --release -p layanan-perlengkapan-api

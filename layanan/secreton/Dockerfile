@@ -12,7 +12,7 @@ FROM chef AS planner
 COPY . .
 # Patch Cargo.toml for workspace build (exclude ignored members)
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/secreton", "layanan/secreton/crates/core", "layanan/secreton/crates/api", "layanan/secreton/crates/storage", "layanan/secreton/crates/crypto", "layanan/secreton/crates/types", "layanan/secreton/crates/agent", "layanan/secreton/crates/cli", "layanan/secreton/crates/grpc", "layanan/secreton/crates/hsm", "layanan/secreton/crates/k8s-operator"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/core", "lib/backend", "lib/crypto", "layanan/secreton", "layanan/secreton/crates/core", "layanan/secreton/crates/api", "layanan/secreton/crates/storage", "layanan/secreton/crates/crypto", "layanan/secreton/crates/types", "layanan/secreton/crates/agent", "layanan/secreton/crates/cli", "layanan/secreton/crates/grpc", "layanan/secreton/crates/hsm", "layanan/secreton/crates/k8s-operator"]' Cargo.toml || true
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 3: Builder
@@ -31,7 +31,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 # Patch Cargo.toml for workspace build (exclude ignored members)
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/secreton", "layanan/secreton/crates/core", "layanan/secreton/crates/api", "layanan/secreton/crates/storage", "layanan/secreton/crates/crypto", "layanan/secreton/crates/types", "layanan/secreton/crates/agent", "layanan/secreton/crates/cli", "layanan/secreton/crates/grpc", "layanan/secreton/crates/hsm", "layanan/secreton/crates/k8s-operator"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/core", "lib/backend", "lib/crypto", "layanan/secreton", "layanan/secreton/crates/core", "layanan/secreton/crates/api", "layanan/secreton/crates/storage", "layanan/secreton/crates/crypto", "layanan/secreton/crates/types", "layanan/secreton/crates/agent", "layanan/secreton/crates/cli", "layanan/secreton/crates/grpc", "layanan/secreton/crates/hsm", "layanan/secreton/crates/k8s-operator"]' Cargo.toml || true
 
 RUN cargo build --release -p secreton-api --bin api_server --features raft-consensus
 
