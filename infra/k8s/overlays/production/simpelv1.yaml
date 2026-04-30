@@ -70,7 +70,18 @@ spec:
         version: legacy
     spec:
       serviceAccountName: simpelv1
-      
+
+      # Pod-level fsGroup ensures emptyDir volumes (storage, tmp,
+      # nginx-cache, run) are group-owned by gid 33 (www-data / nobody)
+      # and group-writable. Without this, the container running as
+      # uid 33 cannot create files in any emptyDir mount because
+      # disk-backed emptyDirs default to 0:0 root ownership with
+      # 0755 permissions — nginx would fail to write its PID file
+      # under /run/nginx and Laravel would fail to write logs,
+      # compiled views, and cache files under /app/storage.
+      securityContext:
+        fsGroup: 33
+
       # Init container for database migration
       initContainers:
       - name: db-migrate
