@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\MyHelper;
 use App\Helpers\RecaptchaHelper;
 use App\Models\Master;
+use App\Services\Grpc\AuthencGrpcClient;
 use App\Models\Master\MsSatker;
 use App\Models\MsSatker as ModelsMsSatker;
 use App\Models\Pengguna\Level;
@@ -534,15 +535,35 @@ class AuthController extends Controller
     }
 
     /**
-     * Temporary JWT verification (should be replaced with gRPC call to Authenc)
+     * Verify a Portal-issued JWT via the Authenc gateway.
+     *
+     * Portal / Authenc sign tokens with Ed25519 keys (see
+     * `layanan/authenc/AGENTS.md`). Laravel's local `tymon/jwt-auth`
+     * is configured with an HS256 secret (see `config/jwt.php`) and
+     * therefore cannot validate the signature — calling
+     * `JWTAuth::getPayload()` against a Portal token will always
+     * throw and reject every real OAuth login, making the entire
+     * v1/v2 OAuth integration non-functional.
+     *
+     * Delegating to `AuthencGrpcClient::verifyToken()` forwards the
+     * token to the Authenc service (via the K8s sidecar / Rust
+     * Gateway Proxy, per `monolith/simpelv1/AGENTS.md`) which holds
+     * the correct Ed25519 verification keys and returns the decoded
+     * claims on success.
      */
     private function verifyJwtToken(string $token): ?array
     {
         try {
-            // In production, this should call Authenc gRPC service
-            // For now, using JWT facade for basic verification
-            $claims = JWTAuth::getPayload($token);
-            return $claims ? $claims->toArray() : null;
+            /** @var AuthencGrpcClient $client */
+            $client = app(AuthencGrpcClient::class);
+            $claims = $client->verifyToken($token);
+
+            if (! is_array($claims) || empty($claims)) {
+                Log::warning('Authenc gateway did not return claims for OAuth token');
+                return null;
+            }
+
+            return $claims;
         } catch (\Throwable $th) {
             Log::warning('JWT token verification failed', [
                 'error' => $th->getMessage(),

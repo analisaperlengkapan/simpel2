@@ -26,11 +26,15 @@ class AuthencGrpcClient
 
     public function __construct()
     {
-        // The sidecar is colocated in the same pod, so we default to
-        // localhost. In environments without a sidecar this can be
-        // pointed at a shared Rust Gateway Proxy.
+        // Resolve the gateway URL via `config()` only. Calling `env()`
+        // directly here would return `null` once `php artisan config:cache`
+        // has been run (env() only reads $_ENV during config bootstrap),
+        // silently falling through to the hardcoded default and ignoring
+        // any AUTHENC_GATEWAY_URL set via docker-compose / K8s ConfigMap.
+        // The env() → default fallback lives in config/services.php so
+        // the binding happens once at config-compile time.
         $this->baseUrl = rtrim(
-            config('services.gateway.authenc.url', env('AUTHENC_GATEWAY_URL', 'http://127.0.0.1:8081')),
+            (string) config('services.gateway.authenc.url', 'http://127.0.0.1:8081'),
             '/'
         );
         $this->timeout = (float) config('services.gateway.timeout', 5.0);

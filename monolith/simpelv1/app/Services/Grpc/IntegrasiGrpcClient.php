@@ -24,8 +24,10 @@ class IntegrasiGrpcClient
 
     public function __construct()
     {
+        // Resolve via `config()` only — see AuthencGrpcClient::__construct
+        // for why env() must not be called at runtime from a service class.
         $this->baseUrl = rtrim(
-            config('services.gateway.integrasi.url', env('INTEGRASI_GATEWAY_URL', 'http://127.0.0.1:8082')),
+            (string) config('services.gateway.integrasi.url', 'http://127.0.0.1:8082'),
             '/'
         );
         $this->timeout = (float) config('services.gateway.timeout', 5.0);
