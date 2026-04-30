@@ -27,10 +27,23 @@ class ValidateCrossTabSession
             $request->session()->flush();
             $request->session()->regenerate();
 
-            return response()->json([
-                'error' => 'Session invalidated from another tab',
-                'code' => 'SESSION_INVALIDATED',
-            ], 401);
+            // This middleware is mounted on the `web` route group
+            // (see `routes/web.php`), so requests come from both AJAX
+            // callers (which expect JSON) and regular browser
+            // navigations (which expect a redirect to the login form).
+            // Returning a JSON 401 to a browser navigation produces a
+            // raw text page instead of returning the user to login —
+            // mirror Laravel's own `Authenticate` middleware and
+            // content-negotiate on `expectsJson()`.
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'Session invalidated from another tab',
+                    'code'  => 'SESSION_INVALIDATED',
+                ], 401);
+            }
+
+            return redirect()->guest(route('login'))
+                ->with('error', 'Sesi Anda telah berakhir karena logout di tab lain');
         }
 
         return $next($request);

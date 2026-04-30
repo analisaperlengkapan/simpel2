@@ -1215,14 +1215,20 @@ security:simpelv1:
         --format json \
         --output trivy-simpelv1-report.json \
         "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA" || true
+    # Severity gate: let Trivy's non-zero exit propagate so the job
+    # status reflects the scan result. The previous `|| echo ...`
+    # swallowed the failure, making this scan a no-op in the eyes of
+    # the pipeline. The job is still marked `allow_failure: true`
+    # below, so HIGH/CRITICAL findings surface as a yellow warning
+    # rather than blocking the pipeline — but they are no longer
+    # silently hidden.
     - |
       docker run --rm \
         -v /var/run/docker.sock:/var/run/docker.sock \
         aquasec/trivy:latest image \
         --severity HIGH,CRITICAL \
         --exit-code 1 \
-        "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA" \
-        || echo "⚠️ HIGH/CRITICAL vulnerabilities found in simpelv1 image (see trivy-simpelv1-report.json)"
+        "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA"
     - echo "✅ Trivy scan completed"
   artifacts:
     when: always
