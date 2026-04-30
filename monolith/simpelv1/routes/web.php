@@ -148,8 +148,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/2fa/setup', [TwoFAController::class, 'enable'])->name('2fa.setup.post');
 });
 
-// Semua route setelah Login + 2FA berhasil wajib verified
-Route::middleware(['auth', '2fa'])->group(function () {
+// Semua route setelah Login + 2FA berhasil wajib verified.
+// `cross-tab-session` invalidates the session if a logout was broadcast
+// from another tab (via the X-Logout-Event header).
+Route::middleware(['auth', '2fa', 'cross-tab-session'])->group(function () {
     Route::post('/auth/changePassword', [AuthController::class, 'changePassword']);
     Route::post('/auth/changeUser', [AuthController::class, 'changeUser']);
     Route::post('/auth/resetPassword', [AuthController::class, 'resetPassword']);

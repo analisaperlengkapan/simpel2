@@ -385,7 +385,7 @@ class AuthController extends Controller
             $token = $request->query('token') ?? $request->bearerToken();
 
             if (!$token) {
-                return redirect('/perlengkapan/simpel/v1/auth/login')
+                return redirect()->route('login')
                     ->with('error', 'Token tidak ditemukan');
             }
 
@@ -395,14 +395,14 @@ class AuthController extends Controller
             $claims = $this->verifyJwtToken($token);
 
             if (!$claims) {
-                return redirect('/perlengkapan/simpel/v1/auth/login')
+                return redirect()->route('login')
                     ->with('error', 'Token tidak valid');
             }
 
             // Cari atau buat user di database
             $username = $claims['sub'] ?? null;
             if (!$username) {
-                return redirect('/perlengkapan/simpel/v1/auth/login')
+                return redirect()->route('login')
                     ->with('error', 'Username tidak ditemukan di token');
             }
 
@@ -412,7 +412,7 @@ class AuthController extends Controller
                 // Auto-create user dari token jika belum ada
                 $pegawai = Master::getPegawaiByNip($username);
                 if (!$pegawai) {
-                    return redirect('/perlengkapan/simpel/v1/auth/login')
+                    return redirect()->route('login')
                         ->with('error', 'User tidak ditemukan di sistem');
                 }
 
@@ -429,17 +429,28 @@ class AuthController extends Controller
                     'password' => Hash::make(Str::random(32)),
                 ];
 
-                $user = Pengguna::create($data);
+                // Wrap user creation + role assignment in a transaction so we
+                // never end up with an orphaned user without a role (which
+                // would let subsequent OAuth attempts log them in directly,
+                // permanently bypassing role assignment).
+                DB::beginTransaction();
+                try {
+                    $user = Pengguna::create($data);
 
-                // Assign default role
-                $satker = ModelsMsSatker::where('inst_satkerkd', $pegawai->inst_satkerkd)->first();
-                (new Level())->delInsertUserRole($user->id, [
-                    'ms_role_id' => config('constants.pelaksana_satker_role_id'),
-                    'ms_satker_id' => $pegawai->inst_satkerkd,
-                    'ms_satker_pusat_id' => $pegawai->mapped_unit_kerja,
-                    'ms_satker_id_keu' => $satker->kdsatker_keu ?? null,
-                    'user_id' => $user->id,
-                ]);
+                    // Assign default role
+                    $satker = ModelsMsSatker::where('inst_satkerkd', $pegawai->inst_satkerkd)->first();
+                    (new Level())->delInsertUserRole($user->id, [
+                        'ms_role_id' => config('constants.pelaksana_satker_role_id'),
+                        'ms_satker_id' => $pegawai->inst_satkerkd,
+                        'ms_satker_pusat_id' => $pegawai->mapped_unit_kerja,
+                        'ms_satker_id_keu' => $satker->kdsatker_keu ?? null,
+                        'user_id' => $user->id,
+                    ]);
+                    DB::commit();
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
             }
 
             // Buat session
@@ -462,7 +473,7 @@ class AuthController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
-            return redirect('/perlengkapan/simpel/v1/dashboard');
+            return redirect()->intended('/dashboard');
 
         } catch (\Throwable $th) {
             Log::error('OAuth callback error', [
@@ -470,7 +481,7 @@ class AuthController extends Controller
                 'trace' => $th->getTraceAsString(),
             ]);
 
-            return redirect('/perlengkapan/simpel/v1/auth/login')
+            return redirect()->route('login')
                 ->with('error', 'Terjadi kesalahan saat processing token');
         }
     }

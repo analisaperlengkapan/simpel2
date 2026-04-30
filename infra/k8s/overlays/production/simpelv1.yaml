@@ -10,9 +10,15 @@ data:
   DB_HOST: "postgres.simpelv2-production.svc.cluster.local"
   DB_PORT: "5432"
   DB_DATABASE: "dbsimpelv1"
-  SESSION_DRIVER: "file"
+  # Use redis-backed sessions in production: with 3+ replicas behind a
+  # load balancer, file-based sessions would be local to each pod and
+  # cause intermittent logouts when requests hit a different replica.
+  SESSION_DRIVER: "redis"
+  SESSION_CONNECTION: "default"
   CACHE_DRIVER: "redis"
   QUEUE_CONNECTION: "redis"
+  REDIS_HOST: "redis.simpelv2-production.svc.cluster.local"
+  REDIS_PORT: "6379"
   CACHE_REDIS_HOST: "redis.simpelv2-production.svc.cluster.local"
   CACHE_REDIS_PORT: "6379"
   QUEUE_REDIS_HOST: "redis.simpelv2-production.svc.cluster.local"
@@ -134,9 +140,12 @@ spec:
             cpu: 1000m
             memory: 2Gi
         
+        # Liveness checks nginx only (`/healthz` is served directly by
+        # nginx) so a transient PHP-FPM blip doesn't cascade into pod
+        # restarts.
         livenessProbe:
           httpGet:
-            path: /health
+            path: /healthz
             port: http
             scheme: HTTP
           initialDelaySeconds: 30
@@ -144,6 +153,8 @@ spec:
           timeoutSeconds: 5
           failureThreshold: 3
         
+        # Readiness hits the Laravel `/health` route so we don't send
+        # traffic until the full stack is up.
         readinessProbe:
           httpGet:
             path: /health

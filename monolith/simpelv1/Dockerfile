@@ -17,12 +17,15 @@ RUN apk add --no-cache \
 # Install PHP extensions
 RUN docker-php-ext-install pdo pdo_pgsql
 
-# Install extensions needed for gRPC (optional, install protobuf-php via composer)
+# Build dependencies for compiling PHP/protobuf extensions. Installed
+# under a virtual package so they can be removed after composer install
+# to keep the runtime image small and reduce attack surface.
 RUN apk add --no-cache --virtual .build-deps \
     autoconf \
     g++ \
     make \
-    && apk add --no-cache protobuf protobuf-dev
+    protobuf-dev \
+    && apk add --no-cache protobuf
 
 # Copy composer files
 COPY monolith/simpelv1/composer.json composer.json
@@ -40,6 +43,11 @@ RUN composer dump-autoload --no-scripts
 # Generate optimized config
 RUN composer run-script post-install-cmd || true
 
+# Remove build toolchain — the runtime only needs the protobuf runtime
+# library, not autoconf/g++/make/protobuf-dev. Cuts image size and
+# removes compilers from the production image.
+RUN apk del .build-deps
+
 # Create necessary directories
 RUN mkdir -p storage/logs storage/framework/sessions storage/framework/views storage/framework/cache \
     && chown -R nobody:nobody . \
@@ -48,7 +56,8 @@ RUN mkdir -p storage/logs storage/framework/sessions storage/framework/views sto
 # Copy nginx config
 COPY monolith/simpelv1/nginx.conf /etc/nginx/nginx.conf
 
-# Health check
+# Health check — uses Laravel's /health route so the full nginx+PHP-FPM
+# stack is exercised, not just nginx.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 

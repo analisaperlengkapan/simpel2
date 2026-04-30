@@ -8,9 +8,14 @@ spec:
   - "simpel.kejaksaan.go.id"
   http:
   # v1 Legacy path
+  # Rewrite to strip `/perlengkapan/simpel/v1` before forwarding to the
+  # Laravel app (which has no route prefix). APP_URL on the pod points at
+  # the external URL, so generated links keep the prefix.
   - match:
     - uri:
         prefix: "/perlengkapan/simpel/v1"
+    rewrite:
+      uri: "/"
     route:
     - destination:
         host: simpelv1
@@ -38,6 +43,8 @@ spec:
   - match:
     - uri:
         prefix: "/perlengkapan/simpel/v2"
+    rewrite:
+      uri: "/"
     route:
     - destination:
         host: layanan-perlengkapan
@@ -65,6 +72,8 @@ spec:
   - match:
     - uri:
         prefix: "/perlengkapan"
+    rewrite:
+      uri: "/"
     route:
     - destination:
         host: layanan-perlengkapan

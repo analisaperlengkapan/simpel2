@@ -8,9 +8,14 @@ spec:
   - "simpel.kejaksaan.go.id"
   http:
   # v1 Legacy path
+  # The Laravel app has no route prefix, so we rewrite the URI to strip
+  # `/perlengkapan/simpel/v1` before forwarding. APP_URL is set to the
+  # full external URL so generated links retain the prefix.
   - match:
     - uri:
         prefix: "/perlengkapan/simpel/v1"
+    rewrite:
+      uri: "/"
     route:
     - destination:
         host: simpelv1
@@ -25,6 +30,8 @@ spec:
   - match:
     - uri:
         prefix: "/perlengkapan/simpel/v2"
+    rewrite:
+      uri: "/"
     route:
     - destination:
         host: layanan-perlengkapan
@@ -39,6 +46,8 @@ spec:
   - match:
     - uri:
         prefix: "/perlengkapan"
+    rewrite:
+      uri: "/"
     route:
     - destination:
         host: layanan-perlengkapan

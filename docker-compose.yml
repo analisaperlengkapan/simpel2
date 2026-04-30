@@ -8,8 +8,8 @@ services:
     image: postgres:15-alpine
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: xXMr2#)C-Uk
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       POSTGRES_INITDB_ARGS: --encoding=UTF8
     ports:
       - "5432:5432"
@@ -53,10 +53,10 @@ services:
       RUST_LOG: debug
       GRPC_PORT: "50051"
       DB_HOST: postgres
-      DB_USER: postgres
-      DB_PASSWORD: xXMr2#)C-Uk
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       DB_NAME: dbsimpelv2
-      DATABASE_URL: postgresql://postgres:xXMr2#)C-Uk@postgres:5432/dbsimpelv2
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,10 +74,10 @@ services:
       RUST_LOG: debug
       GRPC_PORT: "50053"
       DB_HOST: postgres
-      DB_USER: postgres
-      DB_PASSWORD: xXMr2#)C-Uk
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       DB_NAME: dbsecretion
-      DATABASE_URL: postgresql://postgres:xXMr2#)C-Uk@postgres:5432/dbsecretion
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsecretion
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,8 +95,8 @@ services:
       RUST_LOG: debug
       GRPC_PORT: "50052"
       DB_HOST: postgres
-      DB_USER: postgres
-      DB_PASSWORD: xXMr2#)C-Uk
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       DB_NAME: dbintegration
       AUTHENC_GRPC_URL: authenc:50051
       SECRETON_GRPC_URL: secreton:50053
@@ -124,10 +124,10 @@ services:
       RUST_LOG: debug
       SERVER_PORT: "3020"
       DB_HOST: postgres
-      DB_USER: postgres
-      DB_PASSWORD: xXMr2#)C-Uk
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       DB_NAME: dbsimpelv2
-      DATABASE_URL: postgresql://postgres:xXMr2#)C-Uk@postgres:5432/dbsimpelv2
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
       AUTHENC_GRPC_URL: authenc:50051
       SECRETON_GRPC_URL: secreton:50053
       INTEGRASI_GRPC_URL: layanan-integrasi:50052
@@ -156,8 +156,8 @@ services:
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_DATABASE: dbsimpelv1
-      DB_USERNAME: postgres
-      DB_PASSWORD: xXMr2#)C-Uk
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       PORTAL_URL: http://localhost:3000/portal
       AUTHENC_GRPC_URL: authenc:50051
       INTEGRASI_GRPC_URL: layanan-integrasi:50052
