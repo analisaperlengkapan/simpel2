@@ -165,10 +165,17 @@ services:
       # the resulting `base64:...` string in .env.
       APP_KEY: ${SIMPELV1_APP_KEY:?SIMPELV1_APP_KEY must be set in .env (use `php artisan key:generate --show`)}
       PORTAL_URL: http://localhost:3000/portal
-      AUTHENC_GRPC_URL: authenc:50051
-      INTEGRASI_GRPC_URL: layanan-integrasi:50052
-      SECRETON_GRPC_URL: secreton:50053
-      GRPC_SSL_MODE: insecure
+      # The PHP gateway clients read *_GATEWAY_URL (see
+      # `monolith/simpelv1/app/Services/Grpc/*GrpcClient.php`), not
+      # *_GRPC_URL. Per `monolith/simpelv1/AGENTS.md`, Laravel talks to
+      # the Rust services through an HTTP/REST gateway sidecar, not
+      # direct gRPC. Until a sidecar is added to this compose file,
+      # leaving these unset falls back to the localhost defaults baked
+      # into the clients (which will fail loudly), but at least the
+      # values are no longer silently ignored under the wrong name.
+      AUTHENC_GATEWAY_URL: http://authenc-gateway:8081
+      INTEGRASI_GATEWAY_URL: http://integrasi-gateway:8082
+      SECRETON_GATEWAY_URL: http://secreton-gateway:8083
       SESSION_DRIVER: file
       CACHE_DRIVER: file
     depends_on:

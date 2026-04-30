@@ -24,10 +24,15 @@ data:
   QUEUE_REDIS_HOST: "redis.simpelv2-production.svc.cluster.local"
   QUEUE_REDIS_PORT: "6379"
   PORTAL_URL: "https://simpel.kejaksaan.go.id/portal"
-  AUTHENC_GRPC_URL: "authenc.simpelv2-production.svc.cluster.local:50051"
-  INTEGRASI_GRPC_URL: "layanan-integrasi.simpelv2-production.svc.cluster.local:50052"
-  SECRETON_GRPC_URL: "secreton.simpelv2-production.svc.cluster.local:50053"
-  GRPC_SSL_MODE: "require"
+  # The PHP gateway clients (`AuthencGrpcClient`, `IntegrasiGrpcClient`,
+  # `SecrethonGrpcClient`) read *_GATEWAY_URL — not *_GRPC_URL — and
+  # speak HTTP/REST to a sidecar/gateway proxy per
+  # `monolith/simpelv1/AGENTS.md`. The previous *_GRPC_URL keys were
+  # dead config because no PHP code ever reads them. The sidecar is
+  # colocated in the pod, so we target localhost.
+  AUTHENC_GATEWAY_URL: "http://127.0.0.1:8081"
+  INTEGRASI_GATEWAY_URL: "http://127.0.0.1:8082"
+  SECRETON_GATEWAY_URL: "http://127.0.0.1:8083"
 
 ---
 # NOTE: Do not commit real production credentials. Populate this Secret
@@ -80,12 +85,18 @@ spec:
           done
           
           echo "Checking if database is initialized..."
-          if ! PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d $DB_DATABASE -c "SELECT 1;" > /dev/null 2>&1; then
-            echo "Database not initialized, restoring from backup..."
+          # `SELECT 1;` succeeds against any reachable database — including
+          # an empty one — so it can't tell whether the dump has been
+          # loaded. Mirror the staging check (counting user tables in the
+          # `public` schema) so the restore branch actually runs on a
+          # fresh database. See `infra/k8s/base/backend/simpelv1.yaml`.
+          TABLE_COUNT=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d $DB_DATABASE -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+          if [ "$TABLE_COUNT" -eq 0 ]; then
+            echo "Database is empty, restoring from backup..."
             gunzip < /db-backup/dbsimpelv1.sql.gz | PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d $DB_DATABASE
             echo "Database restored successfully"
           else
-            echo "Database already initialized"
+            echo "Database already initialized ($TABLE_COUNT tables present)"
           fi
         env:
         - name: DB_HOST

@@ -22,10 +22,17 @@ data:
   REDIS_HOST: "redis.simpelv2-staging.svc.cluster.local"
   REDIS_PORT: "6379"
   PORTAL_URL: "http://portal:3000/portal"
-  AUTHENC_GRPC_URL: "authenc:50051"
-  INTEGRASI_GRPC_URL: "layanan-integrasi:50052"
-  SECRETON_GRPC_URL: "secreton:50053"
-  GRPC_SSL_MODE: "insecure"
+  # The PHP gateway clients (`AuthencGrpcClient`, `IntegrasiGrpcClient`,
+  # `SecrethonGrpcClient`) read *_GATEWAY_URL — not *_GRPC_URL — and
+  # speak HTTP/REST to a sidecar/gateway proxy per
+  # `monolith/simpelv1/AGENTS.md`. The previous *_GRPC_URL keys were
+  # dead config because no PHP code ever reads them. Until a real
+  # gateway sidecar is deployed alongside this pod, point at localhost
+  # so the failure mode is a clean connection refusal rather than a
+  # silent fallback to a hardcoded default.
+  AUTHENC_GATEWAY_URL: "http://127.0.0.1:8081"
+  INTEGRASI_GATEWAY_URL: "http://127.0.0.1:8082"
+  SECRETON_GATEWAY_URL: "http://127.0.0.1:8083"
 
 ---
 # NOTE: Do not commit real credentials. Populate this Secret out-of-band
