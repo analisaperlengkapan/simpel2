@@ -207,10 +207,17 @@ class AuthController extends Controller
                 'user_agent'  => $request->userAgent(),
             ]);
         }
+        
+        // Broadcast logout event for cross-tab sync
+        $request->session()->put('logout_event', now()->toIso8601String());
+        
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect('/auth/login');
+        
+        // Return logout response with event marker
+        return response()->redirectTo('/auth/login')
+            ->header('X-Logout-Event', '1');
     }
 
     public function changeRole(int $roleId)
