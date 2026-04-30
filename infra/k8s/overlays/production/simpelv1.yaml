@@ -143,7 +143,14 @@ spec:
         # tag would let nodes silently keep stale cached images even after
         # a new image is pushed under the same tag, leading to drift
         # between replicas.
-        image: simpelv2/simpelv1:v0.1.0
+        # Per `infra/k8s/AGENTS.md`, all SIMPEL images are stored in the
+        # local MicroK8s registry at `localhost:32000/simpelv2/<name>:<tag>`.
+        # Without the `localhost:32000/` prefix kubelet would attempt to
+        # pull from Docker Hub (the default registry) and fail with
+        # ImagePullBackOff because no public `simpelv2/simpelv1` image
+        # exists there. Matches the staging manifest's image reference at
+        # `infra/k8s/base/backend/simpelv1.yaml`.
+        image: localhost:32000/simpelv2/simpelv1:v0.1.0
         # `Always` ensures every pod start re-pulls the image, so a tag
         # bump (e.g. via `kubectl set image ... =simpelv2/simpelv1:v0.2.0`)
         # is picked up consistently across all nodes.

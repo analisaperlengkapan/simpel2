@@ -170,14 +170,22 @@ jobs:
       - name: Set up environment
         working-directory: ./monolith/simpelv1
         run: |
-          cp .env.example .env.test
-          echo "APP_KEY=$(php artisan key:generate --show)" >> .env.test
-          echo "DB_CONNECTION=pgsql" >> .env.test
-          echo "DB_HOST=127.0.0.1" >> .env.test
-          echo "DB_PORT=5432" >> .env.test
-          echo "DB_DATABASE=dbsimpelv1_test" >> .env.test
-          echo "DB_USERNAME=postgres" >> .env.test
-          echo "DB_PASSWORD=postgres" >> .env.test
+          # Laravel's LoadEnvironmentVariables bootstrapper only loads
+          # `.env` by default, or `.env.{APP_ENV}` when APP_ENV is set
+          # (phpunit.xml sets APP_ENV=testing, so `.env.testing` is also
+          # honoured). It does NOT load `.env.test`, which would silently
+          # leave APP_KEY unset and make EncryptCookies throw on every
+          # web request. Write to `.env` so the values are actually used.
+          cp .env.example .env
+          php artisan key:generate --force
+          {
+            echo "DB_CONNECTION=pgsql"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=5432"
+            echo "DB_DATABASE=dbsimpelv1_test"
+            echo "DB_USERNAME=postgres"
+            echo "DB_PASSWORD=postgres"
+          } >> .env
 
       - name: Run Laravel tests
         working-directory: ./monolith/simpelv1
