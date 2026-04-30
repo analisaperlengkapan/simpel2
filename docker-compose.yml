@@ -236,7 +236,25 @@ services:
     ports:
       - "3001:8080"
     environment:
-      - SIMPEL_KEAMANAN_URL=http://keamanan:8090
+      # The perlengkapan microfrontend is an nginx container serving a
+      # WASM bundle. At container start `antarmuka/perlengkapan/entrypoint.sh`
+      # writes `config.json` from `API_URL` / `AUTHENC_URL`. Since the
+      # entrypoint unconditionally generates `config.json`, omitting these
+      # vars bakes in the staging defaults (`http://10.1.7.121/...`) which
+      # are unreachable from a developer's browser, silently breaking the
+      # local API/auth flow. Both URLs must be reachable from the browser
+      # running on the host, not from inside the container.
+      #
+      # The previous `SIMPEL_KEAMANAN_URL=http://keamanan:8090` env var
+      # was dead config — the entrypoint never reads it, and no `keamanan`
+      # service exists in this compose file.
+      API_URL: http://localhost:3020
+      # No authenc HTTP gateway is exposed in this compose file (authenc
+      # speaks gRPC on :50051). Point at an origin-relative path so the
+      # WASM client surfaces a clear 404 against perlengkapan's own nginx
+      # instead of silently hitting a staging IP. Replace with a real
+      # gateway URL once a sidecar/proxy is added to compose.
+      AUTHENC_URL: /api/v1/auth
     networks:
       - simpel-network
 
