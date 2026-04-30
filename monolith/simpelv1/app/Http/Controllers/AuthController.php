@@ -213,10 +213,34 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // Return logout response with event marker so client-side
-        // listeners can broadcast the logout to other tabs via localStorage.
+        // Broadcast the logout to other tabs.
+        //
+        // The header below is only useful for AJAX-driven logout flows
+        // where the caller can inspect response headers. For a regular
+        // browser navigation (GET /auth/logout via an <a href>), the
+        // browser transparently follows the 302 and client-side JS
+        // never observes the response — so the header alone cannot
+        // trigger the `localStorage` `storage` event other tabs listen
+        // for. To bridge that gap, also set a short-lived,
+        // non-HttpOnly cookie that the login page's JS can read on
+        // load and mirror into `localStorage.logout_event`, which is
+        // what actually fires the cross-tab `storage` event. The
+        // cookie is intentionally NOT HttpOnly so JS can read it; it
+        // contains no secrets, only the marker "1", and is cleared
+        // immediately by the login page after consumption.
         return response()->redirectTo('/auth/login')
-            ->header('X-Logout-Event', '1');
+            ->header('X-Logout-Event', '1')
+            ->cookie(
+                'logout_event', // name
+                '1',            // value
+                1,              // minutes
+                '/',            // path
+                null,           // domain
+                $request->secure(), // secure
+                false,          // httpOnly: must be false so JS can read
+                false,          // raw
+                'lax'           // sameSite
+            );
     }
 
     public function changeRole(int $roleId)

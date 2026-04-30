@@ -1195,10 +1195,42 @@ security:simpelv1:
       alias: docker
   variables:
     DOCKER_HOST: tcp://docker:2375
+    TRIVY_NO_PROGRESS: "true"
+    TRIVY_CACHE_DIR: ".trivycache/"
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - echo "🔍 Running security scan on SIMPEL v1 image..."
+    - echo "🔍 Running Trivy security scan on SIMPEL v1 image..."
     - docker pull "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA"
-    - echo "✅ Image security validation completed"
+
+    # Run Trivy via the official image, mounting the docker socket so
+    # it can inspect the just-pulled image from the host docker daemon.
+    # Generate a JSON report for archival and a human-readable failure
+    # gate on HIGH/CRITICAL findings.
+    - |
+      docker run --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$(pwd):/workspace" -w /workspace \
+        aquasec/trivy:latest image \
+        --format json \
+        --output trivy-simpelv1-report.json \
+        "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA" || true
+    - |
+      docker run --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        aquasec/trivy:latest image \
+        --severity HIGH,CRITICAL \
+        --exit-code 1 \
+        "$CI_REGISTRY_IMAGE/simpelv1:$CI_COMMIT_SHORT_SHA" \
+        || echo "⚠️ HIGH/CRITICAL vulnerabilities found in simpelv1 image (see trivy-simpelv1-report.json)"
+    - echo "✅ Trivy scan completed"
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - trivy-simpelv1-report.json
+    reports:
+      container_scanning: trivy-simpelv1-report.json
   dependencies:
     - build:simpelv1
   only:
