@@ -455,12 +455,9 @@ class AuthController extends Controller
 
             // Buat session
             Auth::login($user);
-            $userInfo = Pengguna::setUserdata($user);
-            $request->session()->regenerate();
-            $request->session()->put('userData', $userInfo);
-            $request->session()->put('auth_token', $token);
 
-            // Log activity
+            // Log activity (catat aktivitas login OAuth sebelum kemungkinan
+            // redirect ke 2FA, agar selalu tercatat)
             Aktifitas::create([
                 'username' => $user->username,
                 'operation' => 'LOGIN_OAUTH',
@@ -472,6 +469,27 @@ class AuthController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
+
+            // Enforce 2FA jika user mengaktifkannya (parity dengan flow
+            // `login()` di atas). Tanpa ini, OAuth callback bisa menjadi
+            // jalan pintas yang melewati 2FA — sekaligus membuat user
+            // dengan 2FA aktif terjebak di middleware Ensure2FAIsVerified
+            // tanpa session keys yang dibutuhkan TwoFAController.
+            if (! empty($user->google2fa_secret)) {
+                session([
+                    '2fa:user:id' => $user->id,
+                    '2fa:remember' => false,
+                    '2fa:pending' => true,
+                    'auth_token' => $token,
+                ]);
+                Auth::logout();
+                return redirect()->route('2fa.index');
+            }
+
+            $userInfo = Pengguna::setUserdata($user);
+            $request->session()->regenerate();
+            $request->session()->put('userData', $userInfo);
+            $request->session()->put('auth_token', $token);
 
             return redirect()->intended('/dashboard');
 

@@ -2,120 +2,85 @@
 
 namespace App\Services\Grpc;
 
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Authenc gRPC Client
- * 
- * Interfaces with Authenc service for identity verification and JWT token validation
+ * Authenc Gateway Client
+ *
+ * Talks to the Authenc service via the K8s Sidecar / Rust Gateway Proxy
+ * over HTTP/REST. Per `monolith/simpelv1/AGENTS.md`, Laravel MUST NOT
+ * open direct gRPC channels to core Rust services — repeated mTLS RPC
+ * setup on every php-fpm cycle is prohibitively expensive. The sidecar
+ * keeps a long-lived gRPC connection upstream and exposes a local
+ * REST endpoint that this client consumes.
+ *
+ * Class name retained as `AuthencGrpcClient` for backwards compatibility
+ * with existing service-container bindings.
  */
 class AuthencGrpcClient
 {
-    private ?object $client = null;
-    private string $host;
-    private int $port;
-    private string $sslMode;
+    private string $baseUrl;
+    private float $timeout;
 
     public function __construct()
     {
-        $this->host = config('services.grpc.authenc.host', 'authenc');
-        $this->port = config('services.grpc.authenc.port', 50051);
-        $this->sslMode = config('services.grpc.ssl_mode', 'insecure');
+        // The sidecar is colocated in the same pod, so we default to
+        // localhost. In environments without a sidecar this can be
+        // pointed at a shared Rust Gateway Proxy.
+        $this->baseUrl = rtrim(
+            config('services.gateway.authenc.url', env('AUTHENC_GATEWAY_URL', 'http://127.0.0.1:8081')),
+            '/'
+        );
+        $this->timeout = (float) config('services.gateway.timeout', 5.0);
     }
 
     /**
-     * Connect to Authenc gRPC service
-     */
-    private function connect(): void
-    {
-        if ($this->client !== null) {
-            return;
-        }
-
-        try {
-            $address = "{$this->host}:{$this->port}";
-            $opts = $this->sslMode === 'require' 
-                ? ['credentials' => \Grpc\ChannelCredentials::createSsl()]
-                : [];
-
-            // Initialize gRPC client (channel will be created by Grpc library)
-            $this->client = new \Grpc\Client($address, $opts);
-            
-            Log::debug("Connected to Authenc gRPC service at {$address}");
-        } catch (Throwable $th) {
-            Log::error("Failed to connect to Authenc gRPC: {$th->getMessage()}");
-            throw $th;
-        }
-    }
-
-    /**
-     * Verify JWT token with Authenc service
+     * Verify JWT token via the Authenc gateway.
      */
     public function verifyToken(string $token): ?array
     {
         try {
-            $this->connect();
+            $response = Http::timeout($this->timeout)
+                ->acceptJson()
+                ->asJson()
+                ->post("{$this->baseUrl}/v1/tokens/verify", ['token' => $token]);
 
-            // TODO: Call Authenc::VerifyToken() RPC
-            // For now, decode JWT locally (placeholder)
-            $claims = $this->decodeJwtLocally($token);
+            if (! $response->successful()) {
+                Log::warning('Authenc gateway rejected token', [
+                    'status' => $response->status(),
+                ]);
+                return null;
+            }
 
-            Log::info("JWT token verified successfully for user: {$claims['sub']}");
-            return $claims;
-
+            $claims = $response->json('claims');
+            return is_array($claims) ? $claims : null;
         } catch (Throwable $th) {
-            Log::warning("Token verification failed: {$th->getMessage()}");
+            Log::warning("Authenc verifyToken failed: {$th->getMessage()}");
             return null;
         }
     }
 
     /**
-     * Get user details from Authenc
+     * Get user details from Authenc gateway.
      */
     public function getUserDetails(string $username): ?array
     {
         try {
-            $this->connect();
+            $response = Http::timeout($this->timeout)
+                ->acceptJson()
+                ->get("{$this->baseUrl}/v1/users/" . rawurlencode($username));
 
-            // TODO: Call Authenc::GetUserDetails() RPC
-            Log::info("Retrieved user details for: {$username}");
-            return [];
+            if (! $response->successful()) {
+                return null;
+            }
 
+            $user = $response->json();
+            return is_array($user) ? $user : null;
         } catch (Throwable $th) {
-            Log::warning("Failed to get user details: {$th->getMessage()}");
+            Log::warning("Authenc getUserDetails failed: {$th->getMessage()}");
             return null;
         }
-    }
-
-    /**
-     * Local JWT decoding (temporary until gRPC integration)
-     */
-    private function decodeJwtLocally(string $token): array
-    {
-        // Split JWT into parts
-        $parts = explode('.', $token);
-        if (count($parts) !== 3) {
-            throw new \Exception('Invalid JWT format');
-        }
-
-        $payload = json_decode(
-            base64_decode(strtr($parts[1], '-_', '+/')),
-            true
-        );
-
-        if (!$payload) {
-            throw new \Exception('Failed to decode JWT payload');
-        }
-
-        return $payload;
-    }
-
-    /**
-     * Close connection
-     */
-    public function __destruct()
-    {
-        $this->client = null;
     }
 }

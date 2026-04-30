@@ -8,23 +8,27 @@ use App\Services\Grpc\SecrethonGrpcClient;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Service Provider for gRPC Clients
+ * Service Provider for backend gateway clients.
+ *
+ * NOTE: The `*GrpcClient` class names are retained for backwards
+ * compatibility, but the underlying transport is HTTP/REST against a
+ * local K8s sidecar (or a shared Rust Gateway Proxy). Direct gRPC from
+ * php-fpm to core Rust services is forbidden by
+ * `monolith/simpelv1/AGENTS.md` due to the cost of opening fresh mTLS
+ * channels per request.
  */
 class GrpcServiceProvider extends ServiceProvider
 {
     public function register()
     {
-        // Register Authenc gRPC Client
         $this->app->singleton(AuthencGrpcClient::class, function ($app) {
             return new AuthencGrpcClient();
         });
 
-        // Register Integrasi gRPC Client
         $this->app->singleton(IntegrasiGrpcClient::class, function ($app) {
             return new IntegrasiGrpcClient();
         });
 
-        // Register Secreton gRPC Client
         $this->app->singleton(SecrethonGrpcClient::class, function ($app) {
             return new SecrethonGrpcClient();
         });
@@ -32,14 +36,13 @@ class GrpcServiceProvider extends ServiceProvider
         // Alias for easy access. Laravel's alias() signature is
         // alias($abstract, $alias) — the first argument is the existing
         // binding (the class), the second is the short alias name.
-        $this->app->alias(AuthencGrpcClient::class, 'authenc.grpc');
-        $this->app->alias(IntegrasiGrpcClient::class, 'integrasi.grpc');
-        $this->app->alias(SecrethonGrpcClient::class, 'secreton.grpc');
+        $this->app->alias(AuthencGrpcClient::class, 'authenc.gateway');
+        $this->app->alias(IntegrasiGrpcClient::class, 'integrasi.gateway');
+        $this->app->alias(SecrethonGrpcClient::class, 'secreton.gateway');
     }
 
     public function boot()
     {
-        // Log service registration
-        \Illuminate\Support\Facades\Log::debug('gRPC services registered');
+        \Illuminate\Support\Facades\Log::debug('Backend gateway clients registered');
     }
 }

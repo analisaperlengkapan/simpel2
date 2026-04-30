@@ -2,51 +2,38 @@
 
 namespace App\Services\Grpc;
 
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Integrasi gRPC Client
- * 
- * Interfaces with Integrasi service for data integration from external sources
- * (MonSAKTI, MySIMKARI, SIMAN, etc.)
+ * Integrasi Gateway Client
+ *
+ * Talks to the Integrasi service via the K8s Sidecar / Rust Gateway Proxy
+ * over HTTP/REST rather than direct gRPC. See `monolith/simpelv1/AGENTS.md`
+ * for the rationale (php-fpm cannot afford to open mTLS gRPC channels
+ * per request).
+ *
+ * Class name retained as `IntegrasiGrpcClient` for backwards compatibility.
  */
 class IntegrasiGrpcClient
 {
-    private ?object $client = null;
-    private string $host;
-    private int $port;
-    private string $sslMode;
+    private string $baseUrl;
+    private float $timeout;
 
     public function __construct()
     {
-        $this->host = config('services.grpc.integrasi.host', 'layanan-integrasi');
-        $this->port = config('services.grpc.integrasi.port', 50052);
-        $this->sslMode = config('services.grpc.ssl_mode', 'insecure');
+        $this->baseUrl = rtrim(
+            config('services.gateway.integrasi.url', env('INTEGRASI_GATEWAY_URL', 'http://127.0.0.1:8082')),
+            '/'
+        );
+        $this->timeout = (float) config('services.gateway.timeout', 5.0);
     }
 
-    /**
-     * Connect to Integrasi gRPC service
-     */
-    private function connect(): void
+    private function http(): PendingRequest
     {
-        if ($this->client !== null) {
-            return;
-        }
-
-        try {
-            $address = "{$this->host}:{$this->port}";
-            $opts = $this->sslMode === 'require' 
-                ? ['credentials' => \Grpc\ChannelCredentials::createSsl()]
-                : [];
-
-            $this->client = new \Grpc\Client($address, $opts);
-            
-            Log::debug("Connected to Integrasi gRPC service at {$address}");
-        } catch (Throwable $th) {
-            Log::error("Failed to connect to Integrasi gRPC: {$th->getMessage()}");
-            throw $th;
-        }
+        return Http::timeout($this->timeout)->acceptJson();
     }
 
     /**
@@ -55,12 +42,14 @@ class IntegrasiGrpcClient
     public function fetchAssetFromMonSAKTI(string $assetId): ?array
     {
         try {
-            $this->connect();
-
-            // TODO: Call Integrasi::FetchAsset() RPC with source='MonSAKTI'
-            Log::info("Fetched asset {$assetId} from MonSAKTI");
-            return [];
-
+            $response = $this->http()->get(
+                "{$this->baseUrl}/v1/monsakti/assets/" . rawurlencode($assetId)
+            );
+            if (! $response->successful()) {
+                return null;
+            }
+            $data = $response->json();
+            return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::warning("Failed to fetch asset from MonSAKTI: {$th->getMessage()}");
             return null;
@@ -73,12 +62,14 @@ class IntegrasiGrpcClient
     public function fetchEmployeeFromMySIMKARI(string $nip): ?array
     {
         try {
-            $this->connect();
-
-            // TODO: Call Integrasi::FetchEmployee() RPC with source='MySIMKARI'
-            Log::info("Fetched employee {$nip} from MySIMKARI");
-            return [];
-
+            $response = $this->http()->get(
+                "{$this->baseUrl}/v1/mysimkari/employees/" . rawurlencode($nip)
+            );
+            if (! $response->successful()) {
+                return null;
+            }
+            $data = $response->json();
+            return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::warning("Failed to fetch employee from MySIMKARI: {$th->getMessage()}");
             return null;
@@ -91,12 +82,14 @@ class IntegrasiGrpcClient
     public function fetchInventoryFromSIMAN(string $inventoryId): ?array
     {
         try {
-            $this->connect();
-
-            // TODO: Call Integrasi::FetchInventory() RPC with source='SIMAN'
-            Log::info("Fetched inventory {$inventoryId} from SIMAN");
-            return [];
-
+            $response = $this->http()->get(
+                "{$this->baseUrl}/v1/siman/inventory/" . rawurlencode($inventoryId)
+            );
+            if (! $response->successful()) {
+                return null;
+            }
+            $data = $response->json();
+            return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::warning("Failed to fetch inventory from SIMAN: {$th->getMessage()}");
             return null;
@@ -109,12 +102,10 @@ class IntegrasiGrpcClient
     public function syncAssetToMonSAKTI(array $assetData): bool
     {
         try {
-            $this->connect();
-
-            // TODO: Call Integrasi::SyncAsset() RPC
-            Log::info("Asset synced to MonSAKTI: {$assetData['id']}");
-            return true;
-
+            $response = $this->http()
+                ->asJson()
+                ->post("{$this->baseUrl}/v1/monsakti/assets/sync", $assetData);
+            return $response->successful();
         } catch (Throwable $th) {
             Log::warning("Failed to sync asset to MonSAKTI: {$th->getMessage()}");
             return false;
@@ -127,23 +118,10 @@ class IntegrasiGrpcClient
     public function health(): bool
     {
         try {
-            $this->connect();
-
-            // TODO: Call Integrasi::Health() RPC
-            Log::debug("Integrasi service health check passed");
-            return true;
-
+            return $this->http()->get("{$this->baseUrl}/healthz")->successful();
         } catch (Throwable $th) {
-            Log::warning("Integrasi service health check failed: {$th->getMessage()}");
+            Log::warning("Integrasi gateway health check failed: {$th->getMessage()}");
             return false;
         }
-    }
-
-    /**
-     * Close connection
-     */
-    public function __destruct()
-    {
-        $this->client = null;
     }
 }

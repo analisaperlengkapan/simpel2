@@ -2,51 +2,38 @@
 
 namespace App\Services\Grpc;
 
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Secreton gRPC Client
- * 
- * Interfaces with Secreton service for secure secrets management
- * (API keys, database credentials, tokens, etc.)
+ * Secreton Gateway Client
+ *
+ * Talks to the Secreton service via the K8s Sidecar / Rust Gateway Proxy
+ * over HTTP/REST rather than direct gRPC. See `monolith/simpelv1/AGENTS.md`
+ * for the rationale (php-fpm cannot afford to open mTLS gRPC channels
+ * per request).
+ *
+ * Class name retained as `SecrethonGrpcClient` for backwards compatibility.
  */
 class SecrethonGrpcClient
 {
-    private ?object $client = null;
-    private string $host;
-    private int $port;
-    private string $sslMode;
+    private string $baseUrl;
+    private float $timeout;
 
     public function __construct()
     {
-        $this->host = config('services.grpc.secreton.host', 'secreton');
-        $this->port = config('services.grpc.secreton.port', 50053);
-        $this->sslMode = config('services.grpc.ssl_mode', 'insecure');
+        $this->baseUrl = rtrim(
+            config('services.gateway.secreton.url', env('SECRETON_GATEWAY_URL', 'http://127.0.0.1:8083')),
+            '/'
+        );
+        $this->timeout = (float) config('services.gateway.timeout', 5.0);
     }
 
-    /**
-     * Connect to Secreton gRPC service
-     */
-    private function connect(): void
+    private function http(): PendingRequest
     {
-        if ($this->client !== null) {
-            return;
-        }
-
-        try {
-            $address = "{$this->host}:{$this->port}";
-            $opts = $this->sslMode === 'require' 
-                ? ['credentials' => \Grpc\ChannelCredentials::createSsl()]
-                : [];
-
-            $this->client = new \Grpc\Client($address, $opts);
-            
-            Log::debug("Connected to Secreton gRPC service at {$address}");
-        } catch (Throwable $th) {
-            Log::error("Failed to connect to Secreton gRPC: {$th->getMessage()}");
-            throw $th;
-        }
+        return Http::timeout($this->timeout)->acceptJson();
     }
 
     /**
@@ -55,12 +42,14 @@ class SecrethonGrpcClient
     public function getSecret(string $secretName): ?string
     {
         try {
-            $this->connect();
-
-            // TODO: Call Secreton::GetSecret() RPC
-            Log::debug("Retrieved secret: {$secretName}");
-            return null;
-
+            $response = $this->http()->get(
+                "{$this->baseUrl}/v1/secrets/" . rawurlencode($secretName)
+            );
+            if (! $response->successful()) {
+                return null;
+            }
+            $value = $response->json('value');
+            return is_string($value) ? $value : null;
         } catch (Throwable $th) {
             Log::error("Failed to retrieve secret {$secretName}: {$th->getMessage()}");
             return null;
@@ -73,12 +62,13 @@ class SecrethonGrpcClient
     public function putSecret(string $secretName, string $secretValue, array $metadata = []): bool
     {
         try {
-            $this->connect();
-
-            // TODO: Call Secreton::PutSecret() RPC
-            Log::info("Stored secret: {$secretName}");
-            return true;
-
+            $response = $this->http()
+                ->asJson()
+                ->put("{$this->baseUrl}/v1/secrets/" . rawurlencode($secretName), [
+                    'value' => $secretValue,
+                    'metadata' => $metadata,
+                ]);
+            return $response->successful();
         } catch (Throwable $th) {
             Log::error("Failed to store secret {$secretName}: {$th->getMessage()}");
             return false;
@@ -91,12 +81,10 @@ class SecrethonGrpcClient
     public function deleteSecret(string $secretName): bool
     {
         try {
-            $this->connect();
-
-            // TODO: Call Secreton::DeleteSecret() RPC
-            Log::info("Deleted secret: {$secretName}");
-            return true;
-
+            $response = $this->http()->delete(
+                "{$this->baseUrl}/v1/secrets/" . rawurlencode($secretName)
+            );
+            return $response->successful();
         } catch (Throwable $th) {
             Log::error("Failed to delete secret {$secretName}: {$th->getMessage()}");
             return false;
@@ -109,12 +97,14 @@ class SecrethonGrpcClient
     public function getDatabaseCredentials(string $databaseName): ?array
     {
         try {
-            $this->connect();
-
-            // TODO: Call Secreton::GetDatabaseCredentials() RPC
-            Log::debug("Retrieved DB credentials for: {$databaseName}");
-            return null;
-
+            $response = $this->http()->get(
+                "{$this->baseUrl}/v1/database-credentials/" . rawurlencode($databaseName)
+            );
+            if (! $response->successful()) {
+                return null;
+            }
+            $data = $response->json();
+            return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::error("Failed to retrieve DB credentials: {$th->getMessage()}");
             return null;
@@ -127,12 +117,14 @@ class SecrethonGrpcClient
     public function getApiKey(string $serviceName): ?string
     {
         try {
-            $this->connect();
-
-            // TODO: Call Secreton::GetApiKey() RPC
-            Log::debug("Retrieved API key for: {$serviceName}");
-            return null;
-
+            $response = $this->http()->get(
+                "{$this->baseUrl}/v1/api-keys/" . rawurlencode($serviceName)
+            );
+            if (! $response->successful()) {
+                return null;
+            }
+            $key = $response->json('api_key');
+            return is_string($key) ? $key : null;
         } catch (Throwable $th) {
             Log::error("Failed to retrieve API key for {$serviceName}: {$th->getMessage()}");
             return null;
@@ -145,23 +137,10 @@ class SecrethonGrpcClient
     public function health(): bool
     {
         try {
-            $this->connect();
-
-            // TODO: Call Secreton::Health() RPC
-            Log::debug("Secreton service health check passed");
-            return true;
-
+            return $this->http()->get("{$this->baseUrl}/healthz")->successful();
         } catch (Throwable $th) {
-            Log::warning("Secreton service health check failed: {$th->getMessage()}");
+            Log::warning("Secreton gateway health check failed: {$th->getMessage()}");
             return false;
         }
-    }
-
-    /**
-     * Close connection
-     */
-    public function __destruct()
-    {
-        $this->client = null;
     }
 }
