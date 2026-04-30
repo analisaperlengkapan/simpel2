@@ -10,9 +10,17 @@ data:
   DB_HOST: "postgres.simpelv2-staging.svc.cluster.local"
   DB_PORT: "5432"
   DB_DATABASE: "dbsimpelv1"
-  SESSION_DRIVER: "file"
-  CACHE_DRIVER: "file"
+  # Staging runs 2 replicas behind a Service, so file-based sessions
+  # (local to each pod) would cause intermittent logouts when requests
+  # are load-balanced to a different pod. Use redis-backed sessions to
+  # match production behaviour. See `infra/k8s/overlays/production/simpelv1.yaml`
+  # for the same rationale.
+  SESSION_DRIVER: "redis"
+  SESSION_CONNECTION: "default"
+  CACHE_DRIVER: "redis"
   QUEUE_CONNECTION: "sync"
+  REDIS_HOST: "redis.simpelv2-staging.svc.cluster.local"
+  REDIS_PORT: "6379"
   PORTAL_URL: "http://portal:3000/portal"
   AUTHENC_GRPC_URL: "authenc:50051"
   INTEGRASI_GRPC_URL: "layanan-integrasi:50052"
@@ -71,13 +79,20 @@ spec:
             sleep 2
           done
           
-          echo "Checking if database exists..."
-          if ! PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -tc "SELECT 1 FROM information_schema.schemata WHERE schema_name = 'public';" | grep -q 1; then
-            echo "Database doesn't exist, restoring from backup..."
+          echo "Checking if database is initialized..."
+          # Connect to the target database (-d $DB_DATABASE) and check whether
+          # it contains any user tables in the `public` schema. The previous
+          # check looked for the `public` schema itself, but every PostgreSQL
+          # database has that schema by default — so the restore branch was
+          # dead code and the backup never ran. Counting tables in `public`
+          # actually reflects whether the dump has been loaded.
+          TABLE_COUNT=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d $DB_DATABASE -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+          if [ "$TABLE_COUNT" -eq 0 ]; then
+            echo "Database is empty, restoring from backup..."
             gunzip < /db-backup/dbsimpelv1.sql.gz | PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d $DB_DATABASE
             echo "Database restored successfully"
           else
-            echo "Database already initialized"
+            echo "Database already initialized ($TABLE_COUNT tables present)"
           fi
         env:
         - name: DB_HOST
