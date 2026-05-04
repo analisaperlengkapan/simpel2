@@ -1,9 +1,0 @@
----
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: simpelv2-staging-default
-value: 100000
-globalDefault: false
-preemptionPolicy: Never
-description: "Default priority for simpelv2 staging workloads (non-preempting)."

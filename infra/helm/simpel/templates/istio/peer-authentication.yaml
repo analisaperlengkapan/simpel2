@@ -1,0 +1,10 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "simpelv2" "component" "security") | nindent 4 }}
+spec:
+  mtls:
+    mode: {{ .Values.mtls.mode }}

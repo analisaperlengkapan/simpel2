@@ -1,0 +1,77 @@
+{{- if .Values.perlengkapan.enabled }}
+{{- $cfg := .Values.perlengkapan -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: perlengkapan
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "perlengkapan" "component" "frontend") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+  selector:
+    app.kubernetes.io/name: perlengkapan
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perlengkapan
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "perlengkapan" "component" "frontend") | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: perlengkapan
+  template:
+    metadata:
+      labels:
+        {{- include "simpel.componentLabels" (dict "top" . "name" "perlengkapan" "component" "frontend") | nindent 8 }}
+      annotations:
+        {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
+    spec:
+      serviceAccountName: perlengkapan
+      {{- if .Values.priorityClass.enabled }}
+      priorityClassName: {{ .Values.priorityClass.name }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      {{- include "simpel.imagePullSecrets" . | nindent 6 }}
+      {{- include "simpel.nodeSelector" . | nindent 6 }}
+      {{- include "simpel.tolerations" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $cfg.podSecurityContext | nindent 8 }}
+      containers:
+        - name: perlengkapan
+          image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - name: RUST_LOG
+              valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          livenessProbe:
+            {{- include "simpel.httpProbe" (dict "path" "/health" "port" 8080 "initialDelay" 15 "period" 10) | nindent 12 }}
+          readinessProbe:
+            {{- include "simpel.httpProbe" (dict "path" "/health" "port" 8080 "initialDelay" 5 "period" 5) | nindent 12 }}
+          volumeMounts:
+            - { name: nginx-config, mountPath: /etc/nginx/nginx.conf, subPath: nginx.conf, readOnly: true }
+            - { name: nginx-cache,  mountPath: /var/cache/nginx }
+            - { name: nginx-run,    mountPath: /var/run }
+      volumes:
+        - name: nginx-config
+          configMap: { name: perlengkapan-nginx-config }
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+{{- end }}

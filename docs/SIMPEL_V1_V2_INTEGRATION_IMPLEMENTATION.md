@@ -422,7 +422,7 @@ window.addEventListener('storage', (e) => {
 
 ### Staging Deployment
 - [ ] Create ConfigMap for DB backup: `kubectl create configmap simpelv1-db-backup ...`
-- [ ] Apply K8s manifests: `kubectl apply -f infra/k8s/base/backend/simpelv1.yaml`
+- [ ] Apply Helm chart: `./infra/helm/deploy.sh staging install`
 - [ ] Verify Istio routing: `istioctl analyze`
 - [ ] Test OAuth flow: Navigate Portal → v1 selector → login → redirect
 - [ ] Monitor logs: `kubectl logs -l app=simpelv1 -f`
@@ -430,7 +430,7 @@ window.addEventListener('storage', (e) => {
 
 ### Production Deployment (after staging validation)
 - [ ] Tag release: `git tag v1.0.0-simpelv1`
-- [ ] Apply production overlays: `kubectl apply -k infra/k8s/overlays/production`
+- [ ] Apply Helm chart: `./infra/helm/deploy.sh production install`
 - [ ] Verify HPA & PDB: `kubectl get hpa,pdb`
 - [ ] Monitor metrics: CPU, memory, request latency
 - [ ] Gradual rollout: Start with 1 replica, increase based on metrics

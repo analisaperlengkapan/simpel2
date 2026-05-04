@@ -1,0 +1,85 @@
+{{- if .Values.layananIntegrasi.enabled }}
+{{- $cfg := .Values.layananIntegrasi -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: layanan-integrasi
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "layanan-integrasi" "component" "backend") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - { name: grpc, port: 50051, targetPort: 50051, protocol: TCP }
+    - { name: http, port: 8080,  targetPort: 8080,  protocol: TCP }
+  selector:
+    app.kubernetes.io/name: layanan-integrasi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: layanan-integrasi
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "layanan-integrasi" "component" "backend") | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: layanan-integrasi
+  template:
+    metadata:
+      labels:
+        {{- include "simpel.componentLabels" (dict "top" . "name" "layanan-integrasi" "component" "backend") | nindent 8 }}
+      annotations:
+        {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
+    spec:
+      serviceAccountName: layanan-integrasi
+      {{- if .Values.priorityClass.enabled }}
+      priorityClassName: {{ .Values.priorityClass.name }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ $cfg.terminationGracePeriodSeconds }}
+      {{- include "simpel.imagePullSecrets" . | nindent 6 }}
+      {{- include "simpel.nodeSelector" . | nindent 6 }}
+      {{- include "simpel.tolerations" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $cfg.podSecurityContext | nindent 8 }}
+      containers:
+        - name: integrasi
+          image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
+          ports:
+            - { name: grpc, containerPort: 50051, protocol: TCP }
+            - { name: http, containerPort: 8080,  protocol: TCP }
+          envFrom:
+            - secretRef:    { name: integration-secrets }
+            - configMapRef: { name: backend-config }
+          env:
+            - { name: GRPC_HOST, value: "0.0.0.0" }
+            - { name: GRPC_PORT, value: "50051" }
+            - { name: HTTP_HOST, value: "0.0.0.0" }
+            - { name: HTTP_PORT, value: "8080" }
+            - { name: STORAGE_TYPE, value: "database" }
+            - name: RUST_LOG
+              valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: integrasi-url } }
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          livenessProbe:
+            tcpSocket: { port: 50051 }
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket: { port: 50051 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ $cfg.tmpVolumeSizeLimit }}
+{{- end }}

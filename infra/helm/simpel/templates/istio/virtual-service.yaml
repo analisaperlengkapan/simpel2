@@ -1,0 +1,67 @@
+{{- if and .Values.istio.gateway.enabled .Values.istio.virtualService.enabled }}
+{{- $vs := .Values.istio.virtualService -}}
+{{- $ns := include "simpel.namespace" . -}}
+{{- $gwRef := default (printf "%s/%s" .Values.global.istioNamespace .Values.istio.gateway.name) $vs.gatewayRef -}}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ $vs.name }}
+  namespace: {{ .Values.global.istioNamespace }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "simpelv2" "component" "routing") | nindent 4 }}
+spec:
+  hosts:
+    {{- toYaml $vs.hosts | nindent 4 }}
+  gateways:
+    - {{ $gwRef }}
+  http:
+    {{- range $route := $vs.routes }}
+    - {{- if $route.match }}
+      match:
+        - uri:
+            {{- if $route.match.exact }}
+            exact: {{ $route.match.exact }}
+            {{- else if $route.match.prefix }}
+            prefix: {{ $route.match.prefix }}
+            {{- else if $route.match.regex }}
+            regex: {{ $route.match.regex }}
+            {{- end }}
+      {{- end }}
+      {{- if $route.rewrite }}
+      rewrite:
+        uri: {{ $route.rewrite }}
+      {{- end }}
+      {{- if $route.redirect }}
+      redirect:
+        uri: {{ $route.redirect.uri }}
+        {{- if $route.redirect.code }}
+        redirectCode: {{ $route.redirect.code }}
+        {{- end }}
+      {{- else if $route.destination }}
+      route:
+        - destination:
+            host: {{ $route.destination.host }}.{{ $ns }}.svc.cluster.local
+            port:
+              number: {{ $route.destination.port }}
+          {{- if $route.destination.weight }}
+          weight: {{ $route.destination.weight }}
+          {{- end }}
+      {{- end }}
+      {{- if $route.timeout }}
+      timeout: {{ $route.timeout }}
+      {{- end }}
+      {{- with $route.retries }}
+      retries:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $route.corsPolicy }}
+      corsPolicy:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- if $vs.defaultRedirect }}
+    - redirect:
+        uri: {{ $vs.defaultRedirect }}
+        redirectCode: 302
+    {{- end }}
+{{- end }}

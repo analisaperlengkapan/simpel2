@@ -1,0 +1,522 @@
+# SIMPEL umbrella chart — default values (staging-shaped).
+#
+# Override per env via:
+#   helm upgrade --install simpel infra/helm/simpel \
+#     -f infra/helm/simpel/values-staging.yaml \
+#     --namespace simpelv2-staging --create-namespace
+#
+# Production: pakai values-production.yaml. Untuk credential, render terpisah
+# via values-secrets.yaml (gitignored) atau Secreton SecretSync CRD.
+
+global:
+  registry: localhost:32000/simpelv2
+  imageTag: stag
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  environment: staging                     # staging | production
+  domain: 10.1.7.121
+  istioNamespace: istio-system
+  storageClass: longhorn
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # Inject ke common labels & telemetri.
+  # Catatan: app.kubernetes.io/managed-by sudah otomatis dirender oleh Helm
+  # (= Release.Service), jadi jangan duplikasi di sini.
+  labels:
+    app.kubernetes.io/part-of: simpelv2
+
+namespace:
+  create: true
+  name: simpelv2-staging
+  istioInjection: enabled
+  podSecurityEnforce: privileged           # production tetap privileged sesuai kebijakan
+  podSecurityAudit: baseline
+  podSecurityWarn: baseline
+  annotations:
+    description: "SIMPEL Staging Environment"
+
+# Default mTLS — dipakai PeerAuthentication & DestinationRule.
+mtls:
+  mode: PERMISSIVE                         # production: STRICT
+  destinationRules:
+    enabled: true
+    # Workload tanpa Istio sidecar harus DISABLE mTLS Istio agar plaintext masuk.
+    disableForHosts:
+      - authenc
+      - secreton
+      - postgres-primary
+
+# PriorityClass cluster-scoped. Aktifkan satu kali per cluster.
+priorityClass:
+  enabled: true
+  name: simpelv2-default
+  value: 100000
+  preemptionPolicy: Never
+  description: "Default priority for SIMPEL workloads"
+
+# ResourceQuota & LimitRange — aktif di production.
+resourceQuota:
+  enabled: false
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    persistentvolumeclaims: "20"
+    pods: "100"
+    services: "30"
+    secrets: "50"
+    configmaps: "50"
+limitRange:
+  enabled: false
+  container:
+    default: { cpu: 500m, memory: 512Mi }
+    defaultRequest: { cpu: 100m, memory: 256Mi }
+    max: { cpu: "4", memory: 8Gi }
+    min: { cpu: 10m, memory: 32Mi }
+  pvc:
+    max: { storage: 200Gi }
+    min: { storage: 1Gi }
+
+# ServiceAccount untuk semua workload aplikasi.
+serviceAccounts:
+  create: true
+  automount: false
+  names:
+    - authenc
+    - secreton
+    - layanan-integrasi
+    - layanan-perlengkapan
+    - portal
+    - perlengkapan
+    - simpelv1
+    - postgres-patroni                     # Postgres butuh izin patch endpoints
+
+networkPolicies:
+  enabled: true
+  defaultDenyIngress: true
+  allowDnsEgress: true
+  allowIstioControlPlaneEgress: true
+  allowIngressGateway:
+    enabled: true
+    ports: [8080, 3010, 3020, 8088, 8200, 50051]
+  layananIntegrasiEgress:
+    enabled: true                          # akses HTTPS eksternal (SIMAN/MySIMKARI/MonSAKTI)
+
+# Bootstrap secrets — chart TIDAK render Secret object kecuali toggle on.
+# Default off mengeliminasi bug "apply menimpa secret asli dengan placeholder".
+secrets:
+  bootstrap: false                         # set true HANYA untuk first-time apply
+  postgresCredentials:
+    username: simpelv2
+    password: ""                           # WAJIB diisi via values-secrets.yaml saat bootstrap
+    databases:
+      simpelv2: dbsimpelv2
+      authenc: authenc
+      secreton: secreton
+      perlengkapan: perlengkapan
+      integrasi: integrasi
+  integration: {}                          # MONSAKTI_*, MYSIMKARI_*, SIMAN_* sebagai key→value
+  simpelv1: {}                             # DB_USERNAME / DB_PASSWORD / APP_KEY
+
+# Konfigurasi simpelv2-config ConfigMap.
+config:
+  rustLog: debug
+  appEnvironment: staging
+  appName: SIMPEL
+  appVersion: "0.1.0"
+  postgresDb: simpelv2
+  postgresPort: "5432"
+  postgresHost: ""                         # default: postgres.<ns>.svc.cluster.local
+  redisPort: "6379"
+  redisUrl: ""                             # default: redis://redis-service.<ns>.svc.cluster.local:6379
+  istioEnabled: "true"
+  mtlsMode: ""                             # default: ikut .Values.mtls.mode
+  sessionTimeout: "28800"
+  portalBaseUrl: http://10.1.7.121
+  jwtIssuer: http://10.1.7.121/auth
+  webauthn:
+    rpId: simpel-staging.kejaksaan.go.id
+    rpOrigin: https://simpel-staging.kejaksaan.go.id
+    rpName: SIMPEL Kejaksaan RI
+
+backendConfig:
+  grpcTlsEnabled: "false"
+  grpcMtlsEnabled: "false"
+  serviceMesh: istio
+  mtlsMode: ""                             # default: ikut .Values.mtls.mode
+  authencGrpcUrl: ""                       # default: http://authenc.<ns>.svc.cluster.local:9088
+  secretonGrpcUrl: ""                      # default: http://secreton.<ns>.svc.cluster.local:9000
+  secretonEndpoint: ""                     # default: http://secreton.<ns>.svc.cluster.local:8200
+  integrasiGrpcUrl: ""                     # default: http://layanan-integrasi.<ns>.svc.cluster.local:50051
+  schedules:
+    mysimkari: "0 */15 * * * *"
+    siman: "0 */15 * * * *"
+    monsakti: "0 */15 * * * *"
+
+# ─── Infrastructure ────────────────────────────────────────────────────────────
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  replicas: 1
+  storage:
+    size: 20Gi
+    storageClassName: longhorn
+    accessModes: [ReadWriteOnce]
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: "1",  memory: 2Gi }
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    fsGroup: 999
+    seccompProfile: { type: RuntimeDefault }
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+  istioInjection: false
+  init:
+    enabled: true                          # render postgres-init-scripts ConfigMap
+  pdb: { enabled: false, minAvailable: 0 }
+
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  storage:
+    size: 5Gi
+    storageClassName: longhorn
+    accessModes: [ReadWriteOnce]
+  maxmemory: 256mb
+  maxmemoryPolicy: allkeys-lru
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    fsGroup: 999
+    seccompProfile: { type: RuntimeDefault }
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+  istioInjection: false
+  pdb: { enabled: false, maxUnavailable: 0 }
+
+authenc:
+  enabled: true
+  image:
+    name: authenc
+    tag: ""                                # fallback ke global.imageTag
+  replicas: 1
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits:   { cpu: "1",  memory: 512Mi }
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile: { type: RuntimeDefault }
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+  istioInjection: false                    # authenc tidak pakai sidecar; DR DISABLE
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    cpuUtilization: 75
+    memoryUtilization: 80
+    behavior: {}
+  pdb: { enabled: false, minAvailable: 0 }
+  terminationGracePeriodSeconds: 30
+  tmpVolumeSizeLimit: 128Mi
+
+secreton:
+  enabled: true
+  image:
+    name: secreton
+    tag: ""
+  replicas: 1
+  storage:
+    size: 10Gi
+    storageClassName: longhorn
+    accessModes: [ReadWriteOnce]
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile: { type: RuntimeDefault }
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+  istioInjection: false
+  hpa: { enabled: false }
+  pdb: { enabled: false, minAvailable: 0 }
+  terminationGracePeriodSeconds: 30
+
+# ─── Backend ───────────────────────────────────────────────────────────────────
+layananIntegrasi:
+  enabled: true
+  image:
+    name: layanan-integrasi
+    tag: ""
+  replicas: 1                              # tetap 1 untuk hindari duplikasi cron
+  resources:
+    requests: { cpu: 50m,   memory: 128Mi }
+    limits:   { cpu: 250m,  memory: 256Mi }
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile: { type: RuntimeDefault }
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+  istioInjection: true
+  istioProxyResources:
+    cpu: { request: 50m, limit: 500m }
+    memory: { request: 64Mi, limit: 512Mi }
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    cpuUtilization: 75
+    memoryUtilization: 80
+  pdb: { enabled: false, minAvailable: 0 }
+  terminationGracePeriodSeconds: 30
+  tmpVolumeSizeLimit: 128Mi
+
+layananPerlengkapan:
+  enabled: true
+  image:
+    name: layanan-perlengkapan
+    tag: ""
+  replicas: 1
+  resources:
+    requests: { cpu: 50m,   memory: 128Mi }
+    limits:   { cpu: 250m,  memory: 256Mi }
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile: { type: RuntimeDefault }
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+  istioInjection: true
+  istioExcludeOutboundPorts: "5432,6379"
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    cpuUtilization: 75
+    memoryUtilization: 80
+  pdb: { enabled: false, minAvailable: 0 }
+  terminationGracePeriodSeconds: 30
+  tmpVolumeSizeLimit: 128Mi
+
+simpelv1:
+  enabled: true
+  image:
+    name: simpelv1
+    tag: ""
+  replicas: 2
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: 500m, memory: 1Gi }
+  appUrl: "https://simpel.kejaksaan.go.id/perlengkapan/simpel/v1"
+  env:
+    APP_ENV: staging
+    APP_DEBUG: "false"
+    DB_CONNECTION: pgsql
+    DB_HOST: ""                            # default: postgres.<ns>.svc.cluster.local
+    DB_PORT: "5432"
+    DB_DATABASE: dbsimpelv1
+    SESSION_DRIVER: redis
+    SESSION_CONNECTION: default
+    CACHE_DRIVER: redis
+    QUEUE_CONNECTION: sync
+    REDIS_HOST: ""                         # default: redis.<ns>.svc.cluster.local
+    REDIS_PORT: "6379"
+    PORTAL_URL: "http://portal:3000/portal"
+    AUTHENC_GATEWAY_URL: "http://127.0.0.1:8081"
+    INTEGRASI_GATEWAY_URL: "http://127.0.0.1:8082"
+    SECRETON_GATEWAY_URL: "http://127.0.0.1:8083"
+  dbBackup:
+    # source: configMap | secret | none
+    # Staging pakai configMap (small dump checked-in), production pakai secret (gitignored).
+    source: none
+    name: simpelv1-db-backup
+  podAntiAffinity:
+    type: preferred                        # preferred | required
+  podSecurityContext:
+    fsGroup: 33
+  containerSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 33
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+  istioInjection: false
+  hpa: { enabled: false }
+  pdb: { enabled: false, minAvailable: 0 }
+
+# ─── Frontend ──────────────────────────────────────────────────────────────────
+portal:
+  enabled: true
+  image:
+    name: portal
+    tag: ""
+  replicas: 1
+  resources:
+    requests: { cpu: 50m,  memory: 64Mi }
+    limits:   { cpu: 250m, memory: 256Mi }
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+    fsGroup: 101
+    seccompProfile: { type: RuntimeDefault }
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+  istioInjection: true
+  topologySpreadConstraints:
+    enabled: true
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    cpuUtilization: 75
+    memoryUtilization: 80
+  pdb: { enabled: false, minAvailable: 0 }
+  # CSP `connect-src` host list — diturunkan ke nginx config map.
+  csp:
+    connectSrc:
+      - "'self'"
+      - "https://*.kejaksaan.go.id"
+      - "http://localhost:*"
+      - "https://localhost:*"
+      - "http://10.1.7.121:*"
+      - "https://10.1.7.121:*"
+
+perlengkapan:
+  enabled: true
+  image:
+    name: perlengkapan
+    tag: ""
+  replicas: 1
+  resources:
+    requests: { cpu: 50m,  memory: 64Mi }
+    limits:   { cpu: 250m, memory: 256Mi }
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+    fsGroup: 101
+    seccompProfile: { type: RuntimeDefault }
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+  istioInjection: true
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    cpuUtilization: 75
+    memoryUtilization: 80
+  pdb: { enabled: false, minAvailable: 0 }
+
+# ─── Istio routing ─────────────────────────────────────────────────────────────
+istio:
+  gateway:
+    enabled: true
+    name: simpelv2-gateway
+    selector: { istio: ingressgateway }
+    hosts: ["*"]
+    httpPort: 80
+    httpsPort: 443
+    httpsRedirect: false
+    tls:
+      enabled: true
+      mode: SIMPLE
+      credentialName: simpelv2-tls-secret
+  virtualService:
+    enabled: true
+    name: simpelv2-routes
+    hosts: ["*"]
+    gatewayRef: ""                         # default: <istioNamespace>/<gateway.name>
+    # Set defaultRedirect "" untuk catch-all rewrite, atau "/portal" untuk 302 redirect.
+    defaultRedirect: /portal
+    # Daftar route di-render in-order. Setiap entry mendukung match.uri.{exact,prefix},
+    # rewrite, redirect, route[].destination.{host,port}, timeout, retries, corsPolicy.
+    routes:
+      - match: { prefix: /api/captcha }
+        destination: { host: authenc, port: 8088 }
+      - match: { prefix: /api/v1/auth }
+        destination: { host: authenc, port: 8088 }
+      - match: { prefix: /api/v1/iam }
+        destination: { host: authenc, port: 8088 }
+      - match: { prefix: /api/v1/oauth2 }
+        destination: { host: authenc, port: 8088 }
+      - match: { prefix: /api/auth }
+        destination: { host: authenc, port: 8088 }
+      - match: { prefix: /api/perlengkapan }
+        destination: { host: layanan-perlengkapan, port: 3020 }
+      - match: { prefix: /perlengkapan/simpel/v1 }
+        rewrite: /
+        destination: { host: simpelv1, port: 80 }
+        timeout: 30s
+        retries: { attempts: 3, perTryTimeout: 10s }
+      - match: { prefix: /perlengkapan/simpel/v2 }
+        rewrite: /
+        destination: { host: layanan-perlengkapan, port: 3020 }
+        timeout: 30s
+        retries: { attempts: 3, perTryTimeout: 10s }
+      - match: { prefix: /perlengkapan }
+        rewrite: /
+        destination: { host: perlengkapan, port: 8080 }
+      - match: { prefix: /portal }
+        rewrite: /
+        destination: { host: portal, port: 8080 }
+  destinationRules:
+    # Connection-pool & outlier detection per host. Default kosong — staging tidak butuh.
+    extra: []
+
+# ─── Observability ─────────────────────────────────────────────────────────────
+monitoring:
+  serviceMonitors:
+    enabled: false                          # aktifkan saat prometheus-operator terpasang
+    interval: 30s
+    scrapeTimeout: 10s

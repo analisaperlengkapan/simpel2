@@ -1,0 +1,35 @@
+{{- if .Values.istio.gateway.enabled }}
+{{- $gw := .Values.istio.gateway -}}
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ $gw.name }}
+  namespace: {{ .Values.global.istioNamespace }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "simpelv2" "component" "gateway") | nindent 4 }}
+spec:
+  selector:
+    {{- toYaml $gw.selector | nindent 4 }}
+  servers:
+    - port:
+        number: {{ $gw.httpPort }}
+        name: http
+        protocol: HTTP
+      hosts:
+        {{- toYaml $gw.hosts | nindent 8 }}
+      {{- if $gw.httpsRedirect }}
+      tls:
+        httpsRedirect: true
+      {{- end }}
+    {{- if $gw.tls.enabled }}
+    - port:
+        number: {{ $gw.httpsPort }}
+        name: https
+        protocol: HTTPS
+      hosts:
+        {{- toYaml $gw.hosts | nindent 8 }}
+      tls:
+        mode: {{ $gw.tls.mode }}
+        credentialName: {{ $gw.tls.credentialName }}
+    {{- end }}
+{{- end }}

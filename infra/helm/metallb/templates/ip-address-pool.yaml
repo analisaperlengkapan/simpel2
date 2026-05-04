@@ -1,0 +1,16 @@
+{{- range .Values.pools }}
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.namespace }}
+  {{- if .description }}
+  annotations:
+    description: {{ .description | quote }}
+  {{- end }}
+spec:
+  addresses:
+    {{- toYaml .addresses | nindent 4 }}
+  autoAssign: {{ .autoAssign }}
+{{- end }}

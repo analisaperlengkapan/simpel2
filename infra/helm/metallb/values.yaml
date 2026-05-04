@@ -1,0 +1,25 @@
+namespace: metallb-system
+
+# Daftar IPAddressPool yang akan di-render. Tiap pool mendapat L2Advertisement
+# dengan nama "<pool>-l2advertisement". Set autoAssign sesuai kebutuhan.
+pools:
+  - name: prod-addresspool
+    description: "Production IP pool for SIMPEL LoadBalancer services"
+    addresses:
+      - 172.15.10.200-172.15.10.230
+    autoAssign: true
+  - name: staging-addresspool
+    description: "Staging IP pool for SIMPEL testing and staging"
+    addresses:
+      - 172.15.10.231-172.15.10.250
+      - 10.1.7.121/32
+    autoAssign: true
+
+# Per-pool advertisement options. Kosongkan interfaces untuk announce di semua iface.
+advertisements:
+  - name: prod-l2-advertisement
+    pools: [prod-addresspool]
+    interfaces: []
+  - name: staging-l2-advertisement
+    pools: [staging-addresspool]
+    interfaces: []

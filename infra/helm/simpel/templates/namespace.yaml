@@ -1,0 +1,27 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "simpel.namespace" . }}
+  labels:
+    app.kubernetes.io/name: simpelv2
+    {{- include "simpel.labels" . | nindent 4 }}
+    {{- if .Values.namespace.istioInjection }}
+    istio-injection: {{ .Values.namespace.istioInjection }}
+    {{- end }}
+    {{- if .Values.namespace.podSecurityEnforce }}
+    pod-security.kubernetes.io/enforce: {{ .Values.namespace.podSecurityEnforce }}
+    {{- end }}
+    {{- if .Values.namespace.podSecurityAudit }}
+    pod-security.kubernetes.io/audit: {{ .Values.namespace.podSecurityAudit }}
+    {{- end }}
+    {{- if .Values.namespace.podSecurityWarn }}
+    pod-security.kubernetes.io/warn: {{ .Values.namespace.podSecurityWarn }}
+    {{- end }}
+  annotations:
+    simpelv2.kejaksaan.go.id/managed: "true"
+    simpelv2.kejaksaan.go.id/environment: {{ .Values.global.environment | quote }}
+    {{- range $k, $v := .Values.namespace.annotations }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+{{- end }}

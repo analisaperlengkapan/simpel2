@@ -1,0 +1,33 @@
+{{- if .Values.monitoring.serviceMonitors.enabled }}
+{{- $ns := include "simpel.namespace" . -}}
+{{- $interval := .Values.monitoring.serviceMonitors.interval -}}
+{{- $timeout := .Values.monitoring.serviceMonitors.scrapeTimeout -}}
+{{- $monitors := list
+  (dict "name" "layanan-perlengkapan" "component" "backend"        "port" "http"     "path" "/metrics")
+  (dict "name" "authenc"              "component" "infrastructure" "port" "metrics" "path" "/metrics")
+  (dict "name" "secreton"             "component" "infrastructure" "port" "metrics" "path" "/metrics")
+  (dict "name" "postgres"             "component" "database"       "port" "patroni" "path" "/metrics")
+  (dict "name" "redis"                "component" "cache"          "port" "redis"   "path" "/metrics")
+-}}
+{{- range $m := $monitors }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $m.name }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: {{ $m.name }}
+    app.kubernetes.io/component: {{ $m.component }}
+    {{- include "simpel.labels" $ | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $m.name }}
+  endpoints:
+    - port: {{ $m.port }}
+      path: {{ $m.path }}
+      interval: {{ $interval }}
+      scrapeTimeout: {{ $timeout }}
+{{- end }}
+{{- end }}

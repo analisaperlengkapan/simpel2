@@ -1,0 +1,237 @@
+{{- if .Values.networkPolicies.enabled }}
+{{- $ns := include "simpel.namespace" . -}}
+{{- if .Values.networkPolicies.defaultDenyIngress }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: frontend
+      ports:
+        - { protocol: TCP, port: 3010 }
+        - { protocol: TCP, port: 3020 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-postgres
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: authenc } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: secreton } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-authenc
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: authenc
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: frontend } }
+      ports:
+        - { protocol: TCP, port: 8088 }
+        - { protocol: TCP, port: 9088 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-secreton
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: secreton
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: authenc } }
+      ports:
+        - { protocol: TCP, port: 8200 }
+        - { protocol: TCP, port: 9000 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis-access
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: identity } }
+        - podSelector: { matchLabels: { app: simpelv1 } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-sidecar
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.istioNamespace }}
+      ports:
+        - { protocol: TCP, port: 15090 }
+        - { protocol: TCP, port: 15021 }
+{{- if .Values.networkPolicies.allowDnsEgress }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+{{- end }}
+{{- if .Values.networkPolicies.allowIstioControlPlaneEgress }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-control-plane-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.istioNamespace }}
+      ports:
+        - { protocol: TCP, port: 15010 }
+        - { protocol: TCP, port: 15012 }
+        - { protocol: TCP, port: 15014 }
+        - { protocol: TCP, port: 443 }
+{{- end }}
+{{- if .Values.networkPolicies.allowIngressGateway.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-gateway
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.istioNamespace }}
+          podSelector:
+            matchLabels:
+              app: istio-ingressgateway
+      ports:
+        {{- range .Values.networkPolicies.allowIngressGateway.ports }}
+        - { protocol: TCP, port: {{ . }} }
+        {{- end }}
+{{- end }}
+{{- if .Values.networkPolicies.layananIntegrasiEgress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: layanan-integrasi-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: layanan-integrasi
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - { protocol: TCP, port: 443 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: postgres } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: redis } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+{{- end }}
+{{- end }}

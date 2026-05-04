@@ -1,0 +1,39 @@
+{{- /*
+  PodDisruptionBudget per workload jika .pdb.enabled = true.
+  Mendukung minAvailable atau maxUnavailable.
+*/ -}}
+{{- $workloads := list
+  (dict "name" "portal"               "cfg" .Values.portal               "selector" (dict "app.kubernetes.io/name" "portal"))
+  (dict "name" "perlengkapan"         "cfg" .Values.perlengkapan         "selector" (dict "app.kubernetes.io/name" "perlengkapan"))
+  (dict "name" "authenc"              "cfg" .Values.authenc              "selector" (dict "app.kubernetes.io/name" "authenc"))
+  (dict "name" "layanan-perlengkapan" "cfg" .Values.layananPerlengkapan  "selector" (dict "app.kubernetes.io/name" "layanan-perlengkapan"))
+  (dict "name" "layanan-integrasi"    "cfg" .Values.layananIntegrasi     "selector" (dict "app.kubernetes.io/name" "layanan-integrasi"))
+  (dict "name" "secreton"             "cfg" .Values.secreton             "selector" (dict "app.kubernetes.io/name" "secreton"))
+  (dict "name" "postgres"             "cfg" .Values.postgres             "selector" (dict "app" "postgres"))
+  (dict "name" "redis"                "cfg" .Values.redis                "selector" (dict "app.kubernetes.io/name" "redis"))
+  (dict "name" "simpelv1"             "cfg" .Values.simpelv1             "selector" (dict "app" "simpelv1"))
+-}}
+{{- range $w := $workloads }}
+{{- $cfg := $w.cfg -}}
+{{- if and $cfg.enabled (default (dict) $cfg.pdb).enabled }}
+{{- $pdb := $cfg.pdb }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $w.name }}-pdb
+  namespace: {{ include "simpel.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: {{ $w.name }}
+    {{- include "simpel.labels" $ | nindent 4 }}
+spec:
+  {{- if hasKey $pdb "minAvailable" }}
+  minAvailable: {{ $pdb.minAvailable }}
+  {{- else if hasKey $pdb "maxUnavailable" }}
+  maxUnavailable: {{ $pdb.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- toYaml $w.selector | nindent 6 }}
+{{- end }}
+{{- end }}

@@ -503,11 +503,12 @@ secreton-cli backup restore \
 
 2. **Deploy New Secreton Cluster** (15 minutes)
    ```bash
-   # Deploy fresh Secreton instance
-   kubectl apply -k infra/k8s/overlays/production/
+   # Deploy fresh Secreton instance via Helm
+   ./infra/helm/deploy.sh production install
 
    # Wait for pods to be ready
-   kubectl wait --for=condition=ready pod -l app=secreton -n secreton-system --timeout=300s
+   kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=secreton \
+     -n simpelv2-production --timeout=300s
    ```
 
 3. **Download Latest Backup** (5 minutes)

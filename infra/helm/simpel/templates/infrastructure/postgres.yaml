@@ -1,0 +1,148 @@
+{{- if .Values.postgres.enabled }}
+{{- $cfg := .Values.postgres -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    app: postgres
+    {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - { name: postgres, port: 5432, targetPort: 5432 }
+    - { name: patroni, port: 8008, targetPort: 8008 }
+  selector:
+    app: postgres
+    app.kubernetes.io/name: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    app: postgres
+    {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - { name: postgres, port: 5432, targetPort: 5432 }
+  selector:
+    app: postgres
+    app.kubernetes.io/name: postgres
+{{- if gt (int $cfg.replicas) 1 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replicas
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    app: postgres
+    {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - { name: postgres, port: 5432, targetPort: 5432 }
+  selector:
+    app: postgres
+    role: replica
+{{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    app: postgres
+    {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 4 }}
+spec:
+  serviceName: postgres
+  replicas: {{ $cfg.replicas }}
+  selector:
+    matchLabels:
+      app: postgres
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 8 }}
+      annotations:
+        {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
+    spec:
+      serviceAccountName: postgres-patroni
+      {{- if .Values.priorityClass.enabled }}
+      priorityClassName: {{ .Values.priorityClass.name }}
+      {{- end }}
+      {{- include "simpel.imagePullSecrets" . | nindent 6 }}
+      {{- include "simpel.nodeSelector" . | nindent 6 }}
+      {{- include "simpel.tolerations" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $cfg.podSecurityContext | nindent 8 }}
+      containers:
+        - name: postgres
+          image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
+          ports:
+            - { containerPort: 5432, name: postgres }
+            - { containerPort: 8008, name: patroni }
+          env:
+            - { name: POSTGRES_USER, value: {{ .Values.secrets.postgresCredentials.username | quote }} }
+            - { name: POSTGRES_DB,   value: {{ index .Values.secrets.postgresCredentials.databases "simpelv2" | quote }} }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+                  optional: true
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+            {{- if $cfg.init.enabled }}
+            - name: AUTHENC_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password, optional: true } }
+            - name: SECRETON_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password, optional: true } }
+            - name: PERLENGKAPAN_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password, optional: true } }
+            - name: INTEGRASI_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password, optional: true } }
+            {{- end }}
+          volumeMounts:
+            - { name: postgres-data, mountPath: /var/lib/postgresql/data }
+            {{- if $cfg.init.enabled }}
+            - { name: init-scripts, mountPath: /docker-entrypoint-initdb.d, readOnly: true }
+            {{- end }}
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command: [/bin/sh, -c, pg_isready -U "$POSTGRES_USER"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: [/bin/sh, -c, pg_isready -U "$POSTGRES_USER"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      {{- if $cfg.init.enabled }}
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts
+            defaultMode: 0755
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: {{ toYaml $cfg.storage.accessModes | nindent 10 }}
+        storageClassName: {{ default .Values.global.storageClass $cfg.storage.storageClassName }}
+        resources:
+          requests:
+            storage: {{ $cfg.storage.size }}
+{{- end }}

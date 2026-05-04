@@ -1,0 +1,33 @@
+{{- if .Values.mtls.destinationRules.enabled }}
+{{- range .Values.mtls.destinationRules.disableForHosts }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ . }}-mtls
+  namespace: {{ include "simpel.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: {{ . }}
+    {{- include "simpel.labels" $ | nindent 4 }}
+spec:
+  host: {{ . }}
+  trafficPolicy:
+    tls:
+      mode: DISABLE
+{{- end }}
+{{- end }}
+{{- range $dr := .Values.istio.destinationRules.extra }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ $dr.name }}
+  namespace: {{ include "simpel.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: {{ $dr.host }}
+    {{- include "simpel.labels" $ | nindent 4 }}
+spec:
+  host: {{ $dr.host }}
+  trafficPolicy:
+    {{- toYaml $dr.trafficPolicy | nindent 4 }}
+{{- end }}

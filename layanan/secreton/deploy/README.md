@@ -1,5 +1,10 @@
 # Secreton Deployment Guide
 
+> **Status**: Path standalone Kubernetes (`deploy/kubernetes/` & `deploy/staging/`)
+> sudah dihapus pada migrasi Helm. Untuk deployment Kubernetes/cluster, gunakan
+> chart Helm `infra/helm/simpel/` yang sudah meng-include Secreton sebagai StatefulSet.
+> Direktori ini sekarang khusus berisi materi Docker Compose / development.
+
 ## Quick Start
 
 ### Local Development (Docker Compose)
@@ -24,39 +29,34 @@ docker-compose logs -f secreton
 docker-compose down
 ```
 
-### Kubernetes Production Deployment
+### Kubernetes Deployment
+
+Deployment Kubernetes dilakukan lewat chart `simpel`:
 
 ```bash
-# 1. Create namespace and secrets
-kubectl apply -f deploy/kubernetes/00-namespace.yaml
-kubectl apply -f deploy/kubernetes/01-secrets.yaml
+# Staging
+./infra/helm/deploy.sh staging install
 
-# 2. Update secrets with actual credentials
-kubectl -n secreton edit secret postgres-credentials
-kubectl -n secreton edit secret secreton-config
+# Production (Secret WAJIB lewat Secreton SecretSync CRD)
+./infra/helm/deploy.sh production install
+```
 
-# 3. Deploy PostgreSQL
-kubectl apply -f deploy/kubernetes/02-configmaps.yaml
-kubectl apply -f deploy/kubernetes/03-postgres.yaml
+Knob Secreton di chart (default `secreton.enabled: true`):
 
-# Wait for PostgreSQL to be ready
-kubectl -n secreton wait --for=condition=ready pod -l app=postgres --timeout=300s
+| Values key                          | Default                | Catatan                                            |
+| ----------------------------------- | ---------------------- | -------------------------------------------------- |
+| `secreton.enabled`                  | `true`                 | Set `false` jika ingin pakai instance eksternal.   |
+| `secreton.replicas`                 | `1` (staging) / `3` (prod) | Quorum ≥ 3 untuk HA.                              |
+| `secreton.storage.size`             | `10Gi`                 | Persistent vault storage (longhorn).               |
+| `secreton.image.{name,tag}`         | `secreton` / global tag | Override image per env.                           |
+| `secreton.istioInjection`           | `false`                | Secreton butuh konektivitas DB langsung.           |
 
-# 4. Deploy Secreton cluster
-kubectl apply -f deploy/kubernetes/04-secreton-statefulset.yaml
-kubectl apply -f deploy/kubernetes/05-ingress-rbac.yaml
-kubectl apply -f deploy/kubernetes/06-autoscaling-policies.yaml
+Init/unseal pertama kali masih manual:
 
-# 5. Verify deployment
-kubectl -n secreton get pods
-kubectl -n secreton get svc
-
-# 6. Initialize Secreton (on first pod)
-kubectl -n secreton exec -it secreton-0 -- /app/secreton init --shares 5 --threshold 3
-
-# 7. Unseal all pods
+```bash
+kubectl -n simpelv2-staging exec -it secreton-0 -- /app/secreton init --shares 5 --threshold 3
 for i in 0 1 2; do
-  kubectl -n secreton exec -it secreton-$i -- /app/secreton unseal
+  kubectl -n simpelv2-staging exec -it secreton-$i -- /app/secreton unseal
 done
 ```
 
@@ -122,11 +122,11 @@ Region A                Region B                Region C
 | `RUST_LOG` | `info` | Log level (error/warn/info/debug/trace) |
 | `SECRETON_CONFIG` | `/app/config/secreton.toml` | Config file path |
 | `SECRETON_STORAGE_TYPE` | `postgres` | Storage backend type |
-| `SECRETON_POSTGRES_URL` | - | PostgreSQL connection URL |
+| `DATABASE_URL` | (from Secret) | PostgreSQL connection URL |
 
 ### Configuration File
 
-See [secreton.toml.example](../secreton.toml.example) for full reference.
+See [`../secreton.toml.example`](../secreton.toml.example) for full reference.
 
 Key sections:
 - `[server]`: API listener configuration
@@ -147,189 +147,63 @@ Key sections:
 | Grafana | 0.5 core | 256 MB | 1 GB |
 | **Total** | **3 cores** | **1.5 GB** | **32 GB** |
 
-### Kubernetes Production
+### Kubernetes Production (chart `simpel`)
 
 | Component | Replicas | CPU (per pod) | Memory (per pod) | Disk (per pod) |
 |-----------|----------|---------------|------------------|----------------|
-| Secreton | 3-10 | 500m-2 | 512 MB - 2 GB | 10 GB |
-| PostgreSQL | 1 | 250m-1 | 256 MB - 1 GB | 10-100 GB |
-
-**Recommended Node Size**: 4 CPU, 16 GB RAM
+| Secreton | 3-10 | 250m-1 | 512 MB - 1 GB | 10 GB |
+| PostgreSQL | 3 | 250m-1 | 512 MB - 2 GB | 100 GB |
 
 ## Health Checks
 
-### HTTP Health Endpoint
+### HTTP Endpoints
 
-```bash
-curl http://localhost:8200/health
-```
-
-**Response (healthy)**:
-```json
-{
-  "status": "healthy",
-  "sealed": false,
-  "initialized": true,
-  "version": "0.1.0"
-}
-```
-
-### Kubernetes Probes
-
-**Liveness Probe**: `/health` (HTTP 200)
-**Readiness Probe**: `/health` (HTTP 200)
-
-## Monitoring
-
-### Metrics Endpoints
-
-- **Prometheus**: `http://localhost:8200/metrics`
-- **Grafana**: `http://localhost:3000` (admin/admin)
-
-### Key Metrics
-
-| Metric | Type | Description |
-|--------|------|-------------|
-| `secreton_requests_total` | Counter | Total API requests |
-| `secreton_request_duration_seconds` | Histogram | Request latency |
-| `secreton_storage_operations_total` | Counter | Storage operations |
-| `secreton_seal_status` | Gauge | Seal status (0=sealed, 1=unsealed) |
-
-## Security
-
-### TLS Configuration
-
-1. Generate certificates:
-```bash
-# Self-signed (development)
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
-
-# Production: Use cert-manager or your CA
-```
-
-2. Mount certificates:
-```yaml
-volumes:
-  - name: tls
-    secret:
-      secretName: secreton-tls
-```
-
-### Network Security
-
-**Firewall Rules**:
-- Allow: 8200 (HTTP), 8201 (HTTPS) from authorized IPs
-- Allow: 8300 (cluster) only within cluster
-- Deny: All other traffic
-
-**Kubernetes NetworkPolicy**: Automatically applied
+| Path     | Purpose                                                     |
+| -------- | ----------------------------------------------------------- |
+| `/health` | Generic alive check                                         |
+| `/live`   | Liveness probe — selalu 200 selama proses hidup             |
+| `/ready`  | Readiness probe — 503 saat sealed                           |
+| `/metrics`| Prometheus metrics (port 9090)                              |
 
 ## Backup & Recovery
 
 ### PostgreSQL Backup
 
 ```bash
-# Backup
-kubectl -n secreton exec -it postgres-0 -- pg_dump -U secreton secreton > backup.sql
-
-# Restore
-kubectl -n secreton exec -i postgres-0 -- psql -U secreton secreton < backup.sql
+kubectl -n simpelv2-production exec -it postgres-0 -- pg_dump -U secreton secreton > backup.sql
+kubectl -n simpelv2-production exec -i postgres-0 -- psql -U secreton secreton < backup.sql
 ```
 
 ### Secreton Snapshot
 
 ```bash
-# Create snapshot
-kubectl -n secreton exec -it secreton-0 -- /app/secreton snapshot save /app/data/snapshot.json
-
-# Restore snapshot
-kubectl -n secreton exec -it secreton-0 -- /app/secreton snapshot restore /app/data/snapshot.json
+kubectl -n simpelv2-production exec -it secreton-0 -- /app/secreton snapshot save /data/snapshot.json
+kubectl -n simpelv2-production exec -it secreton-0 -- /app/secreton snapshot restore /data/snapshot.json
 ```
-
-## Troubleshooting
-
-### Common Issues
-
-**1. Secreton is sealed**
-```bash
-# Unseal with threshold keys
-kubectl -n secreton exec -it secreton-0 -- /app/secreton unseal
-```
-
-**2. PostgreSQL connection failed**
-```bash
-# Check PostgreSQL logs
-kubectl -n secreton logs postgres-0
-
-# Verify connection
-kubectl -n secreton exec -it secreton-0 -- pg_isready -h postgres -U secreton
-```
-
-**3. Pod not starting**
-```bash
-# Check pod status
-kubectl -n secreton describe pod secreton-0
-
-# Check logs
-kubectl -n secreton logs secreton-0 --previous
-```
-
-### Debug Mode
-
-```bash
-# Enable debug logging
-export RUST_LOG=debug
-
-# Or in Kubernetes
-kubectl -n secreton set env statefulset/secreton RUST_LOG=debug
-```
-
-## Performance Tuning
-
-See [PERFORMANCE_ANALYSIS.md](../PERFORMANCE_ANALYSIS.md) for detailed tuning guide.
-
-### Quick Wins
-
-1. **Use SSD storage** for PostgreSQL and Secreton data
-2. **Enable connection pooling** (max_connections=50)
-3. **Configure HPA** for auto-scaling (3-10 replicas)
-4. **Use caching** for frequently accessed secrets
 
 ## Upgrading
 
-### Zero-Downtime Upgrade
-
 ```bash
-# 1. Update image in StatefulSet
-kubectl -n secreton set image statefulset/secreton secreton=secreton:v0.2.0
+# 1. Bump tag di values
+$EDITOR infra/helm/simpel/values-production.yaml   # secreton.image.tag
 
-# 2. Kubernetes will perform rolling update automatically
-kubectl -n secreton rollout status statefulset/secreton
+# 2. Rolling update
+./infra/helm/deploy.sh production upgrade
 
-# 3. Verify each pod after update
-for i in 0 1 2; do
-  kubectl -n secreton exec secreton-$i -- /app/secreton version
-done
-```
+# 3. Verifikasi
+kubectl -n simpelv2-production rollout status statefulset/secreton
 
-### Rollback
-
-```bash
-# Rollback to previous version
-kubectl -n secreton rollout undo statefulset/secreton
-
-# Check rollback status
-kubectl -n secreton rollout status statefulset/secreton
+# Rollback bila perlu
+helm rollback simpel -n simpelv2-production
 ```
 
 ## Support
 
-- **Documentation**: [README.md](../README.md)
-- **Security**: [SECURITY.md](../SECURITY.md)
-- **Issues**: GitHub Issues
-- **Email**: support@cipherce.io
+- Helm chart: [`infra/helm/simpel`](../../../infra/helm/simpel/)
+- Source: [`../README.md`](../README.md)
+- Security: [`../SECURITY.md`](../SECURITY.md)
+- Operator: [`../crates/k8s-operator/README.md`](../crates/k8s-operator/README.md)
 
 ---
 
-**Last Updated**: 2025-11-25
-**Version**: 1.0
+**Last Updated**: 2026-05-03

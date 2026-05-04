@@ -1,0 +1,33 @@
+apiVersion: v2
+name: simpel
+description: |
+  SIMPEL Kejaksaan RI — umbrella chart untuk seluruh stack:
+  Postgres (Patroni-ready), Redis, Authenc (IdP), Secreton (Vault),
+  layanan-integrasi (gRPC + scheduler), layanan-perlengkapan,
+  simpelv1 (Laravel legacy), portal (Leptos WASM), perlengkapan
+  (microfrontend), plus Istio routing, NetworkPolicies, HPA, PDB,
+  dan PrometheusOperator ServiceMonitors.
+
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+
+home: https://simpel.kejaksaan.go.id
+sources:
+  - https://github.com/analisaperlengkapan/simpel2
+
+maintainers:
+  - name: SIMPEL DevOps Team
+    email: simpel-devops@kejaksaan.go.id
+
+keywords:
+  - simpel
+  - kejaksaan
+  - perlengkapan
+  - istio
+  - microservices
+
+annotations:
+  category: Application
+  licenses: Proprietary
