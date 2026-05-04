@@ -1,9 +1,0 @@
-# MetalLB configuration for SIMPEL
-# Applied to metallb-system namespace
-
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-resources:
-  - ip-address-pool.yaml
-  - l2-advertisement.yaml

@@ -1,0 +1,249 @@
+# Production overrides untuk SIMPEL.
+#
+# Pakai bersama values.yaml:
+#   helm upgrade --install simpel infra/helm/simpel \
+#     -f infra/helm/simpel/values-production.yaml \
+#     --namespace simpelv2-production --create-namespace
+
+global:
+  environment: production
+  imageTag: prod
+  imagePullPolicy: Never                    # registry lokal, image sudah di-push
+  domain: simpel.kejaksaan.go.id
+
+namespace:
+  name: simpelv2-production
+  istioInjection: enabled
+  podSecurityEnforce: privileged
+  podSecurityAudit: baseline
+  podSecurityWarn: baseline
+  annotations:
+    description: "SIMPEL Production Environment"
+    simpelv2.kejaksaan.go.id/tier: production
+    simpelv2.kejaksaan.go.id/sla: "99.9%"
+
+mtls:
+  mode: STRICT
+
+resourceQuota:
+  enabled: true
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    persistentvolumeclaims: "20"
+    pods: "100"
+    services: "30"
+    secrets: "50"
+    configmaps: "50"
+limitRange:
+  enabled: true
+
+priorityClass:
+  name: simpelv2-production-default
+
+config:
+  rustLog: info
+  appEnvironment: production
+  portalBaseUrl: https://simpel.kejaksaan.go.id
+  jwtIssuer: https://simpel.kejaksaan.go.id/auth
+  webauthn:
+    rpId: simpel.kejaksaan.go.id
+    rpOrigin: https://simpel.kejaksaan.go.id
+
+backendConfig:
+  mtlsMode: STRICT
+  grpcTlsEnabled: "true"
+
+# ─── Workload sizing — HA ──────────────────────────────────────────────────────
+postgres:
+  replicas: 3
+  storage: { size: 100Gi }
+  pdb: { enabled: true, minAvailable: 2 }
+redis:
+  pdb: { enabled: true, maxUnavailable: 0 }
+authenc:
+  replicas: 3
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: "1",  memory: 1Gi }
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    cpuUtilization: 70
+  pdb: { enabled: true, minAvailable: 2 }
+secreton:
+  replicas: 3
+  pdb: { enabled: true, minAvailable: 2 }
+layananIntegrasi:
+  replicas: 1                              # tetap 1 untuk hindari duplikasi cron
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: "1",  memory: 1Gi }
+  hpa: { enabled: false }
+  pdb: { enabled: false }
+layananPerlengkapan:
+  replicas: 3
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: "1",  memory: 1Gi }
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    cpuUtilization: 70
+  pdb: { enabled: true, minAvailable: 2 }
+simpelv1:
+  enabled: true
+  replicas: 3
+  image:
+    tag: v0.1.0                            # immutable tag di production
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { cpu: "1",  memory: 2Gi }
+  appUrl: "https://simpel.kejaksaan.go.id/perlengkapan/simpel/v1"
+  env:
+    APP_ENV: production
+    QUEUE_CONNECTION: redis
+  podAntiAffinity:
+    type: required
+  dbBackup:
+    source: secret
+    name: simpelv1-db-backup
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    cpuUtilization: 70
+    memoryUtilization: 80
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 0
+        policies:
+          - { type: Percent, value: 100, periodSeconds: 15 }
+          - { type: Pods,    value: 2,   periodSeconds: 15 }
+        selectPolicy: Max
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - { type: Percent, value: 50, periodSeconds: 60 }
+  pdb: { enabled: true, minAvailable: 2 }
+portal:
+  replicas: 3
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    cpuUtilization: 70
+    memoryUtilization: 75
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 60
+        policies:
+          - { type: Pods, value: 2, periodSeconds: 60 }
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - { type: Percent, value: 10, periodSeconds: 60 }
+  pdb: { enabled: true, minAvailable: 2 }
+  csp:
+    connectSrc:
+      - "'self'"
+      - "ws:"
+      - "wss:"
+      - "https://*.kejaksaan.go.id"
+perlengkapan:
+  replicas: 3
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    cpuUtilization: 70
+
+# ─── Istio routing ─────────────────────────────────────────────────────────────
+istio:
+  gateway:
+    name: simpelv2-dev-gateway              # shared production gateway
+    hosts: ["*"]
+    httpsRedirect: true
+  virtualService:
+    name: simpelv2-prod-routes
+    hosts: ["*"]
+    defaultRedirect: ""                     # final route catch-all → portal
+    routes:
+      - match: { prefix: /api/perlengkapan }
+        destination: { host: layanan-perlengkapan, port: 3020 }
+        timeout: 30s
+        retries: { attempts: 3, perTryTimeout: 10s }
+      - match: { prefix: /perlengkapan/simpel/v1 }
+        rewrite: /
+        destination: { host: simpelv1, port: 80 }
+        timeout: 30s
+        retries: { attempts: 3, perTryTimeout: 10s }
+        corsPolicy: &cors-prod
+          allowOrigins:
+            - { exact: "https://simpel.kejaksaan.go.id" }
+          allowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+          allowHeaders: [authorization, content-type]
+      - match: { prefix: /perlengkapan/simpel/v2 }
+        rewrite: /
+        destination: { host: layanan-perlengkapan, port: 3020 }
+        timeout: 30s
+        retries: { attempts: 3, perTryTimeout: 10s }
+        corsPolicy: *cors-prod
+      - match: { prefix: /perlengkapan }
+        rewrite: /
+        destination: { host: layanan-perlengkapan, port: 3020 }
+        timeout: 30s
+      - match: { prefix: /pembinaan/perlengkapan }
+        destination: { host: perlengkapan, port: 8080 }
+      - match: { prefix: /daskrimti }
+        destination: { host: portal, port: 8080 }
+      - match: { prefix: / }
+        destination: { host: portal, port: 8080 }
+  destinationRules:
+    extra:
+      - name: simpelv1
+        host: simpelv1
+        trafficPolicy:
+          connectionPool:
+            tcp: { maxConnections: 500 }
+            http:
+              http1MaxPendingRequests: 500
+              http2MaxRequests: 1000
+              h2UpgradePolicy: UPGRADE
+              maxRequestsPerConnection: 10
+          outlierDetection:
+            consecutiveErrors: 5
+            interval: 30s
+            baseEjectionTime: 60s
+            maxEjectionPercent: 50
+            minRequestVolume: 10
+            splitExternalLocalOriginErrors: true
+          loadBalancer:
+            simple: LEAST_REQUEST
+      - name: layanan-perlengkapan
+        host: layanan-perlengkapan
+        trafficPolicy:
+          connectionPool:
+            tcp: { maxConnections: 500 }
+            http:
+              http1MaxPendingRequests: 500
+              http2MaxRequests: 1000
+              h2UpgradePolicy: UPGRADE
+              maxRequestsPerConnection: 10
+          outlierDetection:
+            consecutiveErrors: 5
+            interval: 30s
+            baseEjectionTime: 60s
+            maxEjectionPercent: 50
+            minRequestVolume: 10
+            splitExternalLocalOriginErrors: true
+          loadBalancer:
+            simple: LEAST_REQUEST
+
+monitoring:
+  serviceMonitors:
+    enabled: true

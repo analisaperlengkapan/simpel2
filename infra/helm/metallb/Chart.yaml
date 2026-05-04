@@ -1,0 +1,21 @@
+apiVersion: v2
+name: simpel-metallb
+description: |
+  MetalLB IPAddressPool & L2Advertisement untuk SIMPEL.
+  Cluster-scoped, hidup di namespace `metallb-system`.
+
+  Apply terpisah dari chart aplikasi:
+    helm upgrade --install simpel-metallb infra/helm/metallb \
+      --namespace metallb-system
+
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+
+maintainers:
+  - name: SIMPEL DevOps Team
+    email: simpel-devops@kejaksaan.go.id
+
+annotations:
+  category: Networking

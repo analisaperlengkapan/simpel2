@@ -1,0 +1,108 @@
+{{- if .Values.redis.enabled }}
+{{- $cfg := .Values.redis -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "redis" "component" "cache") | nindent 4 }}
+spec:
+  accessModes: {{ toYaml $cfg.storage.accessModes | nindent 4 }}
+  storageClassName: {{ default .Values.global.storageClass $cfg.storage.storageClassName }}
+  resources:
+    requests:
+      storage: {{ $cfg.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "redis" "component" "cache") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - { name: redis, port: 6379, targetPort: 6379 }
+  selector:
+    app.kubernetes.io/name: redis
+---
+{{- /*
+  Alias service `redis` agar Laravel/PHP simpelv1 yang membaca host "redis"
+  dari ConfigMap simpelv1-env tetap resolve. Selector identik dengan redis-service.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "redis" "component" "cache") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - { name: redis, port: 6379, targetPort: 6379 }
+  selector:
+    app.kubernetes.io/name: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "redis" "component" "cache") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        {{- include "simpel.componentLabels" (dict "top" . "name" "redis" "component" "cache") | nindent 8 }}
+      annotations:
+        {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
+    spec:
+      {{- if .Values.priorityClass.enabled }}
+      priorityClassName: {{ .Values.priorityClass.name }}
+      {{- end }}
+      {{- include "simpel.imagePullSecrets" . | nindent 6 }}
+      {{- include "simpel.nodeSelector" . | nindent 6 }}
+      {{- include "simpel.tolerations" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $cfg.podSecurityContext | nindent 8 }}
+      containers:
+        - name: redis
+          image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
+          ports:
+            - { containerPort: 6379, name: redis }
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - {{ $cfg.maxmemory | quote }}
+            - --maxmemory-policy
+            - {{ $cfg.maxmemoryPolicy | quote }}
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          livenessProbe:
+            exec: { command: [redis-cli, ping] }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec: { command: [redis-cli, ping] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - { name: redis-data, mountPath: /data }
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-pvc
+{{- end }}

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "simpelv2" "component" "backend-config") | nindent 4 }}
+data:
+  GRPC_TLS_ENABLED: {{ .Values.backendConfig.grpcTlsEnabled | quote }}
+  GRPC_MTLS_ENABLED: {{ .Values.backendConfig.grpcMtlsEnabled | quote }}
+  SERVICE_MESH: {{ .Values.backendConfig.serviceMesh | quote }}
+  MTLS_MODE: {{ default (include "simpel.mtlsMode" .) .Values.backendConfig.mtlsMode | quote }}
+  AUTHENC_GRPC_URL: {{ include "simpel.authencGrpcUrl" . | quote }}
+  SECRETON_GRPC_URL: {{ include "simpel.secretonGrpcUrl" . | quote }}
+  SECRETON_ENDPOINT: {{ include "simpel.secretonEndpoint" . | quote }}
+  INTEGRASI_GRPC_URL: {{ include "simpel.integrasiGrpcUrl" . | quote }}
+  MYSIMKARI_SCHEDULE: {{ .Values.backendConfig.schedules.mysimkari | quote }}
+  SIMAN_SCHEDULE: {{ .Values.backendConfig.schedules.siman | quote }}
+  MONSAKTI_SCHEDULE: {{ .Values.backendConfig.schedules.monsakti | quote }}

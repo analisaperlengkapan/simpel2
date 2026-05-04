@@ -1,0 +1,49 @@
+{{- if and .Values.postgres.enabled .Values.postgres.init.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "infrastructure") | nindent 4 }}
+data:
+  init-databases.sh: |
+    #!/bin/bash
+    # Idempotent: aman dijalankan ulang. Tidak hardcode password — user passwords
+    # diberikan via env $AUTHENC_DB_PASSWORD, $SECRETON_DB_PASSWORD, dst.
+    set -euo pipefail
+
+    echo "=== Creating SIMPEL databases ==="
+    {{- range $key, $db := .Values.secrets.postgresCredentials.databases }}
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -tAc \
+      "SELECT 1 FROM pg_database WHERE datname='{{ $db }}'" | grep -q 1 \
+      || psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -c "CREATE DATABASE \"{{ $db }}\";"
+    {{- end }}
+
+    echo "=== Ensuring per-service users ==="
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+      DO \$\$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenc') THEN
+          EXECUTE format('CREATE USER authenc WITH PASSWORD %L', '${AUTHENC_DB_PASSWORD}');
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'secreton') THEN
+          EXECUTE format('CREATE USER secreton WITH PASSWORD %L', '${SECRETON_DB_PASSWORD}');
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'perlengkapan') THEN
+          EXECUTE format('CREATE USER perlengkapan WITH PASSWORD %L', '${PERLENGKAPAN_DB_PASSWORD}');
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'integrasi') THEN
+          EXECUTE format('CREATE USER integrasi WITH PASSWORD %L', '${INTEGRASI_DB_PASSWORD}');
+        END IF;
+      END
+      \$\$;
+
+      GRANT ALL PRIVILEGES ON DATABASE authenc       TO authenc, "$POSTGRES_USER";
+      GRANT ALL PRIVILEGES ON DATABASE secreton      TO secreton, "$POSTGRES_USER";
+      GRANT ALL PRIVILEGES ON DATABASE perlengkapan  TO perlengkapan, "$POSTGRES_USER";
+      GRANT ALL PRIVILEGES ON DATABASE integrasi     TO integrasi, "$POSTGRES_USER";
+    EOSQL
+
+    echo "=== Database initialization complete ==="
+{{- end }}

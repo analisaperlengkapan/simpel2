@@ -1,0 +1,25 @@
+# Patterns to ignore when building Helm packages.
+# NOTE: Helm's helmignore implementation does NOT support gitignore-style
+# negation (`!pattern`). Avoid leading `!` — it makes helm ignore the whole tree.
+# Untuk file values-secrets yang isi rahasia, kami pakai nama eksplisit
+# values-secrets.yaml / values-secrets.local.yaml dan men-gitignore-kan-nya;
+# values-secrets.example.yaml di-shared.
+.DS_Store
+.git/
+.gitignore
+.bzr/
+.hg/
+.svn/
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.idea/
+.vscode/
+.project
+.settings/
+*.tgz
+README.md.bak
+values-secrets.yaml
+values-secrets.local.yaml

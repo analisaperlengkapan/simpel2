@@ -1008,18 +1008,33 @@ build:image:
       - container-scan.json
 
 # ========================================
-# DEPLOYMENT STAGES
+# DEPLOYMENT STAGES (Helm)
 # ========================================
+# Semua job deploy memakai chart `infra/helm/simpel`. Secret asli WAJIB sudah
+# tersedia di cluster (via Secreton SecretSync atau ExternalSecrets) atau
+# di-supply lewat CI variable `SIMPEL_VALUES_SECRETS` (file values-secrets.yaml
+# yang gitignored). Tanpa itu pod akan CrashLoopBackOff dengan DATABASE_URL
+# kosong — kondisi sengaja agar plain-text secret tidak masuk git history.
+
+.deploy_helm: &deploy_helm
+  image: alpine/helm:3.13.3
+  before_script:
+    - apk add --no-cache bash curl
+    - helm version --short
+    - kubectl version --client --short || true
+
 deploy:dev:
+  <<: *deploy_helm
   stage: deploy
   environment:
     name: development
     url: https://dev.simpelv2.local
     deployment_tier: development
   script:
-    - echo "🚀 Deploying to development..."
-    - make deploy-dev
-    # Health check
+    - echo "🚀 Deploying to development (helm)..."
+    - ./infra/helm/deploy.sh staging install
+        --set global.environment=development
+        --set namespace.name=simpelv2-dev
     - curl -f https://dev.simpelv2.local/health || echo "⚠️ Health check failed"
   when: manual
   only:
@@ -1027,6 +1042,7 @@ deploy:dev:
 
 # Review App for Merge Requests (ephemeral environment)
 deploy:review:
+  <<: *deploy_helm
   stage: deploy
   environment:
     name: review/$CI_COMMIT_REF_SLUG
@@ -1034,17 +1050,19 @@ deploy:review:
     on_stop: stop:review
     auto_stop_in: 2 days
   script:
-    - echo "🧪 Deploying ephemeral Review App..."
-    - make deploy-review
+    - echo "🧪 Deploying ephemeral Review App via helm..."
+    - ./infra/helm/deploy.sh "review-${CI_COMMIT_REF_SLUG}" install
   rules:
     - if: $CI_MERGE_REQUEST_ID
   allow_failure: true
 
 stop:review:
+  <<: *deploy_helm
   stage: cleanup
   script:
-    - echo "🛑 Stopping Review App for $CI_COMMIT_REF_SLUG"
-    - make down-review || true
+    - echo "🛑 Tearing down review app for $CI_COMMIT_REF_SLUG"
+    - ./infra/helm/deploy.sh "review-${CI_COMMIT_REF_SLUG}" uninstall || true
+    - kubectl delete namespace "simpelv2-review-${CI_COMMIT_REF_SLUG}" --ignore-not-found
   environment:
     name: review/$CI_COMMIT_REF_SLUG
     action: stop
@@ -1052,31 +1070,36 @@ stop:review:
     - if: $CI_MERGE_REQUEST_ID
 
 deploy:staging:
+  <<: *deploy_helm
   stage: deploy
   environment:
     name: staging
     url: https://staging.simpelv2.local
     deployment_tier: staging
   script:
-    - echo "🚀 Deploying to staging..."
-    - make deploy-staging
-    # Smoke tests
-    - make smoke-test-staging
+    - echo "🚀 Deploying to staging via helm..."
+    - ./infra/helm/deploy.sh staging install
+    # Smoke tests — fail pipeline kalau golden path mati.
+    - curl -fsS --max-time 10 https://staging.simpelv2.local/health
+    - curl -fsS --max-time 10 https://staging.simpelv2.local/portal/
   when: manual
   only:
     - /^release\/.*$/
 
 deploy:production:
+  <<: *deploy_helm
   stage: deploy
   environment:
     name: production
     url: https://prod.simpelv2.local
     deployment_tier: production
   script:
-    - echo "🚀 Deploying to production..."
-    - make deploy-prod
+    - echo "🚀 Deploying to production via helm..."
+    - ./infra/helm/deploy.sh production install
     # Production health checks
-    - make health-check-prod
+    - curl -fsS --max-time 10 https://simpel.kejaksaan.go.id/health
+    - kubectl rollout status -n simpelv2-production deployment --timeout=600s
+    - kubectl rollout status -n simpelv2-production statefulset --timeout=600s
   when: manual
   only:
     - tags

@@ -1,0 +1,94 @@
+{{- if .Values.portal.enabled }}
+{{- $cfg := .Values.portal -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "portal" "component" "frontend") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+  selector:
+    app.kubernetes.io/name: portal
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" . "name" "portal" "component" "frontend") | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portal
+  template:
+    metadata:
+      labels:
+        {{- include "simpel.componentLabels" (dict "top" . "name" "portal" "component" "frontend") | nindent 8 }}
+      annotations:
+        {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
+    spec:
+      serviceAccountName: portal
+      {{- if .Values.priorityClass.enabled }}
+      priorityClassName: {{ .Values.priorityClass.name }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      {{- include "simpel.imagePullSecrets" . | nindent 6 }}
+      {{- include "simpel.nodeSelector" . | nindent 6 }}
+      {{- include "simpel.tolerations" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $cfg.podSecurityContext | nindent 8 }}
+      {{- if $cfg.topologySpreadConstraints.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ $cfg.topologySpreadConstraints.maxSkew }}
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: {{ $cfg.topologySpreadConstraints.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: portal
+      {{- end }}
+      containers:
+        - name: portal
+          image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - name: RUST_LOG
+              valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+            - { name: APP_NAME, value: "SIMPEL Portal" }
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          livenessProbe:
+            {{- include "simpel.httpProbe" (dict "path" "/health" "port" 8080 "initialDelay" 10 "period" 15 "timeout" 3 "failureThreshold" 3) | nindent 12 }}
+          readinessProbe:
+            {{- include "simpel.httpProbe" (dict "path" "/health" "port" 8080 "initialDelay" 5 "period" 5 "timeout" 2 "failureThreshold" 2) | nindent 12 }}
+          startupProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 3
+            failureThreshold: 10
+          volumeMounts:
+            - { name: nginx-config, mountPath: /etc/nginx/nginx.conf, subPath: nginx.conf, readOnly: true }
+            - { name: nginx-cache,  mountPath: /var/cache/nginx }
+            - { name: nginx-run,    mountPath: /var/run }
+            - { name: tmp,          mountPath: /tmp }
+      volumes:
+        - name: nginx-config
+          configMap: { name: portal-nginx-config }
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+{{- end }}

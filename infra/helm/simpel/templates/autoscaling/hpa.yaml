@@ -1,0 +1,56 @@
+{{- /*
+  HPA per workload yang punya .hpa.enabled = true.
+  Dukung optional behavior block.
+*/ -}}
+{{- $workloads := list
+  (dict "name" "portal"               "cfg" .Values.portal               "kind" "Deployment")
+  (dict "name" "perlengkapan"         "cfg" .Values.perlengkapan         "kind" "Deployment")
+  (dict "name" "authenc"              "cfg" .Values.authenc              "kind" "Deployment")
+  (dict "name" "layanan-perlengkapan" "cfg" .Values.layananPerlengkapan  "kind" "Deployment")
+  (dict "name" "layanan-integrasi"    "cfg" .Values.layananIntegrasi     "kind" "Deployment")
+  (dict "name" "simpelv1"             "cfg" .Values.simpelv1             "kind" "Deployment")
+  (dict "name" "secreton"             "cfg" .Values.secreton             "kind" "StatefulSet")
+-}}
+{{- range $w := $workloads }}
+{{- $cfg := $w.cfg -}}
+{{- if and $cfg.enabled (default (dict) $cfg.hpa).enabled }}
+{{- $hpa := $cfg.hpa }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $w.name }}-hpa
+  namespace: {{ include "simpel.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: {{ $w.name }}
+    {{- include "simpel.labels" $ | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: {{ if eq $w.kind "StatefulSet" }}apps/v1{{ else }}apps/v1{{ end }}
+    kind: {{ $w.kind }}
+    name: {{ $w.name }}
+  minReplicas: {{ $hpa.minReplicas }}
+  maxReplicas: {{ $hpa.maxReplicas }}
+  metrics:
+    {{- if $hpa.cpuUtilization }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.cpuUtilization }}
+    {{- end }}
+    {{- if $hpa.memoryUtilization }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.memoryUtilization }}
+    {{- end }}
+  {{- with $hpa.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

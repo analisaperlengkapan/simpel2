@@ -1,0 +1,38 @@
+{{- if .Values.resourceQuota.enabled }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ .Release.Name }}-quota
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  hard:
+    {{- toYaml .Values.resourceQuota.hard | nindent 4 }}
+{{- end }}
+{{- if .Values.limitRange.enabled }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ .Release.Name }}-limits
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  limits:
+    - type: Container
+      default:
+        {{- toYaml .Values.limitRange.container.default | nindent 8 }}
+      defaultRequest:
+        {{- toYaml .Values.limitRange.container.defaultRequest | nindent 8 }}
+      max:
+        {{- toYaml .Values.limitRange.container.max | nindent 8 }}
+      min:
+        {{- toYaml .Values.limitRange.container.min | nindent 8 }}
+    - type: PersistentVolumeClaim
+      max:
+        {{- toYaml .Values.limitRange.pvc.max | nindent 8 }}
+      min:
+        {{- toYaml .Values.limitRange.pvc.min | nindent 8 }}
+{{- end }}

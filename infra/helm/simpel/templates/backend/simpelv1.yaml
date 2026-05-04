@@ -1,0 +1,177 @@
+{{- if .Values.simpelv1.enabled }}
+{{- $cfg := .Values.simpelv1 -}}
+{{- $env := $cfg.env -}}
+{{- $dbHost := include "simpel.simpelv1DbHost" . -}}
+{{- $redisHost := include "simpel.simpelv1RedisHost" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: simpelv1-env
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    app: simpelv1
+    {{- include "simpel.labels" . | nindent 4 }}
+data:
+  APP_ENV: {{ $env.APP_ENV | quote }}
+  APP_DEBUG: {{ $env.APP_DEBUG | quote }}
+  DB_CONNECTION: {{ $env.DB_CONNECTION | quote }}
+  DB_HOST: {{ $dbHost | quote }}
+  DB_PORT: {{ $env.DB_PORT | quote }}
+  DB_DATABASE: {{ $env.DB_DATABASE | quote }}
+  SESSION_DRIVER: {{ $env.SESSION_DRIVER | quote }}
+  SESSION_CONNECTION: {{ $env.SESSION_CONNECTION | quote }}
+  CACHE_DRIVER: {{ $env.CACHE_DRIVER | quote }}
+  QUEUE_CONNECTION: {{ $env.QUEUE_CONNECTION | quote }}
+  REDIS_HOST: {{ $redisHost | quote }}
+  REDIS_PORT: {{ $env.REDIS_PORT | quote }}
+  PORTAL_URL: {{ $env.PORTAL_URL | quote }}
+  AUTHENC_GATEWAY_URL: {{ $env.AUTHENC_GATEWAY_URL | quote }}
+  INTEGRASI_GATEWAY_URL: {{ $env.INTEGRASI_GATEWAY_URL | quote }}
+  SECRETON_GATEWAY_URL: {{ $env.SECRETON_GATEWAY_URL | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simpelv1
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    app: simpelv1
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - { name: http, port: 80, targetPort: http, protocol: TCP }
+  selector:
+    app: simpelv1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simpelv1
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    app: simpelv1
+    version: legacy
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector:
+    matchLabels:
+      app: simpelv1
+  template:
+    metadata:
+      labels:
+        app: simpelv1
+        version: legacy
+        {{- include "simpel.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: simpelv1
+      {{- if .Values.priorityClass.enabled }}
+      priorityClassName: {{ .Values.priorityClass.name }}
+      {{- end }}
+      {{- include "simpel.imagePullSecrets" . | nindent 6 }}
+      {{- include "simpel.nodeSelector" . | nindent 6 }}
+      {{- include "simpel.tolerations" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $cfg.podSecurityContext | nindent 8 }}
+      {{- if ne $cfg.dbBackup.source "none" }}
+      initContainers:
+        - name: db-migrate
+          image: postgres:15-alpine
+          command: [sh, -c]
+          args:
+            - |
+              set -e
+              echo "Waiting for PostgreSQL..."
+              until PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -c '\q'; do
+                sleep 2
+              done
+
+              echo "Checking if database is initialized..."
+              TABLE_COUNT=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d $DB_DATABASE -tAc \
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null || echo "0")
+              if [ "$TABLE_COUNT" -eq 0 ]; then
+                echo "Database is empty, restoring from backup..."
+                gunzip < /db-backup/dbsimpelv1.sql.gz | PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d $DB_DATABASE
+                echo "Database restored successfully"
+              else
+                echo "Database already initialized ($TABLE_COUNT tables present)"
+              fi
+          env:
+            - name: DB_HOST
+              valueFrom: { configMapKeyRef: { name: simpelv1-env, key: DB_HOST } }
+            - name: DB_DATABASE
+              valueFrom: { configMapKeyRef: { name: simpelv1-env, key: DB_DATABASE } }
+            - name: DB_USERNAME
+              valueFrom: { secretKeyRef: { name: simpelv1-secrets, key: DB_USERNAME } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: simpelv1-secrets, key: DB_PASSWORD } }
+          volumeMounts:
+            - { name: db-backup, mountPath: /db-backup, readOnly: true }
+      {{- end }}
+      containers:
+        - name: simpelv1
+          image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
+          ports:
+            - { name: http, containerPort: 8080, protocol: TCP }
+          envFrom:
+            - configMapRef: { name: simpelv1-env }
+            - secretRef:    { name: simpelv1-secrets }
+          env:
+            - { name: APP_URL, value: {{ $cfg.appUrl | quote }} }
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          livenessProbe:
+            httpGet: { path: /healthz, port: http, scheme: HTTP }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /health, port: http, scheme: HTTP }
+            initialDelaySeconds: {{ if eq .Values.global.environment "production" }}15{{ else }}10{{ end }}
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: {{ if eq .Values.global.environment "production" }}2{{ else }}3{{ end }}
+          volumeMounts:
+            - { name: storage,     mountPath: /app/storage }
+            - { name: tmp,         mountPath: /tmp }
+            - { name: nginx-cache, mountPath: /var/cache/nginx }
+            - { name: run,         mountPath: /run/nginx }
+      volumes:
+        {{- if eq $cfg.dbBackup.source "configMap" }}
+        - name: db-backup
+          configMap: { name: {{ $cfg.dbBackup.name }} }
+        {{- else if eq $cfg.dbBackup.source "secret" }}
+        - name: db-backup
+          secret: { secretName: {{ $cfg.dbBackup.name }} }
+        {{- end }}
+        - name: storage
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          {{- if eq $cfg.podAntiAffinity.type "required" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - { key: app, operator: In, values: [simpelv1] }
+              topologyKey: kubernetes.io/hostname
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - { key: app, operator: In, values: [simpelv1] }
+                topologyKey: kubernetes.io/hostname
+          {{- end }}
+{{- end }}

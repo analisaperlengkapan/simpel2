@@ -1,8 +1,0 @@
-# Base monitoring configuration
-# Note: Requires kube-prometheus-stack or prometheus-operator CRDs
-
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-resources:
-  - service-monitors.yaml
