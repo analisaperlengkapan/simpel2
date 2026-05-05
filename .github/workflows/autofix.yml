@@ -55,14 +55,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-key: autofix-pr
 
-      - name: System deps (libssl, glib for Leptos build)
-        run: |
-          if ! dpkg -s libglib2.0-dev libssl-dev pkg-config protobuf-compiler >/dev/null 2>&1; then
-            sudo apt-get update -y
-            sudo apt-get install -y --no-install-recommends \
-              libglib2.0-dev libssl-dev pkg-config protobuf-compiler
-          fi
-
       - name: Format the workspace (cargo fmt --all)
         # Format harus aman dijalankan tanpa --check; tidak ubah semantik.
         run: cargo fmt --all
