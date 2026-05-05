@@ -13,10 +13,14 @@ on:
   pull_request:
     branches: [main]
   # Untuk push langsung ke main, pakai auto-fix.yml (scheduled). Workflow ini
-  # khusus PR — autofix-ci/action butuh permissions write yang aman di PR scope.
+  # khusus PR — commit & push fix langsung ke branch PR via GITHUB_TOKEN.
 
 permissions:
-  contents: read
+  # Butuh write contents untuk push commit ke branch PR.
+  # Catatan: untuk PR dari fork, GitHub auto-downgrade permissions read-only;
+  # job akan tetap run fmt/fix tapi push step di-skip (artifact upload sebagai fallback).
+  contents: write
+  pull-requests: write
 
 concurrency:
   group: autofix-${{ github.ref }}
@@ -35,10 +39,12 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v6
         with:
-          # Checkout PR head agar autofix-ci bisa diff & commit ke branch yang benar.
+          # Checkout PR head ref agar push langsung ke branch yang benar.
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
+          # Token dengan write contents permission untuk push commit auto-fix.
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
@@ -95,15 +101,41 @@ jobs:
         # Sanity check: jangan push perubahan yang merusak build.
         run: cargo check --workspace --all-targets --all-features
 
-      - name: Commit & push fixes via autofix-ci
-        # Action ini auto-commit perubahan ke branch PR (jika ada).
-        # Untuk PR dari fork, action upload patch sebagai artifact (tidak push).
-        # Reference: https://autofix.ci/setup
-        uses: autofix-ci/action@v1.3.4
-        if: ${{ always() }}
-        with:
-          commit-message: |
-            chore(autofix): cargo fmt + cargo fix + clippy --fix
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "Tidak ada perubahan dari fmt/fix/clippy. Branch sudah bersih."
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Perubahan terdeteksi di:"
+            git diff --stat
+          fi
 
-            Auto-applied by autofix.ci workflow.
-          fail-fast: false
+      - name: Commit & push fixes ke branch PR
+        # Hanya jalan kalau ada perubahan & PR bukan dari fork (fork punya read-only token).
+        if: steps.changes.outputs.has_changes == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(autofix): cargo fmt + cargo fix + clippy --fix
+
+          Auto-applied by autofix.yml workflow di PR #${{ github.event.pull_request.number }}."
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+      - name: Upload diff sebagai artifact (PR dari fork fallback)
+        if: steps.changes.outputs.has_changes == 'true' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          git diff > /tmp/autofix.patch
+          echo "PR dari fork — push tidak bisa. Patch di-upload sebagai artifact;"
+          echo "kontributor bisa download & apply via 'git apply autofix.patch'."
+
+      - name: Upload patch artifact
+        if: steps.changes.outputs.has_changes == 'true' && github.event.pull_request.head.repo.full_name != github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: autofix-patch
+          path: /tmp/autofix.patch
+          retention-days: 7

@@ -221,9 +221,7 @@ fn render_size_select(
     // isn't silently flattened into `currentColor`.
     let trailing_classes: String = icon_class
         .split_whitespace()
-        .filter(|tok| {
-            !matches!(*tok, "fas" | "far" | "fab") && !tok.starts_with("fa-")
-        })
+        .filter(|tok| !matches!(*tok, "fas" | "far" | "fab") && !tok.starts_with("fa-"))
         .collect::<Vec<_>>()
         .join(" ");
     let wrapper_class = format!("inline-flex {}", trailing_classes);

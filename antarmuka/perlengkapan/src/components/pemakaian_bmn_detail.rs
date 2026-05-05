@@ -26,9 +26,7 @@ use phosphor_leptos::{
 /// PDF) can force a real network re-fetch by bumping the trigger.
 /// Calling `.refetch()` on a leptos-fetch resource with an unchanged
 /// keyer would just return the stale cached value.
-async fn query_pemakaian_bmn_detail(
-    key: (String, i32),
-) -> Option<IzinPemakaianDetailResponse> {
+async fn query_pemakaian_bmn_detail(key: (String, i32)) -> Option<IzinPemakaianDetailResponse> {
     let (permit_id, _trigger) = key;
     fetch_pemakaian_bmn_detail(&permit_id)
         .await
