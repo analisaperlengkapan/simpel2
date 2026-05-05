@@ -4,14 +4,94 @@
 
 ## 📑 Daftar Isi
 
-1. [Fresh Deploy ke Production](#1-fresh-deploy-ke-production)
-2. [Deploy / Upgrade ke Staging](#2-deploy--upgrade-ke-staging)
-3. [Rollback](#3-rollback)
-4. [Manual Trigger Sync Integrasi (staging)](#4-manual-trigger-sync-integrasi-staging)
-5. [Rotasi Secret](#5-rotasi-secret)
-6. [TLS Cert Renewal (DigiCert)](#6-tls-cert-renewal-digicert)
-7. [Bootstrap Secreton (one-shot)](#7-bootstrap-secreton-one-shot)
-8. [Troubleshooting](#8-troubleshooting)
+1. [Release Flow (rc → promote)](#0-release-flow-rc--promote)
+2. [Fresh Deploy ke Production](#1-fresh-deploy-ke-production)
+3. [Deploy / Upgrade ke Staging](#2-deploy--upgrade-ke-staging)
+4. [Rollback](#3-rollback)
+5. [Manual Trigger Sync Integrasi (staging)](#4-manual-trigger-sync-integrasi-staging)
+6. [Rotasi Secret](#5-rotasi-secret)
+7. [TLS Cert Renewal (DigiCert)](#6-tls-cert-renewal-digicert)
+8. [Bootstrap Secreton (one-shot)](#7-bootstrap-secreton-one-shot)
+9. [Troubleshooting](#8-troubleshooting)
+
+---
+
+## 0. Release Flow (rc → promote)
+
+> Pattern: **"build once, promote artifact"**. Image yang lulus QA staging =
+> image identik di-deploy production. Cegah cache miss / non-determinism.
+
+### 0.1 Tag pre-release (rc)
+
+```bash
+# Sesudah feature merged ke main, tag rc
+git checkout main && git pull
+git tag -a v0.1.0-rc1 -m "Release candidate 1 untuk v0.1.0"
+git push origin v0.1.0-rc1
+# Trigger release.yml otomatis: build & push 7 image dengan tag v0.1.0-rc1
+gh run watch  # monitor
+```
+
+7 image akan ter-publish ke `ghcr.io/<owner>/simpel2/<svc>:v0.1.0-rc1`.
+
+### 0.2 Deploy staging dengan tag rc
+
+```bash
+helm upgrade --install simpel infra/helm/simpel \
+  -f infra/helm/simpel/values-staging.yaml \
+  --namespace simpelv2-staging --create-namespace \
+  --atomic --timeout 15m \
+  --set global.imageTag=v0.1.0-rc1
+```
+
+Smoke test, manual sync integrasi, Playwright e2e (lihat [§2](#2-deploy--upgrade-ke-staging)
+dan [§4](#4-manual-trigger-sync-integrasi-staging)).
+
+### 0.3 Promote rc → final tag (kalau staging hijau)
+
+```bash
+# Trigger workflow promote-release.yml via gh CLI
+gh workflow run promote-release.yml \
+  -f source_tag=v0.1.0-rc1 \
+  -f target_tag=v0.1.0 \
+  -f git_tag=y
+
+gh run watch
+```
+
+Workflow akan:
+1. Validasi format tag (rc → final dengan base version match).
+2. Re-tag image di ghcr.io via `docker buildx imagetools create` (TANPA rebuild).
+3. Verify digest source ↔ target identik per image.
+4. Create git tag `v0.1.0` di commit yang sama dengan `v0.1.0-rc1`.
+5. Publish GitHub Release.
+
+Image `:v0.1.0` sekarang punya digest **identik** dengan `:v0.1.0-rc1`.
+
+### 0.4 Deploy production dengan tag final
+
+```bash
+helm install simpel infra/helm/simpel \
+  -f infra/helm/simpel/values-production.yaml \
+  --namespace simpelv2-production \
+  --atomic --timeout 15m \
+  --set global.imageTag=v0.1.0
+```
+
+Image yang jalan di production **identik** (digest sama) dengan yang sudah lulus
+staging — zero risk regresi karena rebuild.
+
+### 0.5 Kalau staging gagal
+
+```bash
+# Fix bug → push ke main → tag rc baru
+git tag -a v0.1.0-rc2 -m "rc2: fix <issue>"
+git push origin v0.1.0-rc2
+# Ulang §0.1-0.4 dengan rc2.
+# v0.1.0-rc1 di ghcr.io biarkan; tidak di-promote ke v0.1.0.
+```
+
+Lihat [Lihat lebih jauh §1 untuk first-time production deploy.](#1-fresh-deploy-ke-production)
 
 ---
 
