@@ -1,0 +1,109 @@
+# autofix.yml — Auto-fix di pull_request ke main.
+#
+# Trigger: setiap pull request (push dari fork tidak bisa write — autofix-ci/action
+# tetap upload patch sebagai artifact yang bisa di-apply manual).
+#
+# Beda dengan auto-fix.yml (scheduled weekly di main yang buka PR baru):
+#   - autofix.yml = inline fix di PR yang sedang dibuka.
+#   - auto-fix.yml = batch fix di main, buka PR baru jika ada perubahan.
+
+name: autofix.ci
+
+on:
+  pull_request:
+    branches: [main]
+  # Untuk push langsung ke main, pakai auto-fix.yml (scheduled). Workflow ini
+  # khusus PR — autofix-ci/action butuh permissions write yang aman di PR scope.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autofix-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  autofix:
+    name: Auto-fix Workspace (cargo fmt + cargo fix)
+    runs-on: self-hosted
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          # Checkout PR head agar autofix-ci bisa diff & commit ke branch yang benar.
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+        with:
+          # WASM target diperlukan agar cargo fix tidak gagal di crate lib-ui / antarmuka.
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache-key: autofix-pr
+
+      - name: System deps (libssl, glib for Leptos build)
+        run: |
+          if ! dpkg -s libglib2.0-dev libssl-dev pkg-config protobuf-compiler >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y --no-install-recommends \
+              libglib2.0-dev libssl-dev pkg-config protobuf-compiler
+          fi
+
+      - name: Format the workspace (cargo fmt --all)
+        # Format harus aman dijalankan tanpa --check; tidak ubah semantik.
+        run: cargo fmt --all
+
+      - name: Apply cargo fix (workspace, all targets, all features)
+        # `--allow-dirty` karena cargo fmt mungkin sudah modify files;
+        # `--allow-staged` untuk safety jika ada cached state.
+        run: |
+          cargo fix \
+            --workspace \
+            --all-targets \
+            --all-features \
+            --allow-dirty \
+            --allow-staged \
+            || true
+
+      - name: Apply clippy --fix (lint auto-correct)
+        # Clippy kadang fail di crate dengan unused-imports yang tidak fixable;
+        # `|| true` agar tidak block autofix commit. Final clippy check di ci-quality.yml.
+        run: |
+          cargo clippy \
+            --workspace \
+            --all-targets \
+            --all-features \
+            --fix \
+            --allow-dirty \
+            --allow-staged \
+            -- -W clippy::all \
+            || true
+
+      - name: Re-format after fix (cargo fmt --all)
+        # cargo fix kadang menggeser formatting; jalankan fmt lagi untuk konsistensi.
+        run: cargo fmt --all
+
+      - name: Validate workspace masih compile
+        # Sanity check: jangan push perubahan yang merusak build.
+        run: cargo check --workspace --all-targets --all-features
+
+      - name: Commit & push fixes via autofix-ci
+        # Action ini auto-commit perubahan ke branch PR (jika ada).
+        # Untuk PR dari fork, action upload patch sebagai artifact (tidak push).
+        # Reference: https://autofix.ci/setup
+        uses: autofix-ci/action@v1.3.4
+        if: ${{ always() }}
+        with:
+          commit-message: |
+            chore(autofix): cargo fmt + cargo fix + clippy --fix
+
+            Auto-applied by autofix.ci workflow.
+          fail-fast: false

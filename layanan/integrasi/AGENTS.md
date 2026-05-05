@@ -159,18 +159,39 @@ let tanah = integrasi_client.get_siman_tanah(None, 1, 100).await?;
 
 ## 🚀 Kubernetes Deployment
 
-This service has **two deployments**:
+This service has **two workload types**:
 
-### 1. CronJob (Batch Sync)
-- **Schedule:** Every 6 hours (`0 */6 * * *`)
-- **Purpose:** Sync data from external APIs to database
-- **Image:** `layanan-integrasi:staging`
+### 1. gRPC Server Deployment
+- **Replicas:** 1 (staging) / 2 (production HA)
+- **Port:** 50051 (gRPC), 8080 (HTTP monitoring)
+- **Purpose:** Serve data to other backend services + admin manual trigger
+- **Image:** `ghcr.io/analisaperlengkapan/simpel2/layanan-integrasi:v0.1.0` (semver immutable)
 
-### 2. Deployment (gRPC Server)
-- **Replicas:** 2
-- **Port:** 50051 (gRPC)
-- **Purpose:** Serve data to other backend services
-- **Image:** `layanan-integrasi-grpc:staging`
+### 2. CronJob per Provider (Batch Sync)
+Scheduler binary dipanggil oneshot per CronJob (bukan daemon idle). 1 CronJob per provider:
+
+| Provider | Schedule | Time Zone | Staging | Production |
+|----------|----------|-----------|---------|------------|
+| **SIMAN** | `0 4 * * 0` (Minggu 04:00) | Asia/Jakarta | `suspend: true` | `suspend: false` |
+| **MySIMKARI** | `0 */6 * * *` (tiap 6 jam) | Asia/Jakarta | `suspend: true` | `suspend: false` |
+| **MonSAKTI** | `0 */6 * * *` | Asia/Jakarta | `suspend: true` | `suspend: false` |
+
+**Staging suspend=true** karena rate-limit token API eksternal yang dipakai bersama production scheduler. Penarikan data di staging dilakukan **manual** untuk testing:
+
+```bash
+# Trigger satu sync via CronJob ad-hoc (best practice K8s)
+kubectl -n simpelv2-staging create job --from=cronjob/layanan-integrasi-mysimkari manual-$(date +%s)
+kubectl -n simpelv2-staging wait --for=condition=complete job/manual-XXXX --timeout=10m
+kubectl -n simpelv2-staging logs job/manual-XXXX --tail=200
+```
+
+### 3. Token API (Zero-Trust)
+**Token API SIMAN/MonSAKTI/MySIMKARI** WAJIB dari **Secreton** (`kv/integrasi/tokens/<provider>/*`), **bukan** dari k8s Secret atau env langsung. Saat `secretonAuth.enabled=true`:
+- Pod auth ke Secreton via SA token (audience `secreton`).
+- Fetch token dari `kv/integrasi/tokens/{siman,mysimkari,monsakti}/*`.
+- Gunakan token untuk reqwest call ke API eksternal.
+
+Idealnya: **token staging berbeda dari token production** (request ke vendor untuk token terpisah jika provider mendukung). Jika tidak, jadwalkan manual trigger staging di luar jam puncak production scheduler.
 
 ## 📏 Critical Conventions
 

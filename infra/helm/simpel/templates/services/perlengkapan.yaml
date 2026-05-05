@@ -1,0 +1,5 @@
+{{- /*
+  perlengkapan — Leptos WASM microfrontend + nginx.
+  Mount nginx ConfigMap (perlengkapan-nginx-config) + emptyDir cache/run.
+*/ -}}
+{{- include "simpel.workload" (dict "ctx" . "name" "perlengkapan" "values" .Values.perlengkapan) }}

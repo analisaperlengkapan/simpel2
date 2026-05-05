@@ -1,0 +1,5 @@
+{{- /*
+  portal — Leptos WASM + nginx (frontend SSO gateway).
+  Mount nginx ConfigMap (portal-nginx-config) + emptyDir cache/run.
+*/ -}}
+{{- include "simpel.workload" (dict "ctx" . "name" "portal" "values" .Values.portal) }}

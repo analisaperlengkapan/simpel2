@@ -7,8 +7,10 @@
 
 global:
   environment: staging
-  imageTag: stag
-  imagePullPolicy: Always
+  # Tag dipindahkan dari mutable 'stag' ke semver immutable.
+  # Override saat helm install via --set global.imageTag=v0.1.0 jika beda dari default.
+  imageTag: v0.1.0
+  imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # Schedule semua workload ke node 'simple02' karena master tidak punya unpigz.
   nodeSelector:
@@ -53,6 +55,13 @@ secreton:
 layananIntegrasi:
   replicas: 1
   hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
+  # CronJob auto-trigger MATI di staging (cegah rate-limit token API yang dipakai bersama
+  # production scheduler). Penarikan data dilakukan manual via:
+  #   kubectl create job --from=cronjob/layanan-integrasi-mysimkari manual-$(date +%s)
+  cronjobs:
+    siman:      { suspend: true }
+    mysimkari:  { suspend: true }
+    monsakti:   { suspend: true }
 layananPerlengkapan:
   replicas: 1
   hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }

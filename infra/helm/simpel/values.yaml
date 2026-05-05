@@ -9,10 +9,14 @@
 # via values-secrets.yaml (gitignored) atau Secreton SecretSync CRD.
 
 global:
-  registry: localhost:32000/simpelv2
-  imageTag: stag
+  # Image registry resmi (per AGENTS.md): ghcr.io/analisaperlengkapan/simpel2.
+  # Override per-env via values-staging.yaml / values-production.yaml jika perlu.
+  registry: ghcr.io/analisaperlengkapan/simpel2
+  # WAJIB semver immutable (vMAJOR.MINOR.PATCH). Override per-env.
+  # Default v0.1.0 = release pertama bertag.
+  imageTag: v0.1.0
   imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullSecrets: [ghcr-pull]
   environment: staging                     # staging | production
   domain: 10.1.7.121
   istioNamespace: istio-system
@@ -97,13 +101,42 @@ serviceAccounts:
 networkPolicies:
   enabled: true
   defaultDenyIngress: true
+  defaultDenyEgress: false                 # production override: true (zero-trust egress)
   allowDnsEgress: true
   allowIstioControlPlaneEgress: true
+  allowSecretonAccess: true                # restrict Secreton :8200/:9000 ke SA service tertentu
   allowIngressGateway:
     enabled: true
     ports: [8080, 3010, 3020, 8088, 8200, 50051]
   layananIntegrasiEgress:
     enabled: true                          # akses HTTPS eksternal (SIMAN/MySIMKARI/MonSAKTI)
+
+# Secreton Kubernetes Auth Backend — zero-trust secret architecture.
+# OFF default. Aktifkan setelah bootstrap-secreton.sh selesai (Phase A.6).
+# Dengan enabled=true, _workload.tpl akan project SA token & set SECRETON_AUTH_METHOD=kubernetes.
+secretonAuth:
+  enabled: false                           # akan di-flip true setelah bootstrap
+  audience: secreton
+  tokenTTL: 3600                           # 1 jam, auto-renewable hingga 24x
+  # Policy per service — list path glob yang boleh di-read.
+  # Map ke ConfigMap secreton-policies (templates/secreton/policies.yaml).
+  # Map ke Role di Kubernetes Auth Backend (templates/secreton/auth-config.yaml).
+  policies:
+    authenc:
+      - "kv/data/authenc/*"
+      - "kv/data/postgres/authenc"
+      - "transit/encrypt/authenc-key"
+      - "transit/decrypt/authenc-key"
+    layanan-integrasi:
+      - "kv/data/integrasi/tokens/*"
+      - "kv/data/postgres/integrasi"
+    layanan-perlengkapan:
+      - "kv/data/postgres/perlengkapan"
+      - "kv/data/postgres/integrasi"        # read-only ke DB integrasi
+    simpelv1:
+      - "kv/data/simpelv1/*"
+      - "kv/data/postgres/simpelv2"
+    secreton: []                            # secreton tidak akses dirinya via auth backend
 
 # Bootstrap secrets — chart TIDAK render Secret object kecuali toggle on.
 # Default off mengeliminasi bug "apply menimpa secret asli dengan placeholder".
@@ -214,25 +247,70 @@ redis:
 
 authenc:
   enabled: true
+  component: identity
   image:
     name: authenc
     tag: ""                                # fallback ke global.imageTag
   replicas: 1
+  service:
+    ports:
+      - { name: http,    port: 8088 }
+      - { name: grpc,    port: 9088, appProtocol: grpc }
+      - { name: metrics, port: 9090 }
   resources:
     requests: { cpu: 250m, memory: 256Mi }
     limits:   { cpu: "1",  memory: 512Mi }
   podSecurityContext:
-    runAsNonRoot: true
     runAsUser: 1000
     runAsGroup: 1000
     fsGroup: 1000
-    seccompProfile: { type: RuntimeDefault }
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    capabilities: { drop: [ALL] }
-    readOnlyRootFilesystem: true
-    runAsNonRoot: true
+  containerSecurityContext: {}             # baseline dari _security.tpl: drop ALL, no privilege escalation, RO root, runAsNonRoot, seccomp
+  probes:
+    startup:
+      type: http
+      path: /health/live
+      port: 8088
+      periodSeconds: 10
+      failureThreshold: 30                 # 300s window untuk cold start
+    liveness:
+      type: http
+      path: /health/live
+      port: 8088
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    readiness:
+      type: http
+      path: /health/ready
+      port: 8088
+      initialDelaySeconds: 10
+      periodSeconds: 5
+  env:
+    - { name: SERVER_HOST, value: "0.0.0.0" }
+    - { name: SERVER_PORT, value: "8088" }
+    - { name: GRPC_PORT,   value: "9088" }
+    - name: RUST_LOG
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+    - name: APP_ENVIRONMENT
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: APP_ENVIRONMENT, optional: true } }
+    - name: REDIS_URL
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: REDIS_URL, optional: true } }
+    - name: WEBAUTHN_RP_ID
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: WEBAUTHN_RP_ID, optional: true } }
+    - name: WEBAUTHN_RP_ORIGIN
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: WEBAUTHN_RP_ORIGIN, optional: true } }
+    - name: WEBAUTHN_RP_NAME
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: WEBAUTHN_RP_NAME, optional: true } }
+    - name: SECRETON_GRPC_URL
+      valueFrom: { configMapKeyRef: { name: backend-config, key: SECRETON_GRPC_URL, optional: true } }
+    - name: SECRETON_ENDPOINT
+      valueFrom: { configMapKeyRef: { name: backend-config, key: SECRETON_ENDPOINT, optional: true } }
+    - name: INTEGRASI_GRPC_URL
+      valueFrom: { configMapKeyRef: { name: backend-config, key: INTEGRASI_GRPC_URL, optional: true } }
+    - name: DATABASE_URL
+      valueFrom: { secretKeyRef: { name: postgres-credentials, key: authenc-url } }
   istioInjection: false                    # authenc tidak pakai sidecar; DR DISABLE
+  topologySpreadConstraints:
+    enabled: false                         # production override true
   hpa:
     enabled: false
     minReplicas: 1
@@ -241,15 +319,31 @@ authenc:
     memoryUtilization: 80
     behavior: {}
   pdb: { enabled: false, minAvailable: 0 }
+  priorityClassName: ""                    # default dari simpel.priorityClass
   terminationGracePeriodSeconds: 30
   tmpVolumeSizeLimit: 128Mi
+  # Secreton zero-trust auth (fitur opt-in; default off untuk PR fondasi).
+  # Diaktifkan setelah Phase A.6 (auth-backend bootstrap) selesai.
+  secretonAuth:
+    enabled: false
+    role: authenc
+    audience: secreton
+    tokenTTL: 3600
 
 secreton:
   enabled: true
+  kind: StatefulSet
+  component: secrets
   image:
     name: secreton
     tag: ""
   replicas: 1
+  service:
+    headlessName: secreton-headless
+    ports:
+      - { name: http,    port: 8200 }
+      - { name: grpc,    port: 9000, appProtocol: grpc }
+      - { name: metrics, port: 9090 }
   storage:
     size: 10Gi
     storageClassName: longhorn
@@ -258,42 +352,102 @@ secreton:
     requests: { cpu: 100m, memory: 256Mi }
     limits:   { cpu: 500m, memory: 512Mi }
   podSecurityContext:
-    runAsNonRoot: true
     runAsUser: 1000
     runAsGroup: 1000
     fsGroup: 1000
-    seccompProfile: { type: RuntimeDefault }
   containerSecurityContext:
-    allowPrivilegeEscalation: false
-    capabilities: { drop: [ALL] }
-    readOnlyRootFilesystem: false
-    runAsNonRoot: true
+    readOnlyRootFilesystem: false           # secreton butuh write ke /data (audit)
+  probes:
+    startup:
+      type: http
+      path: /health
+      port: 8200
+      periodSeconds: 10
+      failureThreshold: 30
+    liveness:
+      type: http
+      path: /live
+      port: 8200
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 3
+    readiness:
+      type: http
+      path: /ready
+      port: 8200
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+  env:
+    - name: RUST_LOG
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+    - name: DATABASE_URL
+      valueFrom: { secretKeyRef: { name: postgres-credentials, key: secreton-url } }
+    - name: POD_NAMESPACE
+      valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+  volumeMounts:
+    - { name: secreton-data, mountPath: /data }
+  volumeClaimTemplates:
+    - metadata:
+        name: secreton-data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 10Gi
   istioInjection: false
   hpa: { enabled: false }
   pdb: { enabled: false, minAvailable: 0 }
   terminationGracePeriodSeconds: 30
+  tmpVolumeSizeLimit: 128Mi
 
 # ─── Backend ───────────────────────────────────────────────────────────────────
 layananIntegrasi:
   enabled: true
+  component: backend
   image:
     name: layanan-integrasi
     tag: ""
-  replicas: 1                              # tetap 1 untuk hindari duplikasi cron
+  # gRPC server (Deployment) — terima request dari layanan-perlengkapan + admin manual trigger.
+  # Scheduler binary dipanggil per-provider via CronJob (lihat .cronjobs di bawah).
+  replicas: 1
+  service:
+    ports:
+      - { name: grpc, port: 50051, appProtocol: grpc }
+      - { name: http, port: 8080 }
   resources:
     requests: { cpu: 50m,   memory: 128Mi }
     limits:   { cpu: 250m,  memory: 256Mi }
   podSecurityContext:
-    runAsNonRoot: true
     runAsUser: 1000
     runAsGroup: 1000
     fsGroup: 1000
-    seccompProfile: { type: RuntimeDefault }
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    capabilities: { drop: [ALL] }
-    readOnlyRootFilesystem: true
-    runAsNonRoot: true
+  containerSecurityContext: {}
+  probes:
+    liveness:
+      type: tcp
+      port: 50051
+      initialDelaySeconds: 15
+      periodSeconds: 30
+    readiness:
+      type: tcp
+      port: 50051
+      initialDelaySeconds: 5
+      periodSeconds: 10
+  envFrom:
+    - secretRef:    { name: integration-secrets }
+    - configMapRef: { name: backend-config }
+  env:
+    - { name: GRPC_HOST, value: "0.0.0.0" }
+    - { name: GRPC_PORT, value: "50051" }
+    - { name: HTTP_HOST, value: "0.0.0.0" }
+    - { name: HTTP_PORT, value: "8080" }
+    - { name: STORAGE_TYPE, value: "database" }
+    - name: RUST_LOG
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+    - name: DATABASE_URL
+      valueFrom: { secretKeyRef: { name: postgres-credentials, key: integrasi-url } }
   istioInjection: true
   istioProxyResources:
     cpu: { request: 50m, limit: 500m }
@@ -307,27 +461,84 @@ layananIntegrasi:
   pdb: { enabled: false, minAvailable: 0 }
   terminationGracePeriodSeconds: 30
   tmpVolumeSizeLimit: 128Mi
+  # CronJob per provider — staging suspend=true, production suspend=false.
+  # Schedule berbeda: SIMAN tiap Minggu 04:00 WIB, MySIMKARI/MonSAKTI tiap 6 jam.
+  cronjobs:
+    siman:
+      enabled: true
+      suspend: true                        # staging: suspend; production override false
+      schedule: "0 4 * * 0"                # Minggu 04:00
+      timeZone: "Asia/Jakarta"
+      command: [scheduler]
+      args: ["--provider=siman"]
+    mysimkari:
+      enabled: true
+      suspend: true
+      schedule: "0 */6 * * *"              # tiap 6 jam
+      timeZone: "Asia/Jakarta"
+      command: [scheduler]
+      args: ["--provider=mysimkari"]
+    monsakti:
+      enabled: true
+      suspend: true
+      schedule: "0 */6 * * *"              # default 6 jam — final dikonfirmasi
+      timeZone: "Asia/Jakarta"
+      command: [scheduler]
+      args: ["--provider=monsakti"]
+  cronjobDefaults:
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    concurrencyPolicy: Forbid
+    restartPolicy: OnFailure
+    activeDeadlineSeconds: 3600            # max 1 jam per run
+    backoffLimit: 1
 
 layananPerlengkapan:
   enabled: true
+  component: backend
   image:
     name: layanan-perlengkapan
     tag: ""
   replicas: 1
+  service:
+    ports:
+      - { name: http, port: 3020 }
   resources:
     requests: { cpu: 50m,   memory: 128Mi }
     limits:   { cpu: 250m,  memory: 256Mi }
   podSecurityContext:
-    runAsNonRoot: true
     runAsUser: 1000
     runAsGroup: 1000
     fsGroup: 1000
-    seccompProfile: { type: RuntimeDefault }
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    capabilities: { drop: [ALL] }
-    readOnlyRootFilesystem: true
-    runAsNonRoot: true
+  containerSecurityContext: {}
+  probes:
+    liveness:
+      type: http
+      path: /health
+      port: 3020
+      initialDelaySeconds: 20
+      periodSeconds: 10
+    readiness:
+      type: http
+      path: /health
+      port: 3020
+      initialDelaySeconds: 5
+      periodSeconds: 5
+  env:
+    - { name: SERVER_HOST, value: "0.0.0.0" }
+    - { name: SERVER_PORT, value: "3020" }
+    - name: RUST_LOG
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+    - name: AUTHENC_GRPC_URL
+      valueFrom: { configMapKeyRef: { name: backend-config, key: AUTHENC_GRPC_URL, optional: true } }
+    - name: SECRETON_GRPC_URL
+      valueFrom: { configMapKeyRef: { name: backend-config, key: SECRETON_GRPC_URL, optional: true } }
+    - name: INTEGRASI_GRPC_URL
+      valueFrom: { configMapKeyRef: { name: backend-config, key: INTEGRASI_GRPC_URL, optional: true } }
+    - name: DATABASE_URL
+      valueFrom: { secretKeyRef: { name: postgres-credentials, key: perlengkapan-url } }
+    - name: INTEGRASI_DATABASE_URL
+      valueFrom: { secretKeyRef: { name: postgres-credentials, key: integrasi-url } }
   istioInjection: true
   istioExcludeOutboundPorts: "5432,6379"
   hpa:
@@ -389,24 +600,58 @@ simpelv1:
 # ─── Frontend ──────────────────────────────────────────────────────────────────
 portal:
   enabled: true
+  component: frontend
   image:
     name: portal
     tag: ""
   replicas: 1
+  service:
+    ports:
+      - { name: http, port: 8080 }
   resources:
     requests: { cpu: 50m,  memory: 64Mi }
     limits:   { cpu: 250m, memory: 256Mi }
   podSecurityContext:
-    runAsNonRoot: true
     runAsUser: 101
     runAsGroup: 101
     fsGroup: 101
-    seccompProfile: { type: RuntimeDefault }
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    capabilities: { drop: [ALL] }
-    readOnlyRootFilesystem: true
-    runAsNonRoot: true
+  containerSecurityContext: {}
+  probes:
+    startup:
+      type: http
+      path: /health
+      port: 8080
+      periodSeconds: 3
+      failureThreshold: 10
+    liveness:
+      type: http
+      path: /health
+      port: 8080
+      initialDelaySeconds: 10
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readiness:
+      type: http
+      path: /health
+      port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 2
+      failureThreshold: 2
+  env:
+    - name: RUST_LOG
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+    - { name: APP_NAME, value: "SIMPEL Portal" }
+  volumeMounts:
+    - { name: nginx-config, mountPath: /etc/nginx/nginx.conf, subPath: nginx.conf, readOnly: true }
+    - { name: nginx-cache,  mountPath: /var/cache/nginx }
+    - { name: nginx-run,    mountPath: /var/run }
+  volumes:
+    - name: nginx-config
+      configMap: { name: portal-nginx-config }
+    - { name: nginx-cache, emptyDir: {} }
+    - { name: nginx-run,   emptyDir: {} }
   istioInjection: true
   topologySpreadConstraints:
     enabled: true
@@ -419,6 +664,8 @@ portal:
     cpuUtilization: 75
     memoryUtilization: 80
   pdb: { enabled: false, minAvailable: 0 }
+  terminationGracePeriodSeconds: 30
+  tmpVolumeSizeLimit: 32Mi
   # CSP `connect-src` host list — diturunkan ke nginx config map.
   csp:
     connectSrc:
@@ -431,24 +678,47 @@ portal:
 
 perlengkapan:
   enabled: true
+  component: frontend
   image:
     name: perlengkapan
     tag: ""
   replicas: 1
+  service:
+    ports:
+      - { name: http, port: 8080 }
   resources:
     requests: { cpu: 50m,  memory: 64Mi }
     limits:   { cpu: 250m, memory: 256Mi }
   podSecurityContext:
-    runAsNonRoot: true
     runAsUser: 101
     runAsGroup: 101
     fsGroup: 101
-    seccompProfile: { type: RuntimeDefault }
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    capabilities: { drop: [ALL] }
-    readOnlyRootFilesystem: true
-    runAsNonRoot: true
+  containerSecurityContext: {}
+  probes:
+    liveness:
+      type: http
+      path: /health
+      port: 8080
+      initialDelaySeconds: 15
+      periodSeconds: 10
+    readiness:
+      type: http
+      path: /health
+      port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 5
+  env:
+    - name: RUST_LOG
+      valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+  volumeMounts:
+    - { name: nginx-config, mountPath: /etc/nginx/nginx.conf, subPath: nginx.conf, readOnly: true }
+    - { name: nginx-cache,  mountPath: /var/cache/nginx }
+    - { name: nginx-run,    mountPath: /var/run }
+  volumes:
+    - name: nginx-config
+      configMap: { name: perlengkapan-nginx-config }
+    - { name: nginx-cache, emptyDir: {} }
+    - { name: nginx-run,   emptyDir: {} }
   istioInjection: true
   hpa:
     enabled: false
@@ -457,6 +727,7 @@ perlengkapan:
     cpuUtilization: 75
     memoryUtilization: 80
   pdb: { enabled: false, minAvailable: 0 }
+  terminationGracePeriodSeconds: 30
 
 # ─── Istio routing ─────────────────────────────────────────────────────────────
 istio:

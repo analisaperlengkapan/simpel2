@@ -188,6 +188,22 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 
 ---
 
+## 🔐 Secret Fetching (Zero-Trust)
+
+Saat `secretonAuth.enabled=true` di Helm values:
+
+- Pod `authenc` punya volume projected `serviceAccountToken` di `/var/run/secrets/tokens/secreton-token` (audience `secreton`, TTL 3600s).
+- Module `secreton-agent` (di `layanan/secreton/crates/agent/src/auth/kubernetes.rs`) handle login: read SA JWT → `POST /v1/auth/kubernetes/login` → terima Secreton client token → auto-renew background task setiap 30 menit.
+- **Path policy yang boleh diakses** (sesuai `secretonAuth.policies.authenc` di `infra/helm/simpel/values.yaml`):
+  - `kv/data/authenc/*` — JWT signing keys (Ed25519 private), session encryption keys, SMTP password, OAuth2 client secrets.
+  - `kv/data/postgres/authenc` — DATABASE_URL credential.
+  - `transit/encrypt|decrypt/authenc-key` — envelope encryption untuk data at-rest.
+- **Env yang di-inject otomatis oleh `_workload.tpl`** (jangan set manual):
+  - `SECRETON_ADDR`, `SECRETON_AUTH_METHOD=kubernetes`, `SECRETON_AUTH_ROLE=authenc`, `SECRETON_K8S_TOKEN_PATH=/var/run/secrets/tokens/secreton-token`.
+- **DILARANG**: pakai `SECRETON_TOKEN` env di production. Token statis hanya untuk dev lokal (docker-compose).
+
+---
+
 **Last Updated:** April 23, 2026
 **Maintainer:** SIMPEL Team
 **Related:** `/AGENTS.md`, `layanan/AGENTS.md`

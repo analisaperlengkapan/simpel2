@@ -12,6 +12,19 @@ spec:
   podSelector: {}
   policyTypes: [Ingress]
 {{- end }}
+{{- if .Values.networkPolicies.defaultDenyEgress }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -87,12 +100,32 @@ spec:
       app.kubernetes.io/name: secreton
   policyTypes: [Ingress]
   ingress:
+    {{- if .Values.networkPolicies.allowSecretonAccess }}
+    # Tightened: hanya pod dengan SA spesifik yang boleh akses Secreton.
+    # Secreton client = service yang punya policy di .Values.secretonAuth.policies.
+    - from:
+        {{- range $service, $_ := (default (dict) .Values.secretonAuth).policies }}
+        {{- if not (eq $service "secreton") }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $service }}
+        {{- end }}
+        {{- end }}
+        # simpelv1 init container fetch-secrets butuh akses
+        - podSelector:
+            matchLabels:
+              app: simpelv1
+      ports:
+        - { protocol: TCP, port: 8200 }
+        - { protocol: TCP, port: 9000 }
+    {{- else }}
     - from:
         - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
         - podSelector: { matchLabels: { app.kubernetes.io/name: authenc } }
       ports:
         - { protocol: TCP, port: 8200 }
         - { protocol: TCP, port: 9000 }
+    {{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

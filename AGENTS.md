@@ -93,7 +93,11 @@ flowchart TB
    - ALL external dependencies MUST be in `[workspace.dependencies]` di Root `Cargo.toml`.
    - Member crates MUST use `dependency_name = { workspace = true }`. Jangan pernah menaruh versi di crate anak.
 2. **Database Rules**: ⛔ **DO NOT USE SQLx**. Gunakan `tokio-postgres` + `deadpool-postgres` + `refinery`. Setiap layanan (authenc, perlengkapan, secreton) menggunakan DB terpisah.
-3. **Secrets**: Jangan pernah menggunakan Environment Variables untuk rahasia produksi. Gunakan Secreton gRPC Client.
+3. **Secrets (Zero-Trust)**:
+   - **Source of truth produksi & staging**: Secreton vault (`kv/<service>/...`).
+   - **Auth**: Setiap pod project SA token (audience `secreton`) → exchange via `POST /v1/auth/kubernetes/login` → Secreton client token. **JANGAN** pakai `SECRETON_TOKEN` env (dev lokal saja).
+   - **Image registry resmi**: `ghcr.io/analisaperlengkapan/simpel2/<service>` dengan tag SemVer immutable (`v0.1.0`). DILARANG mutable tag (`latest`/`stag`/`prod`).
+   - Detail: `infra/AGENTS.md` section "Secret Management Zero-Trust".
 4. **Library Boundaries**: `lib/common/` telah dipecah menjadi `lib/core/` (WASM-safe types), `lib/backend/` (infrastruktur backend), dan `lib/crypto/` (primitif kripto). DILARANG menambahkan dependensi async (`tokio`, `axum`) ke `lib-core`. Buat crate shared spesifik baru di `lib/` jika diperlukan.
 5. **Security**: Zero-trust antar layanan. Validasi JWT di setiap request REST via middleware yang memanggil Authenc gRPC. Password hash menggunakan Argon2.
 
@@ -114,6 +118,6 @@ flowchart TB
 
 ## ✅ Pre-Implementation Checklist
 1. **Auth-related?** → Gunakan Portal + `use_auth()` hook. Flow: MFE → REST → gRPC.
-2. **Needs secrets?** → Gunakan Secreton gRPC client di backend (BUKAN env vars).
+2. **Needs secrets?** → Gunakan Secreton client di backend dengan **Kubernetes Auth Backend** (BUKAN `SECRETON_TOKEN` env). Pod project SA token → exchange ke Secreton token → fetch dari `kv/<service>/...`. Untuk simpelv1 (PHP/Laravel): init container `fetch-secrets` generate `.env` ke emptyDir saat pod start.
 3. **Reusable UI?** → Masukkan ke `lib/ui/`, lalu impor.
 4. **New dependency?** → Tambahkan ke root `Cargo.toml` `[workspace.dependencies]` terlebih dahulu.

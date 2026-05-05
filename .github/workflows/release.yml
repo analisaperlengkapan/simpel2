@@ -200,12 +200,27 @@ jobs:
           artifactErrorsFailBuild: false
 
   build-docker:
-    name: Build & Push Docker Images
+    name: Build & Push - ${{ matrix.image.name }}
     runs-on: self-hosted
     needs: [create-release, build-backend]
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          # 7 images yang di-deploy ke production (sesuai plan):
+          # - 2 frontend (portal, perlengkapan): Leptos WASM + nginx
+          # - 4 backend Rust (authenc, layanan-integrasi, layanan-perlengkapan, secreton)
+          # - 1 monolith Laravel (simpelv1)
+          - { name: portal,                context: ., dockerfile: antarmuka/portal/Dockerfile }
+          - { name: perlengkapan,          context: ., dockerfile: antarmuka/perlengkapan/Dockerfile }
+          - { name: authenc,               context: ., dockerfile: layanan/authenc/Dockerfile }
+          - { name: layanan-integrasi,     context: ., dockerfile: layanan/integrasi/Dockerfile }
+          - { name: layanan-perlengkapan,  context: ., dockerfile: layanan/perlengkapan/Dockerfile }
+          - { name: secreton,              context: ., dockerfile: layanan/secreton/Dockerfile }
+          - { name: simpelv1,              context: monolith/simpelv1, dockerfile: monolith/simpelv1/Dockerfile }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -224,18 +239,36 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Image: ghcr.io/<owner>/simpel2/<image-name>
+          # Owner di-lowercase agar match constraint ghcr.io.
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image.name }}
           tags: |
             type=semver,pattern={{version}},value=v${{ needs.create-release.outputs.version }}
             type=semver,pattern={{major}}.{{minor}},value=v${{ needs.create-release.outputs.version }}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.create-release.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Proprietary
+            org.opencontainers.image.title=${{ matrix.image.name }}
+            org.opencontainers.image.description=SIMPEL Kejaksaan RI - ${{ matrix.image.name }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
           push: true
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+          provenance: true
+          sbom: true
+
+      - name: Verify pushed image
+        run: |
+          docker manifest inspect \
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image.name }}:v${{ needs.create-release.outputs.version }}

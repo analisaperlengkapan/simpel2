@@ -422,4 +422,18 @@ See root `AGENTS.md` → "Canonical localStorage Keys" for the full key table.
 
 ---
 
+## 🔐 Secret Fetching (Zero-Trust)
+
+Saat `secretonAuth.enabled=true` di Helm values:
+
+- Pod `layanan-perlengkapan` punya projected SA token di `/var/run/secrets/tokens/secreton-token` (audience `secreton`).
+- Pakai `secreton-agent` Kubernetes auth backend (lihat `layanan/secreton/crates/agent/src/auth/kubernetes.rs`).
+- **Path policy** (`secretonAuth.policies.layanan-perlengkapan` di `infra/helm/simpel/values.yaml`):
+  - `kv/data/postgres/perlengkapan` — DATABASE_URL untuk DB perlengkapan.
+  - `kv/data/postgres/integrasi` — read-only ke DB integrasi (untuk join data BMN ↔ sync).
+- **Env auto-injected** oleh `_workload.tpl`: `SECRETON_ADDR`, `SECRETON_AUTH_METHOD=kubernetes`, `SECRETON_AUTH_ROLE=layanan-perlengkapan`, `SECRETON_K8S_TOKEN_PATH=/var/run/secrets/tokens/secreton-token`.
+- **DILARANG** pakai `SECRETON_TOKEN` env di production. Token statis hanya untuk dev lokal (docker-compose).
+
+---
+
 > **Catatan Akhir**: Layanan Perlengkapan adalah service kritis untuk operasional BMN Kejaksaan RI. Pastikan semua perubahan melalui code review dan testing yang menyeluruh sebelum deployment ke production.

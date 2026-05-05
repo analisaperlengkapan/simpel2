@@ -18,6 +18,13 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
 - **Lokasi**: `tests/e2e/`
 - **Framework**: **Playwright**
 - **Aturan**: Mencakup CAPTCHA handling, integrasi Authenc ↔ layanan-integrasi.
+- **Tagging suite untuk integrasi data**:
+  - Tag `@requires-integrasi-data` untuk suite yang butuh hasil sync API eksternal (SIMAN/MySIMKARI/MonSAKTI).
+  - Di **staging**, CronJob integrasi `suspend: true` (cegah rate-limit token API). Suite tagged tsb butuh manual trigger sync sebelum dijalankan, atau di-skip via env:
+    ```bash
+    PLAYWRIGHT_SKIP_INTEGRASI=1 npx playwright test --grep-invert "@requires-integrasi-data"
+    ```
+  - Di **production**, CronJob aktif → suite read-only boleh dijalankan tanpa trigger manual.
 
 ### 2. Integration Testing
 - **Lokasi**: `tests/integration/`

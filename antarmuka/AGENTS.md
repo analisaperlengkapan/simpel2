@@ -149,3 +149,13 @@ let debounced_search = Memo::new(move |_| {
 
 - **E2E Testing**: Gunakan Playwright untuk menguji seluruh alur pengguna (user flows) di antarmuka web, termasuk penanganan CAPTCHA jika diperlukan.
 - **Komponen**: Uji *logic* statis secara independen. Hindari menempatkan *business logic* kompleks di dalam komponen antarmuka.
+
+---
+
+## 🔐 Secret Boundary (Frontend NEVER Touches Secreton)
+
+- Frontend Leptos **TIDAK** memanggil Secreton (gRPC/HTTP) langsung. Semua secret hidup di server-side (backend Rust / authenc / Secreton).
+- `config.json` runtime (di-generate `entrypoint.sh` saat container start) hanya berisi **URL public** (`PORTAL_URL`, `AUTHENC_URL`, `API_URL`) — bukan secret.
+- JWT token user disimpan di `localStorage` (key `auth_token`, canonical), dikirim ke backend di header `Authorization: Bearer <token>`. Tidak ada API key client-side.
+- Saat `secretonAuth.enabled=true` di Helm: pod portal & perlengkapan **TIDAK** punya projected SA token Secreton (tidak butuh — frontend tidak fetch secret).
+- CSP `connect-src` dibatasi ke domain backend resmi (`https://*.kejaksaan.go.id`) — set via `values.yaml` `portal.csp.connectSrc`.

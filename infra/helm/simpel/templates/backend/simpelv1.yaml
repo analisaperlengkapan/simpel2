@@ -74,8 +74,31 @@ spec:
       {{- include "simpel.tolerations" . | nindent 6 }}
       securityContext:
         {{- toYaml $cfg.podSecurityContext | nindent 8 }}
-      {{- if ne $cfg.dbBackup.source "none" }}
+      {{- $secretonAuthEnabled := (default (dict) $.Values.secretonAuth).enabled -}}
+      {{- if or (ne $cfg.dbBackup.source "none") $secretonAuthEnabled }}
       initContainers:
+        {{- if $secretonAuthEnabled }}
+        - name: fetch-secrets
+          image: curlimages/curl:8.10.1
+          command: [sh, /scripts/fetch-secrets.sh]
+          env:
+            - { name: SECRETON_ADDR, value: {{ include "simpel.secretonEndpoint" . | quote }} }
+            - { name: SECRETON_AUTH_METHOD, value: kubernetes }
+            - { name: SECRETON_AUTH_ROLE, value: simpelv1 }
+            - { name: SECRETON_K8S_TOKEN_PATH, value: /var/run/secrets/tokens/secreton-token }
+            - { name: OUTPUT_DIR, value: /app/runtime }
+          volumeMounts:
+            - { name: fetch-secrets-script, mountPath: /scripts, readOnly: true }
+            - { name: secreton-token, mountPath: /var/run/secrets/tokens, readOnly: true }
+            - { name: runtime, mountPath: /app/runtime }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities: { drop: [ALL] }
+        {{- end }}
+        {{- if ne $cfg.dbBackup.source "none" }}
         - name: db-migrate
           image: postgres:15-alpine
           command: [sh, -c]
@@ -108,6 +131,7 @@ spec:
               valueFrom: { secretKeyRef: { name: simpelv1-secrets, key: DB_PASSWORD } }
           volumeMounts:
             - { name: db-backup, mountPath: /db-backup, readOnly: true }
+        {{- end }}
       {{- end }}
       containers:
         - name: simpelv1
@@ -119,9 +143,16 @@ spec:
             - { name: http, containerPort: 8080, protocol: TCP }
           envFrom:
             - configMapRef: { name: simpelv1-env }
+            {{- if not $secretonAuthEnabled }}
             - secretRef:    { name: simpelv1-secrets }
+            {{- end }}
           env:
             - { name: APP_URL, value: {{ $cfg.appUrl | quote }} }
+            {{- if $secretonAuthEnabled }}
+            # Saat secretonAuth aktif: APP_KEY/DB_PASSWORD dibaca Laravel dari /app/runtime/.env
+            # (di-generate init container fetch-secrets, override entries di simpelv1-env ConfigMap).
+            - { name: APP_ENV_FILE, value: /app/runtime/.env }
+            {{- end }}
           resources:
             {{- toYaml $cfg.resources | nindent 12 }}
           livenessProbe:
@@ -141,6 +172,9 @@ spec:
             - { name: tmp,         mountPath: /tmp }
             - { name: nginx-cache, mountPath: /var/cache/nginx }
             - { name: run,         mountPath: /run/nginx }
+            {{- if $secretonAuthEnabled }}
+            - { name: runtime,     mountPath: /app/runtime, readOnly: true }
+            {{- end }}
       volumes:
         {{- if eq $cfg.dbBackup.source "configMap" }}
         - name: db-backup
@@ -157,6 +191,21 @@ spec:
           emptyDir: {}
         - name: run
           emptyDir: {}
+        {{- if $secretonAuthEnabled }}
+        - name: runtime
+          emptyDir: { sizeLimit: 1Mi }
+        - name: fetch-secrets-script
+          configMap:
+            name: simpelv1-fetch-secrets
+            defaultMode: 0555
+        - name: secreton-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: secreton-token
+                  audience: {{ default "secreton" $.Values.secretonAuth.audience }}
+                  expirationSeconds: {{ default 3600 $.Values.secretonAuth.tokenTTL }}
+        {{- end }}
       affinity:
         podAntiAffinity:
           {{- if eq $cfg.podAntiAffinity.type "required" }}

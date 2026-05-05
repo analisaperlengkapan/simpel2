@@ -485,3 +485,28 @@ Test suites in `tests/`:
 | Secreton README | `/layanan/secreton/README.md` |
 | Config reference | `/layanan/secreton/secreton.toml.example` |
 | Deployment manifests | `/layanan/secreton/deploy/` |
+
+## 🔐 Secret Fetching by Other Services (Consumer Side)
+
+Secreton itu sendiri **tidak fetch dari Secreton** (avoid circular). Tapi dokumentasikan di sini cara service lain (authenc, layanan-perlengkapan, layanan-integrasi, simpelv1) consume:
+
+### Kubernetes Auth Backend
+- Implementasi server-side: `layanan/secreton/crates/core/src/services/auth/kubernetes.rs`.
+- Implementasi client-side: `layanan/secreton/crates/agent/src/auth/kubernetes.rs`.
+- Bootstrap: `infra/helm/bootstrap-secreton.sh <env>` (one-shot, post-install) — enable auth backend, configure TokenReview API, apply policies + roles dari ConfigMap `secreton-policies` & `secreton-auth-config`.
+- Verifikasi: `secreton auth list | grep kubernetes` → `kubernetes/` aktif.
+
+### Login Flow
+1. Pod consumer project SA token via `projected.serviceAccountToken` (audience `secreton`, TTL 3600s).
+2. `POST /v1/auth/kubernetes/login {"role": "<service>", "jwt": "<sa-jwt>"}` → return `client_token` (TTL 1 jam, max 24 jam dengan renew).
+3. Use `client_token` di header `X-Secreton-Token` untuk fetch dari `kv/data/<allowed-path>`.
+4. Auto-renew via `POST /v1/auth/token/renew-self` setiap 30 menit di background task.
+
+### Audit
+- Semua secret access **WAJIB** ter-log di Secreton audit backend dengan field: `time, request_id, client_token (hash), path, capability, source_ip, user_agent`.
+- **NEVER log plaintext value** (bug if ditemukan — refer audit policy `layanan/secreton/crates/core/src/audit/`).
+- Query log: `secreton audit list --from=<ts>` atau `kubectl exec secreton-0 -- secreton audit list ...`.
+
+### TLS / mTLS
+- Production: client (consumer pod) WAJIB pakai gRPC mTLS (port 9000) atau HTTPS (port 8200 dengan cert dari Secreton PKI engine).
+- Staging: HTTP plain port 8200 boleh untuk debugging (tapi mtls.mode=PERMISSIVE harus tetap aktif via Istio sidecar).
