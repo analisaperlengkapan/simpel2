@@ -75,9 +75,11 @@ mod gap_analysis_tests {
 
     #[test]
     fn test_multiple_satker_gap_analysis() {
-        let satker_gaps = [("Kejari A", 10, 5, 5),
+        let satker_gaps = [
+            ("Kejari A", 10, 5, 5),
             ("Kejari B", 8, 6, 2),
-            ("Kejari C", 12, 12, 0)];
+            ("Kejari C", 12, 12, 0),
+        ];
 
         let total_gap: i32 = satker_gaps.iter().map(|(_, _, _, gap)| gap).sum();
 

@@ -357,47 +357,48 @@ impl ExcelGenerator {
         // If data is an array, create table
         if let Some(items) = data.as_array()
             && let Some(first_item) = items.first()
-                && let Some(obj) = first_item.as_object() {
-                    // Write headers
-                    for (col, key) in obj.keys().enumerate() {
-                        worksheet
-                            .write_string_with_format(0, col as u16, key, &header_format)
-                            .map_err(|_| AppError::Internal)?;
-                    }
+            && let Some(obj) = first_item.as_object()
+        {
+            // Write headers
+            for (col, key) in obj.keys().enumerate() {
+                worksheet
+                    .write_string_with_format(0, col as u16, key, &header_format)
+                    .map_err(|_| AppError::Internal)?;
+            }
 
-                    // Write data
-                    for (row_idx, item) in items.iter().enumerate() {
-                        if let Some(obj) = item.as_object() {
-                            for (col, (_, value)) in obj.iter().enumerate() {
-                                let row = (row_idx + 1) as u32;
-                                match value {
-                                    Value::String(s) => {
-                                        worksheet
-                                            .write_string(row, col as u16, s)
-                                            .map_err(|_| AppError::Internal)?;
-                                    }
-                                    Value::Number(n) => {
-                                        if let Some(f) = n.as_f64() {
-                                            worksheet
-                                                .write_number(row, col as u16, f)
-                                                .map_err(|_| AppError::Internal)?;
-                                        }
-                                    }
-                                    Value::Bool(b) => {
-                                        worksheet
-                                            .write_boolean(row, col as u16, *b)
-                                            .map_err(|_| AppError::Internal)?;
-                                    }
-                                    _ => {
-                                        worksheet
-                                            .write_string(row, col as u16, value.to_string())
-                                            .map_err(|_| AppError::Internal)?;
-                                    }
+            // Write data
+            for (row_idx, item) in items.iter().enumerate() {
+                if let Some(obj) = item.as_object() {
+                    for (col, (_, value)) in obj.iter().enumerate() {
+                        let row = (row_idx + 1) as u32;
+                        match value {
+                            Value::String(s) => {
+                                worksheet
+                                    .write_string(row, col as u16, s)
+                                    .map_err(|_| AppError::Internal)?;
+                            }
+                            Value::Number(n) => {
+                                if let Some(f) = n.as_f64() {
+                                    worksheet
+                                        .write_number(row, col as u16, f)
+                                        .map_err(|_| AppError::Internal)?;
                                 }
+                            }
+                            Value::Bool(b) => {
+                                worksheet
+                                    .write_boolean(row, col as u16, *b)
+                                    .map_err(|_| AppError::Internal)?;
+                            }
+                            _ => {
+                                worksheet
+                                    .write_string(row, col as u16, value.to_string())
+                                    .map_err(|_| AppError::Internal)?;
                             }
                         }
                     }
                 }
+            }
+        }
 
         worksheet.autofit();
 
@@ -421,10 +422,12 @@ impl ExcelGenerator {
         let generated_at = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
         let version_str = template.version.to_string();
 
-        let metadata = [("Template Name", template.name.as_str()),
+        let metadata = [
+            ("Template Name", template.name.as_str()),
             ("Template Type", template.template_type.as_str()),
             ("Generated At", generated_at.as_str()),
-            ("Version", version_str.as_str())];
+            ("Version", version_str.as_str()),
+        ];
 
         for (row, (key, value)) in metadata.iter().enumerate() {
             worksheet

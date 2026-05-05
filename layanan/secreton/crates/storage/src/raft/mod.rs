@@ -653,57 +653,56 @@ impl RaftCluster {
                 let current_term = metrics.current_term;
 
                 // Check for leader election completion
-                if let Some(leader_id) = metrics.current_leader {
-                    if let Some(start_time) = election_start {
-                        // Election finished
-                        let duration = start_time.elapsed();
-                        let duration_ms = duration.as_millis() as u64;
+                if let Some(leader_id) = metrics.current_leader
+                    && let Some(start_time) = election_start
+                {
+                    // Election finished
+                    let duration = start_time.elapsed();
+                    let duration_ms = duration.as_millis() as u64;
 
-                        tracing::info!(
-                            "Leader elected: node {} in term {} (took {}ms)",
-                            leader_id,
-                            current_term,
-                            duration_ms
-                        );
+                    tracing::info!(
+                        "Leader elected: node {} in term {} (took {}ms)",
+                        leader_id,
+                        current_term,
+                        duration_ms
+                    );
 
-                        // Update monitor
-                        let mut mon = monitor.write().await;
-                        mon.last_election_time = Some(std::time::Instant::now());
-                        mon.last_election_duration_ms = Some(duration_ms);
-                        mon.total_elections += 1;
+                    // Update monitor
+                    let mut mon = monitor.write().await;
+                    mon.last_election_time = Some(std::time::Instant::now());
+                    mon.last_election_duration_ms = Some(duration_ms);
+                    mon.total_elections += 1;
 
-                        // Update running average
-                        if mon.total_elections == 1 {
-                            mon.avg_election_time_ms = duration_ms as f64;
-                        } else {
-                            mon.avg_election_time_ms = (mon.avg_election_time_ms
-                                * (mon.total_elections - 1) as f64
-                                + duration_ms as f64)
-                                / mon.total_elections as f64;
-                        }
-
-                        // Record metrics
-                        #[cfg(feature = "metrics")]
-                        {
-                            gauge!("secreton_raft_last_election_duration_ms")
-                                .set(duration_ms as f64);
-                            gauge!("secreton_raft_avg_election_duration_ms")
-                                .set(mon.avg_election_time_ms);
-                            counter!("secreton_raft_elections_total").increment(1);
-
-                            // Alert if election took too long (> 5 seconds)
-                            if duration_ms > 5000 {
-                                counter!("secreton_raft_slow_elections_total").increment(1);
-                                tracing::warn!(
-                                    "Slow leader election detected: {}ms (threshold: 5000ms)",
-                                    duration_ms
-                                );
-                            }
-                        }
-
-                        // Reset for next election
-                        election_start = None;
+                    // Update running average
+                    if mon.total_elections == 1 {
+                        mon.avg_election_time_ms = duration_ms as f64;
+                    } else {
+                        mon.avg_election_time_ms = (mon.avg_election_time_ms
+                            * (mon.total_elections - 1) as f64
+                            + duration_ms as f64)
+                            / mon.total_elections as f64;
                     }
+
+                    // Record metrics
+                    #[cfg(feature = "metrics")]
+                    {
+                        gauge!("secreton_raft_last_election_duration_ms").set(duration_ms as f64);
+                        gauge!("secreton_raft_avg_election_duration_ms")
+                            .set(mon.avg_election_time_ms);
+                        counter!("secreton_raft_elections_total").increment(1);
+
+                        // Alert if election took too long (> 5 seconds)
+                        if duration_ms > 5000 {
+                            counter!("secreton_raft_slow_elections_total").increment(1);
+                            tracing::warn!(
+                                "Slow leader election detected: {}ms (threshold: 5000ms)",
+                                duration_ms
+                            );
+                        }
+                    }
+
+                    // Reset for next election
+                    election_start = None;
                 }
 
                 // Detect term change (potential election)
@@ -805,14 +804,14 @@ impl RaftCluster {
 
         // Extract replication lag if leader
         let mut peer_lags = HashMap::new();
-        if metrics.current_leader == Some(self.config.node_id) {
-            if let Some(replication) = &metrics.replication {
-                let current_index = metrics.last_log_index.unwrap_or(0);
-                for (node_id, matched_log_id) in replication.iter() {
-                    let matched_index = matched_log_id.map(|l| l.index).unwrap_or(0);
-                    let lag = current_index.saturating_sub(matched_index);
-                    peer_lags.insert(*node_id, lag);
-                }
+        if metrics.current_leader == Some(self.config.node_id)
+            && let Some(replication) = &metrics.replication
+        {
+            let current_index = metrics.last_log_index.unwrap_or(0);
+            for (node_id, matched_log_id) in replication.iter() {
+                let matched_index = matched_log_id.map(|l| l.index).unwrap_or(0);
+                let lag = current_index.saturating_sub(matched_index);
+                peer_lags.insert(*node_id, lag);
             }
         }
 

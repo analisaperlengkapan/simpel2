@@ -85,7 +85,6 @@ impl fmt::Display for HealthStatus {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

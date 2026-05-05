@@ -356,8 +356,10 @@ mod tests {
 
     #[test]
     fn test_redirect_uris_validation() {
-        let redirect_uris = ["https://example.com/callback".to_string(),
-            "https://example.com/callback2".to_string()];
+        let redirect_uris = [
+            "https://example.com/callback".to_string(),
+            "https://example.com/callback2".to_string(),
+        ];
 
         assert_eq!(redirect_uris.len(), 2);
         assert!(redirect_uris.iter().all(|uri| uri.starts_with("https://")));
@@ -365,8 +367,10 @@ mod tests {
 
     #[test]
     fn test_grant_types() {
-        let grant_types = ["authorization_code".to_string(),
-            "refresh_token".to_string()];
+        let grant_types = [
+            "authorization_code".to_string(),
+            "refresh_token".to_string(),
+        ];
 
         assert!(grant_types.contains(&"authorization_code".to_string()));
         assert!(grant_types.contains(&"refresh_token".to_string()));

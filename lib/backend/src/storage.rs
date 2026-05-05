@@ -170,12 +170,13 @@ impl StorageClient {
 
         // Verify checksum if available
         if let Some(stored) = &stored_checksum
-            && stored != &calculated_checksum {
-                return Err(CommonError::Internal(format!(
-                    "Checksum mismatch: expected {}, got {}",
-                    stored, calculated_checksum
-                )));
-            }
+            && stored != &calculated_checksum
+        {
+            return Err(CommonError::Internal(format!(
+                "Checksum mismatch: expected {}, got {}",
+                stored, calculated_checksum
+            )));
+        }
 
         Ok(DownloadResult {
             key: key.to_string(),

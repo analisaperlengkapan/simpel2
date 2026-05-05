@@ -12,8 +12,7 @@ use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{error, info, warn};
 
 /// Sync status for MySIMKARI
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MySIMKARISyncStatus {
     pub last_full_sync: Option<DateTime<Utc>>,
     pub last_incremental_sync: Option<DateTime<Utc>>,
@@ -23,7 +22,6 @@ pub struct MySIMKARISyncStatus {
     pub total_pegawai_synced: u64,
     pub sync_in_progress: bool,
 }
-
 
 /// MySIMKARI sync service with scheduler
 pub struct MySIMKARISyncService {
