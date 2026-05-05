@@ -91,9 +91,9 @@ Infrastruktur SIMPEL berfokus pada **Keamanan Tingkat Tinggi (Zero-Trust)** dan 
 
 | Provider | Schedule | Time Zone | Staging | Production |
 |----------|----------|-----------|---------|------------|
-| **SIMAN** | `0 4 * * 0` (Minggu 04:00) | Asia/Jakarta | `suspend: true` | `suspend: false` |
+| **SIMAN** | `0 4 * * 0` (Minggu 04:00 WIB) | Asia/Jakarta | `suspend: true` | `suspend: false` |
 | **MySIMKARI** | `0 */6 * * *` (tiap 6 jam) | Asia/Jakarta | `suspend: true` | `suspend: false` |
-| **MonSAKTI** | `0 */6 * * *` | Asia/Jakarta | `suspend: true` | `suspend: false` |
+| **MonSAKTI** | `0 3 * * *` (tiap hari 03:00 WIB) | Asia/Jakarta | `suspend: true` | `suspend: false` |
 
 **Alasan suspend di staging**: rate-limit token API eksternal yang dipakai bersama dengan production scheduler. Penarikan data di staging dilakukan **manual** untuk testing:
 

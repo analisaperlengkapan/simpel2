@@ -462,7 +462,10 @@ layananIntegrasi:
   terminationGracePeriodSeconds: 30
   tmpVolumeSizeLimit: 128Mi
   # CronJob per provider — staging suspend=true, production suspend=false.
-  # Schedule berbeda: SIMAN tiap Minggu 04:00 WIB, MySIMKARI/MonSAKTI tiap 6 jam.
+  # Schedule berbeda per provider:
+  #   - SIMAN:     tiap Minggu pukul 04:00 WIB
+  #   - MySIMKARI: tiap 6 jam
+  #   - MonSAKTI:  tiap hari pukul 03:00 WIB
   cronjobs:
     siman:
       enabled: true
@@ -481,7 +484,7 @@ layananIntegrasi:
     monsakti:
       enabled: true
       suspend: true
-      schedule: "0 */6 * * *"              # default 6 jam — final dikonfirmasi
+      schedule: "0 3 * * *"                # setiap hari pukul 03:00 WIB
       timeZone: "Asia/Jakarta"
       command: [scheduler]
       args: ["--provider=monsakti"]

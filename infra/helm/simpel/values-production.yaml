@@ -91,7 +91,8 @@ layananIntegrasi:
     maxSkew: 1
     whenUnsatisfiable: ScheduleAnyway
   # CronJob AKTIF di production (override staging suspend=true).
-  # Schedule warisi dari values.yaml: SIMAN Minggu 04:00 WIB, MySIMKARI/MonSAKTI tiap 6 jam.
+  # Schedule warisi dari values.yaml:
+  #   SIMAN Minggu 04:00 WIB, MySIMKARI tiap 6 jam, MonSAKTI tiap hari 03:00 WIB.
   cronjobs:
     siman:      { suspend: false }
     mysimkari:  { suspend: false }
