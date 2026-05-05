@@ -43,9 +43,17 @@ runs:
           unzip build-essential pkg-config libssl-dev \
           clang gcc perl libzstd-dev zlib1g-dev libtss2-dev \
           2>/dev/null || true
-        # Use clang to avoid --target flag incompatibility with recent cc crate
-        echo "CC=clang" >> $GITHUB_ENV
-        echo "CXX=clang++" >> $GITHUB_ENV
+        # Prefer clang (newer cc crate compatibility), fallback ke gcc kalau clang
+        # tidak tersedia di runner (mis. self-hosted runner tanpa sudo password).
+        if command -v clang >/dev/null 2>&1; then
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        elif command -v gcc >/dev/null 2>&1; then
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+        else
+          echo "::warning::Neither clang nor gcc found; cargo build mungkin fail untuk crate yang butuh C compiler."
+        fi
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable

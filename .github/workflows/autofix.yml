@@ -89,9 +89,9 @@ jobs:
         # cargo fix kadang menggeser formatting; jalankan fmt lagi untuk konsistensi.
         run: cargo fmt --all
 
-      - name: Validate workspace masih compile
-        # Sanity check: jangan push perubahan yang merusak build.
-        run: cargo check --workspace --all-targets --all-features
+      # Catatan: tidak ada `cargo check` validasi di sini karena akan duplikat
+      # dengan `ci-quality.yml` (Check & Lint). Autofix fokus ke fmt+fix saja;
+      # broken build dari cargo fix akan ke-tangkap downstream check job.
 
       - name: Detect changes
         id: changes
