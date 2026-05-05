@@ -40,7 +40,7 @@
         "benchmark": "latest",
         "coveralls": "^3.0.2",
         "es6-promise": "latest",
-        "grunt": "~0.4",
+        "grunt": "~1.6",
         "grunt-benchmark": "latest",
         "grunt-cli": "latest",
         "grunt-contrib-clean": "latest",
@@ -64,7 +64,7 @@
         "node-qunit": "^1.0.0",
         "nyc": "~11.9.0",
         "qunit": "^2.7.1",
-        "rollup": "~0.67.4",
+        "rollup": "~4.60.3",
         "spacejam": "latest",
         "typescript": "^1.8.10",
         "uglify-js": "latest"
