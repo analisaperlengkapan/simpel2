@@ -166,6 +166,10 @@ pub fn LoadingPanel(
 /// />
 /// ```
 #[component]
+// Leptos `view!` macro kadang men-shadow nama variable ke move-closure inner; clippy
+// salah deteksi `on_next` sebagai unused walau dipakai di line ~210. Suppress untuk
+// fungsi ini saja.
+#[allow(unused_variables)]
 pub fn DarkPagination(
     /// Current page number (1-based).
     #[prop(into)]
