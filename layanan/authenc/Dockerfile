@@ -47,7 +47,7 @@ RUN if [ "$CAPTCHA_DEBUG" = "1" ]; then \
     fi
 
 # Stage 2: Runtime - Use Ubuntu 24.04 for GLIBC compatibility (aligns with dev environment)
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Install runtime dependencies only (including curl for healthcheck)
 RUN apt-get update && \
