@@ -234,15 +234,15 @@ mod tests {
 
         results.add_check("db", HealthCheckResult::healthy());
         results.add_check("cache", HealthCheckResult::healthy());
-        results.calculate_overall_status(&vec!["db".to_string(), "cache".to_string()]);
+        results.calculate_overall_status(&["db".to_string(), "cache".to_string()]);
         assert!(results.is_healthy());
 
         results.add_check("storage", HealthCheckResult::degraded("Slow"));
-        results.calculate_overall_status(&vec!["db".to_string(), "cache".to_string()]);
+        results.calculate_overall_status(&["db".to_string(), "cache".to_string()]);
         assert!(results.is_degraded());
 
         results.add_check("db", HealthCheckResult::unhealthy("Connection failed"));
-        results.calculate_overall_status(&vec!["db".to_string(), "cache".to_string()]);
+        results.calculate_overall_status(&["db".to_string(), "cache".to_string()]);
         assert!(results.is_unhealthy());
     }
 
@@ -254,7 +254,7 @@ mod tests {
         results.add_check("metrics", HealthCheckResult::unhealthy("Metrics down"));
 
         // Only db is critical
-        results.calculate_overall_status(&vec!["db".to_string()]);
+        results.calculate_overall_status(&["db".to_string()]);
 
         // Non-critical unhealthy should make overall degraded, not unhealthy
         assert!(results.is_degraded());

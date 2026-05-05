@@ -1142,11 +1142,7 @@ impl MonsaktiClient {
             Some(a.len() as i32)
         } else if let Some(a) = data.get("data").and_then(|v| v.as_array()) {
             Some(a.len() as i32)
-        } else if let Some(a) = data.get("results").and_then(|v| v.as_array()) {
-            Some(a.len() as i32)
-        } else {
-            None
-        };
+        } else { data.get("results").and_then(|v| v.as_array()).map(|a| a.len() as i32) };
         self.log_api_call(
             "SIMAN",
             &endpoint_name,

@@ -74,7 +74,7 @@ impl ExcelGenerator {
 
         let tahun = data["tahun_anggaran"].as_i64().unwrap_or(2024);
         worksheet
-            .write_string(1, 0, &format!("Tahun Anggaran: {}", tahun))
+            .write_string(1, 0, format!("Tahun Anggaran: {}", tahun))
             .map_err(|_| AppError::Internal)?;
 
         // Headers
@@ -175,7 +175,7 @@ impl ExcelGenerator {
             data["periode_akhir"].as_i64().unwrap_or(2028)
         );
         worksheet
-            .write_string(1, 0, &format!("Periode: {}", periode))
+            .write_string(1, 0, format!("Periode: {}", periode))
             .map_err(|_| AppError::Internal)?;
 
         // Headers
@@ -355,9 +355,9 @@ impl ExcelGenerator {
             .set_font_color(Color::White);
 
         // If data is an array, create table
-        if let Some(items) = data.as_array() {
-            if let Some(first_item) = items.first() {
-                if let Some(obj) = first_item.as_object() {
+        if let Some(items) = data.as_array()
+            && let Some(first_item) = items.first()
+                && let Some(obj) = first_item.as_object() {
                     // Write headers
                     for (col, key) in obj.keys().enumerate() {
                         worksheet
@@ -390,7 +390,7 @@ impl ExcelGenerator {
                                     }
                                     _ => {
                                         worksheet
-                                            .write_string(row, col as u16, &value.to_string())
+                                            .write_string(row, col as u16, value.to_string())
                                             .map_err(|_| AppError::Internal)?;
                                     }
                                 }
@@ -398,8 +398,6 @@ impl ExcelGenerator {
                         }
                     }
                 }
-            }
-        }
 
         worksheet.autofit();
 
@@ -423,12 +421,10 @@ impl ExcelGenerator {
         let generated_at = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
         let version_str = template.version.to_string();
 
-        let metadata = vec![
-            ("Template Name", template.name.as_str()),
+        let metadata = [("Template Name", template.name.as_str()),
             ("Template Type", template.template_type.as_str()),
             ("Generated At", generated_at.as_str()),
-            ("Version", version_str.as_str()),
-        ];
+            ("Version", version_str.as_str())];
 
         for (row, (key, value)) in metadata.iter().enumerate() {
             worksheet

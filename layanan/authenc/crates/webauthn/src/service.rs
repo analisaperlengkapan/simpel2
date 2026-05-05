@@ -397,16 +397,16 @@ impl WebAuthnService {
             .finish_passkey_authentication(auth, &state.state)
             .map_err(|e| {
                 error!("Failed to finish passkey authentication: {}", e);
-                return crate::models::AuthenticationResult::Failed {
+                crate::models::AuthenticationResult::Failed {
                     reason: format!("Authentication verification failed: {}", e),
-                };
+                }
             })
             .map_err(|_| AuthencError::unauthorized("Authentication failed"))?;
 
         // Get credential from database
         let credential = self
             .credential_store
-            .get_credential_by_id(&auth_result.cred_id())
+            .get_credential_by_id(auth_result.cred_id())
             .await
             .map_err(|e| {
                 error!("Failed to get credential: {}", e);
