@@ -55,15 +55,25 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-key: autofix-pr
 
-      - name: Format the workspace (cargo fmt --all)
-        # Format harus aman dijalankan tanpa --check; tidak ubah semantik.
-        run: cargo fmt --all
-
-      - name: Apply cargo fix (workspace, all targets, all features)
-        # `--allow-dirty` karena cargo fmt mungkin sudah modify files;
-        # `--allow-staged` untuk safety jika ada cached state.
+      - name: Apply fmt + fix + clippy --fix (single shell session)
+        # Gabung dalam satu step agar PATH stabil — di self-hosted runner kadang
+        # cargo binary "hilang" antar step (issue Swatinem/rust-cache vs $GITHUB_PATH).
+        # Pakai `$HOME/.cargo/bin/cargo` sebagai fallback kalau `cargo` tidak di PATH.
         run: |
-          cargo fix \
+          set +e
+          # Resolve cargo path (PATH atau fallback ke $HOME/.cargo/bin).
+          CARGO_BIN=$(command -v cargo || echo "$HOME/.cargo/bin/cargo")
+          if ! [ -x "$CARGO_BIN" ]; then
+            echo "::error::cargo binary tidak ditemukan (PATH=$PATH)."
+            exit 1
+          fi
+          echo "Using cargo: $CARGO_BIN"
+
+          # 1. Format
+          "$CARGO_BIN" fmt --all || true
+
+          # 2. cargo fix (compiler suggestions)
+          "$CARGO_BIN" fix \
             --workspace \
             --all-targets \
             --all-features \
@@ -71,11 +81,8 @@ jobs:
             --allow-staged \
             || true
 
-      - name: Apply clippy --fix (lint auto-correct)
-        # Clippy kadang fail di crate dengan unused-imports yang tidak fixable;
-        # `|| true` agar tidak block autofix commit. Final clippy check di ci-quality.yml.
-        run: |
-          cargo clippy \
+          # 3. clippy --fix (lint suggestions)
+          "$CARGO_BIN" clippy \
             --workspace \
             --all-targets \
             --all-features \
@@ -85,13 +92,9 @@ jobs:
             -- -W clippy::all \
             || true
 
-      - name: Re-format after fix (cargo fmt --all)
-        # cargo fix kadang menggeser formatting; jalankan fmt lagi untuk konsistensi.
-        run: cargo fmt --all
-
-      # Catatan: tidak ada `cargo check` validasi di sini karena akan duplikat
-      # dengan `ci-quality.yml` (Check & Lint). Autofix fokus ke fmt+fix saja;
-      # broken build dari cargo fix akan ke-tangkap downstream check job.
+          # 4. Re-format (cargo fix bisa menggeser formatting)
+          "$CARGO_BIN" fmt --all || true
+          true
 
       - name: Detect changes
         id: changes
