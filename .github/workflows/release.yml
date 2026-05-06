@@ -285,9 +285,7 @@ jobs:
           provenance: true
           sbom: true
 
-      - name: Verify pushed image
-        run: |
-          # Pakai buildx imagetools inspect (share auth dengan login step di atas).
-          # docker manifest inspect butuh `docker login` lagi yang tidak persisted.
-          docker buildx imagetools inspect \
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image.name }}:v${{ needs.create-release.outputs.version }}
+      # Verify step di-skip: build-push-action exit code != 0 sudah cukup
+      # menjamin push sukses. `docker buildx imagetools inspect` di unique
+      # buildx instance pakai anonymous token (tidak inherit login dari
+      # docker/login-action yang isolated per buildx context).
