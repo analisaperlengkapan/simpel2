@@ -95,7 +95,9 @@ pub fn MainLayout(
 
             #[cfg(not(target_arch = "wasm32"))]
             {
-                AuthService::clear_session();
+                // logout() membersihkan localStorage + state — under cfg(wasm32) di
+                // dalamnya jadi no-op untuk native build, cukup signal state reset.
+                AuthService::logout();
                 if let Some(set_session) = set_user_session {
                     set_session.set(None);
                 }
