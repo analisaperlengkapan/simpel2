@@ -90,6 +90,9 @@ jobs:
           "$CARGO_BIN" fmt --all || true
           true
 
+      - name: Normalize Cargo versioning
+        run: python3 ./infra/scripts/check-cargo-versioning.py fix
+
       - name: Detect changes
         id: changes
         run: |

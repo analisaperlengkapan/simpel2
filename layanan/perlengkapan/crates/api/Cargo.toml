@@ -92,5 +92,5 @@ tonic-prost-build = { workspace = true }
 
 [dev-dependencies]
 mockall = { workspace = true }
-mime = "0.3"
+mime = { workspace = true }
 axum-test = { workspace = true }

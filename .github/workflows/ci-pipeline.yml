@@ -46,6 +46,17 @@ jobs:
               - '.github/actions/**'
               - '.github/workflows/ci-pipeline.yml'
 
+  check-versioning:
+    name: Check Cargo Versioning
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Cargo versioning
+        shell: bash
+        run: python3 ./infra/scripts/check-cargo-versioning.py check
+
   lint:
     name: Lint Stage
     needs: detect-changes

@@ -55,7 +55,7 @@ tracing-subscriber = { workspace = true, default-features = false, features = ["
 tracing-subscriber-wasm = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }
-urlencoding = "2.1"
+urlencoding = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }
 # Explicitly enable wasm_js feature for getrandom 0.3+ which is pulled transitively
@@ -66,8 +66,8 @@ once_cell.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
-wasm-bindgen-test = "0.3"
-leptos_dom = { version = "0.8" }
+wasm-bindgen-test = { workspace = true }
+leptos_dom = { workspace = true }
 
 [features]
 integration-tests = []

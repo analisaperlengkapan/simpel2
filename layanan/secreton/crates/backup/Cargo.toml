@@ -1,6 +1,6 @@
 [package]
 name = "secreton-backup"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 authors = ["Cipherce Security Team <security@cipherce.io>"]
 license = "Apache-2.0"
@@ -46,9 +46,9 @@ flate2 = { workspace = true }
 tempfile = { workspace = true }
 
 # S3-compatible storage
-aws-sdk-s3 = "1.68"
-aws-config = "1.5"
-aws-credential-types = "1.2"
+aws-sdk-s3 = { workspace = true }
+aws-config = { workspace = true }
+aws-credential-types = { workspace = true }
 
 # Metrics (optional)
 metrics = { workspace = true, optional = true }

@@ -1,6 +1,6 @@
 [package]
 name = "lib-core"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license.workspace = true
 description = "WASM-safe core types and utilities shared across frontend and backend"

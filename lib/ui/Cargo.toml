@@ -57,7 +57,7 @@ gloo = { workspace = true, features = ["timers", "net", "storage"] }
 gloo-timers = { workspace = true }
 gloo-storage = { workspace = true }
 send_wrapper = "0.6"
-urlencoding = "2.1"
+urlencoding = { workspace = true }
 uuid = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
@@ -76,4 +76,4 @@ cfg_aliases = "0.2"
 wasm-bindgen-test = { workspace = true }
 console_error_panic_hook = { workspace = true }
 tokio-test = { workspace = true }
-tokio = { version = "1.47.1", features = ["sync", "macros", "rt"] }
+tokio = { workspace = true, features = ["sync", "macros", "rt"] }
