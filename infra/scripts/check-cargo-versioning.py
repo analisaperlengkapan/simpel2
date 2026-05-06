@@ -215,6 +215,9 @@ def main() -> int:
         print("\nCargo versioning check failed.", file=sys.stderr)
         return 1
 
+    if MODE == "check":
+        print("Cargo versioning check passed: root workspace remains the source of truth.")
+
     if MODE == "fix":
         print("Cargo versioning auto-fix complete.")
 

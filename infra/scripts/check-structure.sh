@@ -21,28 +21,30 @@ done
 
 echo -e "\n2. Checking for invalid md files..."
 # All md files must be in docs/ except specific allowed ones in root and domain AGENTS.md
-find . -type f -name "*.md" | grep -v "node_modules" | grep -v "target" | while read -r file; do
+while IFS= read -r file; do
   # Remove leading ./
   clean_file=${file#./}
-  
+
   # Allow README, CONTRIBUTING, AGENTS, CHANGELOG in root
   if [[ "$clean_file" == "README.md" || "$clean_file" == "CONTRIBUTING.md" || "$clean_file" == "AGENTS.md" || "$clean_file" == "CHANGELOG.md" ]]; then
     continue
   fi
-  
+
   # Allow anything inside docs/
   if [[ "$clean_file" == docs/* ]]; then
     continue
   fi
-  
+
   # Allow AGENTS.md inside any folder
   if [[ "$clean_file" == */AGENTS.md ]]; then
     continue
   fi
-  
+
   echo "❌ ERROR: Markdown file '$clean_file' is outside allowed directories (should be in docs/)."
   FAILED=1
-done
+done < <(find . \
+  \( -path './.*' -o -path '*/.*' -o -path './target' -o -path '*/target' -o -path '*/node_modules' \) -prune -o \
+  -type f -name "*.md" -print)
 
 if [ $FAILED -ne 0 ]; then
   echo -e "\n❌ Structure test failed."
