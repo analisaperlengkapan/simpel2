@@ -79,13 +79,13 @@ impl PolicyService {
                 }
             };
 
-            if let Some(entry) = cached_policy {
-                if entry.fetched_at.elapsed() < CACHE_TTL {
-                    if entry.definition.is_active {
-                        rules.extend(entry.definition.rules);
-                    }
-                    continue;
+            if let Some(entry) = cached_policy
+                && entry.fetched_at.elapsed() < CACHE_TTL
+            {
+                if entry.definition.is_active {
+                    rules.extend(entry.definition.rules);
                 }
+                continue;
             }
 
             // Fallback to storage (not in cache or expired)
@@ -282,10 +282,10 @@ impl PolicyService {
                 })?;
 
             // Double check namespace matches if filtering was requested
-            if let Some(ns) = &namespace {
-                if &policy.namespace != ns {
-                    continue;
-                }
+            if let Some(ns) = &namespace
+                && &policy.namespace != ns
+            {
+                continue;
             }
 
             policies.push(policy);
