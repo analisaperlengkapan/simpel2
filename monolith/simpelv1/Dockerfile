@@ -3,7 +3,7 @@ FROM php:8.2-fpm-alpine AS base
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies + headers untuk PHP extensions
 RUN apk add --no-cache \
     postgresql-client \
     postgresql-dev \
@@ -12,10 +12,37 @@ RUN apk add --no-cache \
     ca-certificates \
     curl \
     git \
-    composer
+    composer \
+    # GD deps
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    # XML/DOM deps
+    libxml2-dev \
+    # Sodium
+    libsodium-dev \
+    # zip extension (untuk maatwebsite/excel)
+    libzip-dev \
+    # icu untuk intl (locale)
+    icu-dev \
+    # oniguruma untuk mbstring
+    oniguruma-dev
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql
+# Install PHP extensions yang dibutuhkan Laravel framework + dependencies
+# (session, tokenizer, ctype, json sudah built-in PHP 8.2)
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install \
+        pdo \
+        pdo_pgsql \
+        gd \
+        dom \
+        fileinfo \
+        sodium \
+        bcmath \
+        mbstring \
+        intl \
+        zip \
+        opcache
 
 # Build dependencies for compiling PHP/protobuf extensions. Installed
 # under a virtual package so they can be removed after composer install
