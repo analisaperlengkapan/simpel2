@@ -3,7 +3,10 @@ FROM php:8.2-fpm-alpine AS base
 
 WORKDIR /app
 
-# Install system dependencies + headers untuk PHP extensions
+# Install system dependencies + headers untuk PHP extensions.
+# CATATAN: JANGAN install `composer` via apk — apk composer dipasangkan ke PHP
+# system Alpine (PHP 8.4 di Alpine 3.21+), bukan PHP 8.2 dari base image.
+# Composer di-install via official installer di step terpisah.
 RUN apk add --no-cache \
     postgresql-client \
     postgresql-dev \
@@ -12,7 +15,6 @@ RUN apk add --no-cache \
     ca-certificates \
     curl \
     git \
-    composer \
     # GD deps
     libpng-dev \
     libjpeg-turbo-dev \
@@ -43,6 +45,12 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
         intl \
         zip \
         opcache
+
+# Install Composer 2 via official installer untuk PHP 8.2 (bukan apk composer
+# yang dipasangkan ke PHP system Alpine).
+RUN curl -fsSL https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer \
+    && composer --version
 
 # Build dependencies for compiling PHP/protobuf extensions. Installed
 # under a virtual package so they can be removed after composer install
