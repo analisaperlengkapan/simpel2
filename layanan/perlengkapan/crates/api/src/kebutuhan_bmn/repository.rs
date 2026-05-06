@@ -412,7 +412,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         }
 
         // Always update version and updated_by
-        updates.push(format!("version = version + 1"));
+        updates.push("version = version + 1".to_string());
         updates.push(format!("updated_by = ${}", param_idx));
         params.push(Box::new(user_id));
         param_idx += 1;

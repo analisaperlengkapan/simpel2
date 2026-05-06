@@ -293,16 +293,16 @@ impl WorkflowMonitor {
             };
 
             // Only include if using more than 75% of SLA
-            if let Some(usage) = sla_usage_percent {
-                if usage > 75.0 {
-                    bottlenecks.push(BottleneckInfo {
-                        state,
-                        count,
-                        avg_time_minutes,
-                        sla_limit_minutes,
-                        sla_usage_percent,
-                    });
-                }
+            if let Some(usage) = sla_usage_percent
+                && usage > 75.0
+            {
+                bottlenecks.push(BottleneckInfo {
+                    state,
+                    count,
+                    avg_time_minutes,
+                    sla_limit_minutes,
+                    sla_usage_percent,
+                });
             }
         }
 

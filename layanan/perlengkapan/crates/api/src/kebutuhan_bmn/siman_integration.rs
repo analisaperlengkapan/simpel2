@@ -91,7 +91,7 @@ impl SimanIntegration {
     /// Get row count for a specific asset category
     pub async fn get_asset_count(&self, category: SimanAssetCategory) -> AppResult<i64> {
         let mut client = self.client.write().await;
-        get_row_count(&mut *client, category, None)
+        get_row_count(&mut client, category, None)
             .await
             .map_err(|e| AppError::Internal(format!("SIMAN error: {}", e)))
     }
@@ -104,7 +104,7 @@ impl SimanIntegration {
         end_id: u32,
     ) -> AppResult<Vec<SimanAsset>> {
         let mut client = self.client.write().await;
-        let data = get_aset_by_category(&mut *client, category, start_id, end_id, None)
+        let data = get_aset_by_category(&mut client, category, start_id, end_id, None)
             .await
             .map_err(|e| AppError::Internal(format!("SIMAN error: {}", e)))?;
 
@@ -314,10 +314,10 @@ impl SimanIntegration {
                 if let Some(n) = v.as_f64() {
                     return Some(n as i64);
                 }
-                if let Some(s) = v.as_str() {
-                    if let Ok(n) = s.parse::<i64>() {
-                        return Some(n);
-                    }
+                if let Some(s) = v.as_str()
+                    && let Ok(n) = s.parse::<i64>()
+                {
+                    return Some(n);
                 }
             }
         }
@@ -334,10 +334,10 @@ impl SimanIntegration {
                 if let Some(n) = v.as_i64() {
                     return Some(n as f64);
                 }
-                if let Some(s) = v.as_str() {
-                    if let Ok(n) = s.parse::<f64>() {
-                        return Some(n);
-                    }
+                if let Some(s) = v.as_str()
+                    && let Ok(n) = s.parse::<f64>()
+                {
+                    return Some(n);
                 }
             }
         }
