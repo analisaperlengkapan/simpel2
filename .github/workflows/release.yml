@@ -222,7 +222,7 @@ jobs:
           - { name: layanan-integrasi,     context: ., dockerfile: layanan/integrasi/Dockerfile }
           - { name: layanan-perlengkapan,  context: ., dockerfile: layanan/perlengkapan/Dockerfile }
           - { name: secreton,              context: ., dockerfile: layanan/secreton/Dockerfile }
-          - { name: simpelv1,              context: monolith/simpelv1, dockerfile: monolith/simpelv1/Dockerfile }
+          - { name: simpelv1,              context: ., dockerfile: monolith/simpelv1/Dockerfile }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -253,9 +253,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          # Image: ghcr.io/<owner>/simpel2/<image-name>
-          # Owner di-lowercase agar match constraint ghcr.io.
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image.name }}
+          # Image: ghcr.io/<owner>/simpelv2-<image-name>
+          # ghcr.io path untuk personal account hanya support 1 segment di bawah
+          # owner (tidak nested). Pakai prefix simpelv2- untuk avoid name collision.
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image.name }}
           tags: |
             type=semver,pattern={{version}},value=v${{ needs.create-release.outputs.version }}
             type=semver,pattern={{major}}.{{minor}},value=v${{ needs.create-release.outputs.version }}
@@ -285,4 +286,4 @@ jobs:
       - name: Verify pushed image
         run: |
           docker manifest inspect \
-            ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image.name }}:v${{ needs.create-release.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image.name }}:v${{ needs.create-release.outputs.version }}

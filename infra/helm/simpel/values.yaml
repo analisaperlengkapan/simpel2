@@ -9,9 +9,10 @@
 # via values-secrets.yaml (gitignored) atau Secreton SecretSync CRD.
 
 global:
-  # Image registry resmi (per AGENTS.md): ghcr.io/analisaperlengkapan/simpel2.
-  # Override per-env via values-staging.yaml / values-production.yaml jika perlu.
-  registry: ghcr.io/analisaperlengkapan/simpel2
+  # Image registry resmi: ghcr.io/analisaperlengkapan (personal account).
+  # Image path: <registry>/simpelv2-<service> (no nested namespace karena
+  # ghcr.io personal account hanya support 1 segment di bawah owner).
+  registry: ghcr.io/analisaperlengkapan
   # WAJIB semver immutable (vMAJOR.MINOR.PATCH). Override per-env.
   # Default v0.1.0 = release pertama bertag.
   imageTag: v0.1.0

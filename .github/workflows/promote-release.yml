@@ -103,23 +103,23 @@ jobs:
       - name: Verify source image exists
         run: |
           docker manifest inspect \
-            ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}:${{ inputs.source_tag }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image }}:${{ inputs.source_tag }}
 
       - name: Re-tag image (no rebuild — copy manifest)
         # `buildx imagetools create` add new tag pointing ke same digest.
         # Image binary tidak berubah; hanya OCI label & tag baru ditambah.
         run: |
           docker buildx imagetools create \
-            --tag ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}:${{ inputs.target_tag }} \
-            ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}:${{ inputs.source_tag }}
+            --tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image }}:${{ inputs.target_tag }} \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image }}:${{ inputs.source_tag }}
 
       - name: Verify target tag now exists & has same digest
         run: |
           SOURCE_DIGEST=$(docker manifest inspect \
-            ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}:${{ inputs.source_tag }} \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image }}:${{ inputs.source_tag }} \
             | jq -r '.config.digest // .manifests[0].digest')
           TARGET_DIGEST=$(docker manifest inspect \
-            ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}:${{ inputs.target_tag }} \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image }}:${{ inputs.target_tag }} \
             | jq -r '.config.digest // .manifests[0].digest')
 
           if [ "$SOURCE_DIGEST" != "$TARGET_DIGEST" ]; then
@@ -174,8 +174,8 @@ jobs:
 
             ### Docker Images
             ```bash
-            docker pull ${{ env.REGISTRY }}/${{ github.repository }}/portal:${{ inputs.target_tag }}
-            docker pull ${{ env.REGISTRY }}/${{ github.repository }}/authenc:${{ inputs.target_tag }}
+            docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-portal:${{ inputs.target_tag }}
+            docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-authenc:${{ inputs.target_tag }}
             # ... dan 5 image lain
             ```
 
