@@ -207,6 +207,9 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
+      # Self-hosted runner punya resource terbatas (RAM); 7 docker build paralel
+      # ber-OOM-kan buildkit. Limit ke 2 paralel untuk stabilitas.
+      max-parallel: 2
       matrix:
         image:
           # 7 images yang di-deploy ke production (sesuai plan):
