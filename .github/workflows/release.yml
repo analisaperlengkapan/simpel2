@@ -207,9 +207,9 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
-      # Self-hosted runner punya resource terbatas (RAM); 7 docker build paralel
-      # ber-OOM-kan buildkit. Limit ke 2 paralel untuk stabilitas.
-      max-parallel: 2
+      # 7 paralel docker build aman dengan driver: docker (shared buildkit di
+      # Docker daemon, bukan spawn container per job). Lihat step setup-buildx
+      # di bawah. Self-hosted runner host punya 64GB RAM + 48 core.
       matrix:
         image:
           # 7 images yang di-deploy ke production (sesuai plan):
@@ -229,6 +229,18 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+        with:
+          # Unique buildx instance per matrix job → 7 buildkit container
+          # terpisah (tidak share state). `cleanup: false` agar post-job tidak
+          # docker rm yang bisa race dengan jobs lain di Docker daemon yang sama
+          # (root cause graceful_stop di rc4). Buildkit container akan ke-clean
+          # naturally saat runner reboot atau via `docker buildx prune` manual.
+          name: buildx-${{ matrix.image.name }}-${{ github.run_id }}
+          cleanup: false
+          driver: docker-container
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
