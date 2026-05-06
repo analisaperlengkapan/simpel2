@@ -6,23 +6,23 @@ Overview of CI/CD workflows, their triggers, and purposes.
 
 | Workflow | File | Trigger | Purpose |
 |----------|------|---------|---------|
-| **CI - Rust Core** | `rust-ci.yml` | Push/PR to main,develop (backend paths) | Lint, format, test, build Rust workspace |
-| **CI - WASM** | `wasm-ci.yml` | Push/PR to main,develop (frontend paths) | Lint & build WASM microfrontends |
+| **CI - Unified Pipeline** | `ci-pipeline.yml` | Push/PR to main,develop,stag | Unified pipeline for Linting, Testing, and Building Rust/WASM (parallel) |
 | **CI - Quality** | `ci-quality.yml` | Push/PR + weekly schedule | Documentation build, code metrics |
-| **CI - Security** | `ci-security.yml` | Push/PR + weekly schedule | Dependency audit, SAST, secrets scan |
-| **Integration Tests** | `integration-tests.yml` | Push/PR + daily schedule | Backend integration & workspace tests |
-| **Release** | `release.yml` | Tag push (`v*.*.*`) or manual | Build, package, publish release + Docker |
-| **Auto-Fix** | `auto-fix.yml` | Weekly schedule (Monday) | Automated cargo fix, clippy, fmt |
+| **CI - Security** | `ci-security.yml` | Push/PR + weekly schedule | Dependency audit, SAST, secrets scan (cached tools) |
+| **Integration Tests** | `integration-tests.yml` | Push/PR + daily schedule | Expanded matrix backend integration & workspace tests |
+| **Release** | `release.yml` | Tag push (`v*.*.*`) or manual | Build, package, publish release + Docker (with caching & SBOM) |
+| **Benchmark** | `benchmark.yml` | Push + weekly schedule | Track WASM bundle sizes and system performance |
+| **Autofix PR** | `autofix-pr.yml` | Event trigger from PRs | Automated PR-based fixes |
 | **Health Check** | `health-check.yml` | Daily schedule | Workflow validation & dependency audit |
 | **Sync to GitLab** | `sync-to-gitlab.yml` | Push to main | Mirror changes to GitLab |
 | **Sync from GitLab** | `sync-from-gitlab.yml` | Dispatch/schedule | Pull changes from GitLab |
 
 ## Path Filters
 
-Workflows use path filters to avoid unnecessary runs:
+The `ci-pipeline.yml` unified workflow uses `dorny/paths-filter` to detect changes and conditionally run only the necessary jobs:
 
-- **rust-ci.yml**: `layanan/**`, `lib/**`, `Cargo.toml`, `Cargo.lock`
-- **wasm-ci.yml**: `antarmuka/**`, `lib/**`, `Cargo.toml`, `Cargo.lock`
+- **backend**: `layanan/**`, `lib/**`, `Cargo.toml`, `Cargo.lock`, `.github/actions/**`, `.github/workflows/ci-pipeline.yml`
+- **frontend**: `antarmuka/**`, `lib/**`, `Cargo.toml`, `Cargo.lock`, `.github/actions/**`, `.github/workflows/ci-pipeline.yml`
 
 ## Concurrency
 

@@ -1,19 +1,13 @@
-# autofix.yml — Auto-fix di pull_request ke main.
+# autofix-pr.yml — Auto-fix di pull_request ke main.
 #
 # Trigger: setiap pull request (push dari fork tidak bisa write — autofix-ci/action
 # tetap upload patch sebagai artifact yang bisa di-apply manual).
-#
-# Beda dengan auto-fix.yml (scheduled weekly di main yang buka PR baru):
-#   - autofix.yml = inline fix di PR yang sedang dibuka.
-#   - auto-fix.yml = batch fix di main, buka PR baru jika ada perubahan.
 
-name: autofix.ci
+name: Autofix PR
 
 on:
   pull_request:
     branches: [main]
-  # Untuk push langsung ke main, pakai auto-fix.yml (scheduled). Workflow ini
-  # khusus PR — commit & push fix langsung ke branch PR via GITHUB_TOKEN.
 
 permissions:
   # Butuh write contents untuk push commit ke branch PR.
@@ -117,7 +111,7 @@ jobs:
           git add -A
           git commit -m "chore(autofix): cargo fmt + cargo fix + clippy --fix
 
-          Auto-applied by autofix.yml workflow di PR #${{ github.event.pull_request.number }}."
+          Auto-applied by autofix-pr.yml workflow di PR #${{ github.event.pull_request.number }}."
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Upload diff sebagai artifact (PR dari fork fallback)

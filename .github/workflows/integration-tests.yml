@@ -50,8 +50,11 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - layanan/perlengkapan/crates/api
+          - layanan/authenc
+          - layanan/dasbor
           - layanan/integrasi
+          - layanan/perlengkapan/crates/api
+          - layanan/secreton
 
     steps:
       - name: Checkout repository

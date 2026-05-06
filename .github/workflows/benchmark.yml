@@ -1,0 +1,39 @@
+name: Benchmarks & Metrics
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 0"  # Weekly on Sunday at 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark-wasm:
+    name: Benchmark WASM Bundle Sizes
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          targets: wasm32-unknown-unknown
+      - name: Install Trunk
+        run: cargo install trunk --locked
+      - name: Build Portal
+        working-directory: antarmuka/portal
+        run: trunk build --release
+      - name: Build Perlengkapan
+        working-directory: antarmuka/perlengkapan
+        run: trunk build --release
+      - name: Measure Sizes
+        run: |
+          echo "## WASM Bundle Sizes" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Size (Bytes) |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------------|" >> $GITHUB_STEP_SUMMARY
+          PORTAL_SIZE=$(stat -c%s antarmuka/portal/dist/*.wasm 2>/dev/null || echo "0")
+          PERLENGKAPAN_SIZE=$(stat -c%s antarmuka/perlengkapan/dist/*.wasm 2>/dev/null || echo "0")
+          echo "| Portal | $PORTAL_SIZE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Perlengkapan | $PERLENGKAPAN_SIZE |" >> $GITHUB_STEP_SUMMARY

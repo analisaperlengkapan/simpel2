@@ -1,0 +1,98 @@
+name: Consolidate CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: self-hosted
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Paths Filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'layanan/**'
+              - 'lib/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/actions/**'
+              - '.github/workflows/ci-pipeline.yml'
+            frontend:
+              - 'antarmuka/**'
+              - 'lib/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/actions/**'
+              - '.github/workflows/ci-pipeline.yml'
+
+  lint:
+    name: Lint Stage
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          components: clippy,rustfmt
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+  test-rust:
+    name: Test Backend
+    needs: [detect-changes, lint]
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Cargo Test
+        run: cargo test --workspace --exclude layanan-antarmuka --exclude portal --exclude perlengkapan-antarmuka
+        env:
+          RUST_BACKTRACE: 1
+
+  test-wasm:
+    name: Build WASM Frontend
+    needs: [detect-changes, lint]
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          targets: wasm32-unknown-unknown
+      - name: Install Trunk
+        run: cargo install trunk --locked
+      - name: Build Portal
+        working-directory: antarmuka/portal
+        run: trunk build --release
+      - name: Build Perlengkapan
+        working-directory: antarmuka/perlengkapan
+        run: trunk build --release
