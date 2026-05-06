@@ -258,8 +258,10 @@ jobs:
           # owner (tidak nested). Pakai prefix simpelv2- untuk avoid name collision.
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image.name }}
           tags: |
-            type=semver,pattern={{version}},value=v${{ needs.create-release.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.create-release.outputs.version }}
+            # Pertahankan v prefix di tag agar match Helm imageTag (regex
+            # values.schema.json: ^v\d+\.\d+\.\d+(-...)?$). Pakai 'raw' bukan
+            # 'semver' karena semver pattern strip 'v' otomatis.
+            type=raw,value=v${{ needs.create-release.outputs.version }}
             type=sha,prefix=sha-,format=short
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
