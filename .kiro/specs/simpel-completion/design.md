@@ -7614,7 +7614,7 @@ on:
 
 jobs:
   e2e-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     services:
       postgres:

@@ -1,2 +1,0 @@
-# Trivy ignore file
-# Currently empty so the CI step can provide project-specific ignores later.

@@ -138,7 +138,7 @@ These tests are NOT run in CI by default because they require cloud credentials.
 
 ```yaml
 test-gcp-kms:
-  runs-on: ubuntu-latest
+  runs-on: self-hosted
   steps:
     - uses: actions/checkout@v4
     - name: Set up GCP credentials

@@ -216,3 +216,4 @@ antarmuka/*/Cargo.lock
 recipe.json
 !**/tailwind.config.js
 !**/profile.rs
+.env

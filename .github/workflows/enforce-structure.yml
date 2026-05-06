@@ -1,0 +1,22 @@
+name: Enforce Structure
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-structure:
+    name: Check Repository Structure
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run structure check
+        run: ./infra/scripts/check-structure.sh

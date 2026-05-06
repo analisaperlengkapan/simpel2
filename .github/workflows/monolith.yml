@@ -30,11 +30,11 @@ env:
 jobs:
   build:
     name: Build SIMPEL v1 Image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       packages: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,7 +100,7 @@ jobs:
 
   security-scan:
     name: Security Scan
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: build
     # Only run on push events. On `pull_request` the image is built with
     # `load:` rather than `push:`, so it only exists on the build job's
@@ -110,7 +110,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -130,7 +130,7 @@ jobs:
 
   test:
     name: Test SIMPEL v1
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     services:
       postgres:
         image: postgres:15-alpine
@@ -210,10 +210,10 @@ jobs:
 
   notify:
     name: Notify Deployment
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [build, security-scan, test]
     if: always()
-    
+
     steps:
       - name: Check job status
         run: |
@@ -234,7 +234,7 @@ jobs:
           release_name: "SIMPEL v1 - ${{ github.ref }}"
           body: |
             SIMPEL v1 (Legacy PHP) Release
-            
+
             **Build Info:**
             - Commit: ${{ github.sha }}
             - Branch: ${{ github.ref }}

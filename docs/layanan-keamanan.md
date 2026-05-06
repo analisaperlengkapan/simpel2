@@ -296,7 +296,7 @@ name: Security Service CI
 on: [push, pull_request]
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1

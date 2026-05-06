@@ -119,30 +119,6 @@
     },
     {
       "type": "shell",
-      "label": "Run Cache Setup",
-      "command": "./scripts/cache-config.sh",
-      "args": [
-        "setup"
-      ],
-      "group": "build",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      }
-    },
-    {
-      "type": "shell",
-      "label": "WASM Optimization",
-      "command": "./scripts/wasm-optimizer.sh",
-      "args": [
-        "build"
-      ],
-      "group": "build",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      }
-    },
-    {
-      "type": "shell",
       "label": "cargo watch build",
       "command": "cargo",
       "args": [
@@ -206,18 +182,6 @@
       "command": "cargo",
       "args": [
         "clean"
-      ],
-      "group": "build",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      }
-    },
-    {
-      "type": "shell",
-      "label": "Cargo Maintenance",
-      "command": "./scripts/cargo-maintenance.sh",
-      "args": [
-        "health"
       ],
       "group": "build",
       "options": {

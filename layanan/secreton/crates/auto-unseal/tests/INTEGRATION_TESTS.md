@@ -256,7 +256,7 @@ on: [push, pull_request]
 
 jobs:
   mock-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -267,7 +267,7 @@ jobs:
             --test integration_tests
 
   aws-kms-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
@@ -291,7 +291,7 @@ jobs:
           AWS_KMS_KEY_ID: ${{ secrets.AWS_KMS_KEY_ID }}
 
   gcp-kms-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
