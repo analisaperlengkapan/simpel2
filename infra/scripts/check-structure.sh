@@ -24,14 +24,15 @@ echo -e "\n2. Checking for invalid md files..."
 while IFS= read -r file; do
   # Remove leading ./
   clean_file=${file#./}
+  file_name=${clean_file##*/}
 
-  # Allow README, CONTRIBUTING, AGENTS, CHANGELOG in root
-  if [[ "$clean_file" == "README.md" || "$clean_file" == "CONTRIBUTING.md" || "$clean_file" == "AGENTS.md" || "$clean_file" == "CHANGELOG.md" ]]; then
+  # Allow README, CONTRIBUTING, AGENTS, CHANGELOG in any location
+  if [[ "$file_name" == "README.md" || "$file_name" == "CONTRIBUTING.md" || "$file_name" == "AGENTS.md" || "$file_name" == "CHANGELOG.md" ]]; then
     continue
   fi
 
-  # Allow anything inside docs/
-  if [[ "$clean_file" == docs/* ]]; then
+  # Allow anything inside any docs/ subtree
+  if [[ "$clean_file" == *"/docs/"* || "$clean_file" == docs/* ]]; then
     continue
   fi
 
