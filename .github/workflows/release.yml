@@ -86,11 +86,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Hanya x86_64-gnu — Docker images target linux/amd64 only.
+          # JANGAN tambahkan musl atau aarch64 di sini (rustup conflict di
+          # self-hosted runner; cross-compile butuh setup tambahan).
           - target: x86_64-unknown-linux-gnu
             cross: false
-          - target: x86_64-unknown-linux-musl
-            cross: false
-          # aarch64 cross-compile butuh setup tambahan. Re-enable nanti kalau butuh portable binary tarball.
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
