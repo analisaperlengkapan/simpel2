@@ -69,7 +69,7 @@ proptest! {
         let (rule_path, capabilities, effect) = rule;
 
         // Check if the test operation should be allowed based on the policy
-        let path_matches = test_path.starts_with(&rule_path.trim_end_matches('*'));
+        let path_matches = test_path.starts_with(rule_path.trim_end_matches('*'));
         let action_allowed = capabilities.contains(&test_action);
         let should_allow = effect == "allow" && path_matches && action_allowed;
 

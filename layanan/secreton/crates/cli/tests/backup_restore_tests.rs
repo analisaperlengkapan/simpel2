@@ -165,7 +165,7 @@ mod restore_tests {
         // Test logic for detecting existing secrets during restore
 
         // Simulate existing secret
-        let existing_secrets = vec!["secret/db/password", "secret/api/key"];
+        let existing_secrets = ["secret/db/password", "secret/api/key"];
 
         // Check if secret exists
         let secret_to_restore = "secret/db/password";
@@ -329,16 +329,13 @@ mod integration_tests {
         let entries = fs::read_dir(temp_dir.path())?;
         let mut backup_count = 0;
 
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(ext) = path.extension() {
-                        if ext == "backup" || ext == "bak" {
-                            backup_count += 1;
-                        }
-                    }
-                }
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file()
+                && let Some(ext) = path.extension()
+                && (ext == "backup" || ext == "bak")
+            {
+                backup_count += 1;
             }
         }
 
