@@ -153,7 +153,12 @@ lerna-debug.log*
 **/*.wasm
 **/*.js
 **/*.d.ts
-**/Cargo.lock
+# Cargo.lock policy:
+# - Binary / application crate (workspace ini): WAJIB tracked untuk reproducible build.
+# - Library-only crate: skip (tapi tidak applicable di sini, semua workspace member jadi binary).
+# Pattern di bawah hanya skip Cargo.lock di sub-project frontend yang punya
+# Cargo.toml terpisah (mis. trunk dist build artifacts), bukan workspace member.
+# **/Cargo.lock  # <-- DIHAPUS: bug menyebabkan Docker build fail di release.yml.
 
 # Microfrontend auto-generated
 antarmuka/*/target/
