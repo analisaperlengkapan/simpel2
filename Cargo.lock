@@ -660,7 +660,7 @@ dependencies = [
  "lib-core",
  "lru 0.17.0",
  "openssl",
- "quick-xml 0.37.5",
+ "quick-xml",
  "rand 0.8.6",
  "rdkafka",
  "redis",
@@ -710,7 +710,7 @@ dependencies = [
  "p384",
  "p521",
  "proptest",
- "quick-xml 0.39.3",
+ "quick-xml",
  "rand 0.8.6",
  "reqwest 0.13.3",
  "serde",
@@ -742,7 +742,7 @@ dependencies = [
  "ldap3",
  "openidconnect",
  "prost",
- "quick-xml 0.39.3",
+ "quick-xml",
  "rand 0.8.6",
  "reqwest 0.13.3",
  "serde",
@@ -8805,16 +8805,6 @@ dependencies = [
 
 [[package]]
 name = "quick-xml"
-version = "0.37.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
-dependencies = [
- "memchr",
- "serde",
-]
-
-[[package]]
-name = "quick-xml"
 version = "0.39.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "721da970c312655cde9b4ffe0547f20a8494866a4af5ff51f18b7c633d0c870b"
@@ -10144,7 +10134,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-test",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tonic",
  "tracing",
  "uuid",
@@ -10448,7 +10438,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "bincode 1.3.3",
+ "bincode 2.0.1",
  "chrono",
  "flate2",
  "lazy_static",
