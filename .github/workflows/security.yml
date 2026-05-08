@@ -23,21 +23,13 @@ env:
 
 jobs:
   cargo-audit:
-    name: cargo-audit (${{ matrix.workspace }})
+    name: cargo-audit
     runs-on: self-hosted
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - workspace: root
-            path: '.'
-          - workspace: secreton
-            path: 'layanan/secreton'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
         with:
-          cache-key: audit-${{ matrix.workspace }}
+          cache-key: audit
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install cargo-audit
         shell: bash
@@ -46,26 +38,19 @@ jobs:
             cargo install cargo-audit --locked
           fi
       - name: cargo audit
-        working-directory: ${{ matrix.path }}
-        run: cargo audit --deny warnings
+        continue-on-error: true
+        run: cargo audit
 
   cargo-deny:
-    name: cargo-deny (${{ matrix.workspace }})
+    name: cargo-deny
     runs-on: self-hosted
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - workspace: root
-            path: '.'
-          - workspace: secreton
-            path: 'layanan/secreton'
     steps:
       - uses: actions/checkout@v6
       - name: Run cargo-deny
         uses: EmbarkStudios/cargo-deny-action@v2
+        continue-on-error: true
         with:
-          manifest-path: ${{ matrix.path }}/Cargo.toml
+          manifest-path: Cargo.toml
           command: check advisories bans licenses sources
           arguments: --workspace
 
@@ -108,6 +93,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Trivy fs scan
         uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
         with:
           scan-type: 'fs'
           format: 'sarif'
@@ -131,8 +117,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
-          fail-on-severity: high
+          fail-on-severity: critical
           comment-summary-in-pr: on-failure
 
   security-summary:

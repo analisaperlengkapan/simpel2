@@ -110,22 +110,19 @@ jobs:
           targets: x86_64-unknown-linux-gnu
           cache-key: release-backend-${{ needs.validate.outputs.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo build --release (root workspace)
-        run: cargo build --workspace --release --target x86_64-unknown-linux-gnu
-      - name: cargo build --release (secreton)
-        working-directory: layanan/secreton
-        run: cargo build --workspace --release --target x86_64-unknown-linux-gnu
+      - name: cargo build --release (workspace)
+        run: cargo build --workspace --release --target x86_64-unknown-linux-gnu --exclude lib-ui --exclude portal-microfrontend --exclude perlengkapan-microfrontend
       - name: Package binaries
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
-          for dir in target/x86_64-unknown-linux-gnu/release layanan/secreton/target/x86_64-unknown-linux-gnu/release; do
-            [ -d "$dir" ] || continue
+          dir=target/x86_64-unknown-linux-gnu/release
+          if [ -d "$dir" ]; then
             find "$dir" -maxdepth 1 -type f -executable \
               ! -name "*.d" ! -name "*.so" ! -name "*.dylib" ! -name "build-script-*" \
               -exec cp {} release-artifacts/ \;
-          done
+          fi
           cd release-artifacts
           if compgen -G "*" >/dev/null; then
             tar czf "../simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz" *

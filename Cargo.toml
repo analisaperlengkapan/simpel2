@@ -1,8 +1,9 @@
 [workspace]
 resolver = "2"
 
-# Note: layanan/secreton is a separate workspace for architectural independence
-# It manages its own dependencies and has its own Cargo.lock
+# All Rust crates (microfrontends, microservices, secreton, libs) are part of
+# this single workspace, sharing one Cargo.lock for unified dependency
+# resolution and cache.
 
 members = [
     # Shared Libraries
