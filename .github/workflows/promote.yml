@@ -1,0 +1,180 @@
+# promote.yml — Promote pre-release tag (v0.1.0-rc1) ke final tag (v0.1.0)
+# tanpa rebuild image. Image digest identik staging ↔ production.
+# (rename dari promote-release.yml)
+
+name: Promote Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: "Source tag (rc) yang sudah lulus staging — contoh: v0.1.0-rc1"
+        required: true
+        type: string
+      target_tag:
+        description: "Target tag final — contoh: v0.1.0"
+        required: true
+        type: string
+      git_tag:
+        description: "Buat git tag final? (y/n) — default y"
+        required: false
+        type: string
+        default: "y"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+concurrency:
+  group: promote-release
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: simpelv2
+
+jobs:
+  validate:
+    name: Validate input tags
+    runs-on: self-hosted
+    outputs:
+      source_clean: ${{ steps.parse.outputs.source }}
+      target_clean: ${{ steps.parse.outputs.target }}
+    steps:
+      - name: Parse & validate tag format
+        id: parse
+        shell: bash
+        run: |
+          set -e
+          SOURCE="${{ inputs.source_tag }}"
+          TARGET="${{ inputs.target_tag }}"
+
+          if ! echo "$SOURCE" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-[A-Za-z0-9.-]+$'; then
+            echo "::error::source_tag harus SemVer pre-release (mis. v0.1.0-rc1). Got: $SOURCE"
+            exit 1
+          fi
+          if ! echo "$TARGET" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::target_tag harus SemVer final (mis. v0.1.0). Got: $TARGET"
+            exit 1
+          fi
+          SOURCE_BASE=$(echo "$SOURCE" | sed 's/-.*//')
+          if [ "$SOURCE_BASE" != "$TARGET" ]; then
+            echo "::error::Base version mismatch: source=$SOURCE_BASE, target=$TARGET"
+            exit 1
+          fi
+
+          echo "source=${SOURCE#v}" >> "$GITHUB_OUTPUT"
+          echo "target=${TARGET#v}" >> "$GITHUB_OUTPUT"
+          echo "Validated: $SOURCE -> $TARGET"
+
+  promote-images:
+    name: Re-tag (${{ matrix.image }})
+    runs-on: self-hosted
+    needs: validate
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - portal
+          - perlengkapan
+          - authenc
+          - layanan-integrasi
+          - layanan-perlengkapan
+          - secreton
+          - simpelv1
+    steps:
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify source image exists
+        shell: bash
+        run: |
+          docker manifest inspect \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
+
+      - name: Re-tag image (no rebuild)
+        shell: bash
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }} \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
+
+      - name: Verify digest identik
+        shell: bash
+        run: |
+          SOURCE_DIGEST=$(docker manifest inspect \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }} \
+            | jq -r '.config.digest // .manifests[0].digest')
+          TARGET_DIGEST=$(docker manifest inspect \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }} \
+            | jq -r '.config.digest // .manifests[0].digest')
+          if [ "$SOURCE_DIGEST" != "$TARGET_DIGEST" ]; then
+            echo "::error::Digest mismatch! source=$SOURCE_DIGEST target=$TARGET_DIGEST"
+            exit 1
+          fi
+          echo "OK ${{ matrix.image }}: digest identik ($SOURCE_DIGEST)"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign target tag (cosign keyless)
+        shell: bash
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }}
+        run: cosign sign --yes "$IMAGE"
+
+  create-git-tag:
+    name: Create git tag (final)
+    runs-on: self-hosted
+    needs: [validate, promote-images]
+    if: ${{ inputs.git_tag == 'y' || inputs.git_tag == 'yes' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Find commit dari source tag
+        id: src
+        shell: bash
+        run: |
+          COMMIT=$(git rev-list -n 1 "${{ inputs.source_tag }}")
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "Source tag ${{ inputs.source_tag }} -> commit $COMMIT"
+
+      - name: Create & push final tag
+        shell: bash
+        run: |
+          git tag -a "${{ inputs.target_tag }}" "${{ steps.src.outputs.commit }}" \
+            -m "Release ${{ inputs.target_tag }}
+
+          Promoted from ${{ inputs.source_tag }} setelah lulus QA staging.
+          Image digest identik dengan ${{ inputs.source_tag }} di ghcr.io."
+          git push origin "${{ inputs.target_tag }}"
+
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "## Promote Summary"
+            echo
+            echo "- Source: \`${{ inputs.source_tag }}\`"
+            echo "- Target: \`${{ inputs.target_tag }}\`"
+            echo "- Commit: \`${{ steps.src.outputs.commit }}\`"
+            echo
+            echo "Note: GitHub Release untuk \`${{ inputs.target_tag }}\` akan dibuat oleh \`release.yml\` ketika tag dibuat (sudah ditrigger di atas)."
+          } >> "$GITHUB_STEP_SUMMARY"

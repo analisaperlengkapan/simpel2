@@ -1,7 +1,6 @@
-# autofix-pr.yml — Auto-fix di pull_request ke main.
-#
-# Trigger: setiap pull request (push dari fork tidak bisa write — autofix-ci/action
-# tetap upload patch sebagai artifact yang bisa di-apply manual).
+# autofix.yml — Auto-fix di pull_request ke main (rename dari autofix-pr.yml).
+# Apply cargo fmt + cargo fix + clippy --fix + Cargo versioning normalize.
+# Untuk PR dari fork yang punya read-only token, patch di-upload sebagai artifact.
 
 name: Autofix PR
 
@@ -10,9 +9,6 @@ on:
     branches: [main]
 
 permissions:
-  # Butuh write contents untuk push commit ke branch PR.
-  # Catatan: untuk PR dari fork, GitHub auto-downgrade permissions read-only;
-  # job akan tetap run fmt/fix tapi push step di-skip (artifact upload sebagai fallback).
   contents: write
   pull-requests: write
 
@@ -33,29 +29,23 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v6
         with:
-          # Checkout PR head ref agar push langsung ke branch yang benar.
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
-          # Token dengan write contents permission untuk push commit auto-fix.
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
         with:
-          # WASM target diperlukan agar cargo fix tidak gagal di crate lib-ui / antarmuka.
           targets: wasm32-unknown-unknown
           components: rustfmt, clippy
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-key: autofix-pr
 
       - name: Apply fmt + fix + clippy --fix (single shell session)
-        # Gabung dalam satu step agar PATH stabil — di self-hosted runner kadang
-        # cargo binary "hilang" antar step (issue Swatinem/rust-cache vs $GITHUB_PATH).
-        # Pakai `$HOME/.cargo/bin/cargo` sebagai fallback kalau `cargo` tidak di PATH.
+        shell: bash
         run: |
           set +e
-          # Resolve cargo path (PATH atau fallback ke $HOME/.cargo/bin).
           CARGO_BIN=$(command -v cargo || echo "$HOME/.cargo/bin/cargo")
           if ! [ -x "$CARGO_BIN" ]; then
             echo "::error::cargo binary tidak ditemukan (PATH=$PATH)."
@@ -63,30 +53,17 @@ jobs:
           fi
           echo "Using cargo: $CARGO_BIN"
 
-          # 1. Format
           "$CARGO_BIN" fmt --all || true
 
-          # 2. cargo fix (compiler suggestions)
           "$CARGO_BIN" fix \
-            --workspace \
-            --all-targets \
-            --all-features \
-            --allow-dirty \
-            --allow-staged \
-            || true
+            --workspace --all-targets --all-features \
+            --allow-dirty --allow-staged || true
 
-          # 3. clippy --fix (lint suggestions)
           "$CARGO_BIN" clippy \
-            --workspace \
-            --all-targets \
-            --all-features \
-            --fix \
-            --allow-dirty \
-            --allow-staged \
-            -- -W clippy::all \
-            || true
+            --workspace --all-targets --all-features \
+            --fix --allow-dirty --allow-staged \
+            -- -W clippy::all || true
 
-          # 4. Re-format (cargo fix bisa menggeser formatting)
           "$CARGO_BIN" fmt --all || true
           true
 
@@ -95,30 +72,34 @@ jobs:
 
       - name: Detect changes
         id: changes
+        shell: bash
         run: |
           if git diff --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "Tidak ada perubahan dari fmt/fix/clippy. Branch sudah bersih."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "Tidak ada perubahan dari fmt/fix/clippy."
           else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Perubahan terdeteksi di:"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
             git diff --stat
           fi
 
       - name: Commit & push fixes ke branch PR
-        # Hanya jalan kalau ada perubahan & PR bukan dari fork (fork punya read-only token).
         if: steps.changes.outputs.has_changes == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "chore(autofix): cargo fmt + cargo fix + clippy --fix
 
-          Auto-applied by autofix-pr.yml workflow di PR #${{ github.event.pull_request.number }}."
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          Auto-applied by autofix.yml di PR #${PR_NUMBER}."
+          git push origin "HEAD:${PR_HEAD_REF}"
 
-      - name: Upload diff sebagai artifact (PR dari fork fallback)
+      - name: Generate patch artifact (PR dari fork)
         if: steps.changes.outputs.has_changes == 'true' && github.event.pull_request.head.repo.full_name != github.repository
+        shell: bash
         run: |
           git diff > /tmp/autofix.patch
           echo "PR dari fork — push tidak bisa. Patch di-upload sebagai artifact;"

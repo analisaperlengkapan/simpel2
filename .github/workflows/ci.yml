@@ -1,0 +1,640 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, staging]
+  pull_request:
+    branches: [main, develop, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+  actions: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # ─────────────────────────────────────────────────────
+  # Phase 0 — Detect changes (jadi input untuk semua job lain)
+  # ─────────────────────────────────────────────────────
+  detect:
+    name: Detect Changes
+    runs-on: self-hosted
+    outputs:
+      rust-backend: ${{ steps.changes.outputs.rust-backend }}
+      rust-frontend: ${{ steps.changes.outputs.rust-frontend }}
+      rust-any: ${{ steps.changes.outputs.rust-any }}
+      secreton: ${{ steps.changes.outputs.secreton }}
+      cargo-manifests: ${{ steps.changes.outputs.cargo-manifests }}
+      monolith-php: ${{ steps.changes.outputs.monolith-php }}
+      monolith-blade: ${{ steps.changes.outputs.monolith-blade }}
+      monolith-assets: ${{ steps.changes.outputs.monolith-assets }}
+      monolith-any: ${{ steps.changes.outputs.monolith-any }}
+      e2e-tests: ${{ steps.changes.outputs.e2e-tests }}
+      typescript: ${{ steps.changes.outputs.typescript }}
+      docker: ${{ steps.changes.outputs.docker }}
+      yaml: ${{ steps.changes.outputs.yaml }}
+      markdown: ${{ steps.changes.outputs.markdown }}
+      shell: ${{ steps.changes.outputs.shell }}
+      toml: ${{ steps.changes.outputs.toml }}
+      workflows: ${{ steps.changes.outputs.workflows }}
+      image-portal: ${{ steps.changes.outputs.image-portal }}
+      image-perlengkapan-ui: ${{ steps.changes.outputs.image-perlengkapan-ui }}
+      image-authenc: ${{ steps.changes.outputs.image-authenc }}
+      image-perlengkapan-api: ${{ steps.changes.outputs.image-perlengkapan-api }}
+      image-integrasi: ${{ steps.changes.outputs.image-integrasi }}
+      image-secreton: ${{ steps.changes.outputs.image-secreton }}
+      image-monolith: ${{ steps.changes.outputs.image-monolith }}
+      docker-matrix: ${{ steps.docker-matrix.outputs.matrix }}
+      docker-has-images: ${{ steps.docker-matrix.outputs.has-images }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: changes
+        uses: ./.github/actions/detect-changes
+      - id: docker-matrix
+        shell: bash
+        env:
+          IS_MAIN: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging' }}
+          PORTAL: ${{ steps.changes.outputs.image-portal }}
+          PERLENGKAPAN_UI: ${{ steps.changes.outputs.image-perlengkapan-ui }}
+          AUTHENC: ${{ steps.changes.outputs.image-authenc }}
+          PERLENGKAPAN_API: ${{ steps.changes.outputs.image-perlengkapan-api }}
+          INTEGRASI: ${{ steps.changes.outputs.image-integrasi }}
+          SECRETON: ${{ steps.changes.outputs.image-secreton }}
+          MONOLITH: ${{ steps.changes.outputs.image-monolith }}
+        run: |
+          set -euo pipefail
+          declare -A IMAGES=(
+            [simpel-portal]="antarmuka/portal/Dockerfile|.|$PORTAL"
+            [simpel-perlengkapan-ui]="antarmuka/perlengkapan/Dockerfile|.|$PERLENGKAPAN_UI"
+            [simpel-authenc]="layanan/authenc/Dockerfile|.|$AUTHENC"
+            [simpel-perlengkapan-api]="layanan/perlengkapan/Dockerfile|.|$PERLENGKAPAN_API"
+            [simpel-integrasi]="layanan/integrasi/Dockerfile|.|$INTEGRASI"
+            [simpel-secreton]="layanan/secreton/Dockerfile|layanan/secreton|$SECRETON"
+            [simpel-monolith]="monolith/simpelv1/Dockerfile|monolith/simpelv1|$MONOLITH"
+          )
+          entries=()
+          for name in "${!IMAGES[@]}"; do
+            IFS='|' read -r dockerfile context cond <<<"${IMAGES[$name]}"
+            if [[ "$IS_MAIN" == "true" || "$cond" == "true" ]]; then
+              entries+=("{\"image\":\"$name\",\"dockerfile\":\"$dockerfile\",\"context\":\"$context\"}")
+            fi
+          done
+          if [[ ${#entries[@]} -eq 0 ]]; then
+            echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+            echo "has-images=false" >> "$GITHUB_OUTPUT"
+          else
+            json=$(IFS=,; echo "${entries[*]}")
+            echo "matrix={\"include\":[$json]}" >> "$GITHUB_OUTPUT"
+            echo "has-images=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─────────────────────────────────────────────────────
+  # Phase 1 — Enforcement (cepat, selalu jalan)
+  # ─────────────────────────────────────────────────────
+  enforce-structure:
+    name: Enforce Structure
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate repo structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_paths=(
+            "Cargo.toml"
+            "Cargo.lock"
+            "deny.toml"
+            ".gitleaks.toml"
+            "antarmuka/portal"
+            "antarmuka/perlengkapan"
+            "layanan/authenc"
+            "layanan/perlengkapan"
+            "layanan/integrasi"
+            "layanan/secreton"
+            "lib/ui"
+            "lib/core"
+            "lib/backend"
+            "lib/crypto"
+            "lib/perlengkapan"
+            "monolith/simpelv1"
+            "tests/e2e"
+            "infra/scripts"
+          )
+          missing=0
+          for p in "${required_paths[@]}"; do
+            if [[ ! -e "$p" ]]; then
+              echo "::error::Required path missing: $p"
+              missing=$((missing+1))
+            fi
+          done
+          [[ $missing -eq 0 ]] || exit 1
+
+  enforce-versioning:
+    name: Enforce Cargo Versioning
+    needs: detect
+    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Cargo versioning
+        shell: bash
+        run: python3 ./infra/scripts/check-cargo-versioning.py check
+
+  # ─────────────────────────────────────────────────────
+  # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)
+  # ─────────────────────────────────────────────────────
+  lint-rust:
+    name: Lint Rust (${{ matrix.workspace }})
+    needs: detect
+    if: needs.detect.outputs.rust-any == 'true'
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: root
+            path: '.'
+            cache-key: rust-root
+          - workspace: secreton
+            path: 'layanan/secreton'
+            cache-key: rust-secreton
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: clippy,rustfmt
+          cache-key: ${{ matrix.cache-key }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo fmt --check
+        working-directory: ${{ matrix.path }}
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        working-directory: ${{ matrix.path }}
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  check-rust:
+    name: Check Rust (${{ matrix.workspace }})
+    needs: detect
+    if: needs.detect.outputs.rust-any == 'true'
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: root
+            path: '.'
+            cache-key: rust-root-check
+          - workspace: secreton
+            path: 'layanan/secreton'
+            cache-key: rust-secreton-check
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: ${{ matrix.cache-key }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo check
+        working-directory: ${{ matrix.path }}
+        run: cargo check --workspace --all-targets
+
+  lint-php:
+    name: Lint PHP (Pint + Larastan)
+    needs: detect
+    if: needs.detect.outputs.monolith-php == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-php
+        with:
+          working-directory: monolith/simpelv1
+          tools: 'composer:v2, pint, phpstan'
+      - name: Laravel Pint (style check)
+        working-directory: monolith/simpelv1
+        run: |
+          if [ -f vendor/bin/pint ]; then
+            vendor/bin/pint --test
+          else
+            pint --test
+          fi
+      - name: Larastan / PHPStan
+        working-directory: monolith/simpelv1
+        continue-on-error: true
+        run: |
+          if [ -f phpstan.neon ] || [ -f phpstan.neon.dist ]; then
+            if [ -f vendor/bin/phpstan ]; then
+              vendor/bin/phpstan analyse --no-progress --memory-limit=2G
+            else
+              phpstan analyse --no-progress --memory-limit=2G
+            fi
+          else
+            echo "::warning::No phpstan config found, skipping static analysis"
+          fi
+
+  lint-blade:
+    name: Lint Blade Templates
+    needs: detect
+    if: needs.detect.outputs.monolith-blade == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node
+        with:
+          working-directory: monolith/simpelv1
+      - name: Prettier check (Blade)
+        working-directory: monolith/simpelv1
+        run: npx prettier --check 'resources/views/**/*.blade.php'
+
+  lint-typescript:
+    name: Lint TypeScript / JS
+    needs: detect
+    if: needs.detect.outputs.typescript == 'true' || needs.detect.outputs.e2e-tests == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node
+        with:
+          working-directory: tests/e2e
+      - name: TypeScript type-check
+        working-directory: tests/e2e
+        run: npx tsc --noEmit
+      - name: Biome check
+        working-directory: tests/e2e
+        run: |
+          if [ -f biome.json ] || [ -f biome.jsonc ]; then
+            npx --yes @biomejs/biome@1.9.4 check .
+          else
+            echo "::warning::biome.json missing — skipping biome check"
+          fi
+
+  lint-dockerfile:
+    name: Lint Dockerfile
+    needs: detect
+    if: needs.detect.outputs.docker == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+          config: infra/lint/hadolint.yaml
+          ignore: DL3008,DL3015,DL3018
+
+  lint-yaml:
+    name: Lint YAML & Actions
+    needs: detect
+    if: needs.detect.outputs.yaml == 'true' || needs.detect.outputs.workflows == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: actionlint
+        uses: raven-actions/actionlint@v2
+        with:
+          fail-on-error: true
+      - name: yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_file: infra/lint/yamllint.yml
+          strict: false
+
+  lint-markdown:
+    name: Lint Markdown
+    needs: detect
+    if: needs.detect.outputs.markdown == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v18
+        with:
+          config: infra/lint/markdownlint.jsonc
+          globs: '**/*.md'
+        continue-on-error: true
+      - name: Lychee link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --max-concurrency 8 --exclude-mail '**/*.md'
+          fail: false
+
+  lint-shell:
+    name: Lint Shell Scripts
+    needs: detect
+    if: needs.detect.outputs.shell == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: shellcheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          severity: warning
+          ignore_paths: monolith/simpelv1/vendor monolith/simpelv1/node_modules
+
+  lint-toml:
+    name: Lint TOML
+    needs: detect
+    if: needs.detect.outputs.toml == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install taplo
+        shell: bash
+        run: |
+          if ! command -v taplo &>/dev/null; then
+            curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
+              | gunzip - > /tmp/taplo
+            chmod +x /tmp/taplo
+            sudo -n mv /tmp/taplo /usr/local/bin/taplo 2>/dev/null || mv /tmp/taplo "$HOME/.local/bin/taplo"
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+      - name: taplo fmt --check
+        shell: bash
+        run: taplo fmt --check
+
+  # ─────────────────────────────────────────────────────
+  # Phase 3 — Build artefak (agresif)
+  # ─────────────────────────────────────────────────────
+  build-microfrontend:
+    name: Build Microfrontend (${{ matrix.name }})
+    needs: [detect, lint-rust]
+    if: needs.detect.outputs.rust-frontend == 'true'
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: portal
+            path: antarmuka/portal
+          - name: perlengkapan
+            path: antarmuka/perlengkapan
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+          cache-key: trunk-${{ matrix.name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Trunk
+        shell: bash
+        run: |
+          if ! command -v trunk &>/dev/null; then
+            cargo install trunk --locked
+          fi
+      - name: trunk build --release
+        working-directory: ${{ matrix.path }}
+        run: trunk build --release
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.name }}
+          path: ${{ matrix.path }}/dist
+          retention-days: 1
+
+  build-backend:
+    name: Build Backend (${{ matrix.name }})
+    needs: [detect, lint-rust]
+    if: needs.detect.outputs.rust-backend == 'true'
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: authenc
+            path: '.'
+            package: authenc
+            cache-key: build-authenc
+          - name: perlengkapan-api
+            path: '.'
+            package: perlengkapan-api
+            cache-key: build-perlengkapan-api
+          - name: integrasi
+            path: '.'
+            package: layanan-integrasi
+            cache-key: build-integrasi
+          - name: secreton
+            path: 'layanan/secreton'
+            package: secreton
+            cache-key: build-secreton
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: ${{ matrix.cache-key }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo build --release
+        working-directory: ${{ matrix.path }}
+        run: cargo build --release --bin ${{ matrix.package }} || cargo build --release -p ${{ matrix.package }}
+        continue-on-error: true
+
+  build-monolith-assets:
+    name: Build Monolith Assets (Vite)
+    needs: detect
+    if: needs.detect.outputs.monolith-assets == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node
+        with:
+          working-directory: monolith/simpelv1
+      - name: Vite build
+        working-directory: monolith/simpelv1
+        run: npm run build
+
+  build-docker:
+    name: Build Docker (${{ matrix.image }})
+    needs: detect
+    if: needs.detect.outputs.docker-has-images == 'true'
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.docker-matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/docker-build
+        with:
+          image: ${{ matrix.image }}
+          context: ${{ matrix.context }}
+          dockerfile: ${{ matrix.dockerfile }}
+          tags: |
+            ${{ matrix.image }}:ci-${{ github.sha }}
+            ${{ matrix.image }}:ci-${{ github.run_number }}
+          push: 'false'
+          load: 'true'
+          scan: 'true'
+
+  # ─────────────────────────────────────────────────────
+  # Phase 4 — Test (KONSERVATIF — selalu jalan)
+  # ─────────────────────────────────────────────────────
+  test-rust:
+    name: Test Rust (${{ matrix.workspace }})
+    needs: detect
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: root
+            path: '.'
+            cache-key: test-root
+            exclude-args: '--exclude portal-microfrontend --exclude perlengkapan-microfrontend --exclude lib-ui'
+          - workspace: secreton
+            path: 'layanan/secreton'
+            cache-key: test-secreton
+            exclude-args: ''
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: ${{ matrix.cache-key }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo test --workspace
+        working-directory: ${{ matrix.path }}
+        run: cargo test --workspace --no-fail-fast ${{ matrix.exclude-args }}
+        env:
+          RUST_BACKTRACE: 1
+
+  test-monolith:
+    name: Test Monolith (PHPUnit)
+    needs: detect
+    if: needs.detect.outputs.monolith-any == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-php
+        with:
+          working-directory: monolith/simpelv1
+      - name: Prepare test environment
+        working-directory: monolith/simpelv1
+        run: |
+          [ -f .env ] || cp .env.example .env
+          php artisan key:generate --force
+      - name: PHPUnit
+        working-directory: monolith/simpelv1
+        run: |
+          if [ -f vendor/bin/phpunit ]; then
+            vendor/bin/phpunit --no-coverage
+          else
+            php artisan test --no-coverage
+          fi
+
+  e2e-playwright:
+    name: E2E Playwright (${{ matrix.project }})
+    needs: [detect, build-microfrontend, build-backend, build-monolith-assets]
+    if: ${{ !cancelled() && needs.build-microfrontend.result != 'failure' && needs.build-backend.result != 'failure' }}
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [api-chromium, ui-chromium]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node
+        with:
+          working-directory: tests/e2e
+      - name: Install Playwright browsers
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+      - name: Spin up service stack
+        shell: bash
+        run: |
+          if [ -f docker-compose.yml ]; then
+            docker compose -f docker-compose.yml up -d --wait || \
+              docker compose -f docker-compose.yml up -d
+            # Best-effort wait for stack readiness
+            sleep 15
+            docker compose -f docker-compose.yml ps
+          else
+            echo "::warning::No docker-compose.yml at root, E2E will run against external/mocked services"
+          fi
+      - name: Run Playwright (${{ matrix.project }})
+        working-directory: tests/e2e
+        env:
+          CI: 'true'
+          BASE_URL: ${{ vars.E2E_BASE_URL || 'http://localhost:8080' }}
+        run: npx playwright test --project=${{ matrix.project }}
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: |
+            tests/e2e/playwright-report
+            tests/e2e/results
+          retention-days: 7
+      - name: Tear down stack
+        if: always()
+        shell: bash
+        run: docker compose -f docker-compose.yml down -v --remove-orphans 2>/dev/null || true
+
+  # ─────────────────────────────────────────────────────
+  # Phase 5 — Summary (single required check)
+  # ─────────────────────────────────────────────────────
+  ci-summary:
+    name: CI Summary
+    if: always()
+    needs:
+      - detect
+      - enforce-structure
+      - enforce-versioning
+      - lint-rust
+      - check-rust
+      - lint-php
+      - lint-blade
+      - lint-typescript
+      - lint-dockerfile
+      - lint-yaml
+      - lint-markdown
+      - lint-shell
+      - lint-toml
+      - build-microfrontend
+      - build-backend
+      - build-monolith-assets
+      - build-docker
+      - test-rust
+      - test-monolith
+      - e2e-playwright
+    runs-on: self-hosted
+    steps:
+      - name: Aggregate results
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          set -euo pipefail
+          echo "## CI Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          fail=0
+          while IFS=$'\t' read -r job result; do
+            case "$result" in
+              success) icon="OK" ;;
+              skipped) icon="SKIP" ;;
+              failure) icon="FAIL"; fail=1 ;;
+              cancelled) icon="CANCEL"; fail=1 ;;
+              *) icon="$result" ;;
+            esac
+            echo "| $job | $icon |" >> "$GITHUB_STEP_SUMMARY"
+          done < <(echo "$NEEDS_JSON" | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for k, v in data.items():
+              print(f"{k}\t{v.get(\"result\", \"unknown\")}")
+          ')
+          if [[ $fail -ne 0 ]]; then
+            echo "::error::One or more required CI jobs failed"
+            exit 1
+          fi
+          echo "All required jobs passed."

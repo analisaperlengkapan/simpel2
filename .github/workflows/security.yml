@@ -1,0 +1,179 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop, staging]
+  pull_request:
+    branches: [main, develop, staging]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo-audit:
+    name: cargo-audit (${{ matrix.workspace }})
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: root
+            path: '.'
+          - workspace: secreton
+            path: 'layanan/secreton'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: audit-${{ matrix.workspace }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cargo-audit
+        shell: bash
+        run: |
+          if ! command -v cargo-audit &>/dev/null; then
+            cargo install cargo-audit --locked
+          fi
+      - name: cargo audit
+        working-directory: ${{ matrix.path }}
+        run: cargo audit --deny warnings
+
+  cargo-deny:
+    name: cargo-deny (${{ matrix.workspace }})
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: root
+            path: '.'
+          - workspace: secreton
+            path: 'layanan/secreton'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: ${{ matrix.path }}/Cargo.toml
+          command: check advisories bans licenses sources
+          arguments: --workspace
+
+  gitleaks:
+    name: Gitleaks (Secret Scan)
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/rust
+            p/security-audit
+            p/owasp-top-ten
+            p/secrets
+            p/dockerfile
+            p/php
+        env:
+          SEMGREP_RULES: p/rust p/security-audit p/owasp-top-ten p/secrets p/dockerfile p/php
+        continue-on-error: true
+
+  trivy-fs:
+    name: Trivy Filesystem Scan
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Trivy fs scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          format: 'sarif'
+          output: 'trivy-fs.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
+          ignore-unfixed: 'true'
+          scanners: 'vuln,secret,misconfig'
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+        continue-on-error: true
+
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
+  security-summary:
+    name: Security Summary
+    if: always()
+    needs:
+      - cargo-audit
+      - cargo-deny
+      - gitleaks
+      - semgrep
+      - trivy-fs
+      - dependency-review
+    runs-on: self-hosted
+    steps:
+      - name: Aggregate results
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          set -euo pipefail
+          echo "## Security Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          fail=0
+          while IFS=$'\t' read -r job result; do
+            case "$result" in
+              success) icon="OK" ;;
+              skipped) icon="SKIP" ;;
+              failure) icon="FAIL"; fail=1 ;;
+              cancelled) icon="CANCEL"; fail=1 ;;
+              *) icon="$result" ;;
+            esac
+            echo "| $job | $icon |" >> "$GITHUB_STEP_SUMMARY"
+          done < <(echo "$NEEDS_JSON" | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for k, v in data.items():
+              print(f"{k}\t{v.get(\"result\", \"unknown\")}")
+          ')
+          if [[ $fail -ne 0 ]]; then
+            echo "::error::One or more security checks failed"
+            exit 1
+          fi

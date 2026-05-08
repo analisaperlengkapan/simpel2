@@ -1,0 +1,203 @@
+name: 'Detect Changes'
+description: 'Path-based change detection for SIMPEL polyglot monorepo (Rust/PHP/TS, microservices, microfrontends, monolith)'
+
+outputs:
+  rust-backend:
+    description: 'true jika layanan/lib/Cargo berubah'
+    value: ${{ steps.filter.outputs.rust-backend }}
+  rust-frontend:
+    description: 'true jika antarmuka/lib-ui/Cargo berubah'
+    value: ${{ steps.filter.outputs.rust-frontend }}
+  rust-any:
+    description: 'true jika ada file Rust apapun berubah'
+    value: ${{ steps.filter.outputs.rust-any }}
+  secreton:
+    description: 'true jika layanan/secreton berubah'
+    value: ${{ steps.filter.outputs.secreton }}
+  cargo-manifests:
+    description: 'true jika Cargo.toml/lock berubah'
+    value: ${{ steps.filter.outputs.cargo-manifests }}
+  monolith-php:
+    description: 'true jika file PHP monolith berubah'
+    value: ${{ steps.filter.outputs.monolith-php }}
+  monolith-blade:
+    description: 'true jika template Blade berubah'
+    value: ${{ steps.filter.outputs.monolith-blade }}
+  monolith-assets:
+    description: 'true jika package.json/vite/asset frontend monolith berubah'
+    value: ${{ steps.filter.outputs.monolith-assets }}
+  monolith-any:
+    description: 'true jika ada file apapun di monolith berubah'
+    value: ${{ steps.filter.outputs.monolith-any }}
+  e2e-tests:
+    description: 'true jika tests/e2e berubah'
+    value: ${{ steps.filter.outputs.e2e-tests }}
+  typescript:
+    description: 'true jika file TS/JS berubah'
+    value: ${{ steps.filter.outputs.typescript }}
+  docker:
+    description: 'true jika Dockerfile/compose berubah'
+    value: ${{ steps.filter.outputs.docker }}
+  dockerfiles:
+    description: 'JSON list path Dockerfile yang berubah'
+    value: ${{ steps.filter.outputs.dockerfiles_files }}
+  yaml:
+    description: 'true jika YAML berubah'
+    value: ${{ steps.filter.outputs.yaml }}
+  markdown:
+    description: 'true jika Markdown berubah'
+    value: ${{ steps.filter.outputs.markdown }}
+  shell:
+    description: 'true jika shell script berubah'
+    value: ${{ steps.filter.outputs.shell }}
+  toml:
+    description: 'true jika TOML berubah'
+    value: ${{ steps.filter.outputs.toml }}
+  workflows:
+    description: 'true jika .github/workflows atau .github/actions berubah'
+    value: ${{ steps.filter.outputs.workflows }}
+  docs:
+    description: 'true jika hanya dokumentasi berubah'
+    value: ${{ steps.filter.outputs.docs }}
+  image-portal:
+    description: 'true jika image portal harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-portal }}
+  image-perlengkapan-ui:
+    description: 'true jika image perlengkapan-ui harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-perlengkapan-ui }}
+  image-authenc:
+    description: 'true jika image authenc harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-authenc }}
+  image-perlengkapan-api:
+    description: 'true jika image perlengkapan-api harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-perlengkapan-api }}
+  image-integrasi:
+    description: 'true jika image integrasi harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-integrasi }}
+  image-secreton:
+    description: 'true jika image secreton harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-secreton }}
+  image-monolith:
+    description: 'true jika image monolith Laravel harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-monolith }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run paths filter
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        list-files: json
+        filters: |
+          rust-backend:
+            - 'layanan/**'
+            - 'lib/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - '.github/actions/setup-rust/**'
+          rust-frontend:
+            - 'antarmuka/**'
+            - 'lib/ui/**'
+            - 'lib/core/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - '.github/actions/setup-rust/**'
+          rust-any:
+            - '**/*.rs'
+            - '**/Cargo.toml'
+            - 'Cargo.lock'
+          secreton:
+            - 'layanan/secreton/**'
+          cargo-manifests:
+            - '**/Cargo.toml'
+            - 'Cargo.lock'
+          monolith-php:
+            - 'monolith/simpelv1/**/*.php'
+            - 'monolith/simpelv1/composer.json'
+            - 'monolith/simpelv1/composer.lock'
+            - 'monolith/simpelv1/phpunit.xml'
+          monolith-blade:
+            - 'monolith/simpelv1/**/*.blade.php'
+          monolith-assets:
+            - 'monolith/simpelv1/package.json'
+            - 'monolith/simpelv1/package-lock.json'
+            - 'monolith/simpelv1/vite.config.*'
+            - 'monolith/simpelv1/resources/**'
+            - 'monolith/simpelv1/public/assets/**'
+          monolith-any:
+            - 'monolith/**'
+          e2e-tests:
+            - 'tests/e2e/**'
+          typescript:
+            - '**/*.ts'
+            - '**/*.tsx'
+            - '**/*.js'
+            - '**/*.jsx'
+            - '**/package.json'
+            - '**/package-lock.json'
+            - '**/tsconfig*.json'
+            - '**/biome.json'
+          docker:
+            - '**/Dockerfile'
+            - '**/Dockerfile.*'
+            - '**/.dockerignore'
+            - 'docker-compose*.yml'
+          dockerfiles:
+            - '**/Dockerfile'
+            - '**/Dockerfile.*'
+          yaml:
+            - '**/*.yml'
+            - '**/*.yaml'
+          markdown:
+            - '**/*.md'
+            - '**/*.mdx'
+          shell:
+            - '**/*.sh'
+            - '**/*.bash'
+            - 'infra/scripts/**'
+          toml:
+            - '**/*.toml'
+          workflows:
+            - '.github/workflows/**'
+            - '.github/actions/**'
+          docs:
+            - '**/*.md'
+            - 'docs/**'
+          image-portal:
+            - 'antarmuka/portal/**'
+            - 'lib/ui/**'
+            - 'lib/core/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+          image-perlengkapan-ui:
+            - 'antarmuka/perlengkapan/**'
+            - 'lib/ui/**'
+            - 'lib/core/**'
+            - 'lib/perlengkapan/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+          image-authenc:
+            - 'layanan/authenc/**'
+            - 'lib/core/**'
+            - 'lib/backend/**'
+            - 'lib/crypto/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+          image-perlengkapan-api:
+            - 'layanan/perlengkapan/**'
+            - 'lib/core/**'
+            - 'lib/backend/**'
+            - 'lib/perlengkapan/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+          image-integrasi:
+            - 'layanan/integrasi/**'
+            - 'lib/core/**'
+            - 'lib/backend/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+          image-secreton:
+            - 'layanan/secreton/**'
+          image-monolith:
+            - 'monolith/simpelv1/**'
