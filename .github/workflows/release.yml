@@ -82,12 +82,18 @@ jobs:
         run: |
           {
             echo "### Changes since ${{ steps.previous.outputs.tag }}"
+            echo ""
             git log "${{ steps.previous.outputs.tag }}..HEAD" --pretty=format:'- %s (`%h`)' || echo "- Initial release"
+            echo ""
           } > CHANGELOG_RELEASE.md
+          # Pakai random delimiter agar isi changelog (yang bisa berisi literal "EOF")
+          # tidak konflik dengan delimiter heredoc GITHUB_OUTPUT.
+          DELIM="EOF_$(openssl rand -hex 8)"
           {
-            echo "content<<EOF"
+            echo "content<<${DELIM}"
             cat CHANGELOG_RELEASE.md
-            echo "EOF"
+            echo ""
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload changelog artifact
