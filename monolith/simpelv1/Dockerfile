@@ -92,7 +92,7 @@ RUN mkdir -p storage/logs storage/framework/sessions storage/framework/views sto
               /var/lib/nginx/logs /var/lib/nginx/tmp/client_body \
               /var/lib/nginx/tmp/proxy /var/lib/nginx/tmp/fastcgi \
               /var/lib/nginx/tmp/uwsgi /var/lib/nginx/tmp/scgi \
-              /run/nginx \
+              /run/nginx /var/cache/nginx \
     && chown -R www-data:www-data /app /var/lib/nginx /run/nginx /var/cache/nginx \
     && chmod -R 755 storage
 
