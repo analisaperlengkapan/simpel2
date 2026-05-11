@@ -3,7 +3,6 @@
 //! Provides UI for generating, displaying, and managing MFA backup codes.
 
 use crate::components::layout::MainLayout;
-use crate::features::auth::UserSession;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::{Alert, Loading};

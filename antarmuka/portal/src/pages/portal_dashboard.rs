@@ -7,7 +7,6 @@
 //! - Integration health (SIMAN, MySIMKARI status)
 
 use crate::components::layout::MainLayout;
-use crate::features::auth::UserSession;
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
 use lib_ui::components::dashboard::{

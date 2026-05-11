@@ -100,7 +100,7 @@ async fn fetch_me() -> Result<MeResponse, String> {
 pub fn DashboardPage() -> impl IntoView {
     let user_session = use_context::<ReadSignal<Option<UserSession>>>()
         .and_then(|sig| sig.get_untracked())
-        .unwrap_or_else(|| UserSession::default());
+        .unwrap_or_default();
     let is_admin = user_session.role.is_admin();
     let client: QueryClient = expect_context();
     let admin_stats = client.local_resource(query_admin_stats, move || is_admin);

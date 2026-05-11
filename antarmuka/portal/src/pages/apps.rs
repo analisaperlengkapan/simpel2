@@ -1,7 +1,6 @@
 //! Applications page — microfrontend launcher with submenu support
 
 use crate::components::layout::MainLayout;
-use crate::features::auth::UserSession;
 use crate::features::microfrontends::{AppCategory, MicrofrontendRegistry};
 use leptos::prelude::*;
 

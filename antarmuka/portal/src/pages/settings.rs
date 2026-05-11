@@ -57,7 +57,7 @@ async fn fetch_satuan_kerja(fallback: String) -> String {
 pub fn SettingsPage() -> impl IntoView {
     let user_session = use_context::<ReadSignal<Option<UserSession>>>()
         .and_then(|sig| sig.get_untracked())
-        .unwrap_or_else(|| UserSession::default());
+        .unwrap_or_default();
 
     let (show_theme_editor, set_show_theme_editor) = signal(false);
     let (show_branding_editor, set_show_branding_editor) = signal(false);
