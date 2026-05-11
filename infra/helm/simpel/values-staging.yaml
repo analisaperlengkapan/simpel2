@@ -100,11 +100,17 @@ istio:
   virtualService:
     name: simpelv2-staging-routes
     hosts: ["10.1.7.121"]
-    defaultRedirect: /portal
+    # Hapus defaultRedirect: Istio TIDAK lagi handle redirect dari path
+    # tidak match. Per spec user: redirect dilakukan di frontend HTML/JS,
+    # bukan di Istio. Path tidak match → 404 (jujur ke user, bukan
+    # dialihkan diam-diam).
+    defaultRedirect: ""
     routes:
-      # CORS untuk auth/captcha — origin = http://10.1.7.121
+      # Root path / di-route ke portal frontend TANPA rewrite. nginx serve
+      # /usr/share/nginx/html/index.html (portal HTML dengan <base href="/portal/">
+      # dan JS redirect to /portal). Per spec user: Istio hanya routing, tidak
+      # rewrite/redirect — redirect dari / ke /portal dilakukan di portal JS.
       - match: { exact: / }
-        rewrite: /portal
         destination: { host: portal, port: 8080 }
       - match: { prefix: /api/captcha/ }
         destination: { host: authenc, port: 8088 }

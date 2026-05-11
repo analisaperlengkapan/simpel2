@@ -126,7 +126,12 @@ pub fn App() -> impl IntoView {
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
 
         <AppShell>
-        <Router base="/perlengkapan">
+        // Router base harus match canonical mount point `/perlengkapan/simpel/v2/`
+        // sesuai routing spec — supaya path `/perlengkapan/simpel/v2/` ke router
+        // dianggap path `/` (root), trigger redirect ke `/login` jika belum
+        // authenticated. Sebelumnya base="/perlengkapan" tidak match path baru
+        // sehingga semua route fall through ke NotFound.
+        <Router base="/perlengkapan/simpel/v2">
             <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
                 // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
                 <div class="hidden lg:ml-[250px]"></div>
