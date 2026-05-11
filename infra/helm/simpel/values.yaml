@@ -148,6 +148,7 @@ secrets:
     password: ""                           # WAJIB diisi via values-secrets.yaml saat bootstrap
     databases:
       simpelv2: dbsimpelv2
+      simpelv1: dbsimpelv1                 # Laravel monolith DB (legacy simpelv1)
       authenc: authenc
       secreton: secreton
       perlengkapan: perlengkapan

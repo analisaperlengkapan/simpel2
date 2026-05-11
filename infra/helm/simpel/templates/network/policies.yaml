@@ -64,6 +64,11 @@ spec:
         - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
         - podSelector: { matchLabels: { app.kubernetes.io/name: authenc } }
         - podSelector: { matchLabels: { app.kubernetes.io/name: secreton } }
+        # simpelv1 (Laravel monolith) butuh akses postgres untuk session,
+        # cache, dan all app data. Pod label `app=simpelv1` (legacy chart
+        # label) tidak match `app.kubernetes.io/component=backend`, jadi
+        # whitelist eksplisit di sini.
+        - podSelector: { matchLabels: { app: simpelv1 } }
       ports:
         - { protocol: TCP, port: 5432 }
 ---
