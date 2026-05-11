@@ -35,7 +35,14 @@ jobs:
         shell: bash
         run: |
           if ! command -v cargo-audit &>/dev/null; then
-            cargo install cargo-audit --locked
+            AUDIT_VERSION="0.22.1"
+            URL="https://github.com/rustsec/rustsec/releases/download/cargo-audit/v${AUDIT_VERSION}/cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}.tgz"
+            if curl -LsSf "$URL" | tar -xzf- -C "$HOME/.cargo/bin/" 2>/dev/null; then
+              echo "Installed cargo-audit ${AUDIT_VERSION} from pre-built binary"
+            else
+              echo "::warning::Pre-built binary unavailable, compiling from source"
+              cargo install cargo-audit --locked
+            fi
           fi
       - name: cargo audit
         continue-on-error: true
@@ -92,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Trivy fs scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         continue-on-error: true
         with:
           scan-type: 'fs'
@@ -145,7 +152,14 @@ jobs:
           echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           fail=0
-          while IFS=$'\t' read -r job result; do
+          PARSED=$(echo "$NEEDS_JSON" | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for k, v in data.items():
+              print(k + "|" + v.get("result", "unknown"))
+          ')
+          while IFS='|' read -r job result; do
+            [ -z "$job" ] && continue
             case "$result" in
               success) icon="OK" ;;
               skipped) icon="SKIP" ;;
@@ -154,12 +168,7 @@ jobs:
               *) icon="$result" ;;
             esac
             echo "| $job | $icon |" >> "$GITHUB_STEP_SUMMARY"
-          done < <(echo "$NEEDS_JSON" | python3 -c '
-          import json, sys
-          data = json.load(sys.stdin)
-          for k, v in data.items():
-              print(f"{k}\t{v.get(\"result\", \"unknown\")}")
-          ')
+          done <<< "$PARSED"
           if [[ $fail -ne 0 ]]; then
             echo "::error::One or more security checks failed"
             exit 1

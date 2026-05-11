@@ -109,36 +109,73 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          errors=0
+
+          # ── 1. Required paths must exist ──
           required_paths=(
-            "Cargo.toml"
-            "Cargo.lock"
-            "deny.toml"
-            ".gitleaks.toml"
-            "cliff.toml"
-            "antarmuka/portal"
-            "antarmuka/perlengkapan"
-            "layanan/authenc"
-            "layanan/perlengkapan"
-            "layanan/integrasi"
-            "layanan/secreton"
-            "lib/ui"
-            "lib/core"
-            "lib/backend"
-            "lib/crypto"
-            "lib/perlengkapan"
-            "monolith/simpelv1"
-            "tests/e2e"
-            "infra/scripts"
-            "infra/lint"
+            "Cargo.toml" "Cargo.lock" "deny.toml" ".gitleaks.toml" "cliff.toml"
+            "antarmuka/portal" "antarmuka/perlengkapan"
+            "layanan/authenc" "layanan/perlengkapan" "layanan/integrasi" "layanan/secreton"
+            "lib/ui" "lib/core" "lib/backend" "lib/crypto" "lib/perlengkapan"
+            "monolith/simpelv1" "tests/e2e" "infra/scripts" "infra/lint"
           )
-          missing=0
           for p in "${required_paths[@]}"; do
             if [[ ! -e "$p" ]]; then
               echo "::error::Required path missing: $p"
-              missing=$((missing+1))
+              errors=$((errors+1))
             fi
           done
-          [[ $missing -eq 0 ]] || exit 1
+
+          # ── 2. Root directories whitelist (dot-dirs exempt) ──
+          allowed_dirs="antarmuka docs infra layanan lib monolith tests"
+          while IFS= read -r d; do
+            d="${d%/}"
+            [[ "$d" == .* ]] && continue
+            if ! echo " $allowed_dirs " | grep -q " $d "; then
+              echo "::error::Unauthorized directory at root: $d/ (allowed: $allowed_dirs)"
+              errors=$((errors+1))
+            fi
+          done < <(find . -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort)
+
+          # ── 3. Root files whitelist (dot-files exempt, docker-compose.*.yml pattern) ──
+          allowed_files="README.md CONTRIBUTING.md AGENTS.md Cargo.toml Cargo.lock deny.toml cliff.toml SIMPEL.code-workspace"
+          while IFS= read -r f; do
+            [[ "$f" == .* ]] && continue
+            # Allow any docker-compose.*.yml variant
+            if [[ "$f" =~ ^docker-compose(\..+)?\.yml$ ]]; then continue; fi
+            if ! echo " $allowed_files " | grep -q " $f "; then
+              echo "::error::Unauthorized file at root: $f"
+              errors=$((errors+1))
+            fi
+          done < <(find . -maxdepth 1 -mindepth 1 -type f -printf '%f\n' | sort)
+
+          # ── 4. AGENTS.md max 3 tiers deep ──
+          # Tier 1: AGENTS.md (root)
+          # Tier 2: layanan/AGENTS.md, lib/AGENTS.md, etc.
+          # Tier 3: layanan/secreton/AGENTS.md, lib/core/AGENTS.md, etc.
+          # Tier 4+: FORBIDDEN
+          while IFS= read -r f; do
+            depth=$(echo "$f" | tr '/' '\n' | wc -l)
+            if [[ $depth -gt 3 ]]; then
+              echo "::error::AGENTS.md too deep (max 3 tiers): $f"
+              errors=$((errors+1))
+            fi
+          done < <(find . -name 'AGENTS.md' -not -path './.git/*' | sed 's|^\./||')
+
+          # ── 5. Every layanan must have Cargo.toml + Dockerfile ──
+          for svc in layanan/*/; do
+            svc_name=$(basename "$svc")
+            if [[ ! -f "${svc}Cargo.toml" ]] && [[ ! -d "${svc}crates" ]]; then
+              echo "::error::Service layanan/${svc_name} missing Cargo.toml (or crates/ directory)"
+              errors=$((errors+1))
+            fi
+            if [[ ! -f "${svc}Dockerfile" ]]; then
+              echo "::error::Service layanan/${svc_name} missing Dockerfile"
+              errors=$((errors+1))
+            fi
+          done
+
+          [[ $errors -eq 0 ]] && echo "Structure validation passed (5 checks)." || exit 1
 
   enforce-versioning:
     name: Enforce Cargo Versioning
@@ -598,7 +635,14 @@ jobs:
           echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           fail=0
-          while IFS=$'\t' read -r job result; do
+          PARSED=$(echo "$NEEDS_JSON" | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for k, v in data.items():
+              print(k + "|" + v.get("result", "unknown"))
+          ')
+          while IFS='|' read -r job result; do
+            [ -z "$job" ] && continue
             case "$result" in
               success) icon="OK" ;;
               skipped) icon="SKIP" ;;
@@ -607,12 +651,7 @@ jobs:
               *) icon="$result" ;;
             esac
             echo "| $job | $icon |" >> "$GITHUB_STEP_SUMMARY"
-          done < <(echo "$NEEDS_JSON" | python3 -c '
-          import json, sys
-          data = json.load(sys.stdin)
-          for k, v in data.items():
-              print(f"{k}\t{v.get(\"result\", \"unknown\")}")
-          ')
+          done <<< "$PARSED"
           if [[ $fail -ne 0 ]]; then
             echo "::error::One or more required CI jobs failed"
             exit 1

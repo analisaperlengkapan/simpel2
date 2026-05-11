@@ -42,6 +42,7 @@ runs:
         sudo -n apt-get install -y -qq \
           unzip build-essential pkg-config libssl-dev \
           clang gcc perl libzstd-dev zlib1g-dev libtss2-dev \
+          cmake ninja-build \
           2>/dev/null || true
         # Prefer clang (newer cc crate compatibility), fallback ke gcc kalau clang
         # tidak tersedia di runner (mis. self-hosted runner tanpa sudo password).

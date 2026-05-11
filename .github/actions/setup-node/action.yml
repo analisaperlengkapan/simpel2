@@ -28,12 +28,23 @@ runs:
         docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine \
           chown -R $(id -u):$(id -g) . 2>/dev/null || true
 
+    - name: Check for lock file
+      id: lockfile
+      shell: bash
+      run: |
+        if [ -f "${{ inputs.working-directory }}/package-lock.json" ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::No package-lock.json in ${{ inputs.working-directory }}, npm cache disabled"
+        fi
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-        cache: 'npm'
-        cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+        cache: ${{ steps.lockfile.outputs.exists == 'true' && 'npm' || '' }}
+        cache-dependency-path: ${{ steps.lockfile.outputs.exists == 'true' && format('{0}/package-lock.json', inputs.working-directory) || '' }}
 
     - name: Install dependencies
       if: inputs.install == 'true'
