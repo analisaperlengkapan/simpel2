@@ -74,9 +74,36 @@ spec:
       {{- include "simpel.tolerations" . | nindent 6 }}
       securityContext:
         {{- toYaml $cfg.podSecurityContext | nindent 8 }}
-      {{- $secretonAuthEnabled := (default (dict) $.Values.secretonAuth).enabled -}}
-      {{- if or (ne $cfg.dbBackup.source "none") $secretonAuthEnabled }}
+      {{- $secretonAuthEnabled := (default (dict) $.Values.secretonAuth).enabled }}
       initContainers:
+        - name: nginx-dirs
+          image: alpine:3.20
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              # nginx needs writable dirs; chmod open agar nginx user (apapun) bisa write
+              mkdir -p /var/lib/nginx/logs /var/lib/nginx/tmp/client_body \
+                       /var/lib/nginx/tmp/proxy /var/lib/nginx/tmp/fastcgi \
+                       /var/lib/nginx/tmp/uwsgi /var/lib/nginx/tmp/scgi
+              # Symlink access.log + error.log ke stdout/stderr biar log fan-out ke kubectl
+              ln -sf /dev/stdout /var/lib/nginx/logs/access.log
+              ln -sf /dev/stderr /var/lib/nginx/logs/error.log
+              chmod -R 0777 /var/lib/nginx /run-nginx /var-cache-nginx /var-run /tmp-mount /app-storage
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: true
+          # Mount paths beda dari main container, lalu chown — agar tidak conflict
+          # dengan kebutuhan /run /tmp dst di alpine init container.
+          volumeMounts:
+            - { name: nginx-lib,   mountPath: /var/lib/nginx }
+            - { name: run,         mountPath: /run-nginx }
+            - { name: nginx-cache, mountPath: /var-cache-nginx }
+            - { name: var-run,     mountPath: /var-run }
+            - { name: tmp,         mountPath: /tmp-mount }
+            - { name: storage,     mountPath: /app-storage }
         {{- if $secretonAuthEnabled }}
         - name: fetch-secrets
           image: curlimages/curl:8.10.1
@@ -132,11 +159,19 @@ spec:
           volumeMounts:
             - { name: db-backup, mountPath: /db-backup, readOnly: true }
         {{- end }}
-      {{- end }}
       containers:
         - name: simpelv1
           image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
           imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.image.pullPolicy }}
+          # Override Dockerfile CMD: redirect nginx pid + error log + access log
+          # ke stderr/stdout (writable selalu), bypass /var/lib/nginx file mode
+          # mismatch issue.
+          command: ["sh", "-c"]
+          args:
+            - >
+              php-fpm -D && exec nginx -g
+              "pid /tmp/nginx.pid; error_log /dev/stderr; daemon off;"
+              -e /dev/stderr
           securityContext:
             {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
           ports:
@@ -171,7 +206,9 @@ spec:
             - { name: storage,     mountPath: /app/storage }
             - { name: tmp,         mountPath: /tmp }
             - { name: nginx-cache, mountPath: /var/cache/nginx }
+            - { name: nginx-lib,   mountPath: /var/lib/nginx }
             - { name: run,         mountPath: /run/nginx }
+            - { name: var-run,     mountPath: /var/run }
             {{- if $secretonAuthEnabled }}
             - { name: runtime,     mountPath: /app/runtime, readOnly: true }
             {{- end }}
@@ -189,7 +226,11 @@ spec:
           emptyDir: {}
         - name: nginx-cache
           emptyDir: {}
+        - name: nginx-lib
+          emptyDir: {}
         - name: run
+          emptyDir: {}
+        - name: var-run
           emptyDir: {}
         {{- if $secretonAuthEnabled }}
         - name: runtime
