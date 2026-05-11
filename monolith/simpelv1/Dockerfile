@@ -46,6 +46,14 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
         zip \
         opcache
 
+# Install PECL redis extension (Laravel pakai phpredis driver di config/database.php
+# `redis.client = phpredis`). Tanpa ini, Laravel error: `Class "Redis" not found`
+# saat startup session middleware.
+RUN apk add --no-cache --virtual .phpize-deps autoconf g++ make linux-headers \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .phpize-deps
+
 # Install Composer 2 via official installer untuk PHP 8.2 (bukan apk composer
 # yang dipasangkan ke PHP system Alpine).
 RUN curl -fsSL https://getcomposer.org/installer | php -- \
