@@ -105,6 +105,10 @@ data:
 
         sendfile        on;
         keepalive_timeout  65;
+        # Penting: matikan merge_slashes supaya path `/perlengkapan//x`
+        # tetap mismatch (browser yang request `//` dapat 404 jelas) dan
+        # tidak silently di-normalize ke single-slash. Path normalization
+        # diserahkan ke Istio rewrite + base href client-side.
         merge_slashes on;
 
         gzip on;
@@ -116,19 +120,34 @@ data:
             listen 8080;
             listen [::]:8080;
             server_name _;
-            root /usr/share/nginx/html/perlengkapan;
+            # Root level — file struct di image:
+            #   /usr/share/nginx/html/perlengkapan/index.html         (redirect HTML)
+            #   /usr/share/nginx/html/perlengkapan/simpel/index.html  (redirect HTML)
+            #   /usr/share/nginx/html/perlengkapan/simpel/v2/index.html (WASM canonical)
+            #   /usr/share/nginx/html/perlengkapan/simpel/v2/*.wasm,*.js,...
+            root /usr/share/nginx/html;
             index index.html;
 
             add_header X-Frame-Options "SAMEORIGIN" always;
             add_header X-Content-Type-Options "nosniff" always;
             add_header X-XSS-Protection "1; mode=block" always;
 
-            location / {
-                try_files $uri $uri/ /index.html;
+            # Canonical microfrontend mount point. SPA fallback ke index
+            # canonical untuk client-side route Leptos (dashboard, login, dst).
+            location /perlengkapan/simpel/v2/ {
+                try_files $uri $uri/ /perlengkapan/simpel/v2/index.html;
             }
 
-            location = /index.html {
-                try_files $uri =404;
+            # Parent paths -> meta-refresh HTML redirect ke canonical v2.
+            location = /perlengkapan/ {
+                try_files /perlengkapan/index.html =404;
+            }
+            location = /perlengkapan/simpel/ {
+                try_files /perlengkapan/simpel/index.html =404;
+            }
+
+            # No-cache untuk semua index.html (canonical + redirect pages).
+            location ~ ^/perlengkapan(/simpel(/v2)?)?/index\.html$ {
                 add_header Cache-Control "no-cache, no-store, must-revalidate" always;
                 add_header Pragma "no-cache" always;
                 expires 0;
