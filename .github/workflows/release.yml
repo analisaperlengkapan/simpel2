@@ -168,6 +168,18 @@ jobs:
               | tar -xzf- -C "$HOME/.local/bin/"
             echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           fi
+
+      - name: Install wasm-bindgen-cli
+        shell: bash
+        run: |
+          # Trunk butuh wasm-bindgen-cli untuk post-process .wasm.
+          # Pin ke versi yang match Cargo.lock biar tidak ada mismatch
+          # warning yang bisa fail build pada strict mode.
+          WBG_VERSION=$(grep -oP '(?<=^wasm-bindgen = ")[^"]+' Cargo.toml || echo "0.2.118")
+          if ! command -v wasm-bindgen &>/dev/null || ! wasm-bindgen --version 2>/dev/null | grep -q "$WBG_VERSION"; then
+            cargo install wasm-bindgen-cli --version "$WBG_VERSION" --locked
+          fi
+          wasm-bindgen --version
       - name: Build microfrontends
         shell: bash
         run: |
@@ -291,7 +303,7 @@ jobs:
           push-to-registry: true
 
       - name: Trivy scan published image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}@${{ steps.build.outputs.digest }}
           format: 'sarif'
