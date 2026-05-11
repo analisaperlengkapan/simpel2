@@ -73,8 +73,12 @@ simpelv1:
     APP_ENV: staging
     QUEUE_CONNECTION: sync
     PORTAL_URL: "http://portal:3000/portal"
+  # DB sudah ter-initialize di staging postgres-0 via postgres-init job.
+  # Skip restore-from-backup init container (butuh ConfigMap simpelv1-db-backup
+  # yang berisi SQL dump). Set ke "none" agar init container db-migrate
+  # tidak rendered.
   dbBackup:
-    source: configMap
+    source: none
     name: simpelv1-db-backup
 portal:
   replicas: 1
@@ -115,19 +119,34 @@ istio:
         rewrite: /api/captcha/
         destination: { host: authenc, port: 8088 }
         timeout: 30s
-      - match: { prefix: /perlengkapan/simpel/v1 }
+      # SIMPEL v1 = Laravel monolith. Match prefix DENGAN trailing slash
+      # supaya Istio strip `/perlengkapan/simpel/v1/` lengkap (termasuk
+      # slash) → remainder `login` (tanpa leading /) → rewrite=`/` produce
+      # `/login` (clean, single slash). Pakai rewrite="" akan ditolak
+      # Istio validator (must specify URI). Tambah exact-match no-slash
+      # variant untuk redirect ke trailing-slash form.
+      - match: { exact: /perlengkapan/simpel/v1 }
+        redirect: { uri: /perlengkapan/simpel/v1/, code: 308 }
+      - match: { prefix: /perlengkapan/simpel/v1/ }
         rewrite: /
         destination: { host: simpelv1, port: 80 }
         timeout: 30s
         retries: { attempts: 3, perTryTimeout: 10s }
+      # SIMPEL v2 = antarmuka/perlengkapan (Leptos WASM frontend).
+      # Sama target dengan /perlengkapan/ (frontend WASM punya base
+      # href=/perlengkapan/), jadi redirect ke canonical path. User-facing URL
+      # /perlengkapan/simpel/v2/* di-redirect ke /perlengkapan/* supaya SPA
+      # router dengan base /perlengkapan/ tidak mismatch.
       - match: { prefix: /perlengkapan/simpel/v2 }
-        rewrite: /
-        destination: { host: layanan-perlengkapan, port: 3020 }
-        timeout: 30s
-        retries: { attempts: 3, perTryTimeout: 10s }
+        redirect: { uri: /perlengkapan/, code: 302 }
       - match: { prefix: /pembinaan/perlengkapan }
         destination: { host: perlengkapan, port: 8080 }
-      - match: { prefix: /perlengkapan }
+      # Frontend WASM (Leptos). Sama pola dengan simpelv1: prefix dengan
+      # trailing slash + rewrite=`/` supaya backend nginx terima clean path
+      # (mis. `/dashboard`, `/tailwind.css`) tanpa double-slash.
+      - match: { exact: /perlengkapan }
+        redirect: { uri: /perlengkapan/, code: 308 }
+      - match: { prefix: /perlengkapan/ }
         rewrite: /
         destination: { host: perlengkapan, port: 8080 }
       - match: { prefix: /api/perlengkapan/ }
@@ -167,9 +186,15 @@ istio:
         timeout: 30s
       - match: { exact: /health }
         destination: { host: perlengkapan, port: 8080 }
-      - match: { prefix: /portal }
+      # Portal frontend (Leptos WASM) — pakai pola trailing-slash prefix +
+      # rewrite=/ untuk hindari `//` paths di backend nginx.
+      - match: { exact: /portal }
+        redirect: { uri: /portal/, code: 308 }
+      - match: { prefix: /portal/ }
         rewrite: /
         destination: { host: portal, port: 8080 }
-      - match: { prefix: /daskrimti }
+      - match: { exact: /daskrimti }
+        redirect: { uri: /daskrimti/, code: 308 }
+      - match: { prefix: /daskrimti/ }
         rewrite: /
         destination: { host: portal, port: 8080 }

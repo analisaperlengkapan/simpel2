@@ -89,7 +89,15 @@ spec:
               # Symlink access.log + error.log ke stdout/stderr biar log fan-out ke kubectl
               ln -sf /dev/stdout /var/lib/nginx/logs/access.log
               ln -sf /dev/stderr /var/lib/nginx/logs/error.log
-              chmod -R 0777 /var/lib/nginx /run-nginx /var-cache-nginx /var-run /tmp-mount /app-storage
+              # Laravel butuh subdirs di storage/ untuk view cache, session,
+              # framework cache. Dockerfile create dirs ini di /app/storage,
+              # tapi emptyDir mount overlay menghapusnya — jadi init container
+              # harus pre-create ulang setelah mount.
+              mkdir -p /app-storage/logs \
+                       /app-storage/framework/views \
+                       /app-storage/framework/sessions \
+                       /app-storage/framework/cache/data
+              chmod -R 0777 /var/lib/nginx /run-nginx /var-cache-nginx /var-run /tmp-mount /app-storage /bootstrap-cache
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
@@ -98,12 +106,13 @@ spec:
           # Mount paths beda dari main container, lalu chown — agar tidak conflict
           # dengan kebutuhan /run /tmp dst di alpine init container.
           volumeMounts:
-            - { name: nginx-lib,   mountPath: /var/lib/nginx }
-            - { name: run,         mountPath: /run-nginx }
-            - { name: nginx-cache, mountPath: /var-cache-nginx }
-            - { name: var-run,     mountPath: /var-run }
-            - { name: tmp,         mountPath: /tmp-mount }
-            - { name: storage,     mountPath: /app-storage }
+            - { name: nginx-lib,       mountPath: /var/lib/nginx }
+            - { name: run,             mountPath: /run-nginx }
+            - { name: nginx-cache,     mountPath: /var-cache-nginx }
+            - { name: var-run,         mountPath: /var-run }
+            - { name: tmp,             mountPath: /tmp-mount }
+            - { name: storage,         mountPath: /app-storage }
+            - { name: bootstrap-cache, mountPath: /bootstrap-cache }
         {{- if $secretonAuthEnabled }}
         - name: fetch-secrets
           image: curlimages/curl:8.10.1
@@ -203,14 +212,19 @@ spec:
             timeoutSeconds: 3
             failureThreshold: {{ if eq .Values.global.environment "production" }}2{{ else }}3{{ end }}
           volumeMounts:
-            - { name: storage,     mountPath: /app/storage }
-            - { name: tmp,         mountPath: /tmp }
-            - { name: nginx-cache, mountPath: /var/cache/nginx }
-            - { name: nginx-lib,   mountPath: /var/lib/nginx }
-            - { name: run,         mountPath: /run/nginx }
-            - { name: var-run,     mountPath: /var/run }
+            - { name: storage,        mountPath: /app/storage }
+            # Laravel butuh /app/bootstrap/cache writable untuk package
+            # manifest, config cache, route cache, view cache. Karena
+            # container pakai readOnlyRootFilesystem=true, perlu emptyDir
+            # mount agar Laravel bisa write cache files.
+            - { name: bootstrap-cache, mountPath: /app/bootstrap/cache }
+            - { name: tmp,            mountPath: /tmp }
+            - { name: nginx-cache,    mountPath: /var/cache/nginx }
+            - { name: nginx-lib,      mountPath: /var/lib/nginx }
+            - { name: run,            mountPath: /run/nginx }
+            - { name: var-run,        mountPath: /var/run }
             {{- if $secretonAuthEnabled }}
-            - { name: runtime,     mountPath: /app/runtime, readOnly: true }
+            - { name: runtime,        mountPath: /app/runtime, readOnly: true }
             {{- end }}
       volumes:
         {{- if eq $cfg.dbBackup.source "configMap" }}
@@ -221,6 +235,8 @@ spec:
           secret: { secretName: {{ $cfg.dbBackup.name }} }
         {{- end }}
         - name: storage
+          emptyDir: {}
+        - name: bootstrap-cache
           emptyDir: {}
         - name: tmp
           emptyDir: {}
