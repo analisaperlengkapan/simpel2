@@ -126,7 +126,7 @@ dengan `global.registry`) atau `image.repository` (full path).
 
 Pastikan `istio.virtualService.gatewayRef` cocok dengan namespace/name Gateway
 yang ada (default: `<istioNamespace>/<gateway.name>`). Untuk mensharing gateway
-existing di `istio-system`, set `istio.gateway.name: simpelv2-dev-gateway`.
+existing di `istio-system`, set `istio.gateway.name: simpelv2-gateway`.
 
 ### Secret `simpelv1-db-backup` tidak ada
 

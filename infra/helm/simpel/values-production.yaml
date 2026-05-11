@@ -178,7 +178,7 @@ perlengkapan:
 # ─── Istio routing ─────────────────────────────────────────────────────────────
 istio:
   gateway:
-    name: simpelv2-dev-gateway              # shared production gateway
+    name: simpelv2-gateway                  # shared gateway untuk staging & production
     hosts: ["*"]
     httpsRedirect: true
   virtualService:
