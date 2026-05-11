@@ -170,14 +170,158 @@ updates:
           - "alpine"
           - "postgres"
           - "redis"
+          - "php"
+          - "nginx"
+          - "node"
         update-types:
           - "minor"
           - "patch"
+
+  # ─────────────────────────────────────────────────────
+  # NPM — Playwright e2e tests
+  # ─────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/tests/e2e"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "02:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "lang:typescript"
+      - "tests:e2e"
+    commit-message:
+      prefix: "test"
+    groups:
+      playwright:
+        patterns:
+          - "@playwright/*"
+          - "playwright*"
+        update-types:
+          - "minor"
+          - "patch"
+      typescript:
+        patterns:
+          - "typescript"
+          - "@types/*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ─────────────────────────────────────────────────────
+  # NPM — Monolith Laravel assets (Vite)
+  # ─────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/monolith/simpelv1"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "02:30"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "lang:javascript"
+      - "monolith:assets"
+    commit-message:
+      prefix: "monolith(deps)"
+    groups:
+      vite-build:
+        patterns:
+          - "vite*"
+          - "@vitejs/*"
+          - "laravel-vite-plugin"
+        update-types:
+          - "minor"
+          - "patch"
+      prettier:
+        patterns:
+          - "prettier*"
+          - "@shufo/*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ─────────────────────────────────────────────────────
+  # NPM — UI library (Tailwind, dst.)
+  # ─────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/lib/ui"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "03:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "lang:javascript"
+      - "lib:ui"
+    commit-message:
+      prefix: "ui(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ─────────────────────────────────────────────────────
+  # COMPOSER — Monolith Laravel
+  # ─────────────────────────────────────────────────────
+  - package-ecosystem: "composer"
+    directory: "/monolith/simpelv1"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "02:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "lang:php"
+      - "monolith"
+    commit-message:
+      prefix: "monolith(deps)"
+    groups:
+      laravel:
+        patterns:
+          - "laravel/*"
+          - "illuminate/*"
+        update-types:
+          - "minor"
+          - "patch"
+      auth:
+        patterns:
+          - "tymon/*"
+          - "pragmarx/*"
+        update-types:
+          - "patch"
+      documents:
+        patterns:
+          - "phpoffice/*"
+          - "maatwebsite/*"
+          - "carlos-meneses/*"
+          - "bacon/*"
+          - "endroid/*"
+          - "simplesoftwareio/*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
 # ─────────────────────────────────────────────────────
 # NOTES:
 # - Security updates are raised immediately regardless of schedule
 # - Crypto dependencies limited to patch updates for stability
 # - Major version updates require manual review (ignored by default)
-# - All Rust crates are managed via the root workspace Cargo.toml
+# - Schedule disebar per hari: Sen=cargo, Sel=actions, Rab=docker, Kam=npm, Jum=composer
+# - Auto-merge minor/patch (kecuali crypto) ditangani oleh labeler.yml::dependabot-auto-merge
 # ─────────────────────────────────────────────────────

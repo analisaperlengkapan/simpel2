@@ -1,0 +1,63 @@
+name: 'Setup PHP Environment'
+description: 'Installs PHP, Composer, and project dependencies for SIMPEL Laravel monolith'
+
+inputs:
+  php-version:
+    description: 'PHP version'
+    required: false
+    default: '8.2'
+  working-directory:
+    description: 'Path containing composer.json'
+    required: false
+    default: 'monolith/simpelv1'
+  install:
+    description: 'Run composer install after setup'
+    required: false
+    default: 'true'
+  extensions:
+    description: 'Comma-separated PHP extensions to install'
+    required: false
+    default: 'mbstring, xml, ctype, iconv, intl, pdo_mysql, pdo_pgsql, gd, zip, bcmath, fileinfo'
+  tools:
+    description: 'Comma-separated tools (composer, pint, phpstan, etc.)'
+    required: false
+    default: 'composer:v2'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Fix workspace permissions
+      shell: bash
+      run: |
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine \
+          chown -R $(id -u):$(id -g) . 2>/dev/null || true
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.php-version }}
+        extensions: ${{ inputs.extensions }}
+        tools: ${{ inputs.tools }}
+        coverage: none
+
+    - name: Get Composer cache directory
+      id: composer-cache
+      if: inputs.install == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Composer packages
+      if: inputs.install == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ inputs.php-version }}-${{ hashFiles(format('{0}/composer.lock', inputs.working-directory)) }}
+        restore-keys: |
+          ${{ runner.os }}-composer-${{ inputs.php-version }}-
+
+    - name: Install Composer dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: composer install --prefer-dist --no-progress --no-interaction --optimize-autoloader

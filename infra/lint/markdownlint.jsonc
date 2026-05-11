@@ -1,0 +1,25 @@
+// markdownlint-cli2 config — minimal/permissive
+// https://github.com/DavidAnson/markdownlint
+{
+  "default": true,
+  "MD013": false,         // line length — tolerant for long URLs/tables
+  "MD024": { "siblings_only": true }, // duplicate headings ok across sections
+  "MD025": false,         // multiple top-level headings ok in CHANGELOG-style docs
+  "MD033": false,         // inline HTML ok
+  "MD034": false,         // bare URLs ok
+  "MD036": false,         // emphasis-as-heading ok
+  "MD041": false,         // first line heading not required
+  "MD046": { "style": "fenced" },
+  "MD048": { "style": "backtick" },
+  "ignores": [
+    "node_modules",
+    "vendor",
+    "target",
+    "dist",
+    "monolith/simpelv1/vendor",
+    "monolith/simpelv1/node_modules",
+    "monolith/simpelv1/storage",
+    "CHANGELOG.md",
+    "**/CHANGELOG.md"
+  ]
+}

@@ -3,7 +3,6 @@
 //! Full page view of all user notifications
 
 use crate::components::layout::MainLayout;
-use crate::features::auth::UserSession;
 use leptos::prelude::*;
 use lib_ui::components::NotificationList;
 

@@ -581,7 +581,7 @@ mod tests {
         assert_eq!(key.algorithm, "AES");
         assert_eq!(key.key_length, 256);
         assert_eq!(key.key_state, KmipKeyState::PreActive);
-        assert!(key.key_material.len() > 0); // Verify real key material generated
+        assert!(!key.key_material.is_empty()); // Verify real key material generated
 
         let retrieved = engine.get_key(&key.key_id).await.unwrap();
         assert_eq!(retrieved.key_id, key.key_id);

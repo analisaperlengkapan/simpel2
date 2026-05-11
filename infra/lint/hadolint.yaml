@@ -1,0 +1,20 @@
+# hadolint config — Dockerfile lint untuk SIMPEL
+# https://github.com/hadolint/hadolint
+
+ignored:
+  # DL3008: pin apt-get versions — tidak praktis untuk base image yang sering update
+  - DL3008
+  # DL3015: avoid additional packages — kadang perlu untuk debugging
+  - DL3015
+  # DL3018: pin apk versions — alpine package versioning unstable
+  - DL3018
+  # DL3059: multiple consecutive RUN — kadang perlu untuk readability
+  - DL3059
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - registry.access.redhat.com
+  - public.ecr.aws
+
+failure-threshold: warning

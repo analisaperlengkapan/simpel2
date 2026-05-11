@@ -1,0 +1,54 @@
+# Konfigurasi github/issue-labeler
+# Regex content matching untuk auto-label issue
+# https://github.com/github/issue-labeler
+
+"microservice:authenc":
+  - '(?i)\b(auth|login|sso|mfa|webauthn|otp|2fa|jwt|oauth|saml)\b'
+
+"microservice:secreton":
+  - '(?i)\b(secret|vault|hsm|sealed|kms|encryption[- ]at[- ]rest|secreton)\b'
+
+"microservice:perlengkapan":
+  - '(?i)\b(perlengkapan|bmn|aset|inventaris|barang milik negara)\b'
+
+"microservice:integrasi":
+  - '(?i)\b(integrasi|integration|mysimkari|siman|sync|federation|external)\b'
+
+"microfrontend:portal":
+  - '(?i)\b(portal|landing|gateway|sso login)\b'
+
+"microfrontend:perlengkapan":
+  - '(?i)\b(ui[- ]?perlengkapan|frontend[- ]?perlengkapan|leptos)\b'
+
+monolith:
+  - '(?i)\b(simpelv1|monolith|laravel|blade|php|legacy)\b'
+
+"tests:e2e":
+  - '(?i)\b(playwright|e2e|end[- ]to[- ]end|browser test|integration test)\b'
+
+"area:security":
+  - '(?i)\b(cve[- ]?\d+|vulnerability|exploit|cwe|security|attack|injection|xss|csrf)\b'
+
+"area:database":
+  - '(?i)\b(postgres|database|migration|sqlx|deadpool|sql query)\b'
+
+"area:ci-cd":
+  - '(?i)\b(github action|workflow|ci/cd|pipeline|dependabot)\b'
+
+"area:docs":
+  - '(?i)\b(documentation|docs|readme|tutorial|guide)\b'
+
+"type:bug":
+  - '(?i)\b(crash|panic|exception|500|error 5\d\d|stack trace|bug|broken)\b'
+
+"type:enhancement":
+  - '(?i)\b(feature request|enhancement|improvement|add support)\b'
+
+"type:question":
+  - '(?i)\b(how (do|to)|question|help|why does)\b'
+
+"priority:high":
+  - '(?i)\b(urgent|critical|blocker|production down|p0|p1)\b'
+
+"performance":
+  - '(?i)\b(slow|performance|latency|memory leak|cpu|throughput)\b'

@@ -1,4 +1,4 @@
-name: Release & Deployment
+name: Release
 
 on:
   push:
@@ -7,9 +7,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (e.g., 1.0.0)"
+        description: "Versi yang akan dirilis (mis. 1.2.3)"
         required: true
         type: string
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -19,222 +25,195 @@ env:
   CARGO_TERM_COLOR: always
   TRUNK_VERSION: "0.21.4"
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_PREFIX: simpelv2
 
 jobs:
-  create-release:
-    name: Create GitHub Release
+  validate:
+    name: Validate & Generate Changelog
     runs-on: self-hosted
     outputs:
       version: ${{ steps.version.outputs.version }}
+      previous-tag: ${{ steps.previous.outputs.tag }}
+      changelog: ${{ steps.cliff.outputs.content }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Extract version
+      - name: Resolve version
         id: version
+        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          if [ -f "CHANGELOG.md" ]; then
-            CHANGELOG=$(awk '/## \['"${{ steps.version.outputs.version }}"'\]/,/## \[/' CHANGELOG.md | head -n -1 || echo "See CHANGELOG.md for details")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" =~ (alpha|beta|rc|pre) ]]; then
+            echo "is-prerelease=true" >> "$GITHUB_OUTPUT"
           else
-            CHANGELOG="Release ${{ steps.version.outputs.version }}"
+            echo "is-prerelease=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        uses: ncipollo/release-action@v1
+      - name: Find previous tag
+        id: previous
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_TAG="v${{ steps.version.outputs.version }}"
+          PREV_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | grep -v "^${CURRENT_TAG}$" | head -n 1 || echo "")
+          echo "tag=${PREV_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog (git-cliff)
+        id: cliff
+        uses: orhun/git-cliff-action@v4
         with:
-          tag: v${{ steps.version.outputs.version }}
-          name: SIMPEL ${{ steps.version.outputs.version }}
-          body: |
-            ## SIMPEL Release ${{ steps.version.outputs.version }}
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGELOG_RELEASE.md
+        continue-on-error: true
 
-            ### Changes
-            ${{ steps.changelog.outputs.changelog }}
+      - name: Fallback if git-cliff failed
+        if: steps.cliff.outcome == 'failure'
+        shell: bash
+        run: |
+          {
+            echo "### Changes since ${{ steps.previous.outputs.tag }}"
+            git log "${{ steps.previous.outputs.tag }}..HEAD" --pretty=format:'- %s (`%h`)' || echo "- Initial release"
+          } > CHANGELOG_RELEASE.md
+          {
+            echo "content<<EOF"
+            cat CHANGELOG_RELEASE.md
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-            ### Docker Images
-            ```bash
-            docker pull ghcr.io/${{ github.repository_owner }}/simpelv2:${{ steps.version.outputs.version }}
-            ```
-
-            **Full Changelog**: https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md
-          draft: false
-          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          artifactErrorsFailBuild: false
+      - name: Upload changelog artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: CHANGELOG_RELEASE.md
+          retention-days: 30
 
   build-backend:
-    name: Build Backend - ${{ matrix.target }}
+    name: Build Backend Binaries
+    needs: validate
     runs-on: self-hosted
-    needs: create-release
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Hanya x86_64-gnu — Docker images target linux/amd64 only.
-          # JANGAN tambahkan musl atau aarch64 di sini (rustup conflict di
-          # self-hosted runner; cross-compile butuh setup tambahan).
-          - target: x86_64-unknown-linux-gnu
-            cross: false
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           clean: true
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/setup-rust
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-unknown-linux-gnu
+          cache-key: release-backend-${{ needs.validate.outputs.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-key: release-${{ matrix.target }}
-
-      - name: Install cross
-        if: matrix.cross
-        run: |
-          if ! command -v cross &> /dev/null; then
-            cargo install cross --locked
-          fi
-
-      - name: Build workspace (native)
-        if: "!matrix.cross"
-        run: cargo build --workspace --release --target ${{ matrix.target }}
-
-      - name: Build workspace (cross)
-        if: matrix.cross
-        run: cross build --workspace --release --target ${{ matrix.target }}
-
+      - name: cargo build --release (workspace)
+        run: cargo build --workspace --release --target x86_64-unknown-linux-gnu --exclude lib-ui --exclude portal-microfrontend --exclude perlengkapan-microfrontend
       - name: Package binaries
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p release-artifacts
-          if [ -d "target/${{ matrix.target }}/release" ]; then
-            find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable \
-              ! -name "*.d" ! -name "*.so" ! -name "*.dylib" \
+          dir=target/x86_64-unknown-linux-gnu/release
+          if [ -d "$dir" ]; then
+            find "$dir" -maxdepth 1 -type f -executable \
+              ! -name "*.d" ! -name "*.so" ! -name "*.dylib" ! -name "build-script-*" \
               -exec cp {} release-artifacts/ \;
           fi
           cd release-artifacts
-          tar czf ../simpelv2-backend-${{ matrix.target }}.tar.gz * 2>/dev/null || echo "No binaries to package"
+          if compgen -G "*" >/dev/null; then
+            tar czf "../simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz" *
+          fi
           cd ..
-          sha256sum simpelv2-backend-${{ matrix.target }}.tar.gz > simpelv2-backend-${{ matrix.target }}.tar.gz.sha256 2>/dev/null || true
-
-      - name: Upload release assets
-        uses: ncipollo/release-action@v1
+          if [ -f "simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz" ]; then
+            sha256sum "simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz" > "simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz.sha256"
+          fi
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag: v${{ needs.create-release.outputs.version }}
-          artifacts: "simpelv2-backend-${{ matrix.target }}.tar.gz,simpelv2-backend-${{ matrix.target }}.tar.gz.sha256"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          omitBodyDuringUpdate: true
-          artifactErrorsFailBuild: false
+          name: backend-artifacts
+          path: |
+            simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz
+            simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz.sha256
+          retention-days: 30
 
   build-frontend:
-    name: Build Frontend
+    name: Build Microfrontends
+    needs: validate
     runs-on: self-hosted
-    needs: create-release
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           clean: true
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
+          cache-key: release-frontend-${{ needs.validate.outputs.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-key: frontend-release
-
       - name: Install Trunk
+        shell: bash
         run: |
-          if ! command -v trunk &> /dev/null; then
-            mkdir -p $HOME/.local/bin
+          if ! command -v trunk &>/dev/null; then
+            mkdir -p "$HOME/.local/bin"
             curl -LsSf "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" \
-              | tar -xzf- -C $HOME/.local/bin/
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
+              | tar -xzf- -C "$HOME/.local/bin/"
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           fi
-
       - name: Build microfrontends
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p release-frontend
           for module in portal perlengkapan; do
-            echo "Building $module..."
-            cd antarmuka/$module
-            trunk build --release
-            cp -r dist ../../release-frontend/$module
-            cd ../..
+            (cd "antarmuka/$module" && trunk build --release)
+            cp -r "antarmuka/$module/dist" "release-frontend/$module"
           done
-
       - name: Package frontend artifacts
+        shell: bash
         run: |
-          cd release-frontend
-          tar czf ../simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz *
-          cd ..
-          sha256sum simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz \
-            > simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz.sha256
-
+          (cd release-frontend && tar czf "../simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz" *)
+          sha256sum "simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz" \
+            > "simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz.sha256"
       - name: Upload frontend artifacts
-        uses: ncipollo/release-action@v1
+        uses: actions/upload-artifact@v4
         with:
-          tag: v${{ needs.create-release.outputs.version }}
-          artifacts: "simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz,simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz.sha256"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          omitBodyDuringUpdate: true
-          artifactErrorsFailBuild: false
+          name: frontend-artifacts
+          path: |
+            simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz
+            simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz.sha256
+          retention-days: 30
 
   build-docker:
-    name: Build & Push - ${{ matrix.image.name }}
+    name: Build & Sign Image (${{ matrix.image.name }})
+    needs: validate
     runs-on: self-hosted
-    needs: [create-release, build-backend]
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
-      # 7 paralel docker build aman dengan driver: docker (shared buildkit di
-      # Docker daemon, bukan spawn container per job). Lihat step setup-buildx
-      # di bawah. Self-hosted runner host punya 64GB RAM + 48 core.
       matrix:
         image:
-          # 7 images yang di-deploy ke production (sesuai plan):
-          # - 2 frontend (portal, perlengkapan): Leptos WASM + nginx
-          # - 4 backend Rust (authenc, layanan-integrasi, layanan-perlengkapan, secreton)
-          # - 1 monolith Laravel (simpelv1)
-          - { name: portal,                context: ., dockerfile: antarmuka/portal/Dockerfile }
-          - { name: perlengkapan,          context: ., dockerfile: antarmuka/perlengkapan/Dockerfile }
-          - { name: authenc,               context: ., dockerfile: layanan/authenc/Dockerfile }
-          - { name: layanan-integrasi,     context: ., dockerfile: layanan/integrasi/Dockerfile }
-          - { name: layanan-perlengkapan,  context: ., dockerfile: layanan/perlengkapan/Dockerfile }
-          - { name: secreton,              context: ., dockerfile: layanan/secreton/Dockerfile }
-          - { name: simpelv1,              context: ., dockerfile: monolith/simpelv1/Dockerfile }
+          - { name: portal,                dockerfile: antarmuka/portal/Dockerfile,        tier: "Microfrontend (Leptos WASM)" }
+          - { name: perlengkapan,          dockerfile: antarmuka/perlengkapan/Dockerfile,  tier: "Microfrontend (Leptos WASM)" }
+          - { name: authenc,               dockerfile: layanan/authenc/Dockerfile,         tier: "Backend (Rust/Axum)" }
+          - { name: layanan-integrasi,     dockerfile: layanan/integrasi/Dockerfile,       tier: "Backend (Rust/Axum)" }
+          - { name: layanan-perlengkapan,  dockerfile: layanan/perlengkapan/Dockerfile,    tier: "Backend (Rust/Axum)" }
+          - { name: secreton,              dockerfile: layanan/secreton/Dockerfile,        tier: "Backend (Rust/Axum, separate workspace)" }
+          - { name: simpelv1,              dockerfile: monolith/simpelv1/Dockerfile,       tier: "Monolith (PHP/Laravel)" }
+    outputs:
+      digest-portal: ${{ steps.export.outputs.digest-portal }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
         with:
-          # Unique buildx instance per matrix job → 7 buildkit container
-          # terpisah (tidak share state). `cleanup: false` agar post-job tidak
-          # docker rm yang bisa race dengan jobs lain di Docker daemon yang sama
-          # (root cause graceful_stop di rc4). Buildkit container akan ke-clean
-          # naturally saat runner reboot atau via `docker buildx prune` manual.
           name: buildx-${{ matrix.image.name }}-${{ github.run_id }}
           cleanup: false
           driver: docker-container
@@ -242,39 +221,34 @@ jobs:
             image=moby/buildkit:latest
             network=host
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Image metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v5
         with:
-          # Image: ghcr.io/<owner>/simpelv2-<image-name>
-          # ghcr.io path untuk personal account hanya support 1 segment di bawah
-          # owner (tidak nested). Pakai prefix simpelv2- untuk avoid name collision.
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/simpelv2-${{ matrix.image.name }}
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
           tags: |
-            # Pertahankan v prefix di tag agar match Helm imageTag (regex
-            # values.schema.json: ^v\d+\.\d+\.\d+(-...)?$). Pakai 'raw' bukan
-            # 'semver' karena semver pattern strip 'v' otomatis.
-            type=raw,value=v${{ needs.create-release.outputs.version }}
+            type=raw,value=v${{ needs.validate.outputs.version }}
             type=sha,prefix=sha-,format=short
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.version=${{ needs.create-release.outputs.version }}
+            org.opencontainers.image.version=${{ needs.validate.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=Proprietary
             org.opencontainers.image.title=${{ matrix.image.name }}
-            org.opencontainers.image.description=SIMPEL Kejaksaan RI - ${{ matrix.image.name }}
+            org.opencontainers.image.description=SIMPEL Kejaksaan RI - ${{ matrix.image.tier }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+      - name: Build & push image
+        id: build
+        uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.image.context }}
+          context: .
           file: ${{ matrix.image.dockerfile }}
           push: true
           platforms: linux/amd64
@@ -285,7 +259,184 @@ jobs:
           provenance: true
           sbom: true
 
-      # Verify step di-skip: build-push-action exit code != 0 sudah cukup
-      # menjamin push sukses. `docker buildx imagetools inspect` di unique
-      # buildx instance pakai anonymous token (tidak inherit login dari
-      # docker/login-action yang isolated per buildx context).
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (cosign keyless)
+        shell: bash
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
+        run: cosign sign --yes "$IMAGE@$DIGEST"
+
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx-json
+          output-file: sbom-${{ matrix.image.name }}.cdx.json
+          upload-artifact: false
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Trivy scan published image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}@${{ steps.build.outputs.digest }}
+          format: 'sarif'
+          output: 'trivy-${{ matrix.image.name }}.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
+          ignore-unfixed: 'true'
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.image.name }}.sarif
+          category: trivy-image-${{ matrix.image.name }}
+        continue-on-error: true
+
+      - name: Export digest & SBOM
+        id: export
+        shell: bash
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          echo "${{ matrix.image.name }} ${DIGEST}" > "image-${{ matrix.image.name }}.digest"
+          echo "digest-${{ matrix.image.name }}=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SBOM + digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.image.name }}
+          path: |
+            sbom-${{ matrix.image.name }}.cdx.json
+            image-${{ matrix.image.name }}.digest
+          retention-days: 90
+
+  publish:
+    name: Publish GitHub Release
+    needs: [validate, build-backend, build-frontend, build-docker]
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-input
+
+      - name: Compose release body
+        id: body
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          PREV_TAG: ${{ needs.validate.outputs.previous-tag }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_PREFIX: ${{ env.IMAGE_PREFIX }}
+        run: |
+          set -euo pipefail
+          OUT=release-body.md
+          {
+            echo "# SIMPEL v${VERSION}"
+            echo
+            echo "> Rilis ini mencakup pembaruan untuk microfrontend, microservice backend Rust, dan monolith Laravel."
+            echo
+            echo "## Apa yang Berubah"
+            echo
+            if [ -f release-input/changelog/CHANGELOG_RELEASE.md ]; then
+              cat release-input/changelog/CHANGELOG_RELEASE.md
+            else
+              echo "_Changelog generation gagal — silakan cek commit history._"
+            fi
+            echo
+            echo "## Komponen"
+            echo
+            echo "| Komponen | Tier | Image |"
+            echo "|---|---|---|"
+            echo "| portal | Microfrontend (Leptos WASM) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-portal:v${VERSION}\` |"
+            echo "| perlengkapan | Microfrontend (Leptos WASM) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-perlengkapan:v${VERSION}\` |"
+            echo "| authenc | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-authenc:v${VERSION}\` |"
+            echo "| layanan-integrasi | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-integrasi:v${VERSION}\` |"
+            echo "| layanan-perlengkapan | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-perlengkapan:v${VERSION}\` |"
+            echo "| secreton | Backend (Rust/Axum, workspace terpisah) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-secreton:v${VERSION}\` |"
+            echo "| simpelv1 | Monolith (PHP/Laravel) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-simpelv1:v${VERSION}\` |"
+            echo
+            echo "## Image Digests"
+            echo
+            echo "| Image | Digest |"
+            echo "|---|---|"
+            for f in release-input/sbom-*/image-*.digest; do
+              [ -f "$f" ] || continue
+              read -r name digest < "$f"
+              echo "| \`${IMAGE_PREFIX}-${name}\` | \`${digest}\` |"
+            done
+            echo
+            echo "## Verifikasi Image (cosign keyless)"
+            echo
+            echo '```bash'
+            echo "cosign verify ${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-authenc:v${VERSION} \\"
+            echo "  --certificate-identity-regexp 'https://github.com/${REPO}/.github/workflows/release.yml@.*' \\"
+            echo "  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'"
+            echo '```'
+            echo
+            echo "## Verifikasi Build Provenance"
+            echo
+            echo '```bash'
+            echo "gh attestation verify oci://${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-authenc:v${VERSION} --owner ${OWNER}"
+            echo '```'
+            echo
+            echo "## Artifacts (binaries + SBOM)"
+            echo
+            echo "Tarball binary: \`simpelv2-backend-${VERSION}.tar.gz\` (semua binary backend, target x86_64-linux-gnu)"
+            echo
+            echo "Tarball frontend: \`simpelv2-frontend-${VERSION}.tar.gz\` (portal + perlengkapan WASM/HTML/CSS)"
+            echo
+            echo "SBOM CycloneDX per image dilampirkan sebagai \`sbom-<image>.cdx.json\`."
+            echo
+            if [ -n "$PREV_TAG" ]; then
+              echo "## Full Changelog"
+              echo
+              echo "**Compare:** https://github.com/${REPO}/compare/${PREV_TAG}...v${VERSION}"
+            fi
+          } > "$OUT"
+          {
+            echo "body<<RELEASE_EOF"
+            cat "$OUT"
+            echo "RELEASE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Stage release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          find release-input -type f \( \
+            -name 'simpelv2-backend-*.tar.gz*' -o \
+            -name 'simpelv2-frontend-*.tar.gz*' -o \
+            -name 'sbom-*.cdx.json' -o \
+            -name 'CHANGELOG_RELEASE.md' \
+          \) -exec cp {} release-assets/ \;
+          ls -la release-assets
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.validate.outputs.version }}
+          name: SIMPEL v${{ needs.validate.outputs.version }}
+          body: ${{ steps.body.outputs.body }}
+          prerelease: ${{ needs.validate.outputs.is-prerelease == 'true' }}
+          files: release-assets/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
