@@ -83,9 +83,17 @@ RUN composer run-script post-install-cmd || true
 # removes compilers from the production image.
 RUN apk del .build-deps
 
-# Create necessary directories
+# Create necessary directories.
+# IMPORTANT: chown ke www-data (uid 82 di Alpine) bukan nobody — PHP-FPM
+# worker run as www-data 82 dan butuh read access ke /app. Sebelumnya
+# nobody:nobody (uid 65534) bikin PHP-FPM open() return EPERM walau
+# mode 644 (Alpine package nobody might have weird attr).
 RUN mkdir -p storage/logs storage/framework/sessions storage/framework/views storage/framework/cache \
-    && chown -R nobody:nobody . \
+              /var/lib/nginx/logs /var/lib/nginx/tmp/client_body \
+              /var/lib/nginx/tmp/proxy /var/lib/nginx/tmp/fastcgi \
+              /var/lib/nginx/tmp/uwsgi /var/lib/nginx/tmp/scgi \
+              /run/nginx \
+    && chown -R www-data:www-data /app /var/lib/nginx /run/nginx /var/cache/nginx \
     && chmod -R 755 storage
 
 # Copy nginx config
