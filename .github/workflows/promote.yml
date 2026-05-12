@@ -80,12 +80,12 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - portal
-          - perlengkapan
-          - authenc
+          - antarmuka-portal
+          - antarmuka-perlengkapan
+          - layanan-authenc
           - layanan-integrasi
           - layanan-perlengkapan
-          - secreton
+          - layanan-secreton
           - simpelv1
     steps:
       - name: Setup Buildx

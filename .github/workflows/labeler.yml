@@ -69,12 +69,12 @@ jobs:
 
           touched=()
           for prefix in \
-            "antarmuka/portal:microfrontend:portal" \
-            "antarmuka/perlengkapan:microfrontend:perlengkapan" \
-            "layanan/authenc:microservice:authenc" \
-            "layanan/perlengkapan:microservice:perlengkapan" \
-            "layanan/integrasi:microservice:integrasi" \
-            "layanan/secreton:microservice:secreton" \
+            "antarmuka/portal:microfrontend:antarmuka-portal" \
+            "antarmuka/perlengkapan:microfrontend:antarmuka-perlengkapan" \
+            "layanan/authenc:microservice:layanan-authenc" \
+            "layanan/perlengkapan:microservice:layanan-perlengkapan" \
+            "layanan/integrasi:microservice:layanan-integrasi" \
+            "layanan/secreton:microservice:layanan-secreton" \
             "monolith/simpelv1:monolith"; do
             path="${prefix%%:*}"
             label="${prefix#*:}"
@@ -163,12 +163,12 @@ jobs:
             security
             deps
           scopes: |
-            authenc
-            perlengkapan
-            integrasi
-            secreton
-            portal
-            monolith
+            layanan-authenc
+            layanan-perlengkapan
+            layanan-integrasi
+            layanan-secreton
+            antarmuka-portal
+            simpelv1
             lib
             ci
             infra
@@ -182,8 +182,8 @@ jobs:
           subjectPattern: ^[a-z0-9].+
           subjectPatternError: |
             Subject judul PR harus diawali huruf kecil/digit. Contoh:
-              feat(authenc): tambah dukungan WebAuthn
-              fix(monolith): atasi NPE di laporan BMN
+              feat(layanan-authenc): tambah dukungan WebAuthn
+              fix(simpelv1): atasi NPE di laporan BMN
 
   issue-label-by-content:
     name: Issue Label by Content

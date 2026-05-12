@@ -217,13 +217,13 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - { name: portal,                dockerfile: antarmuka/portal/Dockerfile,        tier: "Microfrontend (Leptos WASM)" }
-          - { name: perlengkapan,          dockerfile: antarmuka/perlengkapan/Dockerfile,  tier: "Microfrontend (Leptos WASM)" }
-          - { name: authenc,               dockerfile: layanan/authenc/Dockerfile,         tier: "Backend (Rust/Axum)" }
-          - { name: layanan-integrasi,     dockerfile: layanan/integrasi/Dockerfile,       tier: "Backend (Rust/Axum)" }
-          - { name: layanan-perlengkapan,  dockerfile: layanan/perlengkapan/Dockerfile,    tier: "Backend (Rust/Axum)" }
-          - { name: secreton,              dockerfile: layanan/secreton/Dockerfile,        tier: "Backend (Rust/Axum, separate workspace)" }
-          - { name: simpelv1,              dockerfile: monolith/simpelv1/Dockerfile,       tier: "Monolith (PHP/Laravel)" }
+          - { name: antarmuka-portal,          dockerfile: antarmuka/portal/Dockerfile,        tier: "Microfrontend (Leptos WASM)" }
+          - { name: antarmuka-perlengkapan,    dockerfile: antarmuka/perlengkapan/Dockerfile,  tier: "Microfrontend (Leptos WASM)" }
+          - { name: layanan-authenc,           dockerfile: layanan/authenc/Dockerfile,         tier: "Backend (Rust/Axum)" }
+          - { name: layanan-integrasi,         dockerfile: layanan/integrasi/Dockerfile,       tier: "Backend (Rust/Axum)" }
+          - { name: layanan-perlengkapan,      dockerfile: layanan/perlengkapan/Dockerfile,    tier: "Backend (Rust/Axum)" }
+          - { name: layanan-secreton,          dockerfile: layanan/secreton/Dockerfile,        tier: "Backend (Rust/Axum, separate workspace)" }
+          - { name: simpelv1,                  dockerfile: monolith/simpelv1/Dockerfile,       tier: "Monolith (PHP/Laravel)" }
     outputs:
       digest-portal: ${{ steps.export.outputs.digest-portal }}
     steps:
@@ -382,12 +382,12 @@ jobs:
             echo
             echo "| Komponen | Tier | Image |"
             echo "|---|---|---|"
-            echo "| portal | Microfrontend (Leptos WASM) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-portal:v${VERSION}\` |"
-            echo "| perlengkapan | Microfrontend (Leptos WASM) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-perlengkapan:v${VERSION}\` |"
-            echo "| authenc | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-authenc:v${VERSION}\` |"
+            echo "| antarmuka-portal | Microfrontend (Leptos WASM) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-antarmuka-portal:v${VERSION}\` |"
+            echo "| antarmuka-perlengkapan | Microfrontend (Leptos WASM) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-antarmuka-perlengkapan:v${VERSION}\` |"
+            echo "| layanan-authenc | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-authenc:v${VERSION}\` |"
             echo "| layanan-integrasi | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-integrasi:v${VERSION}\` |"
             echo "| layanan-perlengkapan | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-perlengkapan:v${VERSION}\` |"
-            echo "| secreton | Backend (Rust/Axum, workspace terpisah) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-secreton:v${VERSION}\` |"
+            echo "| layanan-secreton | Backend (Rust/Axum, workspace terpisah) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-secreton:v${VERSION}\` |"
             echo "| simpelv1 | Monolith (PHP/Laravel) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-simpelv1:v${VERSION}\` |"
             echo
             echo "## Image Digests"
@@ -403,7 +403,7 @@ jobs:
             echo "## Verifikasi Image (cosign keyless)"
             echo
             echo '```bash'
-            echo "cosign verify ${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-authenc:v${VERSION} \\"
+            echo "cosign verify ${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-authenc:v${VERSION} \\"
             echo "  --certificate-identity-regexp 'https://github.com/${REPO}/.github/workflows/release.yml@.*' \\"
             echo "  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'"
             echo '```'
@@ -411,7 +411,7 @@ jobs:
             echo "## Verifikasi Build Provenance"
             echo
             echo '```bash'
-            echo "gh attestation verify oci://${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-authenc:v${VERSION} --owner ${OWNER}"
+            echo "gh attestation verify oci://${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-authenc:v${VERSION} --owner ${OWNER}"
             echo '```'
             echo
             echo "## Artifacts (binaries + SBOM)"

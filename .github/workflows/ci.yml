@@ -73,13 +73,13 @@ jobs:
         run: |
           set -euo pipefail
           declare -A IMAGES=(
-            [simpel-portal]="antarmuka/portal/Dockerfile|.|$PORTAL"
-            [simpel-perlengkapan-ui]="antarmuka/perlengkapan/Dockerfile|.|$PERLENGKAPAN_UI"
-            [simpel-authenc]="layanan/authenc/Dockerfile|.|$AUTHENC"
-            [simpel-perlengkapan-api]="layanan/perlengkapan/Dockerfile|.|$PERLENGKAPAN_API"
-            [simpel-integrasi]="layanan/integrasi/Dockerfile|.|$INTEGRASI"
-            [simpel-secreton]="layanan/secreton/Dockerfile|layanan/secreton|$SECRETON"
-            [simpel-monolith]="monolith/simpelv1/Dockerfile|monolith/simpelv1|$MONOLITH"
+            [antarmuka-portal]="antarmuka/portal/Dockerfile|.|$PORTAL"
+            [antarmuka-perlengkapan]="antarmuka/perlengkapan/Dockerfile|.|$PERLENGKAPAN_UI"
+            [layanan-authenc]="layanan/authenc/Dockerfile|.|$AUTHENC"
+            [layanan-perlengkapan]="layanan/perlengkapan/Dockerfile|.|$PERLENGKAPAN_API"
+            [layanan-integrasi]="layanan/integrasi/Dockerfile|.|$INTEGRASI"
+            [layanan-secreton]="layanan/secreton/Dockerfile|layanan/secreton|$SECRETON"
+            [simpelv1]="monolith/simpelv1/Dockerfile|monolith/simpelv1|$MONOLITH"
           )
           entries=()
           for name in "${!IMAGES[@]}"; do
@@ -417,13 +417,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: authenc
+          - name: layanan-authenc
             package: authenc
-          - name: perlengkapan-api
+          - name: layanan-perlengkapan
             package: layanan-perlengkapan-api
-          - name: integrasi
+          - name: layanan-integrasi
             package: layanan-integrasi
-          - name: secreton
+          - name: layanan-secreton
             package: secreton
     steps:
       - uses: actions/checkout@v6
@@ -490,13 +490,13 @@ jobs:
           - tier: lib-ui
             packages: '-p lib-ui'
             target: 'wasm32-unknown-unknown'
-          - tier: authenc
+          - tier: layanan-authenc
             packages: '-p authenc -p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn'
-          - tier: perlengkapan-api
+          - tier: layanan-perlengkapan
             packages: '-p layanan-perlengkapan -p layanan-perlengkapan-api -p layanan-perlengkapan-bantuan -p layanan-perlengkapan-dokumen -p layanan-perlengkapan-notifikasi'
-          - tier: integrasi
+          - tier: layanan-integrasi
             packages: '-p layanan-integrasi'
-          - tier: secreton
+          - tier: layanan-secreton
             packages: '-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication'
           - tier: frontends
             packages: '-p portal-microfrontend -p perlengkapan-microfrontend'
