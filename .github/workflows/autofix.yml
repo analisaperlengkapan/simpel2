@@ -42,10 +42,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-key: autofix-pr
 
-      - name: Apply fmt + fix + clippy --fix (single shell session)
+      - name: Validate toolchain health
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           CARGO_BIN=$(command -v cargo || echo "$HOME/.cargo/bin/cargo")
           if ! [ -x "$CARGO_BIN" ]; then
             echo "::error::cargo binary tidak ditemukan (PATH=$PATH)."
@@ -53,19 +53,39 @@ jobs:
           fi
           echo "Using cargo: $CARGO_BIN"
 
-          "$CARGO_BIN" fmt --all || true
+          # Canary build — pastikan toolchain dan rustc berfungsi.
+          # Jika ini gagal, berarti runner/toolchain bermasalah, bukan kode.
+          echo "::group::Toolchain canary check"
+          if ! "$CARGO_BIN" check -p lib-core 2>&1; then
+            echo "::endgroup::"
+            echo "::error::Toolchain canary gagal — runner kemungkinan memiliki toolchain rusak atau cache korup. Bersihkan target/ di runner."
+            exit 1
+          fi
+          echo "::endgroup::"
 
-          "$CARGO_BIN" fix \
+      - name: Apply fmt + fix + clippy --fix
+        shell: bash
+        run: |
+          # fmt/fix/clippy boleh gagal (lint yang tidak bisa di-autofix),
+          # tapi kita catat exit code untuk visibility di log.
+          fmt_exit=0; fix_exit=0; clippy_exit=0
+
+          cargo fmt --all || fmt_exit=$?
+          [ $fmt_exit -ne 0 ] && echo "::warning::cargo fmt exit code: $fmt_exit"
+
+          cargo fix \
             --workspace --all-targets --all-features \
-            --allow-dirty --allow-staged || true
+            --allow-dirty --allow-staged || fix_exit=$?
+          [ $fix_exit -ne 0 ] && echo "::warning::cargo fix exit code: $fix_exit"
 
-          "$CARGO_BIN" clippy \
+          cargo clippy \
             --workspace --all-targets --all-features \
             --fix --allow-dirty --allow-staged \
-            -- -W clippy::all || true
+            -- -W clippy::all || clippy_exit=$?
+          [ $clippy_exit -ne 0 ] && echo "::warning::cargo clippy --fix exit code: $clippy_exit"
 
-          "$CARGO_BIN" fmt --all || true
-          true
+          # Final fmt pass untuk memformat hasil fix/clippy
+          cargo fmt --all || true
 
       - name: Normalize Cargo versioning
         run: python3 ./infra/scripts/check-cargo-versioning.py fix

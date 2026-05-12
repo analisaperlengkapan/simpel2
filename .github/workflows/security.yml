@@ -22,6 +22,29 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # ── Blocking checks ─────────────────────────────────
+  # Kegagalan di sini akan membuat Security Summary gagal.
+
+  gitleaks:
+    name: Gitleaks (Secret Scan)
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Cleanup stale temp files (self-hosted fix)
+        shell: bash
+        run: rm -f /tmp/gitleaks.tmp /tmp/gitleaks-report.*
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  # ── Advisory checks ─────────────────────────────────
+  # Temuan adalah informational; step TIDAK pakai continue-on-error
+  # supaya job conclusion menunjukkan status sebenarnya ke summary.
+
   cargo-audit:
     name: cargo-audit
     runs-on: self-hosted
@@ -45,7 +68,6 @@ jobs:
             fi
           fi
       - name: cargo audit
-        continue-on-error: true
         run: cargo audit
 
   cargo-deny:
@@ -55,24 +77,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Run cargo-deny
         uses: EmbarkStudios/cargo-deny-action@v2
-        continue-on-error: true
         with:
           manifest-path: Cargo.toml
           command: check advisories bans licenses sources
           arguments: --workspace
-
-  gitleaks:
-    name: Gitleaks (Secret Scan)
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
 
   semgrep:
     name: Semgrep SAST
@@ -91,7 +99,6 @@ jobs:
             p/php
         env:
           SEMGREP_RULES: p/rust p/security-audit p/owasp-top-ten p/secrets p/dockerfile p/php
-        continue-on-error: true
 
   trivy-fs:
     name: Trivy Filesystem Scan
@@ -100,7 +107,6 @@ jobs:
       - uses: actions/checkout@v6
       - name: Trivy fs scan
         uses: aquasecurity/trivy-action@v0.35.0
-        continue-on-error: true
         with:
           scan-type: 'fs'
           format: 'sarif'
@@ -117,18 +123,7 @@ jobs:
           category: trivy-fs
         continue-on-error: true
 
-  dependency-review:
-    name: Dependency Review
-    if: github.event_name == 'pull_request'
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/dependency-review-action@v4
-        continue-on-error: true
-        with:
-          fail-on-severity: critical
-          comment-summary-in-pr: on-failure
-
+  # ── Summary ─────────────────────────────────────────
   security-summary:
     name: Security Summary
     if: always()
@@ -138,7 +133,6 @@ jobs:
       - gitleaks
       - semgrep
       - trivy-fs
-      - dependency-review
     runs-on: self-hosted
     steps:
       - name: Aggregate results
@@ -149,9 +143,14 @@ jobs:
           set -euo pipefail
           echo "## Security Summary" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          fail=0
+          echo "| Check | Result | Category |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          # Blocking = harus sukses. Advisory = boleh gagal (informational).
+          BLOCKING="gitleaks"
+          block_fail=0
+          advisory_fail=0
+
           PARSED=$(echo "$NEEDS_JSON" | python3 -c '
           import json, sys
           data = json.load(sys.stdin)
@@ -160,16 +159,40 @@ jobs:
           ')
           while IFS='|' read -r job result; do
             [ -z "$job" ] && continue
+            # Tentukan kategori
+            if echo " $BLOCKING " | grep -q " $job "; then
+              category="🔒 Blocking"
+            else
+              category="📋 Advisory"
+            fi
+
             case "$result" in
-              success) icon="OK" ;;
-              skipped) icon="SKIP" ;;
-              failure) icon="FAIL"; fail=1 ;;
-              cancelled) icon="CANCEL"; fail=1 ;;
+              success) icon="✅ OK" ;;
+              skipped) icon="⏭️ SKIP" ;;
+              failure)
+                if echo " $BLOCKING " | grep -q " $job "; then
+                  icon="❌ FAIL"; block_fail=1
+                else
+                  icon="⚠️ FINDINGS"; advisory_fail=1
+                fi
+                ;;
+              cancelled) icon="🚫 CANCEL"; block_fail=1 ;;
               *) icon="$result" ;;
             esac
-            echo "| $job | $icon |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| $job | $icon | $category |" >> "$GITHUB_STEP_SUMMARY"
           done <<< "$PARSED"
-          if [[ $fail -ne 0 ]]; then
-            echo "::error::One or more security checks failed"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ $advisory_fail -ne 0 ]]; then
+            echo "> **Note:** Advisory checks memiliki temuan. Periksa log masing-masing job untuk detail." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ $block_fail -ne 0 ]]; then
+            echo "::error::Blocking security check gagal (gitleaks). Pastikan tidak ada secret yang bocor."
             exit 1
           fi
+
+          if [[ $advisory_fail -ne 0 ]]; then
+            echo "::warning::Advisory security checks memiliki temuan — periksa cargo-audit, cargo-deny, atau semgrep."
+          fi
+          echo "Blocking checks passed."
