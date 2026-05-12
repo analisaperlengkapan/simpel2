@@ -372,25 +372,17 @@ jobs:
   # ─────────────────────────────────────────────────────
   # Phase 3 — Build artefak (agresif)
   # ─────────────────────────────────────────────────────
-  build-microfrontend:
-    name: Build Microfrontend (${{ matrix.name }})
+  build-antarmuka-portal:
+    name: Build Portal Microfrontend
     needs: [detect, lint-rust]
     if: needs.detect.outputs.rust-frontend == 'true'
     runs-on: self-hosted
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: portal
-            path: antarmuka/portal
-          - name: perlengkapan
-            path: antarmuka/perlengkapan
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
-          cache-key: trunk-${{ matrix.name }}
+          cache-key: trunk-portal
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Trunk
         shell: bash
@@ -399,13 +391,41 @@ jobs:
             cargo install trunk --locked
           fi
       - name: trunk build --release
-        working-directory: ${{ matrix.path }}
+        working-directory: antarmuka/portal
         run: trunk build --release
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.name }}
-          path: ${{ matrix.path }}/dist
+          name: dist-portal
+          path: antarmuka/portal/dist
+          retention-days: 1
+
+  build-antarmuka-perlengkapan:
+    name: Build Perlengkapan Microfrontend
+    needs: [detect, lint-rust]
+    if: needs.detect.outputs.rust-frontend == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+          cache-key: trunk-perlengkapan
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Trunk
+        shell: bash
+        run: |
+          if ! command -v trunk &>/dev/null; then
+            cargo install trunk --locked
+          fi
+      - name: trunk build --release
+        working-directory: antarmuka/perlengkapan
+        run: trunk build --release
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-perlengkapan
+          path: antarmuka/perlengkapan/dist
           retention-days: 1
 
   build-backend:
@@ -477,7 +497,115 @@ jobs:
   # ─────────────────────────────────────────────────────
   # Phase 4 — Test (KONSERVATIF — selalu jalan)
   # ─────────────────────────────────────────────────────
-  test-rust:
+  test-lib-core:
+    name: Test Rust (lib-core)
+    needs: detect
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: ci-test-lib-core
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo test
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-core --no-fail-fast
+
+  test-lib-backend:
+    name: Test Rust (lib-backend)
+    needs: detect
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: ci-test-lib-backend
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo test
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-backend --no-fail-fast
+
+  test-lib-crypto:
+    name: Test Rust (lib-crypto)
+    needs: detect
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: ci-test-lib-crypto
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo test
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-crypto --no-fail-fast
+
+  test-lib-perlengkapan:
+    name: Test Rust (lib-perlengkapan)
+    needs: detect
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: ci-test-lib-perlengkapan
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo test
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-perlengkapan --no-fail-fast
+
+  test-lib-ui:
+    name: Test Rust (lib-ui)
+    needs: detect
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+          cache-key: ci-test-lib-ui
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo test
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-ui --target wasm32-unknown-unknown --no-fail-fast --no-run
+
+  test-antarmuka-portal:
+    name: Test Rust (antarmuka-portal)
+    needs: detect
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+          cache-key: ci-test-portal
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo test
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p portal-microfrontend --target wasm32-unknown-unknown --no-fail-fast --no-run
+
+  test-antarmuka-perlengkapan:
+    name: Test Rust (antarmuka-perlengkapan)
+    needs: detect
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+          cache-key: ci-test-perlengkapan
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo test
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p perlengkapan-microfrontend --target wasm32-unknown-unknown --no-fail-fast --no-run
+
+  test-services:
     name: Test Rust (${{ matrix.tier }})
     needs: detect
     runs-on: self-hosted
@@ -485,11 +613,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - tier: libs
-            packages: '-p lib-core -p lib-backend -p lib-crypto -p lib-perlengkapan'
-          - tier: lib-ui
-            packages: '-p lib-ui'
-            target: 'wasm32-unknown-unknown'
           - tier: layanan-authenc
             packages: '-p authenc -p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn'
           - tier: layanan-perlengkapan
@@ -498,26 +621,16 @@ jobs:
             packages: '-p layanan-integrasi'
           - tier: layanan-secreton
             packages: '-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication'
-          - tier: frontends
-            packages: '-p portal-microfrontend -p perlengkapan-microfrontend'
-            target: 'wasm32-unknown-unknown'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
         with:
-          targets: ${{ matrix.target || '' }}
           cache-key: ci-test-${{ matrix.tier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo test (${{ matrix.tier }})
         env:
           RUST_BACKTRACE: 1
-        run: |
-          set -euo pipefail
-          if [ -n "${{ matrix.target }}" ]; then
-            cargo test ${{ matrix.packages }} --target ${{ matrix.target }} --no-fail-fast --no-run
-          else
-            cargo test ${{ matrix.packages }} --no-fail-fast
-          fi
+        run: cargo test ${{ matrix.packages }} --no-fail-fast
 
   test-monolith:
     name: Test Monolith (PHPUnit)
@@ -545,17 +658,18 @@ jobs:
 
   e2e-playwright:
     name: E2E Playwright (${{ matrix.project }})
-    needs: [detect, build-microfrontend, build-backend, build-monolith-assets]
+    needs: [detect, build-antarmuka-portal, build-antarmuka-perlengkapan, build-backend, build-monolith-assets]
     if: |
       !cancelled() &&
       needs.detect.outputs.rust-any == 'true' &&
-      needs.build-microfrontend.result == 'success' &&
+      needs.build-antarmuka-portal.result == 'success' &&
+      needs.build-antarmuka-perlengkapan.result == 'success' &&
       needs.build-backend.result == 'success'
     runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
-        project: [api-chromium, ui-chromium]
+        project: [api-chromium, portal-chromium, perlengkapan-chromium]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node
@@ -615,11 +729,19 @@ jobs:
       - lint-markdown
       - lint-shell
       - lint-toml
-      - build-microfrontend
+      - build-antarmuka-portal
+      - build-antarmuka-perlengkapan
       - build-backend
       - build-monolith-assets
       - build-docker
-      - test-rust
+      - test-lib-core
+      - test-lib-backend
+      - test-lib-crypto
+      - test-lib-perlengkapan
+      - test-lib-ui
+      - test-antarmuka-portal
+      - test-antarmuka-perlengkapan
+      - test-services
       - test-monolith
       - e2e-playwright
     runs-on: self-hosted

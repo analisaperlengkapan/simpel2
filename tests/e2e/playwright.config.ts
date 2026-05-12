@@ -67,9 +67,21 @@ export default defineConfig({
       ],
     },
     {
-      name: 'ui-chromium',
+      name: 'portal-chromium',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: ['**/tests/**/*.spec.ts'],
+      testMatch: [
+        '**/portal-*.spec.ts',
+        '**/auth-*.spec.ts',
+        '**/integrasi-authenc*.spec.ts'
+      ],
+    },
+    {
+      name: 'perlengkapan-chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: [
+        '**/ui-*.spec.ts',
+        '**/dashboard-navigation.spec.ts'
+      ],
     },
 
     // Uncomment to test on other browsers
