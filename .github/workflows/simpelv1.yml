@@ -201,7 +201,7 @@ jobs:
           php artisan test --coverage --coverage-clover=coverage.xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v6
         with:
           files: ./monolith/simpelv1/coverage.xml
           flags: simpelv1
