@@ -25,12 +25,15 @@ pub mod path {
     pub const PAKAIAN_PENGAJUAN: &str = "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan";
     pub const PAKAIAN_UKURAN: &str = "/perlengkapan/simpel/v2/pakaian-dinas/ukuran";
     pub const PAKAIAN_LAPORAN: &str = "/perlengkapan/simpel/v2/pakaian-dinas/laporan";
-    pub const PAKAIAN_LAPORAN_REKAP_LEGACY: &str = "/perlengkapan/simpel/v2/pakaian-dinas/laporan/rekap";
+    pub const PAKAIAN_LAPORAN_REKAP_LEGACY: &str =
+        "/perlengkapan/simpel/v2/pakaian-dinas/laporan/rekap";
 
     pub const PENGELOLAAN_PEMAKAIAN: &str = "/perlengkapan/simpel/v2/pengelolaan/pemakaian";
     pub const PENGELOLAAN_PENGHAPUSAN: &str = "/perlengkapan/simpel/v2/pengelolaan/penghapusan";
-    pub const PENGELOLAAN_PEMAKAIAN_BUAT: &str = "/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat";
-    pub const PENGELOLAAN_PENGHAPUSAN_BUAT: &str = "/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat";
+    pub const PENGELOLAAN_PEMAKAIAN_BUAT: &str =
+        "/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat";
+    pub const PENGELOLAAN_PENGHAPUSAN_BUAT: &str =
+        "/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat";
     pub const PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY: &str =
         "/perlengkapan/simpel/v2/pengelolaan/penghapusan/daftar";
 
