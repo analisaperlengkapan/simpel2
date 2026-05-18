@@ -251,7 +251,7 @@ authenc:
   enabled: true
   component: identity
   image:
-    name: authenc
+    name: layanan-authenc
     tag: ""                                # fallback ke global.imageTag
   replicas: 1
   service:
@@ -337,7 +337,7 @@ secreton:
   kind: StatefulSet
   component: secrets
   image:
-    name: secreton
+    name: layanan-secreton
     tag: ""
   replicas: 1
   service:
@@ -607,7 +607,7 @@ portal:
   enabled: true
   component: frontend
   image:
-    name: portal
+    name: antarmuka-portal
     tag: ""
   replicas: 1
   service:
@@ -685,7 +685,7 @@ perlengkapan:
   enabled: true
   component: frontend
   image:
-    name: perlengkapan
+    name: antarmuka-perlengkapan
     tag: ""
   replicas: 1
   service:
