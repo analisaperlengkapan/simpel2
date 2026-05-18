@@ -232,8 +232,15 @@ jobs:
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
         with:
+          # Unique buildx instance per matrix job (7 paralel docker build → 7
+          # buildkit container terpisah). `cleanup: true` (default) — instance
+          # otomatis di-cleanup setelah post-job hook. Sebelumnya `cleanup: false`
+          # untuk hindari race condition di Docker daemon, tapi side-effect:
+          # buildkit container + volume akumulasi di self-hosted runner host.
+          # Pernah crash node disk-pressure setelah 247 orphan buildkit
+          # containers ber-volume 1+ TB. Default cleanup lebih aman; race
+          # condition di-handle dengan unique name per run_id.
           name: buildx-${{ matrix.image.name }}-${{ github.run_id }}
-          cleanup: false
           driver: docker-container
           driver-opts: |
             image=moby/buildkit:latest
