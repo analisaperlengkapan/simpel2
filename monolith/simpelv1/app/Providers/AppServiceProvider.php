@@ -23,24 +23,49 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Skip URL setup di CLI/artisan (request() tidak tersedia,
+        // dan TIDAK perlu untuk migrate/seed/cache:clear).
+        if (php_sapi_name() === 'cli') {
+            return;
+        }
+
         // SIMPEL v1 di-mount di subdirectory /perlengkapan/simpel/v1 saat
-        // deploy via Istio. Tanpa forceRootUrl, helper Laravel `url()` dan
-        // `redirect()` hanya pakai scheme://host (root URL dari Request),
-        // sehingga prefix `/perlengkapan/simpel/v1` hilang dari link &
-        // Location header. Akibatnya: user login lalu redirect ke
-        // `/auth/login` (kehilangan prefix) -> 404 di Istio routing.
+        // deploy via Istio. Tanpa forceRootUrl, helper `url()` & `redirect()`
+        // hanya pakai scheme://host dari Request, sehingga prefix
+        // /perlengkapan/simpel/v1 hilang dari Location header.
         //
-        // Set APP_URL=http://host/perlengkapan/simpel/v1 di env, lalu
-        // forceRootUrl menarik nilai itu sebagai base URL semua url()/redirect().
+        // Scheme HARUS dinamis (HTTP atau HTTPS) berdasarkan request user,
+        // bukan hardcoded dari APP_URL config. TrustProxies middleware harus
+        // trust upstream (Istio sidecar) supaya $request->getScheme()
+        // baca X-Forwarded-Proto correctly. Hasil:
+        //   - User akses https://10.1.7.121/.../v1/... → redirect ke
+        //     https://10.1.7.121/.../v1/auth/login (preserve scheme HTTPS)
+        //   - User akses http://...  → redirect ke http://...
+        //
+        // Sebelumnya: APP_URL=http://... → forceRootUrl selalu HTTP →
+        // user di HTTPS dapat Location: http://... → mixed-content / HSTS
+        // bermasalah → ERR_CONNECTION_REFUSED.
         $appUrl = config('app.url');
-        if (!empty($appUrl)) {
-            URL::forceRootUrl($appUrl);
-            // Hormati TLS termination di Istio gateway: APP_URL https://
-            // dipakai sebagai sinyal bahwa user-facing scheme adalah HTTPS
-            // walau backend serve HTTP.
-            if (strpos($appUrl, 'https://') === 0) {
-                URL::forceScheme('https');
-            }
+        if (empty($appUrl)) {
+            return;
+        }
+
+        $parsed = parse_url($appUrl);
+        $path = $parsed['path'] ?? '';
+
+        try {
+            $request = request();
+            $scheme = $request->getScheme() ?: ($parsed['scheme'] ?? 'http');
+            $host = $request->getHost() ?: ($parsed['host'] ?? 'localhost');
+        } catch (\Throwable $e) {
+            // Fallback ke APP_URL kalau request() not bound (edge case).
+            $scheme = $parsed['scheme'] ?? 'http';
+            $host = $parsed['host'] ?? 'localhost';
+        }
+
+        URL::forceRootUrl("{$scheme}://{$host}{$path}");
+        if ($scheme === 'https') {
+            URL::forceScheme('https');
         }
     }
 }
