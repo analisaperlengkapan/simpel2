@@ -92,26 +92,12 @@ pub fn App() -> impl IntoView {
     provide_context(user_session);
     provide_context(set_user_session);
 
-    let is_login_page = move || {
-        web_sys::window()
-            .and_then(|w| w.location().pathname().ok())
-            .map(|path| {
-                let normalized = path.trim_end_matches('/');
-                // Cek absolute path canonical v2 + legacy variants.
-                normalized == "/perlengkapan/simpel/v2/login"
-                    || normalized == "/perlengkapan/login"
-                    || normalized == "/login"
-            })
-            .unwrap_or(false)
-    };
-
-    let main_class = move || {
-        if is_login_page() {
-            "flex-1 overflow-y-auto p-0"
-        } else {
-            "flex-1 overflow-y-auto p-6 lg:ml-[250px]"
-        }
-    };
+    // is_login_page + main_class dipindah ke <AppRouterShell> component
+    // di bawah supaya bisa pakai use_location() (HOOK) yang reactive ke
+    // history.pushState navigation. Sebelumnya pakai
+    // `web_sys::window().location()` langsung — DOM access non-reactive,
+    // closure tidak re-evaluate saat router nav → sidebar tetap muncul
+    // di /login.
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -135,23 +121,45 @@ pub fn App() -> impl IntoView {
         // authenticated. Sebelumnya base="/perlengkapan" tidak match path baru
         // sehingga semua route fall through ke NotFound.
         <Router base="/perlengkapan/simpel/v2">
-            <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
-                // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
-                <div class="hidden lg:ml-[250px]"></div>
-
-                {move || (!is_login_page()).then(|| {
-                    let toggle = Callback::new(move |_: ()| sidebar_open.update(|o| *o = !*o));
-                    view! { <AppHeader on_toggle_sidebar=toggle /> }
-                })}
-
-                <div class="flex min-h-0 flex-1">
-                    {move || if is_login_page() {
-                        ().into_any()
+            {
+                // use_location() HARUS dipanggil di dalam Router scope.
+                // location.pathname adalah reactive signal → closures
+                // di bawahnya re-evaluate setiap kali router nav.
+                let location = leptos_router::hooks::use_location();
+                let is_login_page = move || {
+                    let path = location.pathname.get();
+                    let normalized = path.trim_end_matches('/');
+                    normalized == "/perlengkapan/simpel/v2/login"
+                        || normalized == "/perlengkapan/login"
+                        || normalized == "/login"
+                        || normalized.ends_with("/login")
+                };
+                let main_class = move || {
+                    if is_login_page() {
+                        "flex-1 overflow-y-auto p-0"
                     } else {
-                        view! { <Sidebar sidebar_open=sidebar_open /> }.into_any()
-                    }}
+                        "flex-1 overflow-y-auto p-6 lg:ml-[250px]"
+                    }
+                };
 
-                        <main class=main_class>
+                view! {
+                    <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
+                        // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
+                        <div class="hidden lg:ml-[250px]"></div>
+
+                        {move || (!is_login_page()).then(|| {
+                            let toggle = Callback::new(move |_: ()| sidebar_open.update(|o| *o = !*o));
+                            view! { <AppHeader on_toggle_sidebar=toggle /> }
+                        })}
+
+                        <div class="flex min-h-0 flex-1">
+                            {move || if is_login_page() {
+                                ().into_any()
+                            } else {
+                                view! { <Sidebar sidebar_open=sidebar_open /> }.into_any()
+                            }}
+
+                                <main class=main_class>
                         <Routes fallback=move || view! { <NotFound /> }.into_any()>
                             // ══════════════════════════════════════════
                             // PUBLIC ROUTES (no auth required)
@@ -263,8 +271,10 @@ pub fn App() -> impl IntoView {
                     </main>
                 </div>
 
-                {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
-            </div>
+                        {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
+                    </div>
+                }
+            }
         </Router>
         </AppShell>
     }
