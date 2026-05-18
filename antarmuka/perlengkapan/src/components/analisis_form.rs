@@ -50,7 +50,10 @@ pub fn AnalisisForm() -> impl IntoView {
                     toast.success("Data analisis berhasil disimpan!");
                     gloo_timers::future::TimeoutFuture::new(1000).await;
                     form.finish_ok();
-                    navigate(routes::path::ANALITIK_ROADMAP, Default::default());
+                    // Pakai relative path (tanpa prefix /perlengkapan/simpel/v2/) supaya
+                    // Leptos Router base tidak double-prefix. Konstanta `routes::path::*`
+                    // dipakai untuk HTML href/window.location (absolute), bukan nav().
+                    navigate("/analitik/roadmap", Default::default());
                 }
                 Err(e) => {
                     let msg = format!("Gagal menyimpan: {:?}", e);

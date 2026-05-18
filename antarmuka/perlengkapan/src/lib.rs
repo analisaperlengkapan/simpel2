@@ -97,7 +97,10 @@ pub fn App() -> impl IntoView {
             .and_then(|w| w.location().pathname().ok())
             .map(|path| {
                 let normalized = path.trim_end_matches('/');
-                normalized == "/perlengkapan/login" || normalized == "/login"
+                // Cek absolute path canonical v2 + legacy variants.
+                normalized == "/perlengkapan/simpel/v2/login"
+                    || normalized == "/perlengkapan/login"
+                    || normalized == "/login"
             })
             .unwrap_or(false)
     };
@@ -155,8 +158,12 @@ pub fn App() -> impl IntoView {
                             // ══════════════════════════════════════════
                             <Route path=path!("/login") view=move || {
                                 if AuthService::load_session().is_some() {
+                                    // Leptos Router base "/perlengkapan/simpel/v2" otomatis
+                                    // prepend ke nav() path — pakai relative path /dashboard
+                                    // (tanpa prefix) supaya tidak jadi
+                                    // "/perlengkapan/simpel/v2/perlengkapan/simpel/v2/dashboard".
                                     let nav = leptos_router::hooks::use_navigate();
-                                    nav(routes::path::DASHBOARD, Default::default());
+                                    nav("/dashboard", Default::default());
                                     view! { <div></div> }.into_any()
                                 } else {
                                     view! { <LoginPage /> }.into_any()
@@ -164,11 +171,12 @@ pub fn App() -> impl IntoView {
                             } />
                             <Route path=path!("/") view=move || {
                                 // SPA redirect based on authentication status.
+                                // Lihat catatan di atas: nav() relative ke router base.
                                 let nav = leptos_router::hooks::use_navigate();
                                 if AuthService::load_session().is_some() {
-                                    nav(routes::path::DASHBOARD, Default::default());
+                                    nav("/dashboard", Default::default());
                                 } else {
-                                    nav(routes::path::LOGIN, Default::default());
+                                    nav("/login", Default::default());
                                 }
                                 view! { <div></div> }
                             } />
