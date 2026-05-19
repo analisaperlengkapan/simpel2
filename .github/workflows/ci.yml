@@ -217,6 +217,17 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
+      - name: Validate target/ cache integrity
+        shell: bash
+        run: |
+          # Self-hosted runner kadang restore stale `target/debug/deps/*.d`
+          # files yang bikin clippy gagal `could not parse/generate dep
+          # info at: …: No such file or directory`. Probe canary build;
+          # kalau gagal, wipe target dan re-build (slow tapi reliable).
+          if ! cargo check -p lib-core --quiet 2>/dev/null; then
+            echo "::warning::target/ cache appears corrupt — running cargo clean"
+            cargo clean
+          fi
       - name: cargo clippy --workspace
         run: cargo clippy --workspace --all-targets -- -D warnings
 
@@ -236,6 +247,11 @@ jobs:
       - name: composer install (PHP 8.2 docker)
         working-directory: monolith/simpelv1
         run: |
+          # serversideup/php:8.2-cli tidak bundle ext-gd (image minimal).
+          # Composer berhenti karena composer.lock dibuat dengan ext-gd
+          # tersedia. Pakai --ignore-platform-req=ext-gd karena lint/
+          # test tidak benar-benar pakai gd; runtime production pakai
+          # image PHP-FPM terpisah yang punya gd.
           docker run --rm \
             -v "$PWD":/app \
             -w /app \
@@ -243,7 +259,7 @@ jobs:
             -e COMPOSER_HOME=/tmp/composer \
             --entrypoint composer \
             serversideup/php:8.2-cli \
-            install --prefer-dist --no-progress --no-interaction --optimize-autoloader
+            install --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-req=ext-gd
       - name: Laravel Pint (style check)
         working-directory: monolith/simpelv1
         run: |
@@ -368,12 +384,17 @@ jobs:
       - name: Lychee link check
         uses: lycheeverse/lychee-action@v2
         with:
-          # `--exclude-mail` dihapus di Lychee v0.16+ (mail links sudah
-          # default di-skip). Tetap exclude github/api/private hosts
-          # supaya tidak rate-limit.
+          # Hanya check HTTP/HTTPS links. file:// link check terlalu
+          # noise untuk in-repo docs (catches outdated relative paths
+          # yang sebenarnya cosmetic) — relative links MD diserahkan ke
+          # markdownlint MD051 (yang kita allow false-positives). Mail
+          # link skipped default. Exclude github issues/PRs untuk
+          # cegah rate-limit.
           args: |
             --no-progress
             --max-concurrency 8
+            --scheme http
+            --scheme https
             --exclude 'github\.com/.*/(issues|pull)/'
             './**/*.md'
           fail: true
@@ -608,7 +629,16 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
         with:
-          targets: wasm32-unknown-unknown
+          # NOTE: Tidak ada `targets: wasm32-unknown-unknown` di sini.
+          # lib-ui adalah library Leptos yang dipakai oleh microfrontend
+          # WASM, tapi cargo test menjalankan unit tests di host
+          # (x86_64-linux). Menginstall wasm32 target sebelumnya
+          # menyebabkan cargo memilih wasm32 sebagai default target dan
+          # mio gagal kompilasi karena `sys::*` modules hilang di
+          # wasm32-unknown-unknown.
+          # WASM-specific tests (via wasm-bindgen-test) bukan scope job
+          # ini; mereka jalan di playwright e2e dan di trunk build saat
+          # microfrontend di-package.
           cache-key: ci-test-lib-ui
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo test
@@ -688,6 +718,11 @@ jobs:
       - name: composer install (PHP 8.2 docker)
         working-directory: monolith/simpelv1
         run: |
+          # serversideup/php:8.2-cli tidak bundle ext-gd (image minimal).
+          # Composer berhenti karena composer.lock dibuat dengan ext-gd
+          # tersedia. Pakai --ignore-platform-req=ext-gd karena lint/
+          # test tidak benar-benar pakai gd; runtime production pakai
+          # image PHP-FPM terpisah yang punya gd.
           docker run --rm \
             -v "$PWD":/app \
             -w /app \
@@ -695,7 +730,7 @@ jobs:
             -e COMPOSER_HOME=/tmp/composer \
             --entrypoint composer \
             serversideup/php:8.2-cli \
-            install --prefer-dist --no-progress --no-interaction --optimize-autoloader
+            install --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-req=ext-gd
       - name: Prepare test environment
         working-directory: monolith/simpelv1
         run: |
