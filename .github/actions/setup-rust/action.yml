@@ -42,7 +42,7 @@ runs:
         sudo -n apt-get install -y -qq \
           unzip build-essential pkg-config libssl-dev \
           clang gcc perl libzstd-dev zlib1g-dev libtss2-dev \
-          cmake ninja-build \
+          cmake ninja-build binutils \
           2>/dev/null || true
         # Prefer clang (newer cc crate compatibility), fallback ke gcc kalau clang
         # tidak tersedia di runner (mis. self-hosted runner tanpa sudo password).
@@ -54,6 +54,14 @@ runs:
           echo "CXX=g++" >> $GITHUB_ENV
         else
           echo "::warning::Neither clang nor gcc found; cargo build mungkin fail untuk crate yang butuh C compiler."
+        fi
+        # pqcrypto-falcon dan beberapa crate C butuh `ar` (binutils).
+        # Kalau runner tidak punya, fail-early dengan pesan jelas
+        # daripada nanti gagal di tengah cargo build dengan error samar
+        # "ar: command not found / No such file".
+        if ! command -v ar >/dev/null 2>&1; then
+          echo "::error::Binary 'ar' (binutils) tidak tersedia di runner. Self-hosted runner harus pre-install: \`apt install binutils build-essential\`. Cargo build crate native (pqcrypto-falcon, ring, dst) akan gagal tanpa ini."
+          exit 1
         fi
 
     - name: Install Rust toolchain
