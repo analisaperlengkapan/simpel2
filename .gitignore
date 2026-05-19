@@ -224,6 +224,12 @@ recipe.json
 # punya config dan Vite fallback ke entry default.
 !**/vite.config.js
 !**/postcss.config.js
+# Laravel source assets (resources/js/*.js) di-track sebagai source code.
+# Tanpa exception, `**/*.js` membuat `monolith/simpelv1/resources/js/
+# app.js` + `bootstrap.js` (entry point Vite) tidak ada di fresh
+# checkout, dan Vite build gagal "Cannot resolve entry module
+# resources/js/app.js".
+!monolith/simpelv1/resources/js/**/*.js
 !**/profile.rs
 .env
 
